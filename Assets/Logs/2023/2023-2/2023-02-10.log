@@ -1,0 +1,641 @@
+┌ Info: [2023-02-10T09:18:10.809]
+│ 启动成功！
+└ @ Main.QInsControl c:\Users\q02\Desktop\QInsControl\src\QInsControl.jl:96
+from worker 2: ┌ Error: [2023-02-10T09:19:19.050]
+from worker 2: │ 仪器通讯故障！！！
+from worker 2: │   instrument_address = ASRL1::INSTR
+from worker 2: │   exception = ErrorException("VISA C call failed with status VI_ERROR_TMO: Timeout expired before operation completed.")
+from worker 2: └ @ Main.QInsControl c:\Users\q02\Desktop\QInsControl\src\Instrument.jl:34
+from worker 2: ┌ Error: [2023-02-10T09:19:19.285]
+from worker 2: │ 仪器通讯故障！！！
+from worker 2: │   instrument_address = ASRL3::INSTR
+from worker 2: │   exception = ErrorException("VISA C call failed with status VI_ERROR_RSRC_BUSY: The resource is valid, but VISA cannot currently access it.")
+from worker 2: └ @ Main.QInsControl c:\Users\q02\Desktop\QInsControl\src\Instrument.jl:34
+┌ Error: [2023-02-10T09:34:15.856]
+│ 代码生成失败!!!
+│   exception = MethodError(split, (mark, ","), 0x00000000000080ec)
+└ @ Main.QInsControl c:\Users\q02\Desktop\QInsControl\src\UI\DAQTask.jl:142
+┌ Info: [2023-02-10T09:38:51.122]
+│ 启动成功！
+└ @ Main.QInsControl c:\Users\q02\Desktop\QInsControl\src\QInsControl.jl:96
+┌ Error: [2023-02-10T09:39:28.803]
+│ 仪器通讯故障！！！
+│   instrument_address = 地址
+│   exception = ErrorException("VISA C call failed with status VI_ERROR_RSRC_NFOUND: Insufficient location information or the requested device or resource is not present in the system.")
+└ @ Main.QInsControl c:\Users\q02\Desktop\QInsControl\src\Instrument.jl:68
+┌ Error: [2023-02-10T09:39:28.902]
+│ 仪器通讯故障！！！
+│   instrument_address = 地址
+│   exception = ErrorException("VISA C call failed with status VI_ERROR_RSRC_NFOUND: Insufficient location information or the requested device or resource is not present in the system.")
+└ @ Main.QInsControl c:\Users\q02\Desktop\QInsControl\src\Instrument.jl:68
+┌ Error: [2023-02-10T09:39:28.902]
+│ 仪器通讯故障！！！
+│   instrument_address = 地址
+│   exception = ErrorException("VISA C call failed with status VI_ERROR_RSRC_NFOUND: Insufficient location information or the requested device or resource is not present in the system.")
+└ @ Main.QInsControl c:\Users\q02\Desktop\QInsControl\src\Instrument.jl:68
+┌ Error: [2023-02-10T09:39:28.912]
+│ 仪器通讯故障！！！
+│   instrument_address = 地址
+│   exception = ErrorException("VISA C call failed with status VI_ERROR_RSRC_NFOUND: Insufficient location information or the requested device or resource is not present in the system.")
+└ @ Main.QInsControl c:\Users\q02\Desktop\QInsControl\src\Instrument.jl:68
+┌ Error: [2023-02-10T09:39:28.912]
+│ 仪器通讯故障！！！
+│   instrument_address = 地址
+│   exception = ErrorException("VISA C call failed with status VI_ERROR_RSRC_NFOUND: Insufficient location information or the requested device or resource is not present in the system.")
+└ @ Main.QInsControl c:\Users\q02\Desktop\QInsControl\src\Instrument.jl:68
+from worker 2: ┌ Info: [2023-02-10T09:39:31.758]
+from worker 2: │   task = function remote_do_block(databuf_rc, progress_rc, syncstates, rn)
+from worker 2:     databuf_lc = Channel{Tuple{String, String}}(conf.DAQ.channel_size)
+from worker 2:     progress_lc = Channel{Tuple{UUID, Int, Int, Float64}}(conf.DAQ.channel_size)
+from worker 2:     @sync begin
+from worker 2:             remotedotask = errormonitor(@async(begin
+from worker 2:                             instrs = Dict{Any, Any}()
+from worker 2:                             isempty(instrs) || (resourcemanager = ResourceManager())
+from worker 2:                             for instr = values(instrs)
+from worker 2:                                 connect!(resourcemanager, instr)
+from worker 2:                             end
+from worker 2:                             @progress for yak = range(parse(Float64, K2612_Asourceleveli_get(instrs["K2612_地址"])), -1000 * 1//1000000000, length = ceil(Int, abs((parse(Float64, K2612_Asourceleveli_get(instrs["K2612_地址"])) - -1000 * 1//1000000000) / (10 * 1//1000000000))))
+from worker 2:                                     if syncstates[Int(isblock)]
+from worker 2:                                         @warn "[$(now())]\n暂停！" SweepBlock = "K2612_地址"
+from worker 2:                                         lock((()->wait(block)), block)
+from worker 2:                                         @info "[$(now())]\n继续！" SweepBlock = "K2612_地址"
+from worker 2:                                     end
+from worker 2:                                     if syncstates[Int(isinterrupt)]
+from worker 2:                                         @warn "[$(now())]\n中断！" SweepBlock = "K2612_地址"
+from worker 2:                                         return
+from worker 2:                                     end
+from worker 2:                                     K2612_Asourceleveli_set(instrs["K2612_地址"], yak)
+from worker 2:                                     sleep(0.3)
+from worker 2:                                 end
+from worker 2:                             @progress for fox = range(parse(Float64, K2612_Asourceleveli_get(instrs["K2612_地址"])), 1000 * 1//1000000000, length = ceil(Int, abs((parse(Float64, K2612_Asourceleveli_get(instrs["K2612_地址"])) - 1000 * 1//1000000000) / (10 * 1//1000000000))))
+from worker 2:                                     if syncstates[Int(isblock)]
+from worker 2:                                         @warn "[$(now())]\n暂停！" SweepBlock = "K2612_地址"
+from worker 2:                                         lock((()->wait(block)), block)
+from worker 2:                                         @info "[$(now())]\n继续！" SweepBlock = "K2612_地址"
+from worker 2:                                     end
+from worker 2:                                     if syncstates[Int(isinterrupt)]
+from worker 2:                                         @warn "[$(now())]\n中断！" SweepBlock = "K2612_地址"
+from worker 2:                                         return
+from worker 2:                                     end
+from worker 2:                                     K2612_Asourceleveli_set(instrs["K2612_地址"], fox)
+from worker 2:                                     @sync begin
+from worker 2:                                             sleep(0.3)
+from worker 2:                                             put!(databuf_lc, ("Ibias_K2612_Asourceleveli_地址", string(K2612_Asourceleveli_get(instrs["K2612_地址"]))))
+from worker 2:                                             @async begin
+from worker 2:                                                     sleep(0.001)
+from worker 2:                                                     for data = zip(["Ix7-19_LI5640_dataout[1]_地址", "Iy7-19_LI5640_dataout[2]_地址"], string.(split(LI5640_dataout_get(instrs["LI5640_地址"]), ","))[collect(1:2)])
+from worker 2:                                                         put!(databuf_lc, data)
+from worker 2:                                                     end
+from worker 2:                                                 end
+from worker 2:                                             @async begin
+from worker 2:                                                     sleep(0.001)
+from worker 2:                                                     for data = zip(["Vx8-20_LI5640_dataout[1]_地址", "Vy8-20_LI5640_dataout[2]_地址"], string.(split(LI5640_dataout_get(instrs["LI5640_地址"]), ","))[collect(1:2)])
+from worker 2:                                                         put!(databuf_lc, data)
+from worker 2:                                                     end
+from worker 2:                                                 end
+from worker 2:                                         end
+from worker 2:                                 end
+from worker 2:                             for instr = values(instrs)
+from worker 2:                                 disconnect!(instr)
+from worker 2:                             end
+from worker 2:                         end))
+from worker 2:             errormonitor(@async(while true
+from worker 2:                         if istaskdone(remotedotask) && all(.!(isready.([databuf_lc, databuf_rc, progress_lc, progress_rc])))
+from worker 2:                             syncstates[Int(isdaqtask_done)] = true
+from worker 2:                             break
+from worker 2:                         else
+from worker 2:                             isready(databuf_lc) && put!(databuf_rc, packtake!(databuf_lc, (2rn) * conf.DAQ.packsize))
+from worker 2:                             isready(progress_lc) && put!(progress_rc, packtake!(progress_lc, conf.DAQ.packsize))
+from worker 2:                         end
+from worker 2:                         yield()
+from worker 2:                     end))
+from worker 2:         end
+from worker 2: end
+from worker 2: └ @ Main.QInsControl c:\Users\q02\Desktop\QInsControl\src\UI\DAQTask.jl:134
+from worker 2: ┌ Error: [2023-02-10T09:40:51.812]
+from worker 2: │ 仪器通讯故障！！！
+from worker 2: │   instrument_address = ASRL1::INSTR
+from worker 2: │   exception = ErrorException("VISA C call failed with status VI_ERROR_TMO: Timeout expired before operation completed.")
+from worker 2: └ @ Main.QInsControl c:\Users\q02\Desktop\QInsControl\src\Instrument.jl:34
+from worker 2: ┌ Error: [2023-02-10T09:40:51.829]
+from worker 2: │ 仪器通讯故障！！！
+from worker 2: │   instrument_address = ASRL3::INSTR
+from worker 2: │   exception = ErrorException("VISA C call failed with status VI_ERROR_RSRC_BUSY: The resource is valid, but VISA cannot currently access it.")
+from worker 2: └ @ Main.QInsControl c:\Users\q02\Desktop\QInsControl\src\Instrument.jl:34
+from worker 2: ┌ Info: [2023-02-10T09:41:21.577]
+from worker 2: │   task = function remote_do_block(databuf_rc, progress_rc, syncstates, rn)
+from worker 2:     databuf_lc = Channel{Tuple{String, String}}(conf.DAQ.channel_size)
+from worker 2:     progress_lc = Channel{Tuple{UUID, Int, Int, Float64}}(conf.DAQ.channel_size)
+from worker 2:     @sync begin
+from worker 2:             remotedotask = errormonitor(@async(begin
+from worker 2:                             instrs = Dict{Any, Any}("K2612_GPIB0::25::INSTR" => Main.QInsControl.INSTR{:K2612}("K2612", "GPIB0::25::INSTR", Instruments.GenericInstrument(0x00000093, false, 0x00000400)), "LI5640_GPIB0::2::INSTR" => Main.QInsControl.INSTR{:LI5640}("LI5640", "GPIB0::2::INSTR", Instruments.GenericInstrument(0x00000097, false, 0x00000400)), "LI5640_GPIB0::1::INSTR" => Main.QInsControl.INSTR{:LI5640}("LI5640", "GPIB0::1::INSTR", Instruments.GenericInstrument(0x00000095, false, 0x00000400)))
+from worker 2:                             isempty(instrs) || (resourcemanager = ResourceManager())
+from worker 2:                             for instr = values(instrs)
+from worker 2:                                 connect!(resourcemanager, instr)
+from worker 2:                             end
+from worker 2:                             K2612_Aoutput_set(instrs["K2612_GPIB0::25::INSTR"], string("1"))
+from worker 2:                             @progress for yak = range(parse(Float64, K2612_Asourceleveli_get(instrs["K2612_GPIB0::25::INSTR"])), -1000 * 1//1000000000, length = ceil(Int, abs((parse(Float64, K2612_Asourceleveli_get(instrs["K2612_GPIB0::25::INSTR"])) - -1000 * 1//1000000000) / (10 * 1//1000000000))))
+from worker 2:                                     if syncstates[Int(isblock)]
+from worker 2:                                         @warn "[$(now())]\n暂停！" SweepBlock = "K2612_GPIB0::25::INSTR"
+from worker 2:                                         lock((()->wait(block)), block)
+from worker 2:                                         @info "[$(now())]\n继续！" SweepBlock = "K2612_GPIB0::25::INSTR"
+from worker 2:                                     end
+from worker 2:                                     if syncstates[Int(isinterrupt)]
+from worker 2:                                         @warn "[$(now())]\n中断！" SweepBlock = "K2612_GPIB0::25::INSTR"
+from worker 2:                                         return
+from worker 2:                                     end
+from worker 2:                                     K2612_Asourceleveli_set(instrs["K2612_GPIB0::25::INSTR"], yak)
+from worker 2:                                     sleep(0.3)
+from worker 2:                                 end
+from worker 2:                             @progress for fox = range(parse(Float64, K2612_Asourceleveli_get(instrs["K2612_GPIB0::25::INSTR"])), 1000 * 1//1000000000, length = ceil(Int, abs((parse(Float64, K2612_Asourceleveli_get(instrs["K2612_GPIB0::25::INSTR"])) - 1000 * 1//1000000000) / (10 * 1//1000000000))))
+from worker 2:                                     if syncstates[Int(isblock)]
+from worker 2:                                         @warn "[$(now())]\n暂停！" SweepBlock = "K2612_GPIB0::25::INSTR"
+from worker 2:                                         lock((()->wait(block)), block)
+from worker 2:                                         @info "[$(now())]\n继续！" SweepBlock = "K2612_GPIB0::25::INSTR"
+from worker 2:                                     end
+from worker 2:                                     if syncstates[Int(isinterrupt)]
+from worker 2:                                         @warn "[$(now())]\n中断！" SweepBlock = "K2612_GPIB0::25::INSTR"
+from worker 2:                                         return
+from worker 2:                                     end
+from worker 2:                                     K2612_Asourceleveli_set(instrs["K2612_GPIB0::25::INSTR"], fox)
+from worker 2:                                     @sync begin
+from worker 2:                                             sleep(0.3)
+from worker 2:                                             put!(databuf_lc, ("Ibias_K2612_Asourceleveli_GPIB0::25::INSTR", string(K2612_Asourceleveli_get(instrs["K2612_GPIB0::25::INSTR"]))))
+from worker 2:                                             @async begin
+from worker 2:                                                     sleep(0.001)
+from worker 2:                                                     for data = zip(["Ix7-19_LI5640_dataout[1]_GPIB0::1::INSTR", "Iy7-19_LI5640_dataout[2]_GPIB0::1::INSTR"], string.(split(LI5640_dataout_get(instrs["LI5640_GPIB0::1::INSTR"]), ","))[collect(1:2)])
+from worker 2:                                                         put!(databuf_lc, data)
+from worker 2:                                                     end
+from worker 2:                                                 end
+from worker 2:                                             @async begin
+from worker 2:                                                     sleep(0.001)
+from worker 2:                                                     for data = zip(["Vx8-20_LI5640_dataout[1]_GPIB0::2::INSTR", "Vy8-20_LI5640_dataout[2]_GPIB0::2::INSTR"], string.(split(LI5640_dataout_get(instrs["LI5640_GPIB0::2::INSTR"]), ","))[collect(1:2)])
+from worker 2:                                                         put!(databuf_lc, data)
+from worker 2:                                                     end
+from worker 2:                                                 end
+from worker 2:                                         end
+from worker 2:                                 end
+from worker 2:                             for instr = values(instrs)
+from worker 2:                                 disconnect!(instr)
+from worker 2:                             end
+from worker 2:                         end))
+from worker 2:             errormonitor(@async(while true
+from worker 2:                         if istaskdone(remotedotask) && all(.!(isready.([databuf_lc, databuf_rc, progress_lc, progress_rc])))
+from worker 2:                             syncstates[Int(isdaqtask_done)] = true
+from worker 2:                             break
+from worker 2:                         else
+from worker 2:                             isready(databuf_lc) && put!(databuf_rc, packtake!(databuf_lc, (2rn) * conf.DAQ.packsize))
+from worker 2:                             isready(progress_lc) && put!(progress_rc, packtake!(progress_lc, conf.DAQ.packsize))
+from worker 2:                         end
+from worker 2:                         yield()
+from worker 2:                     end))
+from worker 2:         end
+from worker 2: end
+from worker 2: └ @ Main.QInsControl c:\Users\q02\Desktop\QInsControl\src\UI\DAQTask.jl:134
+┌ Info: [2023-02-10T09:46:00.540]
+│ 启动成功！
+└ @ Main.QInsControl c:\Users\q02\Desktop\QInsControl\src\QInsControl.jl:96
+from worker 2: ┌ Error: [2023-02-10T09:46:51.064]
+from worker 2: │ 仪器通讯故障！！！
+from worker 2: │   instrument_address = ASRL1::INSTR
+from worker 2: │   exception = ErrorException("VISA C call failed with status VI_ERROR_TMO: Timeout expired before operation completed.")
+from worker 2: └ @ Main.QInsControl c:\Users\q02\Desktop\QInsControl\src\Instrument.jl:34
+from worker 2: ┌ Error: [2023-02-10T09:46:51.246]
+from worker 2: │ 仪器通讯故障！！！
+from worker 2: │   instrument_address = ASRL3::INSTR
+from worker 2: │   exception = ErrorException("VISA C call failed with status VI_ERROR_RSRC_BUSY: The resource is valid, but VISA cannot currently access it.")
+from worker 2: └ @ Main.QInsControl c:\Users\q02\Desktop\QInsControl\src\Instrument.jl:34
+from worker 2: ┌ Info: [2023-02-10T09:53:20.845]
+from worker 2: │   task = function remote_do_block(databuf_rc, progress_rc, syncstates, rn)
+from worker 2:     databuf_lc = Channel{Tuple{String, String}}(conf.DAQ.channel_size)
+from worker 2:     progress_lc = Channel{Tuple{UUID, Int, Int, Float64}}(conf.DAQ.channel_size)
+from worker 2:     @sync begin
+from worker 2:             remotedotask = errormonitor(@async(begin
+from worker 2:                             instrs = Dict{Any, Any}("K2612_GPIB0::25::INSTR" => Main.QInsControl.INSTR{:K2612}("K2612", "GPIB0::25::INSTR", Instruments.GenericInstrument(0x0000003c, false, 0x00000400)), "LI5640_GPIB0::2::INSTR" => Main.QInsControl.INSTR{:LI5640}("LI5640", "GPIB0::2::INSTR", Instruments.GenericInstrument(0x00000040, false, 0x00000400)), "LI5640_GPIB0::1::INSTR" => Main.QInsControl.INSTR{:LI5640}("LI5640", "GPIB0::1::INSTR", Instruments.GenericInstrument(0x0000003e, false, 0x00000400)))
+from worker 2:                             isempty(instrs) || (resourcemanager = ResourceManager())
+from worker 2:                             for instr = values(instrs)
+from worker 2:                                 connect!(resourcemanager, instr)
+from worker 2:                             end
+from worker 2:                             K2612_Aoutput_set(instrs["K2612_GPIB0::25::INSTR"], string("1"))
+from worker 2:                             @progress for yak = range(parse(Float64, K2612_Asourceleveli_get(instrs["K2612_GPIB0::25::INSTR"])), -1000 * 1//1000000000, length = ceil(Int, abs((parse(Float64, K2612_Asourceleveli_get(instrs["K2612_GPIB0::25::INSTR"])) - -1000 * 1//1000000000) / (10 * 1//1000000000))))
+from worker 2:                                     if syncstates[Int(isblock)]
+from worker 2:                                         @warn "[$(now())]\n暂停！" SweepBlock = "K2612_GPIB0::25::INSTR"
+from worker 2:                                         lock((()->wait(block)), block)
+from worker 2:                                         @info "[$(now())]\n继续！" SweepBlock = "K2612_GPIB0::25::INSTR"
+from worker 2:                                     end
+from worker 2:                                     if syncstates[Int(isinterrupt)]
+from worker 2:                                         @warn "[$(now())]\n中断！" SweepBlock = "K2612_GPIB0::25::INSTR"
+from worker 2:                                         return
+from worker 2:                                     end
+from worker 2:                                     K2612_Asourceleveli_set(instrs["K2612_GPIB0::25::INSTR"], yak)
+from worker 2:                                     sleep(0.3)
+from worker 2:                                 end
+from worker 2:                             @progress for fox = range(parse(Float64, K2612_Asourceleveli_get(instrs["K2612_GPIB0::25::INSTR"])), 1000 * 1//1000000000, length = ceil(Int, abs((parse(Float64, K2612_Asourceleveli_get(instrs["K2612_GPIB0::25::INSTR"])) - 1000 * 1//1000000000) / (10 * 1//1000000000))))
+from worker 2:                                     if syncstates[Int(isblock)]
+from worker 2:                                         @warn "[$(now())]\n暂停！" SweepBlock = "K2612_GPIB0::25::INSTR"
+from worker 2:                                         lock((()->wait(block)), block)
+from worker 2:                                         @info "[$(now())]\n继续！" SweepBlock = "K2612_GPIB0::25::INSTR"
+from worker 2:                                     end
+from worker 2:                                     if syncstates[Int(isinterrupt)]
+from worker 2:                                         @warn "[$(now())]\n中断！" SweepBlock = "K2612_GPIB0::25::INSTR"
+from worker 2:                                         return
+from worker 2:                                     end
+from worker 2:                                     K2612_Asourceleveli_set(instrs["K2612_GPIB0::25::INSTR"], fox)
+from worker 2:                                     @sync begin
+from worker 2:                                             sleep(0.3)
+from worker 2:                                             put!(databuf_lc, ("Ibias_K2612_Asourceleveli_GPIB0::25::INSTR", string(K2612_Asourceleveli_get(instrs["K2612_GPIB0::25::INSTR"]))))
+from worker 2:                                             @async begin
+from worker 2:                                                     sleep(0.001)
+from worker 2:                                                     for data = zip(["Ix7-19_LI5640_dataout[1]_GPIB0::1::INSTR", "Iy7-19_LI5640_dataout[2]_GPIB0::1::INSTR"], string.(split(LI5640_dataout_get(instrs["LI5640_GPIB0::1::INSTR"]), ","))[collect(1:2)])
+from worker 2:                                                         put!(databuf_lc, data)
+from worker 2:                                                     end
+from worker 2:                                                 end
+from worker 2:                                             @async begin
+from worker 2:                                                     sleep(0.001)
+from worker 2:                                                     for data = zip(["Vx8-20_LI5640_dataout[1]_GPIB0::2::INSTR", "Vy8-20_LI5640_dataout[2]_GPIB0::2::INSTR"], string.(split(LI5640_dataout_get(instrs["LI5640_GPIB0::2::INSTR"]), ","))[collect(1:2)])
+from worker 2:                                                         put!(databuf_lc, data)
+from worker 2:                                                     end
+from worker 2:                                                 end
+from worker 2:                                         end
+from worker 2:                                 end
+from worker 2:                             for instr = values(instrs)
+from worker 2:                                 disconnect!(instr)
+from worker 2:                             end
+from worker 2:                         end))
+from worker 2:             errormonitor(@async(while true
+from worker 2:                         if istaskdone(remotedotask) && all(.!(isready.([databuf_lc, databuf_rc, progress_lc, progress_rc])))
+from worker 2:                             syncstates[Int(isdaqtask_done)] = true
+from worker 2:                             break
+from worker 2:                         else
+from worker 2:                             isready(databuf_lc) && put!(databuf_rc, packtake!(databuf_lc, (2rn) * conf.DAQ.packsize))
+from worker 2:                             isready(progress_lc) && put!(progress_rc, packtake!(progress_lc, conf.DAQ.packsize))
+from worker 2:                         end
+from worker 2:                         yield()
+from worker 2:                     end))
+from worker 2:         end
+from worker 2: end
+from worker 2: └ @ Main.QInsControl c:\Users\q02\Desktop\QInsControl\src\UI\DAQTask.jl:134
+┌ Info: [2023-02-10T09:59:34.604]
+│ 启动成功！
+└ @ Main.QInsControl c:\Users\q02\Desktop\QInsControl\src\QInsControl.jl:96
+from worker 2: ┌ Error: [2023-02-10T10:00:02.507]
+from worker 2: │ 仪器通讯故障！！！
+from worker 2: │   instrument_address = ASRL1::INSTR
+from worker 2: │   exception = ErrorException("VISA C call failed with status VI_ERROR_TMO: Timeout expired before operation completed.")
+from worker 2: └ @ Main.QInsControl c:\Users\q02\Desktop\QInsControl\src\Instrument.jl:34
+from worker 2: ┌ Error: [2023-02-10T10:00:02.673]
+from worker 2: │ 仪器通讯故障！！！
+from worker 2: │   instrument_address = ASRL3::INSTR
+from worker 2: │   exception = ErrorException("VISA C call failed with status VI_ERROR_RSRC_BUSY: The resource is valid, but VISA cannot currently access it.")
+from worker 2: └ @ Main.QInsControl c:\Users\q02\Desktop\QInsControl\src\Instrument.jl:34
+┌ Error: [2023-02-10T10:00:35.803]
+│ 仪器通讯故障！！！
+│   instrument_address = 地址
+│   exception = ErrorException("VISA C call failed with status VI_ERROR_RSRC_NFOUND: Insufficient location information or the requested device or resource is not present in the system.")
+└ @ Main.QInsControl c:\Users\q02\Desktop\QInsControl\src\Instrument.jl:68
+┌ Error: [2023-02-10T10:00:35.874]
+│ 仪器通讯故障！！！
+│   instrument_address = 地址
+│   exception = ErrorException("VISA C call failed with status VI_ERROR_RSRC_NFOUND: Insufficient location information or the requested device or resource is not present in the system.")
+└ @ Main.QInsControl c:\Users\q02\Desktop\QInsControl\src\Instrument.jl:68
+┌ Error: [2023-02-10T10:00:35.875]
+│ 仪器通讯故障！！！
+│   instrument_address = 地址
+│   exception = ErrorException("VISA C call failed with status VI_ERROR_RSRC_NFOUND: Insufficient location information or the requested device or resource is not present in the system.")
+└ @ Main.QInsControl c:\Users\q02\Desktop\QInsControl\src\Instrument.jl:68
+┌ Error: [2023-02-10T10:00:35.876]
+│ 仪器通讯故障！！！
+│   instrument_address = 地址
+│   exception = ErrorException("VISA C call failed with status VI_ERROR_RSRC_NFOUND: Insufficient location information or the requested device or resource is not present in the system.")
+└ @ Main.QInsControl c:\Users\q02\Desktop\QInsControl\src\Instrument.jl:68
+┌ Error: [2023-02-10T10:00:35.876]
+│ 仪器通讯故障！！！
+│   instrument_address = 地址
+│   exception = ErrorException("VISA C call failed with status VI_ERROR_RSRC_NFOUND: Insufficient location information or the requested device or resource is not present in the system.")
+└ @ Main.QInsControl c:\Users\q02\Desktop\QInsControl\src\Instrument.jl:68
+┌ Error: [2023-02-10T10:00:35.877]
+│ 仪器通讯故障！！！
+│   instrument_address = 地址
+│   exception = ErrorException("VISA C call failed with status VI_ERROR_RSRC_NFOUND: Insufficient location information or the requested device or resource is not present in the system.")
+└ @ Main.QInsControl c:\Users\q02\Desktop\QInsControl\src\Instrument.jl:68
+from worker 2: ┌ Info: [2023-02-10T10:00:39.553]
+from worker 2: │   task = function remote_do_block(databuf_rc, progress_rc, syncstates, rn)
+from worker 2:     databuf_lc = Channel{Tuple{String, String}}(conf.DAQ.channel_size)
+from worker 2:     progress_lc = Channel{Tuple{UUID, Int, Int, Float64}}(conf.DAQ.channel_size)
+from worker 2:     @sync begin
+from worker 2:             remotedotask = errormonitor(@async(begin
+from worker 2:                             instrs = Dict{Any, Any}()
+from worker 2:                             isempty(instrs) || (resourcemanager = ResourceManager())
+from worker 2:                             for instr = values(instrs)
+from worker 2:                                 connect!(resourcemanager, instr)
+from worker 2:                             end
+from worker 2:                             K2612_Aoutput_set(instrs["K2612_地址"], string("1"))
+from worker 2:                             @progress for yak = range(parse(Float64, K2612_Asourceleveli_get(instrs["K2612_地址"])), -1000 * 1//1000000000, length = ceil(Int, abs((parse(Float64, K2612_Asourceleveli_get(instrs["K2612_地址"])) - -1000 * 1//1000000000) / (10 * 1//1000000000))))
+from worker 2:                                     if syncstates[Int(isblock)]
+from worker 2:                                         @warn "[$(now())]\n暂停！" SweepBlock = "K2612_地址"
+from worker 2:                                         lock((()->wait(block)), block)
+from worker 2:                                         @info "[$(now())]\n继续！" SweepBlock = "K2612_地址"
+from worker 2:                                     end
+from worker 2:                                     if syncstates[Int(isinterrupt)]
+from worker 2:                                         @warn "[$(now())]\n中断！" SweepBlock = "K2612_地址"
+from worker 2:                                         return
+from worker 2:                                     end
+from worker 2:                                     K2612_Asourceleveli_set(instrs["K2612_地址"], yak)
+from worker 2:                                     sleep(0.1)
+from worker 2:                                 end
+from worker 2:                             @progress for fox = range(parse(Float64, K2612_Asourceleveli_get(instrs["K2612_地址"])), 1000 * 1//1000000000, length = ceil(Int, abs((parse(Float64, K2612_Asourceleveli_get(instrs["K2612_地址"])) - 1000 * 1//1000000000) / (10 * 1//1000000000))))
+from worker 2:                                     if syncstates[Int(isblock)]
+from worker 2:                                         @warn "[$(now())]\n暂停！" SweepBlock = "K2612_地址"
+from worker 2:                                         lock((()->wait(block)), block)
+from worker 2:                                         @info "[$(now())]\n继续！" SweepBlock = "K2612_地址"
+from worker 2:                                     end
+from worker 2:                                     if syncstates[Int(isinterrupt)]
+from worker 2:                                         @warn "[$(now())]\n中断！" SweepBlock = "K2612_地址"
+from worker 2:                                         return
+from worker 2:                                     end
+from worker 2:                                     K2612_Asourceleveli_set(instrs["K2612_地址"], fox)
+from worker 2:                                     @sync begin
+from worker 2:                                             sleep(0.3)
+from worker 2:                                             put!(databuf_lc, ("Ibias_K2612_Asourceleveli_地址", string(K2612_Asourceleveli_get(instrs["K2612_地址"]))))
+from worker 2:                                             @async begin
+from worker 2:                                                     sleep(0.001)
+from worker 2:                                                     for data = zip(["Ix7-19_LI5640_dataout[1]_地址", "Iy7-19_LI5640_dataout[2]_地址"], string.(split(LI5640_dataout_get(instrs["LI5640_地址"]), ","))[collect(1:2)])
+from worker 2:                                                         put!(databuf_lc, data)
+from worker 2:                                                     end
+from worker 2:                                                 end
+from worker 2:                                             @async begin
+from worker 2:                                                     sleep(0.001)
+from worker 2:                                                     for data = zip(["Vx8-20_LI5640_dataout[1]_地址", "Vy8-20_LI5640_dataout[2]_地址"], string.(split(LI5640_dataout_get(instrs["LI5640_地址"]), ","))[collect(1:2)])
+from worker 2:                                                         put!(databuf_lc, data)
+from worker 2:                                                     end
+from worker 2:                                                 end
+from worker 2:                                         end
+from worker 2:                                 end
+from worker 2:                             for instr = values(instrs)
+from worker 2:                                 disconnect!(instr)
+from worker 2:                             end
+from worker 2:                         end))
+from worker 2:             errormonitor(@async(while true
+from worker 2:                         if istaskdone(remotedotask) && all(.!(isready.([databuf_lc, databuf_rc, progress_lc, progress_rc])))
+from worker 2:                             syncstates[Int(isdaqtask_done)] = true
+from worker 2:                             break
+from worker 2:                         else
+from worker 2:                             isready(databuf_lc) && put!(databuf_rc, packtake!(databuf_lc, (2rn) * conf.DAQ.packsize))
+from worker 2:                             isready(progress_lc) && put!(progress_rc, packtake!(progress_lc, conf.DAQ.packsize))
+from worker 2:                         end
+from worker 2:                         yield()
+from worker 2:                     end))
+from worker 2:         end
+from worker 2: end
+from worker 2: └ @ Main.QInsControl c:\Users\q02\Desktop\QInsControl\src\UI\DAQTask.jl:134
+from worker 2: ┌ Info: [2023-02-10T10:01:18.737]
+from worker 2: │   task = function remote_do_block(databuf_rc, progress_rc, syncstates, rn)
+from worker 2:     databuf_lc = Channel{Tuple{String, String}}(conf.DAQ.channel_size)
+from worker 2:     progress_lc = Channel{Tuple{UUID, Int, Int, Float64}}(conf.DAQ.channel_size)
+from worker 2:     @sync begin
+from worker 2:             remotedotask = errormonitor(@async(begin
+from worker 2:                             instrs = Dict{Any, Any}("K2612_GPIB0::25::INSTR" => Main.QInsControl.INSTR{:K2612}("K2612", "GPIB0::25::INSTR", Instruments.GenericInstrument(0x00000026, false, 0x00000400)), "LI5640_GPIB0::2::INSTR" => Main.QInsControl.INSTR{:LI5640}("LI5640", "GPIB0::2::INSTR", Instruments.GenericInstrument(0x0000002a, false, 0x00000400)), "LI5640_GPIB0::1::INSTR" => Main.QInsControl.INSTR{:LI5640}("LI5640", "GPIB0::1::INSTR", Instruments.GenericInstrument(0x00000028, false, 0x00000400)))
+from worker 2:                             isempty(instrs) || (resourcemanager = ResourceManager())
+from worker 2:                             for instr = values(instrs)
+from worker 2:                                 connect!(resourcemanager, instr)
+from worker 2:                             end
+from worker 2:                             K2612_Aoutput_set(instrs["K2612_GPIB0::25::INSTR"], string("1"))
+from worker 2:                             @progress for yak = range(parse(Float64, K2612_Asourceleveli_get(instrs["K2612_GPIB0::25::INSTR"])), -1000 * 1//1000000000, length = ceil(Int, abs((parse(Float64, K2612_Asourceleveli_get(instrs["K2612_GPIB0::25::INSTR"])) - -1000 * 1//1000000000) / (10 * 1//1000000000))))
+from worker 2:                                     if syncstates[Int(isblock)]
+from worker 2:                                         @warn "[$(now())]\n暂停！" SweepBlock = "K2612_GPIB0::25::INSTR"
+from worker 2:                                         lock((()->wait(block)), block)
+from worker 2:                                         @info "[$(now())]\n继续！" SweepBlock = "K2612_GPIB0::25::INSTR"
+from worker 2:                                     end
+from worker 2:                                     if syncstates[Int(isinterrupt)]
+from worker 2:                                         @warn "[$(now())]\n中断！" SweepBlock = "K2612_GPIB0::25::INSTR"
+from worker 2:                                         return
+from worker 2:                                     end
+from worker 2:                                     K2612_Asourceleveli_set(instrs["K2612_GPIB0::25::INSTR"], yak)
+from worker 2:                                     sleep(0.1)
+from worker 2:                                 end
+from worker 2:                             @progress for fox = range(parse(Float64, K2612_Asourceleveli_get(instrs["K2612_GPIB0::25::INSTR"])), 1000 * 1//1000000000, length = ceil(Int, abs((parse(Float64, K2612_Asourceleveli_get(instrs["K2612_GPIB0::25::INSTR"])) - 1000 * 1//1000000000) / (10 * 1//1000000000))))
+from worker 2:                                     if syncstates[Int(isblock)]
+from worker 2:                                         @warn "[$(now())]\n暂停！" SweepBlock = "K2612_GPIB0::25::INSTR"
+from worker 2:                                         lock((()->wait(block)), block)
+from worker 2:                                         @info "[$(now())]\n继续！" SweepBlock = "K2612_GPIB0::25::INSTR"
+from worker 2:                                     end
+from worker 2:                                     if syncstates[Int(isinterrupt)]
+from worker 2:                                         @warn "[$(now())]\n中断！" SweepBlock = "K2612_GPIB0::25::INSTR"
+from worker 2:                                         return
+from worker 2:                                     end
+from worker 2:                                     K2612_Asourceleveli_set(instrs["K2612_GPIB0::25::INSTR"], fox)
+from worker 2:                                     @sync begin
+from worker 2:                                             sleep(0.3)
+from worker 2:                                             put!(databuf_lc, ("Ibias_K2612_Asourceleveli_GPIB0::25::INSTR", string(K2612_Asourceleveli_get(instrs["K2612_GPIB0::25::INSTR"]))))
+from worker 2:                                             @async begin
+from worker 2:                                                     sleep(0.001)
+from worker 2:                                                     for data = zip(["Ix7-19_LI5640_dataout[1]_GPIB0::1::INSTR", "Iy7-19_LI5640_dataout[2]_GPIB0::1::INSTR"], string.(split(LI5640_dataout_get(instrs["LI5640_GPIB0::1::INSTR"]), ","))[collect(1:2)])
+from worker 2:                                                         put!(databuf_lc, data)
+from worker 2:                                                     end
+from worker 2:                                                 end
+from worker 2:                                             @async begin
+from worker 2:                                                     sleep(0.001)
+from worker 2:                                                     for data = zip(["Vx8-20_LI5640_dataout[1]_GPIB0::2::INSTR", "Vy8-20_LI5640_dataout[2]_GPIB0::2::INSTR"], string.(split(LI5640_dataout_get(instrs["LI5640_GPIB0::2::INSTR"]), ","))[collect(1:2)])
+from worker 2:                                                         put!(databuf_lc, data)
+from worker 2:                                                     end
+from worker 2:                                                 end
+from worker 2:                                         end
+from worker 2:                                 end
+from worker 2:                             for instr = values(instrs)
+from worker 2:                                 disconnect!(instr)
+from worker 2:                             end
+from worker 2:                         end))
+from worker 2:             errormonitor(@async(while true
+from worker 2:                         if istaskdone(remotedotask) && all(.!(isready.([databuf_lc, databuf_rc, progress_lc, progress_rc])))
+from worker 2:                             syncstates[Int(isdaqtask_done)] = true
+from worker 2:                             break
+from worker 2:                         else
+from worker 2:                             isready(databuf_lc) && put!(databuf_rc, packtake!(databuf_lc, (2rn) * conf.DAQ.packsize))
+from worker 2:                             isready(progress_lc) && put!(progress_rc, packtake!(progress_lc, conf.DAQ.packsize))
+from worker 2:                         end
+from worker 2:                         yield()
+from worker 2:                     end))
+from worker 2:         end
+from worker 2: end
+from worker 2: └ @ Main.QInsControl c:\Users\q02\Desktop\QInsControl\src\UI\DAQTask.jl:134
+┌ Error: [2023-02-10T10:03:48.857]
+│ codes are wrong in parsing time (CodeBlock)!!!
+│   bk = CodeBlock :
+        region :
+         codes : 
+x.*
+y[1].*=1e6
+
+└ @ Main.QInsControl c:\Users\q02\Desktop\QInsControl\src\UI\Block.jl:96
+┌ Error: [2023-02-10T10:03:49.866]
+│ codes are wrong in parsing time (CodeBlock)!!!
+│   bk = CodeBlock :
+        region :
+         codes : 
+x.*=
+y[1].*=1e6
+
+└ @ Main.QInsControl c:\Users\q02\Desktop\QInsControl\src\UI\Block.jl:96
+┌ Info: [2023-02-10T10:04:01.219]
+│   data_processing = begin
+    x .*= 1.0e6
+    y[1] .*= 1.0e6
+end
+└ @ Main.QInsControl c:\Users\q02\Desktop\QInsControl\src\UI\DataPicker.jl:112
+from worker 2: ┌ Info: [2023-02-10T10:05:53.551]
+from worker 2: │   task = function remote_do_block(databuf_rc, progress_rc, syncstates, rn)
+from worker 2:     databuf_lc = Channel{Tuple{String, String}}(conf.DAQ.channel_size)
+from worker 2:     progress_lc = Channel{Tuple{UUID, Int, Int, Float64}}(conf.DAQ.channel_size)
+from worker 2:     @sync begin
+from worker 2:             remotedotask = errormonitor(@async(begin
+from worker 2:                             instrs = Dict{Any, Any}("K2612_GPIB0::25::INSTR" => Main.QInsControl.INSTR{:K2612}("K2612", "GPIB0::25::INSTR", Instruments.GenericInstrument(0x0000004a, false, 0x00000400)), "LI5640_GPIB0::2::INSTR" => Main.QInsControl.INSTR{:LI5640}("LI5640", "GPIB0::2::INSTR", Instruments.GenericInstrument(0x0000004e, false, 0x00000400)), "LI5640_GPIB0::1::INSTR" => Main.QInsControl.INSTR{:LI5640}("LI5640", "GPIB0::1::INSTR", Instruments.GenericInstrument(0x0000004c, false, 0x00000400)))
+from worker 2:                             isempty(instrs) || (resourcemanager = ResourceManager())
+from worker 2:                             for instr = values(instrs)
+from worker 2:                                 connect!(resourcemanager, instr)
+from worker 2:                             end
+from worker 2:                             K2612_Aoutput_set(instrs["K2612_GPIB0::25::INSTR"], string("1"))
+from worker 2:                             @progress for yak = range(parse(Float64, K2612_Asourceleveli_get(instrs["K2612_GPIB0::25::INSTR"])), 1000 * 1//1000000000, length = ceil(Int, abs((parse(Float64, K2612_Asourceleveli_get(instrs["K2612_GPIB0::25::INSTR"])) - 1000 * 1//1000000000) / (10 * 1//1000000000))))
+from worker 2:                                     if syncstates[Int(isblock)]
+from worker 2:                                         @warn "[$(now())]\n暂停！" SweepBlock = "K2612_GPIB0::25::INSTR"
+from worker 2:                                         lock((()->wait(block)), block)
+from worker 2:                                         @info "[$(now())]\n继续！" SweepBlock = "K2612_GPIB0::25::INSTR"
+from worker 2:                                     end
+from worker 2:                                     if syncstates[Int(isinterrupt)]
+from worker 2:                                         @warn "[$(now())]\n中断！" SweepBlock = "K2612_GPIB0::25::INSTR"
+from worker 2:                                         return
+from worker 2:                                     end
+from worker 2:                                     K2612_Asourceleveli_set(instrs["K2612_GPIB0::25::INSTR"], yak)
+from worker 2:                                     sleep(0.1)
+from worker 2:                                 end
+from worker 2:                             @progress for fox = range(parse(Float64, K2612_Asourceleveli_get(instrs["K2612_GPIB0::25::INSTR"])), -1000 * 1//1000000000, length = ceil(Int, abs((parse(Float64, K2612_Asourceleveli_get(instrs["K2612_GPIB0::25::INSTR"])) - -1000 * 1//1000000000) / (5 * 1//1000000000))))
+from worker 2:                                     if syncstates[Int(isblock)]
+from worker 2:                                         @warn "[$(now())]\n暂停！" SweepBlock = "K2612_GPIB0::25::INSTR"
+from worker 2:                                         lock((()->wait(block)), block)
+from worker 2:                                         @info "[$(now())]\n继续！" SweepBlock = "K2612_GPIB0::25::INSTR"
+from worker 2:                                     end
+from worker 2:                                     if syncstates[Int(isinterrupt)]
+from worker 2:                                         @warn "[$(now())]\n中断！" SweepBlock = "K2612_GPIB0::25::INSTR"
+from worker 2:                                         return
+from worker 2:                                     end
+from worker 2:                                     K2612_Asourceleveli_set(instrs["K2612_GPIB0::25::INSTR"], fox)
+from worker 2:                                     @sync begin
+from worker 2:                                             sleep(0.3)
+from worker 2:                                             put!(databuf_lc, ("Ibias_K2612_Asourceleveli_GPIB0::25::INSTR", string(K2612_Asourceleveli_get(instrs["K2612_GPIB0::25::INSTR"]))))
+from worker 2:                                             @async begin
+from worker 2:                                                     sleep(0.001)
+from worker 2:                                                     for data = zip(["Ix7-19_LI5640_dataout[1]_GPIB0::1::INSTR", "Iy7-19_LI5640_dataout[2]_GPIB0::1::INSTR"], string.(split(LI5640_dataout_get(instrs["LI5640_GPIB0::1::INSTR"]), ","))[collect(1:2)])
+from worker 2:                                                         put!(databuf_lc, data)
+from worker 2:                                                     end
+from worker 2:                                                 end
+from worker 2:                                             @async begin
+from worker 2:                                                     sleep(0.001)
+from worker 2:                                                     for data = zip(["Vx8-20_LI5640_dataout[1]_GPIB0::2::INSTR", "Vy8-20_LI5640_dataout[2]_GPIB0::2::INSTR"], string.(split(LI5640_dataout_get(instrs["LI5640_GPIB0::2::INSTR"]), ","))[collect(1:2)])
+from worker 2:                                                         put!(databuf_lc, data)
+from worker 2:                                                     end
+from worker 2:                                                 end
+from worker 2:                                         end
+from worker 2:                                 end
+from worker 2:                             for instr = values(instrs)
+from worker 2:                                 disconnect!(instr)
+from worker 2:                             end
+from worker 2:                         end))
+from worker 2:             errormonitor(@async(while true
+from worker 2:                         if istaskdone(remotedotask) && all(.!(isready.([databuf_lc, databuf_rc, progress_lc, progress_rc])))
+from worker 2:                             syncstates[Int(isdaqtask_done)] = true
+from worker 2:                             break
+from worker 2:                         else
+from worker 2:                             isready(databuf_lc) && put!(databuf_rc, packtake!(databuf_lc, (2rn) * conf.DAQ.packsize))
+from worker 2:                             isready(progress_lc) && put!(progress_rc, packtake!(progress_lc, conf.DAQ.packsize))
+from worker 2:                         end
+from worker 2:                         yield()
+from worker 2:                     end))
+from worker 2:         end
+from worker 2: end
+from worker 2: └ @ Main.QInsControl c:\Users\q02\Desktop\QInsControl\src\UI\DAQTask.jl:134
+from worker 2: ┌ Info: [2023-02-10T10:10:00.784]
+from worker 2: │   task = function remote_do_block(databuf_rc, progress_rc, syncstates, rn)
+from worker 2:     databuf_lc = Channel{Tuple{String, String}}(conf.DAQ.channel_size)
+from worker 2:     progress_lc = Channel{Tuple{UUID, Int, Int, Float64}}(conf.DAQ.channel_size)
+from worker 2:     @sync begin
+from worker 2:             remotedotask = errormonitor(@async(begin
+from worker 2:                             instrs = Dict{Any, Any}("K2612_GPIB0::25::INSTR" => Main.QInsControl.INSTR{:K2612}("K2612", "GPIB0::25::INSTR", Instruments.GenericInstrument(0x0000006e, false, 0x00000400)), "LI5640_GPIB0::2::INSTR" => Main.QInsControl.INSTR{:LI5640}("LI5640", "GPIB0::2::INSTR", Instruments.GenericInstrument(0x00000072, false, 0x00000400)), "LI5640_GPIB0::1::INSTR" => Main.QInsControl.INSTR{:LI5640}("LI5640", "GPIB0::1::INSTR", Instruments.GenericInstrument(0x00000070, false, 0x00000400)))
+from worker 2:                             isempty(instrs) || (resourcemanager = ResourceManager())
+from worker 2:                             for instr = values(instrs)
+from worker 2:                                 connect!(resourcemanager, instr)
+from worker 2:                             end
+from worker 2:                             K2612_Aoutput_set(instrs["K2612_GPIB0::25::INSTR"], string("1"))
+from worker 2:                             @progress for yak = range(parse(Float64, K2612_Asourceleveli_get(instrs["K2612_GPIB0::25::INSTR"])), -1000 * 1//1000000000, length = ceil(Int, abs((parse(Float64, K2612_Asourceleveli_get(instrs["K2612_GPIB0::25::INSTR"])) - -1000 * 1//1000000000) / (10 * 1//1000000000))))
+from worker 2:                                     if syncstates[Int(isblock)]
+from worker 2:                                         @warn "[$(now())]\n暂停！" SweepBlock = "K2612_GPIB0::25::INSTR"
+from worker 2:                                         lock((()->wait(block)), block)
+from worker 2:                                         @info "[$(now())]\n继续！" SweepBlock = "K2612_GPIB0::25::INSTR"
+from worker 2:                                     end
+from worker 2:                                     if syncstates[Int(isinterrupt)]
+from worker 2:                                         @warn "[$(now())]\n中断！" SweepBlock = "K2612_GPIB0::25::INSTR"
+from worker 2:                                         return
+from worker 2:                                     end
+from worker 2:                                     K2612_Asourceleveli_set(instrs["K2612_GPIB0::25::INSTR"], yak)
+from worker 2:                                     sleep(0.1)
+from worker 2:                                 end
+from worker 2:                             @progress for fox = range(parse(Float64, K2612_Asourceleveli_get(instrs["K2612_GPIB0::25::INSTR"])), 1000 * 1//1000000000, length = ceil(Int, abs((parse(Float64, K2612_Asourceleveli_get(instrs["K2612_GPIB0::25::INSTR"])) - 1000 * 1//1000000000) / (5 * 1//1000000000))))
+from worker 2:                                     if syncstates[Int(isblock)]
+from worker 2:                                         @warn "[$(now())]\n暂停！" SweepBlock = "K2612_GPIB0::25::INSTR"
+from worker 2:                                         lock((()->wait(block)), block)
+from worker 2:                                         @info "[$(now())]\n继续！" SweepBlock = "K2612_GPIB0::25::INSTR"
+from worker 2:                                     end
+from worker 2:                                     if syncstates[Int(isinterrupt)]
+from worker 2:                                         @warn "[$(now())]\n中断！" SweepBlock = "K2612_GPIB0::25::INSTR"
+from worker 2:                                         return
+from worker 2:                                     end
+from worker 2:                                     K2612_Asourceleveli_set(instrs["K2612_GPIB0::25::INSTR"], fox)
+from worker 2:                                     sleep(0.3)
+from worker 2:                                     put!(databuf_lc, ("Ibias_K2612_Asourceleveli_GPIB0::25::INSTR", string(K2612_Asourceleveli_get(instrs["K2612_GPIB0::25::INSTR"]))))
+from worker 2:                                     for data = zip(["Ix7-19_LI5640_dataout[1]_GPIB0::1::INSTR", "Iy7-19_LI5640_dataout[2]_GPIB0::1::INSTR"], string.(split(LI5640_dataout_get(instrs["LI5640_GPIB0::1::INSTR"]), ","))[collect(1:2)])
+from worker 2:                                         put!(databuf_lc, data)
+from worker 2:                                     end
+from worker 2:                                     for data = zip(["Vx8-20_LI5640_dataout[1]_GPIB0::2::INSTR", "Vy8-20_LI5640_dataout[2]_GPIB0::2::INSTR"], string.(split(LI5640_dataout_get(instrs["LI5640_GPIB0::2::INSTR"]), ","))[collect(1:2)])
+from worker 2:                                         put!(databuf_lc, data)
+from worker 2:                                     end
+from worker 2:                                 end
+from worker 2:                             for instr = values(instrs)
+from worker 2:                                 disconnect!(instr)
+from worker 2:                             end
+from worker 2:                         end))
+from worker 2:             errormonitor(@async(while true
+from worker 2:                         if istaskdone(remotedotask) && all(.!(isready.([databuf_lc, databuf_rc, progress_lc, progress_rc])))
+from worker 2:                             syncstates[Int(isdaqtask_done)] = true
+from worker 2:                             break
+from worker 2:                         else
+from worker 2:                             isready(databuf_lc) && put!(databuf_rc, packtake!(databuf_lc, (2rn) * conf.DAQ.packsize))
+from worker 2:                             isready(progress_lc) && put!(progress_rc, packtake!(progress_lc, conf.DAQ.packsize))
+from worker 2:                         end
+from worker 2:                         yield()
+from worker 2:                     end))
+from worker 2:         end
+from worker 2: end
+from worker 2: └ @ Main.QInsControl c:\Users\q02\Desktop\QInsControl\src\UI\DAQTask.jl:134
+from worker 2: ┌ Error: [2023-02-10T10:51:40.579]
+from worker 2: │ 仪器通讯故障！！！
+from worker 2: │   instrument_address = ASRL1::INSTR
+from worker 2: │   exception = ErrorException("VISA C call failed with status VI_ERROR_TMO: Timeout expired before operation completed.")
+from worker 2: └ @ Main.QInsControl c:\Users\q02\Desktop\QInsControl\src\Instrument.jl:34
+from worker 2: ┌ Error: [2023-02-10T10:51:40.747]
+from worker 2: │ 仪器通讯故障！！！
+from worker 2: │   instrument_address = ASRL3::INSTR
+from worker 2: │   exception = ErrorException("VISA C call failed with status VI_ERROR_RSRC_BUSY: The resource is valid, but VISA cannot currently access it.")
+from worker 2: └ @ Main.QInsControl c:\Users\q02\Desktop\QInsControl\src\Instrument.jl:34
+┌ Error: [2023-02-10T10:52:00.365]
+│ 仪器通讯故障！！！
+│   instrument_address = GPIB0::22::INSTR
+│   exception = ErrorException("VISA C call failed with status VI_ERROR_TMO: Timeout expired before operation completed.")
+└ @ Main.QInsControl c:\Users\q02\Desktop\QInsControl\src\Instrument.jl:68
+┌ Error: [2023-02-10T10:52:00.503]
+│ 仪器通讯故障！！！
+│   instrument_address = GPIB0::1::INSTR
+│   exception = UndefVarError(:LI5640_sensitivityi_get)
+└ @ Main.QInsControl c:\Users\q02\Desktop\QInsControl\src\Instrument.jl:68
+┌ Error: [2023-02-10T10:52:02.270]
+│ 仪器通讯故障！！！
+│   instrument_address = GPIB0::2::INSTR
+│   exception = UndefVarError(:LI5640_sensitivityi_get)
+└ @ Main.QInsControl c:\Users\q02\Desktop\QInsControl\src\Instrument.jl:68

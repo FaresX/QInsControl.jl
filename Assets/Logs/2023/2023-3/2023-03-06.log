@@ -1,0 +1,336 @@
+┌ Info: [2023-03-06T16:18:01.704]
+│ 启动成功！
+└ @ QInsControl C:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl - CImGui1.82\src\QInsControl.jl:129
+┌ Warning: saved type QInsControl.SweepBlock is missing field delay in workspace type; reconstructing
+└ @ JLD2 C:\Users\22112\.julia\packages\JLD2\ryhNR\src\data\reconstructing_datatypes.jl:164
+┌ Error: 2023-03-06T16:19:09.268
+│ error in @trypass
+│   exception = CapturedException(MethodError(convert, (QInsControl.AbstractBlock, JLD2.ReconstructedTypes.var"##QInsControl.SweepBlock#340"("K2400", "GPIB0::21::INSTR", "leveli", "1", "300", 1, QInsControl.AbstractBlock[CodeBlock :
+        region :
+         codes : 
+sleep(0.05)
+], 2, Float32[859.0, 235.0, 1435.0, 275.0])), 0x000000000000833b), Any[(rconvert(T::Type, x::JLD2.ReconstructedTypes.var"##QInsControl.SweepBlock#340") at custom_serialization.jl:10, 1), (jlconvert at writing_datatypes.jl:315 [inlined], 1), (macro expansion at dataio.jl:70 [inlined], 1), (macro expansion at simdloop.jl:77 [inlined], 1), (read_array!(v::Vector{QInsControl.AbstractBlock}, f::JLD2.JLDFile{JLD2.MmapIO}, rr::JLD2.ReadRepresentation{QInsControl.AbstractBlock, JLD2.RelOffset}) at dataio.jl:68, 1), (read_array(f::JLD2.JLDFile{JLD2.MmapIO}, dataspace::JLD2.ReadDataspace, rr::JLD2.ReadRepresentation{QInsControl.AbstractBlock, JLD2.RelOffset}, layout::JLD2.DataLayout, filters::JLD2.FilterPipeline, header_offset::JLD2.RelOffset, attributes::Vector{JLD2.ReadAttribute}) at datasets.jl:410, 1), (read_data(f::JLD2.JLDFile{JLD2.MmapIO}, rr::JLD2.ReadRepresentation{Any, JLD2.RelOffset}, read_dataspace::Tuple{JLD2.ReadDataspace, JLD2.RelOffset, JLD2.DataLayout, JLD2.FilterPipeline}, attributes::Vector{JLD2.ReadAttribute}) at datasets.jl:276, 1), (macro expansion at datasets.jl:224 [inlined], 1), (macro expansion at datatypes.jl:105 [inlined], 1), (read_data(f::JLD2.JLDFile{JLD2.MmapIO}, dataspace::JLD2.ReadDataspace, datatype_class::UInt8, datatype_offset::Int64, layout::JLD2.DataLayout, filters::JLD2.FilterPipeline, header_offset::JLD2.RelOffset, attributes::Vector{JLD2.ReadAttribute}) at datasets.jl:211, 1), (load_dataset(f::JLD2.JLDFile{JLD2.MmapIO}, offset::JLD2.RelOffset) at datasets.jl:125, 1), (jlconvert at writing_datatypes.jl:314 [inlined], 1), (macro expansion at reconstructing_datatypes.jl:582 [inlined], 1), (jlconvert(#unused#::JLD2.ReadRepresentation{QInsControl.DAQTask, JLD2.OnDiskRepresentation{(0, 16, 32, 40), Tuple{String, String, Vector{QInsControl.AbstractBlock}, Bool}, Tuple{JLD2.Vlen{String}, JLD2.Vlen{String}, JLD2.RelOffset, Bool}, 41}()}, f::JLD2.JLDFile{JLD2.MmapIO}, ptr::Ptr{Nothing}, header_offset::JLD2.RelOffset) at reconstructing_datatypes.jl:547, 1), (read_scalar(f::JLD2.JLDFile{JLD2.MmapIO}, rr::JLD2.ReadRepresentation{QInsControl.DAQTask, JLD2.OnDiskRepresentation{(0, 16, 32, 40), Tuple{String, String, Vector{QInsControl.AbstractBlock}, Bool}, Tuple{JLD2.Vlen{String}, JLD2.Vlen{String}, JLD2.RelOffset, Bool}, 41}()}, header_offset::JLD2.RelOffset) at dataio.jl:37, 1), (read_data(f::JLD2.JLDFile{JLD2.MmapIO}, rr::Any, read_dataspace::Tuple{JLD2.ReadDataspace, JLD2.RelOffset, JLD2.DataLayout, JLD2.FilterPipeline}, attributes::Vector{JLD2.ReadAttribute}) at datasets.jl:238, 1), (read_data(f::JLD2.JLDFile{JLD2.MmapIO}, dataspace::JLD2.ReadDataspace, datatype_class::UInt8, datatype_offset::Int64, layout::JLD2.DataLayout, filters::JLD2.FilterPipeline, header_offset::JLD2.RelOffset, attributes::Vector{JLD2.ReadAttribute}) at datasets.jl:194, 1), (load_dataset(f::JLD2.JLDFile{JLD2.MmapIO}, offset::JLD2.RelOffset) at datasets.jl:125, 1), (getindex(g::JLD2.Group{JLD2.JLDFile{JLD2.MmapIO}}, name::String) at groups.jl:109, 1), (getindex at JLD2.jl:461 [inlined], 1), (loadtodict!(d::Dict{String, Any}, g::JLD2.JLDFile{JLD2.MmapIO}, prefix::String) at loadsave.jl:154, 1), (loadtodict! at loadsave.jl:153 [inlined], 1), ((::JLD2.var"#100#101")(file::JLD2.JLDFile{JLD2.MmapIO}) at fileio.jl:39, 1), (jldopen(::Function, ::String, ::Vararg{String}; kws::Base.Pairs{Symbol, Union{}, Tuple{}, NamedTuple{(), Tuple{}}}) at loadsave.jl:4, 1), (jldopen at loadsave.jl:1 [inlined], 1), (#fileio_load#99 at fileio.jl:38 [inlined], 1), (fileio_load(f::FileIO.File{FileIO.DataFormat{:JLD2}, String}) at fileio.jl:37, 1), (#invokelatest#2 at essentials.jl:816 [inlined], 1), (invokelatest at essentials.jl:813 [inlined], 1), (action(::Symbol, ::Vector{Union{Base.PkgId, Module}}, ::FileIO.Formatted; options::Base.Pairs{Symbol, Union{}, Tuple{}, NamedTuple{(), Tuple{}}}) at loadsave.jl:219, 1), (action at loadsave.jl:196 [inlined], 1), (action(::Symbol, ::Vector{Union{Base.PkgId, Module}}, ::Symbol, ::String; options::Base.Pairs{Symbol, Union{}, Tuple{}, NamedTuple{(), Tuple{}}}) at loadsave.jl:185, 1), (action at loadsave.jl:185 [inlined], 1), (load(::String; options::Base.Pairs{Symbol, Union{}, Tuple{}, NamedTuple{(), Tuple{}}}) at loadsave.jl:113, 1), (load at loadsave.jl:109 [inlined], 1), (macro expansion at Utilities.jl:7 [inlined], 1), (edit(dtviewer::QInsControl.DataViewer, filetree::QInsControl.FolderFileTree, isrename::Dict{String, Bool}, id::Int64) at DataViewer.jl:22, 1), (MainWindow() at MainWindow.jl:60, 1), (macro expansion at Renderer.jl:137 [inlined], 1), ((::QInsControl.var"#156#158"{Ptr{ImPlot.ImPlotContext}, Ptr{LibCImGui.ImGuiContext}, ImGuiOpenGLBackend.Context, ImGuiGLFWBackend.Context, Ptr{ImGuiGLFWBackend.LibGLFW.GLFWwindow}})() at task.jl:514, 1)])
+│   code = @trypasse load(filetree.selectedpath) Dict()
+└ @ QInsControl C:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl - CImGui1.82\src\Utilities.jl:9
+from worker 2: ┌ Error: [2023-03-06T16:20:31.795]
+from worker 2: │ 仪器通讯故障！！！
+from worker 2: │   instrument_address = ASRL1::INSTR
+from worker 2: │   exception = ErrorException("VISA C call failed with status VI_ERROR_TMO: Timeout expired before operation completed.")
+from worker 2: └ @ QInsControl C:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl - CImGui1.82\src\Instrument.jl:91
+┌ Error: [2023-03-06T16:21:59.215]
+│ 仪器通讯故障！！！
+│   instrument_address = ASRL1::INSTR
+│   exception = UndefVarError(:Others_quantity_get)
+└ @ QInsControl C:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl - CImGui1.82\src\Instrument.jl:126
+┌ Error: [2023-03-06T16:21:59.490]
+│ 仪器通讯故障！！！
+│   instrument_address = ASRL1::INSTR
+│   exception = UndefVarError(:Others_quantity_get)
+└ @ QInsControl C:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl - CImGui1.82\src\Instrument.jl:126
+┌ Error: [2023-03-06T16:21:59.651]
+│ 仪器通讯故障！！！
+│   instrument_address = ASRL1::INSTR
+│   exception = UndefVarError(:Others_quantity_get)
+└ @ QInsControl C:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl - CImGui1.82\src\Instrument.jl:126
+┌ Error: [2023-03-06T16:21:59.800]
+│ 仪器通讯故障！！！
+│   instrument_address = ASRL1::INSTR
+│   exception = UndefVarError(:Others_quantity_get)
+└ @ QInsControl C:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl - CImGui1.82\src\Instrument.jl:126
+from worker 2: ┌ Info: [2023-03-06T16:24:08.961]
+from worker 2: │   task = begin
+from worker 2:     function remote_sweep_block(resmg, instrs, databuf_lc, progress_lc, syncstates)
+from worker 2:         @porgress for i = 1:100
+from worker 2:                 if syncstates[Int(isblock)]
+from worker 2:                     for ins = values(instrs)
+from worker 2:                         disconnect!(ins)
+from worker 2:                     end
+from worker 2:                     @warn "[$(now())]\n暂停！" StrideCodeBlock = "@porgress for i in 1:100"
+from worker 2:                     syncstates[Int(isblocking)] = true
+from worker 2:                     lock((()->wait(block)), block)
+from worker 2:                     for ins = values(instrs)
+from worker 2:                         connect!(resmg, ins)
+from worker 2:                     end
+from worker 2:                     @info "[$(now())]\n继续！" StrideCodeBlock = "@porgress for i in 1:100"
+from worker 2:                     syncstates[Int(isblocking)] = false
+from worker 2:                 end
+from worker 2:                 if syncstates[Int(isinterrupt)]
+from worker 2:                     @warn "[$(now())]\n中断！" StrideCodeBlock = "@porgress for i in 1:100"
+from worker 2:                     return
+from worker 2:                 end
+from worker 2:                 sleep(0.1)
+from worker 2:                 put!(databuf_lc, ("_VirtualInstr_SystemTime_VirtualAddress", string(VirtualInstr_SystemTime_get(instrs["VirtualInstr_VirtualAddress"]))))
+from worker 2:             end
+from worker 2:     end
+from worker 2:     function remote_do_block(databuf_rc, progress_rc, syncstates, rn)
+from worker 2:         instrs = Dict{Any, Any}("VirtualInstr_VirtualAddress" => QInsControl.VirtualInstr("VirtualInstr", "VirtualAddress"))
+from worker 2:         try
+from worker 2:             databuf_lc = Channel{Tuple{String, String}}(conf.DAQ.channel_size)
+from worker 2:             progress_lc = Channel{Tuple{UUID, Int, Int, Float64}}(conf.DAQ.channel_size)
+from worker 2:             @sync begin
+from worker 2:                     remotedotask = errormonitor(@async(begin
+from worker 2:                                     resourcemanager = ResourceManager()
+from worker 2:                                     for instr = values(instrs)
+from worker 2:                                         connect!(resourcemanager, instr)
+from worker 2:                                     end
+from worker 2:                                     remote_sweep_block(resourcemanager, instrs, databuf_lc, progress_lc, syncstates)
+from worker 2:                                 end))
+from worker 2:                     errormonitor(@async(while true
+from worker 2:                                 if istaskdone(remotedotask) && all(.!(isready.([databuf_lc, databuf_rc, progress_lc, progress_rc])))
+from worker 2:                                     syncstates[Int(isdaqtask_done)] = true
+from worker 2:                                     break
+from worker 2:                                 else
+from worker 2:                                     isready(databuf_lc) && put!(databuf_rc, packtake!(databuf_lc, (2rn) * conf.DAQ.packsize))
+from worker 2:                                     isready(progress_lc) && put!(progress_rc, packtake!(progress_lc, conf.DAQ.packsize))
+from worker 2:                                 end
+from worker 2:                                 yield()
+from worker 2:                             end))
+from worker 2:                 end
+from worker 2:         end
+from worker 2:     end
+from worker 2: end
+from worker 2: └ @ QInsControl C:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl - CImGui1.82\src\UI\DAQTask.jl:146
+from worker 2: ┌ Error: [2023-03-06T16:24:09.093]
+from worker 2: │ 程序定义有误！！！
+from worker 2: │   exception = LoadError("<macrocall>", 0, UndefVarError(Symbol("@porgress")))
+from worker 2: └ @ QInsControl C:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl - CImGui1.82\src\UI\DAQTask.jl:150
+from worker 2: ┌ Info: [2023-03-06T16:24:22.794]
+from worker 2: │   task = begin
+from worker 2:     function remote_sweep_block(resmg, instrs, databuf_lc, progress_lc, syncstates)
+from worker 2:         @progress for i = 1:100
+from worker 2:                 if syncstates[Int(isblock)]
+from worker 2:                     for ins = values(instrs)
+from worker 2:                         disconnect!(ins)
+from worker 2:                     end
+from worker 2:                     @warn "[$(now())]\n暂停！" StrideCodeBlock = "@progress for i in 1:100"
+from worker 2:                     syncstates[Int(isblocking)] = true
+from worker 2:                     lock((()->wait(block)), block)
+from worker 2:                     for ins = values(instrs)
+from worker 2:                         connect!(resmg, ins)
+from worker 2:                     end
+from worker 2:                     @info "[$(now())]\n继续！" StrideCodeBlock = "@progress for i in 1:100"
+from worker 2:                     syncstates[Int(isblocking)] = false
+from worker 2:                 end
+from worker 2:                 if syncstates[Int(isinterrupt)]
+from worker 2:                     @warn "[$(now())]\n中断！" StrideCodeBlock = "@progress for i in 1:100"
+from worker 2:                     return
+from worker 2:                 end
+from worker 2:                 sleep(0.1)
+from worker 2:                 put!(databuf_lc, ("_VirtualInstr_SystemTime_VirtualAddress", string(VirtualInstr_SystemTime_get(instrs["VirtualInstr_VirtualAddress"]))))
+from worker 2:             end
+from worker 2:     end
+from worker 2:     function remote_do_block(databuf_rc, progress_rc, syncstates, rn)
+from worker 2:         instrs = Dict{Any, Any}("VirtualInstr_VirtualAddress" => QInsControl.VirtualInstr("VirtualInstr", "VirtualAddress"))
+from worker 2:         try
+from worker 2:             databuf_lc = Channel{Tuple{String, String}}(conf.DAQ.channel_size)
+from worker 2:             progress_lc = Channel{Tuple{UUID, Int, Int, Float64}}(conf.DAQ.channel_size)
+from worker 2:             @sync begin
+from worker 2:                     remotedotask = errormonitor(@async(begin
+from worker 2:                                     resourcemanager = ResourceManager()
+from worker 2:                                     for instr = values(instrs)
+from worker 2:                                         connect!(resourcemanager, instr)
+from worker 2:                                     end
+from worker 2:                                     remote_sweep_block(resourcemanager, instrs, databuf_lc, progress_lc, syncstates)
+from worker 2:                                 end))
+from worker 2:                     errormonitor(@async(while true
+from worker 2:                                 if istaskdone(remotedotask) && all(.!(isready.([databuf_lc, databuf_rc, progress_lc, progress_rc])))
+from worker 2:                                     syncstates[Int(isdaqtask_done)] = true
+from worker 2:                                     break
+from worker 2:                                 else
+from worker 2:                                     isready(databuf_lc) && put!(databuf_rc, packtake!(databuf_lc, (2rn) * conf.DAQ.packsize))
+from worker 2:                                     isready(progress_lc) && put!(progress_rc, packtake!(progress_lc, conf.DAQ.packsize))
+from worker 2:                                 end
+from worker 2:                                 yield()
+from worker 2:                             end))
+from worker 2:                 end
+from worker 2:         end
+from worker 2:     end
+from worker 2: end
+from worker 2: └ @ QInsControl C:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl - CImGui1.82\src\UI\DAQTask.jl:146
+┌ Info: [2023-03-06T16:39:50.213]
+│ 启动成功！
+└ @ QInsControl C:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl - CImGui1.82\src\QInsControl.jl:129
+from worker 2: ┌ Info: [2023-03-06T16:41:14.247]
+from worker 2: │   task = begin
+from worker 2:     function remote_sweep_block(resmg, instrs, databuf_lc, progress_lc, syncstates)
+from worker 2:         @porgress for i = 1:100
+from worker 2:                 if syncstates[Int(isblock)]
+from worker 2:                     for ins = values(instrs)
+from worker 2:                         disconnect!(ins)
+from worker 2:                     end
+from worker 2:                     @warn "[$(now())]\n暂停！" StrideCodeBlock = "@porgress for i in 1:100"
+from worker 2:                     syncstates[Int(isblocking)] = true
+from worker 2:                     lock((()->wait(block)), block)
+from worker 2:                     for ins = values(instrs)
+from worker 2:                         connect!(resmg, ins)
+from worker 2:                     end
+from worker 2:                     @info "[$(now())]\n继续！" StrideCodeBlock = "@porgress for i in 1:100"
+from worker 2:                     syncstates[Int(isblocking)] = false
+from worker 2:                 end
+from worker 2:                 if syncstates[Int(isinterrupt)]
+from worker 2:                     @warn "[$(now())]\n中断！" StrideCodeBlock = "@porgress for i in 1:100"
+from worker 2:                     return
+from worker 2:                 end
+from worker 2:                 sleep(0.1)
+from worker 2:                 put!(databuf_lc, ("_VirtualInstr_SystemTime_VirtualAddress", string(VirtualInstr_SystemTime_get(instrs["VirtualInstr_VirtualAddress"]))))
+from worker 2:             end
+from worker 2:     end
+from worker 2:     function remote_do_block(databuf_rc, progress_rc, syncstates, rn)
+from worker 2:         instrs = Dict{Any, Any}("VirtualInstr_VirtualAddress" => QInsControl.VirtualInstr("VirtualInstr", "VirtualAddress"))
+from worker 2:         try
+from worker 2:             databuf_lc = Channel{Tuple{String, String}}(conf.DAQ.channel_size)
+from worker 2:             progress_lc = Channel{Tuple{UUID, Int, Int, Float64}}(conf.DAQ.channel_size)
+from worker 2:             @sync begin
+from worker 2:                     remotedotask = errormonitor(@async(begin
+from worker 2:                                     resourcemanager = ResourceManager()
+from worker 2:                                     for instr = values(instrs)
+from worker 2:                                         connect!(resourcemanager, instr)
+from worker 2:                                     end
+from worker 2:                                     remote_sweep_block(resourcemanager, instrs, databuf_lc, progress_lc, syncstates)
+from worker 2:                                 end))
+from worker 2:                     errormonitor(@async(while true
+from worker 2:                                 if istaskdone(remotedotask) && all(.!(isready.([databuf_lc, databuf_rc, progress_lc, progress_rc])))
+from worker 2:                                     syncstates[Int(isdaqtask_done)] = true
+from worker 2:                                     break
+from worker 2:                                 else
+from worker 2:                                     isready(databuf_lc) && put!(databuf_rc, packtake!(databuf_lc, (2rn) * conf.DAQ.packsize))
+from worker 2:                                     isready(progress_lc) && put!(progress_rc, packtake!(progress_lc, conf.DAQ.packsize))
+from worker 2:                                 end
+from worker 2:                                 yield()
+from worker 2:                             end))
+from worker 2:                 end
+from worker 2:         end
+from worker 2:     end
+from worker 2: end
+from worker 2: └ @ QInsControl C:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl - CImGui1.82\src\UI\DAQTask.jl:146
+from worker 2: ┌ Error: [2023-03-06T16:41:16.235]
+from worker 2: │ 程序定义有误！！！
+from worker 2: │   exception = LoadError("<macrocall>", 0, UndefVarError(Symbol("@porgress")))
+from worker 2: └ @ QInsControl C:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl - CImGui1.82\src\UI\DAQTask.jl:150
+from worker 2: ┌ Error: [2023-03-06T16:41:41.031]
+from worker 2: │ 仪器通讯故障！！！
+from worker 2: │   instrument_address = ASRL1::INSTR
+from worker 2: │   exception = ErrorException("VISA C call failed with status VI_ERROR_TMO: Timeout expired before operation completed.")
+from worker 2: └ @ QInsControl C:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl - CImGui1.82\src\Instrument.jl:91
+┌ Info: [2023-03-06T17:28:01.222]
+│ 启动成功！
+└ @ QInsControl C:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl - CImGui1.82\src\QInsControl.jl:129
+┌ Info: [2023-03-06T18:16:25.448]
+│ 启动成功！
+└ @ QInsControl C:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl - CImGui1.82\src\QInsControl.jl:129
+from worker 2: ┌ Info: [2023-03-06T18:17:37.902]
+from worker 2: │   task = begin
+from worker 2:     function remote_sweep_block(resmg, instrs, databuf_lc, progress_lc, syncstates)
+from worker 2:         @porgress for i = 1:100
+from worker 2:                 if syncstates[Int(isblock)]
+from worker 2:                     for ins = values(instrs)
+from worker 2:                         disconnect!(ins)
+from worker 2:                     end
+from worker 2:                     @warn "[$(now())]\n暂停！" StrideCodeBlock = "@porgress for i in 1:100"
+from worker 2:                     syncstates[Int(isblocking)] = true
+from worker 2:                     lock((()->wait(block)), block)
+from worker 2:                     for ins = values(instrs)
+from worker 2:                         connect!(resmg, ins)
+from worker 2:                     end
+from worker 2:                     @info "[$(now())]\n继续！" StrideCodeBlock = "@porgress for i in 1:100"
+from worker 2:                     syncstates[Int(isblocking)] = false
+from worker 2:                 end
+from worker 2:                 if syncstates[Int(isinterrupt)]
+from worker 2:                     @warn "[$(now())]\n中断！" StrideCodeBlock = "@porgress for i in 1:100"
+from worker 2:                     return
+from worker 2:                 end
+from worker 2:                 sleep(0.1)
+from worker 2:                 put!(databuf_lc, ("_VirtualInstr_SystemTime_VirtualAddress", string(VirtualInstr_SystemTime_get(instrs["VirtualInstr_VirtualAddress"]))))
+from worker 2:             end
+from worker 2:     end
+from worker 2:     function remote_do_block(databuf_rc, progress_rc, syncstates, rn)
+from worker 2:         instrs = Dict{Any, Any}("VirtualInstr_VirtualAddress" => QInsControl.VirtualInstr("VirtualInstr", "VirtualAddress"))
+from worker 2:         try
+from worker 2:             databuf_lc = Channel{Tuple{String, String}}(conf.DAQ.channel_size)
+from worker 2:             progress_lc = Channel{Tuple{UUID, Int, Int, Float64}}(conf.DAQ.channel_size)
+from worker 2:             @sync begin
+from worker 2:                     remotedotask = errormonitor(@async(begin
+from worker 2:                                     resourcemanager = ResourceManager()
+from worker 2:                                     for instr = values(instrs)
+from worker 2:                                         connect!(resourcemanager, instr)
+from worker 2:                                     end
+from worker 2:                                     remote_sweep_block(resourcemanager, instrs, databuf_lc, progress_lc, syncstates)
+from worker 2:                                 end))
+from worker 2:                     errormonitor(@async(while true
+from worker 2:                                 if istaskdone(remotedotask) && all(.!(isready.([databuf_lc, databuf_rc, progress_lc, progress_rc])))
+from worker 2:                                     syncstates[Int(isdaqtask_done)] = true
+from worker 2:                                     break
+from worker 2:                                 else
+from worker 2:                                     isready(databuf_lc) && put!(databuf_rc, packtake!(databuf_lc, (2rn) * conf.DAQ.packsize))
+from worker 2:                                     isready(progress_lc) && put!(progress_rc, packtake!(progress_lc, conf.DAQ.packsize))
+from worker 2:                                 end
+from worker 2:                                 yield()
+from worker 2:                             end))
+from worker 2:                 end
+from worker 2:         end
+from worker 2:     end
+from worker 2: end
+from worker 2: └ @ QInsControl C:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl - CImGui1.82\src\UI\DAQTask.jl:146
+from worker 2: ┌ Error: [2023-03-06T18:17:40.624]
+from worker 2: │ 程序定义有误！！！
+from worker 2: │   exception = LoadError("<macrocall>", 0, UndefVarError(Symbol("@porgress")))
+from worker 2: └ @ QInsControl C:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl - CImGui1.82\src\UI\DAQTask.jl:150
+from worker 2: ┌ Info: [2023-03-06T18:18:15.903]
+from worker 2: │   task = begin
+from worker 2:     function remote_sweep_block(resmg, instrs, databuf_lc, progress_lc, syncstates)
+from worker 2:         @progress for i = 1:100
+from worker 2:                 if syncstates[Int(isblock)]
+from worker 2:                     for ins = values(instrs)
+from worker 2:                         disconnect!(ins)
+from worker 2:                     end
+from worker 2:                     @warn "[$(now())]\n暂停！" StrideCodeBlock = "@progress for i in 1:100"
+from worker 2:                     syncstates[Int(isblocking)] = true
+from worker 2:                     lock((()->wait(block)), block)
+from worker 2:                     for ins = values(instrs)
+from worker 2:                         connect!(resmg, ins)
+from worker 2:                     end
+from worker 2:                     @info "[$(now())]\n继续！" StrideCodeBlock = "@progress for i in 1:100"
+from worker 2:                     syncstates[Int(isblocking)] = false
+from worker 2:                 end
+from worker 2:                 if syncstates[Int(isinterrupt)]
+from worker 2:                     @warn "[$(now())]\n中断！" StrideCodeBlock = "@progress for i in 1:100"
+from worker 2:                     return
+from worker 2:                 end
+from worker 2:                 sleep(0.1)
+from worker 2:                 put!(databuf_lc, ("_VirtualInstr_SystemTime_VirtualAddress", string(VirtualInstr_SystemTime_get(instrs["VirtualInstr_VirtualAddress"]))))
+from worker 2:             end
+from worker 2:     end
+from worker 2:     function remote_do_block(databuf_rc, progress_rc, syncstates, rn)
+from worker 2:         instrs = Dict{Any, Any}("VirtualInstr_VirtualAddress" => QInsControl.VirtualInstr("VirtualInstr", "VirtualAddress"))
+from worker 2:         try
+from worker 2:             databuf_lc = Channel{Tuple{String, String}}(conf.DAQ.channel_size)
+from worker 2:             progress_lc = Channel{Tuple{UUID, Int, Int, Float64}}(conf.DAQ.channel_size)
+from worker 2:             @sync begin
+from worker 2:                     remotedotask = errormonitor(@async(begin
+from worker 2:                                     resourcemanager = ResourceManager()
+from worker 2:                                     for instr = values(instrs)
+from worker 2:                                         connect!(resourcemanager, instr)
+from worker 2:                                     end
+from worker 2:                                     remote_sweep_block(resourcemanager, instrs, databuf_lc, progress_lc, syncstates)
+from worker 2:                                 end))
+from worker 2:                     errormonitor(@async(while true
+from worker 2:                                 if istaskdone(remotedotask) && all(.!(isready.([databuf_lc, databuf_rc, progress_lc, progress_rc])))
+from worker 2:                                     syncstates[Int(isdaqtask_done)] = true
+from worker 2:                                     break
+from worker 2:                                 else
+from worker 2:                                     isready(databuf_lc) && put!(databuf_rc, packtake!(databuf_lc, (2rn) * conf.DAQ.packsize))
+from worker 2:                                     isready(progress_lc) && put!(progress_rc, packtake!(progress_lc, conf.DAQ.packsize))
+from worker 2:                                 end
+from worker 2:                                 yield()
+from worker 2:                             end))
+from worker 2:                 end
+from worker 2:         end
+from worker 2:     end
+from worker 2: end
+from worker 2: └ @ QInsControl C:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl - CImGui1.82\src\UI\DAQTask.jl:146
+┌ Info: [2023-03-06T20:01:19.756]
+│ 启动成功！
+└ @ QInsControl C:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl - CImGui1.82\src\QInsControl.jl:129
+┌ Info: [2023-03-06T20:10:19.886]
+│ 启动成功！
+└ @ QInsControl C:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl - CImGui1.82\src\QInsControl.jl:129

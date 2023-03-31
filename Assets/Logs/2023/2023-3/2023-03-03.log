@@ -1,0 +1,224 @@
+┌ Info: [2023-03-03T14:03:47.685]
+│ 启动成功！
+└ @ QInsControl C:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl - CImGui1.82\src\QInsControl.jl:100
+┌ Info: [2023-03-03T14:15:17.913]
+│ 启动成功！
+└ @ QInsControl C:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl - CImGui1.82\src\QInsControl.jl:100
+from worker 2: ┌ Info: [2023-03-03T14:16:52.882]
+from worker 2: │   task = begin
+from worker 2:     function remote_sweep_block(resmg, instrs, databuf_lc, progress_lc, syncstates)
+from worker 2:         @porgress for i = 1:100
+from worker 2:                 if syncstates[Int(isblock)]
+from worker 2:                     for ins = values(instrs)
+from worker 2:                         disconnect!(ins)
+from worker 2:                     end
+from worker 2:                     @warn "[$(now())]\n暂停！" StrideCodeBlock = "@porgress for i in 1:100"
+from worker 2:                     syncstates[Int(isblocking)] = true
+from worker 2:                     lock((()->wait(block)), block)
+from worker 2:                     for ins = values(instrs)
+from worker 2:                         connect!(resmg, ins)
+from worker 2:                     end
+from worker 2:                     @info "[$(now())]\n继续！" StrideCodeBlock = "@porgress for i in 1:100"
+from worker 2:                     syncstates[Int(isblocking)] = false
+from worker 2:                 end
+from worker 2:                 if syncstates[Int(isinterrupt)]
+from worker 2:                     @warn "[$(now())]\n中断！" StrideCodeBlock = "@porgress for i in 1:100"
+from worker 2:                     return
+from worker 2:                 end
+from worker 2:                 sleep(0.1)
+from worker 2:                 put!(databuf_lc, ("_VirtualInstr_SystemTime_VirtualAddress", string(VirtualInstr_SystemTime_get(instrs["VirtualInstr_VirtualAddress"]))))
+from worker 2:             end
+from worker 2:     end
+from worker 2:     function remote_do_block(databuf_rc, progress_rc, syncstates, rn)
+from worker 2:         instrs = Dict{Any, Any}("VirtualInstr_VirtualAddress" => QInsControl.VirtualInstr("VirtualInstr", "VirtualAddress"))
+from worker 2:         try
+from worker 2:             databuf_lc = Channel{Tuple{String, String}}(conf.DAQ.channel_size)
+from worker 2:             progress_lc = Channel{Tuple{UUID, Int, Int, Float64}}(conf.DAQ.channel_size)
+from worker 2:             @sync begin
+from worker 2:                     remotedotask = errormonitor(@async(begin
+from worker 2:                                     resourcemanager = ResourceManager()
+from worker 2:                                     for instr = values(instrs)
+from worker 2:                                         connect!(resourcemanager, instr)
+from worker 2:                                     end
+from worker 2:                                     remote_sweep_block(resourcemanager, instrs, databuf_lc, progress_lc, syncstates)
+from worker 2:                                 end))
+from worker 2:                     errormonitor(@async(while true
+from worker 2:                                 if istaskdone(remotedotask) && all(.!(isready.([databuf_lc, databuf_rc, progress_lc, progress_rc])))
+from worker 2:                                     syncstates[Int(isdaqtask_done)] = true
+from worker 2:                                     break
+from worker 2:                                 else
+from worker 2:                                     isready(databuf_lc) && put!(databuf_rc, packtake!(databuf_lc, (2rn) * conf.DAQ.packsize))
+from worker 2:                                     isready(progress_lc) && put!(progress_rc, packtake!(progress_lc, conf.DAQ.packsize))
+from worker 2:                                 end
+from worker 2:                                 yield()
+from worker 2:                             end))
+from worker 2:                 end
+from worker 2:         end
+from worker 2:     end
+from worker 2: end
+from worker 2: └ @ QInsControl C:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl - CImGui1.82\src\UI\DAQTask.jl:144
+from worker 2: ┌ Error: [2023-03-03T14:16:54.436]
+from worker 2: │ 程序定义有误！！！
+from worker 2: │   exception = LoadError("<macrocall>", 0, UndefVarError(Symbol("@porgress")))
+from worker 2: └ @ QInsControl C:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl - CImGui1.82\src\UI\DAQTask.jl:148
+from worker 2: ┌ Info: [2023-03-03T14:17:12.572]
+from worker 2: │   task = begin
+from worker 2:     function remote_sweep_block(resmg, instrs, databuf_lc, progress_lc, syncstates)
+from worker 2:         @progress for i = 1:100
+from worker 2:                 if syncstates[Int(isblock)]
+from worker 2:                     for ins = values(instrs)
+from worker 2:                         disconnect!(ins)
+from worker 2:                     end
+from worker 2:                     @warn "[$(now())]\n暂停！" StrideCodeBlock = "@progress for i in 1:100"
+from worker 2:                     syncstates[Int(isblocking)] = true
+from worker 2:                     lock((()->wait(block)), block)
+from worker 2:                     for ins = values(instrs)
+from worker 2:                         connect!(resmg, ins)
+from worker 2:                     end
+from worker 2:                     @info "[$(now())]\n继续！" StrideCodeBlock = "@progress for i in 1:100"
+from worker 2:                     syncstates[Int(isblocking)] = false
+from worker 2:                 end
+from worker 2:                 if syncstates[Int(isinterrupt)]
+from worker 2:                     @warn "[$(now())]\n中断！" StrideCodeBlock = "@progress for i in 1:100"
+from worker 2:                     return
+from worker 2:                 end
+from worker 2:                 sleep(0.1)
+from worker 2:                 put!(databuf_lc, ("_VirtualInstr_SystemTime_VirtualAddress", string(VirtualInstr_SystemTime_get(instrs["VirtualInstr_VirtualAddress"]))))
+from worker 2:             end
+from worker 2:     end
+from worker 2:     function remote_do_block(databuf_rc, progress_rc, syncstates, rn)
+from worker 2:         instrs = Dict{Any, Any}("VirtualInstr_VirtualAddress" => QInsControl.VirtualInstr("VirtualInstr", "VirtualAddress"))
+from worker 2:         try
+from worker 2:             databuf_lc = Channel{Tuple{String, String}}(conf.DAQ.channel_size)
+from worker 2:             progress_lc = Channel{Tuple{UUID, Int, Int, Float64}}(conf.DAQ.channel_size)
+from worker 2:             @sync begin
+from worker 2:                     remotedotask = errormonitor(@async(begin
+from worker 2:                                     resourcemanager = ResourceManager()
+from worker 2:                                     for instr = values(instrs)
+from worker 2:                                         connect!(resourcemanager, instr)
+from worker 2:                                     end
+from worker 2:                                     remote_sweep_block(resourcemanager, instrs, databuf_lc, progress_lc, syncstates)
+from worker 2:                                 end))
+from worker 2:                     errormonitor(@async(while true
+from worker 2:                                 if istaskdone(remotedotask) && all(.!(isready.([databuf_lc, databuf_rc, progress_lc, progress_rc])))
+from worker 2:                                     syncstates[Int(isdaqtask_done)] = true
+from worker 2:                                     break
+from worker 2:                                 else
+from worker 2:                                     isready(databuf_lc) && put!(databuf_rc, packtake!(databuf_lc, (2rn) * conf.DAQ.packsize))
+from worker 2:                                     isready(progress_lc) && put!(progress_rc, packtake!(progress_lc, conf.DAQ.packsize))
+from worker 2:                                 end
+from worker 2:                                 yield()
+from worker 2:                             end))
+from worker 2:                 end
+from worker 2:         end
+from worker 2:     end
+from worker 2: end
+from worker 2: └ @ QInsControl C:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl - CImGui1.82\src\UI\DAQTask.jl:144
+┌ Info: [2023-03-03T14:17:28.872]
+│   data_processing = begin
+end
+└ @ QInsControl C:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl - CImGui1.82\src\UI\DataPicker.jl:113
+from worker 2: ┌ Error: [2023-03-03T14:18:16.451]
+from worker 2: │ 仪器通讯故障！！！
+from worker 2: │   instrument_address = ASRL1::INSTR
+from worker 2: │   exception = ErrorException("VISA C call failed with status VI_ERROR_TMO: Timeout expired before operation completed.")
+from worker 2: └ @ QInsControl C:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl - CImGui1.82\src\Instrument.jl:91
+┌ Info: [2023-03-03T14:32:00.882]
+│ 启动成功！
+└ @ QInsControl C:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl - CImGui1.82\src\QInsControl.jl:100
+┌ Info: [2023-03-03T14:33:29.704]
+│ 启动成功！
+└ @ QInsControl C:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl - CImGui1.82\src\QInsControl.jl:100
+┌ Info: [2023-03-03T14:34:37.970]
+│ 启动成功！
+└ @ Main.QInsControl c:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl - CImGui1.82\src\QInsControl.jl:100
+┌ Info: [2023-03-03T14:38:21.167]
+│ 启动成功！
+└ @ Main.QInsControl c:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl - CImGui1.82\src\QInsControl.jl:101
+┌ Info: [2023-03-03T14:42:28.884]
+│ 启动成功！
+└ @ Main.QInsControl c:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl - CImGui1.82\src\QInsControl.jl:101
+┌ Info: [2023-03-03T14:43:18.753]
+│ 启动成功！
+└ @ Main.QInsControl c:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl - CImGui1.82\src\QInsControl.jl:101
+┌ Info: [2023-03-03T14:45:29.845]
+│ 启动成功！
+└ @ Main.QInsControl c:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl - CImGui1.82\src\QInsControl.jl:101
+┌ Info: [2023-03-03T14:50:25.986]
+│ 启动成功！
+└ @ Main.QInsControl c:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl - CImGui1.82\src\QInsControl.jl:101
+┌ Info: [2023-03-03T15:01:59.893]
+│ 启动成功！
+└ @ Main.QInsControl c:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl - CImGui1.82\src\QInsControl.jl:101
+┌ Info: [2023-03-03T15:02:59.487]
+│ 启动成功！
+└ @ Main.QInsControl c:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl - CImGui1.82\src\QInsControl.jl:101
+┌ Info: [2023-03-03T15:03:33.450]
+│ 启动成功！
+└ @ Main.QInsControl c:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl - CImGui1.82\src\QInsControl.jl:101
+┌ Info: [2023-03-03T15:04:08.472]
+│ 启动成功！
+└ @ Main.QInsControl c:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl - CImGui1.82\src\QInsControl.jl:101
+┌ Info: [2023-03-03T15:04:35.961]
+│ 启动成功！
+└ @ Main.QInsControl c:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl - CImGui1.82\src\QInsControl.jl:101
+┌ Info: [2023-03-03T15:08:12.453]
+│ 启动成功！
+└ @ Main.QInsControl c:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl - CImGui1.82\src\QInsControl.jl:101
+┌ Info: [2023-03-03T15:09:03.611]
+│ 启动成功！
+└ @ Main.QInsControl c:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl - CImGui1.82\src\QInsControl.jl:101
+┌ Error: Error in renderloop!
+│   exception = UndefVarError(:jlverinfo)
+└ @ Main.QInsControl c:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl - CImGui1.82\src\UI\Renderer.jl:183
+┌ Info: [2023-03-03T16:14:31.989]
+│ 启动成功！
+└ @ QInsControl C:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl - CImGui1.82\src\QInsControl.jl:101
+┌ Info: [2023-03-03T16:21:39.383]
+│ 启动成功！
+└ @ QInsControl C:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl - CImGui1.82\src\QInsControl.jl:101
+┌ Info: [2023-03-03T16:33:37.626]
+│ 启动成功！
+└ @ Main.QInsControl c:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl - CImGui1.82\src\QInsControl.jl:101
+┌ Info: [2023-03-03T16:35:00.613]
+│ 启动成功！
+└ @ Main.QInsControl c:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl - CImGui1.82\src\QInsControl.jl:101
+┌ Error: Error in renderloop!
+│   exception = AssertionError("Font atlas not built! It is generally built by the renderer back-end. Missing call to renderer _NewFrame() function? e.g. ImGui_ImplOpenGL3_NewFrame().")
+└ @ Main.QInsControl c:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl - CImGui1.82\src\UI\Renderer.jl:183
+┌ Info: [2023-03-03T16:37:21.796]
+│ 启动成功！
+└ @ Main.QInsControl c:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl - CImGui1.82\src\QInsControl.jl:101
+┌ Error: Error in renderloop!
+│   exception = AssertionError("window != C_NULL")
+└ @ Main.QInsControl c:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl - CImGui1.82\src\UI\Renderer.jl:183
+┌ Info: [2023-03-03T16:38:15.499]
+│ 启动成功！
+└ @ Main.QInsControl c:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl - CImGui1.82\src\QInsControl.jl:101
+┌ Info: [2023-03-03T16:39:35.233]
+│ 启动成功！
+└ @ Main.QInsControl c:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl - CImGui1.82\src\QInsControl.jl:101
+┌ Info: [2023-03-03T16:40:11.579]
+│ 启动成功！
+└ @ Main.QInsControl c:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl - CImGui1.82\src\QInsControl.jl:101
+┌ Info: [2023-03-03T16:40:37.633]
+│ 启动成功！
+└ @ Main.QInsControl c:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl - CImGui1.82\src\QInsControl.jl:101
+┌ Info: [2023-03-03T16:41:37.385]
+│ 启动成功！
+└ @ Main.QInsControl c:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl - CImGui1.82\src\QInsControl.jl:101
+┌ Info: [2023-03-03T16:46:53.682]
+│ 启动成功！
+└ @ Main.QInsControl c:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl - CImGui1.82\src\QInsControl.jl:101
+┌ Error: Error in renderloop!
+│   exception = InexactError(:Bool, Bool, 0x00000400)
+└ @ Main.QInsControl c:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl - CImGui1.82\src\UI\Renderer.jl:183
+┌ Info: [2023-03-03T16:47:12.431]
+│ 启动成功！
+└ @ Main.QInsControl c:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl - CImGui1.82\src\QInsControl.jl:101
+┌ Error: Error in renderloop!
+│   exception = InexactError(:Bool, Bool, 0x00000400)
+└ @ Main.QInsControl c:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl - CImGui1.82\src\UI\Renderer.jl:183
+┌ Info: [2023-03-03T16:47:25.629]
+│ 启动成功！
+└ @ Main.QInsControl c:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl - CImGui1.82\src\QInsControl.jl:101

@@ -1,0 +1,15 @@
+[conf]
+idn = "Others"
+output_labels = []
+icon = ""
+input_labels = []
+cmdtype = ""
+
+# [quantity]
+# cmdheader = ""
+# U = ""
+# enable = true
+# help = "仅用于占位，请勿改动，也无法进行刷新！"
+# optvalues = []
+# type = "read"
+# alias = "变量"

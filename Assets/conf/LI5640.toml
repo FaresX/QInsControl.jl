@@ -1,0 +1,69 @@
+[acvoltage]
+cmdheader = "AMPL"
+U = ""
+enable = true
+help = ""
+optvalues = []
+type = "set"
+alias = "交流电压"
+
+[dataout]
+cmdheader = "DOUT?"
+U = ""
+enable = true
+help = ""
+optvalues = []
+type = "read"
+alias = "DATA"
+
+[auxout2]
+cmdheader = "AUXV 2"
+U = "V"
+enable = true
+help = ""
+optvalues = []
+type = "sweep"
+alias = "附加输出2"
+
+[acfrequency]
+cmdheader = "FREQ"
+U = "Hz"
+enable = true
+help = ""
+optvalues = []
+type = "sweep"
+alias = "交流频率"
+
+[auxout1]
+cmdheader = "AUXV 1"
+U = "V"
+enable = true
+help = ""
+optvalues = []
+type = "sweep"
+alias = "附加输出1"
+
+[conf]
+idn = "LI5640"
+output_labels = ["OSC OUT", "REF OUT"]
+icon = ""
+input_labels = ["I", "A", "B", "REF IN"]
+cmdtype = "scpi"
+
+[sensitivityi]
+cmdheader = "ISEN"
+U = ""
+enable = true
+help = ""
+optvalues = []
+type = "set"
+alias = "电流灵敏度"
+
+[sensitivityv]
+cmdheader = "VSEN"
+U = ""
+enable = true
+help = ""
+optvalues = []
+type = "set"
+alias = "电压灵敏度"

@@ -1,0 +1,40 @@
+┌ Info: [2023-03-12T17:45:23.837]
+│ 启动成功！
+└ @ Main.QInsControl c:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl\src\QInsControl.jl:113
+from worker 2: ┌ Error: 自动查询失败!!!
+from worker 2: │   exception = UndefVarError(:libvisa)
+from worker 2: └ @ Main.QInsControl c:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl\src\Instrument.jl:146
+┌ Info: [2023-03-12T17:55:33.947]
+│ 启动成功！
+└ @ QInsControl C:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl\src\QInsControl.jl:113
+┌ Info: [2023-03-12T17:57:14.393]
+│ 启动成功！
+└ @ QInsControl C:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl\src\QInsControl.jl:113
+┌ Info: [2023-03-12T18:54:47.915]
+│ 启动成功！
+└ @ Main.QInsControl c:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl\src\QInsControl.jl:113
+┌ Info: [2023-03-12T19:18:21.426]
+│ 启动成功！
+└ @ Main.QInsControl c:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl\src\QInsControl.jl:114
+┌ Info: [2023-03-12T19:19:31.997]
+│ 启动成功！
+└ @ Main.QInsControl c:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl\src\QInsControl.jl:114
+┌ Info: [2023-03-12T19:20:20.047]
+│ 启动成功！
+└ @ Main.QInsControl c:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl\src\QInsControl.jl:114
+┌ Info: [2023-03-12T19:22:38.016]
+│ 启动成功！
+└ @ Main.QInsControl c:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl\src\QInsControl.jl:114
+┌ Info: [2023-03-12T19:36:04.725]
+│ 启动成功！
+└ @ Main.QInsControl c:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl\src\QInsControl.jl:114
+┌ Info: [2023-03-12T19:55:17.379]
+│ 启动成功！
+└ @ Main.QInsControl c:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl\src\QInsControl.jl:114
+┌ Info: [2023-03-12T19:57:39.173]
+│ 启动成功！
+└ @ Main.QInsControl c:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl\src\QInsControl.jl:114
+┌ Error: [2023-03-12T20:00:57.592]
+│ Error in renderloop!
+│   exception = Base.IOError("stat(\"C:\\\\Users\\\\22112\\\\OneDrive - mails.ucas.ac.cn\\\\文档\\\\CODE\\\\Julia\\\\QInsControlApp\\\\share\\\\julia\\\\artifacts\\\\57bd9311faafa3d8e73dfb991c2cb420f2c65ab9\\\\share\\\\locale\\\\hr\"): unknown error (UNKNOWN)", -4094)
+└ @ Main.QInsControl c:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl\src\UI\Renderer.jl:147

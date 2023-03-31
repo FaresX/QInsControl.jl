@@ -1,0 +1,123 @@
+[Asourcelimitv]
+cmdheader = "smua.source.limitv"
+U = "V"
+enable = true
+help = ""
+optvalues = []
+type = "set"
+alias = "A输出电压限制"
+
+[Ameasurerangei]
+cmdheader = "smua.measure.rangei"
+U = "A"
+enable = true
+help = ""
+optvalues = []
+type = "set"
+alias = "A测量电流范围"
+
+[Ameasureiv]
+cmdheader = "smua.measure.iv()"
+U = ""
+enable = true
+help = ""
+optvalues = []
+type = "read"
+alias = "A测量电流电压"
+
+[Asourcerangev]
+cmdheader = "smua.source.rangev"
+U = "V"
+enable = true
+help = ""
+optvalues = []
+type = "set"
+alias = "A输出电压范围"
+
+[Ameasurev]
+cmdheader = "smua.measure.v()"
+U = "V"
+enable = true
+help = ""
+optvalues = []
+type = "read"
+alias = "A测量电压"
+
+[Asourcelimiti]
+cmdheader = "smua.source.limiti"
+U = "A"
+enable = true
+help = ""
+optvalues = []
+type = "set"
+alias = "A输出电流限制"
+
+[Asourcefunc]
+cmdheader = "smua.source.func"
+U = ""
+enable = true
+help = ""
+optvalues = ["smua.OUTPUT_DCAMPS", "smua.OUTPUT_DCVOLTS"]
+type = "set"
+alias = "A输出模式"
+
+[Asourcerangei]
+cmdheader = "smua.source.rangei"
+U = "A"
+enable = true
+help = ""
+optvalues = []
+type = "set"
+alias = "A输出电流范围"
+
+[Ameasurei]
+cmdheader = "smua.measure.i()"
+U = "A"
+enable = true
+help = ""
+optvalues = []
+type = "read"
+alias = "A测量电流"
+
+[Aoutput]
+cmdheader = "smua.source.output"
+U = ""
+enable = true
+help = ""
+optvalues = ["smua.OUTPUT_ON", "smua.OUTPUT_OFF"]
+type = "set"
+alias = "A输出"
+
+[Ameasurerangev]
+cmdheader = "smua.measure.rangev"
+U = "V"
+enable = true
+help = ""
+optvalues = []
+type = "set"
+alias = "A测量电压范围"
+
+[Asourceleveli]
+cmdheader = "smua.source.leveli"
+U = "A"
+enable = true
+help = ""
+optvalues = []
+type = "sweep"
+alias = "A输出电流"
+
+[conf]
+idn = "Model 2612"
+output_labels = ["H", "HS"]
+icon = ""
+input_labels = ["L", "LS"]
+cmdtype = "tsp"
+
+[Asourcelevelv]
+cmdheader = "smua.source.levelv"
+U = "V"
+enable = true
+help = ""
+optvalues = []
+type = "sweep"
+alias = "A输出电压"

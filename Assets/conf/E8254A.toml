@@ -1,0 +1,33 @@
+[output]
+cmdheader = ":OUTPut:STATe"
+U = ""
+enable = true
+help = ""
+optvalues = ["ON", "OFF"]
+type = "set"
+alias = "输出"
+
+[frequency]
+cmdheader = ":SOUR:FREQ"
+U = "Hz"
+enable = true
+help = ""
+optvalues = []
+type = "sweep"
+alias = "频率"
+
+[power]
+cmdheader = ":SOUR:POW"
+U = "dBm"
+enable = true
+help = ""
+optvalues = []
+type = "sweep"
+alias = "功率"
+
+[conf]
+idn = "E8254A"
+output_labels = ["RF out"]
+icon = ""
+input_labels = []
+cmdtype = "scpi"

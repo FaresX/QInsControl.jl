@@ -1,0 +1,15 @@
+[inputB]
+cmdheader = "KRDG? B"
+U = "K"
+enable = true
+help = ""
+optvalues = []
+type = "read"
+alias = "B通道温度"
+
+[conf]
+idn = "MODEL336"
+output_labels = []
+icon = ""
+input_labels = []
+cmdtype = "scpi"

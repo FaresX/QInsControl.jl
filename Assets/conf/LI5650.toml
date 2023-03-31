@@ -1,0 +1,51 @@
+[acvoltage]
+cmdheader = ":SOURce:VOLTage:LEVel:IMMediate:AMPLitude"
+U = "V"
+enable = true
+help = ""
+optvalues = []
+type = "sweep"
+alias = "交流电压"
+
+[dataout]
+cmdheader = "FETCh?"
+U = ""
+enable = true
+help = ""
+optvalues = []
+type = "read"
+alias = "DATA"
+
+[auxout2]
+cmdheader = ":SOURce6:VOLTage:LEVel:IMMediate:OFFSet"
+U = "V"
+enable = true
+help = ""
+optvalues = []
+type = "sweep"
+alias = "附加输出2"
+
+[acfrequency]
+cmdheader = ":SOURce:FREQuency1:CW"
+U = "Hz"
+enable = true
+help = ""
+optvalues = []
+type = "sweep"
+alias = "交流频率"
+
+[auxout1]
+cmdheader = ":SOURce5:VOLTage:LEVel:IMMediate:OFFSet"
+U = "V"
+enable = true
+help = ""
+optvalues = []
+type = "sweep"
+alias = "附加输出1"
+
+[conf]
+idn = "LI5650"
+output_labels = ["OSC OUT", "REF OUT"]
+icon = ""
+input_labels = ["I", "A", "B", "REF IN"]
+cmdtype = "scpi"

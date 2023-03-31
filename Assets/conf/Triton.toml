@@ -1,0 +1,24 @@
+[temperatureT5]
+cmdheader = ""
+U = "K"
+enable = true
+help = "MC Plate Cernox"
+optvalues = []
+type = "read"
+alias = "温度T5"
+
+[conf]
+idn = "Triton"
+output_labels = []
+icon = ""
+input_labels = []
+cmdtype = "scpi"
+
+[temperatureT8]
+cmdheader = ""
+U = "K"
+enable = true
+help = "MC Plate RuO2"
+optvalues = []
+type = "read"
+alias = "温度T8"

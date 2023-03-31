@@ -1,0 +1,42 @@
+[SystemTime]
+cmdheader = ""
+U = "s"
+enable = true
+help = "Get the system time in seconds since the epoch, with fairly high (typically, microsecond) resolution."
+optvalues = []
+type = "read"
+alias = "系统时间"
+
+[Date]
+cmdheader = ""
+U = ""
+enable = true
+help = "Return a Date corresponding to the user's system time including the system timezone locale."
+optvalues = []
+type = "read"
+alias = "日期"
+
+[Time]
+cmdheader = ""
+U = ""
+enable = true
+help = "Return a Time corresponding to the user's system time including the system timezone locale."
+optvalues = []
+type = "read"
+alias = "时间"
+
+[conf]
+idn = "VirtualInstr"
+output_labels = []
+icon = ""
+input_labels = []
+cmdtype = ""
+
+[DateTime]
+cmdheader = ""
+U = ""
+enable = true
+help = "Return a DateTime corresponding to the user's system time including the system timezone locale."
+optvalues = []
+type = "read"
+alias = "日期和时间"

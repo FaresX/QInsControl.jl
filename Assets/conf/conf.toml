@@ -1,0 +1,48 @@
+[U]
+"T/min" = ["T minute^-1"]
+A = ["A", "mA", "μA", "nA"]
+T = ["T", "mT", "Gauss"]
+dBm = ["dBm"]
+V = ["V", "mV", "μV", "nV"]
+"" = [""]
+K = ["K", "mK"]
+s = ["s", "minute", "hr", "d"]
+Hz = ["Hz", "kHz", "MHz", "GHz"]
+
+[Init]
+isremote = true
+windowsize = [1280, 720]
+viewportenable = true
+
+[DAQ]
+savetime = 60
+channel_size = 512
+packsize = 6
+
+[InsBuf]
+showcol = 3
+showhelp = true
+
+[Fonts]
+dir = "Assets\\Fonts"
+size = 18
+first = "ZaoZiGongFangShangHeiG0v1ChangGuiTi-1.otf"
+second = "arial.ttf"
+
+[Icons]
+size = 18
+
+[Logs]
+dir = "Assets\\Logs"
+refreshrate = 1
+showlogline = 100
+
+[BGImage]
+path = "defaultwallpaper.bmp"
+
+[ComAddr]
+addrs = ["TCPIP::192.168.31.239::33576::SOCKET"]
+
+[Style]
+path = "Assets\\conf\\style.sty"
+default = "BlueSea"
