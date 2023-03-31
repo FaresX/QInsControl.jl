@@ -1,8 +1,8 @@
-# using Distributed
-# nprocs() == 1 && addprocs(1)
-# @everywhere ENV["QInsControlAssets"] = "Assets"
-# @everywhere module QInsControl
-module QInsControl
+using Distributed
+nprocs() == 1 && addprocs(1)
+@everywhere ENV["QInsControlAssets"] = "Assets"
+@everywhere module QInsControl
+# module QInsControl
 
 using CImGui
 using CImGui.CSyntax
@@ -100,7 +100,7 @@ function julia_main()::Cint
         global databuf_rc = RemoteChannel(() -> databuf_c)
         global progress_rc = RemoteChannel(() -> progress_c)
         uitask = UI()
-        include("Logger.jl")
+        # include("Logger.jl")
         jlverinfobuf = IOBuffer()
         versioninfo(jlverinfobuf)
         global jlverinfo = wrapmultiline(String(take!(jlverinfobuf)), 48)
@@ -111,7 +111,7 @@ function julia_main()::Cint
             databuf_rc = RemoteChannel(() -> databuf_c)
             progress_rc = RemoteChannel(() -> progress_c)
             remote_do(loadconf, workers()[1])
-            remote_do(include, workers()[1], "Logger.jl")
+            # remote_do(include, workers()[1], "Logger.jl")
         end
         autorefresh()
         @info "[$(now())]\n启动成功！"
