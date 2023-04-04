@@ -27,29 +27,15 @@ function loadconf()
         bnm == "conf.toml" || split(bnm, '.')[end] != "toml" || gen_insconf(file)
     end
 
-    ######generate instrlist######
-    # for key in keys(insconf)
-    #     push!(instrlist, key => String[])
-    # end
-    # push!(instrlist, "Others" => String[])
-    # push!(instrlist, "VirtualInstr" => ["VirtualAddress"])
-
-    ######generate instrcontrollers & instrbufferviewers######
+    ######generate instrbufferviewers######
     for key in keys(insconf)
-        # push!(instrbuffer, key => Dict{String,InstrBuffer}())
-        # push!(instrcontrollers, key => Dict{String,Controller}())
         push!(instrbufferviewers, key => Dict{String,InstrBufferViewer}())
     end
-    # push!(instrbuffer, "VirtualInstr" => Dict("VirtualAddress" => InstrBuffer("VirtualInstr")))
-    # push!(instrcontrollers, "VirtualInstr" => Dict("VirtualAddress" => Controller("VirtualInstr", "VirtualAddress")))
     push!(instrbufferviewers, "VirtualInstr" => Dict("VirtualAddress" => InstrBufferViewer("VirtualInstr", "VirtualAddress")))
 
     ######load style_conf######
     stypath = conf.Style.path
     isfile(stypath) && merge!(styles, load(stypath, "styles"))
-    # if !isempty(styles) && haskey(styles, conf.Style.default)
-    #     global ustyle = styles[conf.Style.default]
-    # end
 
     return nothing
 end

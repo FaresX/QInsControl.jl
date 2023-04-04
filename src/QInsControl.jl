@@ -37,11 +37,11 @@ using Printf
 using InteractiveUtils
 using Sockets
 
-export julia_main
+export start
 
 const instrlist = Dict{String,Vector{String}}() #仪器列表
 
-@enum SyncStatesIndex begin 
+@enum SyncStatesIndex begin
     autodetecting = 1 #是否正在自动查询仪器
     autodetect_done 
     isdaqtask_running 
@@ -128,5 +128,6 @@ function julia_main()::Cint
     return 0
 end
 
+start() = julia_main()
 
 end #QInsControl
