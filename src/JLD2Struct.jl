@@ -1,4 +1,5 @@
-types = [:InstrQuantity, :InstrBuffer, :DAQTask, :NodeEditor, :Node, :UIPlot, :Annotation, :DataPicker,
+types = [:InstrQuantity, :InstrBuffer, :InstrBufferViewer,
+    :DAQTask, :NodeEditor, :Node, :UIPlot, :Annotation, :DataPicker,
     :MoreStyle, :MoreStyleColor, :MoreStyleIcon, :UnionStyle,
     :CodeBlock, :StrideCodeBlock, :SweepBlock, :SettingBlock, :ReadingBlock, :LogBlock, :WriteBlock, :QueryBlock, :ReadBlock]
 

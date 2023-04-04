@@ -153,10 +153,25 @@ end
 function setvalue!(dict::OrderedDict, key, item)
     newdict = OrderedDict()
     for p in dict
-        if p.first != key
-            push!(newdict, p)
-        else
+        if p.first == key
             push!(newdict, item)
+        else
+            push!(newdict, p)
+        end
+    end
+    empty!(dict)
+    merge!(dict, newdict)
+end
+
+function swapvalue!(dict::OrderedDict, key1, key2)
+    newdict = OrderedDict()
+    for p in dict
+        if p.first == key1
+            push!(newdict, key2 => dict[key2])
+        elseif p.first == key2
+            push!(newdict, key1 => dict[key1])
+        else
+            push!(newdict, p)
         end
     end
     empty!(dict)
@@ -169,7 +184,7 @@ end
 
 
 ###Patch###
-Base.convert(::Type{OrderedDict{String,T}}, vec::Vector{T}) where T = OrderedDict(string(i) => v for (i, v) in enumerate(vec))
+# Base.convert(::Type{OrderedDict{String,T}}, vec::Vector{T}) where T = OrderedDict(string(i) => v for (i, v) in enumerate(vec))
 
 function Base.getproperty(x::Ptr{LibCImGui.Style}, f::Symbol)
     f === :grid_spacing && return Ptr{Cfloat}(x + 0)

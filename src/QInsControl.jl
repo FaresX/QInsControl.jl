@@ -18,6 +18,7 @@ using Unitful
 using MacroTools
 import FileIO: load
 using JLD2
+using QInsControlCore
 using Instruments
 using Configurations
 using ColorTypes
@@ -46,12 +47,11 @@ const instrlist = Dict{String,Vector{String}}() #仪器列表
     isdaqtask_running 
     isdaqtask_done 
     isinterrupt 
-    isblock 
-    isblocking 
-    busy_acquiring 
+    isblock
     isautorefresh
 end
 
+const CPU = Processor()
 const databuf = Dict{String,Vector{String}}() #数据缓存
 const progresslist = Dict{UUID,Tuple{UUID,Int,Int,Float64}}() #进度条缓存
 
@@ -92,11 +92,9 @@ include("Conf.jl")
 function julia_main()::Cint
     try
         loadconf()
-        instrbuffer_c::Channel{Vector{NTuple{4,String}}} = Channel{Vector{NTuple{4,String}}}(conf.DAQ.channel_size)
         databuf_c::Channel{Vector{Tuple{String,String}}} = Channel{Vector{NTuple{2,String}}}(conf.DAQ.channel_size)
         progress_c::Channel{Vector{Tuple{UUID,Int,Int,Float64}}} = Channel{Vector{Tuple{UUID,Int,Int,Float64}}}(conf.DAQ.channel_size)
-        global syncstates = SharedVector{Bool}(9)
-        global instrbuffer_rc = RemoteChannel(() -> instrbuffer_c)
+        global syncstates = SharedVector{Bool}(7)
         global databuf_rc = RemoteChannel(() -> databuf_c)
         global progress_rc = RemoteChannel(() -> progress_c)
         uitask = UI()
@@ -106,13 +104,13 @@ function julia_main()::Cint
         global jlverinfo = wrapmultiline(String(take!(jlverinfobuf)), 48)
         if conf.Init.isremote
             nprocs() == 1 && addprocs(1)
-            syncstates = SharedVector{Bool}(9)
-            instrbuffer_rc = RemoteChannel(() -> instrbuffer_c)
+            syncstates = SharedVector{Bool}(7)
             databuf_rc = RemoteChannel(() -> databuf_c)
             progress_rc = RemoteChannel(() -> progress_c)
             remote_do(loadconf, workers()[1])
             # remote_do(include, workers()[1], "Logger.jl")
         end
+        remotecall_wait(()->start!(CPU), workers()[1])
         autorefresh()
         @info "[$(now())]\n启动成功！"
         if !isinteractive()

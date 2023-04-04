@@ -151,6 +151,7 @@ function UI()
         @error "[$(now())]\nError in renderloop!" exception = e
         Base.show_backtrace(stderr, catch_backtrace())
     finally
+        remotecall_wait(()->stop!(CPU), workers()[1])
         ImGuiOpenGLBackend.shutdown(gl_ctx)
         ImGuiGLFWBackend.shutdown(window_ctx)
         imnodes_DestroyContext(ctxi)

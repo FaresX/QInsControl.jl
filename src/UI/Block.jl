@@ -100,8 +100,6 @@ ReadBlock() = ReadBlock("仪器", "", "地址", "", false, false, false, zeros(4
 tocodes(::NullBlock) = nothing
 
 function tocodes(bk::CodeBlock)
-    # codestr = replace(bk.codes, r"#.*\n" => ';')
-    # codestr = replace(codestr, '\n' => ';')
     ex = @trypass Meta.parseall(bk.codes) (@error "[$(now())]\ncodes are wrong in parsing time (CodeBlock)!!!" bk = bk; return)
     ex isa Expr && ex.head == :toplevel && (ex.head = :block)
     ex
@@ -123,17 +121,9 @@ function tocodes(bk::StrideCodeBlock)
     end
     interpall = quote
         if syncstates[Int(isblock)]
-            for ins in values(instrs)
-                disconnect!(ins)
-            end
             @warn "[$(now())]\n暂停！" StrideCodeBlock = $headcodes
-            syncstates[Int(isblocking)] = true
             lock(() -> wait(block), block)
-            for ins in values(instrs)
-                connect!(resmg, ins)
-            end
             @info "[$(now())]\n继续！" StrideCodeBlock = $headcodes
-            syncstates[Int(isblocking)] = false
         end
         if syncstates[Int(isinterrupt)]
             @warn "[$(now())]\n中断！" StrideCodeBlock = $headcodes
@@ -175,29 +165,21 @@ function tocodes(bk::SweepBlock)
     end
     @gensym ijk
     @gensym sweepsteps
-    quote
+    return quote
         $sweepsteps = ceil(Int, abs(($start - $stop) / $step))
         $sweepsteps = $sweepsteps == 1 ? 2 : $sweepsteps
         @progress for $ijk in range($start, $stop, length=$sweepsteps)
             if syncstates[Int(isblock)]
-                for ins in values(instrs)
-                    disconnect!(ins)
-                end
                 @warn "[$(now())]\n暂停！" SweepBlock = $instr
-                syncstates[Int(isblocking)] = true
                 lock(() -> wait(block), block)
-                for ins in values(instrs)
-                    connect!(resmg, ins)
-                end
                 @info "[$(now())]\n继续！" SweepBlock = $instr
-                syncstates[Int(isblocking)] = false
             end
             if syncstates[Int(isinterrupt)]
                 @warn "[$(now())]\n中断！" SweepBlock = $instr
                 return
             end
             sleep($(bk.delay))
-            $setfunc(instrs[$instr], $ijk)
+            controllers[$instr]($setfunc, CPU, string($ijk), Val(:write))
             $interpcodes
         end
     end
@@ -217,9 +199,7 @@ function tocodes(bk::SettingBlock)
         setvalue = Expr(:call, float, Expr(:call, :*, setvaluec, Uchange))
     end
     setfunc = Symbol(bk.instrnm, :_, bk.quantity, :_set)
-    quote
-        $(setfunc)(instrs[$instr], string($setvalue))
-    end
+    return :(controllers[$instr]($setfunc, CPU, string($setvalue), Val(:write)))
 end
 
 function tocodes(bk::ReadingBlock)
@@ -228,20 +208,18 @@ function tocodes(bk::ReadingBlock)
     index = @trypasse eval(Meta.parse(bk.index)) (@error "[$(now())]\ncodes are wrong in parsing time (ReadingBlock)!!!" bk = bk; return)
     if isnothing(index)
         key = string(bk.mark, "_", bk.instrnm, "_", bk.quantity, "_", bk.addr)
+        getdata = :(controllers[$instr]($getfunc, CPU, Val(:read)))
         ex = if bk.isobserve
             observable = Symbol(bk.mark)
             bk.isreading ? quote
-                $observable = string($getfunc(instrs[$instr]))
+                $observable = $getdata
                 put!(databuf_lc, ($key, $observable))
-            end : :($observable = string($getfunc(instrs[$instr])))
+            end : :($observable = $getdata)
         else
-            quote
-                put!(databuf_lc, ($key, string($getfunc(instrs[$instr]))))
-            end
+            :(put!(databuf_lc, ($key, $getdata)))
         end
         return bk.isasync ? quote
             @async begin
-                sleep(0.001)
                 $ex
             end
         end : ex
@@ -254,39 +232,38 @@ function tocodes(bk::ReadingBlock)
             marks[i] == "" && (marks[i] = "mark$i")
         end
         keyall = [string(mark, "_", bk.instrnm, "_", bk.quantity, "[", ind, "]", "_", bk.addr) for (mark, ind) in zip(marks, index)]
+        getdata = :(string.(split(controllers[$instr]($getfunc, CPU, Val(:read)), ",")[collect($index)]))
         ex = if bk.isobserve
             observable = Symbol(bk.mark)
-            quote
-                $observable = string.(split($getfunc(instrs[$instr]), ",")[collect($index)])
+            bk.isreading ? quote
+                $observable = $getdata
                 for data in zip($keyall, $observable)
                     put!(databuf_lc, data)
                 end
-            end
+            end : :($observable = $getdata)
         else
             quote
-                for data in zip($keyall, string.(split($getfunc(instrs[$instr]), ",")[collect($index)]))
+                for data in zip($keyall, $getdata)
                     put!(databuf_lc, data)
                 end
             end
         end
         return bk.isasync ? quote
             @async begin
-                sleep(0.001)
                 $ex
             end
         end : ex
     end
 end
 
-tocodes(::LogBlock) = :(remotecall_wait(eval, 1, :(log_instrbuffer(instrbuffer_rc))))
+tocodes(::LogBlock) = :(remotecall_wait(eval, 1, :(log_instrbufferviewers())))
 
 function tocodes(bk::WriteBlock)
     instr = string(bk.instrnm, "_", bk.addr)
     cmd = parsedollar(bk.cmd)
-    ex = :(write(instrs[$instr], $cmd))
-    bk.isasync ? quote
+    ex = :(controllers[$instr](write, CPU, string($cmd), Val(:write)))
+    return bk.isasync ? quote
         @async begin
-            sleep(0.001)
             $ex
         end
     end : ex
@@ -298,20 +275,18 @@ function tocodes(bk::QueryBlock)
     cmd = parsedollar(bk.cmd)
     if isnothing(index)
         key = string(bk.mark, "_", bk.instrnm, "_", bk.addr)
+        getdata = :(controllers[$instr](query, CPU, string($cmd), Val(:query)))
         ex = if bk.isobserve
             observable = Symbol(bk.mark)
             bk.isreading ? quote
-                $observable = string(query(instrs[$instr], $cmd))
+                $observable = $getdata
                 put!(databuf_lc, ($key, $observable))
-            end : :($observable = string(query(instrs[$instr], $cmd)))
+            end : :($observable = $getdata)
         else
-            quote
-                put!(databuf_lc, ($key, string(query(instrs[$instr], $cmd))))
-            end
+            :(put!(databuf_lc, ($key, $getdata)))
         end
         return bk.isasync ? quote
             @async begin
-                sleep(0.001)
                 $ex
             end
         end : ex
@@ -324,24 +299,24 @@ function tocodes(bk::QueryBlock)
             marks[i] == "" && (marks[i] = "mark$i")
         end
         keyall = [string(mark, "_", bk.instrnm, "[", ind, "]", "_", bk.addr) for (mark, ind) in zip(marks, index)]
+        getdata = :(string.(split(controllers[$instr](query, CPU, $cmd, Val(:query)), ",")[collect($index)]))
         ex = if bk.isobserve
             observable = Symbol(bk.mark)
-            quote
-                $observable = string.(split(query(instrs[$instr], $cmd), ",")[collect($index)])
+            bk.isreading ? quote
+                $observable = $getdata
                 for data in zip($keyall, $observable)
                     put!(databuf_lc, data)
                 end
-            end
+            end : :($observable = $getdata)
         else
             quote
-                for data in zip($keyall, string.(split(query(instrs[$instr], $cmd), ",")[collect($index)]))
+                for data in zip($keyall, $getdata)
                     put!(databuf_lc, data)
                 end
             end
         end
         return bk.isasync ? quote
             @async begin
-                sleep(0.001)
                 $ex
             end
         end : ex
@@ -353,20 +328,18 @@ function tocodes(bk::ReadBlock)
     index = @trypasse eval(Meta.parse(bk.index)) (@error "[$(now())]\ncodes are wrong in parsing time (ReadBlock)!!!" bk = bk; return)
     if isnothing(index)
         key = string(bk.mark, "_", bk.instrnm, "_", bk.addr)
+        getdata = :(controllers[$instr](read, CPU, Val(:read)))
         ex = if bk.isobserve
             observable = Symbol(bk.mark)
             bk.isreading ? quote
-                $observable = string(read(instrs[$instr]))
+                $observable = $getdata
                 put!(databuf_lc, ($key, $observable))
-            end : :($observable = string(read(instrs[$instr])))
+            end : :($observable = $getdata)
         else
-            quote
-                put!(databuf_lc, ($key, string(read(instrs[$instr]))))
-            end
+            :(put!(databuf_lc, ($key, $getdata)))
         end
         return bk.isasync ? quote
             @async begin
-                sleep(0.001)
                 $ex
             end
         end : ex
@@ -379,24 +352,24 @@ function tocodes(bk::ReadBlock)
             marks[i] == "" && (marks[i] = "mark$i")
         end
         keyall = [string(mark, "_", bk.instrnm, "[", ind, "]", "_", bk.addr) for (mark, ind) in zip(marks, index)]
+        getdata = :(string.(split(controllers[$instr](read, CPU, Val(:read)), ",")[collect($index)]))
         ex = if bk.isobserve
             observable = Symbol(bk.mark)
-            quote
-                $observable = string.(split(read(instrs[$instr]), ",")[collect($index)])
+            bk.isreading ? quote
+                $observable = $getdata
                 for data in zip($keyall, $observable)
                     put!(databuf_lc, data)
                 end
-            end
+            end : :($observable = $getdata)
         else
             quote
-                for data in zip($keyall, string.(split(read(instrs[$instr]), ",")[collect($index)]))
+                for data in zip($keyall, $getdata)
                     put!(databuf_lc, data)
                 end
             end
         end
         return bk.isasync ? quote
             @async begin
-                sleep(0.001)
                 $ex
             end
         end : ex
@@ -448,19 +421,27 @@ function edit(bk::SweepBlock)
     CImGui.PopItemWidth()
     CImGui.SameLine()
 
-    inlist = @trypass bk.addr in instrlist[bk.instrnm] false
+    inlist = haskey(instrbufferviewers, bk.instrnm) && haskey(instrbufferviewers[bk.instrnm], bk.addr)
     bk.addr = inlist ? bk.addr : "地址"
-    addrlist = @trypass instrlist[bk.instrnm] String[]
+    addrlist = haskey(instrbufferviewers, bk.instrnm) ? keys(instrbufferviewers[bk.instrnm]) : String[]
     CImGui.PushItemWidth(width)
     @c ComBoS("##SweepBlock地址", &bk.addr, addrlist, CImGui.ImGuiComboFlags_NoArrowButton)
     CImGui.PopItemWidth()
     CImGui.SameLine()
 
-    showqt = @trypass insconf[bk.instrnm].quantities[bk.quantity].alias "扫描"
+    showqt = if haskey(insconf, bk.instrnm) && haskey(insconf[bk.instrnm].quantities, bk.quantity)
+        insconf[bk.instrnm].quantities[bk.quantity].alias
+    else
+        "扫描"
+    end
     CImGui.PushItemWidth(width)
     if CImGui.BeginCombo("##SweepBlock设置", showqt, CImGui.ImGuiComboFlags_NoArrowButton)
-        qtlist = @trypass keys(insconf[bk.instrnm].quantities) Set{String}()
-        qts = @trypass [qt for qt in qtlist if insconf[bk.instrnm].quantities[qt].type == "sweep" && insconf[bk.instrnm].quantities[qt].enable] String[]
+        qtlist = haskey(insconf, bk.instrnm) ? keys(insconf[bk.instrnm].quantities) : Set{String}()
+        qts = if haskey(insconf, bk.instrnm)
+            [qt for qt in qtlist if insconf[bk.instrnm].quantities[qt].type == "sweep" && insconf[bk.instrnm].quantities[qt].enable]
+        else
+            String[]
+        end
         for qt in qts
             selected = bk.quantity == qt
             showqt = insconf[bk.instrnm].quantities[qt].alias
@@ -485,7 +466,11 @@ function edit(bk::SweepBlock)
     CImGui.PopItemWidth()
     CImGui.SameLine()
 
-    Ut = @trypass insconf[bk.instrnm].quantities[bk.quantity].U ""
+    Ut = if haskey(insconf, bk.instrnm) && haskey(insconf[bk.instrnm].quantities, bk.quantity)
+        insconf[bk.instrnm].quantities[bk.quantity].U
+    else
+        ""
+    end
     CImGui.PushItemWidth(-1)
     @c ShowUnit("##SweepBlock", Ut, &bk.ui)
     CImGui.PopItemWidth()
@@ -506,19 +491,27 @@ function edit(bk::SettingBlock)
     CImGui.PopItemWidth()
     CImGui.SameLine()
 
-    inlist = @trypass bk.addr in instrlist[bk.instrnm] false
+    inlist = haskey(instrbufferviewers, bk.instrnm) && haskey(instrbufferviewers[bk.instrnm], bk.addr)
     bk.addr = inlist ? bk.addr : "地址"
-    addrlist = @trypass instrlist[bk.instrnm] String[]
+    addrlist = haskey(instrbufferviewers, bk.instrnm) ? keys(instrbufferviewers[bk.instrnm]) : String[]
     CImGui.PushItemWidth(width)
     @c ComBoS("##SettingBlock地址", &bk.addr, addrlist, CImGui.ImGuiComboFlags_NoArrowButton)
     CImGui.PopItemWidth()
     CImGui.SameLine()
 
-    showst = @trypass insconf[bk.instrnm].quantities[bk.quantity].alias "设置"
+    showqt = if haskey(insconf, bk.instrnm) && haskey(insconf[bk.instrnm].quantities, bk.quantity)
+        insconf[bk.instrnm].quantities[bk.quantity].alias
+    else
+        "设置"
+    end
     CImGui.PushItemWidth(width)
-    if CImGui.BeginCombo("##SettingBlock设置", showst, CImGui.ImGuiComboFlags_NoArrowButton)
-        qtlist = @trypass keys(insconf[bk.instrnm].quantities) Set{String}()
-        sts = @trypass [qt for qt in qtlist if insconf[bk.instrnm].quantities[qt].type in ["set", "sweep"] && insconf[bk.instrnm].quantities[qt].enable] String[]
+    if CImGui.BeginCombo("##SettingBlock设置", showqt, CImGui.ImGuiComboFlags_NoArrowButton)
+        qtlist = haskey(insconf, bk.instrnm) ? keys(insconf[bk.instrnm].quantities) : Set{String}()
+        sts = if haskey(insconf, bk.instrnm)
+            [qt for qt in qtlist if insconf[bk.instrnm].quantities[qt].type in ["set", "sweep"] && insconf[bk.instrnm].quantities[qt].enable]
+        else
+            String[]
+        end
         for st in sts
             selected = bk.quantity == st
             showst = insconf[bk.instrnm].quantities[st].alias
@@ -545,7 +538,11 @@ function edit(bk::SettingBlock)
     CImGui.OpenPopupOnItemClick("选择设置值", 2)
 
     CImGui.SameLine()
-    Ut = @trypass insconf[bk.instrnm].quantities[bk.quantity].U ""
+    Ut = if haskey(insconf, bk.instrnm) && haskey(insconf[bk.instrnm].quantities, bk.quantity)
+        insconf[bk.instrnm].quantities[bk.quantity].U
+    else
+        ""
+    end
     CImGui.PushItemWidth(-1)
     @c ShowUnit("SettingBlock", Ut, &bk.ui)
     CImGui.PopItemWidth()
@@ -566,18 +563,22 @@ function edit(bk::ReadingBlock)
     CImGui.PopItemWidth()
     CImGui.SameLine()
 
-    inlist = @trypass bk.addr in instrlist[bk.instrnm] false
+    inlist = haskey(instrbufferviewers, bk.instrnm) && haskey(instrbufferviewers[bk.instrnm], bk.addr)
     bk.addr = inlist ? bk.addr : "地址"
-    addrlist = @trypass instrlist[bk.instrnm] String[]
+    addrlist = @trypass keys(instrbufferviewers[bk.instrnm]) String[]
     CImGui.PushItemWidth(width)
     @c ComBoS("##ReadingBlock地址", &bk.addr, addrlist, CImGui.ImGuiComboFlags_NoArrowButton)
     CImGui.PopItemWidth()
     CImGui.SameLine()
 
-    showqt = @trypass insconf[bk.instrnm].quantities[bk.quantity].alias "读取"
+    showqt = if haskey(insconf, bk.instrnm) && haskey(insconf[bk.instrnm].quantities, bk.quantity)
+        insconf[bk.instrnm].quantities[bk.quantity].alias
+    else
+        "读取"
+    end
     CImGui.PushItemWidth(width)
     if CImGui.BeginCombo("##ReadingBlock设置", showqt, CImGui.ImGuiComboFlags_NoArrowButton)
-        qtlist = @trypass keys(insconf[bk.instrnm].quantities) Set{String}()
+        qtlist = haskey(insconf, bk.instrnm) ? keys(insconf[bk.instrnm].quantities) : Set{String}()
         qts = @trypass [qt for qt in qtlist if insconf[bk.instrnm].quantities[qt].enable] String[]
         for qt in qts
             selected = bk.quantity == qt
@@ -638,9 +639,9 @@ function edit(bk::WriteBlock)
     CImGui.PopItemWidth()
     CImGui.SameLine() #选仪器
 
-    inlist = @trypass bk.addr in instrlist[bk.instrnm] false
+    inlist = haskey(instrbufferviewers, bk.instrnm) && haskey(instrbufferviewers[bk.instrnm], bk.addr)
     bk.addr = inlist ? bk.addr : "地址"
-    addrlist = @trypass instrlist[bk.instrnm] String[]
+    addrlist = @trypass keys(instrbufferviewers[bk.instrnm]) String[]
     CImGui.PushItemWidth(width)
     @c ComBoS("##WriteBlock地址", &bk.addr, addrlist, CImGui.ImGuiComboFlags_NoArrowButton)
     CImGui.PopItemWidth()
@@ -669,9 +670,9 @@ function edit(bk::QueryBlock)
     CImGui.PopItemWidth()
     CImGui.SameLine() #选仪器
 
-    inlist = @trypass bk.addr in instrlist[bk.instrnm] false
+    inlist = haskey(instrbufferviewers, bk.instrnm) && haskey(instrbufferviewers[bk.instrnm], bk.addr)
     bk.addr = inlist ? bk.addr : "地址"
-    addrlist = @trypass instrlist[bk.instrnm] String[]
+    addrlist = @trypass keys(instrbufferviewers[bk.instrnm]) String[]
     CImGui.PushItemWidth(width)
     @c ComBoS("##QueryBlock地址", &bk.addr, addrlist, CImGui.ImGuiComboFlags_NoArrowButton)
     CImGui.PopItemWidth()
@@ -721,9 +722,9 @@ function edit(bk::ReadBlock)
     CImGui.PopItemWidth()
     CImGui.SameLine() #选仪器
 
-    inlist = @trypass bk.addr in instrlist[bk.instrnm] false
+    inlist = haskey(instrbufferviewers, bk.instrnm) && haskey(instrbufferviewers[bk.instrnm], bk.addr)
     bk.addr = inlist ? bk.addr : "地址"
-    addrlist = @trypass instrlist[bk.instrnm] String[]
+    addrlist = haskey(instrbufferviewers, bk.instrnm) ? keys(instrbufferviewers[bk.instrnm]) : String[]
     CImGui.PushItemWidth(width)
     @c ComBoS("##ReadBlock地址", &bk.addr, addrlist, CImGui.ImGuiComboFlags_NoArrowButton)
     CImGui.PopItemWidth()
@@ -947,7 +948,11 @@ function view(bk::SweepBlock)
     instrnm = bk.instrnm
     addr = bk.addr
     quantity = @trypass insconf[bk.instrnm].quantities[bk.quantity].alias ""
-    Ut = @trypass insconf[bk.instrnm].quantities[bk.quantity].U ""
+    Ut = if haskey(insconf, bk.instrnm) && haskey(insconf[bk.instrnm].quantities, bk.quantity)
+        insconf[bk.instrnm].quantities[bk.quantity].U
+    else
+        ""
+    end
     units::Vector{String} = string.(conf.U[Ut])
     showu = @trypass units[bk.ui] ""
     CImGui.PushStyleVar(CImGui.ImGuiStyleVar_ButtonTextAlign, (0.0, 0.5))
@@ -963,7 +968,11 @@ function view(bk::SettingBlock)
     instrnm = bk.instrnm
     addr = bk.addr
     quantity = @trypass insconf[bk.instrnm].quantities[bk.quantity].alias ""
-    Ut = @trypass insconf[bk.instrnm].quantities[bk.quantity].U ""
+    Ut = if haskey(insconf, bk.instrnm) && haskey(insconf[bk.instrnm].quantities, bk.quantity)
+        insconf[bk.instrnm].quantities[bk.quantity].U
+    else
+        ""
+    end
     units::Vector{String} = string.(conf.U[Ut])
     showu = @trypass units[bk.ui] ""
     CImGui.PushStyleVar(CImGui.ImGuiStyleVar_ButtonTextAlign, (0.0, 0.5))
@@ -1071,7 +1080,11 @@ function Base.show(io::IO, bk::StrideCodeBlock)
     end
 end
 function Base.show(io::IO, bk::SweepBlock)
-    ut = @trypass insconf[bk.instrnm].quantities[bk.quantity].U ""
+    ut = if haskey(insconf, bk.instrnm) && haskey(insconf[bk.instrnm].quantities, bk.quantity)
+        insconf[bk.instrnm].quantities[bk.quantity].U
+    else
+        ""
+    end
     u = conf.U[ut][bk.ui]
     str = """
     SweepBlock :
@@ -1093,7 +1106,11 @@ function Base.show(io::IO, bk::SweepBlock)
     end
 end
 function Base.show(io::IO, bk::SettingBlock)
-    ut = @trypass insconf[bk.instrnm].quantities[bk.quantity].U ""
+    ut = if haskey(insconf, bk.instrnm) && haskey(insconf[bk.instrnm].quantities, bk.quantity)
+        insconf[bk.instrnm].quantities[bk.quantity].U
+    else
+        ""
+    end
     u = conf.U[ut][bk.ui]
     str = """
     SettingBlock :

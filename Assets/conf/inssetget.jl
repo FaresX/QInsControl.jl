@@ -7,8 +7,8 @@ VirtualInstr_Date_get(::Instrument) = string(Date(now()))
 
 VirtualInstr_Time_get(::Instrument) = string(Time(now()))
 
-# VirtualInstr_SweepTest1_set(::Instrument, setv) = @info "VirtualInstr sweep1 : $setv"
-# VirtualInstr_SweepTest1_get(::Instrument) = string(rand(Int8))
+VirtualInstr_SweepTest1_set(::Instrument, setv) = @info "VirtualInstr sweep1 : $setv"
+VirtualInstr_SweepTest1_get(::Instrument) = string(rand(Int8))
 
 # VirtualInstr_SweepTest2_set(::Instrument, setv) = @info "VirtualInstr sweep2 : $setv"
 # VirtualInstr_SweepTest2_get(::Instrument) = string(rand(Int8))

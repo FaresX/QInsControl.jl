@@ -58,8 +58,6 @@ let
                         remotecall_wait(workers()[1], oldinsnm, newinsnm, inscf) do oldinsnm, newinsnm, inscf
                             setvalue!(insconf, oldinsnm, newinsnm => inscf)
                         end
-                        push!(instrlist, newinsnm => pop!(instrlist, oldinsnm))
-                        push!(instrbuffer, newinsnm => pop!(instrbuffer, oldinsnm))
                         push!(instrbufferviewers, newinsnm => pop!(instrbufferviewers, oldinsnm))
                         selectedins = newinsnm
                         isrename[newinsnm] = renamei
@@ -79,8 +77,6 @@ let
                     remotecall_wait(workers()[1], oldinsnm) do oldinsnm
                         pop!(insconf, oldinsnm, 0)
                     end
-                    pop!(instrlist, oldinsnm, 0)
-                    pop!(instrbuffer, oldinsnm, 0)
                     pop!(instrbufferviewers, oldinsnm, 0)
                     selectedins = ""
                 end
@@ -117,8 +113,6 @@ let
                 remotecall_wait(workers()[1], newins) do newins
                     push!(insconf, "New Ins" => newins)
                 end
-                push!(instrlist, "New Ins" => [])
-                push!(instrbuffer, "New Ins" => Dict{String,InstrBuffer}())
                 push!(instrbufferviewers, "New Ins" => Dict{String,InstrBufferViewer}())
             end
             CImGui.NextColumn()
@@ -184,8 +178,8 @@ let
                         remotecall_wait(workers()[1], selectedins, selectedqt) do selectedins, selectedqt
                             pop!(insconf[selectedins].quantities, selectedqt, 0)
                         end
-                        for insbuf in values(instrbuffer[selectedins])
-                            pop!(insbuf.quantities, qtname, 0)
+                        for ibv in values(instrbufferviewers[selectedins])
+                            pop!(ibv.insbuf.quantities, qtname, 0)
                         end
                         selectedqt = ""
                     end
@@ -198,8 +192,8 @@ let
                         remotecall_wait(workers()[1], selectedins, qtname, editqt) do selectedins, qtname, editqt
                             push!(insconf[selectedins].quantities, qtname => editqt)
                         end
-                        for insbuf in values(instrbuffer[selectedins])
-                            push!(insbuf.quantities, qtname => InstrQuantity(qtname, editqt))
+                        for ibv in values(instrbufferviewers[selectedins])
+                            push!(ibv.insbuf.quantities, qtname => InstrQuantity(qtname, editqt))
                         end
                     end
                     @c InputTextRSZ("变量名", &qtname)

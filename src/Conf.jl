@@ -28,18 +28,20 @@ function loadconf()
     end
 
     ######generate instrlist######
-    for key in keys(insconf)
-        push!(instrlist, key => String[])
-    end
-    push!(instrlist, "Others" => String[])
-    push!(instrlist, "VirtualInstr" => ["VirtualAddress"])
+    # for key in keys(insconf)
+    #     push!(instrlist, key => String[])
+    # end
+    # push!(instrlist, "Others" => String[])
+    # push!(instrlist, "VirtualInstr" => ["VirtualAddress"])
 
-    ######generate instrbuffer######
+    ######generate instrcontrollers & instrbufferviewers######
     for key in keys(insconf)
-        push!(instrbuffer, key => Dict{String,InstrBuffer}())
+        # push!(instrbuffer, key => Dict{String,InstrBuffer}())
+        # push!(instrcontrollers, key => Dict{String,Controller}())
         push!(instrbufferviewers, key => Dict{String,InstrBufferViewer}())
     end
-    push!(instrbuffer, "VirtualInstr" => Dict("VirtualAddress" => InstrBuffer("VirtualInstr")))
+    # push!(instrbuffer, "VirtualInstr" => Dict("VirtualAddress" => InstrBuffer("VirtualInstr")))
+    # push!(instrcontrollers, "VirtualInstr" => Dict("VirtualAddress" => Controller("VirtualInstr", "VirtualAddress")))
     push!(instrbufferviewers, "VirtualInstr" => Dict("VirtualAddress" => InstrBufferViewer("VirtualInstr", "VirtualAddress")))
 
     ######load style_conf######

@@ -22,7 +22,7 @@ let
     first_show_col::Bool = true
     first_show_circuit::Bool = true
     window_ids::Dict{Int,String} = Dict()
-    taskbt_ids::Dict{Tuple{Int,String},String} = Dict()
+    # taskbt_ids::Dict{Tuple{Int,String},String} = Dict()
     global function edit(daqtask::DAQTask, id, p_open::Ref{Bool})
         CImGui.SetNextWindowSize(show_circuit_editor ? ws_circuit_on : ws_circuit_off)
         # hold && CImGui.SetNextWindowFocus()
@@ -43,8 +43,9 @@ let
                 ws_circuit_on = (ws_circuit_on.x, ws_circuit_off.y)
             end
             CImGui.BeginChild("Blocks")
-            haskey(taskbt_ids, (id + old_i, daqtask.name)) || push!(taskbt_ids, (id + old_i, daqtask.name) => "编辑队列：任务 $(id+old_i) $(daqtask.name)")
-            CImGui.BulletText(taskbt_ids[(id + old_i, daqtask.name)])
+            # haskey(taskbt_ids, (id + old_i, daqtask.name)) || push!(taskbt_ids, (id + old_i, daqtask.name) => "编辑队列：任务 $(id+old_i) $(daqtask.name)")
+            # CImGui.BulletText(taskbt_ids[(id + old_i, daqtask.name)])
+            CImGui.BulletText("编辑队列：任务 $(id+old_i) $(daqtask.name)")
             CImGui.SameLine(CImGui.GetContentRegionAvailWidth() - holdsz)
             @c CImGui.Checkbox("HOLD", &hold)
             holdsz = CImGui.GetItemRectSize().x
@@ -123,7 +124,7 @@ function run(daqtask::DAQTask)
     ispath(cfgsvdir) || mkpath(cfgsvdir)
     savepath = joinpath(cfgsvdir, replace("[$(now())] 任务 $(1+old_i) $(daqtask.name).qdt", ':' => '.'))
     push!(cfgbuf, "daqtask" => daqtask)
-    log_instrbuffer(instrbuffer_rc)
+    log_instrbufferviewers()
     run_remote(daqtask)
     wait(
         @async while update_all()
@@ -134,12 +135,12 @@ end
 
 
 function run_remote(daqtask::DAQTask)
-    instrs, st = extractinstrs(daqtask.blocks)
+    controllers, st = remotecall_fetch(extract_controllers, workers()[1], daqtask.blocks)
     if !st
         syncstates[Int(isdaqtask_done)] = true
         return
     end
-    rn = length(instrs)
+    rn = length(controllers)
     empty!(databuf)
     blockcodes = @trypasse tocodes.(daqtask.blocks) begin
         @error "[$(now())]\n代码生成失败!!!"
@@ -147,21 +148,21 @@ function run_remote(daqtask::DAQTask)
         return
     end
     ex = quote
-        function remote_sweep_block(resmg, instrs, databuf_lc, progress_lc, syncstates)
+        function remote_sweep_block(resmg, controllers, databuf_lc, progress_lc, syncstates)
             $(blockcodes...)
         end
         function remote_do_block(databuf_rc, progress_rc, syncstates, rn)
-            instrs = $instrs
+            controllers = $controllers
             try
                 databuf_lc = Channel{Tuple{String,String}}(conf.DAQ.channel_size)
                 progress_lc = Channel{Tuple{UUID,Int,Int,Float64}}(conf.DAQ.channel_size)
                 @sync begin
                     remotedotask = errormonitor(@async begin
                         resourcemanager = ResourceManager()
-                        for instr in values(instrs)
-                            connect!(resourcemanager, instr)
+                        for ct in values(controllers)
+                            login!(CPU, ct)
                         end
-                        remote_sweep_block(resourcemanager, instrs, databuf_lc, progress_lc, syncstates)
+                        remote_sweep_block(resourcemanager, controllers, databuf_lc, progress_lc, syncstates)
                     end)
                     errormonitor(@async while true
                         if istaskdone(remotedotask) && all(.!isready.([databuf_lc, databuf_rc, progress_lc, progress_rc]))
@@ -177,8 +178,8 @@ function run_remote(daqtask::DAQTask)
             catch e
                 @error "[$(now())]\n任务失败！！！" exeption = e
             finally
-                for instr in values(instrs)
-                    disconnect!(instr)
+                for ct in values(controllers)
+                    logout!(CPU, ct)
                 end
             end
         end
@@ -212,7 +213,7 @@ function update_data()
             push!(databuf[data[1]], data[2])
             _, instrnm, qt, addr = split(data[1], "_")
             occursin(r"\[.*\]", qt) && continue
-            insbuf = instrbuffer[instrnm][addr]
+            insbuf = instrbufferviewers[instrnm][addr].insbuf
             insbuf.quantities[qt].read = data[2]
         end
         if waittime("savedatabuf", conf.DAQ.savetime)
@@ -231,7 +232,7 @@ end
 function update_all()
     if syncstates[Int(isdaqtask_done)]
         if isfile(savepath) || !isempty(databuf)
-            log_instrbuffer(instrbuffer_rc)
+            log_instrbufferviewers()
             jldopen(savepath, "w") do file
                 file["data"] = databuf
                 file["uiplot"] = uipsweeps[1]
@@ -254,24 +255,30 @@ function update_all()
     end
 end
 
-function extractinstrs(bkch::Vector{AbstractBlock})
-    instrs = Dict()
+function extract_controllers(bkch::Vector{AbstractBlock})
+    controllers = Dict()
     for bk in bkch
         if typeof(bk) in [SettingBlock, SweepBlock, ReadingBlock, WriteBlock, QueryBlock, ReadBlock]
             bk.instrnm == "VirtualInstr" && (bk.addr = "VirtualAddress")
-            instr = instrument(bk.instrnm, bk.addr)
-            @trylink_do instr (query(instr, "*IDN?"); push!(instrs, string(bk.instrnm, "_", bk.addr) => instr)) begin
-                @error "[$(now())]\n仪器设置不正确！！！"
-                return instrs, false
+            ct = Controller(bk.instrnm, bk.addr)
+            try
+                login!(CPU, ct)
+                ct(query, CPU, "*IDN?", Val(:query))
+                push!(controllers, string(bk.instrnm, "_", bk.addr) => ct)
+                logout!(CPU, ct)
+            catch e
+                @error "[$(now())]\n仪器设置不正确！！！" exception=e
+                logout!(CPU, ct)
+                return controllers, false
             end
         end
         if typeof(bk) in [SweepBlock, StrideCodeBlock]
-            inner_instrs, inner_st = extractinstrs(bk.blocks)
-            inner_st || return instrs, false
-            merge!(instrs, inner_instrs)
+            inner_controllers, inner_st = extract_controllers(bk.blocks)
+            inner_st || return controllers, false
+            merge!(controllers, inner_controllers)
         end
     end
-    instrs, true
+    controllers, true
 end
 
 #DAQTask Viewer

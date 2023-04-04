@@ -7,6 +7,15 @@ optvalues = []
 type = "read"
 alias = "系统时间"
 
+[SweepTest1]
+cmdheader = ""
+U = "A"
+enable = true
+help = "仅作为扫描测试"
+optvalues = [""]
+type = "sweep"
+alias = "扫描测试1"
+
 [Date]
 cmdheader = ""
 U = ""

@@ -22,7 +22,7 @@ let
     no_bring_to_front::Bool = false
     no_docking::Bool = true
 
-    global dtviewers = Tuple{Ref{Bool},DataViewer,FolderFileTree,Dict{String,Bool}}[] #(彻底关闭，DataViewer, FileTree, 重命名)
+    global dtviewers = Tuple{DataViewer,FolderFileTree,Dict{String,Bool}}[]
     # window_class = ImGuiWindowClass_ImGuiWindowClass()
     global function MainWindow()
         window_flags = UInt32(0)
@@ -57,17 +57,17 @@ let
 
         ######子窗口######
         for (i, dtv) in enumerate(dtviewers)
-            dtv[2].p_open[] ? edit(dtv[2:4]..., i) : (dtv[2].p_open[] = false)
+            dtv[1].p_open ? edit(dtv..., i) : (dtv[1].p_open = false)
         end
         for (i, dtv) in enumerate(dtviewers)
-            dtv[1][] || deleteat!(dtviewers, i)
+            dtv[1].noclose || deleteat!(dtviewers, i)
         end
         show_preferences && @c Preferences(&show_preferences)
         show_instr_buffer && @c ShowInstrBuffer(&show_instr_buffer)
         for ins in keys(instrbufferviewers)
             for addr in keys(instrbufferviewers[ins])
                 ibv = instrbufferviewers[ins][addr]
-                ibv.p_open[] && edit(ibv)
+                ibv.p_open && edit(ibv)
             end
         end
         show_instr_register && @c InstrRegister(&show_instr_register)
@@ -88,16 +88,16 @@ let
             if CImGui.BeginMenu(morestyle.Icons.File * " 文件 ")
                 if CImGui.BeginMenu(morestyle.Icons.OpenFile * " 打开文件")
                     isopenfiles = CImGui.MenuItem(morestyle.Icons.NewFile * " 新建", "Ctrl+O")
-                    if true in [dtv[3].rootpath_bnm == "" for dtv in dtviewers]
+                    if true in [dtv[2].rootpath_bnm == "" for dtv in dtviewers]
                         CImGui.Separator()
                         CImGui.TextColored(morestyle.Colors.HighlightText, "已打开")
                     end
                     for dtv in dtviewers
-                        if dtv[3].rootpath_bnm == ""
-                            title = isempty(dtv[3].filetrees) ? "没有打开文件" : basename(dtv[3].filetrees[1].filepath)
-                            CImGui.MenuItem(title, C_NULL, dtv[2].p_open)
+                        if dtv[2].rootpath_bnm == ""
+                            title = isempty(dtv[2].filetrees) ? "没有打开文件" : basename(dtv[2].filetrees[1].filepath)
+                            @c CImGui.MenuItem(title, C_NULL, &dtv[2].p_open)
                             if CImGui.BeginPopupContextItem()
-                                CImGui.MenuItem(morestyle.Icons.CloseFile * " 关闭") && (dtv[1][] = false)
+                                CImGui.MenuItem(morestyle.Icons.CloseFile * " 关闭") && (dtv[1].noclose = false)
                                 CImGui.EndPopup()
                             end
                         end
@@ -106,18 +106,18 @@ let
                 end
                 if CImGui.BeginMenu(morestyle.Icons.OpenFolder * " 打开文件夹")
                     isopenfolder = CImGui.MenuItem(morestyle.Icons.NewFile * " 新建", "Ctrl+K")
-                    if true in [dtv[3].rootpath_bnm != "" for dtv in dtviewers]
+                    if true in [dtv[2].rootpath_bnm != "" for dtv in dtviewers]
                         CImGui.Separator()
                         CImGui.TextColored(morestyle.Colors.HighlightText, "已打开")
                     end
                     for dtv in dtviewers
-                        if dtv[3].rootpath_bnm != ""
-                            CImGui.MenuItem(basename(dtv[3].rootpath), C_NULL, dtv[2].p_open)
+                        if dtv[2].rootpath_bnm != ""
+                            @c CImGui.MenuItem(basename(dtv[2].rootpath), C_NULL, &dtv[1].p_open)
                             if CImGui.BeginPopupContextItem()
                                 if CImGui.MenuItem(morestyle.Icons.InstrumentsAutoRef*" 刷新")
-                                    dtv[3].filetrees = FolderFileTree(dtv[3].rootpath, dtv[3].selectedpath).filetrees
+                                    dtv[2].filetrees = FolderFileTree(dtv[2].rootpath, dtv[2].selectedpath).filetrees
                                 end
-                                CImGui.MenuItem(morestyle.Icons.CloseFile * " 关闭") && (dtv[1][] = false)
+                                CImGui.MenuItem(morestyle.Icons.CloseFile * " 关闭") && (dtv[1].noclose = false)
                                 CImGui.EndPopup()
                             end
                         end
@@ -138,10 +138,9 @@ let
                             if CImGui.BeginMenu(insconf[ins].conf.icon * " " * ins)
                                 for addr in keys(instrbufferviewers[ins])
                                     ibv = instrbufferviewers[ins][addr]
-                                    ib = instrbuffer[ins][addr]
-                                    @c CImGui.Checkbox("##$ins$addr", &ib.isautorefresh)
+                                    @c CImGui.Checkbox("##$ins$addr", &ibv.insbuf.isautorefresh)
                                     CImGui.SameLine()
-                                    CImGui.MenuItem(addr, C_NULL, ibv.p_open)
+                                    @c CImGui.MenuItem(addr, C_NULL, &ibv.p_open)
                                 end
                                 CImGui.EndMenu()
                             end
@@ -176,11 +175,11 @@ let
         ######快捷键######
         if isopenfiles || ((CImGui.IsKeyDown(341) || CImGui.IsKeyDown(345)) && CImGui.IsKeyDown(79))
             files = pick_multi_file()
-            isempty(files) || push!(dtviewers, (Ref(true), DataViewer(), FolderFileTree(files), Dict{String,Bool}())) #true -> active
+            isempty(files) || push!(dtviewers, (DataViewer(), FolderFileTree(files), Dict())) #true -> active
         end
         if isopenfolder || ((CImGui.IsKeyDown(341) || CImGui.IsKeyDown(345)) && CImGui.IsKeyDown(75))
             root = pick_folder()
-            isdir(root) && push!(dtviewers, (Ref(true), DataViewer(), FolderFileTree(root), Dict{String,Bool}())) #true -> active
+            isdir(root) && push!(dtviewers, (DataViewer(), FolderFileTree(root), Dict())) #true -> active
         end
     end
 end #let

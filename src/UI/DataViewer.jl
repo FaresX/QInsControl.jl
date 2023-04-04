@@ -1,12 +1,13 @@
 mutable struct DataViewer
-    p_open::Ref{Bool}
+    noclose::Bool
+    p_open::Bool
     show_data_picker::Bool
     firsttime::Bool
     dtpicker::DataPicker
     uiplot::UIPlot
     data::Dict
 end
-DataViewer() = DataViewer(Ref(true), false, true, DataPicker(), UIPlot(), Dict())
+DataViewer() = DataViewer(true, true, false, true, DataPicker(), UIPlot(), Dict())
 
 let
     window_ids::Dict{Int,String} = Dict()
@@ -20,7 +21,7 @@ let
                 push!(window_ids, id => morestyle.Icons.OpenFolder * "  数据浏览##$id")
             end
         end
-        if CImGui.Begin(window_ids[id], dtviewer.p_open)
+        if @c CImGui.Begin(window_ids[id], &dtviewer.p_open)
             CImGui.Columns(2)
             dtviewer.firsttime && (CImGui.SetColumnOffset(1, CImGui.GetWindowWidth() * 0.3); dtviewer.firsttime = false)
 
@@ -40,8 +41,8 @@ let
             if CImGui.BeginTabBar("Data_Viewer")
                 if CImGui.BeginTabItem("仪器状态")
                     CImGui.BeginChild("仪器状态")
-                    if !isempty(dtviewer.data) && true in occursin.(r"instrbuffer/.*", keys(dtviewer.data))
-                        insbufkeys::Vector{String} = sort([key for key in keys(dtviewer.data) if occursin(r"instrbuffer/.*", key)])
+                    if !isempty(dtviewer.data) && true in occursin.(r"instrbufferviewers/.*", keys(dtviewer.data))
+                        insbufkeys::Vector{String} = sort([key for key in keys(dtviewer.data) if occursin(r"instrbufferviewers/.*", key)])
                         for insbuf in insbufkeys
                             logtime::String = split(insbuf, "/")[2]
                             CImGui.PushStyleColor(CImGui.ImGuiCol_Button, morestyle.Colors.LogInfo)
@@ -144,17 +145,13 @@ let
     flags |= CImGui.ImGuiTableFlags_RowBg
     global function showdata(data)
         if CImGui.BeginTable("showdata", length(data), flags)
-            # CImGui.TableSetupColumn("Row")
             for key in keys(data)
                 CImGui.TableSetupColumn(key)
             end
-            # CImGui.TableSetupColumn("none")
             CImGui.TableHeadersRow()
             ls = max(length.(values(data))...)
             for i in 1:ls
                 CImGui.TableNextRow()
-                # CImGui.TableNextColumn()
-                # CImGui.Text(string(i))
                 for (_, val) in data
                     CImGui.TableNextColumn()
                     i > length(val) ? CImGui.Text("") : CImGui.Text(val[i])
@@ -164,27 +161,4 @@ let
         end
     end
 end
-
-# function showdata(data)
-#     if CImGui.BeginTabBar("##showdatacol")
-#         for (key, val) in data
-#             if CImGui.BeginTabItem(key)
-#                 CImGui.BeginChild("ShowData", (-1, 0), false, CImGui.ImGuiWindowFlags_HorizontalScrollbar)
-#                 CImGui.TextColored(morestyle.Colors.HighlightText, key)
-#                 CImGui.Separator()
-#                 row, col = val isa Vector ? (length(val), 1) : size(val)
-#                 w = Float32(max(length.(val)...) * (CImGui.GetFontSize() * 2 / 3))
-#                 h = CImGui.GetTextLineHeight()
-#                 for i in 1:row
-#                     for j in 1:col
-#                         CImGui.Selectable(val[i, j], false, 0, (w, h))
-#                     end
-#                 end
-#                 CImGui.EndChild()
-#                 CImGui.EndTabItem()
-#             end
-#         end
-#         CImGui.EndTabBar()
-#     end
-# end
 

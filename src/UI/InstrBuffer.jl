@@ -14,9 +14,10 @@ mutable struct InstrQuantity
     type::Symbol
     help::String
     isautorefresh::Bool
+    issweeping::Bool
 end
-InstrQuantity() = InstrQuantity(true, "", "", "", "", Cfloat(0.1), "", [""], 1, "", "", 1, :set, "", false)
-InstrQuantity(name, qtcf::QuantityConf) = InstrQuantity(qtcf.enable, name, qtcf.alias, "", "", Cfloat(0.1), "", qtcf.optvalues, 1, "", "", 1, Symbol(qtcf.type), qtcf.help, false)
+InstrQuantity() = InstrQuantity(true, "", "", "", "", Cfloat(0.1), "", [""], 1, "", "", 1, :set, "", false, false)
+InstrQuantity(name, qtcf::QuantityConf) = InstrQuantity(qtcf.enable, name, qtcf.alias, "", "", Cfloat(0.1), "", qtcf.optvalues, 1, "", "", 1, Symbol(qtcf.type), qtcf.help, false, false)
 
 mutable struct InstrBuffer
     instrnm::String
@@ -24,9 +25,6 @@ mutable struct InstrBuffer
     isautorefresh::Bool
 end
 InstrBuffer() = InstrBuffer("", OrderedDict(), false)
-
-const instrbuffer::OrderedDict{String,OrderedDict{String,InstrBuffer}} = OrderedDict()
-refreshrate::Cfloat = 6 #仪器状态刷新率
 
 function InstrBuffer(instrnm)
     haskey(insconf, instrnm) || @error "[$(now())]\n不支持的仪器!!!" instrument = instrnm
@@ -42,7 +40,7 @@ function InstrBuffer(instrnm)
         utype = insconf[instrnm].quantities[qt].U
         type = Symbol(insconf[instrnm].quantities[qt].type)
         help = replace(insconf[instrnm].quantities[qt].help, "\\\n" => "")
-        push!(instrqts, qt => InstrQuantity(enable, qt, alias, "", "", Cfloat(0.1), "", optvalues, 1, "", utype, 1, type, help, false))
+        push!(instrqts, qt => InstrQuantity(enable, qt, alias, "", "", Cfloat(0.1), "", optvalues, 1, "", utype, 1, type, help, false, false))
     end
     InstrBuffer(instrnm, instrqts, false)
 end
@@ -52,11 +50,15 @@ mutable struct InstrBufferViewer
     addr::String
     inputcmd::String
     readstr::String
-    p_open::Ref{Bool}
+    p_open::Bool
+    insbuf::InstrBuffer
 end
-InstrBufferViewer(instrnm, addr) = InstrBufferViewer(instrnm, addr, "*IDN?", "", Ref(false))
+InstrBufferViewer(instrnm, addr) = InstrBufferViewer(instrnm, addr, "*IDN?", "", false, InstrBuffer(instrnm))
+InstrBufferViewer() = InstrBufferViewer("", "", "*IDN?", "", false, InstrBuffer())
 
+# const instrcontrollers::Dict{String,Dict{String,Controller}} = Dict()
 const instrbufferviewers::Dict{String,Dict{String,InstrBufferViewer}} = Dict()
+refreshrate::Cfloat = 6 #仪器状态刷新率
 
 let
     # window_ids::Dict{Tuple{String,String},String} = Dict()
@@ -64,39 +66,34 @@ let
         # CImGui.SetNextWindowPos((600, 100), CImGui.ImGuiCond_Once)
         # CImGui.SetNextWindowSize((600, 400), CImGui.ImGuiCond_Once)
         ins, addr = ibv.instrnm, ibv.addr
-        # (ins, addr) in keys(window_ids) || push!(window_ids, (ins, addr) => string(insconf[ins]["conf"]["icon"], "  ", ins, " --- ", addr))
-        # if CImGui.Begin(window_ids[(ins, addr)], ibv.p_open)
-        if CImGui.Begin(string(insconf[ins].conf.icon, "  ", ins, " --- ", addr), ibv.p_open)
+        if @c CImGui.Begin(string(insconf[ins].conf.icon, "  ", ins, " --- ", addr), &ibv.p_open)
             @c testcmd(ins, addr, &ibv.inputcmd, &ibv.readstr)
-            insbuf = instrbuffer[ins][addr]
-            # CImGui.BeginChild("outsiderightclick")
-            edit(insbuf, addr)
-            # CImGui.EndChild()
+            edit(ibv.insbuf, addr)
             !CImGui.IsAnyItemHovered() && CImGui.IsWindowHovered(CImGui.ImGuiHoveredFlags_ChildWindows) && CImGui.OpenPopupOnItemClick("rightclick")
             if CImGui.BeginPopup("rightclick")
                 global refreshrate
                 if CImGui.MenuItem(morestyle.Icons.InstrumentsManualRef * " 手动刷新", "F5", false, !syncstates[Int(isdaqtask_running)])
-                    insbuf.isautorefresh = true
-                    lockstates(refresh_remote, instrbuffer_rc, instrbuffer, log=true)
+                    ibv.insbuf.isautorefresh = true
+                    manualrefresh()
                 end
                 CImGui.Text(morestyle.Icons.InstrumentsAutoRef * " 自动刷新")
                 CImGui.SameLine()
                 isautoref = syncstates[Int(isautorefresh)]
                 @c CImGui.Checkbox("##自动刷新", &isautoref)
                 syncstates[Int(isautorefresh)] = isautoref
-                insbuf.isautorefresh = syncstates[Int(isautorefresh)]
+                ibv.insbuf.isautorefresh = syncstates[Int(isautorefresh)]
                 if isautoref
                     CImGui.SameLine()
                     CImGui.Text(" ")
                     CImGui.SameLine()
                     CImGui.PushItemWidth(CImGui.GetFontSize() * 2)
                     @c CImGui.DragFloat("##自动刷新", &refreshrate, 0.1, 0.1, 60, "%.1f", CImGui.ImGuiSliderFlags_AlwaysClamp)
-                    remotecall_wait((x) -> (global refreshrate = x), workers()[1], refreshrate)
+                    # remotecall_wait((x) -> (global refreshrate = x), workers()[1], refreshrate)
                     CImGui.PopItemWidth()
                 end
                 CImGui.EndPopup()
             end
-            CImGui.IsKeyReleased(294) && lockstates(refresh_remote, instrbuffer_rc, instrbuffer, log=true)
+            CImGui.IsKeyReleased(294) && manualrefresh()
         end
         CImGui.End()
     end
@@ -117,16 +114,16 @@ let
             firsttime && (CImGui.SetColumnOffset(1, CImGui.GetWindowWidth() * 0.25); firsttime = false)
             CImGui.BeginChild("仪器列表")
             CImGui.Selectable(morestyle.Icons.InstrumentsOverview * " 总览", selectedins == "") && (selectedins = "")
-            for ins in keys(instrbuffer)
+            for ins in keys(instrbufferviewers)
                 CImGui.Selectable(insconf[ins].conf.icon * " " * ins, selectedins == ins) && (selectedins = ins)
                 CImGui.SameLine()
-                CImGui.TextDisabled("($(length(instrbuffer[ins])))")
+                CImGui.TextDisabled("($(length(instrbufferviewers[ins])))")
             end
             CImGui.EndChild()
             if CImGui.BeginPopupContextItem()
                 global refreshrate
                 if CImGui.MenuItem(morestyle.Icons.InstrumentsManualRef * " 手动刷新", "F5", false, !syncstates[Int(isdaqtask_running)])
-                    lockstates(refresh_remote, instrbuffer_rc, instrbuffer, log=true)
+                    manualrefresh()
                 end
                 CImGui.Text(morestyle.Icons.InstrumentsAutoRef * " 自动刷新")
                 CImGui.SameLine()
@@ -139,37 +136,36 @@ let
                     CImGui.SameLine()
                     CImGui.PushItemWidth(CImGui.GetFontSize() * 2)
                     @c CImGui.DragFloat("##自动刷新", &refreshrate, 0.1, 0.1, 60, "%.1f", CImGui.ImGuiSliderFlags_AlwaysClamp)
-                    remotecall_wait((x) -> (global refreshrate = x), workers()[1], refreshrate)
+                    # remotecall_wait((x) -> (global refreshrate = x), workers()[1], refreshrate)
                     CImGui.PopItemWidth()
                 end
                 CImGui.EndPopup()
             end
-            CImGui.IsKeyReleased(294) && lockstates(refresh_remote, instrbuffer_rc, instrbuffer, log=true)
+            CImGui.IsKeyReleased(294) && manualrefresh()
             CImGui.NextColumn()
             CImGui.BeginChild("设置选项")
-            haskey(instrbuffer, selectedins) || (selectedins = "")
+            haskey(instrbufferviewers, selectedins) || (selectedins = "")
             if selectedins == ""
-                for ins in keys(instrbuffer)
+                for ins in keys(instrbufferviewers)
                     CImGui.TextColored(morestyle.Colors.HighlightText, string(ins, "："))
-                    for addr in keys(instrbuffer[ins])
+                    for (addr, ibv) in instrbufferviewers[ins]
                         CImGui.Text(string("\t\t", addr, "\t\t"))
                         CImGui.SameLine()
-                        insbuf = instrbuffer[ins][addr]
-                        @c CImGui.Checkbox("##是否自动刷新$addr", &insbuf.isautorefresh)
+                        @c CImGui.Checkbox("##是否自动刷新$addr", &ibv.insbuf.isautorefresh)
                     end
                     CImGui.Separator()
                 end
             else
-                showinslist::Set = @trypass keys(instrbuffer[selectedins]) Set{String}()
+                showinslist::Set = @trypass keys(instrbufferviewers[selectedins]) Set{String}()
                 CImGui.PushItemWidth(-CImGui.GetFontSize() * 2.5)
                 @c ComBoS("地址", &selectedaddr, showinslist)
                 CImGui.PopItemWidth()
                 CImGui.Separator()
                 @c testcmd(selectedins, selectedaddr, &inputcmd, &readstr)
 
-                selectedaddr = haskey(instrbuffer[selectedins], selectedaddr) ? selectedaddr : ""
+                selectedaddr = haskey(instrbufferviewers[selectedins], selectedaddr) ? selectedaddr : ""
                 haskey(default_insbufs, selectedins) || push!(default_insbufs, selectedins => InstrBuffer(selectedins))
-                insbuf = selectedaddr == "" ? default_insbufs[selectedins] : instrbuffer[selectedins][selectedaddr]
+                insbuf = selectedaddr == "" ? default_insbufs[selectedins] : instrbufferviewers[selectedins][selectedaddr].insbuf
                 edit(insbuf, selectedaddr)
             end
             CImGui.EndChild()
@@ -192,28 +188,53 @@ function testcmd(ins, addr, inputcmd::Ref{String}, readstr::Ref{String})
         CImGui.Columns(3, C_NULL, false)
         if CImGui.Button(morestyle.Icons.WriteBlock * "  Write", (-1, 0))
             if addr != ""
-                instr = instrument(ins, addr)
-                lockstates() do
-                    @trylink_do instr write(instr, inputcmd[]) nothing
+                remotecall_wait(workers()[1], ins, addr, inputcmd[]) do ins, addr, inputcmd
+                    ct = Controller(ins, addr)
+                    try
+                        login!(CPU, ct)
+                        ct(write, CPU, inputcmd, Val(:write))
+                        logout!(CPU, ct)
+                    catch e
+                        @error "[$(now())]\n仪器通信故障！！！" exception=e
+                        logout!(CPU, ct)
+                    end
                 end
             end
         end
         CImGui.NextColumn()
         if CImGui.Button(morestyle.Icons.QueryBlock * "  Query", (-1, 0))
             if addr != ""
-                instr = instrument(ins, addr)
-                lockstates() do
-                    @trylink_do instr (readstr[] = query(instr, inputcmd[])) nothing
+                fetchdata = remotecall_fetch(workers()[1], ins, addr, inputcmd[]) do ins, addr, inputcmd
+                    ct = Controller(ins, addr)
+                    try
+                        login!(CPU, ct)
+                        readstr = ct(query, CPU, inputcmd, Val(:query))
+                        logout!(CPU, ct)
+                        return readstr
+                    catch e
+                        @error "[$(now())]\n仪器通信故障！！！" exception=e
+                        logout!(CPU, ct)
+                    end
                 end
+                isnothing(fetchdata) || (readstr[] = fetchdata)
             end
         end
         CImGui.NextColumn()
         if CImGui.Button(morestyle.Icons.ReadBlock * "  Read", (-1, 0))
             if addr != ""
-                instr = instrument(ins, addr)
-                lockstates() do
-                    @trylink_do instr (readstr[] = read(instr)) nothing
-                end
+                fetchdata = remotecall_fetch(workers()[1], ins, addr) do ins, addr
+                    ct = Controller(ins, addr)
+                    try
+                        login!(CPU, ct)
+                        readstr = ct(read, CPU, Val(:read))
+                        logout!(CPU, ct)
+                        return readstr
+                    catch e
+                        @error "[$(now())]\n仪器通信故障！！！" exception=e
+                        logout!(CPU, ct)
+                    end
+                end 
+                isnothing(fetchdata) || (readstr[] = fetchdata)
             end
         end
         CImGui.NextColumn()
@@ -244,9 +265,7 @@ function edit(insbuf::InstrBuffer, addr)
                 if i != payload_i
                     key_i = idxkey(insbuf.quantities, i)
                     key_payload_i = idxkey(insbuf.quantities, payload_i)
-                    insbuf_i = insbuf.quantities[key_i]
-                    insbuf.quantities[key_i] = insbuf.quantities[key_payload_i]
-                    insbuf.quantities[key_payload_i] = insbuf_i
+                    swapvalue!(insbuf.quantities, key_i, key_payload_i)
                 end
             end
             CImGui.EndDragDropTarget()
@@ -261,110 +280,84 @@ end
 edit(qt::InstrQuantity, instrnm::String, addr::String) = edit(qt, instrnm, addr, Val(qt.type))
 
 let
-    issweeping::Bool = false
     stbtsz::Float32 = 0
-    testcb = "abcd"
     Us = []
     U = ""
     val::String = ""
     content::String = ""
-    global sweeptask::Task
     global function edit(qt::InstrQuantity, instrnm::String, addr::String, ::Val{:sweep})
-        # ftsz = CImGui.GetFontSize()
-        # CImGui.Text(qt.alias)
-        # if CImGui.IsItemHovered()
-        #     CImGui.BeginTooltip()
-        #     CImGui.PushTextWrapPos(CImGui.GetFontSize() * 35.0)
-        #     CImGui.TextUnformatted(qt.help)
-        #     CImGui.PopTextWrapPos()
-        #     CImGui.EndTooltip()
-        # end
-        # CImGui.SameLine(ftsz * (maxaliaslist[instrnm] / 3 + 0.5))
-        # CImGui.Text("：")
-        # CImGui.SameLine() ###alias
         Us = conf.U[qt.utype]
         U = isempty(Us) ? "" : Us[qt.uindex]
         U == "" || (Uchange::Float64 = Us[1] isa Unitful.FreeUnits ? ustrip(Us[1], 1U) : 1.0)
-        # CImGui.PushStyleVar(CImGui.ImGuiStyleVar_ItemSpacing, (0, 2))
-        # width::Float32 = Float32((CImGui.GetContentRegionAvailWidth() - 3ftsz - stbtsz) / 4)
-        # CImGui.PushItemWidth(width)
-        # @c InputTextWithHintRSZ("##步长", "步长", &qt.step)
-        # CImGui.PopItemWidth()
-        # CImGui.SameLine()
-        # CImGui.PushItemWidth(width)
-        # @c InputTextWithHintRSZ("##终点", "终点", &qt.stop)
-        # CImGui.PopItemWidth()
-        # CImGui.SameLine()
-        # CImGui.PushItemWidth(width)
-        # @c CImGui.DragFloat("##delay", &qt.delay, 1.0, 0.05, 60)
-        # CImGui.PopItemWidth()
-        # CImGui.SameLine() ###步长、终点和延迟
-        # valstr = qt.read
         val = U == "" ? qt.read : @trypass string(parse(Float64, qt.read) / Uchange) qt.read
-        content = string(qt.alias, "\n步长：", qt.step, " ", U, "\n终点：", qt.stop, " ", U, "\n延迟：", qt.delay, " s\n", val, " ", U) |> centermultiline
-        CImGui.PushStyleColor(CImGui.ImGuiCol_Button, qt.isautorefresh || issweeping ? morestyle.Colors.DAQTaskRunning : CImGui.c_get(imguistyle.Colors, CImGui.ImGuiCol_Button))
+        content = string(qt.alias, "\n步长：", qt.step, " ", U, "\n终点：", qt.stop, " ", U, "\n延迟：", qt.delay, " s\n", val, " ", U, "\n###for rename") |> centermultiline
+        CImGui.PushStyleColor(CImGui.ImGuiCol_Button, qt.isautorefresh || qt.issweeping ? morestyle.Colors.DAQTaskRunning : CImGui.c_get(imguistyle.Colors, CImGui.ImGuiCol_Button))
         if CImGui.Button(content, (-1, 0))
-            if issweeping
-                issweeping = false
-                wait(sweeptask)
-            else
-                addr == "" || lockstates(refresh_local, instrnm, addr, qt.name)
+            if addr != ""
+                fetchdata = refresh_qt(instrnm, addr, qt.name)
+                isnothing(fetchdata) || (qt.read = fetchdata)
             end
         end
         CImGui.PopStyleColor()
         if conf.InsBuf.showhelp && CImGui.IsItemHovered() && qt.help != ""
-            # CImGui.BeginTooltip()
-            # CImGui.PushTextWrapPos(CImGui.GetFontSize() * 35.0)
-            # CImGui.TextUnformatted(qt.help)
-            # CImGui.PopTextWrapPos()
-            # CImGui.EndTooltip()
-            # CImGui.SetTooltip(qt.help)
             ItemTooltip(qt.help)
         end
-        # CImGui.IsItemHovered() && CImGui.OpenPopupOnItemClick("选项设置", 2)
         if CImGui.BeginPopupContextItem()
             @c InputTextWithHintRSZ("##步长", "步长", &qt.step)
             @c InputTextWithHintRSZ("##终点", "终点", &qt.stop)
             @c CImGui.DragFloat("##延迟", &qt.delay, 1.0, 0.05, 60, "%.3f", CImGui.ImGuiSliderFlags_AlwaysClamp)
-            if issweeping
+            if qt.issweeping
                 if CImGui.Button(" 结束 ", (-1, 0))
-                    issweeping = false
-                    # syncstates[Int(isdaqtask_running)] = false
-                    # syncstates[Int(busy_acquiring)] = false
-                    wait(sweeptask)
+                    qt.issweeping = false
                 end
             else
                 if CImGui.Button(" 开始 ", (-1, 0))
                     if addr != ""
-                        instr = instrument(instrnm, addr)
-                        getfunc = Symbol(instrnm, :_, qt.name, :_get)
-                        setfunc = Symbol(instrnm, :_, qt.name, :_set)
-                        # syncstates[Int(isdaqtask_running)] = true
-                        # syncstates[Int(busy_acquiring)] = true
-                        global sweeptask = @async begin
-                            lockstates() do
-                                @trylink_do instr begin
-                                    start = @trypasse parse(Float64, eval(:($getfunc($instr)))) @error "[$(now())]\nstart获取错误！！！" instrument = string(instrnm, "-", addr)
-                                    step = @trypasse eval(Meta.parse(qt.step)) * Uchange @error "[$(now())]\nstep解析错误！！！" step = qt.step
-                                    stop = @trypasse eval(Meta.parse(qt.stop)) * Uchange @error "[$(now())]\nstop解析错误！！！" stop = qt.stop
-                                    issweeping = true
-                                    sweepsteps = ceil(Int, abs((start - stop) / step))
-                                    sweepsteps = sweepsteps == 1 ? 2 : sweepsteps
-                                    for i in range(start, stop, length=sweepsteps)
-                                        issweeping || break
-                                        sleep(qt.delay)
-                                        :($setfunc($instr, $i)) |> eval
-                                        qt.read = :($getfunc($instr)) |> eval
-                                    end
-                                    issweeping = false
-                                end (issweeping = false;
-                                @error "[$(now())]\n仪器通信故障或参数设置错误！！！" instrument = string(instrnm, "-", addr))
-                                @trylink_do instr (qt.read = :($getfunc($instr)) |> eval) nothing
-                                # syncstates[Int(isdaqtask_running)] = false
-                                # syncstates[Int(busy_acquiring)] = false
+                        start = remotecall_fetch(workers()[1], instrnm, addr) do instrnm, addr
+                            ct = Controller(instrnm, addr)
+                            try
+                                getfunc = Symbol(instrnm, :_, qt.name, :_get) |> eval
+                                login!(CPU, ct)
+                                readstr = ct(getfunc, CPU, Val(:read))
+                                logout!(CPU, ct)
+                                return parse(Float64, readstr)
+                            catch e
+                                @error "[$(now())]\nstart获取错误！！！" instrument = string(instrnm, "-", addr) exception=e
+                                logout!(CPU, ct)
                             end
                         end
-                        errormonitor(sweeptask)
+                        step = @trypasse eval(Meta.parse(qt.step)) * Uchange @error "[$(now())]\nstep解析错误！！！" step = qt.step
+                        stop = @trypasse eval(Meta.parse(qt.stop)) * Uchange @error "[$(now())]\nstop解析错误！！！" stop = qt.stop
+                        if !(isnothing(start) || isnothing(step) || isnothing(stop))
+                            sweepsteps = ceil(Int, abs((start - stop) / step))
+                            sweepsteps = sweepsteps == 1 ? 2 : sweepsteps
+                            sweeptask = @async begin
+                                qt.issweeping = true
+                                ct = Controller(instrnm, addr)
+                                try
+                                    remotecall_wait(workers()[1], ct) do ct
+                                        global sweepct = ct
+                                        login!(CPU, ct)
+                                    end
+                                    for i in range(start, stop, length=sweepsteps)
+                                        qt.issweeping || break
+                                        sleep(qt.delay)
+                                        qt.read = remotecall_fetch(workers()[1], i) do i
+                                            setfunc = Symbol(instrnm, :_, qt.name, :_set) |> eval
+                                            getfunc = Symbol(instrnm, :_, qt.name, :_get) |> eval
+                                            sweepct(setfunc, CPU, string(i), Val(:write))
+                                            return sweepct(getfunc, CPU, Val(:read))
+                                        end
+                                    end
+                                catch e
+                                    @error "[$(now())]\n仪器通信故障！！！" exception=e
+                                finally
+                                    remotecall_wait(() -> logout!(CPU, sweepct), workers()[1])
+                                end
+                                qt.issweeping = false
+                            end
+                            errormonitor(sweeptask)
+                        end
                     end
                 end
             end
@@ -377,19 +370,6 @@ let
             @c CImGui.Checkbox("刷新", &qt.isautorefresh)
             CImGui.EndPopup()
         end
-        # CImGui.SameLine() ###实际值
-        # CImGui.PushItemWidth(3ftsz)
-        # @c ShowUnit("##insbuf", qt.utype, &qt.uindex)
-        # CImGui.PopItemWidth()
-        # CImGui.PopStyleVar()
-        # CImGui.SameLine() ###单位
-        # CImGui.PushStyleVar(CImGui.ImGuiStyleVar_FrameRounding, 6)
-
-        # stbtsz = CImGui.GetItemRectSize().x
-        # CImGui.SameLine()
-        # @c CImGui.Checkbox("##是否自动刷新", &qt.isautorefresh)
-        # stbtsz += CImGui.GetItemRectSize().x + 2unsafe_load(imguistyle.ItemSpacing.x)
-        # CImGui.PopStyleVar()
     end
 end #let
 
@@ -400,72 +380,52 @@ let
     val::String = ""
     content::String = ""
     global function edit(qt::InstrQuantity, instrnm::String, addr::String, ::Val{:set})
-        # ftsz = CImGui.GetFontSize()
-        # CImGui.Text(qt.alias)
-
-        # CImGui.SameLine(ftsz * (maxaliaslist[instrnm] / 3 + 0.5))
-        # CImGui.Text("：")
-        # CImGui.SameLine() ###alias
         Us = conf.U[qt.utype]
         U = isempty(Us) ? "" : Us[qt.uindex]
         U == "" || (Uchange::Float64 = Us[1] isa Unitful.FreeUnits ? ustrip(Us[1], 1U) : 1.0)
-        # CImGui.PushStyleVar(CImGui.ImGuiStyleVar_ItemSpacing, (0, 2))
-        # width::Float32 = Float32((CImGui.GetContentRegionAvailWidth() - 3ftsz - okbtsz) / 2)
-        # CImGui.PushItemWidth(width)
-        # @c InputTextWithHintRSZ("##设置", "设置值", &qt.set)
-        # CImGui.PopItemWidth()
-        # triggerset = false
-        # if CImGui.BeginPopup("选择设置值")
-        #     for (i, optv) in enumerate(qt.optvalues)
-        #         optv == "" && (CImGui.TextColored(morestyle.Colors.HighlightText, "不可用的选项！"); continue)
-        #         @c(CImGui.RadioButton(optv, &qt.optedvalueidx, i)) && (qt.set = optv; triggerset = true)
-        #     end
-        #     CImGui.EndPopup()
-        # end
-        # CImGui.OpenPopupOnItemClick("选择设置值", 2)
-        # CImGui.SameLine() ###设置值
-        # valstr = qt.read
         val = U == "" ? qt.read : @trypass string(parse(Float64, qt.read) / Uchange) qt.read
-        content = string(qt.alias, "\n \n设置值：", qt.set, " ", U, "\n \n", val, " ", U) |> centermultiline
+        content = string(qt.alias, "\n \n设置值：", qt.set, " ", U, "\n \n", val, " ", U, "\n###for rename") |> centermultiline
         CImGui.PushStyleColor(CImGui.ImGuiCol_Button, qt.isautorefresh ? morestyle.Colors.DAQTaskRunning : CImGui.c_get(imguistyle.Colors, CImGui.ImGuiCol_Button))
         if CImGui.Button(content, (-1, 0))
-            addr == "" || lockstates(refresh_local, instrnm, addr, qt.name)
+            if addr != ""
+                fetchdata = refresh_qt(instrnm, addr, qt.name)
+                isnothing(fetchdata) || (qt.read = fetchdata)
+            end
         end
         CImGui.PopStyleColor()
         if conf.InsBuf.showhelp && CImGui.IsItemHovered() && qt.help != ""
-            # CImGui.BeginTooltip()
-            # CImGui.PushTextWrapPos(CImGui.GetFontSize() * 35.0)
-            # CImGui.TextUnformatted(qt.help)
-            # CImGui.PopTextWrapPos()
-            # CImGui.EndTooltip()
-            # CImGui.SetTooltip(qt.help)
             ItemTooltip(qt.help)
         end
-        # CImGui.IsItemHovered() && CImGui.OpenPopupOnItemClick("选项设置", 2)
         if CImGui.BeginPopupContextItem()
             @c InputTextWithHintRSZ("##设置", "设置值", &qt.set)
             if CImGui.Button(" 确认 ", (-1, 0)) || triggerset
                 triggerset = false
                 if addr != ""
-                    sv::String = U == "" ? qt.set : @trypasse string(float(eval(Meta.parse(qt.set)) * Uchange)) svstr
+                    sv = U == "" ? qt.set : @trypasse string(float(eval(Meta.parse(qt.set)) * Uchange)) svstr
                     triggerset && (sv = qt.optvalues[qt.optedvalueidx])
-                    instr = instrument(instrnm, addr)
-                    setfunc = Symbol(instrnm, :_, qt.name, :_set)
-                    getfunc = Symbol(instrnm, :_, qt.name, :_get)
-                    lockstates() do
-                        @trylink_do instr (eval(:($setfunc($instr, $sv))); qt.read = eval(:($getfunc($instr)))) nothing
-                    end
+                    fetchdata = remotecall_fetch(workers()[1], instrnm, addr, sv) do instrnm, addr, sv
+                        ct = Controller(instrnm, addr)
+                        try
+                            setfunc = Symbol(instrnm, :_, qt.name, :_set) |> eval
+                            getfunc = Symbol(instrnm, :_, qt.name, :_get) |> eval
+                            login!(CPU, ct)
+                            ct(setfunc, CPU, sv, Val(:write))
+                            readstr = ct(getfunc, CPU, Val(:read))
+                            logout!(CPU, ct)
+                            return readstr
+                        catch e
+                            @error "[$(now())]\n仪器通信故障！！！" exception=e
+                            logout!(CPU, ct)
+                        end
+                    end 
+                    isnothing(fetchdata) || (qt.read = fetchdata)
                 end
             end
-            # CImGui.BeginChild("alignoptvalues")
-            # CImGui.Columns(2, C_NULL, false)
             for (i, optv) in enumerate(qt.optvalues)
                 optv == "" && continue
                 @c(CImGui.RadioButton(optv, &qt.optedvalueidx, i)) && (qt.set = optv; triggerset = true)
-                # CImGui.NextColumn()
                 i % 2 == 1 && CImGui.SameLine(0, 2CImGui.GetFontSize())
             end
-            # CImGui.EndChild()
             CImGui.Text("单位 ")
             CImGui.SameLine()
             CImGui.PushItemWidth(6CImGui.GetFontSize())
@@ -475,19 +435,6 @@ let
             @c CImGui.Checkbox("刷新", &qt.isautorefresh)
             CImGui.EndPopup()
         end
-        # CImGui.SameLine() ###实际值
-        # CImGui.PushItemWidth(3ftsz)
-        # @c ShowUnit("##insbuf", qt.utype, &qt.uindex)
-        # CImGui.PopItemWidth()
-        # CImGui.PopStyleVar()
-        # CImGui.SameLine() ###单位
-        # CImGui.PushStyleVar(CImGui.ImGuiStyleVar_FrameRounding, 6)
-
-        # okbtsz = CImGui.GetItemRectSize().x
-        # CImGui.SameLine()
-        # @c CImGui.Checkbox("##是否自动刷新", &qt.isautorefresh)
-        # okbtsz += CImGui.GetItemRectSize().x + 2unsafe_load(imguistyle.ItemSpacing.x)
-        # CImGui.PopStyleVar()
     end
 end
 
@@ -505,19 +452,15 @@ let
         content = string(qt.alias, "\n \n \n", val, " ", U, "\n ") |> centermultiline
         CImGui.PushStyleColor(CImGui.ImGuiCol_Button, qt.isautorefresh ? morestyle.Colors.DAQTaskRunning : CImGui.c_get(imguistyle.Colors, CImGui.ImGuiCol_Button))
         if CImGui.Button(content, (-1, 0))
-            addr == "" || lockstates(refresh_local, instrnm, addr, qt.name)
+            if addr != ""
+                fetchdata = refresh_qt(instrnm, addr, qt.name)
+                isnothing(fetchdata) || (qt.read = fetchdata)
+            end
         end
         CImGui.PopStyleColor()
         if conf.InsBuf.showhelp && CImGui.IsItemHovered() && qt.help != ""
-            # CImGui.BeginTooltip()
-            # CImGui.PushTextWrapPos(CImGui.GetFontSize() * 35.0)
-            # CImGui.TextUnformatted(qt.help)
-            # CImGui.PopTextWrapPos()
-            # CImGui.EndTooltip()
-            # CImGui.SetTooltip(qt.help)
             ItemTooltip(qt.help)
         end
-        # CImGui.IsItemHovered() && CImGui.OpenPopupOnItemClick("选项设置", 2)
         if CImGui.BeginPopupContextItem()
             CImGui.Text("单位 ")
             CImGui.SameLine()
@@ -528,32 +471,16 @@ let
             @c CImGui.Checkbox("刷新", &qt.isautorefresh)
             CImGui.EndPopup()
         end
-        # CImGui.SameLine() ###实际值
-        # CImGui.PushItemWidth(3ftsz)
-        # @c ShowUnit("##insbuf", qt.utype, &qt.uindex)
-        # CImGui.PopItemWidth()
-        # CImGui.PopStyleVar()
-        # CImGui.SameLine() ###单位
-        # CImGui.PushStyleVar(CImGui.ImGuiStyleVar_FrameRounding, 6)
-        # if CImGui.Button(" 刷新 ")
-        #     addr == "" || lockstates(refresh_local, instrnm, addr, qt.name)
-        # end
-        # refbtsz = CImGui.GetItemRectSize().x
-        # CImGui.SameLine()
-        # @c CImGui.Checkbox("##是否自动刷新", &qt.isautorefresh)
-        # refbtsz += CImGui.GetItemRectSize().x + 2unsafe_load(imguistyle.ItemSpacing.x)
-        # CImGui.PopStyleVar()
     end
 end
 
-function view(instrbuffer_local)
-    for ins in keys(instrbuffer_local)
+function view(instrbufferviewers_local)
+    for ins in keys(instrbufferviewers_local)
         ins == "Others" && continue
-        for addr in keys(instrbuffer_local[ins])
+        for (addr, ibv) in instrbufferviewers_local[ins]
             CImGui.TextColored(morestyle.Colors.HighlightText, string(ins, "：", addr))
-            insbuf = instrbuffer_local[ins][addr]
             CImGui.PushID(addr)
-            view(insbuf)
+            view(ibv.insbuf)
             CImGui.PopID()
         end
     end
@@ -580,130 +507,103 @@ let
     val::String = ""
     content::String = ""
     global function view(qt::InstrQuantity)
-        # ftsz = CImGui.GetFontSize()
-        # CImGui.Text(qt.alias)
-        # CImGui.SameLine(ftsz * (max(values(maxaliaslist)...) / 3 + 0.5))
-        # CImGui.Text("：")
-        # CImGui.SameLine() ###alias
         Us = conf.U[qt.utype]
         U = isempty(Us) ? "" : Us[qt.uindex]
         U == "" || (Uchange::Float64 = Us[1] isa Unitful.FreeUnits ? ustrip(Us[1], 1U) : 1.0)
-        # CImGui.PushStyleVar(CImGui.ImGuiStyleVar_ItemSpacing, (0, 2))
         val = U == "" ? qt.read : @trypass string(parse(Float64, qt.read) / Uchange) qt.read
         content = string(qt.alias, "\n", val, " ", U) |> centermultiline
         if CImGui.Button(content, (-1, 0))
             qt.uindex = (qt.uindex + 1) % length(Us)
             qt.uindex == 0 && (qt.uindex = length(Us))
         end
-        # CImGui.SameLine() ###实际值
-        # CImGui.PushItemWidth(3ftsz)
-        # @c ShowUnit("##insbuf", qt.utype, &qt.uindex)
-        # CImGui.PopItemWidth()
-        # CImGui.PopStyleVar()
     end
 end
 
-function refresh_remote(instrbuffer_rc, instrbuffer; log=false)
-    @sync for ins in keys(instrbuffer)
-        ins == "Others" && continue
-        for addr in keys(instrbuffer[ins])
-            @async begin
-                insbuf = instrbuffer[ins][addr]
-                if insbuf.isautorefresh || log
-                    instr = instrument(ins, addr)
-                    @trylink_do instr begin
-                        query(instr, "*IDN?")
-                        dtbuf = []
-                        for qt in keys(insbuf.quantities)
-                            if insbuf.quantities[qt].isautorefresh || log
-                                getfunc = Symbol(ins, :_, qt, :_get)
-                                val = :($getfunc($instr)) |> eval
-                                push!(dtbuf, (ins, addr, qt, val))
+function refresh_qt(instrnm, addr, qtnm)
+    remotecall_fetch(workers()[1], instrnm, addr) do instrnm, addr
+        ct = Controller(instrnm, addr)
+        try
+            getfunc = Symbol(instrnm, :_, qtnm, :_get) |> eval
+            login!(CPU, ct)
+            readstr = ct(getfunc, CPU, Val(:read))
+            logout!(CPU, ct)
+            return readstr
+        catch e
+            @error "[$(now())]\n仪器通信故障！！！" exception=e
+            logout!(CPU, ct)
+        end
+    end
+end
+
+function log_instrbufferviewers()
+    manualrefresh()
+    push!(cfgbuf, "instrbufferviewers/[$(now())]" => deepcopy(instrbufferviewers))
+end
+
+function refresh_fetch_ibvs(ibvs_local; log=false)
+    remotecall_fetch(workers()[1], ibvs_local, log) do ibvs_local, log
+        @sync for ins in keys(ibvs_local)
+            ins == "Others" && continue
+            for (addr, ibv) in ibvs_local[ins]
+                @async begin
+                    if ibv.insbuf.isautorefresh || log
+                        ct = Controller(ins, addr)
+                        try
+                            login!(CPU, ct)
+                            for (qtnm, qt) in ibv.insbuf.quantities
+                                if qt.isautorefresh || log
+                                    getfunc = Symbol(ins, :_, qtnm, :_get) |> eval
+                                    qt.read = ct(getfunc, CPU, Val(:read))
+                                end
                             end
+                            logout!(CPU, ct)
+                        catch e
+                            @error "[$(now())]\n仪器通信故障！！！" exception=e
+                            logout!(CPU, ct)
                         end
-                        put!(instrbuffer_rc, deepcopy(dtbuf))
-                    end nothing
-                    yield()
+                    end
                 end
             end
         end
+        return ibvs_local
     end
 end
 
-function refresh_local(instrbuffer_rc)
-    if isready(instrbuffer_rc)
-        packdata = take!(instrbuffer_rc)
-        for data in packdata
-            ins, addr, qt, val = data
-            insbuf = instrbuffer[ins][addr]
-            insbuf.quantities[qt].read = val
-        end
-    end
-end
-
-function refresh_local(instrnm, addr, quantity)
-    instr = instrument(instrnm, addr)
-    insbuf = @trypass instrbuffer[instrnm][addr] (@error "[$(now())]\n仪器不存在!!!" instrument = instrnm;
-    return)
-    getfunc = Symbol(instrnm, :_, quantity, :_get)
-    @trylink_do instr (insbuf.quantities[quantity].read = eval(:($getfunc($instr)))) nothing
-end
-
-function lockstates(f, args...; syncstates=syncstates, kwargs...)
-    if !syncstates[Int(busy_acquiring)]
-        syncstates[Int(busy_acquiring)] = true
-        if syncstates[Int(isdaqtask_running)]
-            if syncstates[Int(isblock)]
-                starttime = time()
-                while time() - starttime < 60
-                    syncstates[Int(isblocking)] && (f(args...; kwargs...); break)
-                    yield()
-                end
-            else
-                syncstates[Int(isblock)] = true
-                starttime = time()
-                while time() - starttime < 60
-                    syncstates[Int(isblocking)] && (f(args...; kwargs...); break)
-                    yield()
-                end
-                syncstates[Int(isblock)] = false
-                remote_do(workers()[1]) do
-                    lock(() -> notify(block), block)
-                end
+function manualrefresh()
+    ibvs_remote = refresh_fetch_ibvs(instrbufferviewers; log = true)
+    for ins in keys(instrbufferviewers)
+        ins == "Others" && continue
+        for (addr, ibv) in instrbufferviewers[ins]
+            for (qtnm, qt) in ibv.insbuf.quantities
+                qt.read = ibvs_remote[ins][addr].insbuf.quantities[qtnm].read
             end
-        else
-            f(args...; kwargs...)
         end
-        syncstates[Int(busy_acquiring)] = false
     end
-    nothing
 end
 
 function autorefresh()
-    errormonitor(@async while true
-        i_sleep = 0
-        while i_sleep < refreshrate
-            sleep(0.1)
-            i_sleep += 0.1
-        end
-        if syncstates[Int(isautorefresh)]
-            remotecall_wait(workers()[1], instrbuffer_rc, instrbuffer, syncstates) do instrbuffer_rc, instrbuffer, syncstates
-                lockstates(refresh_remote, instrbuffer_rc, instrbuffer; syncstates=syncstates)
+    errormonitor(
+        @async while true
+            i_sleep = 0
+            while i_sleep < refreshrate
+                sleep(0.1)
+                i_sleep += 0.1
+            end
+            if syncstates[Int(isautorefresh)]
+                ibvs_remote = refresh_fetch_ibvs(instrbufferviewers)
+                for ins in keys(instrbufferviewers)
+                    ins == "Others" && continue
+                    for (addr, ibv) in instrbufferviewers[ins]
+                        if ibv.insbuf.isautorefresh
+                            for (qtnm, qt) in ibv.insbuf.quantities
+                                if qt.isautorefresh
+                                    qt.read = ibvs_remote[ins][addr].insbuf.quantities[qtnm].read
+                                end
+                            end
+                        end
+                    end
+                end
             end
         end
-    end)
-    errormonitor(@async while true
-        refresh_local(instrbuffer_rc)
-        yield()
-    end)
+    )
 end
-
-###仅在运行时使用
-function log_instrbuffer(instrbuffer_rc)
-    refresh_remote(instrbuffer_rc, instrbuffer, log=true)
-    wait(@async while isready(instrbuffer_rc)
-        yield()
-    end)
-    push!(cfgbuf, "instrbuffer/[$(now())]" => instrbuffer)
-end
-

@@ -16,7 +16,7 @@ let
     global uipsweeps::Vector{UIPlot} = [UIPlot() for i in 1:4] #绘图缓存
     global daq_dtpks::Vector{DataPicker} = [DataPicker() for i in 1:4] #绘图数据选择
 
-    taskbt_ids::Dict{Tuple{Int,String},String} = Dict()
+    # taskbt_ids::Dict{Tuple{Int,String},String} = Dict()
     editmenu_ids::Dict{Int,String} = Dict()
     yesnodialog_ids::Dict{Int,String} = Dict()
     rename_ids::Dict{Int,String} = Dict()
@@ -56,9 +56,9 @@ let
                 btc = isrunning_i ? ImVec4(morestyle.Colors.DAQTaskRunning...) : CImGui.c_get(imguistyle.Colors, CImGui.ImGuiCol_Button)
                 btc = task.enable ? btc : ImVec4(morestyle.Colors.LogError...)
                 CImGui.PushStyleColor(CImGui.ImGuiCol_Button, btc)
-                haskey(taskbt_ids, (i + old_i, buf)) || push!(taskbt_ids, (i + old_i, buf) => morestyle.Icons.TaskButton * " 任务 $(i+old_i) $buf###rename")
-                CImGui.Button(taskbt_ids[(i + old_i, buf)], (-1, 0)) && (show_daq_editor_i = i; show_daq_editor = true)
-                # CImGui.Button(" 任务 $(i+old_i) $buf###rename", (-1, 0)) && (show_daq_editor_i = i; show_daq_editor = true)
+                # haskey(taskbt_ids, (i + old_i, buf)) || push!(taskbt_ids, (i + old_i, buf) => morestyle.Icons.TaskButton * " 任务 $(i+old_i) $buf###rename")
+                # CImGui.Button(taskbt_ids[(i + old_i, buf)], (-1, 0)) && (show_daq_editor_i = i; show_daq_editor = true)
+                CImGui.Button(morestyle.Icons.TaskButton * " 任务 $(i+old_i) $buf###rename", (-1, 0)) && (show_daq_editor_i = i; show_daq_editor = true)
                 CImGui.PopStyleColor()
                 haskey(editmenu_ids, i) || push!(editmenu_ids, i => "队列编辑菜单$i")
                 CImGui.OpenPopupOnItemClick(editmenu_ids[i], 1)

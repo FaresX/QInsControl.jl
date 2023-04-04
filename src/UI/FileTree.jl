@@ -41,14 +41,15 @@ function edit(filetree::FolderFileTree, isrename::Dict{String,Bool}, bnm=false)
     end
 end
 
-function edit(filetree::FileFileTree, isrename::Dict{String,Bool}, bnm=false)
-    filetree.isdeleted || filemenu(filetree, filetree.filepath, isrename)
+function edit(filetree::FileFileTree, isrename::Dict{String,Bool}, ::Bool)
+    filetree.isdeleted || filemenu(filetree, isrename)
 end
 
 let
     deldialog::Bool = false
     yesnodialog_ids::Dict{String,String} = Dict()
-    global function filemenu(filetree::FileFileTree, path, isrename)
+    global function filemenu(filetree::FileFileTree, isrename)
+        path = filetree.filepath
         file = filetree.filepath_bnm
         get!(isrename, path, false)
         isrnm = isrename[path]

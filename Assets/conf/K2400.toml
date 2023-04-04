@@ -1,11 +1,11 @@
-[levelv]
-cmdheader = ":SOURce:VOLTage:LEVel"
+[measureprotv]
+cmdheader = ":SENSe:VOLTage:PROTection"
 U = "V"
 enable = true
 help = ""
 optvalues = []
-type = "sweep"
-alias = "输出电压"
+type = "set"
+alias = "测量电压保护"
 
 [measurefuncon]
 cmdheader = ":SENSe:FUNCtion:ON"
@@ -95,14 +95,14 @@ icon = ""
 input_labels = ["L", "LS", "Input 3"]
 cmdtype = "scpi"
 
-[measureprotv]
-cmdheader = ":SENSe:VOLTage:PROTection"
+[levelv]
+cmdheader = ":SOURce:VOLTage:LEVel"
 U = "V"
 enable = true
 help = ""
 optvalues = []
-type = "set"
-alias = "测量电压保护"
+type = "sweep"
+alias = "输出电压"
 
 [sourcerangev]
 cmdheader = ":SOURce:VOLTage:RANGe"
