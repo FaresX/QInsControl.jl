@@ -90,6 +90,20 @@ function poll_autodetect()
     )
 end
 
+function fetch_ibvs(addinstr)
+    remotecall_wait(workers()[1], addinstr) do addinstr
+        delete!(instrbufferviewers["Others"], addinstr)
+    end
+    instrbufferviewers_remote = remotecall_fetch(() -> instrbufferviewers, workers()[1])
+    for ins in keys(instrbufferviewers_remote)
+        ins == "VirtualInstr" && continue
+        for addr in keys(instrbufferviewers_remote[ins])
+            haskey(instrbufferviewers[ins], addr) && continue
+            push!(instrbufferviewers[ins], addr => InstrBufferViewer(ins, addr))
+        end
+    end
+end
+
 let
     addinstr::String = ""
     st::Bool = false
@@ -98,7 +112,7 @@ let
         @c ComBoS("##OthersIns", &addinstr, keys(instrbufferviewers["Others"]))
         if CImGui.Button(morestyle.Icons.NewFile * " 添加  ")
             st = remotecall_fetch(manualadd, workers()[1], addinstr)
-            st && (delete!(instrbufferviewers["Others"], addinstr); addinstr = "")
+            st && (fetch_ibvs(addinstr); addinstr = "")
             time_old = time()
         end
         if time() - time_old < 2
@@ -133,7 +147,7 @@ let
             CImGui.OpenPopupOnItemClick("选择常用地址", 1)
             if CImGui.Button(morestyle.Icons.NewFile * " 添加  ##手动输入仪器地址")
                 st = remotecall_fetch(manualadd, workers()[1], newinsaddr)
-                st && (delete!(instrbufferviewers["Others"], newinsaddr); newinsaddr = "")
+                st && (fetch_ibvs(newinsaddr); newinsaddr = "")
                 time_old = time()
             end
             if time() - time_old < 2
