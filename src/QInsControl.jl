@@ -1,8 +1,8 @@
-using Distributed
-nprocs() == 1 && addprocs(1)
-@everywhere ENV["QInsControlAssets"] = "Assets"
-@everywhere module QInsControl
-# module QInsControl
+# using Distributed
+# nprocs() == 1 && addprocs(1)
+# @everywhere ENV["QInsControlAssets"] = "Assets"
+# @everywhere module QInsControl
+module QInsControl
 
 using CImGui
 using CImGui.CSyntax
@@ -19,7 +19,6 @@ using MacroTools
 import FileIO: load
 using JLD2
 using QInsControlCore
-using Instruments
 using Configurations
 using ColorTypes
 using OrderedCollections
@@ -38,8 +37,6 @@ using InteractiveUtils
 using Sockets
 
 export start
-
-const instrlist = Dict{String,Vector{String}}() #仪器列表
 
 @enum SyncStatesIndex begin
     autodetecting = 1 #是否正在自动查询仪器
@@ -98,17 +95,18 @@ function julia_main()::Cint
         global databuf_rc = RemoteChannel(() -> databuf_c)
         global progress_rc = RemoteChannel(() -> progress_c)
         uitask = UI()
-        # include("Logger.jl")
+        include("Logger.jl")
         jlverinfobuf = IOBuffer()
         versioninfo(jlverinfobuf)
         global jlverinfo = wrapmultiline(String(take!(jlverinfobuf)), 48)
         if conf.Init.isremote
             nprocs() == 1 && addprocs(1)
+            @eval @everywhere using QInsControl
             syncstates = SharedVector{Bool}(7)
             databuf_rc = RemoteChannel(() -> databuf_c)
             progress_rc = RemoteChannel(() -> progress_c)
             remote_do(loadconf, workers()[1])
-            # remote_do(include, workers()[1], "Logger.jl")
+            remote_do(include, workers()[1], "Logger.jl")
         end
         remotecall_wait(()->start!(CPU), workers()[1])
         autorefresh()
@@ -128,6 +126,11 @@ function julia_main()::Cint
     return 0
 end
 
-start() = julia_main()
+function start()
+    if !haskey(ENV, "QInsControlAssets")
+        ENV["QInsControlAssets"] = joinpath(dirname(pathof(QInsControl)), "../Assets")
+    end
+    julia_main()
+end
 
 end #QInsControl

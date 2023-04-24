@@ -924,7 +924,7 @@ end
 function view(bk::CodeBlock)
     CImGui.BeginChild("##CodeBlockViewer", (Float32(0), bkheight(bk)), true)
     CImGui.PushStyleVar(CImGui.ImGuiStyleVar_ButtonTextAlign, (0.0, 0.5))
-    CImGui.Button(bk.codes, (-1, 0))
+    CImGui.Button(morestyle.Icons.CodeBlock*" "*bk.codes, (-1, 0))
     CImGui.PopStyleVar()
     CImGui.EndChild()
 end
@@ -934,7 +934,7 @@ function view(bk::StrideCodeBlock)
     CImGui.PushStyleColor(CImGui.ImGuiCol_Border, bdc)
     CImGui.BeginChild("##StrideCodeBlockViewer", (Float32(0), bkheight(bk)), true)
     CImGui.PushStyleVar(CImGui.ImGuiStyleVar_ButtonTextAlign, (0.0, 0.5))
-    CImGui.Button(bk.head, (-1, 0))
+    CImGui.Button(morestyle.Icons.StrideCodeBlock*" "*bk.head, (-1, 0))
     CImGui.PopStyleVar()
     CImGui.PopStyleColor()
     isempty(skipnull(bk.blocks)) || view(bk.blocks)
@@ -956,7 +956,18 @@ function view(bk::SweepBlock)
     units::Vector{String} = string.(conf.U[Ut])
     showu = @trypass units[bk.ui] ""
     CImGui.PushStyleVar(CImGui.ImGuiStyleVar_ButtonTextAlign, (0.0, 0.5))
-    CImGui.Button(string("仪器：", instrnm, " 地址：", addr, " 扫描量：", quantity, " 步长：", bk.step, showu, " 终点：", bk.stop, showu, " 延迟：", bk.delay), (-1, 0))
+    CImGui.Button(
+        string(
+            morestyle.Icons.SweepBlock,
+            " 仪器：", instrnm,
+            " 地址：", addr,
+            " 扫描量：", quantity,
+            " 步长：", bk.step, showu,
+            " 终点：", bk.stop, showu,
+            " 延迟：", bk.delay
+        ),
+        (-1, 0)
+    )
     CImGui.PopStyleVar()
     CImGui.PopStyleColor()
     isempty(skipnull(bk.blocks)) || view(bk.blocks)
@@ -976,7 +987,16 @@ function view(bk::SettingBlock)
     units::Vector{String} = string.(conf.U[Ut])
     showu = @trypass units[bk.ui] ""
     CImGui.PushStyleVar(CImGui.ImGuiStyleVar_ButtonTextAlign, (0.0, 0.5))
-    CImGui.Button(string("仪器：", instrnm, " 地址：", addr, " 设置：", quantity, " 设置值：", bk.setvalue, showu), (-1, 0))
+    CImGui.Button(
+        string(
+            morestyle.Icons.SettingBlock,    
+            " 仪器：", instrnm,
+            " 地址：", addr,
+            " 设置：", quantity,
+            " 设置值：", bk.setvalue, showu
+        ),
+        (-1, 0)
+    )
     CImGui.PopStyleVar()
     CImGui.EndChild()
 end
@@ -990,7 +1010,17 @@ function view(bk::ReadingBlock)
     bk.isobserve && bk.isreading && (markc = ImVec4(morestyle.Colors.BlockObserveReadingBG...))
     CImGui.PushStyleColor(CImGui.ImGuiCol_Text, markc)
     CImGui.PushStyleVar(CImGui.ImGuiStyleVar_ButtonTextAlign, (0.0, 0.5))
-    CImGui.Button(string("仪器：", bk.instrnm, " 地址：", bk.addr, " 读取量：", quantity, " 索引：", bk.index, " 标注：", bk.mark), (-1, 0))
+    CImGui.Button(
+        string(
+            morestyle.Icons.ReadingBlock,
+            " 仪器：", bk.instrnm,
+            " 地址：", bk.addr,
+            " 读取量：", quantity,
+            " 索引：", bk.index,
+            " 标注：", bk.mark
+        ),
+        (-1, 0)
+    )
     CImGui.PopStyleVar()
     CImGui.PopStyleColor()
     CImGui.EndChild()
@@ -999,7 +1029,7 @@ end
 
 function view(logbk::LogBlock)
     CImGui.BeginChild("##LogBlock", (Float32(0), bkheight(logbk)), true)
-    CImGui.Button("LogBlock##", (-1, 0))
+    CImGui.Button(morestyle.Icons.LogBlock*" LogBlock##", (-1, 0))
     CImGui.EndChild()
 end
 
@@ -1008,7 +1038,15 @@ function view(bk::WriteBlock)
     CImGui.PushStyleColor(CImGui.ImGuiCol_Border, bdc)
     CImGui.BeginChild("##WriteBlockViewer", (Float32(0), bkheight(bk)), true)
     CImGui.PushStyleVar(CImGui.ImGuiStyleVar_ButtonTextAlign, (0.0, 0.5))
-    CImGui.Button(string("仪器：", bk.instrnm, " 地址：", bk.addr, " 命令：", bk.cmd), (-1, 0))
+    CImGui.Button(
+        string(
+            morestyle.Icons.WriteBlock,
+            " 仪器：", bk.instrnm,
+            " 地址：", bk.addr,
+            " 命令：", bk.cmd
+        ),
+        (-1, 0)
+    )
     CImGui.PopStyleVar()
     CImGui.EndChild()
     CImGui.PopStyleColor()
@@ -1022,7 +1060,17 @@ function view(bk::QueryBlock)
     bk.isobserve && bk.isreading && (markc = ImVec4(morestyle.Colors.BlockObserveReadingBG...))
     CImGui.PushStyleColor(CImGui.ImGuiCol_Text, markc)
     CImGui.PushStyleVar(CImGui.ImGuiStyleVar_ButtonTextAlign, (0.0, 0.5))
-    CImGui.Button(string("仪器：", bk.instrnm, " 地址：", bk.addr, " 命令：", bk.cmd, " 索引：", bk.index, " 标注：", bk.mark), (-1, 0))
+    CImGui.Button(
+        string(
+            morestyle.Icons.QueryBlock,
+            " 仪器：", bk.instrnm,
+            " 地址：", bk.addr,
+            " 命令：", bk.cmd,
+            " 索引：", bk.index,
+            " 标注：", bk.mar
+        ),
+        (-1, 0)
+    )
     CImGui.PopStyleVar()
     CImGui.PopStyleColor()
     CImGui.EndChild()
@@ -1037,7 +1085,17 @@ function view(bk::ReadBlock)
     bk.isobserve && bk.isreading && (markc = ImVec4(morestyle.Colors.BlockObserveReadingBG...))
     CImGui.PushStyleColor(CImGui.ImGuiCol_Text, markc)
     CImGui.PushStyleVar(CImGui.ImGuiStyleVar_ButtonTextAlign, (0.0, 0.5))
-    CImGui.Button(string("仪器：", bk.instrnm, " 地址：", bk.addr, " 命令：", bk.cmd, " 索引：", bk.index, " 标注：", bk.mark), (-1, 0))
+    CImGui.Button(
+        string(
+            morestyle.Icons.ReadBlock,
+            " 仪器：", bk.instrnm,
+            " 地址：", bk.addr,
+            " 命令：", bk.cmd,
+            " 索引：", bk.index,
+            " 标注：", bk.mark
+        ),
+        (-1, 0)
+    )
     CImGui.PopStyleVar()
     CImGui.PopStyleColor()
     CImGui.EndChild()

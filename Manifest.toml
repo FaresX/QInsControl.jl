@@ -1,8 +1,8 @@
 # This file is machine-generated - editing it directly is not advised
 
-julia_version = "1.9.0-rc1"
+julia_version = "1.9.0-rc2"
 manifest_format = "2.0"
-project_hash = "a703342d77f8b748706b2bbc4f770cb3b44c249c"
+project_hash = "f657fc4fd60477bb28751a4024c8fe230ae6e07b"
 
 [[deps.ATK_jll]]
 deps = ["Artifacts", "Glib_jll", "JLLWrappers", "Libdl", "Pkg"]
@@ -692,7 +692,7 @@ version = "1.7.2"
 
 [[deps.QInsControlCore]]
 deps = ["Instruments", "Sockets", "UUIDs"]
-git-tree-sha1 = "5e0f431aee13f03c330528b0bf482440df122065"
+git-tree-sha1 = "734f5aaa281076f6f98131fada0948cc80ab9899"
 repo-rev = "master"
 repo-url = "https://github.com/Faresx/QInsControlCore.jl.git"
 uuid = "4b4fa3db-bca0-4bc2-a184-f1a1239a12c1"

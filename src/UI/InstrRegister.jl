@@ -1,5 +1,9 @@
 function edit(qtcf::QuantityConf)
-    @c CImGui.Checkbox("启用", &qtcf.enable)
+    if qtcf.enable
+        @c CImGui.Checkbox("启用", &qtcf.enable)
+    else
+        @c CImGui.Checkbox("停用", &qtcf.enable)
+    end
     # @c InputTextRSZ("变量名", &qtcf.name)
     @c InputTextRSZ("别称", &qtcf.alias)
     @c ComBoS("单位类型", &qtcf.U, keys(conf.U))

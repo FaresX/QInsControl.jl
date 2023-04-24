@@ -1,0 +1,514 @@
+┌ Info: [2023-04-05T00:21:47.796]
+│ 启动成功！
+└ @ Main.QInsControl c:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl\src\QInsControl.jl:115
+┌ Info: [2023-04-05T00:22:45.899]
+│ 启动成功！
+└ @ Main.QInsControl c:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl\src\QInsControl.jl:115
+from worker 2: ┌ Warning: task(address: ASRL1::INSTR) is failed, recreating...
+from worker 2: └ @ QInsControlCore C:\Users\22112\.julia\packages\QInsControlCore\r4L7r\src\DataStream.jl:162
+from worker 2: ┌ Info: task(address: ASRL1::INSTR) is recreated
+from worker 2: └ @ QInsControlCore C:\Users\22112\.julia\packages\QInsControlCore\r4L7r\src\DataStream.jl:167
+from worker 2: ┌ Error: [2023-04-05T00:24:06.501]
+from worker 2: │ 仪器通讯故障！！！
+from worker 2: │   instrument_address = ASRL1::INSTR
+from worker 2: │   exception = AssertionError("timeout")
+from worker 2: └ @ Main.QInsControl c:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl\src\Instrument.jl:17
+┌ Info: [2023-04-05T00:26:31.894]
+│ 启动成功！
+└ @ Main.QInsControl c:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl\src\QInsControl.jl:115
+┌ Info: [2023-04-05T00:28:43.113]
+│ 启动成功！
+└ @ Main.QInsControl c:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl\src\QInsControl.jl:115
+from worker 2: ┌ Warning: task(address: ASRL1::INSTR) is failed, recreating...
+from worker 2: └ @ QInsControlCore C:\Users\22112\.julia\packages\QInsControlCore\r4L7r\src\DataStream.jl:162
+from worker 2: ┌ Info: task(address: ASRL1::INSTR) is recreated
+from worker 2: └ @ QInsControlCore C:\Users\22112\.julia\packages\QInsControlCore\r4L7r\src\DataStream.jl:167
+from worker 2: ┌ Error: [2023-04-05T00:33:59.332]
+from worker 2: │ 仪器通讯故障！！！
+from worker 2: │   instrument_address = ASRL1::INSTR
+from worker 2: │   exception = AssertionError("timeout")
+from worker 2: └ @ Main.QInsControl c:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl\src\Instrument.jl:17
+from worker 2: ┌ Error: 自动查询失败!!!
+from worker 2: │   exception = ErrorException("VISA C call failed with status VI_ERROR_INV_OBJECT: The given session or object reference is invalid.")
+from worker 2: └ @ QInsControl C:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl\src\Instrument.jl:58
+┌ Info: [2023-04-05T00:40:45.372]
+│ 启动成功！
+└ @ QInsControl C:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl\src\QInsControl.jl:116
+from worker 2: ┌ Error: 自动查询失败!!!
+from worker 2: │   exception = ErrorException("VISA C call failed with status VI_ERROR_INV_OBJECT: The given session or object reference is invalid.")
+from worker 2: └ @ QInsControl C:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl\src\Instrument.jl:58
+from worker 2: ┌ Error: 自动查询失败!!!
+from worker 2: │   exception = ErrorException("VISA C call failed with status VI_ERROR_INV_OBJECT: The given session or object reference is invalid.")
+from worker 2: └ @ QInsControl C:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl\src\Instrument.jl:58
+from worker 2: ┌ Info: [2023-04-05T00:41:53.306]
+from worker 2: │   task = begin
+from worker 2:     function remote_sweep_block(resmg, controllers, databuf_lc, progress_lc, syncstates)
+from worker 2:         @progress for i = 1:2
+from worker 2:                 if syncstates[Int(isblock)]
+from worker 2:                     @warn "[$(now())]\n暂停！" StrideCodeBlock = "@progress for i in 1:2"
+from worker 2:                     lock((()->wait(block)), block)
+from worker 2:                     @info "[$(now())]\n继续！" StrideCodeBlock = "@progress for i in 1:2"
+from worker 2:                 end
+from worker 2:                 if syncstates[Int(isinterrupt)]
+from worker 2:                     @warn "[$(now())]\n中断！" StrideCodeBlock = "@progress for i in 1:2"
+from worker 2:                     return
+from worker 2:                 end
+from worker 2:                 remotecall_wait(eval, 1, :(log_instrbufferviewers()))
+from worker 2:                 @progress for j = 1:50
+from worker 2:                         if syncstates[Int(isblock)]
+from worker 2:                             @warn "[$(now())]\n暂停！" StrideCodeBlock = "@progress for j in 1:50"
+from worker 2:                             lock((()->wait(block)), block)
+from worker 2:                             @info "[$(now())]\n继续！" StrideCodeBlock = "@progress for j in 1:50"
+from worker 2:                         end
+from worker 2:                         if syncstates[Int(isinterrupt)]
+from worker 2:                             @warn "[$(now())]\n中断！" StrideCodeBlock = "@progress for j in 1:50"
+from worker 2:                             return
+from worker 2:                         end
+from worker 2:                         sleep(0.1)
+from worker 2:                         put!(databuf_lc, ("_VirtualInstr_SystemTime_VirtualAddress", (controllers["VirtualInstr_VirtualAddress"])(VirtualInstr_SystemTime_get, CPU, Val(:read))))
+from worker 2:                     end
+from worker 2:             end
+from worker 2:     end
+from worker 2:     function remote_do_block(databuf_rc, progress_rc, syncstates, rn)
+from worker 2:         controllers = Dict{Any, Any}("VirtualInstr_VirtualAddress" => QInsControlCore.Controller(UUID("877fe80a-85d3-45be-b8a5-11188daebcf4"), "VirtualInstr", "VirtualAddress", Dict{Base.UUID, String}()))
+from worker 2:         try
+from worker 2:             databuf_lc = Channel{Tuple{String, String}}(conf.DAQ.channel_size)
+from worker 2:             progress_lc = Channel{Tuple{UUID, Int, Int, Float64}}(conf.DAQ.channel_size)
+from worker 2:             @sync begin
+from worker 2:                     remotedotask = errormonitor(@async(begin
+from worker 2:                                     resourcemanager = ResourceManager()
+from worker 2:                                     for ct = values(controllers)
+from worker 2:                                         login!(CPU, ct)
+from worker 2:                                     end
+from worker 2:                                     remote_sweep_block(resourcemanager, controllers, databuf_lc, progress_lc, syncstates)
+from worker 2:                                 end))
+from worker 2:                     errormonitor(@async(while true
+from worker 2:                                 if istaskdone(remotedotask) && all(.!(isready.([databuf_lc, databuf_rc, progress_lc, progress_rc])))
+from worker 2:                                     syncstates[Int(isdaqtask_done)] = true
+from worker 2:                                     break
+from worker 2:                                 else
+from worker 2:                                     isready(databuf_lc) && put!(databuf_rc, packtake!(databuf_lc, (2rn) * conf.DAQ.packsize))
+from worker 2:                                     isready(progress_lc) && put!(progress_rc, packtake!(progress_lc, conf.DAQ.packsize))
+from worker 2:                                 end
+from worker 2:                                 yield()
+from worker 2:                             end))
+from worker 2:                 end
+from worker 2:         end
+from worker 2:     end
+from worker 2: end
+from worker 2: └ @ QInsControl C:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl\src\UI\DAQTask.jl:189
+┌ Info: [2023-04-05T14:45:29.100]
+│ 启动成功！
+└ @ Main.QInsControl c:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl\src\QInsControl.jl:117
+from worker 2: ┌ Error: 自动查询失败!!!
+from worker 2: │   exception = UndefVarError(:find_resources)
+from worker 2: └ @ Main.QInsControl c:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl\src\Instrument.jl:58
+┌ Info: [2023-04-05T14:58:53.106]
+│ 启动成功！
+└ @ Main.QInsControl c:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl\src\QInsControl.jl:117
+from worker 2: ┌ Error: [2023-04-05T14:59:02.809]
+from worker 2: │ 仪器通讯故障！！！
+from worker 2: │   instrument_address = ASRL1::INSTR
+from worker 2: │   exception = UndefVarError(:query)
+from worker 2: └ @ Main.QInsControl c:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl\src\Instrument.jl:17
+from worker 2: ┌ Error: 自动查询失败!!!
+from worker 2: │   exception = MethodError(QInsControlCore.disconnect!, (Instruments.GenericInstrument(0x00000001, true, 0x00000400),), 0x0000000000008c22)
+from worker 2: └ @ Main.QInsControl c:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl\src\Instrument.jl:58
+┌ Info: [2023-04-05T15:32:00.350]
+│ 启动成功！
+└ @ Main.QInsControl c:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl\src\QInsControl.jl:117
+from worker 2: ┌ Warning: task(address: ASRL1::INSTR) is failed, recreating...
+from worker 2: └ @ QInsControlCore C:\Users\22112\.julia\packages\QInsControlCore\p6D7s\src\DataStream.jl:164
+from worker 2: ┌ Info: task(address: ASRL1::INSTR) is recreated
+from worker 2: └ @ QInsControlCore C:\Users\22112\.julia\packages\QInsControlCore\p6D7s\src\DataStream.jl:169
+from worker 2: ┌ Error: [2023-04-05T15:32:14.261]
+from worker 2: │ 仪器通讯故障！！！
+from worker 2: │   instrument_address = ASRL1::INSTR
+from worker 2: │   exception = AssertionError("timeout")
+from worker 2: └ @ Main.QInsControl c:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl\src\Instrument.jl:17
+from worker 2: ┌ Warning: task(address: ASRL1::INSTR) is failed, recreating...
+from worker 2: └ @ QInsControlCore C:\Users\22112\.julia\packages\QInsControlCore\p6D7s\src\DataStream.jl:164
+from worker 2: ┌ Info: task(address: ASRL1::INSTR) is recreated
+from worker 2: └ @ QInsControlCore C:\Users\22112\.julia\packages\QInsControlCore\p6D7s\src\DataStream.jl:169
+from worker 2: ┌ Error: [2023-04-05T15:32:47.280]
+from worker 2: │ 仪器通信故障！！！
+from worker 2: │   exception = AssertionError("timeout")
+from worker 2: └ @ Main.QInsControl c:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl\src\UI\InstrBuffer.jl:215
+from worker 2: ┌ Warning: task(address: ASRL1::INSTR) is failed, recreating...
+from worker 2: └ @ QInsControlCore C:\Users\22112\.julia\packages\QInsControlCore\p6D7s\src\DataStream.jl:164
+from worker 2: ┌ Info: task(address: ASRL1::INSTR) is recreated
+from worker 2: └ @ QInsControlCore C:\Users\22112\.julia\packages\QInsControlCore\p6D7s\src\DataStream.jl:169
+from worker 2: ┌ Error: [2023-04-05T15:33:03.036]
+from worker 2: │ 仪器通信故障！！！
+from worker 2: │   exception = AssertionError("timeout")
+from worker 2: └ @ Main.QInsControl c:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl\src\UI\InstrBuffer.jl:233
+┌ Info: [2023-04-05T15:36:25.169]
+│ 启动成功！
+└ @ Main.QInsControl c:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl\src\QInsControl.jl:116
+from worker 2: ┌ Warning: task(address: ASRL1::INSTR) is failed, recreating...
+from worker 2: └ @ QInsControlCore C:\Users\22112\.julia\packages\QInsControlCore\p6D7s\src\DataStream.jl:164
+from worker 2: ┌ Info: task(address: ASRL1::INSTR) is recreated
+from worker 2: └ @ QInsControlCore C:\Users\22112\.julia\packages\QInsControlCore\p6D7s\src\DataStream.jl:169
+from worker 2: ┌ Error: [2023-04-05T15:36:32.560]
+from worker 2: │ 仪器通讯故障！！！
+from worker 2: │   instrument_address = ASRL1::INSTR
+from worker 2: │   exception = AssertionError("timeout")
+from worker 2: └ @ Main.QInsControl c:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl\src\Instrument.jl:17
+from worker 2: ┌ Warning: task(address: VirtualAddress) is failed, recreating...
+from worker 2: └ @ QInsControlCore C:\Users\22112\.julia\packages\QInsControlCore\p6D7s\src\DataStream.jl:164
+from worker 2: ┌ Info: task(address: VirtualAddress) is recreated
+from worker 2: └ @ QInsControlCore C:\Users\22112\.julia\packages\QInsControlCore\p6D7s\src\DataStream.jl:169
+from worker 2: ┌ Error: [2023-04-05T15:37:01.354]
+from worker 2: │ 仪器通信故障！！！
+from worker 2: │   exception = AssertionError("timeout")
+from worker 2: └ @ Main.QInsControl c:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl\src\UI\InstrBuffer.jl:534
+from worker 2: ┌ Warning: task(address: VirtualAddress) is failed, recreating...
+from worker 2: └ @ QInsControlCore C:\Users\22112\.julia\packages\QInsControlCore\p6D7s\src\DataStream.jl:164
+from worker 2: ┌ Info: task(address: VirtualAddress) is recreated
+from worker 2: └ @ QInsControlCore C:\Users\22112\.julia\packages\QInsControlCore\p6D7s\src\DataStream.jl:169
+from worker 2: ┌ Error: [2023-04-05T15:37:13.612]
+from worker 2: │ 仪器通信故障！！！
+from worker 2: │   exception = AssertionError("timeout")
+from worker 2: └ @ Main.QInsControl c:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl\src\UI\InstrBuffer.jl:534
+from worker 2: ┌ Warning: task(address: VirtualAddress) is failed, recreating...
+from worker 2: └ @ QInsControlCore C:\Users\22112\.julia\packages\QInsControlCore\p6D7s\src\DataStream.jl:164
+from worker 2: ┌ Info: task(address: VirtualAddress) is recreated
+from worker 2: └ @ QInsControlCore C:\Users\22112\.julia\packages\QInsControlCore\p6D7s\src\DataStream.jl:169
+from worker 2: ┌ Error: [2023-04-05T15:37:55.777]
+from worker 2: │ 仪器通信故障！！！
+from worker 2: │   exception = AssertionError("timeout")
+from worker 2: └ @ Main.QInsControl c:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl\src\UI\InstrBuffer.jl:534
+┌ Info: [2023-04-05T15:40:11.104]
+│ 启动成功！
+└ @ Main.QInsControl c:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl\src\QInsControl.jl:116
+from worker 2: ┌ Warning: task(address: ASRL1::INSTR) is failed, recreating...
+from worker 2: └ @ QInsControlCore C:\Users\22112\.julia\packages\QInsControlCore\p6D7s\src\DataStream.jl:164
+from worker 2: ┌ Info: task(address: ASRL1::INSTR) is recreated
+from worker 2: └ @ QInsControlCore C:\Users\22112\.julia\packages\QInsControlCore\p6D7s\src\DataStream.jl:169
+from worker 2: ┌ Error: [2023-04-05T15:40:24.854]
+from worker 2: │ 仪器通讯故障！！！
+from worker 2: │   instrument_address = ASRL1::INSTR
+from worker 2: │   exception = AssertionError("timeout")
+from worker 2: └ @ Main.QInsControl c:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl\src\Instrument.jl:17
+from worker 2: ┌ Error: [2023-04-05T15:40:30.805]
+from worker 2: │ 仪器通信故障！！！
+from worker 2: │   exception = UndefVarError(:VirtualInstr_SweepTest1_get)
+from worker 2: └ @ Main.QInsControl c:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl\src\UI\InstrBuffer.jl:534
+┌ Info: [2023-04-05T15:43:40.796]
+│ 启动成功！
+└ @ Main.QInsControl c:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl\src\QInsControl.jl:116
+┌ Info: [2023-04-05T15:45:47.416]
+│ 启动成功！
+└ @ Main.QInsControl c:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl\src\QInsControl.jl:116
+┌ Info: here
+└ @ Main.QInsControl c:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl\src\UI\InstrRegister.jl:201
+┌ Info: here
+└ @ Main.QInsControl c:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl\src\UI\InstrRegister.jl:201
+┌ Info: here
+└ @ Main.QInsControl c:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl\src\UI\InstrRegister.jl:201
+┌ Info: here
+└ @ Main.QInsControl c:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl\src\UI\InstrRegister.jl:201
+┌ Info: here
+└ @ Main.QInsControl c:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl\src\UI\InstrRegister.jl:201
+┌ Info: here
+└ @ Main.QInsControl c:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl\src\UI\InstrRegister.jl:201
+┌ Info: here
+└ @ Main.QInsControl c:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl\src\UI\InstrRegister.jl:201
+┌ Info: here
+└ @ Main.QInsControl c:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl\src\UI\InstrRegister.jl:201
+┌ Info: here
+└ @ Main.QInsControl c:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl\src\UI\InstrRegister.jl:201
+┌ Info: here
+└ @ Main.QInsControl c:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl\src\UI\InstrRegister.jl:201
+┌ Info: here
+└ @ Main.QInsControl c:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl\src\UI\InstrRegister.jl:201
+┌ Info: here
+└ @ Main.QInsControl c:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl\src\UI\InstrRegister.jl:201
+┌ Info: [2023-04-05T15:49:15.362]
+│ 启动成功！
+└ @ Main.QInsControl c:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl\src\QInsControl.jl:116
+┌ Info: here1
+└ @ Main.QInsControl c:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl\src\UI\InstrRegister.jl:199
+┌ Info: here
+└ @ Main.QInsControl c:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl\src\UI\InstrRegister.jl:202
+┌ Info: here1
+└ @ Main.QInsControl c:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl\src\UI\InstrRegister.jl:199
+┌ Info: here
+└ @ Main.QInsControl c:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl\src\UI\InstrRegister.jl:202
+┌ Info: here1
+└ @ Main.QInsControl c:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl\src\UI\InstrRegister.jl:199
+┌ Info: here
+└ @ Main.QInsControl c:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl\src\UI\InstrRegister.jl:202
+┌ Info: here1
+└ @ Main.QInsControl c:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl\src\UI\InstrRegister.jl:199
+┌ Info: here
+└ @ Main.QInsControl c:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl\src\UI\InstrRegister.jl:202
+┌ Info: here1
+└ @ Main.QInsControl c:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl\src\UI\InstrRegister.jl:199
+┌ Info: here
+└ @ Main.QInsControl c:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl\src\UI\InstrRegister.jl:202
+┌ Info: here1
+└ @ Main.QInsControl c:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl\src\UI\InstrRegister.jl:199
+┌ Info: here
+└ @ Main.QInsControl c:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl\src\UI\InstrRegister.jl:202
+┌ Info: here1
+└ @ Main.QInsControl c:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl\src\UI\InstrRegister.jl:199
+┌ Info: here
+└ @ Main.QInsControl c:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl\src\UI\InstrRegister.jl:202
+┌ Info: here1
+└ @ Main.QInsControl c:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl\src\UI\InstrRegister.jl:199
+┌ Info: here
+└ @ Main.QInsControl c:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl\src\UI\InstrRegister.jl:202
+┌ Info: here1
+└ @ Main.QInsControl c:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl\src\UI\InstrRegister.jl:199
+┌ Info: here
+└ @ Main.QInsControl c:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl\src\UI\InstrRegister.jl:202
+┌ Info: here1
+└ @ Main.QInsControl c:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl\src\UI\InstrRegister.jl:199
+┌ Info: here
+└ @ Main.QInsControl c:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl\src\UI\InstrRegister.jl:202
+┌ Info: here1
+└ @ Main.QInsControl c:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl\src\UI\InstrRegister.jl:199
+┌ Info: here
+└ @ Main.QInsControl c:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl\src\UI\InstrRegister.jl:202
+┌ Info: here1
+└ @ Main.QInsControl c:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl\src\UI\InstrRegister.jl:199
+┌ Info: here
+└ @ Main.QInsControl c:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl\src\UI\InstrRegister.jl:202
+┌ Info: here1
+└ @ Main.QInsControl c:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl\src\UI\InstrRegister.jl:199
+┌ Info: here
+└ @ Main.QInsControl c:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl\src\UI\InstrRegister.jl:202
+┌ Info: [2023-04-05T15:56:38.480]
+│ 启动成功！
+└ @ Main.QInsControl c:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl\src\QInsControl.jl:116
+from worker 2: ┌ Info: VirtualInstr sweep : -50.0
+from worker 2: └ @ Main.QInsControl C:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl\Assets\conf\inssetget.jl:10
+from worker 2: ┌ Info: VirtualInstr sweep : -48.983050847457626
+from worker 2: └ @ Main.QInsControl C:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl\Assets\conf\inssetget.jl:10
+from worker 2: ┌ Info: VirtualInstr sweep : -47.96610169491525
+from worker 2: └ @ Main.QInsControl C:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl\Assets\conf\inssetget.jl:10
+from worker 2: ┌ Info: VirtualInstr sweep : -46.94915254237288
+from worker 2: └ @ Main.QInsControl C:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl\Assets\conf\inssetget.jl:10
+from worker 2: ┌ Info: VirtualInstr sweep : -45.932203389830505
+from worker 2: └ @ Main.QInsControl C:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl\Assets\conf\inssetget.jl:10
+from worker 2: ┌ Info: VirtualInstr sweep : -44.91525423728814
+from worker 2: └ @ Main.QInsControl C:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl\Assets\conf\inssetget.jl:10
+from worker 2: ┌ Info: VirtualInstr sweep : -43.898305084745765
+from worker 2: └ @ Main.QInsControl C:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl\Assets\conf\inssetget.jl:10
+from worker 2: ┌ Info: VirtualInstr sweep : -42.88135593220339
+from worker 2: └ @ Main.QInsControl C:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl\Assets\conf\inssetget.jl:10
+from worker 2: ┌ Info: VirtualInstr sweep : -41.86440677966102
+from worker 2: └ @ Main.QInsControl C:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl\Assets\conf\inssetget.jl:10
+from worker 2: ┌ Info: VirtualInstr sweep : -40.847457627118644
+from worker 2: └ @ Main.QInsControl C:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl\Assets\conf\inssetget.jl:10
+from worker 2: ┌ Info: VirtualInstr sweep : -39.83050847457627
+from worker 2: └ @ Main.QInsControl C:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl\Assets\conf\inssetget.jl:10
+from worker 2: ┌ Info: VirtualInstr sweep : -38.813559322033896
+from worker 2: └ @ Main.QInsControl C:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl\Assets\conf\inssetget.jl:10
+from worker 2: ┌ Info: VirtualInstr sweep : -37.79661016949152
+from worker 2: └ @ Main.QInsControl C:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl\Assets\conf\inssetget.jl:10
+from worker 2: ┌ Info: VirtualInstr sweep : -36.779661016949156
+from worker 2: └ @ Main.QInsControl C:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl\Assets\conf\inssetget.jl:10
+from worker 2: ┌ Info: VirtualInstr sweep : -35.76271186440678
+from worker 2: └ @ Main.QInsControl C:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl\Assets\conf\inssetget.jl:10
+from worker 2: ┌ Info: VirtualInstr sweep : -34.74576271186441
+from worker 2: └ @ Main.QInsControl C:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl\Assets\conf\inssetget.jl:10
+from worker 2: ┌ Info: VirtualInstr sweep : -33.728813559322035
+from worker 2: └ @ Main.QInsControl C:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl\Assets\conf\inssetget.jl:10
+from worker 2: ┌ Info: VirtualInstr sweep : -32.71186440677966
+from worker 2: └ @ Main.QInsControl C:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl\Assets\conf\inssetget.jl:10
+from worker 2: ┌ Info: VirtualInstr sweep : -31.694915254237287
+from worker 2: └ @ Main.QInsControl C:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl\Assets\conf\inssetget.jl:10
+from worker 2: ┌ Info: VirtualInstr sweep : -30.677966101694917
+from worker 2: └ @ Main.QInsControl C:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl\Assets\conf\inssetget.jl:10
+from worker 2: ┌ Info: VirtualInstr sweep : -29.661016949152543
+from worker 2: └ @ Main.QInsControl C:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl\Assets\conf\inssetget.jl:10
+from worker 2: ┌ Info: VirtualInstr sweep : -28.64406779661017
+from worker 2: └ @ Main.QInsControl C:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl\Assets\conf\inssetget.jl:10
+from worker 2: ┌ Info: VirtualInstr sweep : -27.627118644067796
+from worker 2: └ @ Main.QInsControl C:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl\Assets\conf\inssetget.jl:10
+from worker 2: ┌ Info: VirtualInstr sweep : -26.610169491525422
+from worker 2: └ @ Main.QInsControl C:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl\Assets\conf\inssetget.jl:10
+from worker 2: ┌ Info: VirtualInstr sweep : -25.593220338983052
+from worker 2: └ @ Main.QInsControl C:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl\Assets\conf\inssetget.jl:10
+from worker 2: ┌ Info: VirtualInstr sweep : -24.576271186440678
+from worker 2: └ @ Main.QInsControl C:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl\Assets\conf\inssetget.jl:10
+from worker 2: ┌ Info: VirtualInstr sweep : -23.559322033898304
+from worker 2: └ @ Main.QInsControl C:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl\Assets\conf\inssetget.jl:10
+from worker 2: ┌ Info: VirtualInstr sweep : -22.54237288135593
+from worker 2: └ @ Main.QInsControl C:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl\Assets\conf\inssetget.jl:10
+from worker 2: ┌ Info: VirtualInstr sweep : -21.52542372881356
+from worker 2: └ @ Main.QInsControl C:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl\Assets\conf\inssetget.jl:10
+from worker 2: ┌ Info: VirtualInstr sweep : -20.508474576271187
+from worker 2: └ @ Main.QInsControl C:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl\Assets\conf\inssetget.jl:10
+from worker 2: ┌ Info: VirtualInstr sweep : -19.491525423728813
+from worker 2: └ @ Main.QInsControl C:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl\Assets\conf\inssetget.jl:10
+from worker 2: ┌ Info: VirtualInstr sweep : -18.47457627118644
+from worker 2: └ @ Main.QInsControl C:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl\Assets\conf\inssetget.jl:10
+from worker 2: ┌ Info: VirtualInstr sweep : -17.45762711864407
+from worker 2: └ @ Main.QInsControl C:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl\Assets\conf\inssetget.jl:10
+from worker 2: ┌ Info: VirtualInstr sweep : -16.440677966101696
+from worker 2: └ @ Main.QInsControl C:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl\Assets\conf\inssetget.jl:10
+from worker 2: ┌ Info: VirtualInstr sweep : -15.423728813559322
+from worker 2: └ @ Main.QInsControl C:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl\Assets\conf\inssetget.jl:10
+from worker 2: ┌ Info: VirtualInstr sweep : -14.40677966101695
+from worker 2: └ @ Main.QInsControl C:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl\Assets\conf\inssetget.jl:10
+from worker 2: ┌ Info: VirtualInstr sweep : -13.389830508474576
+from worker 2: └ @ Main.QInsControl C:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl\Assets\conf\inssetget.jl:10
+from worker 2: ┌ Info: VirtualInstr sweep : -12.372881355932204
+from worker 2: └ @ Main.QInsControl C:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl\Assets\conf\inssetget.jl:10
+from worker 2: ┌ Info: VirtualInstr sweep : -11.35593220338983
+from worker 2: └ @ Main.QInsControl C:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl\Assets\conf\inssetget.jl:10
+from worker 2: ┌ Info: VirtualInstr sweep : -10.338983050847459
+from worker 2: └ @ Main.QInsControl C:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl\Assets\conf\inssetget.jl:10
+from worker 2: ┌ Info: VirtualInstr sweep : -9.322033898305085
+from worker 2: └ @ Main.QInsControl C:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl\Assets\conf\inssetget.jl:10
+from worker 2: ┌ Info: VirtualInstr sweep : -8.305084745762711
+from worker 2: └ @ Main.QInsControl C:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl\Assets\conf\inssetget.jl:10
+from worker 2: ┌ Info: VirtualInstr sweep : -7.288135593220339
+from worker 2: └ @ Main.QInsControl C:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl\Assets\conf\inssetget.jl:10
+from worker 2: ┌ Info: VirtualInstr sweep : -6.271186440677966
+from worker 2: └ @ Main.QInsControl C:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl\Assets\conf\inssetget.jl:10
+from worker 2: ┌ Info: VirtualInstr sweep : -5.254237288135593
+from worker 2: └ @ Main.QInsControl C:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl\Assets\conf\inssetget.jl:10
+from worker 2: ┌ Info: VirtualInstr sweep : -4.237288135593221
+from worker 2: └ @ Main.QInsControl C:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl\Assets\conf\inssetget.jl:10
+from worker 2: ┌ Info: VirtualInstr sweep : -3.2203389830508473
+from worker 2: └ @ Main.QInsControl C:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl\Assets\conf\inssetget.jl:10
+from worker 2: ┌ Info: VirtualInstr sweep : -2.2033898305084745
+from worker 2: └ @ Main.QInsControl C:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl\Assets\conf\inssetget.jl:10
+from worker 2: ┌ Info: VirtualInstr sweep : -1.1864406779661016
+from worker 2: └ @ Main.QInsControl C:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl\Assets\conf\inssetget.jl:10
+from worker 2: ┌ Info: VirtualInstr sweep : -0.1694915254237288
+from worker 2: └ @ Main.QInsControl C:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl\Assets\conf\inssetget.jl:10
+from worker 2: ┌ Info: VirtualInstr sweep : 0.847457627118644
+from worker 2: └ @ Main.QInsControl C:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl\Assets\conf\inssetget.jl:10
+from worker 2: ┌ Info: VirtualInstr sweep : 1.8644067796610169
+from worker 2: └ @ Main.QInsControl C:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl\Assets\conf\inssetget.jl:10
+from worker 2: ┌ Info: VirtualInstr sweep : 2.8813559322033897
+from worker 2: └ @ Main.QInsControl C:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl\Assets\conf\inssetget.jl:10
+from worker 2: ┌ Info: VirtualInstr sweep : 3.8983050847457625
+from worker 2: └ @ Main.QInsControl C:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl\Assets\conf\inssetget.jl:10
+from worker 2: ┌ Info: VirtualInstr sweep : 4.915254237288136
+from worker 2: └ @ Main.QInsControl C:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl\Assets\conf\inssetget.jl:10
+from worker 2: ┌ Info: VirtualInstr sweep : 5.932203389830509
+from worker 2: └ @ Main.QInsControl C:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl\Assets\conf\inssetget.jl:10
+from worker 2: ┌ Info: VirtualInstr sweep : 6.9491525423728815
+from worker 2: └ @ Main.QInsControl C:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl\Assets\conf\inssetget.jl:10
+from worker 2: ┌ Info: VirtualInstr sweep : 7.966101694915254
+from worker 2: └ @ Main.QInsControl C:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl\Assets\conf\inssetget.jl:10
+from worker 2: ┌ Info: VirtualInstr sweep : 8.983050847457626
+from worker 2: └ @ Main.QInsControl C:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl\Assets\conf\inssetget.jl:10
+from worker 2: ┌ Info: VirtualInstr sweep : 10.0
+from worker 2: └ @ Main.QInsControl C:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl\Assets\conf\inssetget.jl:10
+┌ Error: 2023-04-05T15:58:40.160
+│ error in @trypass
+│   exception = UndefVarError(:test3)
+│   code = @trypasse string(float(eval(Meta.parse(qt.set)) * Uchange)) svstr
+└ @ Main.QInsControl c:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl\src\Utilities.jl:9
+┌ Error: [2023-04-05T15:58:40.201]
+│ Error in renderloop!
+│   exception = UndefVarError(:svstr)
+└ @ Main.QInsControl c:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl\src\UI\Renderer.jl:151
+┌ Info: [2023-04-05T16:00:06.779]
+│ 启动成功！
+└ @ Main.QInsControl c:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl\src\QInsControl.jl:116
+┌ Info: [2023-04-05T16:04:03.453]
+│ 启动成功！
+└ @ Main.QInsControl c:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl\src\QInsControl.jl:116
+┌ Error: 2023-04-05T16:04:14.028
+│ error in @trypass
+│   exception = UndefVarError(:test3)
+│   code = @trypasse string(float(eval(Meta.parse(qt.set)) * Uchange)) qt.set
+└ @ Main.QInsControl c:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl\src\Utilities.jl:9
+from worker 2: ┌ Info: VirtualInstr set : test3
+from worker 2: └ @ Main.QInsControl C:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl\Assets\conf\inssetget.jl:16
+┌ Error: 2023-04-05T16:04:15.611
+│ error in @trypass
+│   exception = UndefVarError(:test4)
+│   code = @trypasse string(float(eval(Meta.parse(qt.set)) * Uchange)) qt.set
+└ @ Main.QInsControl c:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl\src\Utilities.jl:9
+from worker 2: ┌ Info: VirtualInstr set : test4
+from worker 2: └ @ Main.QInsControl C:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl\Assets\conf\inssetget.jl:16
+from worker 2: ┌ Info: VirtualInstr set : test2
+from worker 2: └ @ Main.QInsControl C:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl\Assets\conf\inssetget.jl:16
+┌ Error: 2023-04-05T16:04:17.962
+│ error in @trypass
+│   exception = UndefVarError(:test2)
+│   code = @trypasse string(float(eval(Meta.parse(qt.set)) * Uchange)) qt.set
+└ @ Main.QInsControl c:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl\src\Utilities.jl:9
+from worker 2: ┌ Info: VirtualInstr set : test6
+from worker 2: └ @ Main.QInsControl C:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl\Assets\conf\inssetget.jl:16
+┌ Error: 2023-04-05T16:04:19.266
+│ error in @trypass
+│   exception = UndefVarError(:test6)
+│   code = @trypasse string(float(eval(Meta.parse(qt.set)) * Uchange)) qt.set
+└ @ Main.QInsControl c:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl\src\Utilities.jl:9
+from worker 2: ┌ Info: VirtualInstr set : test5
+from worker 2: └ @ Main.QInsControl C:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl\Assets\conf\inssetget.jl:16
+from worker 2: ┌ Info: VirtualInstr set : test3
+from worker 2: └ @ Main.QInsControl C:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl\Assets\conf\inssetget.jl:16
+┌ Error: 2023-04-05T16:04:20.641
+│ error in @trypass
+│   exception = UndefVarError(:test5)
+│   code = @trypasse string(float(eval(Meta.parse(qt.set)) * Uchange)) qt.set
+└ @ Main.QInsControl c:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl\src\Utilities.jl:9
+┌ Error: 2023-04-05T16:04:21.448
+│ error in @trypass
+│   exception = UndefVarError(:test3)
+│   code = @trypasse string(float(eval(Meta.parse(qt.set)) * Uchange)) qt.set
+└ @ Main.QInsControl c:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl\src\Utilities.jl:9
+from worker 2: ┌ Info: VirtualInstr set : test4
+from worker 2: └ @ Main.QInsControl C:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl\Assets\conf\inssetget.jl:16
+┌ Error: 2023-04-05T16:04:22.272
+│ error in @trypass
+│   exception = UndefVarError(:test4)
+│   code = @trypasse string(float(eval(Meta.parse(qt.set)) * Uchange)) qt.set
+└ @ Main.QInsControl c:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl\src\Utilities.jl:9
+from worker 2: ┌ Info: VirtualInstr set : test2
+from worker 2: └ @ Main.QInsControl C:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl\Assets\conf\inssetget.jl:16
+┌ Error: 2023-04-05T16:04:22.829
+│ error in @trypass
+│   exception = UndefVarError(:test2)
+│   code = @trypasse string(float(eval(Meta.parse(qt.set)) * Uchange)) qt.set
+└ @ Main.QInsControl c:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl\src\Utilities.jl:9
+from worker 2: ┌ Info: VirtualInstr set : test1
+from worker 2: └ @ Main.QInsControl C:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl\Assets\conf\inssetget.jl:16
+┌ Error: 2023-04-05T16:04:23.993
+│ error in @trypass
+│   exception = UndefVarError(:test1)
+│   code = @trypasse string(float(eval(Meta.parse(qt.set)) * Uchange)) qt.set
+└ @ Main.QInsControl c:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl\src\Utilities.jl:9
+from worker 2: ┌ Warning: task(address: ASRL1::INSTR) is failed, recreating...
+from worker 2: └ @ QInsControlCore C:\Users\22112\.julia\packages\QInsControlCore\p6D7s\src\DataStream.jl:164
+from worker 2: ┌ Info: task(address: ASRL1::INSTR) is recreated
+from worker 2: └ @ QInsControlCore C:\Users\22112\.julia\packages\QInsControlCore\p6D7s\src\DataStream.jl:169
+from worker 2: ┌ Error: [2023-04-05T16:05:21.158]
+from worker 2: │ 仪器通讯故障！！！
+from worker 2: │   instrument_address = ASRL1::INSTR
+from worker 2: │   exception = AssertionError("timeout")
+from worker 2: └ @ Main.QInsControl c:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl\src\Instrument.jl:17
+from worker 2: ┌ Error: [2023-04-05T16:07:19.152]
+from worker 2: │ 仪器通讯故障！！！
+from worker 2: │   instrument_address = TCPIP::192.168.31.239::33576::SOCKET
+from worker 2: │   exception = Base.IOError("connect: connection timed out (ETIMEDOUT)", -4039)
+from worker 2: └ @ Main.QInsControl c:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl\src\Instrument.jl:17
+┌ Info: [2023-04-05T22:51:41.403]
+│ 启动成功！
+└ @ QInsControl C:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl\src\QInsControl.jl:113
+lid.")
+from worker 2: └ @ QInsControl C:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl\src\Instrument.jl:58
+from worker 2: ┌ Error: 自动查询失败!!!
+from worker 2: │   exception = ErrorException("VISA C call failed with status VI_ERROR_INV_OBJECT: The given session or object reference is invalid.")
+from worker 2: └ @ QInsControl C:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl\src\Instrument.jl:58
+┌ Warning: task(address: ASRL1::INSTR) is failed, recreating...
+└ @ QInsControlCore C:\Users\22112\.julia\packages\QInsControlCore\iE9o1\src\DataStream.jl:164
+┌ Info: task(address: ASRL1::INSTR) is recreated
+└ @ QInsControlCore C:\Users\22112\.julia\packages\QInsControlCore\iE9o1\src\DataStream.jl:169
+┌ Info: [2023-04-05T22:58:44.634]
+│ 启动成功！
+└ @ QInsControl C:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl\src\QInsControl.jl:113
+┌ Error: 自动查询失败!!!
+│   exception = ErrorException("VISA C call failed with status VI_ERROR_INV_OBJECT: The given session or object reference is invalid.")
+└ @ QInsControl C:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl\src\Instrument.jl:58

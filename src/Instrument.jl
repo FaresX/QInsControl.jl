@@ -1,5 +1,5 @@
 function autodetect()
-    addrs = find_resources(CPU.resourcemanager)
+    addrs = find_resources(CPU)
     for addr in addrs
         manualadd(addr)
     end

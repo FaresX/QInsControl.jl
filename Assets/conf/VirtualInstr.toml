@@ -1,3 +1,12 @@
+[SweepTest]
+cmdheader = ""
+U = "A"
+enable = true
+help = "仅作为扫描测试"
+optvalues = [""]
+type = "sweep"
+alias = "扫描测试"
+
 [SystemTime]
 cmdheader = ""
 U = "s"
@@ -7,14 +16,14 @@ optvalues = []
 type = "read"
 alias = "系统时间"
 
-[SweepTest1]
+[SetTest]
 cmdheader = ""
-U = "A"
+U = "V"
 enable = true
-help = "仅作为扫描测试"
-optvalues = [""]
-type = "sweep"
-alias = "扫描测试1"
+help = "仅作为设置测试"
+optvalues = ["test1", "test2", "test3", "test4", "test5", "test6"]
+type = "set"
+alias = "设置测试"
 
 [Date]
 cmdheader = ""

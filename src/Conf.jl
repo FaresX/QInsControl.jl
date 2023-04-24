@@ -43,26 +43,26 @@ end
 macro scpi(instrnm, quantity, scpistr)
     get = Symbol(instrnm, :_, quantity, :_get)
     occursin("?", scpistr) && return esc(quote
-        $get(instr::Instrument) = query(instr, $scpistr)
+        $get(instr) = query(instr, $scpistr)
     end)
     scpistrs = split(scpistr, " ")
     exget = if length(scpistrs) == 1
         quote
-            $get(instr::Instrument) = query(instr, string($scpistr, "?"))
+            $get(instr) = query(instr, string($scpistr, "?"))
         end
     elseif length(scpistrs) == 2
         quote
-            $get(instr::Instrument) = query(instr, string($(scpistrs[1]), "? ", $(scpistrs[2])))
+            $get(instr) = query(instr, string($(scpistrs[1]), "? ", $(scpistrs[2])))
         end
     end
     set = Symbol(instrnm, :_, quantity, :_set)
     exset = if length(scpistrs) == 1
         quote
-            $set(instr::Instrument, val) = write(instr, string($scpistr, " ", val))
+            $set(instr, val) = write(instr, string($scpistr, " ", val))
         end
     elseif length(scpistrs) == 2
         quote
-            $set(instr::Instrument, val) = write(instr, string($scpistr, ", ", val))
+            $set(instr, val) = write(instr, string($scpistr, ", ", val))
         end
     end
     esc(Expr(:block, exget, exset))
@@ -71,14 +71,14 @@ end
 macro tsp(instrnm, quantity, tspstr)
     get = Symbol(instrnm, :_, quantity, :_get)
     tspstr[end-1:end] == "()" && return esc(quote
-        $get(instr::Instrument) = query(instr, string("print(", $tspstr, ")"))
+        $get(instr) = query(instr, string("print(", $tspstr, ")"))
     end)
     set = Symbol(instrnm, :_, quantity, :_set)
     ex = quote
-        function $set(instr::Instrument, val)
+        function $set(instr, val)
             write(instr, string($tspstr, "=", val))
         end
-        function $get(instr::Instrument)
+        function $get(instr)
             query(instr, string("print(", $tspstr, ")"))
         end
     end

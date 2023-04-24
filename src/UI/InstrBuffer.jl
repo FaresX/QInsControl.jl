@@ -17,7 +17,7 @@ mutable struct InstrQuantity
     issweeping::Bool
 end
 InstrQuantity() = InstrQuantity(true, "", "", "", "", Cfloat(0.1), "", [""], 1, "", "", 1, :set, "", false, false)
-InstrQuantity(name, qtcf::QuantityConf) = InstrQuantity(qtcf.enable, name, qtcf.alias, "", "", Cfloat(0.1), "", qtcf.optvalues, 1, "", "", 1, Symbol(qtcf.type), qtcf.help, false, false)
+InstrQuantity(name, qtcf::QuantityConf) = InstrQuantity(qtcf.enable, name, qtcf.alias, "", "", Cfloat(0.1), "", qtcf.optvalues, 1, "", qtcf.U, 1, Symbol(qtcf.type), qtcf.help, false, false)
 
 mutable struct InstrBuffer
     instrnm::String
@@ -250,9 +250,11 @@ function edit(insbuf::InstrBuffer, addr)
     CImGui.BeginChild("InstrBuffer")
     CImGui.Columns(conf.InsBuf.showcol, C_NULL, false)
     for (i, qt) in enumerate(values(insbuf.quantities))
+        qt.enable || continue
         CImGui.PushID(qt.name)
-        qt.enable && (edit(qt, insbuf.instrnm, addr); CImGui.NextColumn())
+        edit(qt, insbuf.instrnm, addr)
         CImGui.PopID()
+        CImGui.NextColumn()
         CImGui.Indent()
         if CImGui.BeginDragDropSource(0)
             @c CImGui.SetDragDropPayload("Swap DAQTask", &i, sizeof(Cint))
@@ -290,7 +292,8 @@ let
         U = isempty(Us) ? "" : Us[qt.uindex]
         U == "" || (Uchange::Float64 = Us[1] isa Unitful.FreeUnits ? ustrip(Us[1], 1U) : 1.0)
         val = U == "" ? qt.read : @trypass string(parse(Float64, qt.read) / Uchange) qt.read
-        content = string(qt.alias, "\n步长：", qt.step, " ", U, "\n终点：", qt.stop, " ", U, "\n延迟：", qt.delay, " s\n", val, " ", U, "\n###for rename") |> centermultiline
+        content = string(qt.alias, "\n步长：", qt.step, " ", U, "\n终点：", qt.stop, " ", U, "\n延迟：", qt.delay, " s\n", val, " ", U) |> centermultiline
+        content = string(content, "###for rename")
         CImGui.PushStyleColor(CImGui.ImGuiCol_Button, qt.isautorefresh || qt.issweeping ? morestyle.Colors.DAQTaskRunning : CImGui.c_get(imguistyle.Colors, CImGui.ImGuiCol_Button))
         if CImGui.Button(content, (-1, 0))
             if addr != ""
@@ -384,7 +387,8 @@ let
         U = isempty(Us) ? "" : Us[qt.uindex]
         U == "" || (Uchange::Float64 = Us[1] isa Unitful.FreeUnits ? ustrip(Us[1], 1U) : 1.0)
         val = U == "" ? qt.read : @trypass string(parse(Float64, qt.read) / Uchange) qt.read
-        content = string(qt.alias, "\n \n设置值：", qt.set, " ", U, "\n \n", val, " ", U, "\n###for rename") |> centermultiline
+        content = string(qt.alias, "\n \n设置值：", qt.set, " ", U, "\n \n", val, " ", U) |> centermultiline
+        content = string(content, "###for rename")
         CImGui.PushStyleColor(CImGui.ImGuiCol_Button, qt.isautorefresh ? morestyle.Colors.DAQTaskRunning : CImGui.c_get(imguistyle.Colors, CImGui.ImGuiCol_Button))
         if CImGui.Button(content, (-1, 0))
             if addr != ""
@@ -401,7 +405,7 @@ let
             if CImGui.Button(" 确认 ", (-1, 0)) || triggerset
                 triggerset = false
                 if addr != ""
-                    sv = U == "" ? qt.set : @trypasse string(float(eval(Meta.parse(qt.set)) * Uchange)) svstr
+                    sv = U == "" ? qt.set : @trypasse string(float(eval(Meta.parse(qt.set)) * Uchange)) qt.set
                     triggerset && (sv = qt.optvalues[qt.optedvalueidx])
                     fetchdata = remotecall_fetch(workers()[1], instrnm, addr, sv) do instrnm, addr, sv
                         ct = Controller(instrnm, addr)
@@ -492,6 +496,7 @@ function view(insbuf::InstrBuffer)
     CImGui.Columns(conf.InsBuf.showcol, C_NULL, false)
     CImGui.PushID(insbuf.instrnm)
     for (name, qt) in insbuf.quantities
+        qt.enable || continue
         CImGui.PushID(name)
         view(qt)
         CImGui.NextColumn()

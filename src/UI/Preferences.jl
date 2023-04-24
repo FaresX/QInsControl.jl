@@ -31,7 +31,11 @@ let
                     @c CImGui.Checkbox("单核", &conf.Init.isremote)
                 end
                 CImGui.DragInt2("窗口大小", conf.Init.windowsize, 2.0, 100, 4000, "%d", CImGui.ImGuiSliderFlags_AlwaysClamp)
-                @c CImGui.Checkbox("视窗模式", &conf.Init.viewportenable)
+                if conf.Init.viewportenable
+                    @c CImGui.Checkbox("视窗模式 开", &conf.Init.viewportenable)
+                else
+                    @c CImGui.Checkbox("视窗模式 关", &conf.Init.viewportenable)
+                end
                 CImGui.Text(" ")
                 CImGui.Separator()
 

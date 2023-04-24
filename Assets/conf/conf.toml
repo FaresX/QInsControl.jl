@@ -10,7 +10,7 @@ s = ["s", "minute", "hr", "d"]
 Hz = ["Hz", "kHz", "MHz", "GHz"]
 
 [Init]
-isremote = true
+isremote = false
 windowsize = [1280, 720]
 viewportenable = true
 
