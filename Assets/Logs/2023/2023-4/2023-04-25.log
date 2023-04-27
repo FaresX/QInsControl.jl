@@ -1,0 +1,14 @@
+┌ Error: [2023-04-25T00:00:13.825]
+│ Error in renderloop!
+│   exception = RemoteException(2, CapturedException(KeyError("MercuryIPS"), Any[(getindex at ordered_dict.jl:385 [inlined], 1), (#134 at InstrRegister.jl:197, 1), (#invokelatest#2 at essentials.jl:816, 1), (invokelatest at essentials.jl:813, 1), (#114 at process_messages.jl:301, 1), (run_work_thunk at process_messages.jl:70, 1), (run_work_thunk at process_messages.jl:79, 1), (#100 at task.jl:514, 1)]))
+└ @ Main.QInsControl c:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl\src\UI\Renderer.jl:151
+┌ Info: [2023-04-25T00:00:24.085]
+│ 启动成功！
+└ @ Main.QInsControl c:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl\src\QInsControl.jl:113
+┌ Info: [2023-04-25T00:03:06.050]
+│ 启动成功！
+└ @ Main.QInsControl c:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl\src\QInsControl.jl:113
+┌ Error: [2023-04-25T00:03:35.523]
+│ Error in renderloop!
+│   exception = RemoteException(2, CapturedException(KeyError("MercuryIPS"), Any[(getindex at ordered_dict.jl:385 [inlined], 1), (#134 at InstrRegister.jl:197, 1), (#invokelatest#2 at essentials.jl:816, 1), (invokelatest at essentials.jl:813, 1), (#114 at process_messages.jl:301, 1), (run_work_thunk at process_messages.jl:70, 1), (run_work_thunk at process_messages.jl:79, 1), (#100 at task.jl:514, 1)]))
+└ @ Main.QInsControl c:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\QInsControl-AllVersions\QInsControl\src\UI\Renderer.jl:151

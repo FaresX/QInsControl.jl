@@ -124,7 +124,12 @@ function run(daqtask::DAQTask)
     ispath(cfgsvdir) || mkpath(cfgsvdir)
     savepath = joinpath(cfgsvdir, replace("[$(now())] 任务 $(1+old_i) $(daqtask.name).qdt", ':' => '.'))
     push!(cfgbuf, "daqtask" => daqtask)
-    log_instrbufferviewers()
+    try
+        log_instrbufferviewers()
+    catch e
+        @error "[($now())]\n仪器记录错误！！！" exception=e
+        return
+    end
     run_remote(daqtask)
     wait(
         @async while update_all()
@@ -232,7 +237,11 @@ end
 function update_all()
     if syncstates[Int(isdaqtask_done)]
         if isfile(savepath) || !isempty(databuf)
-            log_instrbufferviewers()
+            try
+                log_instrbufferviewers()
+            catch e
+                @error "[($now())]\n仪器记录错误，无法保存结束状态！！！" exception=e
+            end
             jldopen(savepath, "w") do file
                 file["data"] = databuf
                 file["uiplot"] = uipsweeps[1]

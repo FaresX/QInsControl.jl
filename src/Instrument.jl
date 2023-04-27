@@ -94,6 +94,7 @@ function fetch_ibvs(addinstr)
     remotecall_wait(workers()[1], addinstr) do addinstr
         delete!(instrbufferviewers["Others"], addinstr)
     end
+    delete!(instrbufferviewers["Others"], addinstr)
     instrbufferviewers_remote = remotecall_fetch(() -> instrbufferviewers, workers()[1])
     for ins in keys(instrbufferviewers_remote)
         ins == "VirtualInstr" && continue
