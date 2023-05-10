@@ -44,5 +44,5 @@ path = "defaultwallpaper.bmp"
 addrs = ["TCPIP::192.168.31.239::33576::SOCKET"]
 
 [Style]
-path = "Assets\\conf\\style.sty"
-default = "BlueSea"
+dir = "Assets\\Styles"
+default = "Walkr"

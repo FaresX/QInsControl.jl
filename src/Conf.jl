@@ -1,6 +1,6 @@
 function loadconf()
     ######gennerate conf######
-    conf_dict = TOML.parsefile(joinpath(ENV["QInsControlAssets"], "conf/conf.toml"))
+    conf_dict = TOML.parsefile(joinpath(ENV["QInsControlAssets"], "Confs/conf.toml"))
     unitslist = Dict("" => [])
     for Ut::String in keys(conf_dict["U"])
         if Ut != ""
@@ -18,11 +18,11 @@ function loadconf()
     isdir(conf.Fonts.dir) || (conf.Fonts.dir = joinpath(ENV["QInsControlAssets"], "Fonts"))
     isdir(conf.Logs.dir) || (conf.Logs.dir = joinpath(ENV["QInsControlAssets"], "Logs"))
     isfile(conf.BGImage.path) || (conf.BGImage.path = "defaultwallpaper.bmp")
-    isfile(conf.Style.path) || (conf.Style.path = joinpath(ENV["QInsControlAssets"], "conf\\style.sty"))
+    isfile(conf.Style.dir) || (conf.Style.dir = joinpath(ENV["QInsControlAssets"], "Styles"))
 
     ######generate insconf######
-    include(joinpath(ENV["QInsControlAssets"], "conf/extra_conf.jl"))
-    for file in readdir(joinpath(ENV["QInsControlAssets"], "conf"), join=true)
+    include(joinpath(ENV["QInsControlAssets"], "Confs/extra_conf.jl"))
+    for file in readdir(joinpath(ENV["QInsControlAssets"], "Confs"), join=true)
         bnm = basename(file)
         bnm == "conf.toml" || split(bnm, '.')[end] != "toml" || gen_insconf(file)
     end
@@ -34,8 +34,10 @@ function loadconf()
     push!(instrbufferviewers, "VirtualInstr" => Dict("VirtualAddress" => InstrBufferViewer("VirtualInstr", "VirtualAddress")))
 
     ######load style_conf######
-    stypath = conf.Style.path
-    isfile(stypath) && merge!(styles, load(stypath, "styles"))
+    for file in readdir(conf.Style.dir, join=true)
+        bnm = basename(file)
+        split(bnm, '.')[end] == "sty" && merge!(styles, load(file))
+    end
 
     return nothing
 end

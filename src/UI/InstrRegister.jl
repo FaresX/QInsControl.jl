@@ -91,16 +91,16 @@ let
 
             CImGui.EndChild()
             if CImGui.Button(morestyle.Icons.SaveButton * " 保存##Write QuantityConf to toml")
-                conffiles = readdir(joinpath(ENV["QInsControlAssets"], "conf"))
+                conffiles = readdir(joinpath(ENV["QInsControlAssets"], "Confs"))
                 allins = keys(insconf)
                 for cf in conffiles
                     filename, filetype = split(cf, '.')
                     filetype != "toml" && continue
                     filename == "conf" && continue
-                    !in(filename, allins) && Base.Filesystem.rm(joinpath(ENV["QInsControlAssets"], "conf/$cf"))
+                    !in(filename, allins) && Base.Filesystem.rm(joinpath(ENV["QInsControlAssets"], "Confs/$cf"))
                 end
                 for (ins, inscf) in insconf
-                    open(joinpath(ENV["QInsControlAssets"], "conf/$ins.toml"), "w") do file
+                    open(joinpath(ENV["QInsControlAssets"], "Confs/$ins.toml"), "w") do file
                         TOML.print(file, todict(inscf))
                     end
                 end
@@ -110,8 +110,29 @@ let
 
             if CImGui.Button(morestyle.Icons.NewFile * " 新建")
                 newins = OneInsConf(
-                    BasicConf(Dict("icon" => ICONS.ICON_MICROCHIP, "cmdtype" => "scpi", "idn" => "New Ins")),
-                    OrderedDict("quantity" => QuantityConf(Dict("enable" => true, "alias" => "变量", "U" => "", "cmdheader" => "", "cmdheader" => "", "optvalues" => [], "type" => "set", "help" => "")))
+                    BasicConf(
+                        Dict(
+                            "icon" => ICONS.ICON_MICROCHIP,
+                            "cmdtype" => "scpi",
+                            "idn" => "New Ins",
+                            "input_labels" => [],
+                            "output_labels" => []
+                            )
+                        ),
+                    OrderedDict(
+                        "quantity" => QuantityConf(
+                            Dict(
+                                "enable" => true,
+                                "alias" => "变量",
+                                "U" => "",
+                                "cmdheader" => "",
+                                "cmdheader" => "",
+                                "optvalues" => [],
+                                "type" => "set",
+                                "help" => ""
+                            )
+                        )
+                    )
                 )
                 push!(insconf, "New Ins" => newins)
                 remotecall_wait(workers()[1], newins) do newins

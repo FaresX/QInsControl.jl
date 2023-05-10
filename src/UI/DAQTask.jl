@@ -127,7 +127,7 @@ function run(daqtask::DAQTask)
     try
         log_instrbufferviewers()
     catch e
-        @error "[($now())]\n仪器记录错误！！！" exception=e
+        @error "[($now())]\n仪器记录错误，程序终止！！！" exception=e
         return
     end
     run_remote(daqtask)

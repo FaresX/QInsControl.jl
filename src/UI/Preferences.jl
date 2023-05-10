@@ -16,7 +16,7 @@ let
             if CImGui.Button(morestyle.Icons.SaveButton * " 保存", (-1, 0))
                 svconf = deepcopy(conf)
                 svconf.U = Dict(up.first => string.(up.second) for up in conf.U)
-                to_toml(joinpath(ENV["QInsControlAssets"], "conf/conf.toml"), svconf)
+                to_toml(joinpath(ENV["QInsControlAssets"], "Confs/conf.toml"), svconf)
             end
             CImGui.NextColumn()
 
@@ -24,7 +24,7 @@ let
             ftsz = CImGui.GetFontSize()
             if selectedpref == "通用"
                 ###Init##
-                CImGui.SetWindowFontScale(2)
+                CImGui.SetWindowFontScale(1.2)
                 CImGui.TextColored(morestyle.Colors.HighlightText, "初始化")
                 CImGui.SetWindowFontScale(1)
                 if conf.Init.isremote

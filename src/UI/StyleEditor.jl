@@ -425,16 +425,16 @@ let
     global function StyleEditor()
         # global imguistyle
         ws = CImGui.GetWindowWidth()
-        stylepath = conf.Style.path
+        styledir = conf.Style.dir
         CImGui.PushItemWidth(ws / 2)
-        inputstylepath = @c InputTextRSZ("##Style-dir", &stylepath)
+        inputstyledir = @c InputTextRSZ("##Style-dir", &styledir)
         CImGui.SameLine()
         CImGui.PopItemWidth()
-        selectstylepath = CImGui.Button(morestyle.Icons.SelectPath * "##Style-path")
-        selectstylepath && (stylepath = pick_file(abspath(stylepath)); filterlist = "sty")
-        if inputstylepath || selectstylepath
-            if isfile(stylepath)
-                conf.Style.path = stylepath
+        selectstyledir = CImGui.Button(morestyle.Icons.SelectPath * "##Style-path")
+        selectstyledir && (styledir = pick_folder(abspath(styledir)))
+        if inputstyledir || selectstyledir
+            if isfile(styledir)
+                conf.Style.dir = styledir
             else
                 CImGui.SameLine()
                 CImGui.TextColored((1.000, 0.000, 0.000, 1.000), "路径不存在！！！")
@@ -443,7 +443,10 @@ let
         if CImGui.Button(morestyle.Icons.SaveButton * " Save to File  ")
             if rstrip(style_name, ' ') != ""
                 push!(styles, style_name => ustyle)
-                jldsave(conf.Style.path, styles=styles)
+                # jldsave(conf.Style.path, styles=styles)
+                jldopen(joinpath(conf.Style.dir, "$style_name.sty"), "w") do file
+                    file[style_name] = styles[style_name]
+                end
                 nmerr = false
             else
                 nmerr = true
@@ -462,7 +465,11 @@ let
         CImGui.Button(morestyle.Icons.CloseFile) && CImGui.OpenPopup("##是否删除style")
         CImGui.SameLine()
         ShowHelpMarker("This operation will delete the selected imguistyle. Please be careful!")
-        YesNoDialog("##是否删除style", "确认删除？", CImGui.ImGuiWindowFlags_AlwaysAutoResize) && (delete!(styles, selected_style); selected_style = "")
+        if YesNoDialog("##是否删除style", "确认删除？", CImGui.ImGuiWindowFlags_AlwaysAutoResize)
+            delete!(styles, selected_style)
+            Base.Filesystem.rm(joinpath(conf.Style.dir, "$selected_style.sty"), force=true)
+            selected_style = ""
+        end
         CImGui.PushItemWidth(ws * 0.5)
         if @c ComBoS("Style", &selected_style, keys(styles))
             if selected_style != ""

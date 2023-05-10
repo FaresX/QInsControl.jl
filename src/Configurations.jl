@@ -41,7 +41,7 @@ end
 end
 
 @option mutable struct OptStyle
-    path::String
+    dir::String
     default::String
 end
 
