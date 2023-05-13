@@ -42,7 +42,9 @@ let
                 if CImGui.BeginTabItem("仪器状态")
                     CImGui.BeginChild("仪器状态")
                     if !isempty(dtviewer.data) && true in occursin.(r"instrbufferviewers/.*", keys(dtviewer.data))
-                        insbufkeys::Vector{String} = sort([key for key in keys(dtviewer.data) if occursin(r"instrbufferviewers/.*", key)])
+                        insbufkeys::Vector{String} = sort(
+                            [key for key in keys(dtviewer.data) if occursin(r"instrbufferviewers/.*", key)]
+                        )
                         for insbuf in insbufkeys
                             logtime::String = split(insbuf, "/")[2]
                             CImGui.PushStyleColor(CImGui.ImGuiCol_Button, morestyle.Colors.LogInfo)
@@ -119,9 +121,13 @@ let
             if dtviewer.show_data_picker
                 if haskey(dtviewer.data, "data")
                     datakeys::Set{String} = keys(dtviewer.data["data"])
-                    datakeys == Set(dtviewer.dtpicker.datalist) || (dtviewer.dtpicker.datalist = collect(datakeys); dtviewer.dtpicker.y = falses(length(datakeys)))
+                    if datakeys != Set(dtviewer.dtpicker.datalist)
+                        dtviewer.dtpicker.datalist = collect(datakeys)
+                        dtviewer.dtpicker.y = falses(length(datakeys))
+                    end
                     isupdate = @c edit(dtviewer.dtpicker, id, &dtviewer.show_data_picker)
-                    if !dtviewer.show_data_picker || isupdate || (dtviewer.dtpicker.isrealtime && waittime("DataViewer$id", dtviewer.dtpicker.refreshrate))
+                    if !dtviewer.show_data_picker || isupdate ||
+                        (dtviewer.dtpicker.isrealtime && waittime("DataViewer$id", dtviewer.dtpicker.refreshrate))
                         syncplotdata(dtviewer.uiplot, dtviewer.dtpicker, dtviewer.data["data"])
                     end
                 else

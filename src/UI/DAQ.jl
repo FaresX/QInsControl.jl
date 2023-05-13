@@ -31,7 +31,11 @@ let
             global old_i
             CImGui.Button(morestyle.Icons.SelectPath * " 工作区 ") && (workpath = pick_folder())
             CImGui.SameLine()
-            txtc = workpath == "未选择工作区！！！" ? ImVec4(morestyle.Colors.LogError...) : CImGui.c_get(imguistyle.Colors, CImGui.ImGuiCol_Text)
+            txtc = if workpath == "未选择工作区！！！"
+                ImVec4(morestyle.Colors.LogError...)
+            else
+                CImGui.c_get(imguistyle.Colors, CImGui.ImGuiCol_Text)
+            end
             CImGui.TextColored(txtc, workpath)
             if workpath != oldworkpath
                 if isdir(workpath)
@@ -53,12 +57,17 @@ let
                 CImGui.PushID(i)
                 buf = task.name
                 isrunning_i = syncstates[Int(isdaqtask_running)] && i == running_i
-                btc = isrunning_i ? ImVec4(morestyle.Colors.DAQTaskRunning...) : CImGui.c_get(imguistyle.Colors, CImGui.ImGuiCol_Button)
+                btc = if isrunning_i
+                    ImVec4(morestyle.Colors.DAQTaskRunning...)
+                else
+                    CImGui.c_get(imguistyle.Colors, CImGui.ImGuiCol_Button)
+                end
                 btc = task.enable ? btc : ImVec4(morestyle.Colors.LogError...)
                 CImGui.PushStyleColor(CImGui.ImGuiCol_Button, btc)
-                # haskey(taskbt_ids, (i + old_i, buf)) || push!(taskbt_ids, (i + old_i, buf) => morestyle.Icons.TaskButton * " 任务 $(i+old_i) $buf###rename")
-                # CImGui.Button(taskbt_ids[(i + old_i, buf)], (-1, 0)) && (show_daq_editor_i = i; show_daq_editor = true)
-                CImGui.Button(morestyle.Icons.TaskButton * " 任务 $(i+old_i) $buf###rename", (-1, 0)) && (show_daq_editor_i = i; show_daq_editor = true)
+                if CImGui.Button(morestyle.Icons.TaskButton * " 任务 $(i+old_i) $buf###rename", (-1, 0))
+                    show_daq_editor_i = i
+                    show_daq_editor = true
+                end
                 CImGui.PopStyleColor()
                 haskey(editmenu_ids, i) || push!(editmenu_ids, i => "队列编辑菜单$i")
                 CImGui.OpenPopupOnItemClick(editmenu_ids[i], 1)
@@ -86,7 +95,12 @@ let
                 end
 
                 if CImGui.BeginPopup(editmenu_ids[i])
-                    if CImGui.MenuItem(morestyle.Icons.RunTask * " 运行", C_NULL, false, !syncstates[Int(isdaqtask_running)] && task.enable)
+                    if CImGui.MenuItem(
+                        morestyle.Icons.RunTask * " 运行",
+                        C_NULL,
+                        false,
+                        !syncstates[Int(isdaqtask_running)] && task.enable
+                    )
                         if ispath(workpath)
                             running_i = i
                             errormonitor(@async begin
@@ -127,7 +141,9 @@ let
                 haskey(yesnodialog_ids, i) || push!(yesnodialog_ids, i => "##是否删除daqtasks$i")
                 isdeldaqtask && (CImGui.OpenPopup(yesnodialog_ids[i]);
                 isdeldaqtask = false)
-                YesNoDialog(yesnodialog_ids[i], "确认删除？", CImGui.ImGuiWindowFlags_AlwaysAutoResize) && deleteat!(daqtasks, i)
+                if YesNoDialog(yesnodialog_ids[i], "确认删除？", CImGui.ImGuiWindowFlags_AlwaysAutoResize)
+                    deleteat!(daqtasks, i)
+                end
 
                 # 重命名
                 haskey(rename_ids, i) || push!(rename_ids, i => "重命名$i")
@@ -180,7 +196,10 @@ let
                 end
                 if CImGui.BeginMenu(morestyle.Icons.SelectData * " 选择数据")
                     for i in 1:show_plot_num
-                        CImGui.MenuItem(morestyle.Icons.Datai * " 绘图$i") && (show_daq_selector = true; show_daq_selector_i = i)
+                        if CImGui.MenuItem(morestyle.Icons.Datai * " 绘图$i")
+                            show_daq_selector = true
+                            show_daq_selector_i = i
+                        end
                     end
                     CImGui.EndMenu()
                 end
@@ -189,9 +208,15 @@ let
             end
             isdelall && (CImGui.OpenPopup("##删除所有不可用task");
             isdelall = false)
-            YesNoDialog("##删除所有不可用task", "确认删除？", CImGui.ImGuiWindowFlags_AlwaysAutoResize) && deleteat!(daqtasks, findall(task -> !task.enable, daqtasks))
+            if YesNoDialog("##删除所有不可用task", "确认删除？", CImGui.ImGuiWindowFlags_AlwaysAutoResize)
+                deleteat!(daqtasks, findall(task -> !task.enable, daqtasks))
+            end
             !isinner && CImGui.OpenPopupOnItemClick("添加队列", 1)
-            runallbtc = isrunall ? ImVec4(morestyle.Colors.DAQTaskRunning...) : CImGui.c_get(imguistyle.Colors, CImGui.ImGuiCol_Button)
+            runallbtc = if isrunall
+                ImVec4(morestyle.Colors.DAQTaskRunning...)
+            else
+                CImGui.c_get(imguistyle.Colors, CImGui.ImGuiCol_Button)
+            end
             CImGui.PushStyleColor(CImGui.ImGuiCol_Button, runallbtc)
             if CImGui.Button(morestyle.Icons.RunTask * " 全部运行")
                 if !syncstates[Int(isdaqtask_running)]
@@ -224,7 +249,9 @@ let
                         end
                     end
                 else
-                    CImGui.Button(morestyle.Icons.BlockTask * " 暂停") && (syncstates[Int(isdaqtask_running)] && (syncstates[Int(isblock)] = true))
+                    if CImGui.Button(morestyle.Icons.BlockTask * " 暂停")
+                        syncstates[Int(isdaqtask_running)] && (syncstates[Int(isblock)] = true)
+                    end
                 end
                 btsz = CImGui.GetItemRectSize().x
                 CImGui.SameLine(0, 0)

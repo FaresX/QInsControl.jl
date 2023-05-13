@@ -53,7 +53,11 @@ function packtake!(c, n=12)
     buf
 end
 
-resize(z, m, n; fillms=0) = length(z) > m * n ? reshape(z[1:m*n], m, n) : reshape([reshape(z, :); fill(fillms, m * n - length(z))], m, n)
+resize(z, m, n; fillms=0) = if length(z) > m * n
+    reshape(z[1:m*n], m, n)
+else
+    reshape([reshape(z, :); fill(fillms, m * n - length(z))], m, n)
+end
 
 inregion(location, region) = region[1] < location.x < region[3] && region[2] < location.y < region[4]
 mousein(region) = inregion(CImGui.GetMousePos(), region)

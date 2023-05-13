@@ -1,7 +1,10 @@
-types = [:InstrQuantity, :InstrBuffer, :InstrBufferViewer,
+types = [
+    :InstrQuantity, :InstrBuffer, :InstrBufferViewer,
     :DAQTask, :NodeEditor, :Node, :UIPlot, :Annotation, :DataPicker,
     :MoreStyle, :MoreStyleColor, :MoreStyleIcon, :UnionStyle,
-    :CodeBlock, :StrideCodeBlock, :SweepBlock, :SettingBlock, :ReadingBlock, :LogBlock, :WriteBlock, :QueryBlock, :ReadBlock]
+    :CodeBlock, :StrideCodeBlock, :SweepBlock, :SettingBlock, :ReadingBlock,
+    :LogBlock, :WriteBlock, :QueryBlock, :ReadBlock, :SaveBlock
+]
 
 for T in types
     JLD2T = Symbol(:JLD2, T)

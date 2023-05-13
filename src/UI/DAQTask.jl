@@ -43,19 +43,24 @@ let
                 ws_circuit_on = (ws_circuit_on.x, ws_circuit_off.y)
             end
             CImGui.BeginChild("Blocks")
-            # haskey(taskbt_ids, (id + old_i, daqtask.name)) || push!(taskbt_ids, (id + old_i, daqtask.name) => "编辑队列：任务 $(id+old_i) $(daqtask.name)")
-            # CImGui.BulletText(taskbt_ids[(id + old_i, daqtask.name)])
             CImGui.BulletText("编辑队列：任务 $(id+old_i) $(daqtask.name)")
             CImGui.SameLine(CImGui.GetContentRegionAvailWidth() - holdsz)
             @c CImGui.Checkbox("HOLD", &hold)
             holdsz = CImGui.GetItemRectSize().x
             CImGui.Separator()
             CImGui.TextColored(morestyle.Colors.HighlightText, "实验记录")
-            CImGui.SameLine(CImGui.GetContentRegionAvailWidth() - 2unsafe_load(imguistyle.FramePadding).x - CImGui.CalcTextSize(morestyle.Icons.Circuit * " 电路").x)
+            CImGui.SameLine(
+                CImGui.GetContentRegionAvailWidth() -
+                2unsafe_load(imguistyle.FramePadding).x -
+                CImGui.CalcTextSize(morestyle.Icons.Circuit * " 电路").x
+            )
             if CImGui.Button(morestyle.Icons.Circuit * " 电路")
                 show_circuit_editor ⊻= true
                 if show_circuit_editor
-                    first_show_circuit && (ws_circuit_on = (3ws_circuit_off.x, ws_circuit_off.y); first_show_circuit = false)
+                    if first_show_circuit
+                        ws_circuit_on = (3ws_circuit_off.x, ws_circuit_off.y)
+                        first_show_circuit = false
+                    end
                     first_show_col = true
                 end
             end
@@ -90,6 +95,7 @@ let
                     CImGui.MenuItem(morestyle.Icons.WriteBlock * " WriteBlock") && push!(daqtask.blocks, WriteBlock())
                     CImGui.MenuItem(morestyle.Icons.QueryBlock * " QueryBlock") && push!(daqtask.blocks, QueryBlock())
                     CImGui.MenuItem(morestyle.Icons.ReadBlock * " ReadBlock") && push!(daqtask.blocks, ReadBlock())
+                    CImGui.MenuItem(morestyle.Icons.SaveBlock * " SaveBlock") && push!(daqtask.blocks, SaveBlock())
                     CImGui.EndMenu()
                 end
                 CImGui.EndPopup()
@@ -153,7 +159,7 @@ function run_remote(daqtask::DAQTask)
         return
     end
     ex = quote
-        function remote_sweep_block(resmg, controllers, databuf_lc, progress_lc, syncstates)
+        function remote_sweep_block(controllers, databuf_lc, progress_lc, syncstates)
             $(blockcodes...)
         end
         function remote_do_block(databuf_rc, progress_rc, syncstates, rn)
@@ -163,11 +169,10 @@ function run_remote(daqtask::DAQTask)
                 progress_lc = Channel{Tuple{UUID,Int,Int,Float64}}(conf.DAQ.channel_size)
                 @sync begin
                     remotedotask = errormonitor(@async begin
-                        resourcemanager = ResourceManager()
                         for ct in values(controllers)
                             login!(CPU, ct)
                         end
-                        remote_sweep_block(resourcemanager, controllers, databuf_lc, progress_lc, syncstates)
+                        remote_sweep_block(controllers, databuf_lc, progress_lc, syncstates)
                     end)
                     errormonitor(@async while true
                         if istaskdone(remotedotask) && all(.!isready.([databuf_lc, databuf_rc, progress_lc, progress_rc]))
@@ -216,7 +221,12 @@ function update_data()
         for data in packdata
             haskey(databuf, data[1]) || push!(databuf, data[1] => [])
             push!(databuf[data[1]], data[2])
-            _, instrnm, qt, addr = split(data[1], "_")
+            splitdata = split(data[1], "_")
+            if length(splitdata) == 4
+                _, instrnm, qt, addr = splitdata
+            else
+                continue
+            end
             occursin(r"\[.*\]", qt) && continue
             insbuf = instrbufferviewers[instrnm][addr].insbuf
             insbuf.quantities[qt].read = data[2]

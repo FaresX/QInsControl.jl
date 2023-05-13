@@ -95,12 +95,22 @@ mutable struct ReadBlock <: AbstractBlock
 end
 ReadBlock() = ReadBlock("仪器", "", "地址", "", false, false, false, zeros(4))
 
+mutable struct SaveBlock <: AbstractBlock
+    varname::String
+    mark::String
+    region::Vector{Float32}
+end
+SaveBlock() = SaveBlock("", "", zeros(4))
+
 ############tocodes-------------------------------------------------------------------------------------------------------
 
 tocodes(::NullBlock) = nothing
 
 function tocodes(bk::CodeBlock)
-    ex = @trypass Meta.parseall(bk.codes) (@error "[$(now())]\ncodes are wrong in parsing time (CodeBlock)!!!" bk = bk; return)
+    ex = @trypass Meta.parseall(bk.codes) begin
+        @error "[$(now())]\ncodes are wrong in parsing time (CodeBlock)!!!" bk = bk
+        return
+    end
     ex isa Expr && ex.head == :toplevel && (ex.head = :block)
     ex
 end
@@ -145,8 +155,14 @@ function tocodes(bk::SweepBlock)
     U = Us[bk.ui]
     U == "" && (@error "[$(now())]\n输入数据有误！！！" bk = bk;
     return)
-    stepc = @trypass Meta.parse(bk.step) (@error "[$(now())]\ncodes are wrong in parsing time (SweepBlock)!!!" bk = bk; return)
-    stopc = @trypass Meta.parse(bk.stop) (@error "[$(now())]\ncodes are wrong in parsing time (SweepBlock)!!!" bk = bk; return)
+    stepc = @trypass Meta.parse(bk.step) begin
+        @error "[$(now())]\ncodes are wrong in parsing time (SweepBlock)!!!" bk = bk
+        return
+    end
+    stopc = @trypass Meta.parse(bk.stop) begin
+        @error "[$(now())]\ncodes are wrong in parsing time (SweepBlock)!!!" bk = bk
+        return
+    end
     start = :(parse(Float64, $getfunc(instrs[$instr])))
     Uchange = U isa Unitful.MixedUnits ? 1 : ustrip(Us[1], 1U)
     step = Expr(:call, :*, stepc, Uchange)
@@ -194,7 +210,10 @@ function tocodes(bk::SettingBlock)
     if U == ""
         setvalue = parsedollar(bk.setvalue)
     else
-        setvaluec = @trypass Meta.parse(bk.setvalue) (@error "[$(now())]\ncodes are wrong in parsing time (SettingBlock)!!!" bk = bk; return)
+        setvaluec = @trypass Meta.parse(bk.setvalue) begin
+            @error "[$(now())]\ncodes are wrong in parsing time (SettingBlock)!!!" bk = bk
+            return
+        end
         Uchange = U isa Unitful.MixedUnits ? 1 : ustrip(Us[1], 1U)
         setvalue = Expr(:call, float, Expr(:call, :*, setvaluec, Uchange))
     end
@@ -205,7 +224,10 @@ end
 function tocodes(bk::ReadingBlock)
     instr = string(bk.instrnm, "_", bk.addr)
     getfunc = Symbol(bk.instrnm, :_, bk.quantity, :_get)
-    index = @trypasse eval(Meta.parse(bk.index)) (@error "[$(now())]\ncodes are wrong in parsing time (ReadingBlock)!!!" bk = bk; return)
+    index = @trypasse eval(Meta.parse(bk.index)) begin
+        @error "[$(now())]\ncodes are wrong in parsing time (ReadingBlock)!!!" bk = bk
+        return
+    end
     if isnothing(index)
         key = string(bk.mark, "_", bk.instrnm, "_", bk.quantity, "_", bk.addr)
         getdata = :(controllers[$instr]($getfunc, CPU, Val(:read)))
@@ -231,7 +253,10 @@ function tocodes(bk::ReadingBlock)
         for i in index
             marks[i] == "" && (marks[i] = "mark$i")
         end
-        keyall = [string(mark, "_", bk.instrnm, "_", bk.quantity, "[", ind, "]", "_", bk.addr) for (mark, ind) in zip(marks, index)]
+        keyall = [
+            string(mark, "_", bk.instrnm, "_", bk.quantity, "[", ind, "]", "_", bk.addr)
+            for (mark, ind) in zip(marks, index)
+        ]
         getdata = :(string.(split(controllers[$instr]($getfunc, CPU, Val(:read)), ",")[collect($index)]))
         ex = if bk.isobserve
             observable = Symbol(bk.mark)
@@ -271,7 +296,10 @@ end
 
 function tocodes(bk::QueryBlock)
     instr = string(bk.instrnm, "_", bk.addr)
-    index = @trypasse eval(Meta.parse(bk.index)) (@error "[$(now())]\ncodes are wrong in parsing time (QueryBlock)!!!" bk = bk; return)
+    index = @trypasse eval(Meta.parse(bk.index)) begin
+        @error "[$(now())]\ncodes are wrong in parsing time (QueryBlock)!!!" bk = bk
+        return
+    end
     cmd = parsedollar(bk.cmd)
     if isnothing(index)
         key = string(bk.mark, "_", bk.instrnm, "_", bk.addr)
@@ -325,7 +353,10 @@ end
 
 function tocodes(bk::ReadBlock)
     instr = string(bk.instrnm, "_", bk.addr)
-    index = @trypasse eval(Meta.parse(bk.index)) (@error "[$(now())]\ncodes are wrong in parsing time (ReadBlock)!!!" bk = bk; return)
+    index = @trypasse eval(Meta.parse(bk.index)) begin
+        @error "[$(now())]\ncodes are wrong in parsing time (ReadBlock)!!!" bk = bk
+        return
+    end
     if isnothing(index)
         key = string(bk.mark, "_", bk.instrnm, "_", bk.addr)
         getdata = :(controllers[$instr](read, CPU, Val(:read)))
@@ -375,14 +406,32 @@ function tocodes(bk::ReadBlock)
         end : ex
     end
 end
+function tocodes(bk::SaveBlock)
+    var = Symbol(bk.varname)
+    :(put!(databuf_lc, ($(bk.mark), $var)))
+end
 
 ############bkheight-------------------------------------------------------------------------------------------------------
 
 bkheight(::NullBlock) = zero(Float32)
-bkheight(bk::CodeBlock) = (1 + length(findall("\n", bk.codes))) * CImGui.GetTextLineHeight() + 2unsafe_load(imguistyle.FramePadding.y) + 2unsafe_load(imguistyle.WindowPadding.y) + 1
-bkheight(bk::StrideCodeBlock) = 2unsafe_load(imguistyle.WindowPadding.y) + CImGui.GetFrameHeight() + length(skipnull(bk.blocks)) * unsafe_load(imguistyle.ItemSpacing.y) + sum(bkheight.(bk.blocks))
-bkheight(bk::SweepBlock) = 2unsafe_load(imguistyle.WindowPadding.y) + CImGui.GetFrameHeight() + length(skipnull(bk.blocks)) * unsafe_load(imguistyle.ItemSpacing.y) + sum(bkheight.(bk.blocks))
-bkheight(bk) = 2unsafe_load(imguistyle.WindowPadding.y) + CImGui.GetFrameHeight()
+function bkheight(bk::CodeBlock)
+    (1 + length(findall("\n", bk.codes))) * CImGui.GetTextLineHeight() + 
+    2unsafe_load(imguistyle.FramePadding.y) +
+    2unsafe_load(imguistyle.WindowPadding.y) + 1
+end
+function bkheight(bk::StrideCodeBlock)
+    2unsafe_load(imguistyle.WindowPadding.y) +
+    CImGui.GetFrameHeight() +
+    length(skipnull(bk.blocks)) * unsafe_load(imguistyle.ItemSpacing.y) +
+    sum(bkheight.(bk.blocks))
+end
+function bkheight(bk::SweepBlock)
+    2unsafe_load(imguistyle.WindowPadding.y) +
+    CImGui.GetFrameHeight() +
+    length(skipnull(bk.blocks)) * unsafe_load(imguistyle.ItemSpacing.y) +
+    sum(bkheight.(bk.blocks))
+end
+bkheight(_) = 2unsafe_load(imguistyle.WindowPadding.y) + CImGui.GetFrameHeight()
 
 ############edit-------------------------------------------------------------------------------------------------------
 
@@ -395,7 +444,11 @@ function edit(bk::CodeBlock)
 end
 
 function edit(bk::StrideCodeBlock)
-    bdc = isempty(skipnull(bk.blocks)) ? CImGui.c_get(imguistyle.Colors, CImGui.ImGuiCol_Border) : ImVec4(morestyle.Colors.StrideCodeBlockBorder...)
+    bdc = if isempty(skipnull(bk.blocks))
+        CImGui.c_get(imguistyle.Colors, CImGui.ImGuiCol_Border)
+    else
+        ImVec4(morestyle.Colors.StrideCodeBlockBorder...)
+    end
     CImGui.PushStyleColor(CImGui.ImGuiCol_Border, bdc)
     CImGui.BeginChild("##StrideBlock", (Float32(0), bkheight(bk)), true)
     CImGui.TextColored(morestyle.Colors.BlockIcons, morestyle.Icons.StrideCodeBlock)
@@ -409,7 +462,11 @@ function edit(bk::StrideCodeBlock)
 end
 
 function edit(bk::SweepBlock)
-    bdc = isempty(skipnull(bk.blocks)) ? CImGui.c_get(imguistyle.Colors, CImGui.ImGuiCol_Border) : ImVec4(morestyle.Colors.SweepBlockBorder...)
+    bdc = if isempty(skipnull(bk.blocks))
+        CImGui.c_get(imguistyle.Colors, CImGui.ImGuiCol_Border) 
+    else 
+        ImVec4(morestyle.Colors.SweepBlockBorder...)
+    end
     CImGui.PushStyleVar(CImGui.ImGuiStyleVar_ItemSpacing, (Float32(2), unsafe_load(imguistyle.ItemSpacing.y)))
     CImGui.PushStyleColor(CImGui.ImGuiCol_Border, bdc)
     CImGui.BeginChild("##SweepBlock", (Float32(0), bkheight(bk)), true)
@@ -438,7 +495,11 @@ function edit(bk::SweepBlock)
     if CImGui.BeginCombo("##SweepBlock设置", showqt, CImGui.ImGuiComboFlags_NoArrowButton)
         qtlist = haskey(insconf, bk.instrnm) ? keys(insconf[bk.instrnm].quantities) : Set{String}()
         qts = if haskey(insconf, bk.instrnm)
-            [qt for qt in qtlist if insconf[bk.instrnm].quantities[qt].type == "sweep" && insconf[bk.instrnm].quantities[qt].enable]
+            [
+                qt
+                for qt in qtlist
+                if insconf[bk.instrnm].quantities[qt].type == "sweep" && insconf[bk.instrnm].quantities[qt].enable
+            ]
         else
             String[]
         end
@@ -508,7 +569,11 @@ function edit(bk::SettingBlock)
     if CImGui.BeginCombo("##SettingBlock设置", showqt, CImGui.ImGuiComboFlags_NoArrowButton)
         qtlist = haskey(insconf, bk.instrnm) ? keys(insconf[bk.instrnm].quantities) : Set{String}()
         sts = if haskey(insconf, bk.instrnm)
-            [qt for qt in qtlist if insconf[bk.instrnm].quantities[qt].type in ["set", "sweep"] && insconf[bk.instrnm].quantities[qt].enable]
+            [
+                qt
+                for qt in qtlist
+                if insconf[bk.instrnm].quantities[qt].type in ["set", "sweep"] && insconf[bk.instrnm].quantities[qt].enable
+            ]
         else
             String[]
         end
@@ -551,7 +616,11 @@ function edit(bk::SettingBlock)
 end
 
 function edit(bk::ReadingBlock)
-    bdc = bk.isasync ? ImVec4(morestyle.Colors.BlockAsyncBorder...) : CImGui.c_get(imguistyle.Colors, CImGui.ImGuiCol_Border)
+    bdc = if bk.isasync
+        ImVec4(morestyle.Colors.BlockAsyncBorder...)
+    else
+        CImGui.c_get(imguistyle.Colors, CImGui.ImGuiCol_Border)
+    end
     CImGui.PushStyleVar(CImGui.ImGuiStyleVar_ItemSpacing, (Float32(2), unsafe_load(imguistyle.ItemSpacing.y)))
     CImGui.PushStyleColor(CImGui.ImGuiCol_Border, bdc)
     CImGui.BeginChild("##ReadingBlock", (Float32(0), bkheight(bk)), true)
@@ -596,7 +665,11 @@ function edit(bk::ReadingBlock)
     CImGui.PopItemWidth()
     CImGui.SameLine()
 
-    markc = bk.isobserve ? ImVec4(morestyle.Colors.BlockObserveBG...) : CImGui.c_get(imguistyle.Colors, CImGui.ImGuiCol_FrameBg)
+    markc = if bk.isobserve
+        ImVec4(morestyle.Colors.BlockObserveBG...)
+    else
+        CImGui.c_get(imguistyle.Colors, CImGui.ImGuiCol_FrameBg)
+    end
     bk.isobserve && bk.isreading && (markc = ImVec4(morestyle.Colors.BlockObserveReadingBG...))
     CImGui.PushStyleColor(CImGui.ImGuiCol_FrameBg, markc)
     CImGui.PushItemWidth(-1)
@@ -618,8 +691,8 @@ function edit(bk::ReadingBlock)
     CImGui.PopStyleVar()
 end
 
-function edit(logbk::LogBlock)
-    CImGui.BeginChild("##LogBlock", (Float32(0), bkheight(logbk)), true)
+function edit(bk::LogBlock)
+    CImGui.BeginChild("##LogBlock", (Float32(0), bkheight(bk)), true)
     CImGui.TextColored(morestyle.Colors.BlockIcons, morestyle.Icons.LogBlock)
     CImGui.SameLine()
     CImGui.Button("LogBlock##", (-1, 0))
@@ -627,7 +700,11 @@ function edit(logbk::LogBlock)
 end
 
 function edit(bk::WriteBlock)
-    bdc = bk.isasync ? ImVec4(morestyle.Colors.BlockAsyncBorder...) : CImGui.c_get(imguistyle.Colors, CImGui.ImGuiCol_Border)
+    bdc = if bk.isasync
+        ImVec4(morestyle.Colors.BlockAsyncBorder...)
+    else
+        CImGui.c_get(imguistyle.Colors, CImGui.ImGuiCol_Border)
+    end
     CImGui.PushStyleColor(CImGui.ImGuiCol_Border, bdc)
     CImGui.PushStyleVar(CImGui.ImGuiStyleVar_ItemSpacing, (Float32(2), unsafe_load(imguistyle.ItemSpacing.y)))
     CImGui.BeginChild("##WriteBlock", (Float32(0), bkheight(bk)), true)
@@ -658,7 +735,11 @@ function edit(bk::WriteBlock)
 end
 
 function edit(bk::QueryBlock)
-    bdc = bk.isasync ? ImVec4(morestyle.Colors.BlockAsyncBorder...) : CImGui.c_get(imguistyle.Colors, CImGui.ImGuiCol_Border)
+    bdc = if bk.isasync
+        ImVec4(morestyle.Colors.BlockAsyncBorder...)
+    else
+        CImGui.c_get(imguistyle.Colors, CImGui.ImGuiCol_Border)
+    end
     CImGui.PushStyleColor(CImGui.ImGuiCol_Border, bdc)
     CImGui.PushStyleVar(CImGui.ImGuiStyleVar_ItemSpacing, (Float32(2), unsafe_load(imguistyle.ItemSpacing.y)))
     CImGui.BeginChild("##QueryBlock", (Float32(0), bkheight(bk)), true)
@@ -688,7 +769,11 @@ function edit(bk::QueryBlock)
     CImGui.PopItemWidth()
     CImGui.SameLine() #索引
 
-    markc = bk.isobserve ? ImVec4(morestyle.Colors.BlockObserveBG...) : CImGui.c_get(imguistyle.Colors, CImGui.ImGuiCol_FrameBg)
+    markc = if bk.isobserve
+        ImVec4(morestyle.Colors.BlockObserveBG...)
+    else
+        CImGui.c_get(imguistyle.Colors, CImGui.ImGuiCol_FrameBg)
+    end
     bk.isobserve && bk.isreading && (markc = ImVec4(morestyle.Colors.BlockObserveReadingBG...))
     CImGui.PushStyleColor(CImGui.ImGuiCol_FrameBg, markc)
     CImGui.PushItemWidth(-1)
@@ -710,7 +795,11 @@ function edit(bk::QueryBlock)
 end
 
 function edit(bk::ReadBlock)
-    bdc = bk.isasync ? ImVec4(morestyle.Colors.BlockAsyncBorder...) : CImGui.c_get(imguistyle.Colors, CImGui.ImGuiCol_Border)
+    bdc = if bk.isasync
+        ImVec4(morestyle.Colors.BlockAsyncBorder...)
+    else
+        CImGui.c_get(imguistyle.Colors, CImGui.ImGuiCol_Border)
+    end
     CImGui.PushStyleColor(CImGui.ImGuiCol_Border, bdc)
     CImGui.PushStyleVar(CImGui.ImGuiStyleVar_ItemSpacing, (Float32(2), unsafe_load(imguistyle.ItemSpacing.y)))
     CImGui.BeginChild("##ReadBlock", (Float32(0), bkheight(bk)), true)
@@ -735,7 +824,11 @@ function edit(bk::ReadBlock)
     CImGui.PopItemWidth()
     CImGui.SameLine() #索引
 
-    markc = bk.isobserve ? ImVec4(morestyle.Colors.BlockObserveBG...) : CImGui.c_get(imguistyle.Colors, CImGui.ImGuiCol_FrameBg)
+    markc = if bk.isobserve
+        ImVec4(morestyle.Colors.BlockObserveBG...)
+    else
+        CImGui.c_get(imguistyle.Colors, CImGui.ImGuiCol_FrameBg)
+    end
     bk.isobserve && bk.isreading && (markc = ImVec4(morestyle.Colors.BlockObserveReadingBG...))
     CImGui.PushStyleColor(CImGui.ImGuiCol_FrameBg, markc)
     CImGui.PushItemWidth(-1)
@@ -756,7 +849,29 @@ function edit(bk::ReadBlock)
     CImGui.PopStyleColor()
 end
 
-mousein(bk::AbstractBlock, total=false)::Bool = total ? mousein(bk.region) || (typeof(bk) in [SweepBlock, StrideCodeBlock] && true in mousein.(bk.blocks, true)) : mousein(bk.region)
+function edit(bk::SaveBlock)
+    CImGui.PushStyleVar(CImGui.ImGuiStyleVar_ItemSpacing, (Float32(2), unsafe_load(imguistyle.ItemSpacing.y)))
+    CImGui.BeginChild("##SaveBlock", (Float32(0), bkheight(bk)), true)
+    CImGui.TextColored(morestyle.Colors.BlockIcons, morestyle.Icons.SaveBlock)
+    CImGui.SameLine()
+    CImGui.PushItemWidth(CImGui.GetContentRegionAvailWidth() / 2)
+    @c InputTextWithHintRSZ("##SaveBlock Mark", "标注", &bk.mark)
+    CImGui.PopItemWidth()
+    CImGui.SameLine()
+    CImGui.PushItemWidth(-1)
+    @c InputTextWithHintRSZ("##SaveBlock Var", "变量", &bk.varname)
+    CImGui.PopItemWidth()
+    CImGui.EndChild()
+    CImGui.PopStyleVar()
+end
+
+function mousein(bk::AbstractBlock, total=false)::Bool
+    if total
+        mousein(bk.region) || (typeof(bk) in [SweepBlock, StrideCodeBlock] && true in mousein.(bk.blocks, true))
+    else
+        mousein(bk.region)
+    end
+end
 mousein(::NullBlock, total=false) = false
 
 let
@@ -770,7 +885,14 @@ let
                 CImGui.PushStyleColor(CImGui.ImGuiCol_Separator, morestyle.Colors.HighlightText)
                 draw_list = CImGui.GetWindowDrawList()
                 rectcolor = CImGui.ColorConvertFloat4ToU32([morestyle.Colors.HighlightText[1:3]; 0.4])
-                CImGui.AddRectFilled(draw_list, CImGui.ImVec2(bk.region[1:2]...), CImGui.ImVec2(bk.region[3:4]...), rectcolor, 0.0, 0)
+                CImGui.AddRectFilled(
+                    draw_list,
+                    CImGui.ImVec2(bk.region[1:2]...),
+                    CImGui.ImVec2(bk.region[3:4]...),
+                    rectcolor,
+                    0.0,
+                    0
+                )
                 CImGui.PopStyleColor()
             end
             CImGui.PushID(i)
@@ -810,6 +932,7 @@ let
                     CImGui.MenuItem(morestyle.Icons.WriteBlock * " WriteBlock") && insert!(blocks, i, WriteBlock())
                     CImGui.MenuItem(morestyle.Icons.QueryBlock * " QueryBlock") && insert!(blocks, i, QueryBlock())
                     CImGui.MenuItem(morestyle.Icons.ReadBlock * " ReadBlock") && insert!(blocks, i, ReadBlock())
+                    CImGui.MenuItem(morestyle.Icons.SaveBlock * " SaveBlock") && insert!(blocks, i, SaveBlock())
                     CImGui.EndMenu()
                 end
                 if (bk isa StrideCodeBlock || bk isa SweepBlock) && isempty(skipnull(bk.blocks))
@@ -823,6 +946,7 @@ let
                         CImGui.MenuItem(morestyle.Icons.WriteBlock * " WriteBlock") && push!(bk.blocks, WriteBlock())
                         CImGui.MenuItem(morestyle.Icons.QueryBlock * " QueryBlock") && push!(bk.blocks, QueryBlock())
                         CImGui.MenuItem(morestyle.Icons.ReadBlock * " ReadBlock") && push!(bk.blocks, ReadBlock())
+                        CImGui.MenuItem(morestyle.Icons.SaveBlock * " SaveBlock") && push!(bk.blocks, SaveBlock())
                         CImGui.EndMenu()
                     end
                 end
@@ -836,6 +960,7 @@ let
                     CImGui.MenuItem(morestyle.Icons.WriteBlock * " WriteBlock") && insert!(blocks, i + 1, WriteBlock())
                     CImGui.MenuItem(morestyle.Icons.QueryBlock * " QueryBlock") && insert!(blocks, i + 1, QueryBlock())
                     CImGui.MenuItem(morestyle.Icons.ReadBlock * " ReadBlock") && insert!(blocks, i + 1, ReadBlock())
+                    CImGui.MenuItem(morestyle.Icons.SaveBlock * " SaveBlock") && insert!(blocks, i + 1, SaveBlock())
                     CImGui.EndMenu()
                 end
                 if CImGui.BeginMenu(morestyle.Icons.Convert * " 转换为")
@@ -866,6 +991,7 @@ let
                     CImGui.MenuItem(morestyle.Icons.WriteBlock * " WriteBlock") && (bk isa WriteBlock || (blocks[i] = WriteBlock()))
                     CImGui.MenuItem(morestyle.Icons.QueryBlock * " QueryBlock") && (bk isa QueryBlock || (blocks[i] = QueryBlock()))
                     CImGui.MenuItem(morestyle.Icons.ReadBlock * " ReadBlock") && (bk isa ReadBlock || (blocks[i] = ReadBlock()))
+                    CImGui.MenuItem(morestyle.Icons.SaveBlock * " SaveBlock") && (bk isa SaveBlock || (blocks[i] = SaveBlock()))
                     CImGui.EndMenu()
                 end
                 CImGui.MenuItem(morestyle.Icons.CloseFile * " 删除") && (blocks[i] = NullBlock())
@@ -923,18 +1049,26 @@ end
 
 function view(bk::CodeBlock)
     CImGui.BeginChild("##CodeBlockViewer", (Float32(0), bkheight(bk)), true)
+    CImGui.TextColored(morestyle.Colors.BlockIcons, morestyle.Icons.CodeBlock)
+    CImGui.SameLine()
     CImGui.PushStyleVar(CImGui.ImGuiStyleVar_ButtonTextAlign, (0.0, 0.5))
-    CImGui.Button(morestyle.Icons.CodeBlock*" "*bk.codes, (-1, 0))
+    CImGui.Button(bk.codes, (-1, 0))
     CImGui.PopStyleVar()
     CImGui.EndChild()
 end
 
 function view(bk::StrideCodeBlock)
-    bdc = isempty(skipnull(bk.blocks)) ? CImGui.c_get(imguistyle.Colors, CImGui.ImGuiCol_Border) : ImVec4(morestyle.Colors.StrideCodeBlockBorder...)
+    bdc = if isempty(skipnull(bk.blocks))
+        CImGui.c_get(imguistyle.Colors, CImGui.ImGuiCol_Border)
+    else
+        ImVec4(morestyle.Colors.StrideCodeBlockBorder...)
+    end
     CImGui.PushStyleColor(CImGui.ImGuiCol_Border, bdc)
     CImGui.BeginChild("##StrideCodeBlockViewer", (Float32(0), bkheight(bk)), true)
+    CImGui.TextColored(morestyle.Colors.BlockIcons, morestyle.Icons.StrideCodeBlock)
+    CImGui.SameLine()
     CImGui.PushStyleVar(CImGui.ImGuiStyleVar_ButtonTextAlign, (0.0, 0.5))
-    CImGui.Button(morestyle.Icons.StrideCodeBlock*" "*bk.head, (-1, 0))
+    CImGui.Button(bk.head, (-1, 0))
     CImGui.PopStyleVar()
     CImGui.PopStyleColor()
     isempty(skipnull(bk.blocks)) || view(bk.blocks)
@@ -942,7 +1076,11 @@ function view(bk::StrideCodeBlock)
 end
 
 function view(bk::SweepBlock)
-    bdc = isempty(skipnull(bk.blocks)) ? CImGui.c_get(imguistyle.Colors, CImGui.ImGuiCol_Border) : ImVec4(morestyle.Colors.SweepBlockBorder...)
+    bdc = if isempty(skipnull(bk.blocks))
+        CImGui.c_get(imguistyle.Colors, CImGui.ImGuiCol_Border)
+    else
+        ImVec4(morestyle.Colors.SweepBlockBorder...)
+    end
     CImGui.PushStyleColor(CImGui.ImGuiCol_Border, bdc)
     CImGui.BeginChild("##SweepBlockViewer", (Float32(0), bkheight(bk)), true)
     instrnm = bk.instrnm
@@ -955,11 +1093,12 @@ function view(bk::SweepBlock)
     end
     units::Vector{String} = string.(conf.U[Ut])
     showu = @trypass units[bk.ui] ""
+    CImGui.TextColored(morestyle.Colors.BlockIcons, morestyle.Icons.SweepBlock)
+    CImGui.SameLine()
     CImGui.PushStyleVar(CImGui.ImGuiStyleVar_ButtonTextAlign, (0.0, 0.5))
     CImGui.Button(
         string(
-            morestyle.Icons.SweepBlock,
-            " 仪器：", instrnm,
+            "仪器：", instrnm,
             " 地址：", addr,
             " 扫描量：", quantity,
             " 步长：", bk.step, showu,
@@ -986,11 +1125,12 @@ function view(bk::SettingBlock)
     end
     units::Vector{String} = string.(conf.U[Ut])
     showu = @trypass units[bk.ui] ""
+    CImGui.TextColored(morestyle.Colors.BlockIcons, morestyle.Icons.SettingBlock)
+    CImGui.SameLine()
     CImGui.PushStyleVar(CImGui.ImGuiStyleVar_ButtonTextAlign, (0.0, 0.5))
     CImGui.Button(
         string(
-            morestyle.Icons.SettingBlock,    
-            " 仪器：", instrnm,
+            "仪器：", instrnm,
             " 地址：", addr,
             " 设置：", quantity,
             " 设置值：", bk.setvalue, showu
@@ -1002,18 +1142,27 @@ function view(bk::SettingBlock)
 end
 
 function view(bk::ReadingBlock)
-    bdc = bk.isasync ? ImVec4(morestyle.Colors.BlockAsyncBorder...) : CImGui.c_get(imguistyle.Colors, CImGui.ImGuiCol_Border)
+    bdc = if bk.isasync
+        ImVec4(morestyle.Colors.BlockAsyncBorder...)
+    else
+        CImGui.c_get(imguistyle.Colors, CImGui.ImGuiCol_Border)
+    end
     CImGui.PushStyleColor(CImGui.ImGuiCol_Border, bdc)
     CImGui.BeginChild("##ReadingBlockViewer", (Float32(0), bkheight(bk)), true)
     quantity = @trypass insconf[bk.instrnm].quantities[bk.quantity].alias ""
-    markc = bk.isobserve ? ImVec4(morestyle.Colors.BlockObserveBG...) : CImGui.c_get(imguistyle.Colors, CImGui.ImGuiCol_Text)
+    markc = if bk.isobserve
+        ImVec4(morestyle.Colors.BlockObserveBG...)
+    else
+        CImGui.c_get(imguistyle.Colors, CImGui.ImGuiCol_Text)
+    end
     bk.isobserve && bk.isreading && (markc = ImVec4(morestyle.Colors.BlockObserveReadingBG...))
+    CImGui.TextColored(morestyle.Colors.BlockIcons, morestyle.Icons.ReadingBlock)
+    CImGui.SameLine()
     CImGui.PushStyleColor(CImGui.ImGuiCol_Text, markc)
     CImGui.PushStyleVar(CImGui.ImGuiStyleVar_ButtonTextAlign, (0.0, 0.5))
     CImGui.Button(
         string(
-            morestyle.Icons.ReadingBlock,
-            " 仪器：", bk.instrnm,
+            "仪器：", bk.instrnm,
             " 地址：", bk.addr,
             " 读取量：", quantity,
             " 索引：", bk.index,
@@ -1029,19 +1178,26 @@ end
 
 function view(logbk::LogBlock)
     CImGui.BeginChild("##LogBlock", (Float32(0), bkheight(logbk)), true)
-    CImGui.Button(morestyle.Icons.LogBlock*" LogBlock##", (-1, 0))
+    CImGui.TextColored(morestyle.Colors.BlockIcons, morestyle.Icons.LogBlock)
+    CImGui.SameLine()
+    CImGui.Button("LogBlock", (-1, 0))
     CImGui.EndChild()
 end
 
 function view(bk::WriteBlock)
-    bdc = bk.isasync ? ImVec4(morestyle.Colors.BlockAsyncBorder...) : CImGui.c_get(imguistyle.Colors, CImGui.ImGuiCol_Border)
+    bdc = if bk.isasync
+        ImVec4(morestyle.Colors.BlockAsyncBorder...)
+    else
+        CImGui.c_get(imguistyle.Colors, CImGui.ImGuiCol_Border)
+    end
     CImGui.PushStyleColor(CImGui.ImGuiCol_Border, bdc)
     CImGui.BeginChild("##WriteBlockViewer", (Float32(0), bkheight(bk)), true)
+    CImGui.TextColored(morestyle.Colors.BlockIcons, morestyle.Icons.WriteBlock)
+    CImGui.SameLine()
     CImGui.PushStyleVar(CImGui.ImGuiStyleVar_ButtonTextAlign, (0.0, 0.5))
     CImGui.Button(
         string(
-            morestyle.Icons.WriteBlock,
-            " 仪器：", bk.instrnm,
+            "仪器：", bk.instrnm,
             " 地址：", bk.addr,
             " 命令：", bk.cmd
         ),
@@ -1053,17 +1209,26 @@ function view(bk::WriteBlock)
 end
 
 function view(bk::QueryBlock)
-    bdc = bk.isasync ? ImVec4(morestyle.Colors.BlockAsyncBorder...) : CImGui.c_get(imguistyle.Colors, CImGui.ImGuiCol_Border)
+    bdc = if bk.isasync
+        ImVec4(morestyle.Colors.BlockAsyncBorder...)
+    else
+        CImGui.c_get(imguistyle.Colors, CImGui.ImGuiCol_Border)
+    end
     CImGui.PushStyleColor(CImGui.ImGuiCol_Border, bdc)
     CImGui.BeginChild("##WriteBlockViewer", (Float32(0), bkheight(bk)), true)
-    markc = bk.isobserve ? ImVec4(morestyle.Colors.BlockObserveBG...) : CImGui.c_get(imguistyle.Colors, CImGui.ImGuiCol_Text)
+    markc = if bk.isobserve
+        ImVec4(morestyle.Colors.BlockObserveBG...)
+    else
+        CImGui.c_get(imguistyle.Colors, CImGui.ImGuiCol_Text)
+    end
     bk.isobserve && bk.isreading && (markc = ImVec4(morestyle.Colors.BlockObserveReadingBG...))
+    CImGui.TextColored(morestyle.Colors.BlockIcons, morestyle.Icons.QueryBlock)
+    CImGui.SameLine()
     CImGui.PushStyleColor(CImGui.ImGuiCol_Text, markc)
     CImGui.PushStyleVar(CImGui.ImGuiStyleVar_ButtonTextAlign, (0.0, 0.5))
     CImGui.Button(
         string(
-            morestyle.Icons.QueryBlock,
-            " 仪器：", bk.instrnm,
+            "仪器：", bk.instrnm,
             " 地址：", bk.addr,
             " 命令：", bk.cmd,
             " 索引：", bk.index,
@@ -1078,17 +1243,26 @@ function view(bk::QueryBlock)
 end
 
 function view(bk::ReadBlock)
-    bdc = bk.isasync ? ImVec4(morestyle.Colors.BlockAsyncBorder...) : CImGui.c_get(imguistyle.Colors, CImGui.ImGuiCol_Border)
+    bdc = if bk.isasync
+        ImVec4(morestyle.Colors.BlockAsyncBorder...)
+    else
+        CImGui.c_get(imguistyle.Colors, CImGui.ImGuiCol_Border)
+    end
     CImGui.PushStyleColor(CImGui.ImGuiCol_Border, bdc)
     CImGui.BeginChild("##WriteBlockViewer", (Float32(0), bkheight(bk)), true)
-    markc = bk.isobserve ? ImVec4(morestyle.Colors.BlockObserveBG...) : CImGui.c_get(imguistyle.Colors, CImGui.ImGuiCol_Text)
+    markc = if bk.isobserve
+        ImVec4(morestyle.Colors.BlockObserveBG...)
+    else
+        CImGui.c_get(imguistyle.Colors, CImGui.ImGuiCol_Text)
+    end
     bk.isobserve && bk.isreading && (markc = ImVec4(morestyle.Colors.BlockObserveReadingBG...))
+    CImGui.TextColored(morestyle.Colors.BlockIcons, morestyle.Icons.ReadBlock)
+    CImGui.SameLine()
     CImGui.PushStyleColor(CImGui.ImGuiCol_Text, markc)
     CImGui.PushStyleVar(CImGui.ImGuiStyleVar_ButtonTextAlign, (0.0, 0.5))
     CImGui.Button(
         string(
-            morestyle.Icons.ReadBlock,
-            " 仪器：", bk.instrnm,
+            "仪器：", bk.instrnm,
             " 地址：", bk.addr,
             " 命令：", bk.cmd,
             " 索引：", bk.index,
@@ -1100,6 +1274,16 @@ function view(bk::ReadBlock)
     CImGui.PopStyleColor()
     CImGui.EndChild()
     CImGui.PopStyleColor()
+end
+
+function view(bk::SaveBlock)
+    CImGui.BeginChild("##SaveBlock", (Float32(0), bkheight(bk)), true)
+    CImGui.TextColored(morestyle.Colors.BlockIcons, morestyle.Icons.SaveBlock)
+    CImGui.SameLine()
+    CImGui.PushStyleVar(CImGui.ImGuiStyleVar_ButtonTextAlign, (0.0, 0.5))
+    CImGui.Button(string("标注：", bk.mark, " 变量：", bk.varname), (-1, 0))
+    CImGui.PopStyleVar()
+    CImGui.EndChild()
 end
 
 function view(blocks::Vector{AbstractBlock})
@@ -1240,6 +1424,15 @@ function Base.show(io::IO, bk::ReadBlock)
              async : $(bk.isasync)
            observe : $(bk.isobserve)
            reading : $(bk.isreading)
+    """
+    print(io, str)
+end
+function Base.show(io::IO, bk::SaveBlock)
+    str = """
+    SaveBlock :
+            region : $(bk.region)
+              mark : $(bk.mark)
+               var : $(bk.varname)
     """
     print(io, str)
 end

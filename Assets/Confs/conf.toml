@@ -12,7 +12,7 @@ Hz = ["Hz", "kHz", "MHz", "GHz"]
 [Init]
 isremote = true
 windowsize = [1280, 720]
-viewportenable = true
+viewportenable = false
 
 [DAQ]
 savetime = 60

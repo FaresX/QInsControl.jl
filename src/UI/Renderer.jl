@@ -70,7 +70,13 @@ function UI()
     ImFontGlyphRangesBuilder_AddRanges(builder, ImFontAtlas_GetGlyphRangesDefault(fonts))
     ImFontGlyphRangesBuilder_BuildRanges(builder, ranges)
     r = unsafe_wrap(Vector{ImVector_ImWchar}, ranges, 1)
-    CImGui.AddFontFromFileTTF(fonts, joinpath(conf.Fonts.dir, conf.Fonts.first), conf.Fonts.size, C_NULL, ImFontAtlas_GetGlyphRangesChineseFull(fonts))
+    CImGui.AddFontFromFileTTF(
+        fonts,
+        joinpath(conf.Fonts.dir, conf.Fonts.first),
+        conf.Fonts.size,
+        C_NULL,
+        ImFontAtlas_GetGlyphRangesChineseFull(fonts)
+    )
     fontcfg = ImFontConfig_ImFontConfig()
     fontcfg.MergeMode = true
     CImGui.AddFontFromFileTTF(fonts, joinpath(conf.Fonts.dir, conf.Fonts.second), conf.Fonts.size, fontcfg, r[1].Data)

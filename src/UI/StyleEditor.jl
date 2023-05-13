@@ -63,6 +63,7 @@ Base.@kwdef mutable struct MoreStyleIcon
     WriteBlock::String = ICONS.ICON_UPLOAD
     QueryBlock::String = ICONS.ICON_ARROW_DOWN_UP_ACROSS_LINE
     ReadBlock::String = ICONS.ICON_DOWNLOAD
+    SaveBlock::String = ICONS.ICON_FLOPPY_DISK
     Circuit::String = ICONS.ICON_MICROCHIP
     CommonNode::String = ICONS.ICON_LEFT_RIGHT
     GroundNode::String = ICONS.ICON_PLUG_CIRCLE_BOLT

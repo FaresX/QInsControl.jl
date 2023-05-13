@@ -69,7 +69,13 @@ mutable struct BasicConf <: InsConf
     input_labels::Vector{String}
     output_labels::Vector{String}
 end
-BasicConf(conf::Dict) = BasicConf(conf["icon"], conf["idn"], conf["cmdtype"], conf["input_labels"], conf["output_labels"])
+BasicConf(conf::Dict) = BasicConf(
+    conf["icon"],
+    conf["idn"],
+    conf["cmdtype"],
+    conf["input_labels"],
+    conf["output_labels"]
+)
 
 mutable struct QuantityConf <: InsConf
     enable::Bool
@@ -80,7 +86,15 @@ mutable struct QuantityConf <: InsConf
     type::String
     help::String
 end
-QuantityConf(qt::Dict) = QuantityConf(qt["enable"], qt["alias"], qt["U"], qt["cmdheader"], qt["optvalues"], qt["type"], qt["help"])
+QuantityConf(qt::Dict) = QuantityConf(
+    qt["enable"],
+    qt["alias"],
+    qt["U"],
+    qt["cmdheader"],
+    qt["optvalues"],
+    qt["type"],
+    qt["help"]
+)
 
 mutable struct OneInsConf
     conf::BasicConf
@@ -88,10 +102,28 @@ mutable struct OneInsConf
 end
 OneInsConf() = OneInsConf(BasicConf("", "", "", [], []), OrderedDict())
 
-todict(cf::BasicConf) = Dict("icon" => cf.icon, "idn" => cf.idn, "cmdtype" => cf.cmdtype, "input_labels" => cf.input_labels, "output_labels" => cf.output_labels)
-todict(qtcf::QuantityConf) = Dict("enable" => qtcf.enable, "alias" => qtcf.alias, "U" => qtcf.U, "cmdheader" => qtcf.cmdheader, "optvalues" => qtcf.optvalues, "type" => qtcf.type, "help" => qtcf.help)
-todict(oneinscf::OneInsConf) = (dict = Dict{String,Dict{String,Any}}("conf" => todict(oneinscf.conf)); for (qt, qtcf) in oneinscf.quantities
-    push!(dict, qt => todict(qtcf))
-end; dict)
+todict(cf::BasicConf) = Dict(
+    "icon" => cf.icon,
+    "idn" => cf.idn,
+    "cmdtype" => cf.cmdtype,
+    "input_labels" => cf.input_labels,
+    "output_labels" => cf.output_labels
+)
+todict(qtcf::QuantityConf) = Dict(
+    "enable" => qtcf.enable,
+    "alias" => qtcf.alias,
+    "U" => qtcf.U,
+    "cmdheader" => qtcf.cmdheader,
+    "optvalues" => qtcf.optvalues,
+    "type" => qtcf.type,
+    "help" => qtcf.help
+)
+function todict(oneinscf::OneInsConf)
+    dict = Dict{String,Dict{String,Any}}("conf" => todict(oneinscf.conf))
+    for (qt, qtcf) in oneinscf.quantities
+        push!(dict, qt => todict(qtcf))
+    end
+    dict
+end
 
 const insconf = OrderedDict{String,OneInsConf}() #仪器注册表

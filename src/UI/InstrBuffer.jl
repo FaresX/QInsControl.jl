@@ -17,7 +17,26 @@ mutable struct InstrQuantity
     issweeping::Bool
 end
 InstrQuantity() = InstrQuantity(true, "", "", "", "", Cfloat(0.1), "", [""], 1, "", "", 1, :set, "", false, false)
-InstrQuantity(name, qtcf::QuantityConf) = InstrQuantity(qtcf.enable, name, qtcf.alias, "", "", Cfloat(0.1), "", qtcf.optvalues, 1, "", qtcf.U, 1, Symbol(qtcf.type), qtcf.help, false, false)
+function InstrQuantity(name, qtcf::QuantityConf)
+    InstrQuantity(
+        qtcf.enable,
+        name,
+        qtcf.alias,
+        "",
+        "",
+        Cfloat(0.1),
+        "",
+        qtcf.optvalues,
+        1,
+        "",
+        qtcf.U,
+        1,
+        Symbol(qtcf.type),
+        qtcf.help,
+        false,
+        false
+    )
+end
 
 mutable struct InstrBuffer
     instrnm::String
@@ -69,10 +88,17 @@ let
         if @c CImGui.Begin(string(insconf[ins].conf.icon, "  ", ins, " --- ", addr), &ibv.p_open)
             @c testcmd(ins, addr, &ibv.inputcmd, &ibv.readstr)
             edit(ibv.insbuf, addr)
-            !CImGui.IsAnyItemHovered() && CImGui.IsWindowHovered(CImGui.ImGuiHoveredFlags_ChildWindows) && CImGui.OpenPopupOnItemClick("rightclick")
+            if !CImGui.IsAnyItemHovered() && CImGui.IsWindowHovered(CImGui.ImGuiHoveredFlags_ChildWindows)
+                CImGui.OpenPopupOnItemClick("rightclick")
+            end
             if CImGui.BeginPopup("rightclick")
                 global refreshrate
-                if CImGui.MenuItem(morestyle.Icons.InstrumentsManualRef * " 手动刷新", "F5", false, !syncstates[Int(isdaqtask_running)])
+                if CImGui.MenuItem(
+                    morestyle.Icons.InstrumentsManualRef * " 手动刷新",
+                    "F5",
+                    false,
+                    !syncstates[Int(isdaqtask_running)]
+                )
                     ibv.insbuf.isautorefresh = true
                     manualrefresh()
                 end
@@ -122,7 +148,12 @@ let
             CImGui.EndChild()
             if CImGui.BeginPopupContextItem()
                 global refreshrate
-                if CImGui.MenuItem(morestyle.Icons.InstrumentsManualRef * " 手动刷新", "F5", false, !syncstates[Int(isdaqtask_running)])
+                if CImGui.MenuItem(
+                    morestyle.Icons.InstrumentsManualRef * " 手动刷新",
+                    "F5",
+                    false,
+                    !syncstates[Int(isdaqtask_running)]
+                )
                     manualrefresh()
                 end
                 CImGui.Text(morestyle.Icons.InstrumentsAutoRef * " 自动刷新")
@@ -292,9 +323,18 @@ let
         U = isempty(Us) ? "" : Us[qt.uindex]
         U == "" || (Uchange::Float64 = Us[1] isa Unitful.FreeUnits ? ustrip(Us[1], 1U) : 1.0)
         val = U == "" ? qt.read : @trypass string(parse(Float64, qt.read) / Uchange) qt.read
-        content = string(qt.alias, "\n步长：", qt.step, " ", U, "\n终点：", qt.stop, " ", U, "\n延迟：", qt.delay, " s\n", val, " ", U) |> centermultiline
+        content = string(
+            qt.alias,
+            "\n步长：", qt.step, " ", U,
+            "\n终点：", qt.stop, " ", U,
+            "\n延迟：", qt.delay, " s\n",
+            val, " ", U
+        ) |> centermultiline
         content = string(content, "###for rename")
-        CImGui.PushStyleColor(CImGui.ImGuiCol_Button, qt.isautorefresh || qt.issweeping ? morestyle.Colors.DAQTaskRunning : CImGui.c_get(imguistyle.Colors, CImGui.ImGuiCol_Button))
+        CImGui.PushStyleColor(
+            CImGui.ImGuiCol_Button,
+            qt.isautorefresh || qt.issweeping ? morestyle.Colors.DAQTaskRunning : CImGui.c_get(imguistyle.Colors, CImGui.ImGuiCol_Button)
+        )
         if CImGui.Button(content, (-1, 0))
             if addr != ""
                 fetchdata = refresh_qt(instrnm, addr, qt.name)
@@ -329,8 +369,12 @@ let
                                 logout!(CPU, ct)
                             end
                         end
-                        step = @trypasse eval(Meta.parse(qt.step)) * Uchange @error "[$(now())]\nstep解析错误！！！" step = qt.step
-                        stop = @trypasse eval(Meta.parse(qt.stop)) * Uchange @error "[$(now())]\nstop解析错误！！！" stop = qt.stop
+                        step = @trypasse eval(Meta.parse(qt.step)) * Uchange begin
+                            @error "[$(now())]\nstep解析错误！！！" step = qt.step
+                        end
+                        stop = @trypasse eval(Meta.parse(qt.stop)) * Uchange begin
+                        @error "[$(now())]\nstop解析错误！！！" stop = qt.stop
+                        end
                         if !(isnothing(start) || isnothing(step) || isnothing(stop))
                             sweepsteps = ceil(Int, abs((start - stop) / step))
                             sweepsteps = sweepsteps == 1 ? 2 : sweepsteps
@@ -389,7 +433,10 @@ let
         val = U == "" ? qt.read : @trypass string(parse(Float64, qt.read) / Uchange) qt.read
         content = string(qt.alias, "\n \n设置值：", qt.set, " ", U, "\n \n", val, " ", U) |> centermultiline
         content = string(content, "###for rename")
-        CImGui.PushStyleColor(CImGui.ImGuiCol_Button, qt.isautorefresh ? morestyle.Colors.DAQTaskRunning : CImGui.c_get(imguistyle.Colors, CImGui.ImGuiCol_Button))
+        CImGui.PushStyleColor(
+            CImGui.ImGuiCol_Button,
+            qt.isautorefresh ? morestyle.Colors.DAQTaskRunning : CImGui.c_get(imguistyle.Colors, CImGui.ImGuiCol_Button)
+        )
         if CImGui.Button(content, (-1, 0))
             if addr != ""
                 fetchdata = refresh_qt(instrnm, addr, qt.name)
@@ -454,7 +501,10 @@ let
         U == "" || (Uchange::Float64 = Us[1] isa Unitful.FreeUnits ? ustrip(Us[1], 1U) : 1.0)
         val = U == "" ? qt.read : @trypass string(parse(Float64, qt.read) / Uchange) qt.read
         content = string(qt.alias, "\n \n \n", val, " ", U, "\n ") |> centermultiline
-        CImGui.PushStyleColor(CImGui.ImGuiCol_Button, qt.isautorefresh ? morestyle.Colors.DAQTaskRunning : CImGui.c_get(imguistyle.Colors, CImGui.ImGuiCol_Button))
+        CImGui.PushStyleColor(
+            CImGui.ImGuiCol_Button,
+            qt.isautorefresh ? morestyle.Colors.DAQTaskRunning : CImGui.c_get(imguistyle.Colors, CImGui.ImGuiCol_Button)
+        )
         if CImGui.Button(content, (-1, 0))
             if addr != ""
                 fetchdata = refresh_qt(instrnm, addr, qt.name)

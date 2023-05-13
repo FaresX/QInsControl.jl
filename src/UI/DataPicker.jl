@@ -100,7 +100,9 @@ function syncplotdata(uiplot::UIPlot, dtpk::DataPicker, data)
     uiplot.y = @trypass [replace(tryparse.(Float64, data[key]), nothing => NaN) for key in dtpk.datalist[dtpk.y]] [Float64[]]
     uiplot.legends = @trypass dtpk.datalist[dtpk.y] uiplot.legends
     zbuf::Array = uiplot.z
-    uiplot.ptype == "heatmap" && (zbuf = @trypass replace(tryparse.(Float64, data[dtpk.z]), nothing => 0) Matrix{Float64}(undef, 0, 0))
+    if uiplot.ptype == "heatmap"
+        zbuf = @trypass replace(tryparse.(Float64, data[dtpk.z]), nothing => 0) Matrix{Float64}(undef, 0, 0)
+    end
     innercodes = tocodes(dtpk.codes)
     ex::Expr = quote
         let

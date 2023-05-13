@@ -9,11 +9,56 @@ mutable struct Node
     position::CImGui.ImVec2
 end
 Node() = Node(1, "Node 1", "", [1001], ["Input 1"], [1101], ["Output 1"], (0, 0))
-Node(id) = Node(id, morestyle.Icons.CommonNode * " Node $id", "", [id * 1000 + 1], ["Input 1"], [id * 1000 + 100 + 1], ["Output 1"], (0, 0))
-Node(id, ::Val{:ground}) = Node(id, morestyle.Icons.GroundNode * " 接地头 0Ω", "", [], [], [id * 1000 + 100 + 1], ["Ground"], (0, 0))
-Node(id, ::Val{:resistance}) = Node(id, morestyle.Icons.ResistanceNode * " 电阻 10MΩ", "", [id * 1000 + 1], ["Input 1"], [id * 1000 + 100 + 1], ["Output 1"], (0, 0))
-Node(id, ::Val{:trilink21}) = Node(id, morestyle.Icons.TrilinkNode * " 三通21", "", [id * 1000 + 1, id * 1000 + 2], ["Input 1", "Input 2"], [id * 1000 + 100 + 1], ["Output 1"], (0, 0))
-Node(id, ::Val{:trilink12}) = Node(id, morestyle.Icons.TrilinkNode * " 三通12", "", [id * 1000 + 1], ["Input 1"], [id * 1000 + 100 + 1, id * 1000 + 100 + 2], ["Output 1", "Output 2"], (0, 0))
+Node(id) = Node(
+    id,
+    morestyle.Icons.CommonNode * " Node $id",
+    "",
+    [id * 1000 + 1],
+    ["Input 1"],
+    [id * 1000 + 100 + 1],
+    ["Output 1"],
+    (0, 0)
+)
+Node(id, ::Val{:ground}) = Node(
+    id,
+    morestyle.Icons.GroundNode * " 接地头 0Ω",
+    "",
+    [],
+    [],
+    [id * 1000 + 100 + 1],
+    ["Ground"],
+    (0, 0)
+)
+Node(id, ::Val{:resistance}) = Node(
+    id,
+    morestyle.Icons.ResistanceNode * " 电阻 10MΩ",
+    "",
+    [id * 1000 + 1],
+    ["Input 1"],
+    [id * 1000 + 100 + 1],
+    ["Output 1"],
+    (0, 0)
+)
+Node(id, ::Val{:trilink21}) = Node(
+    id,
+    morestyle.Icons.TrilinkNode * " 三通21",
+    "",
+    [id * 1000 + 1, id * 1000 + 2],
+    ["Input 1", "Input 2"],
+    [id * 1000 + 100 + 1],
+    ["Output 1"],
+    (0, 0)
+)
+Node(id, ::Val{:trilink12}) = Node(
+    id,
+    morestyle.Icons.TrilinkNode * " 三通12",
+    "",
+    [id * 1000 + 1],
+    ["Input 1"],
+    [id * 1000 + 100 + 1, id * 1000 + 100 + 2],
+    ["Output 1", "Output 2"],
+    (0, 0)
+)
 function Node(id, ::Val{:samplebase16})
     node = Node(id, morestyle.Icons.SampleBaseNode * " 样品座16", "", [], [], [], [], (0, 0))
     for i in 1:16
@@ -36,7 +81,16 @@ function Node(id, ::Val{:samplebase24})
 end
 
 function Node(id, instrnm, ::Val{:instrument})
-    node = Node(id, insconf[instrnm].conf.icon * " " * instrnm, "", [], insconf[instrnm].conf.input_labels, [], insconf[instrnm].conf.output_labels, (0, 0))
+    node = Node(
+        id,
+        insconf[instrnm].conf.icon * " " * instrnm,
+        "",
+        [],
+        insconf[instrnm].conf.input_labels,
+        [],
+        insconf[instrnm].conf.output_labels,
+        (0, 0)
+    )
     for i in 1:length(node.input_labels)
         push!(node.input_ids, id * 1000 + i)
     end
@@ -136,7 +190,9 @@ let
             CImGui.EndPopup()
         end
         if CImGui.BeginPopup("Edit Node")
-            hoverednode_idx, hoverednode = only([(i, node) for (i, node) in enumerate(nodeeditor.nodes) if node.id == nodeeditor.hoverednode])
+            hoverednode_idx, hoverednode = only(
+                [(i, node) for (i, node) in enumerate(nodeeditor.nodes) if node.id == nodeeditor.hoverednode]
+            )
             if CImGui.BeginMenu(morestyle.Icons.Edit * " 编辑")
                 @c InputTextRSZ("标题", &hoverednode.title)
                 @c InputTextRSZ("内容", &hoverednode.content)
@@ -218,7 +274,9 @@ let
         end
         imnodes_EndNodeEditor()
         if @c imnodes_IsLinkCreated_BoolPtr(&nodeeditor.link_start, &nodeeditor.link_stop, &nodeeditor.created_from_snap)
-            (nodeeditor.link_start, nodeeditor.link_stop) in nodeeditor.links || push!(nodeeditor.links, (nodeeditor.link_start, nodeeditor.link_stop))
+            if !((nodeeditor.link_start, nodeeditor.link_stop) in nodeeditor.links)
+                push!(nodeeditor.links, (nodeeditor.link_start, nodeeditor.link_stop))
+            end
         end
         for node in nodeeditor.nodes
             @c imnodes_GetNodeGridSpacePos(&node.position, node.id)

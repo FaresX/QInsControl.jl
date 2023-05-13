@@ -244,7 +244,9 @@ let
                         CImGui.PopItemWidth()
                         if CImGui.BeginPopupContextItem()
                             CImGui.MenuItem("删除", C_NULL, false, length(conf.U) > 2) && (pop!(conf.U, ut); break)
-                            CImGui.MenuItem("添加") && insert!(conf.U, ut, "NU" => Union{Unitful.FreeUnits,Unitful.MixedUnits}[u"m"], after=true)
+                            if CImGui.MenuItem("添加")
+                                insert!(conf.U, ut, "NU" => Union{Unitful.FreeUnits,Unitful.MixedUnits}[u"m"], after=true)
+                            end
                             CImGui.EndPopup()
                         end
                         CImGui.SameLine()
@@ -264,12 +266,17 @@ let
                             CImGui.PushItemWidth(5ftsz)
                             if @c InputTextRSZ("##U", &ustr)
                                 uf = @trypass eval(:(@u_str($ustr))) nothing
-                                !isnothing(uf) && (uf isa Unitful.FreeUnits || uf isa Unitful.MixedUnits) && (conf.U[up.first][j] = uf)
+                                if !isnothing(uf) && (uf isa Unitful.FreeUnits || uf isa Unitful.MixedUnits)
+                                    conf.U[up.first][j] = uf
+                                end
                             end
                             CImGui.PopItemWidth()
                             if !isa(up.second[1], Unitful.MixedUnits)
                                 if CImGui.BeginPopupContextItem()
-                                    CImGui.MenuItem("删除", C_NULL, false, length(up.second) > 1) && (deleteat!(conf.U[up.first], j); break)
+                                    if CImGui.MenuItem("删除", C_NULL, false, length(up.second) > 1)
+                                        deleteat!(conf.U[up.first], j)
+                                        break
+                                    end
                                     CImGui.MenuItem("向左添加") && (insert!(conf.U[up.first], j, u"m"); break)
                                     CImGui.MenuItem("向右添加") && (insert!(conf.U[up.first], j + 1, u"m"); break)
                                     CImGui.EndPopup()

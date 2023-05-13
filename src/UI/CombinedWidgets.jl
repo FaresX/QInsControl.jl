@@ -101,7 +101,13 @@ function ShowUnit(id, utype, ui::Ref, flags=CImGui.ImGuiComboFlags_NoArrowButton
     end
 end
 
-function MultiSelectable(id, labels, states, n, size=(Float32(0), CImGui.GetFrameHeight() * ceil(Int, length(labels) / n)))
+function MultiSelectable(
+    id,
+    labels,
+    states,
+    n,
+    size=(Float32(0), CImGui.GetFrameHeight() * ceil(Int, length(labels) / n))
+)
     l = length(labels)
     m = ceil(Int, l / n)
     size = l == 0 ? (Float32(0), CImGui.GetFrameHeightWithSpacing()) : size
@@ -137,7 +143,14 @@ function TextRect(str)
     CImGui.PushTextWrapPos(CImGui.GetCursorPosX() + width)
     CImGui.TextUnformatted(str)
     rmin, rmax = CImGui.GetItemRectMin(), CImGui.GetItemRectMax()
-    CImGui.AddRect(draw_list, rmin, CImGui.ImVec2(pos.x + width, rmax.y), CImGui.ColorConvertFloat4ToU32(morestyle.Colors.ShowTextRect), 0.0, 0)
+    CImGui.AddRect(
+        draw_list,
+        rmin,
+        CImGui.ImVec2(pos.x + width, rmax.y),
+        CImGui.ColorConvertFloat4ToU32(morestyle.Colors.ShowTextRect),
+        0.0,
+        0
+    )
     CImGui.PopTextWrapPos()
     [rmin.x, rmin.y, pos.x + width, rmax.y]
 end

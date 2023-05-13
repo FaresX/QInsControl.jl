@@ -1,4 +1,8 @@
 ICONS = ICON()
+ICONS_NAME = Dict()
+for f in fieldnames(ICON)
+    push!(ICONS_NAME, getproperty(ICONS, f) => string(f))
+end
 
 # mutable struct IconColored
 #     icon::String
@@ -18,7 +22,7 @@ let
         selected = false
         CImGui.PushID(label)
         CImGui.Button(icon_str[]) && CImGui.OpenPopup(label)
-        CImGui.IsItemHovered() && CImGui.SetTooltip(icon_str[])
+        CImGui.IsItemHovered() && CImGui.SetTooltip(ICONS_NAME[icon_str[]])
         CImGui.SameLine()
         CImGui.Text(label)
         CImGui.SetNextWindowSize((1000, 600))

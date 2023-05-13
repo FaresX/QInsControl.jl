@@ -54,7 +54,10 @@ let
                 CImGui.SameLine(0, CImGui.GetFontSize() / 2)
                 CImGui.PushItemWidth(-1)
                 newinsnm = oldinsnm
-                @c(RenameSelectable("##RenameInsConf", &renamei, &newinsnm, selectedins == oldinsnm)) && (selectedins = oldinsnm; selectedqt = "")
+                if @c RenameSelectable("##RenameInsConf", &renamei, &newinsnm, selectedins == oldinsnm)
+                    selectedins = oldinsnm
+                    selectedqt = ""
+                end
                 CImGui.PopItemWidth()
                 if !(newinsnm == "" || haskey(insconf, newinsnm))
                     if isrename[oldinsnm] && !renamei
@@ -72,7 +75,12 @@ let
                     isrename[oldinsnm] = renamei
                 end
                 if CImGui.BeginPopupContextItem()
-                    CImGui.MenuItem(morestyle.Icons.CloseFile * " 删除##insconf", C_NULL, false, !in(oldinsnm, ["VirtualInstr", "Others"])) && (deldialog = true)
+                    CImGui.MenuItem(
+                        morestyle.Icons.CloseFile * " 删除##insconf",
+                        C_NULL,
+                        false,
+                        !in(oldinsnm, ["VirtualInstr", "Others"])
+                    ) && (deldialog = true)
                     CImGui.EndPopup()
                 end
                 haskey(yesnodialog_ids, oldinsnm) || push!(yesnodialog_ids, oldinsnm => "##是否删除仪器配置$oldinsnm")
@@ -153,7 +161,9 @@ let
                 width = CImGui.GetItemRectSize().x / 3
                 CImGui.Text("接口")
                 CImGui.BeginGroup()
-                CImGui.Button(morestyle.Icons.NewFile * " 输入") && push!(selectedinscf.conf.input_labels, string("Input ", length(selectedinscf.conf.input_labels) + 1))
+                if CImGui.Button(morestyle.Icons.NewFile * " 输入")
+                    push!(selectedinscf.conf.input_labels, string("Input ", length(selectedinscf.conf.input_labels) + 1))
+                end
                 for (i, input) in enumerate(selectedinscf.conf.input_labels)
                     CImGui.PushID(i)
                     CImGui.PushItemWidth(width)
@@ -170,7 +180,9 @@ let
                 CImGui.EndGroup()
                 CImGui.SameLine()
                 CImGui.BeginGroup()
-                CImGui.Button(morestyle.Icons.NewFile * " 输出") && push!(selectedinscf.conf.output_labels, string("Output ", length(selectedinscf.conf.output_labels) + 1))
+                if CImGui.Button(morestyle.Icons.NewFile * " 输出")
+                    push!(selectedinscf.conf.output_labels, string("Output ", length(selectedinscf.conf.output_labels) + 1))
+                end
                 for (i, output) in enumerate(selectedinscf.conf.output_labels)
                     CImGui.PushID(i)
                     CImGui.PushItemWidth(width)
