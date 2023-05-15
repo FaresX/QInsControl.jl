@@ -26,6 +26,8 @@ Base.@kwdef mutable struct MoreStyleIcon
     SaveButton::String = ICONS.ICON_FLOPPY_DISK
     SelectPath::String = ICONS.ICON_MAP
 
+    CPUMonitor::String = ICONS.ICON_MICROCHIP
+
     Instrumets::String = ICONS.ICON_BIOHAZARD
     InstrumentsSetting::String = ICONS.ICON_BOOK_JOURNAL_WHILLS
     InstrumentsManualRef::String = ICONS.ICON_ROTATE

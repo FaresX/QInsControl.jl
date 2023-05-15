@@ -1,5 +1,6 @@
 let
     show_preferences::Bool = false
+    show_cpu_monitor::Bool = false
     show_instr_buffer::Bool = false
     show_daq::Bool = false
     show_instr_register::Bool = false
@@ -63,6 +64,7 @@ let
             dtv[1].noclose || deleteat!(dtviewers, i)
         end
         show_preferences && @c Preferences(&show_preferences)
+        show_cpu_monitor && @c CPUMonitor(&show_cpu_monitor)
         show_instr_buffer && @c ShowInstrBuffer(&show_instr_buffer)
         for ins in keys(instrbufferviewers)
             for addr in keys(instrbufferviewers[ins])
@@ -129,7 +131,7 @@ let
             end
             #Instrument Menu
             if CImGui.BeginMenu(morestyle.Icons.Instrumets * " 仪器 ")
-                # @c CImGui.MenuItem("仪器设置和状态", C_NULL, &show_instr_buffer)
+                @c CImGui.MenuItem(morestyle.Icons.CPUMonitor * " 仪器CPU监测", C_NULL, &show_cpu_monitor)
                 if CImGui.BeginMenu(morestyle.Icons.InstrumentsSetting * " 仪器设置和状态")
                     @c CImGui.MenuItem(morestyle.Icons.InstrumentsOverview * " 总览", C_NULL, &show_instr_buffer)
                     CImGui.Separator()
@@ -160,7 +162,6 @@ let
             #Help Menu
             if CImGui.BeginMenu(morestyle.Icons.Help * " 帮助")
                 @c CImGui.MenuItem(morestyle.Icons.Metrics * " 监测", C_NULL, &show_metrics)
-                # @c CImGui.MenuItem("Debug", C_NULL, &show_debug)
                 @c CImGui.MenuItem(morestyle.Icons.Logger * " 日志", C_NULL, &show_logger)
                 @c CImGui.MenuItem(morestyle.Icons.HelpPad * " 帮助板", C_NULL, &show_helppad)
                 @c CImGui.MenuItem(morestyle.Icons.About * " 关于", C_NULL, &show_about)

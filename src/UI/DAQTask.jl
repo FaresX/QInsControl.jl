@@ -169,6 +169,7 @@ function run_remote(daqtask::DAQTask)
                 progress_lc = Channel{Tuple{UUID,Int,Int,Float64}}(conf.DAQ.channel_size)
                 @sync begin
                     remotedotask = errormonitor(@async begin
+                        remotecall_wait(()->(start!(CPU); fast!(CPU)), workers()[1])
                         for ct in values(controllers)
                             login!(CPU, ct)
                         end
@@ -191,6 +192,7 @@ function run_remote(daqtask::DAQTask)
                 for ct in values(controllers)
                     logout!(CPU, ct)
                 end
+                remotecall_wait(()->slow!(CPU), workers()[1])
             end
         end
     end |> prettify
