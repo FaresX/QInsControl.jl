@@ -1,5 +1,5 @@
 function CPUMonitor(p_open::Ref)
-    CImGui.SetNextWindowSize((600, 400), CImGui.ImGuiCond_Once)
+    CImGui.SetNextWindowSize((600, 300), CImGui.ImGuiCond_Once)
     if CImGui.Begin(morestyle.Icons.CPUMonitor * " 仪器CPU监测", p_open)
         CImGui.TextColored(morestyle.Colors.HighlightText, "ID: ")
         CImGui.SameLine()

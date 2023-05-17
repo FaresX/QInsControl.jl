@@ -22,8 +22,8 @@ let
     rename_ids::Dict{Int,String} = Dict()
     waittimedaq_ids::Dict{Int,String} = Dict()
     global function DAQ(p_open::Ref)
-        # CImGui.SetNextWindowPos((300, 100), CImGui.ImGuiCond_Once)
-        # CImGui.SetNextWindowSize((1400, 900), CImGui.ImGuiCond_Once)
+        # CImGui.SetNextWindowPos((100, 100), CImGui.ImGuiCond_Once)
+        CImGui.SetNextWindowSize((800, 600), CImGui.ImGuiCond_Once)
         isinner = false
         if CImGui.Begin(morestyle.Icons.InstrumentsDAQ * "  数据采集", p_open)
             global workpath

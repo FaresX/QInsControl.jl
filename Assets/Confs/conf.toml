@@ -11,8 +11,9 @@ Hz = ["Hz", "kHz", "MHz", "GHz"]
 
 [Init]
 isremote = true
-windowsize = [1280, 720]
 viewportenable = true
+windowsize = [1280, 720]
+encoding = "GBK"
 
 [DAQ]
 savetime = 60
@@ -38,7 +39,7 @@ refreshrate = 1
 showlogline = 100
 
 [BGImage]
-path = "defaultwallpaper.bmp"
+path = "c:\\Users\\22112\\OneDrive - mails.ucas.ac.cn\\文档\\CODE\\Julia\\QInsControl-AllVersions\\QInsControl\\src\\defaultwallpaper.bmp"
 
 [ComAddr]
 addrs = ["TCPIP::192.168.31.239::33576::SOCKET"]

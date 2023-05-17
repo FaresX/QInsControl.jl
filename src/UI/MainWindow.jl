@@ -182,8 +182,9 @@ let
             root = pick_folder()
             isdir(root) && push!(dtviewers, (DataViewer(), FolderFileTree(root), Dict())) #true -> active
         end
-        if length(ARGS) == 1 && isfile(ARGS[1])
-            push!(dtviewers, (DataViewer(), FolderFileTree(abspath.(ARGS)), Dict()))
+        if !isempty(ARGS)
+            filepath = reencoding(ARGS[1], conf.Init.encoding)
+            isfile(filepath) && push!(dtviewers, (DataViewer(), FolderFileTree([abspath(filepath)]), Dict()))
             empty!(ARGS)
         end
     end

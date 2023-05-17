@@ -37,7 +37,7 @@ let
     yesnodialog_ids::Dict{String,String} = Dict()
     global function InstrRegister(p_open::Ref)
         # CImGui.SetNextWindowPos((100, 100), CImGui.ImGuiCond_Once)
-        # CImGui.SetNextWindowSize((800, 800), CImGui.ImGuiCond_Once)
+        CImGui.SetNextWindowSize((800, 600), CImGui.ImGuiCond_Once)
 
         if CImGui.Begin(morestyle.Icons.InstrumentsRegister * "  仪器注册", p_open)
             CImGui.Columns(2)

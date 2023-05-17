@@ -2,8 +2,8 @@ let
     firsttime::Bool = true
     logmsgshow = Tuple{CImGui.LibCImGui.ImVec4,String}[]
     global function LogWindow(p_open::Ref)
-        # CImGui.SetNextWindowPos((60, 60), CImGui.ImGuiCond_Once)
-        # CImGui.SetNextWindowSize((1200, 400), CImGui.ImGuiCond_Once)
+        # CImGui.SetNextWindowPos((100, 100), CImGui.ImGuiCond_Once)
+        CImGui.SetNextWindowSize((800, 600), CImGui.ImGuiCond_Once)
         if CImGui.Begin(morestyle.Icons.Logger * "  日志", p_open, CImGui.ImGuiWindowFlags_HorizontalScrollbar)
             if waittime("Logger", conf.Logs.refreshrate)
                 empty!(logmsgshow)

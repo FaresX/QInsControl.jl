@@ -1,7 +1,8 @@
 @option mutable struct OptInit
     isremote::Bool
-    windowsize::Vector{Cint}
     viewportenable::Bool
+    windowsize::Vector{Cint}
+    encoding::String
 end
 
 @option mutable struct OptDAQ

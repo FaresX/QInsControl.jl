@@ -1,8 +1,8 @@
-using Distributed
-nprocs() == 1 && addprocs(1)
-@everywhere ENV["QInsControlAssets"] = "Assets"
-@everywhere module QInsControl
-# module QInsControl
+# using Distributed
+# nprocs() == 1 && addprocs(1)
+# @everywhere ENV["QInsControlAssets"] = "Assets"
+# @everywhere module QInsControl
+module QInsControl
 
 using CImGui
 using CImGui.CSyntax
@@ -22,6 +22,7 @@ using QInsControlCore
 using Configurations
 using ColorTypes
 using OrderedCollections
+using StringEncodings
 # using ImageMagick
 # using ImageIO
 # using Logging
@@ -95,8 +96,10 @@ function julia_main()::Cint
         global syncstates = SharedVector{Bool}(7)
         global databuf_rc = RemoteChannel(() -> databuf_c)
         global progress_rc = RemoteChannel(() -> progress_c)
-        uitask = UI()
         include(joinpath(Base.@__DIR__, "Logger.jl"))
+        @info ARGS
+        isempty(ARGS) || @info reencoding.(ARGS, conf.Init.encoding)
+        uitask = UI()
         jlverinfobuf = IOBuffer()
         versioninfo(jlverinfobuf)
         global jlverinfo = wrapmultiline(String(take!(jlverinfobuf)), 48)

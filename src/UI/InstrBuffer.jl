@@ -82,8 +82,8 @@ refreshrate::Cfloat = 6 #仪器状态刷新率
 let
     # window_ids::Dict{Tuple{String,String},String} = Dict()
     global function edit(ibv::InstrBufferViewer)
-        # CImGui.SetNextWindowPos((600, 100), CImGui.ImGuiCond_Once)
-        # CImGui.SetNextWindowSize((600, 400), CImGui.ImGuiCond_Once)
+        # CImGui.SetNextWindowPos((100, 100), CImGui.ImGuiCond_Once)
+        CImGui.SetNextWindowSize((800, 600), CImGui.ImGuiCond_Once)
         ins, addr = ibv.instrnm, ibv.addr
         if @c CImGui.Begin(string(insconf[ins].conf.icon, "  ", ins, " --- ", addr), &ibv.p_open)
             @c testcmd(ins, addr, &ibv.inputcmd, &ibv.readstr)
@@ -133,8 +133,8 @@ let
     readstr::String = ""
     default_insbufs = Dict{String,InstrBuffer}()
     global function ShowInstrBuffer(p_open::Ref)
-        # CImGui.SetNextWindowPos((600, 100), CImGui.ImGuiCond_Once)
-        # CImGui.SetNextWindowSize((1000, 800), CImGui.ImGuiCond_Once)
+        # CImGui.SetNextWindowPos((100, 100), CImGui.ImGuiCond_Once)
+        CImGui.SetNextWindowSize((800, 600), CImGui.ImGuiCond_Once)
         if CImGui.Begin(morestyle.Icons.InstrumentsOverview * "  仪器设置和状态", p_open)
             CImGui.Columns(2)
             firsttime && (CImGui.SetColumnOffset(1, CImGui.GetWindowWidth() * 0.25); firsttime = false)

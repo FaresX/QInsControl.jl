@@ -225,3 +225,5 @@ function newtuple(t::Tuple, i, v)
     end
     return (newt...,)
 end
+
+reencoding(s, encoding) = @trypasse decode(unsafe_wrap(Array, pointer(s), ncodeunits(s)), encoding) s

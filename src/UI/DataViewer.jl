@@ -12,8 +12,8 @@ DataViewer() = DataViewer(true, true, false, true, DataPicker(), UIPlot(), Dict(
 let
     window_ids::Dict{Int,String} = Dict()
     global function edit(dtviewer::DataViewer, filetree::FileTree, isrename::Dict{String,Bool}, id)
-        # CImGui.SetNextWindowPos((300, 200), CImGui.ImGuiCond_Once)
-        # CImGui.SetNextWindowSize((1200, 800), CImGui.ImGuiCond_Once)
+        # CImGui.SetNextWindowPos((100, 100), CImGui.ImGuiCond_Once)
+        CImGui.SetNextWindowSize((800, 600), CImGui.ImGuiCond_Once)
         if !haskey(window_ids, id)
             if filetree.rootpath_bnm == ""
                 push!(window_ids, id => morestyle.Icons.OpenFile * "  数据浏览##$id")

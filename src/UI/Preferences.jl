@@ -1,8 +1,9 @@
 let
     selectedpref::String = "通用"
+    ecds::Vector{String} = encodings()
     global function Preferences(p_open::Ref)
         # CImGui.SetNextWindowPos((100, 100), CImGui.ImGuiCond_Once)
-        # CImGui.SetNextWindowSize((800, 800), CImGui.ImGuiCond_Once)
+        CImGui.SetNextWindowSize((800, 600), CImGui.ImGuiCond_Once)
 
         if CImGui.Begin(morestyle.Icons.Preferences * "  首选项", p_open)
             CImGui.Columns(2)
@@ -32,12 +33,13 @@ let
                 else
                     @c CImGui.Checkbox("单核", &conf.Init.isremote)
                 end
-                CImGui.DragInt2("窗口大小", conf.Init.windowsize, 2.0, 100, 4000, "%d", CImGui.ImGuiSliderFlags_AlwaysClamp)
                 if conf.Init.viewportenable
                     @c CImGui.Checkbox("视窗模式 开", &conf.Init.viewportenable)
                 else
                     @c CImGui.Checkbox("视窗模式 关", &conf.Init.viewportenable)
                 end
+                CImGui.DragInt2("窗口大小", conf.Init.windowsize, 2.0, 100, 4000, "%d", CImGui.ImGuiSliderFlags_AlwaysClamp)
+                @c ComBoS("系统编码", &conf.Init.encoding, ecds)
                 CImGui.Text(" ")
                 CImGui.Separator()
 
