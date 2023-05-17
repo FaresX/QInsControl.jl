@@ -143,7 +143,8 @@ let
     colors::String = ""
     output_dest::Cint = 0
     output_only_modified::Bool = true
-    filter::Ptr{ImGuiTextFilter} = ImGuiTextFilter_ImGuiTextFilter(C_NULL)
+    # filter::Ptr{ImGuiTextFilter} = ImGuiTextFilter_ImGuiTextFilter(C_NULL)
+    filter::String = ""
     alpha_flags::CImGui.ImGuiColorEditFlags = 0
     global function ShowStyleEditor(style_ref::ImNodesStyle)
         if @c ComBoS("Colors", &colors, ["Dark", "Light", "Classic"])
@@ -216,7 +217,10 @@ let
                 @c CImGui.Combo("##output_type", &output_dest, "To Clipboard\0To TTY\0")
                 CImGui.SameLine()
                 @c CImGui.Checkbox("Only Modified Colors", &output_only_modified)
-                ImGuiTextFilter_Draw(filter, "Filter colors", 16CImGui.GetFontSize())
+                # ImGuiTextFilter_Draw(filter, "Filter colors", 16CImGui.GetFontSize())
+                CImGui.PushItemWidth(16CImGui.GetFontSize())
+                @c InputTextRSZ("Filter colors", &filter)
+                CImGui.PopItemWidth()
                 if CImGui.RadioButton("Opaque", alpha_flags == ImGuiColorEditFlags_None)
                     alpha_flags = ImGuiColorEditFlags_None
                 end
@@ -237,7 +241,8 @@ let
                     """
                 )
                 for col in instances(LibCImGui.ColorStyle)[1:end-1]
-                    ImGuiTextFilter_PassFilter(filter, pointer(string(col)), C_NULL) || continue
+                    # ImGuiTextFilter_PassFilter(filter, pointer(string(col)), C_NULL) || continue
+                    occursin(lowercase(filter), lowercase(string(col))) || continue
                     col_imvec4 = CImGui.ColorConvertU32ToFloat4(CImGui.c_get(imnodesstyle.colors, col))
                     col_arr = [col_imvec4.x, col_imvec4.y, col_imvec4.z, col_imvec4.w]
                     CImGui.ColorEdit4(string(col), col_arr, CImGui.ImGuiColorEditFlags_AlphaBar | alpha_flags)
@@ -263,9 +268,11 @@ end
 let
     output_dest::Cint = 0
     output_only_modified::Bool = true
-    filter::Ptr{ImGuiTextFilter} = ImGuiTextFilter_ImGuiTextFilter(C_NULL)
+    # filter::Ptr{ImGuiTextFilter} = ImGuiTextFilter_ImGuiTextFilter(C_NULL)
+    filter::String = ""
     alpha_flags::CImGui.ImGuiColorEditFlags = 0
-    icons_filter::Ptr{ImGuiTextFilter} = ImGuiTextFilter_ImGuiTextFilter(C_NULL)
+    # icons_filter::Ptr{ImGuiTextFilter} = ImGuiTextFilter_ImGuiTextFilter(C_NULL)
+    icons_filter::String = ""
     icon_to_clipboard::String = ""
     global function ShowStyleEditor(style_ref::MoreStyle)
         global morestyle
@@ -309,7 +316,10 @@ let
                 @c CImGui.Combo("##output_type", &output_dest, "To Clipboard\0To TTY\0")
                 CImGui.SameLine()
                 @c CImGui.Checkbox("Only Modified Colors", &output_only_modified)
-                ImGuiTextFilter_Draw(filter, "Filter colors", 16CImGui.GetFontSize())
+                # ImGuiTextFilter_Draw(filter, "Filter colors", 16CImGui.GetFontSize())
+                CImGui.PushItemWidth(16CImGui.GetFontSize())
+                @c InputTextRSZ("Filter colors", &filter)
+                CImGui.PopItemWidth()
                 if CImGui.RadioButton("Opaque", alpha_flags == ImGuiColorEditFlags_None)
                     alpha_flags = ImGuiColorEditFlags_None
                 end
@@ -331,7 +341,8 @@ let
                 )
                 CImGui.BeginChild("Colors")
                 for color in fieldnames(MoreStyleColor)
-                    ImGuiTextFilter_PassFilter(filter, pointer(string(color)), C_NULL) || continue
+                    # ImGuiTextFilter_PassFilter(filter, pointer(string(color)), C_NULL) || continue
+                    occursin(lowercase(filter), lowercase(string(color))) || continue
                     CImGui.ColorEdit4(string(color), getproperty(morestyle.Colors, color), CImGui.ImGuiColorEditFlags_AlphaBar | alpha_flags)
                     if getproperty(style_ref.Colors, color) != getproperty(morestyle.Colors, color)
                         CImGui.SameLine()
@@ -349,7 +360,10 @@ let
             end
             if CImGui.BeginTabItem("Icons")
                 icons = fieldnames(MoreStyleIcon)
-                ImGuiTextFilter_Draw(icons_filter, "Filter icons", 24CImGui.GetFontSize())
+                # ImGuiTextFilter_Draw(icons_filter, "Filter icons", 24CImGui.GetFontSize())
+                CImGui.PushItemWidth(24CImGui.GetFontSize())
+                @c InputTextRSZ("Filter icons", &icons_filter)
+                CImGui.PopItemWidth()
                 # CImGui.SameLine()
                 # if @c IconSelector("To Clipboard", &icon_to_clipboard)
                 #     CImGui.LogToClipboard()
@@ -359,7 +373,8 @@ let
                 CImGui.BeginChild("Icons")
                 CImGui.Columns(3, C_NULL, false)
                 for icon in icons
-                    ImGuiTextFilter_PassFilter(icons_filter, pointer(string(icon)), C_NULL) || continue
+                    # ImGuiTextFilter_PassFilter(icons_filter, pointer(string(icon)), C_NULL) || continue
+                    occursin(lowercase(icons_filter), lowercase(string(icon))) || continue
                     editicon = getproperty(morestyle.Icons, icon)
                     @c IconSelector(string(icon), &editicon)
                     setproperty!(morestyle.Icons, icon, editicon)

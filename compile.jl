@@ -19,6 +19,7 @@ cptask = @async begin
     cpsourcedir = joinpath(app_source_dir, "Assets")
     cpdstdir = joinpath(app_compiled_dir, "Assets")
     run(`xcopy $cpsourcedir $cpdstdir /E/Y/i`)
+    Base.Filesystem.rm(joinpath(cpdstdir, "Logs"), recursive=true, force=true)
     # for conf in readdir(joinpath(app_source_dir, "conf"), join=true)
     #     Base.Filesystem.cp(conf, joinpath(app_compiled_dir, "bin\\conf", basename(conf)), force=true)
     # end

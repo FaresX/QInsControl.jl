@@ -23,7 +23,7 @@ let
     no_bring_to_front::Bool = false
     no_docking::Bool = true
 
-    global dtviewers = Tuple{DataViewer,FolderFileTree,Dict{String,Bool}}[]
+    dtviewers = Tuple{DataViewer,FolderFileTree,Dict{String,Bool}}[]
     # window_class = ImGuiWindowClass_ImGuiWindowClass()
     global function MainWindow()
         window_flags = UInt32(0)

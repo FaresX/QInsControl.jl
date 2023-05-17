@@ -8,8 +8,61 @@ function edit(qtcf::QuantityConf)
     @c InputTextRSZ("别称", &qtcf.alias)
     @c ComBoS("单位类型", &qtcf.U, keys(conf.U))
     @c InputTextRSZ("命令", &qtcf.cmdheader)
-    optvalues = join(qtcf.optvalues, ";")
-    @c(InputTextRSZ("可选值", &optvalues)) && (qtcf.optvalues = split(optvalues, ';'))
+    width = CImGui.GetItemRectSize().x / 2 - 2CImGui.CalcTextSize(" =>  ").x
+    CImGui.SameLine()
+    if CImGui.Button("inssetget.jl")
+        inssetget_jl = joinpath(ENV["QInsControlAssets"], "Confs/inssetget.jl") |> abspath
+        try
+            Base.run(Cmd([conf.Init.editor, inssetget_jl]))
+        catch e
+            @error "[$(now())]\n文本编辑错误！！！" exception=e
+        end
+    end
+    # optkeys = join(qtcf.optkeys, "\n")
+    # optvalues = join(qtcf.optvalues, "\n")
+    # @c(InputTextRSZ("可选值", &optkeys)) && (qtcf.optkeys = split(optkeys, '\n'))
+    # @c(InputTextRSZ("可选值", &optvalues)) && (qtcf.optvalues = split(optvalues, '\n'))
+    CImGui.BeginGroup()
+
+    CImGui.BeginGroup()
+    for (i, key) in enumerate(qtcf.optkeys)
+        CImGui.PushID(i)
+        CImGui.PushItemWidth(width)
+        if @c InputTextRSZ("##optkey", &key)
+            key == "" || (qtcf.optkeys[i] = key)
+        end
+        CImGui.PopItemWidth()
+        CImGui.SameLine()
+        CImGui.Text(" => ")
+        CImGui.SameLine()
+        CImGui.PushItemWidth(width)
+        val = qtcf.optvalues[i]
+        if @c InputTextRSZ("##optvalue", &val)
+            val == "" || (qtcf.optvalues[i] = val)
+        end
+        CImGui.PopItemWidth()
+        CImGui.SameLine()
+        CImGui.PushID("optvalue")
+        if CImGui.Button(morestyle.Icons.CloseFile)
+            deleteat!(qtcf.optkeys, i)
+            deleteat!(qtcf.optvalues, i)
+            break
+        end
+        CImGui.PopID()
+        CImGui.PopID()
+    end
+    CImGui.EndGroup()
+
+    CImGui.EndGroup()
+    CImGui.SameLine()
+    CImGui.PushID("addopt")
+    if CImGui.Button(morestyle.Icons.NewFile)
+        push!(qtcf.optkeys, string("key", length(qtcf.optkeys)+1))
+        push!(qtcf.optvalues, "")
+    end
+    CImGui.PopID()
+    CImGui.SameLine()
+    CImGui.Text("可选值")
     @c ComBoS("变量类型", &qtcf.type, ["sweep", "set", "read"])
     @cstatic edithelp::Bool = false begin
         CImGui.TextColored(morestyle.Colors.LogInfo, "帮助文档")
@@ -135,6 +188,7 @@ let
                                 "U" => "",
                                 "cmdheader" => "",
                                 "cmdheader" => "",
+                                "optkeys" => [],
                                 "optvalues" => [],
                                 "type" => "set",
                                 "help" => ""
@@ -201,7 +255,7 @@ let
                 CImGui.Separator()
 
                 ###quantities###
-                @cstatic qtname::String = "" editqt::QuantityConf = QuantityConf(true, "", "", "", [""], "set", "") begin
+                @cstatic qtname::String = "" editqt::QuantityConf = QuantityConf(true, "", "", "", [], [], "set", "") begin
                     CImGui.TextColored(morestyle.Colors.HighlightText, "变量")
                     if @c ComBoS("变量", &selectedqt, keys(selectedinscf.quantities))
                         if selectedqt != "" && haskey(selectedinscf.quantities, selectedqt)

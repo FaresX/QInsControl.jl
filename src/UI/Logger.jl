@@ -11,6 +11,7 @@ let
                 markerlist = ["┌ Info", "┌ Warning", "┌ Error"]
                 date = today()
                 logfile = joinpath(conf.Logs.dir, string(year(date)), string(year(date), "-", month(date)), string(date, ".log"))
+                isfile(logfile) || open(file -> write(file, ""), logfile, "w")
                 allmsg::Vector{String} = string.(split(read(logfile, String), '\n'))
                 limitline::Int = length(allmsg) > conf.Logs.showlogline ? conf.Logs.showlogline : length(allmsg)
                 logmsg = ""

@@ -3,6 +3,7 @@
     viewportenable::Bool
     windowsize::Vector{Cint}
     encoding::String
+    editor::String
 end
 
 @option mutable struct OptDAQ
@@ -83,6 +84,7 @@ mutable struct QuantityConf <: InsConf
     alias::String
     U::String
     cmdheader::String
+    optkeys::Vector{String}
     optvalues::Vector{String}
     type::String
     help::String
@@ -92,6 +94,7 @@ QuantityConf(qt::Dict) = QuantityConf(
     qt["alias"],
     qt["U"],
     qt["cmdheader"],
+    qt["optkeys"],
     qt["optvalues"],
     qt["type"],
     qt["help"]
@@ -115,6 +118,7 @@ todict(qtcf::QuantityConf) = Dict(
     "alias" => qtcf.alias,
     "U" => qtcf.U,
     "cmdheader" => qtcf.cmdheader,
+    "optkeys" => qtcf.optkeys,
     "optvalues" => qtcf.optvalues,
     "type" => qtcf.type,
     "help" => qtcf.help

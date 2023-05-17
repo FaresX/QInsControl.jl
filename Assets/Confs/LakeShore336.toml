@@ -2,6 +2,7 @@
 cmdheader = "KRDG? B"
 U = "K"
 enable = true
+optkeys = []
 help = ""
 optvalues = []
 type = "read"

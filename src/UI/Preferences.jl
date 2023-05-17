@@ -17,7 +17,7 @@ let
             if CImGui.Button(morestyle.Icons.SaveButton * " 保存", (-1, 0))
                 svconf = deepcopy(conf)
                 svconf.U = Dict(up.first => string.(up.second) for up in conf.U)
-                to_toml(joinpath(ENV["QInsControlAssets"], "Confs/conf.toml"), svconf)
+                to_toml(joinpath(ENV["QInsControlAssets"], "Necessity/conf.toml"), svconf)
             end
             CImGui.NextColumn()
 
@@ -40,6 +40,9 @@ let
                 end
                 CImGui.DragInt2("窗口大小", conf.Init.windowsize, 2.0, 100, 4000, "%d", CImGui.ImGuiSliderFlags_AlwaysClamp)
                 @c ComBoS("系统编码", &conf.Init.encoding, ecds)
+                editor = conf.Init.editor
+                @c InputTextRSZ("文本编辑器", &editor)
+                editor == "" || (conf.Init.editor = editor)
                 CImGui.Text(" ")
                 CImGui.Separator()
 

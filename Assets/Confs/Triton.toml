@@ -2,6 +2,7 @@
 cmdheader = ""
 U = "K"
 enable = true
+optkeys = []
 help = "MC Plate Cernox"
 optvalues = []
 type = "read"
@@ -18,6 +19,7 @@ cmdtype = "scpi"
 cmdheader = ""
 U = "K"
 enable = true
+optkeys = []
 help = "MC Plate RuO2"
 optvalues = []
 type = "read"
