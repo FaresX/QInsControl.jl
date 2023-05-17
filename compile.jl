@@ -7,7 +7,7 @@ app_compiled_dir = "C:\\Users\\22112\\Desktop\\QInsControl"
 # create_app(app_source_dir, app_compiled_dir, precompile_execution_file=joinpath(app_source_dir, "precompile.jl"), filter_stdlibs=true)
 # compiletask = @async create_app(app_source_dir, app_compiled_dir, precompile_execution_file=joinpath(app_source_dir, "precompile.jl"), force=true, include_lazy_artifacts=true)
 # compiletask = @async create_app(app_source_dir, app_compiled_dir, precompile_execution_file=joinpath(app_source_dir, "precompile.jl"), force=true)
-compiletask = @async create_app(app_source_dir, app_compiled_dir, force=true, include_lazy_artifacts=true, cpu_target="generic;sandybridge,-xsaveopt,clone_all;haswell,-rdrnd,base(1)", sysimage_build_args=`-O3`)
+compiletask = @async create_app(app_source_dir, app_compiled_dir, precompile_execution_file=joinpath(app_source_dir, "precompile.jl"), force=true, include_lazy_artifacts=true, sysimage_build_args=`--cpu-target="$(PackageCompiler.default_app_cpu_target())"`)
 errormonitor(compiletask)
 
 cptask = @async begin
@@ -25,11 +25,11 @@ cptask = @async begin
     # for font in readdir(joinpath(app_source_dir, "fonts"), join=true)
     #     Base.Filesystem.cp(font, joinpath(app_compiled_dir, "fonts", basename(font)), force=true)
     # end
-    Base.Filesystem.cp(joinpath(app_source_dir, "QInsControl.ico"), joinpath(app_compiled_dir, "bin\\QInsControl.ico"), force=true)
-    Base.Filesystem.cp(joinpath(app_source_dir, "defaultwallpaper.bmp"), joinpath(app_compiled_dir, "bin\\defaultwallpaper.bmp"), force=true)
-    Base.Filesystem.cp(joinpath(app_source_dir, "Logger.jl"), joinpath(app_compiled_dir, "bin\\Logger.jl"), force=true)
-    Base.Filesystem.cp(joinpath(app_source_dir, "fa-regular-400.ttf"), joinpath(app_compiled_dir, "bin\\fa-regular-400.ttf"), force=true)
-    Base.Filesystem.cp(joinpath(app_source_dir, "fa-solid-900.ttf"), joinpath(app_compiled_dir, "bin\\fa-solid-900.ttf"), force=true)
+    Base.Filesystem.cp(joinpath(app_source_dir, "src/UI/QInsControl.ico"), joinpath(app_compiled_dir, "bin\\QInsControl.ico"), force=true)
+    Base.Filesystem.cp(joinpath(app_source_dir, "src/defaultwallpaper.bmp"), joinpath(app_compiled_dir, "bin\\defaultwallpaper.bmp"), force=true)
+    Base.Filesystem.cp(joinpath(app_source_dir, "src/Logger.jl"), joinpath(app_compiled_dir, "bin\\Logger.jl"), force=true)
+    Base.Filesystem.cp(joinpath(app_source_dir, "src/UI/fa-regular-400.ttf"), joinpath(app_compiled_dir, "bin\\fa-regular-400.ttf"), force=true)
+    Base.Filesystem.cp(joinpath(app_source_dir, "src/UI/fa-solid-900.ttf"), joinpath(app_compiled_dir, "bin\\fa-solid-900.ttf"), force=true)
     # Base.Filesystem.cp(joinpath(app_source_dir, "settinglogsdir.bat"), joinpath(app_compiled_dir, "settinglogsdir.bat"), force=true)
     # Base.Filesystem.cp(joinpath(app_source_dir, "settinglogsdir.jl"), joinpath(app_compiled_dir, "settinglogsdir.jl"), force=true)
     # Base.Filesystem.cp(joinpath(app_source_dir, "imgui.ini"), joinpath(app_compiled_dir, "bin\\imgui.ini"), force=true)

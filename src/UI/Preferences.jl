@@ -24,9 +24,9 @@ let
             ftsz = CImGui.GetFontSize()
             if selectedpref == "通用"
                 ###Init##
-                CImGui.SetWindowFontScale(1.2)
+                # CImGui.SetWindowFontScale(1.2)
                 CImGui.TextColored(morestyle.Colors.HighlightText, "初始化")
-                CImGui.SetWindowFontScale(1)
+                # CImGui.SetWindowFontScale(1)
                 if conf.Init.isremote
                     @c CImGui.Checkbox("双核", &conf.Init.isremote)
                 else

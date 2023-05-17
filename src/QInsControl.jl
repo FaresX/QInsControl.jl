@@ -96,18 +96,18 @@ function julia_main()::Cint
         global databuf_rc = RemoteChannel(() -> databuf_c)
         global progress_rc = RemoteChannel(() -> progress_c)
         uitask = UI()
-        # include("Logger.jl")
+        include(joinpath(Base.@__DIR__, "Logger.jl"))
         jlverinfobuf = IOBuffer()
         versioninfo(jlverinfobuf)
         global jlverinfo = wrapmultiline(String(take!(jlverinfobuf)), 48)
         if conf.Init.isremote
             nprocs() == 1 && addprocs(1)
-            # @eval @everywhere using QInsControl
+            @eval @everywhere using QInsControl
             syncstates = SharedVector{Bool}(7)
             databuf_rc = RemoteChannel(() -> databuf_c)
             progress_rc = RemoteChannel(() -> progress_c)
             remote_do(loadconf, workers()[1])
-            # remote_do(include, workers()[1], "Logger.jl")
+            remote_do(include, workers()[1], joinpath(Base.@__DIR__, "Logger.jl"))
         end
         remotecall_wait(()->start!(CPU), workers()[1])
         autorefresh()

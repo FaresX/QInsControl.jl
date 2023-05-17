@@ -58,7 +58,7 @@ let
 
         ######子窗口######
         for (i, dtv) in enumerate(dtviewers)
-            dtv[1].p_open ? edit(dtv..., i) : (dtv[1].p_open = false)
+            dtv[1].p_open && edit(dtv..., i)
         end
         for (i, dtv) in enumerate(dtviewers)
             dtv[1].noclose || deleteat!(dtviewers, i)
@@ -97,7 +97,7 @@ let
                     for dtv in dtviewers
                         if dtv[2].rootpath_bnm == ""
                             title = isempty(dtv[2].filetrees) ? "没有打开文件" : basename(dtv[2].filetrees[1].filepath)
-                            @c CImGui.MenuItem(title, C_NULL, &dtv[2].p_open)
+                            @c CImGui.MenuItem(title, C_NULL, &dtv[1].p_open)
                             if CImGui.BeginPopupContextItem()
                                 CImGui.MenuItem(morestyle.Icons.CloseFile * " 关闭") && (dtv[1].noclose = false)
                                 CImGui.EndPopup()
@@ -181,6 +181,10 @@ let
         if isopenfolder || ((CImGui.IsKeyDown(341) || CImGui.IsKeyDown(345)) && CImGui.IsKeyDown(75))
             root = pick_folder()
             isdir(root) && push!(dtviewers, (DataViewer(), FolderFileTree(root), Dict())) #true -> active
+        end
+        if length(ARGS) == 1 && isfile(ARGS[1])
+            push!(dtviewers, (DataViewer(), FolderFileTree(abspath.(ARGS)), Dict()))
+            empty!(ARGS)
         end
     end
 end #let

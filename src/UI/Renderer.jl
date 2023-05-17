@@ -19,7 +19,7 @@ function UI()
     gl_ctx = ImGuiOpenGLBackend.create_context()
 
     # 加载图标
-    icons = load.(["QInsControl.ico"])
+    icons = load.([joinpath(Base.@__DIR__, "QInsControl.ico")])
     icons_8bit = reinterpret.(NTuple{4,UInt8}, icons)
     glfwicons = Base.unsafe_convert(Ref{GLFWimage}, Base.cconvert(Ref{GLFWimage}, icons_8bit))
     glfwSetWindowIcon(window, 1, glfwicons)
@@ -89,8 +89,8 @@ function UI()
     ImFontGlyphRangesBuilder_AddRanges(icon_builder, icon_ranges_ptr)
     ImFontGlyphRangesBuilder_BuildRanges(icon_builder, icon_ranges)
     icon_r = unsafe_wrap(Vector{ImVector_ImWchar}, icon_ranges, 1)
-    CImGui.AddFontFromFileTTF(fonts, "fa-regular-400.ttf", conf.Icons.size, fontcfg, icon_r[1].Data)
-    CImGui.AddFontFromFileTTF(fonts, "fa-solid-900.ttf", conf.Icons.size, fontcfg, icon_r[1].Data)
+    CImGui.AddFontFromFileTTF(fonts, joinpath(Base.@__DIR__, "fa-regular-400.ttf"), conf.Icons.size, fontcfg, icon_r[1].Data)
+    CImGui.AddFontFromFileTTF(fonts, joinpath(Base.@__DIR__, "fa-solid-900.ttf"), conf.Icons.size, fontcfg, icon_r[1].Data)
 
     # setup Platform/Renderer bindings
     ImGuiGLFWBackend.init(window_ctx)

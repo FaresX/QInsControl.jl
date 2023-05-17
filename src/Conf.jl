@@ -17,7 +17,7 @@ function loadconf()
     global conf = from_dict(Conf, conf_dict)
     isdir(conf.Fonts.dir) || (conf.Fonts.dir = joinpath(ENV["QInsControlAssets"], "Fonts"))
     isdir(conf.Logs.dir) || (conf.Logs.dir = joinpath(ENV["QInsControlAssets"], "Logs"))
-    isfile(conf.BGImage.path) || (conf.BGImage.path = "defaultwallpaper.bmp")
+    isfile(conf.BGImage.path) || (conf.BGImage.path = joinpath(Base.@__DIR__, "defaultwallpaper.bmp"))
     isfile(conf.Style.dir) || (conf.Style.dir = joinpath(ENV["QInsControlAssets"], "Styles"))
 
     ######generate insconf######
