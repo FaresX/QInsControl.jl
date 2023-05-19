@@ -1,6 +1,6 @@
 function ShowHelpPad(p_open::Ref{Bool})
     # CImGui.SetNextWindowPos((100, 100), CImGui.ImGuiCond_Once)
-    # CImGui.SetNextWindowSize((800, 600), CImGui.ImGuiCond_Once)
+    CImGui.SetNextWindowSize((800, 600), CImGui.ImGuiCond_Once)
     if CImGui.Begin(morestyle.Icons.HelpPad * "  帮助板", p_open)
         CImGui.Columns(2)
         @cstatic firsttime::Bool = true begin

@@ -46,14 +46,34 @@ let
                 ps = Plot(psize=CImGui.ImVec2(-1, -1))
             else
                 xlims, ylims, zlims, xlabel, ylabel = xyzsetting(uip)
-                ps = @c Plot(uip.z, &uip.zlabel, id; psize=CImGui.ImVec2(-1, -1), title=uip.title, xlabel=xlabel, ylabel=ylabel, xlims=xlims, ylims=ylims, zlims=zlims, anns=uip.anns)
+                ps = @c Plot(
+                    uip.z, &uip.zlabel, id;
+                    psize=CImGui.ImVec2(-1, -1),
+                    title=uip.title,
+                    xlabel=xlabel,
+                    ylabel=ylabel,
+                    xlims=xlims,
+                    ylims=ylims,
+                    zlims=zlims,
+                    anns=uip.anns
+                )
             end
         else
             if isempty(uip.y) || isempty(uip.y[1])
                 ps = Plot(psize=CImGui.ImVec2(-1, -1))
             else
                 x, xlabel = xysetting(uip)
-                ps = Plot(x, uip.y; psize=CImGui.ImVec2(-1, -1), ptype=uip.ptype, title=uip.title, xlabel=xlabel, ylabel=uip.ylabel, legends=uip.legends, xticks=uip.x, anns=uip.anns)
+                ps = Plot(
+                    x, uip.y;
+                    psize=CImGui.ImVec2(-1, -1),
+                    ptype=uip.ptype,
+                    title=uip.title,
+                    xlabel=xlabel,
+                    ylabel=uip.ylabel,
+                    legends=uip.legends,
+                    xticks=uip.x,
+                    anns=uip.anns
+                )
             end
         end
 
@@ -79,7 +99,15 @@ let
                 CImGui.ColorEdit4("颜色", annbuf.color, CImGui.ImGuiColorEditFlags_AlphaBar)
                 CImGui.SameLine()
                 if CImGui.Button(morestyle.Icons.NewFile * "##标签")
-                    newann = Annotation(annbuf.label, annbuf.posx, annbuf.posy, annbuf.offsetx, annbuf.offsety, copy(annbuf.color), annbuf.possz)
+                    newann = Annotation(
+                        annbuf.label,
+                        annbuf.posx,
+                        annbuf.posy,
+                        annbuf.offsetx,
+                        annbuf.offsety,
+                        copy(annbuf.color),
+                        annbuf.possz
+                    )
                     push!(uip.anns, newann)
                 end
             end
@@ -125,7 +153,15 @@ let
     py = []
     ps::PlotState = PlotState()
     global function Plot(x::Vector{T1}, ys::Vector{Vector{T2}};
-        psize=CImGui.ImVec2(0, 0), ptype="line", title="title", xlabel="x", ylabel="y", legends=[], xticks=[], anns=[]) where {T1<:Real} where {T2<:Real}
+        psize=CImGui.ImVec2(0, 0),
+        ptype="line",
+        title="title",
+        xlabel="x",
+        ylabel="y",
+        legends=[],
+        xticks=[],
+        anns=[]
+    ) where {T1<:Real} where {T2<:Real}
         llg = length(legends)
         lys = length(ys)
         if llg < lys
@@ -173,7 +209,16 @@ let
     width::Cfloat = 0
     ps::PlotState = PlotState()
     global function Plot(z::Matrix{Float64}, zlabel::Ref, id;
-        psize=CImGui.ImVec2(0, 0), ptype="heatmap", title="title", xlabel="x", ylabel="y", xlims=(0, 1), ylims=(0, 1), zlims=(0, 1), anns=[])
+        psize=CImGui.ImVec2(0, 0),
+        ptype="heatmap",
+        title="title",
+        xlabel="x",
+        ylabel="y",
+        xlims=(0, 1),
+        ylims=(0, 1),
+        zlims=(0, 1),
+        anns=[]
+    )
         CImGui.BeginChild("Heatmap", psize)
         CImGui.PushStyleVar(CImGui.ImGuiStyleVar_ItemSpacing, (0, 2))
         if ImPlot.ColormapButton(unsafe_string(ImPlot.GetColormapName(cmap)), ImVec2(-1, 0), cmap)
@@ -239,11 +284,24 @@ function PlotAnns(anns::Vector{Annotation}, ps::PlotState)
     for (i, ann) in enumerate(anns)
         offset = ImPlot.PlotToPixels(ann.offsetx, ann.offsety) - ImPlot.PlotToPixels(ann.posx, ann.posy)
         halflabelsz = CImGui.CalcTextSize(ann.label) / 2
-        ImPlot.AnnotateClamped(ann.posx, ann.posy, correct_offset(offset, halflabelsz), CImGui.ImVec4(ann.color...), ann.label)
+        ImPlot.AnnotateClamped(
+            ann.posx,
+            ann.posy,
+            correct_offset(offset, halflabelsz),
+            CImGui.ImVec4(ann.color...),
+            ann.label
+        )
         CImGui.PushID(i)
         @c ImPlot.DragPoint(ann.label, &ann.posx, &ann.posy, true, CImGui.ImVec4(ann.color...), ann.possz)
         ps.annhv = CImGui.IsItemHovered()
-        @c ImPlot.DragPoint("Offset", &ann.offsetx, &ann.offsety, true, CImGui.ImVec4(ann.color[1:3]..., 0.000), halflabelsz.y / 2)
+        @c ImPlot.DragPoint(
+            "Offset",
+            &ann.offsetx,
+            &ann.offsety,
+            true,
+            CImGui.ImVec4(ann.color[1:3]..., 0.000),
+            halflabelsz.y / 2
+        )
         ps.annhv |= CImGui.IsItemHovered()
         ps.annhv && (ps.annhv_i = i)
         CImGui.PopID()

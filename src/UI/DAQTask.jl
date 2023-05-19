@@ -22,7 +22,7 @@ let
     first_show_col::Bool = true
     first_show_circuit::Bool = true
     window_ids::Dict{Int,String} = Dict()
-    taskbt_ids::Dict{Tuple{Int,String},String} = Dict()
+    # taskbt_ids::Dict{Tuple{Int,String},String} = Dict()
     global function edit(daqtask::DAQTask, id, p_open::Ref{Bool})
         CImGui.SetNextWindowSize(show_circuit_editor ? ws_circuit_on : ws_circuit_off)
         # hold && CImGui.SetNextWindowFocus()
@@ -43,18 +43,24 @@ let
                 ws_circuit_on = (ws_circuit_on.x, ws_circuit_off.y)
             end
             CImGui.BeginChild("Blocks")
-            haskey(taskbt_ids, (id + old_i, daqtask.name)) || push!(taskbt_ids, (id + old_i, daqtask.name) => "编辑队列：任务 $(id+old_i) $(daqtask.name)")
-            CImGui.BulletText(taskbt_ids[(id + old_i, daqtask.name)])
+            CImGui.BulletText("编辑队列：任务 $(id+old_i) $(daqtask.name)")
             CImGui.SameLine(CImGui.GetContentRegionAvailWidth() - holdsz)
             @c CImGui.Checkbox("HOLD", &hold)
             holdsz = CImGui.GetItemRectSize().x
             CImGui.Separator()
             CImGui.TextColored(morestyle.Colors.HighlightText, "实验记录")
-            CImGui.SameLine(CImGui.GetContentRegionAvailWidth() - 2unsafe_load(imguistyle.FramePadding).x - CImGui.CalcTextSize(morestyle.Icons.Circuit * " 电路").x)
+            CImGui.SameLine(
+                CImGui.GetContentRegionAvailWidth() -
+                2unsafe_load(imguistyle.FramePadding).x -
+                CImGui.CalcTextSize(morestyle.Icons.Circuit * " 电路").x
+            )
             if CImGui.Button(morestyle.Icons.Circuit * " 电路")
                 show_circuit_editor ⊻= true
                 if show_circuit_editor
-                    first_show_circuit && (ws_circuit_on = (3ws_circuit_off.x, ws_circuit_off.y); first_show_circuit = false)
+                    if first_show_circuit
+                        ws_circuit_on = (3ws_circuit_off.x, ws_circuit_off.y)
+                        first_show_circuit = false
+                    end
                     first_show_col = true
                 end
             end
@@ -89,6 +95,7 @@ let
                     CImGui.MenuItem(morestyle.Icons.WriteBlock * " WriteBlock") && push!(daqtask.blocks, WriteBlock())
                     CImGui.MenuItem(morestyle.Icons.QueryBlock * " QueryBlock") && push!(daqtask.blocks, QueryBlock())
                     CImGui.MenuItem(morestyle.Icons.ReadBlock * " ReadBlock") && push!(daqtask.blocks, ReadBlock())
+                    CImGui.MenuItem(morestyle.Icons.SaveBlock * " SaveBlock") && push!(daqtask.blocks, SaveBlock())
                     CImGui.EndMenu()
                 end
                 CImGui.EndPopup()
@@ -123,7 +130,12 @@ function run(daqtask::DAQTask)
     ispath(cfgsvdir) || mkpath(cfgsvdir)
     savepath = joinpath(cfgsvdir, replace("[$(now())] 任务 $(1+old_i) $(daqtask.name).qdt", ':' => '.'))
     push!(cfgbuf, "daqtask" => daqtask)
-    log_instrbuffer(instrbuffer_rc)
+    try
+        log_instrbufferviewers()
+    catch e
+        @error "[($now())]\n仪器记录错误，程序终止！！！" exception=e
+        return
+    end
     run_remote(daqtask)
     wait(
         @async while update_all()
@@ -134,12 +146,12 @@ end
 
 
 function run_remote(daqtask::DAQTask)
-    instrs, st = extractinstrs(daqtask.blocks)
+    controllers, st = remotecall_fetch(extract_controllers, workers()[1], daqtask.blocks)
     if !st
         syncstates[Int(isdaqtask_done)] = true
         return
     end
-    rn = length(instrs)
+    rn = length(controllers)
     empty!(databuf)
     blockcodes = @trypasse tocodes.(daqtask.blocks) begin
         @error "[$(now())]\n代码生成失败!!!"
@@ -147,21 +159,21 @@ function run_remote(daqtask::DAQTask)
         return
     end
     ex = quote
-        function remote_sweep_block(resmg, instrs, databuf_lc, progress_lc, syncstates)
+        function remote_sweep_block(controllers, databuf_lc, progress_lc, syncstates)
             $(blockcodes...)
         end
         function remote_do_block(databuf_rc, progress_rc, syncstates, rn)
-            instrs = $instrs
+            controllers = $controllers
             try
                 databuf_lc = Channel{Tuple{String,String}}(conf.DAQ.channel_size)
                 progress_lc = Channel{Tuple{UUID,Int,Int,Float64}}(conf.DAQ.channel_size)
                 @sync begin
                     remotedotask = errormonitor(@async begin
-                        resourcemanager = ResourceManager()
-                        for instr in values(instrs)
-                            connect!(resourcemanager, instr)
+                        remotecall_wait(()->(start!(CPU); fast!(CPU)), workers()[1])
+                        for ct in values(controllers)
+                            login!(CPU, ct)
                         end
-                        remote_sweep_block(resourcemanager, instrs, databuf_lc, progress_lc, syncstates)
+                        remote_sweep_block(controllers, databuf_lc, progress_lc, syncstates)
                     end)
                     errormonitor(@async while true
                         if istaskdone(remotedotask) && all(.!isready.([databuf_lc, databuf_rc, progress_lc, progress_rc]))
@@ -177,9 +189,10 @@ function run_remote(daqtask::DAQTask)
             catch e
                 @error "[$(now())]\n任务失败！！！" exeption = e
             finally
-                for instr in values(instrs)
-                    disconnect!(instr)
+                for ct in values(controllers)
+                    logout!(CPU, ct)
                 end
+                remotecall_wait(()->slow!(CPU), workers()[1])
             end
         end
     end |> prettify
@@ -210,16 +223,22 @@ function update_data()
         for data in packdata
             haskey(databuf, data[1]) || push!(databuf, data[1] => [])
             push!(databuf[data[1]], data[2])
-            _, instrnm, qt, addr = split(data[1], "_")
+            splitdata = split(data[1], "_")
+            if length(splitdata) == 4
+                _, instrnm, qt, addr = splitdata
+            else
+                continue
+            end
             occursin(r"\[.*\]", qt) && continue
-            insbuf = instrbuffer[instrnm][addr]
+            insbuf = instrbufferviewers[instrnm][addr].insbuf
             insbuf.quantities[qt].read = data[2]
         end
         if waittime("savedatabuf", conf.DAQ.savetime)
             jldopen(savepath, "w") do file
                 file["data"] = databuf
-                file["uiplot"] = uipsweeps[1]
-                file["datapicker"] = daq_dtpks[1]
+                file["uiplots"] = uipsweeps
+                file["datapickers"] = daq_dtpks
+                file["plotlayout"] = daq_plot_layout
                 for (key, val) in cfgbuf
                     file[key] = val
                 end
@@ -231,11 +250,16 @@ end
 function update_all()
     if syncstates[Int(isdaqtask_done)]
         if isfile(savepath) || !isempty(databuf)
-            log_instrbuffer(instrbuffer_rc)
+            try
+                log_instrbufferviewers()
+            catch e
+                @error "[($now())]\n仪器记录错误，无法保存结束状态！！！" exception=e
+            end
             jldopen(savepath, "w") do file
                 file["data"] = databuf
-                file["uiplot"] = uipsweeps[1]
-                file["datapicker"] = daq_dtpks[1]
+                file["uiplots"] = uipsweeps
+                file["datapickers"] = daq_dtpks
+                file["plotlayout"] = daq_plot_layout
                 for (key, val) in cfgbuf
                     file[key] = val
                 end
@@ -254,24 +278,30 @@ function update_all()
     end
 end
 
-function extractinstrs(bkch::Vector{AbstractBlock})
-    instrs = Dict()
+function extract_controllers(bkch::Vector{AbstractBlock})
+    controllers = Dict()
     for bk in bkch
         if typeof(bk) in [SettingBlock, SweepBlock, ReadingBlock, WriteBlock, QueryBlock, ReadBlock]
             bk.instrnm == "VirtualInstr" && (bk.addr = "VirtualAddress")
-            instr = instrument(bk.instrnm, bk.addr)
-            @trylink_do instr (query(instr, "*IDN?"); push!(instrs, string(bk.instrnm, "_", bk.addr) => instr)) begin
-                @error "[$(now())]\n仪器设置不正确！！！"
-                return instrs, false
+            ct = Controller(bk.instrnm, bk.addr)
+            try
+                login!(CPU, ct)
+                ct(query, CPU, "*IDN?", Val(:query))
+                push!(controllers, string(bk.instrnm, "_", bk.addr) => ct)
+                logout!(CPU, ct)
+            catch e
+                @error "[$(now())]\n仪器设置不正确！！！" exception=e
+                logout!(CPU, ct)
+                return controllers, false
             end
         end
         if typeof(bk) in [SweepBlock, StrideCodeBlock]
-            inner_instrs, inner_st = extractinstrs(bk.blocks)
-            inner_st || return instrs, false
-            merge!(instrs, inner_instrs)
+            inner_controllers, inner_st = extract_controllers(bk.blocks)
+            inner_st || return controllers, false
+            merge!(controllers, inner_controllers)
         end
     end
-    instrs, true
+    controllers, true
 end
 
 #DAQTask Viewer

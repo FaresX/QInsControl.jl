@@ -12,18 +12,24 @@ let
     oldworkpath::String = ""
     running_i::Int = 0
     isrunall::Bool = false
-    global daqtasks::Vector{DAQTask} = [DAQTask()] #任务列表
-    global uipsweeps::Vector{UIPlot} = [UIPlot() for i in 1:4] #绘图缓存
-    global daq_dtpks::Vector{DataPicker} = [DataPicker() for i in 1:4] #绘图数据选择
+    daqtasks::Vector{DAQTask} = [DAQTask()] #任务列表
+    global uipsweeps::Vector{UIPlot} = [UIPlot()] #绘图缓存
+    global daq_dtpks::Vector{DataPicker} = [DataPicker()] #绘图数据选择
+    # selplotstates::Vector{Bool} = falses(4)
+    # seledplotidxes::Vector{String} = []
+    # labeltoidx::Dict{String,Int} = Dict()
+    global daq_plot_layout::Layout = Layout("DAQ Plot Layout", 3, 1, ["1"], falses(1), [], Dict(), [])
+    isdelplot::Bool = false
+    delplot_i::Int = 0
 
-    taskbt_ids::Dict{Tuple{Int,String},String} = Dict()
+    # taskbt_ids::Dict{Tuple{Int,String},String} = Dict()
     editmenu_ids::Dict{Int,String} = Dict()
     yesnodialog_ids::Dict{Int,String} = Dict()
     rename_ids::Dict{Int,String} = Dict()
     waittimedaq_ids::Dict{Int,String} = Dict()
     global function DAQ(p_open::Ref)
-        # CImGui.SetNextWindowPos((300, 100), CImGui.ImGuiCond_Once)
-        # CImGui.SetNextWindowSize((1400, 900), CImGui.ImGuiCond_Once)
+        # CImGui.SetNextWindowPos((100, 100), CImGui.ImGuiCond_Once)
+        CImGui.SetNextWindowSize((800, 600), CImGui.ImGuiCond_Once)
         isinner = false
         if CImGui.Begin(morestyle.Icons.InstrumentsDAQ * "  数据采集", p_open)
             global workpath
@@ -31,7 +37,11 @@ let
             global old_i
             CImGui.Button(morestyle.Icons.SelectPath * " 工作区 ") && (workpath = pick_folder())
             CImGui.SameLine()
-            txtc = workpath == "未选择工作区！！！" ? ImVec4(morestyle.Colors.LogError...) : CImGui.c_get(imguistyle.Colors, CImGui.ImGuiCol_Text)
+            txtc = if workpath == "未选择工作区！！！"
+                ImVec4(morestyle.Colors.LogError...)
+            else
+                CImGui.c_get(imguistyle.Colors, CImGui.ImGuiCol_Text)
+            end
             CImGui.TextColored(txtc, workpath)
             if workpath != oldworkpath
                 if isdir(workpath)
@@ -53,12 +63,17 @@ let
                 CImGui.PushID(i)
                 buf = task.name
                 isrunning_i = syncstates[Int(isdaqtask_running)] && i == running_i
-                btc = isrunning_i ? ImVec4(morestyle.Colors.DAQTaskRunning...) : CImGui.c_get(imguistyle.Colors, CImGui.ImGuiCol_Button)
+                btc = if isrunning_i
+                    ImVec4(morestyle.Colors.DAQTaskRunning...)
+                else
+                    CImGui.c_get(imguistyle.Colors, CImGui.ImGuiCol_Button)
+                end
                 btc = task.enable ? btc : ImVec4(morestyle.Colors.LogError...)
                 CImGui.PushStyleColor(CImGui.ImGuiCol_Button, btc)
-                haskey(taskbt_ids, (i + old_i, buf)) || push!(taskbt_ids, (i + old_i, buf) => morestyle.Icons.TaskButton * " 任务 $(i+old_i) $buf###rename")
-                CImGui.Button(taskbt_ids[(i + old_i, buf)], (-1, 0)) && (show_daq_editor_i = i; show_daq_editor = true)
-                # CImGui.Button(" 任务 $(i+old_i) $buf###rename", (-1, 0)) && (show_daq_editor_i = i; show_daq_editor = true)
+                if CImGui.Button(morestyle.Icons.TaskButton * " 任务 $(i+old_i) $buf###rename", (-1, 0))
+                    show_daq_editor_i = i
+                    show_daq_editor = true
+                end
                 CImGui.PopStyleColor()
                 haskey(editmenu_ids, i) || push!(editmenu_ids, i => "队列编辑菜单$i")
                 CImGui.OpenPopupOnItemClick(editmenu_ids[i], 1)
@@ -69,6 +84,7 @@ let
                     CImGui.Indent()
                     if CImGui.BeginDragDropSource(0)
                         @c CImGui.SetDragDropPayload("Swap DAQTask", &i, sizeof(Cint))
+                        CImGui.Text("任务 $(i+old_i) $buf")
                         CImGui.EndDragDropSource()
                     end
                     if CImGui.BeginDragDropTarget()
@@ -86,7 +102,12 @@ let
                 end
 
                 if CImGui.BeginPopup(editmenu_ids[i])
-                    if CImGui.MenuItem(morestyle.Icons.RunTask * " 运行", C_NULL, false, !syncstates[Int(isdaqtask_running)] && task.enable)
+                    if CImGui.MenuItem(
+                        morestyle.Icons.RunTask * " 运行",
+                        C_NULL,
+                        false,
+                        !syncstates[Int(isdaqtask_running)] && task.enable
+                    )
                         if ispath(workpath)
                             running_i = i
                             errormonitor(@async begin
@@ -127,7 +148,9 @@ let
                 haskey(yesnodialog_ids, i) || push!(yesnodialog_ids, i => "##是否删除daqtasks$i")
                 isdeldaqtask && (CImGui.OpenPopup(yesnodialog_ids[i]);
                 isdeldaqtask = false)
-                YesNoDialog(yesnodialog_ids[i], "确认删除？", CImGui.ImGuiWindowFlags_AlwaysAutoResize) && deleteat!(daqtasks, i)
+                if YesNoDialog(yesnodialog_ids[i], "确认删除？", CImGui.ImGuiWindowFlags_AlwaysAutoResize)
+                    deleteat!(daqtasks, i)
+                end
 
                 # 重命名
                 haskey(rename_ids, i) || push!(rename_ids, i => "重命名$i")
@@ -172,26 +195,80 @@ let
                 end
                 CImGui.Separator()
                 # CImGui.MenuItem("选择数据") && (show_daq_selector = true)
-                if CImGui.BeginMenu(morestyle.Icons.PlotNumber * " 绘图数量")
-                    CImGui.PushItemWidth(4CImGui.GetFontSize())
-                    @c CImGui.DragInt("绘图数量", &show_plot_num, 1, 1, 4, "%d", CImGui.ImGuiSliderFlags_AlwaysClamp)
+                # if CImGui.BeginMenu(morestyle.Icons.PlotNumber * " 绘图数量")
+                #     CImGui.PushItemWidth(4CImGui.GetFontSize())
+                #     @c CImGui.DragInt("绘图数量", &show_plot_num, 1, 1, 4, "%d", CImGui.ImGuiSliderFlags_AlwaysClamp)
+                #     CImGui.PopItemWidth()
+                #     CImGui.EndMenu()
+                # end
+                # if CImGui.BeginMenu(morestyle.Icons.SelectData * " 选择数据")
+                #     for i in 1:show_plot_num
+                #         if CImGui.MenuItem(morestyle.Icons.Datai * " 绘图$i")
+                #             show_daq_selector = true
+                #             show_daq_selector_i = i
+                #         end
+                #     end
+                #     CImGui.EndMenu()
+                # end
+                if CImGui.BeginMenu(morestyle.Icons.SelectData * " 绘图")
+                    CImGui.Text("绘图列数")
+                    CImGui.SameLine()
+                    CImGui.PushItemWidth(2CImGui.GetFontSize())
+                    @c CImGui.DragInt("##绘图列数", &conf.DAQ.plotshowcol, 1, 1, 6, "%d", CImGui.ImGuiSliderFlags_AlwaysClamp)
                     CImGui.PopItemWidth()
-                    CImGui.EndMenu()
-                end
-                if CImGui.BeginMenu(morestyle.Icons.SelectData * " 选择数据")
-                    for i in 1:show_plot_num
-                        CImGui.MenuItem(morestyle.Icons.Datai * " 绘图$i") && (show_daq_selector = true; show_daq_selector_i = i)
+                    CImGui.SameLine()
+                    CImGui.PushID("add new plot")
+                    if CImGui.Button(morestyle.Icons.NewFile)
+                        push!(daq_plot_layout.labels, string(length(daq_plot_layout.labels) + 1))
+                        push!(daq_plot_layout.states, false)
+                        push!(uipsweeps, UIPlot())
+                        push!(daq_dtpks, DataPicker())
+                    end
+                    CImGui.PopID()
+
+                    daq_plot_layout.showcol = conf.DAQ.plotshowcol
+                    daq_plot_layout.labels = morestyle.Icons.SelectData * " " .* string.(collect(eachindex(daq_plot_layout.labels)))
+                    edit(daq_plot_layout) do
+                        openright = CImGui.BeginPopupContextItem()
+                        if openright
+                            if CImGui.MenuItem("选择数据") && daq_plot_layout.states[daq_plot_layout.idxing]
+                                show_daq_selector = true
+                                show_daq_selector_i = daq_plot_layout.idxing
+                            end
+                            if CImGui.MenuItem(morestyle.Icons.CloseFile * " 删除")
+                                isdelplot = true
+                                delplot_i = daq_plot_layout.idxing
+                            end
+                            CImGui.EndPopup()
+                        end
+                        return openright
                     end
                     CImGui.EndMenu()
                 end
-
                 CImGui.EndPopup()
             end
             isdelall && (CImGui.OpenPopup("##删除所有不可用task");
             isdelall = false)
-            YesNoDialog("##删除所有不可用task", "确认删除？", CImGui.ImGuiWindowFlags_AlwaysAutoResize) && deleteat!(daqtasks, findall(task -> !task.enable, daqtasks))
+            if YesNoDialog("##删除所有不可用task", "确认删除？", CImGui.ImGuiWindowFlags_AlwaysAutoResize)
+                deleteat!(daqtasks, findall(task -> !task.enable, daqtasks))
+            end
+            isdelplot && ((CImGui.OpenPopup("##删除绘图$(daq_plot_layout.idxing)"));
+            isdelplot = false)
+            if YesNoDialog("##删除绘图$(daq_plot_layout.idxing)", "确认删除？", CImGui.ImGuiWindowFlags_AlwaysAutoResize)
+                if length(uipsweeps) > 1
+                    deleteat!(daq_plot_layout.labels, delplot_i)
+                    deleteat!(daq_plot_layout.states, delplot_i)
+                    deleteat!(uipsweeps, delplot_i)
+                    deleteat!(daq_dtpks, delplot_i)
+                    update!(daq_plot_layout)
+                end
+            end
             !isinner && CImGui.OpenPopupOnItemClick("添加队列", 1)
-            runallbtc = isrunall ? ImVec4(morestyle.Colors.DAQTaskRunning...) : CImGui.c_get(imguistyle.Colors, CImGui.ImGuiCol_Button)
+            runallbtc = if isrunall
+                ImVec4(morestyle.Colors.DAQTaskRunning...)
+            else
+                CImGui.c_get(imguistyle.Colors, CImGui.ImGuiCol_Button)
+            end
             CImGui.PushStyleColor(CImGui.ImGuiCol_Button, runallbtc)
             if CImGui.Button(morestyle.Icons.RunTask * " 全部运行")
                 if !syncstates[Int(isdaqtask_running)]
@@ -224,7 +301,9 @@ let
                         end
                     end
                 else
-                    CImGui.Button(morestyle.Icons.BlockTask * " 暂停") && (syncstates[Int(isdaqtask_running)] && (syncstates[Int(isblock)] = true))
+                    if CImGui.Button(morestyle.Icons.BlockTask * " 暂停")
+                        syncstates[Int(isdaqtask_running)] && (syncstates[Int(isblock)] = true)
+                    end
                 end
                 btsz = CImGui.GetItemRectSize().x
                 CImGui.SameLine(0, 0)
@@ -249,7 +328,13 @@ let
                 isupdate = @c edit(daq_dtpk, "DAQ", &show_daq_selector)
                 !show_daq_selector || isupdate && syncplotdata(uipsweeps[show_daq_selector_i], daq_dtpk, databuf)
             end
-            for i in 1:show_plot_num
+            # for i in 1:show_plot_num
+            #     if daq_dtpks[i].isrealtime
+            #         haskey(waittimedaq_ids, i) || push!(waittimedaq_ids, i => "DAQ$i")
+            #         waittime(waittimedaq_ids[i], daq_dtpks[i].refreshrate) && syncplotdata(uipsweeps[i], daq_dtpks[i], databuf)
+            #     end
+            # end
+            for i in daq_plot_layout.selectedidx
                 if daq_dtpks[i].isrealtime
                     haskey(waittimedaq_ids, i) || push!(waittimedaq_ids, i => "DAQ$i")
                     waittime(waittimedaq_ids[i], daq_dtpks[i].refreshrate) && syncplotdata(uipsweeps[i], daq_dtpks[i], databuf)
@@ -259,33 +344,25 @@ let
             CImGui.NextColumn()
 
             CImGui.BeginChild("绘图")
-            totalsz = CImGui.GetContentRegionAvail()
-            if show_plot_num == 1
+            if isempty(daq_plot_layout.selectedidx)
                 Plot(uipsweeps[1], "扫描实时绘图1")
-            elseif show_plot_num == 2
-                CImGui.Columns(2)
-                Plot(uipsweeps[1], "扫描实时绘图1")
-                CImGui.NextColumn()
-                Plot(uipsweeps[2], "扫描实时绘图2")
-                CImGui.NextColumn()
-            elseif show_plot_num == 3
-                CImGui.Columns(2)
-                Plot(uipsweeps[1], "扫描实时绘图1", (Float32(0), totalsz.y / 2))
-                CImGui.NextColumn()
-                Plot(uipsweeps[2], "扫描实时绘图2", (Float32(0), totalsz.y / 2))
-                CImGui.NextColumn()
-                Plot(uipsweeps[3], "扫描实时绘图3")
-                CImGui.NextColumn()
-            elseif show_plot_num == 4
-                CImGui.Columns(2)
-                Plot(uipsweeps[1], "扫描实时绘图1", (Float32(0), totalsz.y / 2))
-                CImGui.NextColumn()
-                Plot(uipsweeps[2], "扫描实时绘图2", (Float32(0), totalsz.y / 2))
-                CImGui.NextColumn()
-                Plot(uipsweeps[3], "扫描实时绘图3")
-                CImGui.NextColumn()
-                Plot(uipsweeps[4], "扫描实时绘图4")
-                CImGui.NextColumn()
+            else
+                l = length(daq_plot_layout.selectedidx)
+                n = conf.DAQ.plotshowcol
+                m = ceil(Int, l / n)
+                n = m == 1 ? l : n
+                height = (CImGui.GetContentRegionAvail().y - (m - 1) * unsafe_load(imguistyle.ItemSpacing.y)) / m
+                CImGui.Columns(n)
+                for i in 1:m
+                    for j in 1:n
+                        idx = (i - 1) * n + j
+                        if idx <= l
+                            index = daq_plot_layout.selectedidx[idx]
+                            Plot(uipsweeps[index], "扫描实时绘图$index", (Cfloat(0), height))
+                            CImGui.NextColumn()
+                        end
+                    end
+                end
             end
             CImGui.EndChild()
             CImGui.NextColumn()

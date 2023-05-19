@@ -46,7 +46,7 @@ let
             CImGui.PopItemWidth()
 
             CImGui.TextColored(morestyle.Colors.HighlightText, "选择Y")
-            isempty(dtpk.datalist) ? CImGui.Selectable("") : MultiSelectable("数据选择", dtpk.datalist, dtpk.y, 1)
+            isempty(dtpk.datalist) ? CImGui.Selectable("") : MultiSelectable(()->false, "数据选择", dtpk.datalist, dtpk.y, 1)
 
             CImGui.PushItemWidth(-1)
             CImGui.TextColored(morestyle.Colors.HighlightText, "选择Z")
@@ -100,7 +100,9 @@ function syncplotdata(uiplot::UIPlot, dtpk::DataPicker, data)
     uiplot.y = @trypass [replace(tryparse.(Float64, data[key]), nothing => NaN) for key in dtpk.datalist[dtpk.y]] [Float64[]]
     uiplot.legends = @trypass dtpk.datalist[dtpk.y] uiplot.legends
     zbuf::Array = uiplot.z
-    uiplot.ptype == "heatmap" && (zbuf = @trypass replace(tryparse.(Float64, data[dtpk.z]), nothing => 0) Matrix{Float64}(undef, 0, 0))
+    if uiplot.ptype == "heatmap"
+        zbuf = @trypass replace(tryparse.(Float64, data[dtpk.z]), nothing => 0) Matrix{Float64}(undef, 0, 0)
+    end
     innercodes = tocodes(dtpk.codes)
     ex::Expr = quote
         let

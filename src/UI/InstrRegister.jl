@@ -1,11 +1,68 @@
 function edit(qtcf::QuantityConf)
-    @c CImGui.Checkbox("启用", &qtcf.enable)
+    if qtcf.enable
+        @c CImGui.Checkbox("启用", &qtcf.enable)
+    else
+        @c CImGui.Checkbox("停用", &qtcf.enable)
+    end
     # @c InputTextRSZ("变量名", &qtcf.name)
     @c InputTextRSZ("别称", &qtcf.alias)
     @c ComBoS("单位类型", &qtcf.U, keys(conf.U))
     @c InputTextRSZ("命令", &qtcf.cmdheader)
-    optvalues = join(qtcf.optvalues, ";")
-    @c(InputTextRSZ("可选值", &optvalues)) && (qtcf.optvalues = split(optvalues, ';'))
+    width = CImGui.GetItemRectSize().x / 2 - 2CImGui.CalcTextSize(" =>  ").x
+    CImGui.SameLine()
+    if CImGui.Button("inssetget.jl")
+        inssetget_jl = joinpath(ENV["QInsControlAssets"], "Confs/inssetget.jl") |> abspath
+        try
+            Base.run(Cmd([conf.Init.editor, inssetget_jl]))
+        catch e
+            @error "[$(now())]\n文本编辑错误！！！" exception=e
+        end
+    end
+    # optkeys = join(qtcf.optkeys, "\n")
+    # optvalues = join(qtcf.optvalues, "\n")
+    # @c(InputTextRSZ("可选值", &optkeys)) && (qtcf.optkeys = split(optkeys, '\n'))
+    # @c(InputTextRSZ("可选值", &optvalues)) && (qtcf.optvalues = split(optvalues, '\n'))
+    CImGui.BeginGroup()
+
+    CImGui.BeginGroup()
+    for (i, key) in enumerate(qtcf.optkeys)
+        CImGui.PushID(i)
+        CImGui.PushItemWidth(width)
+        if @c InputTextRSZ("##optkey", &key)
+            key == "" || (qtcf.optkeys[i] = key)
+        end
+        CImGui.PopItemWidth()
+        CImGui.SameLine()
+        CImGui.Text(" => ")
+        CImGui.SameLine()
+        CImGui.PushItemWidth(width)
+        val = qtcf.optvalues[i]
+        if @c InputTextRSZ("##optvalue", &val)
+            val == "" || (qtcf.optvalues[i] = val)
+        end
+        CImGui.PopItemWidth()
+        CImGui.SameLine()
+        CImGui.PushID("optvalue")
+        if CImGui.Button(morestyle.Icons.CloseFile)
+            deleteat!(qtcf.optkeys, i)
+            deleteat!(qtcf.optvalues, i)
+            break
+        end
+        CImGui.PopID()
+        CImGui.PopID()
+    end
+    CImGui.EndGroup()
+
+    CImGui.EndGroup()
+    CImGui.SameLine()
+    CImGui.PushID("addopt")
+    if CImGui.Button(morestyle.Icons.NewFile)
+        push!(qtcf.optkeys, string("key", length(qtcf.optkeys)+1))
+        push!(qtcf.optvalues, "")
+    end
+    CImGui.PopID()
+    CImGui.SameLine()
+    CImGui.Text("可选值")
     @c ComBoS("变量类型", &qtcf.type, ["sweep", "set", "read"])
     @cstatic edithelp::Bool = false begin
         CImGui.TextColored(morestyle.Colors.LogInfo, "帮助文档")
@@ -33,7 +90,7 @@ let
     yesnodialog_ids::Dict{String,String} = Dict()
     global function InstrRegister(p_open::Ref)
         # CImGui.SetNextWindowPos((100, 100), CImGui.ImGuiCond_Once)
-        # CImGui.SetNextWindowSize((800, 800), CImGui.ImGuiCond_Once)
+        CImGui.SetNextWindowSize((800, 600), CImGui.ImGuiCond_Once)
 
         if CImGui.Begin(morestyle.Icons.InstrumentsRegister * "  仪器注册", p_open)
             CImGui.Columns(2)
@@ -50,7 +107,10 @@ let
                 CImGui.SameLine(0, CImGui.GetFontSize() / 2)
                 CImGui.PushItemWidth(-1)
                 newinsnm = oldinsnm
-                @c(RenameSelectable("##RenameInsConf", &renamei, &newinsnm, selectedins == oldinsnm)) && (selectedins = oldinsnm; selectedqt = "")
+                if @c RenameSelectable("##RenameInsConf", &renamei, &newinsnm, selectedins == oldinsnm)
+                    selectedins = oldinsnm
+                    selectedqt = ""
+                end
                 CImGui.PopItemWidth()
                 if !(newinsnm == "" || haskey(insconf, newinsnm))
                     if isrename[oldinsnm] && !renamei
@@ -58,8 +118,6 @@ let
                         remotecall_wait(workers()[1], oldinsnm, newinsnm, inscf) do oldinsnm, newinsnm, inscf
                             setvalue!(insconf, oldinsnm, newinsnm => inscf)
                         end
-                        push!(instrlist, newinsnm => pop!(instrlist, oldinsnm))
-                        push!(instrbuffer, newinsnm => pop!(instrbuffer, oldinsnm))
                         push!(instrbufferviewers, newinsnm => pop!(instrbufferviewers, oldinsnm))
                         selectedins = newinsnm
                         isrename[newinsnm] = renamei
@@ -70,7 +128,12 @@ let
                     isrename[oldinsnm] = renamei
                 end
                 if CImGui.BeginPopupContextItem()
-                    CImGui.MenuItem(morestyle.Icons.CloseFile * " 删除##insconf", C_NULL, false, !in(oldinsnm, ["VirtualInstr", "Others"])) && (deldialog = true)
+                    CImGui.MenuItem(
+                        morestyle.Icons.CloseFile * " 删除##insconf",
+                        C_NULL,
+                        false,
+                        !in(oldinsnm, ["VirtualInstr", "Others"])
+                    ) && (deldialog = true)
                     CImGui.EndPopup()
                 end
                 haskey(yesnodialog_ids, oldinsnm) || push!(yesnodialog_ids, oldinsnm => "##是否删除仪器配置$oldinsnm")
@@ -79,8 +142,6 @@ let
                     remotecall_wait(workers()[1], oldinsnm) do oldinsnm
                         pop!(insconf, oldinsnm, 0)
                     end
-                    pop!(instrlist, oldinsnm, 0)
-                    pop!(instrbuffer, oldinsnm, 0)
                     pop!(instrbufferviewers, oldinsnm, 0)
                     selectedins = ""
                 end
@@ -91,16 +152,16 @@ let
 
             CImGui.EndChild()
             if CImGui.Button(morestyle.Icons.SaveButton * " 保存##Write QuantityConf to toml")
-                conffiles = readdir(joinpath(ENV["QInsControlAssets"], "conf"))
+                conffiles = readdir(joinpath(ENV["QInsControlAssets"], "Confs"))
                 allins = keys(insconf)
                 for cf in conffiles
                     filename, filetype = split(cf, '.')
                     filetype != "toml" && continue
                     filename == "conf" && continue
-                    !in(filename, allins) && Base.Filesystem.rm(joinpath(ENV["QInsControlAssets"], "conf/$cf"))
+                    !in(filename, allins) && Base.Filesystem.rm(joinpath(ENV["QInsControlAssets"], "Confs/$cf"))
                 end
                 for (ins, inscf) in insconf
-                    open(joinpath(ENV["QInsControlAssets"], "conf/$ins.toml"), "w") do file
+                    open(joinpath(ENV["QInsControlAssets"], "Confs/$ins.toml"), "w") do file
                         TOML.print(file, todict(inscf))
                     end
                 end
@@ -110,15 +171,35 @@ let
 
             if CImGui.Button(morestyle.Icons.NewFile * " 新建")
                 newins = OneInsConf(
-                    BasicConf(Dict("icon" => ICONS.ICON_MICROCHIP, "cmdtype" => "scpi", "idn" => "New Ins")),
-                    OrderedDict("quantity" => QuantityConf(Dict("enable" => true, "alias" => "变量", "U" => "", "cmdheader" => "", "cmdheader" => "", "optvalues" => [], "type" => "set", "help" => "")))
+                    BasicConf(
+                        Dict(
+                            "icon" => ICONS.ICON_MICROCHIP,
+                            "cmdtype" => "scpi",
+                            "idn" => "New Ins",
+                            "input_labels" => [],
+                            "output_labels" => []
+                            )
+                        ),
+                    OrderedDict(
+                        "quantity" => QuantityConf(
+                            Dict(
+                                "enable" => true,
+                                "alias" => "变量",
+                                "U" => "",
+                                "cmdheader" => "",
+                                "cmdheader" => "",
+                                "optkeys" => [],
+                                "optvalues" => [],
+                                "type" => "set",
+                                "help" => ""
+                            )
+                        )
+                    )
                 )
                 push!(insconf, "New Ins" => newins)
                 remotecall_wait(workers()[1], newins) do newins
                     push!(insconf, "New Ins" => newins)
                 end
-                push!(instrlist, "New Ins" => [])
-                push!(instrbuffer, "New Ins" => Dict{String,InstrBuffer}())
                 push!(instrbufferviewers, "New Ins" => Dict{String,InstrBufferViewer}())
             end
             CImGui.NextColumn()
@@ -134,7 +215,9 @@ let
                 width = CImGui.GetItemRectSize().x / 3
                 CImGui.Text("接口")
                 CImGui.BeginGroup()
-                CImGui.Button(morestyle.Icons.NewFile * " 输入") && push!(selectedinscf.conf.input_labels, string("Input ", length(selectedinscf.conf.input_labels) + 1))
+                if CImGui.Button(morestyle.Icons.NewFile * " 输入")
+                    push!(selectedinscf.conf.input_labels, string("Input ", length(selectedinscf.conf.input_labels) + 1))
+                end
                 for (i, input) in enumerate(selectedinscf.conf.input_labels)
                     CImGui.PushID(i)
                     CImGui.PushItemWidth(width)
@@ -151,7 +234,9 @@ let
                 CImGui.EndGroup()
                 CImGui.SameLine()
                 CImGui.BeginGroup()
-                CImGui.Button(morestyle.Icons.NewFile * " 输出") && push!(selectedinscf.conf.output_labels, string("Output ", length(selectedinscf.conf.output_labels) + 1))
+                if CImGui.Button(morestyle.Icons.NewFile * " 输出")
+                    push!(selectedinscf.conf.output_labels, string("Output ", length(selectedinscf.conf.output_labels) + 1))
+                end
                 for (i, output) in enumerate(selectedinscf.conf.output_labels)
                     CImGui.PushID(i)
                     CImGui.PushItemWidth(width)
@@ -170,7 +255,7 @@ let
                 CImGui.Separator()
 
                 ###quantities###
-                @cstatic qtname::String = "" editqt::QuantityConf = QuantityConf(true, "", "", "", [""], "set", "") begin
+                @cstatic qtname::String = "" editqt::QuantityConf = QuantityConf(true, "", "", "", [], [], "set", "") begin
                     CImGui.TextColored(morestyle.Colors.HighlightText, "变量")
                     if @c ComBoS("变量", &selectedqt, keys(selectedinscf.quantities))
                         if selectedqt != "" && haskey(selectedinscf.quantities, selectedqt)
@@ -184,8 +269,8 @@ let
                         remotecall_wait(workers()[1], selectedins, selectedqt) do selectedins, selectedqt
                             pop!(insconf[selectedins].quantities, selectedqt, 0)
                         end
-                        for insbuf in values(instrbuffer[selectedins])
-                            pop!(insbuf.quantities, qtname, 0)
+                        for ibv in values(instrbufferviewers[selectedins])
+                            pop!(ibv.insbuf.quantities, qtname, 0)
                         end
                         selectedqt = ""
                     end
@@ -198,8 +283,8 @@ let
                         remotecall_wait(workers()[1], selectedins, qtname, editqt) do selectedins, qtname, editqt
                             push!(insconf[selectedins].quantities, qtname => editqt)
                         end
-                        for insbuf in values(instrbuffer[selectedins])
-                            push!(insbuf.quantities, qtname => InstrQuantity(qtname, editqt))
+                        for ibv in values(instrbufferviewers[selectedins])
+                            push!(ibv.insbuf.quantities, qtname => InstrQuantity(qtname, editqt))
                         end
                     end
                     @c InputTextRSZ("变量名", &qtname)

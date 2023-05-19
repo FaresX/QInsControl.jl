@@ -53,7 +53,11 @@ function packtake!(c, n=12)
     buf
 end
 
-resize(z, m, n; fillms=0) = length(z) > m * n ? reshape(z[1:m*n], m, n) : reshape([reshape(z, :); fill(fillms, m * n - length(z))], m, n)
+resize(z, m, n; fillms=0) = if length(z) > m * n
+    reshape(z[1:m*n], m, n)
+else
+    reshape([reshape(z, :); fill(fillms, m * n - length(z))], m, n)
+end
 
 inregion(location, region) = region[1] < location.x < region[3] && region[2] < location.y < region[4]
 mousein(region) = inregion(CImGui.GetMousePos(), region)
@@ -153,10 +157,25 @@ end
 function setvalue!(dict::OrderedDict, key, item)
     newdict = OrderedDict()
     for p in dict
-        if p.first != key
-            push!(newdict, p)
-        else
+        if p.first == key
             push!(newdict, item)
+        else
+            push!(newdict, p)
+        end
+    end
+    empty!(dict)
+    merge!(dict, newdict)
+end
+
+function swapvalue!(dict::OrderedDict, key1, key2)
+    newdict = OrderedDict()
+    for p in dict
+        if p.first == key1
+            push!(newdict, key2 => dict[key2])
+        elseif p.first == key2
+            push!(newdict, key1 => dict[key1])
+        else
+            push!(newdict, p)
         end
     end
     empty!(dict)
@@ -206,3 +225,5 @@ function newtuple(t::Tuple, i, v)
     end
     return (newt...,)
 end
+
+reencoding(s, encoding) = @trypasse decode(unsafe_wrap(Array, pointer(s), ncodeunits(s)), encoding) s

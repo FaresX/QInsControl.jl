@@ -1,6 +1,6 @@
 function loadconf()
     ######gennerate conf######
-    conf_dict = TOML.parsefile(joinpath(ENV["QInsControlAssets"], "conf/conf.toml"))
+    conf_dict = TOML.parsefile(joinpath(ENV["QInsControlAssets"], "Necessity/conf.toml"))
     unitslist = Dict("" => [])
     for Ut::String in keys(conf_dict["U"])
         if Ut != ""
@@ -17,37 +17,27 @@ function loadconf()
     global conf = from_dict(Conf, conf_dict)
     isdir(conf.Fonts.dir) || (conf.Fonts.dir = joinpath(ENV["QInsControlAssets"], "Fonts"))
     isdir(conf.Logs.dir) || (conf.Logs.dir = joinpath(ENV["QInsControlAssets"], "Logs"))
-    isfile(conf.BGImage.path) || (conf.BGImage.path = "defaultwallpaper.bmp")
-    isfile(conf.Style.path) || (conf.Style.path = joinpath(ENV["QInsControlAssets"], "conf\\style.sty"))
+    isfile(conf.BGImage.path) || (conf.BGImage.path = joinpath(ENV["QInsControlAssets"], "Necessity/defaultwallpaper.bmp"))
+    isfile(conf.Style.dir) || (conf.Style.dir = joinpath(ENV["QInsControlAssets"], "Styles"))
 
     ######generate insconf######
-    include(joinpath(ENV["QInsControlAssets"], "conf/extra_conf.jl"))
-    for file in readdir(joinpath(ENV["QInsControlAssets"], "conf"), join=true)
+    include(joinpath(ENV["QInsControlAssets"], "Confs/extra_conf.jl"))
+    for file in readdir(joinpath(ENV["QInsControlAssets"], "Confs"), join=true)
         bnm = basename(file)
-        bnm == "conf.toml" || split(bnm, '.')[end] != "toml" || gen_insconf(file)
+        split(bnm, '.')[end] != "toml" || gen_insconf(file)
     end
 
-    ######generate instrlist######
+    ######generate instrbufferviewers######
     for key in keys(insconf)
-        push!(instrlist, key => String[])
-    end
-    push!(instrlist, "Others" => String[])
-    push!(instrlist, "VirtualInstr" => ["VirtualAddress"])
-
-    ######generate instrbuffer######
-    for key in keys(insconf)
-        push!(instrbuffer, key => Dict{String,InstrBuffer}())
         push!(instrbufferviewers, key => Dict{String,InstrBufferViewer}())
     end
-    push!(instrbuffer, "VirtualInstr" => Dict("VirtualAddress" => InstrBuffer("VirtualInstr")))
     push!(instrbufferviewers, "VirtualInstr" => Dict("VirtualAddress" => InstrBufferViewer("VirtualInstr", "VirtualAddress")))
 
     ######load style_conf######
-    stypath = conf.Style.path
-    isfile(stypath) && merge!(styles, load(stypath, "styles"))
-    # if !isempty(styles) && haskey(styles, conf.Style.default)
-    #     global ustyle = styles[conf.Style.default]
-    # end
+    for file in readdir(conf.Style.dir, join=true)
+        bnm = basename(file)
+        split(bnm, '.')[end] == "sty" && merge!(styles, load(file))
+    end
 
     return nothing
 end
@@ -55,26 +45,26 @@ end
 macro scpi(instrnm, quantity, scpistr)
     get = Symbol(instrnm, :_, quantity, :_get)
     occursin("?", scpistr) && return esc(quote
-        $get(instr::Instrument) = query(instr, $scpistr)
+        $get(instr) = query(instr, $scpistr)
     end)
     scpistrs = split(scpistr, " ")
     exget = if length(scpistrs) == 1
         quote
-            $get(instr::Instrument) = query(instr, string($scpistr, "?"))
+            $get(instr) = query(instr, string($scpistr, "?"))
         end
     elseif length(scpistrs) == 2
         quote
-            $get(instr::Instrument) = query(instr, string($(scpistrs[1]), "? ", $(scpistrs[2])))
+            $get(instr) = query(instr, string($(scpistrs[1]), "? ", $(scpistrs[2])))
         end
     end
     set = Symbol(instrnm, :_, quantity, :_set)
     exset = if length(scpistrs) == 1
         quote
-            $set(instr::Instrument, val) = write(instr, string($scpistr, " ", val))
+            $set(instr, val) = write(instr, string($scpistr, " ", val))
         end
     elseif length(scpistrs) == 2
         quote
-            $set(instr::Instrument, val) = write(instr, string($scpistr, ", ", val))
+            $set(instr, val) = write(instr, string($scpistr, ", ", val))
         end
     end
     esc(Expr(:block, exget, exset))
@@ -83,14 +73,14 @@ end
 macro tsp(instrnm, quantity, tspstr)
     get = Symbol(instrnm, :_, quantity, :_get)
     tspstr[end-1:end] == "()" && return esc(quote
-        $get(instr::Instrument) = query(instr, string("print(", $tspstr, ")"))
+        $get(instr) = query(instr, string("print(", $tspstr, ")"))
     end)
     set = Symbol(instrnm, :_, quantity, :_set)
     ex = quote
-        function $set(instr::Instrument, val)
+        function $set(instr, val)
             write(instr, string($tspstr, "=", val))
         end
-        function $get(instr::Instrument)
+        function $get(instr)
             query(instr, string("print(", $tspstr, ")"))
         end
     end

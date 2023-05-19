@@ -1,135 +1,48 @@
-mutable struct GPIBInstr <: Instrument
-    name::String
-    addr::String
-    geninstr::GenericInstrument
-end
-
-mutable struct SerialInstr <: Instrument
-    name::String
-    addr::String
-    geninstr::GenericInstrument
-end
-
-mutable struct TCPIPInstr <: Instrument
-    name::String
-    addr
-    ip::T where {T<:IPAddr}
-    port::Int
-    sock::TCPSocket
-end
-
-Base.@kwdef struct VirtualInstr <: Instrument
-    name::String = "VirtualInstr"
-    addr::String = "VirtualAddress"
-end
-
-function instrument(name, addr)
-    if occursin("GPIB", addr)
-        return GPIBInstr(name, addr, GenericInstrument())
-    elseif occursin("ASRL", addr)
-        return SerialInstr(name, addr, GenericInstrument())
-    elseif occursin("TCPIP", addr) && occursin("SOCKET", addr)
-        try
-            _, ip, portstr, _ = split(addr, "::")
-            port = parse(Int, portstr)
-            return TCPIPInstr(name, addr, IPv4(ip), port, TCPSocket())
-        catch e
-            @error "[$(now())]\n通信地址有误！！！" execption = e
-            return GPIBInstr(name, addr, GenericInstrument())
-        end
-    elseif name == "VirtualInstr"
-        return VirtualInstr()
-    else
-        return GPIBInstr(name, addr, GenericInstrument())
-    end
-end
-
-Instruments.connect!(rm, instr::GPIBInstr) = connect!(rm, instr.geninstr, instr.addr)
-Instruments.connect!(rm, instr::SerialInstr) = connect!(rm, instr.geninstr, instr.addr)
-Instruments.connect!(rm, instr::TCPIPInstr) = (instr.sock = Sockets.connect(instr.ip, instr.port))
-Instruments.connect!(rm, instr::VirtualInstr) = nothing
-Instruments.connect!(instr::T) where {T<:Instrument} = connect!(ResourceManager(), instr)
-
-Instruments.disconnect!(instr::GPIBInstr) = disconnect!(instr.geninstr)
-Instruments.disconnect!(instr::SerialInstr) = disconnect!(instr.geninstr)
-Instruments.disconnect!(instr::TCPIPInstr) = close(instr.sock)
-Instruments.disconnect!(::VirtualInstr) = nothing
-
-Instruments.write(instr::GPIBInstr, msg::AbstractString) = write(instr.geninstr, msg)
-Instruments.write(instr::SerialInstr, msg::AbstractString) = write(instr.geninstr, string(msg, "\n"))
-Instruments.write(instr::TCPIPInstr, msg::AbstractString) = println(instr.sock, msg)
-Instruments.write(::VirtualInstr, ::AbstractString) = nothing
-
-Instruments.read(instr::GPIBInstr) = read(instr.geninstr)
-Instruments.read(instr::SerialInstr) = read(instr.geninstr)
-Instruments.read(instr::TCPIPInstr) = readline(instr.sock)
-Instruments.read(::VirtualInstr) = nothing
-
-Instruments.query(instr::GPIBInstr, msg::AbstractString; delay=0) = query(instr.geninstr, msg; delay=delay)
-Instruments.query(instr::SerialInstr, msg::AbstractString; delay=0) = query(instr.geninstr, string(msg, "\n"); delay=delay)
-Instruments.query(instr::TCPIPInstr, msg::AbstractString; delay=0) = (println(instr.sock, msg); sleep(delay); readline(instr.sock))
-Instruments.query(::VirtualInstr, ::AbstractString; delay=0) = nothing
-
 function autodetect()
-    rm = ResourceManager()
-    addrs = find_resources(rm)
+    addrs = find_resources(CPU)
     for addr in addrs
-        manualadd(rm, addr)
-        yield()
+        manualadd(addr)
     end
 end
 
-function manualadd(rm, addr)
-    idn = ""
+function manualadd(addr)
+    idn = "IDN"
     st = true
-    instr = instrument("none", addr)
+    ct = Controller("", addr)
     try
-        connect!(rm, instr)
-        idn = query(instr, "*IDN?")
-        disconnect!(instr)
+        login!(CPU, ct)
+        idn = ct(query, CPU, "*IDN?", Val(:query))
+        logout!(CPU, ct)
     catch e
         @error "[$(now())]\n仪器通讯故障！！！" instrument_address = addr exception = e
-        for ins in setdiff(keys(instrlist), Set(["Others"]))
-            addr in instrlist[ins] && deleteat!(instrlist[ins], findall(==(addr), instrlist[ins]))
-            haskey(instrbuffer[ins], addr) && delete!(instrbuffer[ins], addr)
+        logout!(CPU, addr)
+        for ins in keys(instrbufferviewers)
+            ins == "Others" && continue
+            if haskey(instrbufferviewers[ins], addr)
+                delete!(instrbufferviewers[ins], addr)
+                delete!(instrcontrollers[ins], addr)
+            end
         end
-        disconnect!(instr)
         st = false
     end
     if st
         for (ins, cf) in insconf
             if occursin(cf.conf.idn, idn)
-                if addr in instrlist[ins]
+                if haskey(instrbufferviewers[ins], addr)
                     return true
                 else
-                    push!(instrlist[ins], addr)
-                    push!(instrbuffer[ins], addr => InstrBuffer(ins))
                     push!(instrbufferviewers[ins], addr => InstrBufferViewer(ins, addr))
+                    newct = Controller(ins, addr)
+                    push!(instrcontrollers[ins], addr => newct)
                     return true
                 end
             end
         end
     end
-    if !(addr == "" || addr in instrlist["Others"])
-        push!(instrlist["Others"], addr)
-        push!(instrbuffer["Others"], addr => InstrBuffer("Others"))
+    if addr != ""
+        push!(instrbufferviewers["Others"], addr => InstrBufferViewer("Others", addr))
     end
     return st
-end
-
-macro trylink_do(instr, casen, casee)
-    ex = quote
-        try
-            connect!($instr)
-            $casen
-        catch e
-            @error "[$(now())]\n仪器通讯故障！！！" instrument_address = instr.addr exception = e
-            $casee
-        finally
-            disconnect!($instr)
-        end
-    end
-    esc(ex)
 end
 
 function refresh_instrlist()
@@ -159,15 +72,11 @@ function poll_autodetect()
                 break
             end
             if syncstates[Int(autodetect_done)]
-                instrlist_remote::Dict{String,Vector{String}} = remotecall_fetch(() -> instrlist, workers()[1])
-                instrbuffer_remote::Dict{String,Dict{String,InstrBuffer}} = remotecall_fetch(() -> instrbuffer, workers()[1])
-                empty!(instrlist)
-                merge!(instrlist, instrlist_remote)
-                for ins in setdiff(keys(instrbuffer), Set(["VirtualInstr"]))
-                    empty!(instrbuffer[ins])
+                instrbufferviewers_remote = remotecall_fetch(() -> instrbufferviewers, workers()[1])
+                for ins in keys(instrbufferviewers_remote)
+                    ins == "VirtualInstr" && continue
                     empty!(instrbufferviewers[ins])
-                    for addr in keys(instrbuffer_remote[ins])
-                        push!(instrbuffer[ins], addr => InstrBuffer(ins))
+                    for addr in keys(instrbufferviewers_remote[ins])
                         push!(instrbufferviewers[ins], addr => InstrBufferViewer(ins, addr))
                     end
                 end
@@ -181,20 +90,30 @@ function poll_autodetect()
     )
 end
 
+function fetch_ibvs(addinstr)
+    remotecall_wait(workers()[1], addinstr) do addinstr
+        delete!(instrbufferviewers["Others"], addinstr)
+    end
+    delete!(instrbufferviewers["Others"], addinstr)
+    instrbufferviewers_remote = remotecall_fetch(() -> instrbufferviewers, workers()[1])
+    for ins in keys(instrbufferviewers_remote)
+        ins == "VirtualInstr" && continue
+        for addr in keys(instrbufferviewers_remote[ins])
+            haskey(instrbufferviewers[ins], addr) && continue
+            push!(instrbufferviewers[ins], addr => InstrBufferViewer(ins, addr))
+        end
+    end
+end
+
 let
-    addinstr = ""
-    st = false
-    time_old = 0
+    addinstr::String = ""
+    st::Bool = false
+    time_old::Float64 = 0
     global function manualadd_from_others()
-        @c ComBoS("##OthersIns", &addinstr, instrlist["Others"])
+        @c ComBoS("##OthersIns", &addinstr, keys(instrbufferviewers["Others"]))
         if CImGui.Button(morestyle.Icons.NewFile * " 添加  ")
-            st = manualadd(ResourceManager(), addinstr)
-            if st
-                for (i, v) in enumerate(instrlist["Others"])
-                    v == addinstr && (deleteat!(instrlist["Others"], i); break)
-                end
-                addinstr = ""
-            end
+            st = remotecall_fetch(manualadd, workers()[1], addinstr)
+            st && (fetch_ibvs(addinstr); addinstr = "")
             time_old = time()
         end
         if time() - time_old < 2
@@ -228,13 +147,8 @@ let
             end
             CImGui.OpenPopupOnItemClick("选择常用地址", 1)
             if CImGui.Button(morestyle.Icons.NewFile * " 添加  ##手动输入仪器地址")
-                st = manualadd(ResourceManager(), newinsaddr)
-                if st
-                    for (i, v) in enumerate(instrlist["Others"])
-                        v == newinsaddr && (deleteat!(instrlist["Others"], i); break)
-                    end
-                    newinsaddr = ""
-                end
+                st = remotecall_fetch(manualadd, workers()[1], newinsaddr)
+                st && (fetch_ibvs(newinsaddr); newinsaddr = "")
                 time_old = time()
             end
             if time() - time_old < 2

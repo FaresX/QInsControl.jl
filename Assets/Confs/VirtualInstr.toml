@@ -1,16 +1,38 @@
+[SweepTest]
+cmdheader = ""
+U = "A"
+enable = true
+optkeys = []
+help = "仅作为扫描测试"
+optvalues = []
+type = "sweep"
+alias = "扫描测试"
+
 [SystemTime]
 cmdheader = ""
 U = "s"
 enable = true
+optkeys = []
 help = "Get the system time in seconds since the epoch, with fairly high (typically, microsecond) resolution."
 optvalues = []
 type = "read"
 alias = "系统时间"
 
+[SetTest]
+cmdheader = ""
+U = "V"
+enable = true
+optkeys = []
+help = "仅作为设置测试"
+optvalues = ["test1", "test2", "test3", "test4", "test5", "test6"]
+type = "set"
+alias = "设置测试"
+
 [Date]
 cmdheader = ""
 U = ""
 enable = true
+optkeys = []
 help = "Return a Date corresponding to the user's system time including the system timezone locale."
 optvalues = []
 type = "read"
@@ -20,6 +42,7 @@ alias = "日期"
 cmdheader = ""
 U = ""
 enable = true
+optkeys = []
 help = "Return a Time corresponding to the user's system time including the system timezone locale."
 optvalues = []
 type = "read"
@@ -36,6 +59,7 @@ cmdtype = ""
 cmdheader = ""
 U = ""
 enable = true
+optkeys = []
 help = "Return a DateTime corresponding to the user's system time including the system timezone locale."
 optvalues = []
 type = "read"

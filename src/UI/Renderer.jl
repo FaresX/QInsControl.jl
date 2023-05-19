@@ -19,7 +19,7 @@ function UI()
     gl_ctx = ImGuiOpenGLBackend.create_context()
 
     # 加载图标
-    icons = load.(["QInsControl.ico"])
+    icons = load.([joinpath(ENV["QInsControlAssets"], "Necessity/QInsControl.ico")])
     icons_8bit = reinterpret.(NTuple{4,UInt8}, icons)
     glfwicons = Base.unsafe_convert(Ref{GLFWimage}, Base.cconvert(Ref{GLFWimage}, icons_8bit))
     glfwSetWindowIcon(window, 1, glfwicons)
@@ -70,7 +70,13 @@ function UI()
     ImFontGlyphRangesBuilder_AddRanges(builder, ImFontAtlas_GetGlyphRangesDefault(fonts))
     ImFontGlyphRangesBuilder_BuildRanges(builder, ranges)
     r = unsafe_wrap(Vector{ImVector_ImWchar}, ranges, 1)
-    CImGui.AddFontFromFileTTF(fonts, joinpath(conf.Fonts.dir, conf.Fonts.first), conf.Fonts.size, C_NULL, ImFontAtlas_GetGlyphRangesChineseFull(fonts))
+    CImGui.AddFontFromFileTTF(
+        fonts,
+        joinpath(conf.Fonts.dir, conf.Fonts.first),
+        conf.Fonts.size,
+        C_NULL,
+        ImFontAtlas_GetGlyphRangesChineseFull(fonts)
+    )
     fontcfg = ImFontConfig_ImFontConfig()
     fontcfg.MergeMode = true
     CImGui.AddFontFromFileTTF(fonts, joinpath(conf.Fonts.dir, conf.Fonts.second), conf.Fonts.size, fontcfg, r[1].Data)
@@ -83,8 +89,20 @@ function UI()
     ImFontGlyphRangesBuilder_AddRanges(icon_builder, icon_ranges_ptr)
     ImFontGlyphRangesBuilder_BuildRanges(icon_builder, icon_ranges)
     icon_r = unsafe_wrap(Vector{ImVector_ImWchar}, icon_ranges, 1)
-    CImGui.AddFontFromFileTTF(fonts, "fa-regular-400.ttf", conf.Icons.size, fontcfg, icon_r[1].Data)
-    CImGui.AddFontFromFileTTF(fonts, "fa-solid-900.ttf", conf.Icons.size, fontcfg, icon_r[1].Data)
+    CImGui.AddFontFromFileTTF(
+        fonts,
+        joinpath(ENV["QInsControlAssets"], "Necessity/fa-regular-400.ttf"),
+        conf.Icons.size,
+        fontcfg,
+        icon_r[1].Data
+    )
+    CImGui.AddFontFromFileTTF(
+        fonts,
+        joinpath(ENV["QInsControlAssets"], "Necessity/fa-solid-900.ttf"),
+        conf.Icons.size,
+        fontcfg,
+        icon_r[1].Data
+    )
 
     # setup Platform/Renderer bindings
     ImGuiGLFWBackend.init(window_ctx)
@@ -151,6 +169,7 @@ function UI()
         @error "[$(now())]\nError in renderloop!" exception = e
         Base.show_backtrace(stderr, catch_backtrace())
     finally
+        syncstates[Int(isdaqtask_running)] || remotecall_wait(()->stop!(CPU), workers()[1])
         ImGuiOpenGLBackend.shutdown(gl_ctx)
         ImGuiGLFWBackend.shutdown(window_ctx)
         imnodes_DestroyContext(ctxi)

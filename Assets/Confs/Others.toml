@@ -1,0 +1,6 @@
+[conf]
+idn = "Others"
+output_labels = []
+icon = ""
+input_labels = []
+cmdtype = ""

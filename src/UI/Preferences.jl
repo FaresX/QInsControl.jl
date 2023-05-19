@@ -1,8 +1,9 @@
 let
     selectedpref::String = "通用"
+    ecds::Vector{String} = encodings()
     global function Preferences(p_open::Ref)
         # CImGui.SetNextWindowPos((100, 100), CImGui.ImGuiCond_Once)
-        # CImGui.SetNextWindowSize((800, 800), CImGui.ImGuiCond_Once)
+        CImGui.SetNextWindowSize((800, 600), CImGui.ImGuiCond_Once)
 
         if CImGui.Begin(morestyle.Icons.Preferences * "  首选项", p_open)
             CImGui.Columns(2)
@@ -16,7 +17,7 @@ let
             if CImGui.Button(morestyle.Icons.SaveButton * " 保存", (-1, 0))
                 svconf = deepcopy(conf)
                 svconf.U = Dict(up.first => string.(up.second) for up in conf.U)
-                to_toml(joinpath(ENV["QInsControlAssets"], "conf/conf.toml"), svconf)
+                to_toml(joinpath(ENV["QInsControlAssets"], "Necessity/conf.toml"), svconf)
             end
             CImGui.NextColumn()
 
@@ -24,14 +25,24 @@ let
             ftsz = CImGui.GetFontSize()
             if selectedpref == "通用"
                 ###Init##
+                # CImGui.SetWindowFontScale(1.2)
                 CImGui.TextColored(morestyle.Colors.HighlightText, "初始化")
+                # CImGui.SetWindowFontScale(1)
                 if conf.Init.isremote
                     @c CImGui.Checkbox("双核", &conf.Init.isremote)
                 else
                     @c CImGui.Checkbox("单核", &conf.Init.isremote)
                 end
+                if conf.Init.viewportenable
+                    @c CImGui.Checkbox("视窗模式 开", &conf.Init.viewportenable)
+                else
+                    @c CImGui.Checkbox("视窗模式 关", &conf.Init.viewportenable)
+                end
                 CImGui.DragInt2("窗口大小", conf.Init.windowsize, 2.0, 100, 4000, "%d", CImGui.ImGuiSliderFlags_AlwaysClamp)
-                @c CImGui.Checkbox("视窗模式", &conf.Init.viewportenable)
+                @c ComBoS("系统编码", &conf.Init.encoding, ecds)
+                editor = conf.Init.editor
+                @c InputTextRSZ("文本编辑器", &editor)
+                editor == "" || (conf.Init.editor = editor)
                 CImGui.Text(" ")
                 CImGui.Separator()
 
@@ -40,13 +51,15 @@ let
                 @c CImGui.DragInt("保存时间", &conf.DAQ.savetime, 1.0, 1, 180, "%d", CImGui.ImGuiSliderFlags_AlwaysClamp)
                 @c CImGui.DragInt("通道大小", &conf.DAQ.channel_size, 1.0, 4, 2048, "%d", CImGui.ImGuiSliderFlags_AlwaysClamp)
                 @c CImGui.DragInt("打包尺寸", &conf.DAQ.packsize, 1.0, 6, 120, "%d", CImGui.ImGuiSliderFlags_AlwaysClamp)
+                @c CImGui.DragInt("绘图列数", &conf.DAQ.plotshowcol, 1.0, 1, 6, "%d", CImGui.ImGuiSliderFlags_AlwaysClamp)
                 CImGui.Text(" ")
                 CImGui.Separator()
 
                 ###InsBuf###
                 CImGui.TextColored(morestyle.Colors.HighlightText, "仪器设置和状态")
-                @c CImGui.DragInt("显示列数", &conf.InsBuf.showcol, 1.0, 1, 6, "%d", CImGui.ImGuiSliderFlags_AlwaysClamp)
                 @c CImGui.Checkbox("显示帮助", &conf.InsBuf.showhelp)
+                @c CImGui.DragInt("显示列数", &conf.InsBuf.showcol, 1.0, 1, 6, "%d", CImGui.ImGuiSliderFlags_AlwaysClamp)
+                @c CImGui.DragFloat("刷新速率", &conf.InsBuf.refreshrate, 0.1, 0.1, 60, "%.3f", CImGui.ImGuiSliderFlags_AlwaysClamp)
                 CImGui.Text(" ")
                 CImGui.Separator()
 
@@ -238,7 +251,9 @@ let
                         CImGui.PopItemWidth()
                         if CImGui.BeginPopupContextItem()
                             CImGui.MenuItem("删除", C_NULL, false, length(conf.U) > 2) && (pop!(conf.U, ut); break)
-                            CImGui.MenuItem("添加") && insert!(conf.U, ut, "NU" => Union{Unitful.FreeUnits,Unitful.MixedUnits}[u"m"], after=true)
+                            if CImGui.MenuItem("添加")
+                                insert!(conf.U, ut, "NU" => Union{Unitful.FreeUnits,Unitful.MixedUnits}[u"m"], after=true)
+                            end
                             CImGui.EndPopup()
                         end
                         CImGui.SameLine()
@@ -258,12 +273,17 @@ let
                             CImGui.PushItemWidth(5ftsz)
                             if @c InputTextRSZ("##U", &ustr)
                                 uf = @trypass eval(:(@u_str($ustr))) nothing
-                                !isnothing(uf) && (uf isa Unitful.FreeUnits || uf isa Unitful.MixedUnits) && (conf.U[up.first][j] = uf)
+                                if !isnothing(uf) && (uf isa Unitful.FreeUnits || uf isa Unitful.MixedUnits)
+                                    conf.U[up.first][j] = uf
+                                end
                             end
                             CImGui.PopItemWidth()
                             if !isa(up.second[1], Unitful.MixedUnits)
                                 if CImGui.BeginPopupContextItem()
-                                    CImGui.MenuItem("删除", C_NULL, false, length(up.second) > 1) && (deleteat!(conf.U[up.first], j); break)
+                                    if CImGui.MenuItem("删除", C_NULL, false, length(up.second) > 1)
+                                        deleteat!(conf.U[up.first], j)
+                                        break
+                                    end
                                     CImGui.MenuItem("向左添加") && (insert!(conf.U[up.first], j, u"m"); break)
                                     CImGui.MenuItem("向右添加") && (insert!(conf.U[up.first], j + 1, u"m"); break)
                                     CImGui.EndPopup()

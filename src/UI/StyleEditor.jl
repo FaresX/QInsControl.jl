@@ -26,10 +26,13 @@ Base.@kwdef mutable struct MoreStyleIcon
     SaveButton::String = ICONS.ICON_FLOPPY_DISK
     SelectPath::String = ICONS.ICON_MAP
 
+    CPUMonitor::String = ICONS.ICON_MICROCHIP
+
     Instrumets::String = ICONS.ICON_BIOHAZARD
     InstrumentsSetting::String = ICONS.ICON_BOOK_JOURNAL_WHILLS
     InstrumentsManualRef::String = ICONS.ICON_ROTATE
     InstrumentsAutoRef::String = ICONS.ICON_REPEAT
+    ShowCol::String = ICONS.ICON_EYE
 
     InstrumentsOverview::String = ICONS.ICON_BOOK_BIBLE
     InstrumentsDAQ::String = ICONS.ICON_CIRCLE_RADIATION
@@ -46,7 +49,7 @@ Base.@kwdef mutable struct MoreStyleIcon
     ShowDisable::String = ICONS.ICON_EYE
     NotShowDisable::String = ICONS.ICON_EYE_SLASH
     SelectData::String = ICONS.ICON_CHART_AREA
-    PlotNumber::String = ICONS.ICON_CODE_BRANCH
+    # PlotNumber::String = ICONS.ICON_CODE_BRANCH
     Datai::String = ICONS.ICON_CHART_COLUMN
     Update::String = ICONS.ICON_CLOUD_ARROW_UP
     InsertUp::String = ICONS.ICON_CIRCLE_ARROW_UP
@@ -63,6 +66,7 @@ Base.@kwdef mutable struct MoreStyleIcon
     WriteBlock::String = ICONS.ICON_UPLOAD
     QueryBlock::String = ICONS.ICON_ARROW_DOWN_UP_ACROSS_LINE
     ReadBlock::String = ICONS.ICON_DOWNLOAD
+    SaveBlock::String = ICONS.ICON_FLOPPY_DISK
     Circuit::String = ICONS.ICON_MICROCHIP
     CommonNode::String = ICONS.ICON_LEFT_RIGHT
     GroundNode::String = ICONS.ICON_PLUG_CIRCLE_BOLT
@@ -140,7 +144,8 @@ let
     colors::String = ""
     output_dest::Cint = 0
     output_only_modified::Bool = true
-    filter::Ptr{ImGuiTextFilter} = ImGuiTextFilter_ImGuiTextFilter(C_NULL)
+    # filter::Ptr{ImGuiTextFilter} = ImGuiTextFilter_ImGuiTextFilter(C_NULL)
+    filter::String = ""
     alpha_flags::CImGui.ImGuiColorEditFlags = 0
     global function ShowStyleEditor(style_ref::ImNodesStyle)
         if @c ComBoS("Colors", &colors, ["Dark", "Light", "Classic"])
@@ -213,7 +218,10 @@ let
                 @c CImGui.Combo("##output_type", &output_dest, "To Clipboard\0To TTY\0")
                 CImGui.SameLine()
                 @c CImGui.Checkbox("Only Modified Colors", &output_only_modified)
-                ImGuiTextFilter_Draw(filter, "Filter colors", 16CImGui.GetFontSize())
+                # ImGuiTextFilter_Draw(filter, "Filter colors", 16CImGui.GetFontSize())
+                CImGui.PushItemWidth(16CImGui.GetFontSize())
+                @c InputTextRSZ("Filter colors", &filter)
+                CImGui.PopItemWidth()
                 if CImGui.RadioButton("Opaque", alpha_flags == ImGuiColorEditFlags_None)
                     alpha_flags = ImGuiColorEditFlags_None
                 end
@@ -234,7 +242,8 @@ let
                     """
                 )
                 for col in instances(LibCImGui.ColorStyle)[1:end-1]
-                    ImGuiTextFilter_PassFilter(filter, pointer(string(col)), C_NULL) || continue
+                    # ImGuiTextFilter_PassFilter(filter, pointer(string(col)), C_NULL) || continue
+                    occursin(lowercase(filter), lowercase(string(col))) || continue
                     col_imvec4 = CImGui.ColorConvertU32ToFloat4(CImGui.c_get(imnodesstyle.colors, col))
                     col_arr = [col_imvec4.x, col_imvec4.y, col_imvec4.z, col_imvec4.w]
                     CImGui.ColorEdit4(string(col), col_arr, CImGui.ImGuiColorEditFlags_AlphaBar | alpha_flags)
@@ -260,9 +269,11 @@ end
 let
     output_dest::Cint = 0
     output_only_modified::Bool = true
-    filter::Ptr{ImGuiTextFilter} = ImGuiTextFilter_ImGuiTextFilter(C_NULL)
+    # filter::Ptr{ImGuiTextFilter} = ImGuiTextFilter_ImGuiTextFilter(C_NULL)
+    filter::String = ""
     alpha_flags::CImGui.ImGuiColorEditFlags = 0
-    icons_filter::Ptr{ImGuiTextFilter} = ImGuiTextFilter_ImGuiTextFilter(C_NULL)
+    # icons_filter::Ptr{ImGuiTextFilter} = ImGuiTextFilter_ImGuiTextFilter(C_NULL)
+    icons_filter::String = ""
     icon_to_clipboard::String = ""
     global function ShowStyleEditor(style_ref::MoreStyle)
         global morestyle
@@ -306,7 +317,10 @@ let
                 @c CImGui.Combo("##output_type", &output_dest, "To Clipboard\0To TTY\0")
                 CImGui.SameLine()
                 @c CImGui.Checkbox("Only Modified Colors", &output_only_modified)
-                ImGuiTextFilter_Draw(filter, "Filter colors", 16CImGui.GetFontSize())
+                # ImGuiTextFilter_Draw(filter, "Filter colors", 16CImGui.GetFontSize())
+                CImGui.PushItemWidth(16CImGui.GetFontSize())
+                @c InputTextRSZ("Filter colors", &filter)
+                CImGui.PopItemWidth()
                 if CImGui.RadioButton("Opaque", alpha_flags == ImGuiColorEditFlags_None)
                     alpha_flags = ImGuiColorEditFlags_None
                 end
@@ -328,7 +342,8 @@ let
                 )
                 CImGui.BeginChild("Colors")
                 for color in fieldnames(MoreStyleColor)
-                    ImGuiTextFilter_PassFilter(filter, pointer(string(color)), C_NULL) || continue
+                    # ImGuiTextFilter_PassFilter(filter, pointer(string(color)), C_NULL) || continue
+                    occursin(lowercase(filter), lowercase(string(color))) || continue
                     CImGui.ColorEdit4(string(color), getproperty(morestyle.Colors, color), CImGui.ImGuiColorEditFlags_AlphaBar | alpha_flags)
                     if getproperty(style_ref.Colors, color) != getproperty(morestyle.Colors, color)
                         CImGui.SameLine()
@@ -346,7 +361,10 @@ let
             end
             if CImGui.BeginTabItem("Icons")
                 icons = fieldnames(MoreStyleIcon)
-                ImGuiTextFilter_Draw(icons_filter, "Filter icons", 24CImGui.GetFontSize())
+                # ImGuiTextFilter_Draw(icons_filter, "Filter icons", 24CImGui.GetFontSize())
+                CImGui.PushItemWidth(24CImGui.GetFontSize())
+                @c InputTextRSZ("Filter icons", &icons_filter)
+                CImGui.PopItemWidth()
                 # CImGui.SameLine()
                 # if @c IconSelector("To Clipboard", &icon_to_clipboard)
                 #     CImGui.LogToClipboard()
@@ -356,7 +374,8 @@ let
                 CImGui.BeginChild("Icons")
                 CImGui.Columns(3, C_NULL, false)
                 for icon in icons
-                    ImGuiTextFilter_PassFilter(icons_filter, pointer(string(icon)), C_NULL) || continue
+                    # ImGuiTextFilter_PassFilter(icons_filter, pointer(string(icon)), C_NULL) || continue
+                    occursin(lowercase(icons_filter), lowercase(string(icon))) || continue
                     editicon = getproperty(morestyle.Icons, icon)
                     @c IconSelector(string(icon), &editicon)
                     setproperty!(morestyle.Icons, icon, editicon)
@@ -425,16 +444,16 @@ let
     global function StyleEditor()
         # global imguistyle
         ws = CImGui.GetWindowWidth()
-        stylepath = conf.Style.path
+        styledir = conf.Style.dir
         CImGui.PushItemWidth(ws / 2)
-        inputstylepath = @c InputTextRSZ("##Style-dir", &stylepath)
+        inputstyledir = @c InputTextRSZ("##Style-dir", &styledir)
         CImGui.SameLine()
         CImGui.PopItemWidth()
-        selectstylepath = CImGui.Button(morestyle.Icons.SelectPath * "##Style-path")
-        selectstylepath && (stylepath = pick_file(abspath(stylepath)); filterlist = "sty")
-        if inputstylepath || selectstylepath
-            if isfile(stylepath)
-                conf.Style.path = stylepath
+        selectstyledir = CImGui.Button(morestyle.Icons.SelectPath * "##Style-path")
+        selectstyledir && (styledir = pick_folder(abspath(styledir)))
+        if inputstyledir || selectstyledir
+            if isfile(styledir)
+                conf.Style.dir = styledir
             else
                 CImGui.SameLine()
                 CImGui.TextColored((1.000, 0.000, 0.000, 1.000), "路径不存在！！！")
@@ -443,7 +462,10 @@ let
         if CImGui.Button(morestyle.Icons.SaveButton * " Save to File  ")
             if rstrip(style_name, ' ') != ""
                 push!(styles, style_name => ustyle)
-                jldsave(conf.Style.path, styles=styles)
+                # jldsave(conf.Style.path, styles=styles)
+                jldopen(joinpath(conf.Style.dir, "$style_name.sty"), "w") do file
+                    file[style_name] = styles[style_name]
+                end
                 nmerr = false
             else
                 nmerr = true
@@ -462,7 +484,11 @@ let
         CImGui.Button(morestyle.Icons.CloseFile) && CImGui.OpenPopup("##是否删除style")
         CImGui.SameLine()
         ShowHelpMarker("This operation will delete the selected imguistyle. Please be careful!")
-        YesNoDialog("##是否删除style", "确认删除？", CImGui.ImGuiWindowFlags_AlwaysAutoResize) && (delete!(styles, selected_style); selected_style = "")
+        if YesNoDialog("##是否删除style", "确认删除？", CImGui.ImGuiWindowFlags_AlwaysAutoResize)
+            delete!(styles, selected_style)
+            Base.Filesystem.rm(joinpath(conf.Style.dir, "$selected_style.sty"), force=true)
+            selected_style = ""
+        end
         CImGui.PushItemWidth(ws * 0.5)
         if @c ComBoS("Style", &selected_style, keys(styles))
             if selected_style != ""

@@ -1,8 +1,8 @@
-# using Distributed
-# nprocs() == 1 && addprocs(1)
-# @everywhere ENV["QInsControlAssets"] = "Assets"
-# @everywhere module QInsControl
-module QInsControl
+using Distributed
+nprocs() == 1 && addprocs(1)
+@everywhere ENV["QInsControlAssets"] = "Assets"
+@everywhere module QInsControl
+# module QInsControl
 
 using CImGui
 using CImGui.CSyntax
@@ -18,10 +18,11 @@ using Unitful
 using MacroTools
 import FileIO: load
 using JLD2
-using Instruments
+using QInsControlCore
 using Configurations
 using ColorTypes
 using OrderedCollections
+using StringEncodings
 # using ImageMagick
 # using ImageIO
 # using Logging
@@ -36,22 +37,19 @@ using Printf
 using InteractiveUtils
 using Sockets
 
-export julia_main
+export start
 
-const instrlist = Dict{String,Vector{String}}() #仪器列表
-
-@enum SyncStatesIndex begin 
+@enum SyncStatesIndex begin
     autodetecting = 1 #是否正在自动查询仪器
     autodetect_done 
     isdaqtask_running 
     isdaqtask_done 
     isinterrupt 
-    isblock 
-    isblocking 
-    busy_acquiring 
+    isblock
     isautorefresh
 end
 
+const CPU = Processor()
 const databuf = Dict{String,Vector{String}}() #数据缓存
 const progresslist = Dict{UUID,Tuple{UUID,Int,Int,Float64}}() #进度条缓存
 
@@ -76,6 +74,7 @@ include("UI/Block.jl")
 include("UI/DataPicker.jl")
 include("UI/DataViewer.jl")
 include("UI/Preferences.jl")
+include("UI/CPUMonitor.jl")
 include("UI/InstrBuffer.jl")
 include("UI/InstrRegister.jl")
 include("UI/DAQTask.jl")
@@ -92,27 +91,28 @@ include("Conf.jl")
 function julia_main()::Cint
     try
         loadconf()
-        instrbuffer_c::Channel{Vector{NTuple{4,String}}} = Channel{Vector{NTuple{4,String}}}(conf.DAQ.channel_size)
         databuf_c::Channel{Vector{Tuple{String,String}}} = Channel{Vector{NTuple{2,String}}}(conf.DAQ.channel_size)
         progress_c::Channel{Vector{Tuple{UUID,Int,Int,Float64}}} = Channel{Vector{Tuple{UUID,Int,Int,Float64}}}(conf.DAQ.channel_size)
-        global syncstates = SharedVector{Bool}(9)
-        global instrbuffer_rc = RemoteChannel(() -> instrbuffer_c)
+        global syncstates = SharedVector{Bool}(7)
         global databuf_rc = RemoteChannel(() -> databuf_c)
         global progress_rc = RemoteChannel(() -> progress_c)
+        # include(joinpath(ENV["QInsControlAssets"], "Necessity/Logger.jl"))
+        @info ARGS
+        isempty(ARGS) || @info reencoding.(ARGS, conf.Init.encoding)
         uitask = UI()
-        include("Logger.jl")
         jlverinfobuf = IOBuffer()
         versioninfo(jlverinfobuf)
         global jlverinfo = wrapmultiline(String(take!(jlverinfobuf)), 48)
         if conf.Init.isremote
             nprocs() == 1 && addprocs(1)
-            syncstates = SharedVector{Bool}(9)
-            instrbuffer_rc = RemoteChannel(() -> instrbuffer_c)
+            # @eval @everywhere using QInsControl
+            syncstates = SharedVector{Bool}(7)
             databuf_rc = RemoteChannel(() -> databuf_c)
             progress_rc = RemoteChannel(() -> progress_c)
             remote_do(loadconf, workers()[1])
-            remote_do(include, workers()[1], "Logger.jl")
+            # remote_do(include, workers()[1], joinpath(ENV["QInsControlAssets"], "Necessity/Logger.jl"))
         end
+        remotecall_wait(()->start!(CPU), workers()[1])
         autorefresh()
         @info "[$(now())]\n启动成功！"
         if !isinteractive()
@@ -130,5 +130,11 @@ function julia_main()::Cint
     return 0
 end
 
+function start()
+    if !haskey(ENV, "QInsControlAssets")
+        ENV["QInsControlAssets"] = joinpath(dirname(pathof(QInsControl)), "../Assets")
+    end
+    julia_main()
+end
 
 end #QInsControl

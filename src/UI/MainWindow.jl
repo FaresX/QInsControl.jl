@@ -1,5 +1,6 @@
 let
     show_preferences::Bool = false
+    show_cpu_monitor::Bool = false
     show_instr_buffer::Bool = false
     show_daq::Bool = false
     show_instr_register::Bool = false
@@ -22,8 +23,10 @@ let
     no_bring_to_front::Bool = false
     no_docking::Bool = true
 
-    global dtviewers = Tuple{Ref{Bool},DataViewer,FolderFileTree,Dict{String,Bool}}[] #(彻底关闭，DataViewer, FileTree, 重命名)
+    dtviewers = Tuple{DataViewer,FolderFileTree,Dict{String,Bool}}[]
     # window_class = ImGuiWindowClass_ImGuiWindowClass()
+    # labels = ["a", "b", "c", "d", "e"]
+    # states = falses(5)
     global function MainWindow()
         window_flags = UInt32(0)
         no_titlebar && (window_flags |= CImGui.ImGuiWindowFlags_NoTitleBar)
@@ -36,6 +39,7 @@ let
         no_background && (window_flags |= CImGui.ImGuiWindowFlags_NoBackground)
         no_bring_to_front && (window_flags |= CImGui.ImGuiWindowFlags_NoBringToFrontOnFocus)
         no_docking && (window_flags |= CImGui.ImGuiWindowFlags_NoDocking)
+        
         ######加载背景######
         # igDockSpaceOverViewport(igGetMainViewport(), ImGuiDockNodeFlags_None, C_NULL)
         viewport = igGetMainViewport()
@@ -54,20 +58,26 @@ let
         CImGui.End()
         CImGui.PopStyleVar(2)
         # igDockSpaceOverViewport(igGetMainViewport(), ImGuiDockNodeFlags_None, C_NULL)
+        ######Debug######
+        # CImGui.SetNextWindowSize((600, 600))
+        # CImGui.Begin("Debug MultiSelectable", Ref(true))
+        # DragMultiSelectable(()->(), "Debug", labels, states, 3)
+        # CImGui.End()
 
         ######子窗口######
         for (i, dtv) in enumerate(dtviewers)
-            dtv[2].p_open[] ? edit(dtv[2:4]..., i) : (dtv[2].p_open[] = false)
+            dtv[1].p_open && edit(dtv..., i)
         end
         for (i, dtv) in enumerate(dtviewers)
-            dtv[1][] || deleteat!(dtviewers, i)
+            dtv[1].noclose || deleteat!(dtviewers, i)
         end
         show_preferences && @c Preferences(&show_preferences)
+        show_cpu_monitor && @c CPUMonitor(&show_cpu_monitor)
         show_instr_buffer && @c ShowInstrBuffer(&show_instr_buffer)
         for ins in keys(instrbufferviewers)
             for addr in keys(instrbufferviewers[ins])
                 ibv = instrbufferviewers[ins][addr]
-                ibv.p_open[] && edit(ibv)
+                ibv.p_open && edit(ibv)
             end
         end
         show_instr_register && @c InstrRegister(&show_instr_register)
@@ -88,16 +98,16 @@ let
             if CImGui.BeginMenu(morestyle.Icons.File * " 文件 ")
                 if CImGui.BeginMenu(morestyle.Icons.OpenFile * " 打开文件")
                     isopenfiles = CImGui.MenuItem(morestyle.Icons.NewFile * " 新建", "Ctrl+O")
-                    if true in [dtv[3].rootpath_bnm == "" for dtv in dtviewers]
+                    if true in [dtv[2].rootpath_bnm == "" for dtv in dtviewers]
                         CImGui.Separator()
                         CImGui.TextColored(morestyle.Colors.HighlightText, "已打开")
                     end
                     for dtv in dtviewers
-                        if dtv[3].rootpath_bnm == ""
-                            title = isempty(dtv[3].filetrees) ? "没有打开文件" : basename(dtv[3].filetrees[1].filepath)
-                            CImGui.MenuItem(title, C_NULL, dtv[2].p_open)
+                        if dtv[2].rootpath_bnm == ""
+                            title = isempty(dtv[2].filetrees) ? "没有打开文件" : basename(dtv[2].filetrees[1].filepath)
+                            @c CImGui.MenuItem(title, C_NULL, &dtv[1].p_open)
                             if CImGui.BeginPopupContextItem()
-                                CImGui.MenuItem(morestyle.Icons.CloseFile * " 关闭") && (dtv[1][] = false)
+                                CImGui.MenuItem(morestyle.Icons.CloseFile * " 关闭") && (dtv[1].noclose = false)
                                 CImGui.EndPopup()
                             end
                         end
@@ -106,18 +116,18 @@ let
                 end
                 if CImGui.BeginMenu(morestyle.Icons.OpenFolder * " 打开文件夹")
                     isopenfolder = CImGui.MenuItem(morestyle.Icons.NewFile * " 新建", "Ctrl+K")
-                    if true in [dtv[3].rootpath_bnm != "" for dtv in dtviewers]
+                    if true in [dtv[2].rootpath_bnm != "" for dtv in dtviewers]
                         CImGui.Separator()
                         CImGui.TextColored(morestyle.Colors.HighlightText, "已打开")
                     end
                     for dtv in dtviewers
-                        if dtv[3].rootpath_bnm != ""
-                            CImGui.MenuItem(basename(dtv[3].rootpath), C_NULL, dtv[2].p_open)
+                        if dtv[2].rootpath_bnm != ""
+                            @c CImGui.MenuItem(basename(dtv[2].rootpath), C_NULL, &dtv[1].p_open)
                             if CImGui.BeginPopupContextItem()
                                 if CImGui.MenuItem(morestyle.Icons.InstrumentsAutoRef*" 刷新")
-                                    dtv[3].filetrees = FolderFileTree(dtv[3].rootpath, dtv[3].selectedpath).filetrees
+                                    dtv[2].filetrees = FolderFileTree(dtv[2].rootpath, dtv[2].selectedpath).filetrees
                                 end
-                                CImGui.MenuItem(morestyle.Icons.CloseFile * " 关闭") && (dtv[1][] = false)
+                                CImGui.MenuItem(morestyle.Icons.CloseFile * " 关闭") && (dtv[1].noclose = false)
                                 CImGui.EndPopup()
                             end
                         end
@@ -129,7 +139,7 @@ let
             end
             #Instrument Menu
             if CImGui.BeginMenu(morestyle.Icons.Instrumets * " 仪器 ")
-                # @c CImGui.MenuItem("仪器设置和状态", C_NULL, &show_instr_buffer)
+                @c CImGui.MenuItem(morestyle.Icons.CPUMonitor * " 仪器CPU监测", C_NULL, &show_cpu_monitor)
                 if CImGui.BeginMenu(morestyle.Icons.InstrumentsSetting * " 仪器设置和状态")
                     @c CImGui.MenuItem(morestyle.Icons.InstrumentsOverview * " 总览", C_NULL, &show_instr_buffer)
                     CImGui.Separator()
@@ -138,10 +148,9 @@ let
                             if CImGui.BeginMenu(insconf[ins].conf.icon * " " * ins)
                                 for addr in keys(instrbufferviewers[ins])
                                     ibv = instrbufferviewers[ins][addr]
-                                    ib = instrbuffer[ins][addr]
-                                    @c CImGui.Checkbox("##$ins$addr", &ib.isautorefresh)
+                                    @c CImGui.Checkbox("##$ins$addr", &ibv.insbuf.isautorefresh)
                                     CImGui.SameLine()
-                                    CImGui.MenuItem(addr, C_NULL, ibv.p_open)
+                                    @c CImGui.MenuItem(addr, C_NULL, &ibv.p_open)
                                 end
                                 CImGui.EndMenu()
                             end
@@ -161,7 +170,6 @@ let
             #Help Menu
             if CImGui.BeginMenu(morestyle.Icons.Help * " 帮助")
                 @c CImGui.MenuItem(morestyle.Icons.Metrics * " 监测", C_NULL, &show_metrics)
-                # @c CImGui.MenuItem("Debug", C_NULL, &show_debug)
                 @c CImGui.MenuItem(morestyle.Icons.Logger * " 日志", C_NULL, &show_logger)
                 @c CImGui.MenuItem(morestyle.Icons.HelpPad * " 帮助板", C_NULL, &show_helppad)
                 @c CImGui.MenuItem(morestyle.Icons.About * " 关于", C_NULL, &show_about)
@@ -176,11 +184,16 @@ let
         ######快捷键######
         if isopenfiles || ((CImGui.IsKeyDown(341) || CImGui.IsKeyDown(345)) && CImGui.IsKeyDown(79))
             files = pick_multi_file()
-            isempty(files) || push!(dtviewers, (Ref(true), DataViewer(), FolderFileTree(files), Dict{String,Bool}())) #true -> active
+            isempty(files) || push!(dtviewers, (DataViewer(), FolderFileTree(files), Dict())) #true -> active
         end
         if isopenfolder || ((CImGui.IsKeyDown(341) || CImGui.IsKeyDown(345)) && CImGui.IsKeyDown(75))
             root = pick_folder()
-            isdir(root) && push!(dtviewers, (Ref(true), DataViewer(), FolderFileTree(root), Dict{String,Bool}())) #true -> active
+            isdir(root) && push!(dtviewers, (DataViewer(), FolderFileTree(root), Dict())) #true -> active
+        end
+        if !isempty(ARGS)
+            filepath = reencoding(ARGS[1], conf.Init.encoding)
+            isfile(filepath) && push!(dtviewers, (DataViewer(), FolderFileTree([abspath(filepath)]), Dict()))
+            empty!(ARGS)
         end
     end
 end #let

@@ -1,4 +1,8 @@
 ICONS = ICON()
+ICONS_NAME = Dict()
+for f in fieldnames(ICON)
+    push!(ICONS_NAME, getproperty(ICONS, f) => string(f))
+end
 
 # mutable struct IconColored
 #     icon::String
@@ -13,20 +17,25 @@ ICONS = ICON()
 # end
 
 let 
-    filter::Ptr{ImGuiTextFilter} = ImGuiTextFilter_ImGuiTextFilter(C_NULL)
+    # filter::Ptr{ImGuiTextFilter} = ImGuiTextFilter_ImGuiTextFilter(C_NULL)
+    filter::String = ""
     global function IconSelector(label, icon_str::Ref{String})
         selected = false
         CImGui.PushID(label)
         CImGui.Button(icon_str[]) && CImGui.OpenPopup(label)
-        CImGui.IsItemHovered() && CImGui.SetTooltip(icon_str[])
+        CImGui.IsItemHovered() && CImGui.SetTooltip(ICONS_NAME[icon_str[]])
         CImGui.SameLine()
         CImGui.Text(label)
         CImGui.SetNextWindowSize((1000, 600))
         if CImGui.BeginPopup(label)
-            ImGuiTextFilter_Draw(filter, "Filter ICONS", 600)
+            # ImGuiTextFilter_Draw(filter, "Filter ICONS", 600)
+            CImGui.PushItemWidth(600)
+            @c InputTextRSZ("Filter ICONS", &filter)
+            CImGui.PopItemWidth()
             CImGui.Columns(24, C_NULL, false)
             for (i, icon) in enumerate(fieldnames(ICON))
-                ImGuiTextFilter_PassFilter(filter, pointer(string(icon)), C_NULL) || continue
+                # ImGuiTextFilter_PassFilter(filter, pointer(string(icon)), C_NULL) || continue
+                occursin(lowercase(filter), lowercase(string(icon))) || continue
                 CImGui.PushID(i)
                 if CImGui.Selectable(getproperty(ICONS, icon), getproperty(ICONS, icon) == icon_str[])
                     icon_str[] = getproperty(ICONS, icon)
