@@ -1,8 +1,8 @@
-using Distributed
-nprocs() == 1 && addprocs(1)
-@everywhere ENV["QInsControlAssets"] = "Assets"
-@everywhere module QInsControl
-# module QInsControl
+# using Distributed
+# nprocs() == 1 && addprocs(1)
+# @everywhere ENV["QInsControlAssets"] = "Assets"
+# @everywhere module QInsControl
+module QInsControl
 
 using CImGui
 using CImGui.CSyntax
@@ -96,7 +96,7 @@ function julia_main()::Cint
         global syncstates = SharedVector{Bool}(7)
         global databuf_rc = RemoteChannel(() -> databuf_c)
         global progress_rc = RemoteChannel(() -> progress_c)
-        # include(joinpath(ENV["QInsControlAssets"], "Necessity/Logger.jl"))
+        include(joinpath(ENV["QInsControlAssets"], "Necessity/Logger.jl"))
         @info ARGS
         isempty(ARGS) || @info reencoding.(ARGS, conf.Init.encoding)
         uitask = UI()
@@ -105,12 +105,12 @@ function julia_main()::Cint
         global jlverinfo = wrapmultiline(String(take!(jlverinfobuf)), 48)
         if conf.Init.isremote
             nprocs() == 1 && addprocs(1)
-            # @eval @everywhere using QInsControl
+            @eval @everywhere using QInsControl
             syncstates = SharedVector{Bool}(7)
             databuf_rc = RemoteChannel(() -> databuf_c)
             progress_rc = RemoteChannel(() -> progress_c)
             remote_do(loadconf, workers()[1])
-            # remote_do(include, workers()[1], joinpath(ENV["QInsControlAssets"], "Necessity/Logger.jl"))
+            remote_do(include, workers()[1], joinpath(ENV["QInsControlAssets"], "Necessity/Logger.jl"))
         end
         remotecall_wait(()->start!(CPU), workers()[1])
         autorefresh()

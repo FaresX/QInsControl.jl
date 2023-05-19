@@ -59,13 +59,15 @@ let
         CImGui.PopItemWidth()
         if file != "" && (isrename[path] && !isrnm)
             newpath = joinpath(dirname(path), file)
-            if newpath != filetree.selectedpath[]
+            if newpath != path
                 Base.Filesystem.rename(path, newpath)
                 filetree.filepath = newpath
                 filetree.filepath_bnm = basename(filetree.filepath)
                 delete!(isrename, path)
                 push!(isrename, newpath => false)
                 filetree.selectedpath[] = newpath
+            else
+                isrename[path] = isrnm
             end
         else
             isrename[path] = isrnm
