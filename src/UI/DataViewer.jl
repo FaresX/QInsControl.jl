@@ -1,16 +1,20 @@
 mutable struct DataViewer
     noclose::Bool
     p_open::Bool
-    show_data_picker::Bool
+    show_dtpicker::Bool
+    show_dtpicker_i::Int
     firsttime::Bool
-    dtpicker::DataPicker
-    uiplot::UIPlot
+    dtpickers::Vector{DataPicker}
+    uiplots::Vector{UIPlot}
+    layout::Layout
     data::Dict
 end
-DataViewer() = DataViewer(true, true, false, true, DataPicker(), UIPlot(), Dict())
+DataViewer() = DataViewer(true, true, false, 1, true, [DataPicker()], [UIPlot()], Layout(), Dict())
 
 let
     window_ids::Dict{Int,String} = Dict()
+    isdelplot::Bool = false
+    delplot_i::Int = 0
     global function edit(dtviewer::DataViewer, filetree::FileTree, isrename::Dict{String,Bool}, id)
         # CImGui.SetNextWindowPos((100, 100), CImGui.ImGuiCond_Once)
         CImGui.SetNextWindowSize((800, 600), CImGui.ImGuiCond_Once)
@@ -31,8 +35,9 @@ let
             if filetree.selectedpath[] != oldfile
                 dtviewer.data = @trypasse load(filetree.selectedpath[]) Dict()
                 datakeys = keys(dtviewer.data)
-                "uiplot" in datakeys && (dtviewer.uiplot = @trypasse dtviewer.data["uiplot"] dtviewer.uiplot)
-                "datapicker" in datakeys && (dtviewer.dtpicker = @trypasse dtviewer.data["datapicker"] dtviewer.dtpicker)
+                "uiplots" in datakeys && (dtviewer.uiplots = @trypasse dtviewer.data["uiplots"] dtviewer.uiplot)
+                "datapickers" in datakeys && (dtviewer.dtpickers = @trypasse dtviewer.data["datapickers"] dtviewer.dtpicker)
+                "plotlayout" in datakeys && (dtviewer.layout = @trypasse dtviewer.data["plotlayout"] dtviewer.layout)
             end
             CImGui.EndChild()
             CImGui.NextColumn() #文件列表
@@ -92,20 +97,102 @@ let
                     CImGui.EndTabItem()
                 end
                 if CImGui.BeginTabItem("绘图")
-                    if CImGui.BeginPopupContextItem("选择数据查看")
-                        CImGui.MenuItem(morestyle.Icons.SelectData * " 选择数据") && (dtviewer.show_data_picker = true)
-                        if CImGui.MenuItem(morestyle.Icons.SaveButton * " 保存")
-                            if !isempty(dtviewer.data)
-                                jldopen(filetree.selectedpath[], "w") do file
-                                    for key in keys(dtviewer.data)
-                                        file[key] = dtviewer.data[key]
+                    if haskey(dtviewer.data, "data")
+                        if CImGui.BeginPopupContextItem("选择数据查看")
+                            if CImGui.BeginMenu(morestyle.Icons.SelectData * " 绘图")
+                                CImGui.Text("绘图列数")
+                                CImGui.SameLine()
+                                CImGui.PushItemWidth(2CImGui.GetFontSize())
+                                @c CImGui.DragInt(
+                                    "##绘图列数",
+                                    &conf.DAQ.plotshowcol,
+                                    1, 1, 6, "%d",
+                                    CImGui.ImGuiSliderFlags_AlwaysClamp
+                                )
+                                CImGui.PopItemWidth()
+                                CImGui.SameLine()
+                                CImGui.PushID("add new plot")
+                                if CImGui.Button(morestyle.Icons.NewFile)
+                                    push!(dtviewer.layout.labels, string(length(dtviewer.layout.labels) + 1))
+                                    push!(dtviewer.layout.states, false)
+                                    push!(dtviewer.uiplots, UIPlot())
+                                    push!(dtviewer.dtpickers, DataPicker())
+                                end
+                                CImGui.PopID()
+
+                                dtviewer.layout.showcol = conf.DAQ.plotshowcol
+                                dtviewer.layout.labels = morestyle.Icons.SelectData * " " .*
+                                                         string.(collect(eachindex(dtviewer.layout.labels)))
+                                edit(dtviewer.layout) do
+                                    openright = CImGui.BeginPopupContextItem()
+                                    if openright
+                                        if CImGui.MenuItem("选择数据") && dtviewer.layout.states[dtviewer.layout.idxing]
+                                            dtviewer.show_dtpicker = true
+                                            dtviewer.show_dtpicker_i = dtviewer.layout.idxing
+                                        end
+                                        if CImGui.MenuItem(morestyle.Icons.CloseFile * " 删除")
+                                            isdelplot = true
+                                            delplot_i = dtviewer.layout.idxing
+                                        end
+                                        CImGui.EndPopup()
+                                    end
+                                    return openright
+                                end
+                                CImGui.EndMenu()
+                            end
+                            # CImGui.MenuItem(morestyle.Icons.SelectData * " 选择数据") && (dtviewer.show_dtpicker = true)
+                            CImGui.Separator()
+                            if CImGui.MenuItem(morestyle.Icons.SaveButton * " 保存")
+                                if !isempty(dtviewer.data)
+                                    jldopen(filetree.selectedpath[], "w") do file
+                                        for key in keys(dtviewer.data)
+                                            file[key] = dtviewer.data[key]
+                                        end
                                     end
                                 end
                             end
+                            CImGui.EndPopup()
                         end
-                        CImGui.EndPopup()
                     end
-                    Plot(dtviewer.uiplot, "DataViewer绘图$id")
+                    isdelplot && ((CImGui.OpenPopup("##删除绘图$(dtviewer.layout.idxing)"));
+                    isdelplot = false)
+                    if YesNoDialog("##删除绘图$(dtviewer.layout.idxing)", "确认删除？", CImGui.ImGuiWindowFlags_AlwaysAutoResize)
+                        if length(dtviewer.uiplots) > 1
+                            deleteat!(dtviewer.layout.labels, delplot_i)
+                            deleteat!(dtviewer.layout.states, delplot_i)
+                            deleteat!(dtviewer.uiplots, delplot_i)
+                            deleteat!(dtviewer.dtpickers, delplot_i)
+                            update!(dtviewer.layout)
+                        end
+                    end
+                    CImGui.BeginChild("绘图")
+                    if isempty(dtviewer.layout.selectedidx)
+                        Plot(dtviewer.uiplots[1], "文件绘图1")
+                    else
+                        totalsz = CImGui.GetContentRegionAvail()
+                        l = length(dtviewer.layout.selectedidx)
+                        n = conf.DAQ.plotshowcol
+                        m = ceil(Int, l / n)
+                        n = m == 1 ? l : n
+                        height = (CImGui.GetContentRegionAvail().y - (m - 1) * unsafe_load(imguistyle.ItemSpacing.y)) / m
+                        CImGui.Columns(n)
+                        for i in 1:m
+                            for j in 1:n
+                                idx = (i - 1) * n + j
+                                if idx <= l
+                                    index = dtviewer.layout.selectedidx[idx]
+                                    Plot(
+                                        dtviewer.uiplots[index],
+                                        "文件绘图$(filetree.selectedpath[])-$index",
+                                        (Cfloat(0), height)
+                                    )
+                                    CImGui.NextColumn()
+                                end
+                            end
+                        end
+                    end
+                    CImGui.EndChild()
+                    # Plot(dtviewer.uiplot, "DataViewer绘图$id")
                     CImGui.EndTabItem()
                 end
                 CImGui.EndTabBar()
@@ -118,21 +205,23 @@ let
                 CImGui.Button("确认##文件中没有数据", (180, 0)) && CImGui.CloseCurrentPopup()
                 CImGui.EndPopup()
             end
-            if dtviewer.show_data_picker
+            if dtviewer.show_dtpicker
                 if haskey(dtviewer.data, "data")
+                    show_i = dtviewer.show_dtpicker_i
+                    dtpk = dtviewer.dtpickers[show_i]
                     datakeys::Set{String} = keys(dtviewer.data["data"])
-                    if datakeys != Set(dtviewer.dtpicker.datalist)
-                        dtviewer.dtpicker.datalist = collect(datakeys)
-                        dtviewer.dtpicker.y = falses(length(datakeys))
+                    if datakeys != Set(dtpk.datalist)
+                        dtpk.datalist = collect(datakeys)
+                        dtpk.y = falses(length(datakeys))
                     end
-                    isupdate = @c edit(dtviewer.dtpicker, id, &dtviewer.show_data_picker)
-                    if !dtviewer.show_data_picker || isupdate ||
-                        (dtviewer.dtpicker.isrealtime && waittime("DataViewer$id", dtviewer.dtpicker.refreshrate))
-                        syncplotdata(dtviewer.uiplot, dtviewer.dtpicker, dtviewer.data["data"])
+                    isupdate = @c edit(dtpk, id, &dtviewer.show_dtpicker)
+                    if !dtviewer.show_dtpicker || isupdate ||
+                       (dtpk.isrealtime && waittime("DataViewer$id-DataPicker$show_i", dtpk.refreshrate))
+                        syncplotdata(dtviewer.uiplots[show_i], dtpk, dtviewer.data["data"])
                     end
                 else
                     CImGui.OpenPopup("文件中没有数据")
-                    dtviewer.show_data_picker = false
+                    dtviewer.show_dtpicker = false
                 end
             end
         end
@@ -140,7 +229,7 @@ let
     end
 end
 
-let 
+let
     flags = 0
     flags |= CImGui.ImGuiTableFlags_Resizable
     flags |= CImGui.ImGuiTableFlags_Reorderable

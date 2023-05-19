@@ -25,6 +25,8 @@ let
 
     dtviewers = Tuple{DataViewer,FolderFileTree,Dict{String,Bool}}[]
     # window_class = ImGuiWindowClass_ImGuiWindowClass()
+    # labels = ["a", "b", "c", "d", "e"]
+    # states = falses(5)
     global function MainWindow()
         window_flags = UInt32(0)
         no_titlebar && (window_flags |= CImGui.ImGuiWindowFlags_NoTitleBar)
@@ -37,6 +39,7 @@ let
         no_background && (window_flags |= CImGui.ImGuiWindowFlags_NoBackground)
         no_bring_to_front && (window_flags |= CImGui.ImGuiWindowFlags_NoBringToFrontOnFocus)
         no_docking && (window_flags |= CImGui.ImGuiWindowFlags_NoDocking)
+        
         ######加载背景######
         # igDockSpaceOverViewport(igGetMainViewport(), ImGuiDockNodeFlags_None, C_NULL)
         viewport = igGetMainViewport()
@@ -55,6 +58,11 @@ let
         CImGui.End()
         CImGui.PopStyleVar(2)
         # igDockSpaceOverViewport(igGetMainViewport(), ImGuiDockNodeFlags_None, C_NULL)
+        ######Debug######
+        # CImGui.SetNextWindowSize((600, 600))
+        # CImGui.Begin("Debug MultiSelectable", Ref(true))
+        # DragMultiSelectable(()->(), "Debug", labels, states, 3)
+        # CImGui.End()
 
         ######子窗口######
         for (i, dtv) in enumerate(dtviewers)

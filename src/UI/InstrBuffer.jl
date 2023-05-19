@@ -6,8 +6,9 @@ mutable struct InstrQuantity
     stop::String
     delay::Cfloat
     set::String
+    optkeys::Vector{String}
     optvalues::Vector{String}
-    optedvalueidx::Cint
+    optedidx::Cint
     read::String
     utype::String
     uindex::Int
@@ -16,27 +17,26 @@ mutable struct InstrQuantity
     isautorefresh::Bool
     issweeping::Bool
 end
-InstrQuantity() = InstrQuantity(true, "", "", "", "", Cfloat(0.1), "", [""], 1, "", "", 1, :set, "", false, false)
-function InstrQuantity(name, qtcf::QuantityConf)
-    InstrQuantity(
-        qtcf.enable,
-        name,
-        qtcf.alias,
-        "",
-        "",
-        Cfloat(0.1),
-        "",
-        qtcf.optvalues,
-        1,
-        "",
-        qtcf.U,
-        1,
-        Symbol(qtcf.type),
-        qtcf.help,
-        false,
-        false
-    )
-end
+InstrQuantity() = InstrQuantity(true, "", "", "", "", Cfloat(0.1), "", [], [], 1, "", "", 1, :set, "", false, false)
+InstrQuantity(name, qtcf::QuantityConf) = InstrQuantity(
+    qtcf.enable,
+    name,
+    qtcf.alias,
+    "",
+    "",
+    Cfloat(0.1),
+    "",
+    qtcf.optkeys,
+    qtcf.optvalues,
+    1,
+    "",
+    qtcf.U,
+    1,
+    Symbol(qtcf.type),
+    qtcf.help,
+    false,
+    false
+)
 
 mutable struct InstrBuffer
     instrnm::String
@@ -55,11 +55,33 @@ function InstrBuffer(instrnm)
     for qt in quantities
         enable = insconf[instrnm].quantities[qt].enable
         alias = insconf[instrnm].quantities[qt].alias
+        optkeys = insconf[instrnm].quantities[qt].optkeys
         optvalues = insconf[instrnm].quantities[qt].optvalues
         utype = insconf[instrnm].quantities[qt].U
         type = Symbol(insconf[instrnm].quantities[qt].type)
         help = replace(insconf[instrnm].quantities[qt].help, "\\\n" => "")
-        push!(instrqts, qt => InstrQuantity(enable, qt, alias, "", "", Cfloat(0.1), "", optvalues, 1, "", utype, 1, type, help, false, false))
+        push!(
+            instrqts,
+            qt => InstrQuantity(
+                enable,
+                qt,
+                alias,
+                "",
+                "",
+                Cfloat(0.1),
+                "",
+                optkeys,
+                optvalues,
+                1,
+                "",
+                utype,
+                1,
+                type,
+                help,
+                false,
+                false
+            )
+        )
     end
     InstrBuffer(instrnm, instrqts, false)
 end
@@ -77,7 +99,6 @@ InstrBufferViewer() = InstrBufferViewer("", "", "*IDN?", "", false, InstrBuffer(
 
 # const instrcontrollers::Dict{String,Dict{String,Controller}} = Dict()
 const instrbufferviewers::Dict{String,Dict{String,InstrBufferViewer}} = Dict()
-refreshrate::Cfloat = 6 #仪器状态刷新率
 
 let
     # window_ids::Dict{Tuple{String,String},String} = Dict()
@@ -92,7 +113,6 @@ let
                 CImGui.OpenPopupOnItemClick("rightclick")
             end
             if CImGui.BeginPopup("rightclick")
-                global refreshrate
                 if CImGui.MenuItem(
                     morestyle.Icons.InstrumentsManualRef * " 手动刷新",
                     "F5",
@@ -113,10 +133,15 @@ let
                     CImGui.Text(" ")
                     CImGui.SameLine()
                     CImGui.PushItemWidth(CImGui.GetFontSize() * 2)
-                    @c CImGui.DragFloat("##自动刷新", &refreshrate, 0.1, 0.1, 60, "%.1f", CImGui.ImGuiSliderFlags_AlwaysClamp)
+                    @c CImGui.DragFloat("##自动刷新", &conf.InsBuf.refreshrate, 0.1, 0.1, 60, "%.1f", CImGui.ImGuiSliderFlags_AlwaysClamp)
                     # remotecall_wait((x) -> (global refreshrate = x), workers()[1], refreshrate)
                     CImGui.PopItemWidth()
                 end
+                CImGui.Text(morestyle.Icons.ShowCol * " 显示列数")
+                CImGui.SameLine()
+                CImGui.PushItemWidth(3CImGui.GetFontSize()/2)
+                @c CImGui.DragInt("##显示列数", &conf.InsBuf.showcol, 1, 1, 12, "%d", CImGui.ImGuiSliderFlags_AlwaysClamp)
+                CImGui.PopItemWidth()
                 CImGui.EndPopup()
             end
             CImGui.IsKeyReleased(294) && manualrefresh()
@@ -147,7 +172,6 @@ let
             end
             CImGui.EndChild()
             if CImGui.BeginPopupContextItem()
-                global refreshrate
                 if CImGui.MenuItem(
                     morestyle.Icons.InstrumentsManualRef * " 手动刷新",
                     "F5",
@@ -166,10 +190,15 @@ let
                     CImGui.Text(" ")
                     CImGui.SameLine()
                     CImGui.PushItemWidth(CImGui.GetFontSize() * 2)
-                    @c CImGui.DragFloat("##自动刷新", &refreshrate, 0.1, 0.1, 60, "%.1f", CImGui.ImGuiSliderFlags_AlwaysClamp)
+                    @c CImGui.DragFloat("##自动刷新", &conf.InsBuf.refreshrate, 0.1, 0.1, 60, "%.1f", CImGui.ImGuiSliderFlags_AlwaysClamp)
                     # remotecall_wait((x) -> (global refreshrate = x), workers()[1], refreshrate)
                     CImGui.PopItemWidth()
                 end
+                CImGui.Text(morestyle.Icons.ShowCol * " 显示列数")
+                CImGui.SameLine()
+                CImGui.PushItemWidth(3CImGui.GetFontSize()/2)
+                @c CImGui.DragInt("##显示列数", &conf.InsBuf.showcol, 1, 1, 12, "%d", CImGui.ImGuiSliderFlags_AlwaysClamp)
+                CImGui.PopItemWidth()
                 CImGui.EndPopup()
             end
             CImGui.IsKeyReleased(294) && manualrefresh()
@@ -289,6 +318,7 @@ function edit(insbuf::InstrBuffer, addr)
         CImGui.Indent()
         if CImGui.BeginDragDropSource(0)
             @c CImGui.SetDragDropPayload("Swap DAQTask", &i, sizeof(Cint))
+            CImGui.Text(qt.alias)
             CImGui.EndDragDropSource()
         end
         if CImGui.BeginDragDropTarget()
@@ -453,7 +483,7 @@ let
                 triggerset = false
                 if addr != ""
                     sv = U == "" ? qt.set : @trypasse string(float(eval(Meta.parse(qt.set)) * Uchange)) qt.set
-                    triggerset && (sv = qt.optvalues[qt.optedvalueidx])
+                    triggerset && (sv = qt.optvalues[qt.optedidx])
                     fetchdata = remotecall_fetch(workers()[1], instrnm, addr, sv) do instrnm, addr, sv
                         ct = Controller(instrnm, addr)
                         try
@@ -474,7 +504,7 @@ let
             end
             for (i, optv) in enumerate(qt.optvalues)
                 optv == "" && continue
-                @c(CImGui.RadioButton(optv, &qt.optedvalueidx, i)) && (qt.set = optv; triggerset = true)
+                @c(CImGui.RadioButton(qt.optkeys[i], &qt.optedidx, i)) && (qt.set = optv; triggerset = true)
                 i % 2 == 1 && CImGui.SameLine(0, 2CImGui.GetFontSize())
             end
             CImGui.Text("单位 ")
@@ -640,7 +670,7 @@ function autorefresh()
     errormonitor(
         @async while true
             i_sleep = 0
-            while i_sleep < refreshrate
+            while i_sleep < conf.InsBuf.refreshrate
                 sleep(0.1)
                 i_sleep += 0.1
             end

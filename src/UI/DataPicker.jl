@@ -46,7 +46,7 @@ let
             CImGui.PopItemWidth()
 
             CImGui.TextColored(morestyle.Colors.HighlightText, "选择Y")
-            isempty(dtpk.datalist) ? CImGui.Selectable("") : MultiSelectable("数据选择", dtpk.datalist, dtpk.y, 1)
+            isempty(dtpk.datalist) ? CImGui.Selectable("") : MultiSelectable(()->false, "数据选择", dtpk.datalist, dtpk.y, 1)
 
             CImGui.PushItemWidth(-1)
             CImGui.TextColored(morestyle.Colors.HighlightText, "选择Z")

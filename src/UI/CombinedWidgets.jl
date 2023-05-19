@@ -102,10 +102,12 @@ function ShowUnit(id, utype, ui::Ref, flags=CImGui.ImGuiComboFlags_NoArrowButton
 end
 
 function MultiSelectable(
+    rightclickmenu,
     id,
     labels,
     states,
     n,
+    idxing=Ref(1),
     size=(Float32(0), CImGui.GetFrameHeight() * ceil(Int, length(labels) / n))
 )
     l = length(labels)
@@ -115,9 +117,59 @@ function MultiSelectable(
     CImGui.Columns(n, C_NULL, false)
     for i in 1:m
         for j in 1:n
-            ind = (i - 1) * n + j
-            if ind <= l
-                CImGui.Selectable(labels[ind], states[ind]) && (states[ind] ⊻= true)
+            idx = (i - 1) * n + j
+            if idx <= l
+                CImGui.PushStyleVar(CImGui.ImGuiStyleVar_SelectableTextAlign, (0.5, 0.5))
+                CImGui.Selectable(labels[idx], states[idx]) && (states[idx] ⊻= true)
+                CImGui.PopStyleVar()
+                rightclickmenu() && (idxing[] = idx)
+                CImGui.NextColumn()
+            end
+        end
+    end
+    CImGui.EndChild()
+end
+
+function DragMultiSelectable(
+    rightclickmenu,
+    id,
+    labels,
+    states,
+    n,
+    idxing=Ref(1),
+    size=(Float32(0), CImGui.GetFrameHeight() * ceil(Int, length(labels) / n))
+)
+    l = length(labels)
+    m = ceil(Int, l / n)
+    size = l == 0 ? (Float32(0), CImGui.GetFrameHeightWithSpacing()) : size
+    CImGui.BeginChild("MultiSelectable##$id", size)
+    CImGui.Columns(n, C_NULL, false)
+    for i in 1:m
+        for j in 1:n
+            idx = (i - 1) * n + j
+            if idx <= l
+                CImGui.PushStyleVar(CImGui.ImGuiStyleVar_SelectableTextAlign, (0.5, 0.5))
+                CImGui.Selectable(labels[idx], states[idx]) && (states[idx] ⊻= true)
+                CImGui.PopStyleVar()
+                rightclickmenu() && (idxing[] = idx)
+                CImGui.Indent()
+                if CImGui.BeginDragDropSource(0)
+                    @c CImGui.SetDragDropPayload("DragMultiSelectable##id", &idx, sizeof(Cint))
+                    CImGui.Text(labels[idx])
+                    CImGui.EndDragDropSource()
+                end
+                if CImGui.BeginDragDropTarget()
+                    payload = CImGui.AcceptDragDropPayload("DragMultiSelectable##id")
+                    if payload != C_NULL && unsafe_load(payload).DataSize == sizeof(Cint)
+                        payload_i = unsafe_load(Ptr{Cint}(unsafe_load(payload).Data))
+                        if idx != payload_i
+                            labels[idx], labels[payload_i] = labels[payload_i], labels[idx]
+                            states[idx], states[payload_i] = states[payload_i], states[idx]
+                        end
+                    end
+                    CImGui.EndDragDropTarget()
+                end
+                CImGui.Unindent()
                 CImGui.NextColumn()
             end
         end
@@ -177,4 +229,45 @@ function RenameSelectable(str_id, isrename::Ref{Bool}, label::Ref, selected::Boo
         CImGui.IsItemHovered() && CImGui.IsMouseDoubleClicked(0) && (isrename[] = true)
     end
     trig
+end
+
+mutable struct Layout
+    id::String
+    showcol::Cint
+    idxing::Cint
+    labels::Vector{String}
+    states::Vector{Bool}
+    selectedlabels::Vector{String}
+    labeltoidx::Dict{String,Int}
+    selectedidx::Vector{Int}
+end
+Layout(id) = Layout(id, 3, 1, ["default"], [false], [], Dict(), [])
+Layout() = Layout("Layout")
+
+labeltoidx!(lo::Layout) = lo.selectedidx = [lo.labeltoidx[lb] for lb in lo.selectedlabels]
+
+function edit(rightclickmenu, lo::Layout)
+    states_old = copy(lo.states)
+    @c MultiSelectable(rightclickmenu, "select##$(lo.id)", lo.labels, lo.states, lo.showcol, &lo.idxing)
+    CImGui.Separator()
+    CImGui.Text("布局")
+    selectedlabels_old = copy(lo.selectedlabels)
+    if lo.states != states_old
+        lo.selectedlabels = lo.labels[lo.states]
+        lo.labeltoidx = Dict(zip(lo.labels, collect(eachindex(lo.labels))))
+    end
+    DragMultiSelectable(
+        ()->false,
+        "selected##$(lo.id)",
+        lo.selectedlabels,
+        trues(length(lo.selectedlabels)),
+        lo.showcol
+    )
+    lo.selectedlabels == selectedlabels_old || labeltoidx!(lo)
+end
+
+function update!(lo::Layout)
+    lo.selectedlabels = lo.labels[lo.states]
+    lo.labeltoidx = Dict(zip(lo.labels, collect(eachindex(lo.labels))))
+    labeltoidx!(lo)
 end

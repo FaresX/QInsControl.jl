@@ -51,13 +51,15 @@ let
                 @c CImGui.DragInt("保存时间", &conf.DAQ.savetime, 1.0, 1, 180, "%d", CImGui.ImGuiSliderFlags_AlwaysClamp)
                 @c CImGui.DragInt("通道大小", &conf.DAQ.channel_size, 1.0, 4, 2048, "%d", CImGui.ImGuiSliderFlags_AlwaysClamp)
                 @c CImGui.DragInt("打包尺寸", &conf.DAQ.packsize, 1.0, 6, 120, "%d", CImGui.ImGuiSliderFlags_AlwaysClamp)
+                @c CImGui.DragInt("绘图列数", &conf.DAQ.plotshowcol, 1.0, 1, 6, "%d", CImGui.ImGuiSliderFlags_AlwaysClamp)
                 CImGui.Text(" ")
                 CImGui.Separator()
 
                 ###InsBuf###
                 CImGui.TextColored(morestyle.Colors.HighlightText, "仪器设置和状态")
-                @c CImGui.DragInt("显示列数", &conf.InsBuf.showcol, 1.0, 1, 6, "%d", CImGui.ImGuiSliderFlags_AlwaysClamp)
                 @c CImGui.Checkbox("显示帮助", &conf.InsBuf.showhelp)
+                @c CImGui.DragInt("显示列数", &conf.InsBuf.showcol, 1.0, 1, 6, "%d", CImGui.ImGuiSliderFlags_AlwaysClamp)
+                @c CImGui.DragFloat("刷新速率", &conf.InsBuf.refreshrate, 0.1, 0.1, 60, "%.3f", CImGui.ImGuiSliderFlags_AlwaysClamp)
                 CImGui.Text(" ")
                 CImGui.Separator()
 

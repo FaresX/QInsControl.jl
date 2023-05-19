@@ -10,11 +10,13 @@ end
     savetime::Cint
     channel_size::Cint
     packsize::Cint
+    plotshowcol::Cint
 end
 
 @option mutable struct OptInsBuf
-    showcol::Cint
     showhelp::Bool
+    showcol::Cint
+    refreshrate::Cfloat
 end
 
 @option mutable struct OptFonts

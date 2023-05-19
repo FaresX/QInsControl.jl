@@ -32,6 +32,7 @@ Base.@kwdef mutable struct MoreStyleIcon
     InstrumentsSetting::String = ICONS.ICON_BOOK_JOURNAL_WHILLS
     InstrumentsManualRef::String = ICONS.ICON_ROTATE
     InstrumentsAutoRef::String = ICONS.ICON_REPEAT
+    ShowCol::String = ICONS.ICON_EYE
 
     InstrumentsOverview::String = ICONS.ICON_BOOK_BIBLE
     InstrumentsDAQ::String = ICONS.ICON_CIRCLE_RADIATION
@@ -48,7 +49,7 @@ Base.@kwdef mutable struct MoreStyleIcon
     ShowDisable::String = ICONS.ICON_EYE
     NotShowDisable::String = ICONS.ICON_EYE_SLASH
     SelectData::String = ICONS.ICON_CHART_AREA
-    PlotNumber::String = ICONS.ICON_CODE_BRANCH
+    # PlotNumber::String = ICONS.ICON_CODE_BRANCH
     Datai::String = ICONS.ICON_CHART_COLUMN
     Update::String = ICONS.ICON_CLOUD_ARROW_UP
     InsertUp::String = ICONS.ICON_CIRCLE_ARROW_UP

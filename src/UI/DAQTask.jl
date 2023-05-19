@@ -236,8 +236,9 @@ function update_data()
         if waittime("savedatabuf", conf.DAQ.savetime)
             jldopen(savepath, "w") do file
                 file["data"] = databuf
-                file["uiplot"] = uipsweeps[1]
-                file["datapicker"] = daq_dtpks[1]
+                file["uiplots"] = uipsweeps
+                file["datapickers"] = daq_dtpks
+                file["plotlayout"] = daq_plot_layout
                 for (key, val) in cfgbuf
                     file[key] = val
                 end
@@ -256,8 +257,9 @@ function update_all()
             end
             jldopen(savepath, "w") do file
                 file["data"] = databuf
-                file["uiplot"] = uipsweeps[1]
-                file["datapicker"] = daq_dtpks[1]
+                file["uiplots"] = uipsweeps
+                file["datapickers"] = daq_dtpks
+                file["plotlayout"] = daq_plot_layout
                 for (key, val) in cfgbuf
                     file[key] = val
                 end

@@ -1,6 +1,6 @@
 types = [
     :InstrQuantity, :InstrBuffer, :InstrBufferViewer,
-    :DAQTask, :NodeEditor, :Node, :UIPlot, :Annotation, :DataPicker,
+    :DAQTask, :NodeEditor, :Node, :UIPlot, :Layout, :Annotation, :DataPicker,
     :MoreStyle, :MoreStyleColor, :MoreStyleIcon, :UnionStyle,
     :CodeBlock, :StrideCodeBlock, :SweepBlock, :SettingBlock, :ReadingBlock,
     :LogBlock, :WriteBlock, :QueryBlock, :ReadBlock, :SaveBlock

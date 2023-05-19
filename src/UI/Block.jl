@@ -592,11 +592,13 @@ function edit(bk::SettingBlock)
     @c InputTextWithHintRSZ("##SettingBlock设置值", "设置值", &bk.setvalue)
     CImGui.PopItemWidth()
     if CImGui.BeginPopup("选择设置值")
+        optklist = @trypass insconf[bk.instrnm].quantities[bk.quantity].optkeys [""]
         optvlist = @trypass insconf[bk.instrnm].quantities[bk.quantity].optvalues [""]
-        for optv in optvlist
+        isempty(optklist) && CImGui.TextColored(morestyle.Colors.HighlightText, "不可用的选项！")
+        for (i, optv) in enumerate(optvlist)
             optv == "" && (CImGui.TextColored(morestyle.Colors.HighlightText, "不可用的选项！");
             continue)
-            CImGui.MenuItem(optv) && (bk.setvalue = optv)
+            CImGui.MenuItem(optklist[i]) && (bk.setvalue = optv)
         end
         CImGui.EndPopup()
     end
