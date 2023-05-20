@@ -19,7 +19,7 @@ function UI()
     gl_ctx = ImGuiOpenGLBackend.create_context()
 
     # 加载图标
-    icons = load.([joinpath(ENV["QInsControlAssets"], "Necessity/QInsControl.ico")])
+    icons = FileIO.load.([joinpath(ENV["QInsControlAssets"], "Necessity/QInsControl.ico")])
     icons_8bit = reinterpret.(NTuple{4,UInt8}, icons)
     glfwicons = Base.unsafe_convert(Ref{GLFWimage}, Base.cconvert(Ref{GLFWimage}, icons_8bit))
     glfwSetWindowIcon(window, 1, glfwicons)
@@ -29,7 +29,7 @@ function UI()
     # 加载背景
     if isfile(conf.BGImage.path)
         try
-            bgimg = RGB.(transposeimg(load(conf.BGImage.path)))
+            bgimg = RGB.(transposeimg(FileIO.load(conf.BGImage.path)))
             bgsize = size(bgimg)
             global bgid = ImGui_ImplOpenGL3_CreateImageTexture(bgsize...)
             ImGui_ImplOpenGL3_UpdateImageTexture(bgid, bgimg, bgsize...)
@@ -124,6 +124,7 @@ function UI()
             ImGuiGLFWBackend.new_frame(window_ctx)
             CImGui.NewFrame()
 
+            savingimg && glfwSetWindowAttrib(window, GLFW_FLOATING, GLFW_TRUE)
             @c glfwGetWindowPos(window, &glfwwindowx, &glfwwindowy)
 
             MainWindow()

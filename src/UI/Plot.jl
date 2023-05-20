@@ -6,6 +6,8 @@ Base.@kwdef mutable struct PlotState
     annhv_i::Cint = 1
     showtooltip::Bool = true
     mspos::ImPlot.ImPlotPoint = ImPlot.ImPlotPoint(0, 0)
+    plotpos::CImGui.ImVec2 = (0, 0)
+    plotsize::CImGui.ImVec2 = (0, 0)
 end
 
 mutable struct Annotation
@@ -38,6 +40,7 @@ UIPlot() = UIPlot(Union{Real,String}[], [Real[]], Matrix{Float64}(undef, 0, 0))
 let
     annbuf::Annotation = Annotation()
     openpopup_mspos::Vector{Cfloat} = [0, 0]
+    issaveimg::Bool = false
     global function Plot(uip::UIPlot, id, size=(0, 0))
         CImGui.PushID(id)
         CImGui.BeginChild("Plot", size)
@@ -111,7 +114,18 @@ let
                     push!(uip.anns, newann)
                 end
             end
+            CImGui.Button(morestyle.Icons.SaveButton * " 保存##图像") && (CImGui.CloseCurrentPopup(); issaveimg = true)
             CImGui.EndPopup()
+        end
+        if issaveimg
+            global savingimg = true
+            img = ImageMagick.load("screenshot:")
+            savingimg = false
+            u, d = round(Int, ps.plotpos.y), round(Int, ps.plotpos.y + ps.plotsize.y)
+            l, r = round(Int, ps.plotpos.x), round(Int, ps.plotpos.x + ps.plotsize.x)
+            imgpath = save_file(; filterlist="png,jpg,jpeg,bmp,eps,tif")
+            imgpath == "" || FileIO.save(imgpath, img[u:d, l:r])
+            issaveimg = false
         end
         igIsPopupOpenStr("title$id", 0) || openpopup_mspos == Cfloat[0, 0] || (openpopup_mspos = Cfloat[0, 0])
         ps.annhv && CImGui.IsMouseClicked(1) && CImGui.OpenPopup("注释")
@@ -200,6 +214,8 @@ let
             PlotAnns(anns, ps)
             ImPlot.EndPlot()
         end
+        ps.plotpos = CImGui.GetItemRectMin()
+        ps.plotsize = CImGui.GetItemRectSize()
         ps
     end
 end
@@ -251,9 +267,13 @@ let
             PlotAnns(anns, ps)
             ImPlot.EndPlot()
         end
+        ps.plotpos = CImGui.GetItemRectMin()
+        ps.plotsize = CImGui.GetItemRectSize()
         CImGui.SameLine()
         ImPlot.ColormapScale(string(zlabel[], "###$id"), zlims..., CImGui.ImVec2(0, -1))
-        width = CImGui.GetItemRectSize().x
+        cmssize = CImGui.GetItemRectSize()
+        ps.plotsize = (ps.plotsize.x + cmssize.x, ps.plotsize.y)
+        width = cmssize.x
         CImGui.IsItemHovered() && CImGui.IsMouseDoubleClicked(0) && CImGui.OpenPopup("z标签$id")
         if CImGui.BeginPopup("z标签$id")
             InputTextRSZ("z标签##$id", zlabel)
@@ -410,4 +430,14 @@ function xyzsetting(uip::UIPlot)
     zlims = extrema(uip.z)
     zlims[1] == zlims[2] && (zlims = (0, 1))
     xlims, ylims, zlims, xlabel, ylabel
+end
+
+function saveimg(path, ps::PlotState)
+    CImGui.CloseCurrentPopup()
+    global savingimg = true
+    img = ImageMagick.load("screenshot:")
+    savingimg = false
+    u, d = round(Int, ps.plotpos.y), round(Int, ps.plotpos.y + ps.plotsize.y)
+    l, r = round(Int, ps.plotpos.x), round(Int, ps.plotpos.x + ps.plotsize.x)
+    FileIO.save(path, img[u:d, l:r])
 end

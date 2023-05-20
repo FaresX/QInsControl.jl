@@ -1,8 +1,8 @@
-# using Distributed
-# nprocs() == 1 && addprocs(1)
-# @everywhere ENV["QInsControlAssets"] = "Assets"
-# @everywhere module QInsControl
-module QInsControl
+using Distributed
+nprocs() == 1 && addprocs(1)
+@everywhere ENV["QInsControlAssets"] = "Assets"
+@everywhere module QInsControl
+# module QInsControl
 
 using CImGui
 using CImGui.CSyntax
@@ -16,14 +16,14 @@ using ImPlot
 using NativeFileDialog
 using Unitful
 using MacroTools
-import FileIO: load
+import FileIO
 using JLD2
 using QInsControlCore
 using Configurations
 using ColorTypes
 using OrderedCollections
 using StringEncodings
-# using ImageMagick
+import ImageMagick
 # using ImageIO
 # using Logging
 
@@ -49,6 +49,7 @@ export start
     isautorefresh
 end
 
+global savingimg::Bool = false
 const CPU = Processor()
 const databuf = Dict{String,Vector{String}}() #数据缓存
 const progresslist = Dict{UUID,Tuple{UUID,Int,Int,Float64}}() #进度条缓存
@@ -105,7 +106,7 @@ function julia_main()::Cint
         global jlverinfo = wrapmultiline(String(take!(jlverinfobuf)), 48)
         if conf.Init.isremote
             nprocs() == 1 && addprocs(1)
-            @eval @everywhere using QInsControl
+            # @eval @everywhere using QInsControl
             syncstates = SharedVector{Bool}(7)
             databuf_rc = RemoteChannel(() -> databuf_c)
             progress_rc = RemoteChannel(() -> progress_c)

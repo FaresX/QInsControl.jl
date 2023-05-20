@@ -157,7 +157,7 @@ let
                 if inputbgpath || selectbgpath
                     if isfile(bgpath)
                         try
-                            bgimg = RGB.(transposeimg(load(bgpath)))
+                            bgimg = RGB.(transposeimg(FileIO.load(bgpath)))
                             conf.BGImage.path = bgpath
                             bgsize = size(bgimg)
                             global bgid = ImGui_ImplOpenGL3_CreateImageTexture(bgsize...)

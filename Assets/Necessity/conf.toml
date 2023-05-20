@@ -20,7 +20,7 @@ editor = "code.cmd"
 savetime = 60
 channel_size = 512
 packsize = 6
-plotshowcol = 2
+plotshowcol = 4
 
 [InsBuf]
 showhelp = true

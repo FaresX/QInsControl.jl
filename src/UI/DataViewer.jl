@@ -32,7 +32,7 @@ let
             CImGui.BeginChild("DataViewer-FileTree")
             oldfile = filetree.selectedpath[]
             edit(filetree, isrename)
-            if filetree.selectedpath[] != oldfile
+            if filetree.selectedpath[] != oldfile && split(basename(filetree.selectedpath[]), '.')[end] in ["qdt", "cfg"]
                 dtviewer.data = @trypasse load(filetree.selectedpath[]) Dict()
                 datakeys = keys(dtviewer.data)
                 "uiplots" in datakeys && (dtviewer.uiplots = @trypasse dtviewer.data["uiplots"] dtviewer.uiplot)

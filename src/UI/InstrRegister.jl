@@ -12,7 +12,7 @@ function edit(qtcf::QuantityConf)
     CImGui.SameLine()
     if CImGui.Button("inssetget.jl")
         inssetget_jl = joinpath(ENV["QInsControlAssets"], "Confs/inssetget.jl") |> abspath
-        try
+        @async try
             Base.run(Cmd([conf.Init.editor, inssetget_jl]))
         catch e
             @error "[$(now())]\n文本编辑错误！！！" exception=e

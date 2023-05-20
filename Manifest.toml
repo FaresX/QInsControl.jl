@@ -692,11 +692,11 @@ version = "1.7.2"
 
 [[deps.QInsControlCore]]
 deps = ["Instruments", "Sockets", "UUIDs"]
-git-tree-sha1 = "e2e4e7efcfa8fdfe025c339543b8045527db9877"
-repo-rev = "template2"
+git-tree-sha1 = "2683992c39f7ed7f88dbbf05435f487a0330f2e5"
+repo-rev = "master"
 repo-url = "https://github.com/Faresx/QInsControlCore.jl.git"
 uuid = "cd9154b2-5d6d-4493-a0bc-3471f84f9c90"
-version = "1.0.0-DEV"
+version = "0.1.0"
 
 [[deps.QOI]]
 deps = ["ColorTypes", "FileIO", "FixedPointNumbers"]
