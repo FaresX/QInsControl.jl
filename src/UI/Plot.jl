@@ -40,7 +40,6 @@ UIPlot() = UIPlot(Union{Real,String}[], [Real[]], Matrix{Float64}(undef, 0, 0))
 let
     annbuf::Annotation = Annotation()
     openpopup_mspos::Vector{Cfloat} = [0, 0]
-    issaveimg::Bool = false
     global function Plot(uip::UIPlot, id, size=(0, 0))
         CImGui.PushID(id)
         CImGui.BeginChild("Plot", size)
@@ -79,7 +78,6 @@ let
                 )
             end
         end
-
         ps.phv && CImGui.IsMouseClicked(2) && CImGui.OpenPopup("title$id")
         if CImGui.BeginPopup("title$id")
             if openpopup_mspos == Cfloat[0, 0]
@@ -114,18 +112,12 @@ let
                     push!(uip.anns, newann)
                 end
             end
-            CImGui.Button(morestyle.Icons.SaveButton * " 保存##图像") && (CImGui.CloseCurrentPopup(); issaveimg = true)
+            if CImGui.Button(morestyle.Icons.SaveButton * " 保存##图像")
+                CImGui.CloseCurrentPopup()
+                global savingimg = true
+                saveimg_seting(save_file(; filterlist="png;jpg;jpeg;bmp;eps;tif"), [uip])
+            end
             CImGui.EndPopup()
-        end
-        if issaveimg
-            global savingimg = true
-            img = ImageMagick.load("screenshot:")
-            savingimg = false
-            u, d = round(Int, ps.plotpos.y), round(Int, ps.plotpos.y + ps.plotsize.y)
-            l, r = round(Int, ps.plotpos.x), round(Int, ps.plotpos.x + ps.plotsize.x)
-            imgpath = save_file(; filterlist="png,jpg,jpeg,bmp,eps,tif")
-            imgpath == "" || FileIO.save(imgpath, img[u:d, l:r])
-            issaveimg = false
         end
         igIsPopupOpenStr("title$id", 0) || openpopup_mspos == Cfloat[0, 0] || (openpopup_mspos = Cfloat[0, 0])
         ps.annhv && CImGui.IsMouseClicked(1) && CImGui.OpenPopup("注释")
@@ -432,12 +424,61 @@ function xyzsetting(uip::UIPlot)
     xlims, ylims, zlims, xlabel, ylabel
 end
 
-function saveimg(path, ps::PlotState)
-    CImGui.CloseCurrentPopup()
-    global savingimg = true
-    img = ImageMagick.load("screenshot:")
-    savingimg = false
-    u, d = round(Int, ps.plotpos.y), round(Int, ps.plotpos.y + ps.plotsize.y)
-    l, r = round(Int, ps.plotpos.x), round(Int, ps.plotpos.x + ps.plotsize.x)
-    FileIO.save(path, img[u:d, l:r])
+let
+    count_fps::Int = 0
+    path::String = ""
+    uips::Vector{UIPlot} = []
+    pick_fps = 3
+    global function saveimg()
+        global savingimg
+        if savingimg
+            if count_fps == 0
+                path == "" && (savingimg = false; return)
+                count_fps = 1
+            end
+            if count_fps < pick_fps
+                viewport = igGetMainViewport()
+                CImGui.SetNextWindowPos(unsafe_load(viewport.WorkPos))
+                CImGui.SetNextWindowSize(unsafe_load(viewport.WorkSize))
+                CImGui.SetNextWindowFocus()
+                CImGui.SetNextWindowBgAlpha(1)
+                CImGui.PushStyleVar(CImGui.ImGuiStyleVar_WindowRounding, 0)
+                CImGui.PushStyleVar(CImGui.ImGuiStyleVar_WindowPadding, (0, 0))
+                CImGui.Begin("Save Plot", C_NULL, CImGui.ImGuiWindowFlags_NoTitleBar)
+                l = length(uips)
+                n = conf.DAQ.plotshowcol
+                m = ceil(Int, l / n)
+                n = m == 1 ? l : n
+                height = (CImGui.GetWindowHeight() - (m - 1) * unsafe_load(imguistyle.ItemSpacing.y)) / m
+                CImGui.Columns(n, C_NULL, false)
+                for i in 1:m
+                    for j in 1:n
+                        idx = (i - 1) * n + j
+                        if idx <= l
+                            Plot(uips[idx], "Save Plot$idx", (Cfloat(0), height))
+                            CImGui.NextColumn()
+                        end
+                    end
+                end
+                CImGui.End()
+                CImGui.PopStyleVar(2)
+                count_fps += 1
+            end
+            if count_fps == pick_fps
+                img = ImageMagick.load("screenshot:")
+                vpos, vsize = unsafe_load(viewport.WorkPos), unsafe_load(viewport.WorkSize)
+                u, d = round(Int, vpos.y+1), round(Int, vpos.y + vsize.y-4)
+                l, r = round(Int, vpos.x+1), round(Int, vpos.x + vsize.x-1)
+                @trypasse FileIO.save(path, img[u:d,l:r]) @error "[$(now())]\n不支持的存储格式"
+                savingimg = false
+                count_fps = 0
+            end
+        end
+    end
+
+    global function saveimg_seting(setpath, setuips)
+        empty!(uips)
+        path = setpath
+        for p in setuips push!(uips, p) end
+    end
 end

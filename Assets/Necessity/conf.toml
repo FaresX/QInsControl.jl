@@ -20,11 +20,11 @@ editor = "code.cmd"
 savetime = 60
 channel_size = 512
 packsize = 6
-plotshowcol = 4
+plotshowcol = 2
 
 [InsBuf]
 showhelp = true
-showcol = 4
+showcol = 3
 refreshrate = 1.0
 
 [Fonts]

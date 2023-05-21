@@ -124,7 +124,11 @@ function UI()
             ImGuiGLFWBackend.new_frame(window_ctx)
             CImGui.NewFrame()
 
-            savingimg && glfwSetWindowAttrib(window, GLFW_FLOATING, GLFW_TRUE)
+            if savingimg
+                glfwSetWindowAttrib(window, GLFW_FLOATING, GLFW_TRUE)
+            else
+                glfwSetWindowAttrib(window, GLFW_FLOATING, GLFW_FALSE)
+            end
             @c glfwGetWindowPos(window, &glfwwindowx, &glfwwindowy)
 
             MainWindow()

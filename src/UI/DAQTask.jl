@@ -264,6 +264,8 @@ function update_all()
                     file[key] = val
                 end
             end
+            global savingimg = true
+            saveimg_seting("$savepath.png", uipsweeps)
             global old_i += 1
         end
         empty!(progresslist)

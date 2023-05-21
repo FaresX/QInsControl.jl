@@ -328,12 +328,7 @@ let
                 isupdate = @c edit(daq_dtpk, "DAQ", &show_daq_selector)
                 !show_daq_selector || isupdate && syncplotdata(uipsweeps[show_daq_selector_i], daq_dtpk, databuf)
             end
-            # for i in 1:show_plot_num
-            #     if daq_dtpks[i].isrealtime
-            #         haskey(waittimedaq_ids, i) || push!(waittimedaq_ids, i => "DAQ$i")
-            #         waittime(waittimedaq_ids[i], daq_dtpks[i].refreshrate) && syncplotdata(uipsweeps[i], daq_dtpks[i], databuf)
-            #     end
-            # end
+
             for i in daq_plot_layout.selectedidx
                 if daq_dtpks[i].isrealtime
                     haskey(waittimedaq_ids, i) || push!(waittimedaq_ids, i => "DAQ$i")
@@ -364,6 +359,16 @@ let
                     end
                 end
             end
+            global savingimg
+            # if savingimg
+            #     @info "here"
+            #     if isempty(daq_plot_layout.selectedidx)
+            #         saveimg([uipsweeps[1]], "$savepath.png"; manual=false)
+            #     else
+            #         saveimg(uipsweeps[daq_plot_layout.selectedidx], "$savepath.png"; manual=false)
+            #     end
+            # end
+            
             CImGui.EndChild()
             CImGui.NextColumn()
         end

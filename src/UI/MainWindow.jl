@@ -64,6 +64,10 @@ let
         # DragMultiSelectable(()->(), "Debug", labels, states, 3)
         # CImGui.End()
 
+        ######保存图像######
+        global savingimg
+        savingimg && saveimg()
+
         ######子窗口######
         for (i, dtv) in enumerate(dtviewers)
             dtv[1].p_open && edit(dtv..., i)
