@@ -264,6 +264,12 @@ function update_all()
                     file[key] = val
                 end
             end
+            if isempty(daq_plot_layout.selectedidx)
+                saveimg_seting("$savepath.png", uipsweeps[[1]])
+            else
+                saveimg_seting("$savepath.png", uipsweeps[daq_plot_layout.selectedidx])
+            end
+            global savingimg = true
             global old_i += 1
         end
         empty!(progresslist)

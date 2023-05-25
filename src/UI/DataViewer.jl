@@ -45,6 +45,19 @@ let
             CImGui.BeginChild("DataViewer")
             if CImGui.BeginTabBar("Data_Viewer")
                 if CImGui.BeginTabItem("仪器状态")
+                    if CImGui.BeginPopupContextItem()
+                        CImGui.Text("显示列数")
+                        CImGui.SameLine()
+                        CImGui.PushItemWidth(2CImGui.GetFontSize())
+                        @c CImGui.DragInt(
+                            "##InsBuf列数",
+                            &conf.InsBuf.showcol,
+                            1, 1, 6, "%d",
+                            CImGui.ImGuiSliderFlags_AlwaysClamp
+                        )
+                        CImGui.PopItemWidth()
+                        CImGui.EndPopup()
+                    end
                     CImGui.BeginChild("仪器状态")
                     if !isempty(dtviewer.data) && true in occursin.(r"instrbufferviewers/.*", keys(dtviewer.data))
                         insbufkeys::Vector{String} = sort(

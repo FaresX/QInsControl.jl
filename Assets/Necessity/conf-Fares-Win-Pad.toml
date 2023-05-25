@@ -9,9 +9,9 @@ K = ["K", "mK"]
 s = ["s", "minute", "hr", "d"]
 Hz = ["Hz", "kHz", "MHz", "GHz"]
 
-[Basic]
+[Init]
 isremote = true
-viewportenable = false
+viewportenable = true
 windowsize = [1280, 720]
 encoding = "GBK"
 editor = "code.cmd"
@@ -21,7 +21,6 @@ savetime = 60
 channel_size = 512
 packsize = 6
 plotshowcol = 2
-pick_fps = 3
 
 [InsBuf]
 showhelp = true

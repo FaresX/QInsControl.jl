@@ -15,9 +15,6 @@ let
     daqtasks::Vector{DAQTask} = [DAQTask()] #任务列表
     global uipsweeps::Vector{UIPlot} = [UIPlot()] #绘图缓存
     global daq_dtpks::Vector{DataPicker} = [DataPicker()] #绘图数据选择
-    # selplotstates::Vector{Bool} = falses(4)
-    # seledplotidxes::Vector{String} = []
-    # labeltoidx::Dict{String,Int} = Dict()
     global daq_plot_layout::Layout = Layout("DAQ Plot Layout", 3, 1, ["1"], falses(1), [], Dict(), [])
     isdelplot::Bool = false
     delplot_i::Int = 0
@@ -194,22 +191,6 @@ let
                     end
                 end
                 CImGui.Separator()
-                # CImGui.MenuItem("选择数据") && (show_daq_selector = true)
-                # if CImGui.BeginMenu(morestyle.Icons.PlotNumber * " 绘图数量")
-                #     CImGui.PushItemWidth(4CImGui.GetFontSize())
-                #     @c CImGui.DragInt("绘图数量", &show_plot_num, 1, 1, 4, "%d", CImGui.ImGuiSliderFlags_AlwaysClamp)
-                #     CImGui.PopItemWidth()
-                #     CImGui.EndMenu()
-                # end
-                # if CImGui.BeginMenu(morestyle.Icons.SelectData * " 选择数据")
-                #     for i in 1:show_plot_num
-                #         if CImGui.MenuItem(morestyle.Icons.Datai * " 绘图$i")
-                #             show_daq_selector = true
-                #             show_daq_selector_i = i
-                #         end
-                #     end
-                #     CImGui.EndMenu()
-                # end
                 if CImGui.BeginMenu(morestyle.Icons.SelectData * " 绘图")
                     CImGui.Text("绘图列数")
                     CImGui.SameLine()
@@ -328,12 +309,7 @@ let
                 isupdate = @c edit(daq_dtpk, "DAQ", &show_daq_selector)
                 !show_daq_selector || isupdate && syncplotdata(uipsweeps[show_daq_selector_i], daq_dtpk, databuf)
             end
-            # for i in 1:show_plot_num
-            #     if daq_dtpks[i].isrealtime
-            #         haskey(waittimedaq_ids, i) || push!(waittimedaq_ids, i => "DAQ$i")
-            #         waittime(waittimedaq_ids[i], daq_dtpks[i].refreshrate) && syncplotdata(uipsweeps[i], daq_dtpks[i], databuf)
-            #     end
-            # end
+
             for i in daq_plot_layout.selectedidx
                 if daq_dtpks[i].isrealtime
                     haskey(waittimedaq_ids, i) || push!(waittimedaq_ids, i => "DAQ$i")
@@ -364,6 +340,7 @@ let
                     end
                 end
             end
+            
             CImGui.EndChild()
             CImGui.NextColumn()
         end
