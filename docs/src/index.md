@@ -4,7 +4,7 @@ CurrentModule = QInsControl
 
 # QInsControl
 
-Documentation for [QInsControl](https://github.com/FaresX/QInsControl.jl).
+Documentation for [QInsControl](https://github.com/Faresx/QInsControl.jl).
 
 ```@index
 ```
