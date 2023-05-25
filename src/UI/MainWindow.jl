@@ -1,9 +1,10 @@
 let
     show_preferences::Bool = false
+    show_instr_register::Bool = false
     show_cpu_monitor::Bool = false
     show_instr_buffer::Bool = false
     show_daq::Bool = false
-    show_instr_register::Bool = false
+    
     show_metrics::Bool = false
     # show_debug = false
     show_logger::Bool = false
@@ -64,10 +65,6 @@ let
         # DragMultiSelectable(()->(), "Debug", labels, states, 3)
         # CImGui.End()
 
-        ######保存图像######
-        global savingimg
-        savingimg && saveimg()
-
         ######子窗口######
         for (i, dtv) in enumerate(dtviewers)
             dtv[1].p_open && edit(dtv..., i)
@@ -76,6 +73,8 @@ let
             dtv[1].noclose || deleteat!(dtviewers, i)
         end
         show_preferences && @c Preferences(&show_preferences)
+
+        show_instr_register && @c InstrRegister(&show_instr_register)
         show_cpu_monitor && @c CPUMonitor(&show_cpu_monitor)
         show_instr_buffer && @c ShowInstrBuffer(&show_instr_buffer)
         for ins in keys(instrbufferviewers)
@@ -84,7 +83,6 @@ let
                 ibv.p_open && edit(ibv)
             end
         end
-        show_instr_register && @c InstrRegister(&show_instr_register)
         show_daq && @c DAQ(&show_daq)
         show_metrics && @c CImGui.ShowMetricsWindow(&show_metrics)
         # show_debug && @c debug(&show_debug)
@@ -143,6 +141,7 @@ let
             end
             #Instrument Menu
             if CImGui.BeginMenu(morestyle.Icons.Instrumets * " 仪器 ")
+                @c CImGui.MenuItem(morestyle.Icons.InstrumentsRegister * " 仪器注册", C_NULL, &show_instr_register)
                 @c CImGui.MenuItem(morestyle.Icons.CPUMonitor * " 仪器CPU监测", C_NULL, &show_cpu_monitor)
                 if CImGui.BeginMenu(morestyle.Icons.InstrumentsSetting * " 仪器设置和状态")
                     @c CImGui.MenuItem(morestyle.Icons.InstrumentsOverview * " 总览", C_NULL, &show_instr_buffer)
@@ -163,7 +162,6 @@ let
                     CImGui.EndMenu()
                 end
                 @c CImGui.MenuItem(morestyle.Icons.InstrumentsDAQ * " 数据采集", C_NULL, &show_daq)
-                @c CImGui.MenuItem(morestyle.Icons.InstrumentsRegister * " 仪器注册", C_NULL, &show_instr_register)
                 if CImGui.BeginMenu(morestyle.Icons.InstrumentsSeach * " 查找仪器")
                     CImGui.MenuItem(morestyle.Icons.InstrumentsAutoDetect * " 自动查询") && refresh_instrlist()
                     manualadd_ui()
@@ -195,7 +193,7 @@ let
             isdir(root) && push!(dtviewers, (DataViewer(), FolderFileTree(root), Dict())) #true -> active
         end
         if !isempty(ARGS)
-            filepath = reencoding(ARGS[1], conf.Init.encoding)
+            filepath = reencoding(ARGS[1], conf.Basic.encoding)
             isfile(filepath) && push!(dtviewers, (DataViewer(), FolderFileTree([abspath(filepath)]), Dict()))
             empty!(ARGS)
         end

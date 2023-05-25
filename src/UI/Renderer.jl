@@ -1,3 +1,5 @@
+global window::Ptr{GLFWwindow}
+
 function UI()
     glfwDefaultWindowHints()
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3)
@@ -8,8 +10,8 @@ function UI()
     end
 
     # create window
-    initws::Vector{Cint} = conf.Init.windowsize
-    window = glfwCreateWindow(initws..., "QInsControl", C_NULL, C_NULL)
+    initws::Vector{Cint} = conf.Basic.windowsize
+    global window = glfwCreateWindow(initws..., "QInsControl", C_NULL, C_NULL)
     @assert window != C_NULL
     glfwMakeContextCurrent(window)
     glfwSwapInterval(1)  # enable vsync
@@ -35,10 +37,10 @@ function UI()
             ImGui_ImplOpenGL3_UpdateImageTexture(bgid, bgimg, bgsize...)
         catch e
             @error "[$now()]\n加载背景出错！！！" exception = e
-            global bgid = ImGui_ImplOpenGL3_CreateImageTexture(conf.Init.windowsize...)
+            global bgid = ImGui_ImplOpenGL3_CreateImageTexture(conf.Basic.windowsize...)
         end
     else
-        global bgid = ImGui_ImplOpenGL3_CreateImageTexture(conf.Init.windowsize...)
+        global bgid = ImGui_ImplOpenGL3_CreateImageTexture(conf.Basic.windowsize...)
     end
 
 
@@ -55,7 +57,7 @@ function UI()
     # enable docking and multi-viewport
     global io = CImGui.GetIO()
     io.ConfigFlags = unsafe_load(io.ConfigFlags) | CImGui.ImGuiConfigFlags_DockingEnable
-    conf.Init.viewportenable && (io.ConfigFlags = unsafe_load(io.ConfigFlags) | CImGui.ImGuiConfigFlags_ViewportsEnable)
+    conf.Basic.viewportenable && (io.ConfigFlags = unsafe_load(io.ConfigFlags) | CImGui.ImGuiConfigFlags_ViewportsEnable)
     # io.ConfigDockingWithShift = true
 
     # 加载字体
@@ -118,18 +120,27 @@ function UI()
         clear_color = Cfloat[0.45, 0.55, 0.60, 1.00]
         global glfwwindowx = Cint(0)
         global glfwwindowy = Cint(0)
+        iswindowiconified::Bool = false
         while true
             glfwPollEvents()
             ImGuiOpenGLBackend.new_frame(gl_ctx)
             ImGuiGLFWBackend.new_frame(window_ctx)
             CImGui.NewFrame()
 
+            ######保存图像######
             if savingimg
-                glfwSetWindowAttrib(window, GLFW_FLOATING, GLFW_TRUE)
-            else
-                glfwSetWindowAttrib(window, GLFW_FLOATING, GLFW_FALSE)
+                @c glfwGetWindowPos(window, &glfwwindowx, &glfwwindowy)
+                count_fps = saveimg()
+                if count_fps == 1
+                    iswindowiconified = glfwGetWindowAttrib(window, GLFW_ICONIFIED) != 0
+                elseif count_fps == 0
+                    glfwSetWindowAttrib(window, GLFW_FLOATING, GLFW_FALSE)
+                    iswindowiconified && glfwIconifyWindow(window)
+                else
+                    iswindowiconified && glfwRestoreWindow(window)
+                    glfwSetWindowAttrib(window, GLFW_FLOATING, GLFW_TRUE)
+                end
             end
-            @c glfwGetWindowPos(window, &glfwwindowx, &glfwwindowy)
 
             MainWindow()
             if CImGui.BeginPopupModal("##windowshouldclose?", C_NULL, CImGui.ImGuiWindowFlags_AlwaysAutoResize)

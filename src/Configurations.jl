@@ -1,4 +1,4 @@
-@option mutable struct OptInit
+@option mutable struct OptBasic
     isremote::Bool
     viewportenable::Bool
     windowsize::Vector{Cint}
@@ -11,6 +11,7 @@ end
     channel_size::Cint
     packsize::Cint
     plotshowcol::Cint
+    pick_fps::Cint
 end
 
 @option mutable struct OptInsBuf
@@ -51,7 +52,7 @@ end
 
 @option mutable struct Conf
     U::OrderedDict{String,Vector}
-    Init::OptInit
+    Basic::OptBasic
     DAQ::OptDAQ
     InsBuf::OptInsBuf
     Fonts::OptFonts

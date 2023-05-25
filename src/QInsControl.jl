@@ -99,12 +99,12 @@ function julia_main()::Cint
         global progress_rc = RemoteChannel(() -> progress_c)
         # include(joinpath(ENV["QInsControlAssets"], "Necessity/Logger.jl"))
         @info ARGS
-        isempty(ARGS) || @info reencoding.(ARGS, conf.Init.encoding)
+        isempty(ARGS) || @info reencoding.(ARGS, conf.Basic.encoding)
         uitask = UI()
         jlverinfobuf = IOBuffer()
         versioninfo(jlverinfobuf)
         global jlverinfo = wrapmultiline(String(take!(jlverinfobuf)), 48)
-        if conf.Init.isremote
+        if conf.Basic.isremote
             nprocs() == 1 && addprocs(1)
             # @eval @everywhere using QInsControl
             syncstates = SharedVector{Bool}(7)

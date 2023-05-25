@@ -1,0 +1,3 @@
+[deps]
+Documenter = "e30172f5-a6a5-5a46-863b-614d45cd2de4"
+QInsControl = "3fb91467-5a94-4211-840e-98c3c93f5f87"

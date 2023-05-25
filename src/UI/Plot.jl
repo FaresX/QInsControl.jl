@@ -114,8 +114,8 @@ let
             end
             if CImGui.Button(morestyle.Icons.SaveButton * " 保存##图像")
                 CImGui.CloseCurrentPopup()
-                global savingimg = true
                 saveimg_seting(save_file(; filterlist="png;jpg;jpeg;bmp;eps;tif"), [uip])
+                global savingimg = true
             end
             CImGui.EndPopup()
         end
@@ -175,7 +175,10 @@ let
                 push!(legends, string("y", i))
             end
         end
-        if ImPlot.BeginPlot(title, xlabel, ylabel, psize)
+        global savingimg
+        xflags = savingimg ? ImPlot.ImPlotAxisFlags_AutoFit : 0
+        yflags = savingimg ? ImPlot.ImPlotAxisFlags_AutoFit : 0
+        if ImPlot.BeginPlot(title, xlabel, ylabel, psize, 0, xflags, yflags)
             ps.xhv = ImPlot.IsPlotXAxisHovered()
             ps.yhv = ImPlot.IsPlotYAxisHovered()
             ps.phv = ImPlot.IsPlotHovered()
@@ -185,7 +188,7 @@ let
                 ptype == "scatter" && ImPlot.PlotScatter(lg, px, py, length(py))
                 xl, xr = extrema(px)
                 ps.mspos = ImPlot.GetPlotMousePos()
-                if ps.showtooltip && ps.phv && xl <= ps.mspos.x <= xr
+                if ps.showtooltip && ps.phv && xl <= ps.mspos.x <= xr && !savingimg
                     idx = argmin(abs.(px .- ps.mspos.x))
                     yrg = ImPlot.GetPlotLimits().Y
                     yl, yr = yrg.Min, yrg.Max
@@ -235,14 +238,17 @@ let
         ImPlot.PushColormap(cmap)
         lb = ImPlot.ImPlotPoint(CImGui.ImVec2(xlims[1], ylims[1]))
         rt = ImPlot.ImPlotPoint(CImGui.ImVec2(xlims[2], ylims[2]))
-        if ImPlot.BeginPlot(title, xlabel, ylabel, CImGui.ImVec2(CImGui.GetContentRegionAvailWidth() - width, -1))
+        global savingimg
+        xflags = savingimg ? ImPlot.ImPlotAxisFlags_AutoFit : 0
+        yflags = savingimg ? ImPlot.ImPlotAxisFlags_AutoFit : 0
+        if ImPlot.BeginPlot(title, xlabel, ylabel, CImGui.ImVec2(CImGui.GetContentRegionAvailWidth() - width, -1), 0, xflags, yflags)
             pz = Matrix(transpose(z))
             ImPlot.PlotHeatmap("", pz, size(z)..., zlims..., "", lb, rt)
             ps.xhv = ImPlot.IsPlotXAxisHovered()
             ps.yhv = ImPlot.IsPlotYAxisHovered()
             ps.phv = ImPlot.IsPlotHovered()
             ps.mspos = ImPlot.GetPlotMousePos()
-            if ps.showtooltip && ps.phv && inregion(ps.mspos, [xlims[1], ylims[1], xlims[2], ylims[2]])
+            if ps.showtooltip && ps.phv && inregion(ps.mspos, [xlims[1], ylims[1], xlims[2], ylims[2]]) && !savingimg
                 zsz = size(z)
                 xr = range(xlims[1], xlims[2], length=zsz[2])
                 yr = range(ylims[2], ylims[1], length=zsz[1])
@@ -428,57 +434,54 @@ let
     count_fps::Int = 0
     path::String = ""
     uips::Vector{UIPlot} = []
-    pick_fps = 3
     global function saveimg()
         global savingimg
         if savingimg
-            if count_fps == 0
-                path == "" && (savingimg = false; return)
-                count_fps = 1
-            end
-            if count_fps < pick_fps
-                viewport = igGetMainViewport()
-                CImGui.SetNextWindowPos(unsafe_load(viewport.WorkPos))
-                CImGui.SetNextWindowSize(unsafe_load(viewport.WorkSize))
-                CImGui.SetNextWindowFocus()
-                CImGui.SetNextWindowBgAlpha(1)
-                CImGui.PushStyleVar(CImGui.ImGuiStyleVar_WindowRounding, 0)
-                CImGui.PushStyleVar(CImGui.ImGuiStyleVar_WindowPadding, (0, 0))
-                CImGui.Begin("Save Plot", C_NULL, CImGui.ImGuiWindowFlags_NoTitleBar)
-                l = length(uips)
-                n = conf.DAQ.plotshowcol
-                m = ceil(Int, l / n)
-                n = m == 1 ? l : n
-                height = (CImGui.GetWindowHeight() - (m - 1) * unsafe_load(imguistyle.ItemSpacing.y)) / m
-                CImGui.Columns(n, C_NULL, false)
-                for i in 1:m
-                    for j in 1:n
-                        idx = (i - 1) * n + j
-                        if idx <= l
-                            Plot(uips[idx], "Save Plot$idx", (Cfloat(0), height))
-                            CImGui.NextColumn()
-                        end
+            count_fps == 0 && path == "" && (savingimg = false; return 0)
+            count_fps += 1
+            viewport = igGetMainViewport()
+            CImGui.SetNextWindowPos(unsafe_load(viewport.WorkPos))
+            CImGui.SetNextWindowSize(unsafe_load(viewport.WorkSize))
+            CImGui.SetNextWindowFocus()
+            CImGui.SetNextWindowBgAlpha(1)
+            CImGui.PushStyleVar(CImGui.ImGuiStyleVar_WindowRounding, 0)
+            CImGui.PushStyleVar(CImGui.ImGuiStyleVar_WindowPadding, (0, 0))
+            CImGui.Begin("Save Plot", C_NULL, CImGui.ImGuiWindowFlags_NoTitleBar)
+            l = length(uips)
+            n = conf.DAQ.plotshowcol
+            m = ceil(Int, l / n)
+            n = m == 1 ? l : n
+            height = (CImGui.GetWindowHeight() - (m - 1) * unsafe_load(imguistyle.ItemSpacing.y)) / m
+            CImGui.Columns(n, C_NULL, false)
+            for i in 1:m
+                for j in 1:n
+                    idx = (i - 1) * n + j
+                    if idx <= l
+                        Plot(uips[idx], "Save Plot$idx", (Cfloat(0), height))
+                        CImGui.NextColumn()
                     end
                 end
-                CImGui.End()
-                CImGui.PopStyleVar(2)
-                count_fps += 1
             end
-            if count_fps == pick_fps
+            CImGui.End()
+            CImGui.PopStyleVar(2)
+            if count_fps == conf.DAQ.pick_fps
                 img = ImageMagick.load("screenshot:")
                 vpos, vsize = unsafe_load(viewport.WorkPos), unsafe_load(viewport.WorkSize)
+                conf.Basic.viewportenable || (vpos = CImGui.ImVec2(vpos.x + glfwwindowx, vpos.y + glfwwindowy))
                 u, d = round(Int, vpos.y+1), round(Int, vpos.y + vsize.y-4)
                 l, r = round(Int, vpos.x+1), round(Int, vpos.x + vsize.x-1)
                 @trypasse FileIO.save(path, img[u:d,l:r]) @error "[$(now())]\n不支持的存储格式"
                 savingimg = false
                 count_fps = 0
+                return 0
             end
         end
+        return count_fps
     end
 
     global function saveimg_seting(setpath, setuips)
         empty!(uips)
         path = setpath
-        for p in setuips push!(uips, p) end
+        for p in setuips push!(uips, deepcopy(p)) end
     end
 end

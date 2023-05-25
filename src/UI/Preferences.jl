@@ -26,23 +26,30 @@ let
             if selectedpref == "通用"
                 ###Init##
                 # CImGui.SetWindowFontScale(1.2)
-                CImGui.TextColored(morestyle.Colors.HighlightText, "初始化")
+                CImGui.TextColored(morestyle.Colors.HighlightText, "基本设置")
                 # CImGui.SetWindowFontScale(1)
-                if conf.Init.isremote
-                    @c CImGui.Checkbox("双核", &conf.Init.isremote)
+                if conf.Basic.isremote
+                    @c CImGui.Checkbox("双核", &conf.Basic.isremote)
                 else
-                    @c CImGui.Checkbox("单核", &conf.Init.isremote)
+                    @c CImGui.Checkbox("单核", &conf.Basic.isremote)
                 end
-                if conf.Init.viewportenable
-                    @c CImGui.Checkbox("视窗模式 开", &conf.Init.viewportenable)
+                if conf.Basic.viewportenable
+                    @c CImGui.Checkbox("多视窗模式 开", &conf.Basic.viewportenable)
                 else
-                    @c CImGui.Checkbox("视窗模式 关", &conf.Init.viewportenable)
+                    @c CImGui.Checkbox("多视窗模式 关", &conf.Basic.viewportenable)
                 end
-                CImGui.DragInt2("窗口大小", conf.Init.windowsize, 2.0, 100, 4000, "%d", CImGui.ImGuiSliderFlags_AlwaysClamp)
-                @c ComBoS("系统编码", &conf.Init.encoding, ecds)
-                editor = conf.Init.editor
+                if conf.Basic.viewportenable
+                    io.ConfigFlags = unsafe_load(io.ConfigFlags) | CImGui.ImGuiConfigFlags_ViewportsEnable
+                else
+                    io.ConfigFlags = unsafe_load(io.ConfigFlags) & ~CImGui.ImGuiConfigFlags_ViewportsEnable
+                end
+                CImGui.DragInt2("窗口大小", conf.Basic.windowsize, 2.0, 100, 4000, "%d", CImGui.ImGuiSliderFlags_AlwaysClamp)
+                @c ComBoS("系统编码", &conf.Basic.encoding, ecds)
+                editor = conf.Basic.editor
                 @c InputTextRSZ("文本编辑器", &editor)
-                editor == "" || (conf.Init.editor = editor)
+                editor == "" || (conf.Basic.editor = editor)
+                # global pick_fps
+                # @c CImGui.DragInt("拾取帧数", &pick_fps, 1.0, 1, 180, "%d", CImGui.ImGuiSliderFlags_AlwaysClamp)
                 CImGui.Text(" ")
                 CImGui.Separator()
 
@@ -52,6 +59,7 @@ let
                 @c CImGui.DragInt("通道大小", &conf.DAQ.channel_size, 1.0, 4, 2048, "%d", CImGui.ImGuiSliderFlags_AlwaysClamp)
                 @c CImGui.DragInt("打包尺寸", &conf.DAQ.packsize, 1.0, 6, 120, "%d", CImGui.ImGuiSliderFlags_AlwaysClamp)
                 @c CImGui.DragInt("绘图列数", &conf.DAQ.plotshowcol, 1.0, 1, 6, "%d", CImGui.ImGuiSliderFlags_AlwaysClamp)
+                @c CImGui.DragInt("拾取帧数", &conf.DAQ.pick_fps, 1.0, 1, 180, "%d", CImGui.ImGuiSliderFlags_AlwaysClamp)
                 CImGui.Text(" ")
                 CImGui.Separator()
 
