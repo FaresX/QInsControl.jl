@@ -1,5 +1,7 @@
 .VSCodeCounter
-RestructConf.jl
 .vscode
 Assets/Logs
 imgui.ini
+docs/build
+docs/Manifest.toml
+Manifest.toml
