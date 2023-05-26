@@ -2,7 +2,7 @@
 
 julia_version = "1.9.0"
 manifest_format = "2.0"
-project_hash = "132c0178b717bf04c78399aca4e82cd4ea673716"
+project_hash = "3d43323ca9cbeda5911ae8c99f7516be4aeb93f3"
 
 [[deps.ATK_jll]]
 deps = ["Artifacts", "Glib_jll", "JLLWrappers", "Libdl"]
@@ -692,9 +692,9 @@ version = "1.7.2"
 
 [[deps.QInsControlCore]]
 deps = ["Instruments", "Sockets", "UUIDs"]
-git-tree-sha1 = "2683992c39f7ed7f88dbbf05435f487a0330f2e5"
+git-tree-sha1 = "6b743d36a52c0c5c1e5835a8639607a3df3f1a38"
 repo-rev = "master"
-repo-url = "https://github.com/Faresx/QInsControlCore.jl.git"
+repo-url = "https://github.com/FaresX/QInsControlCore.jl.git"
 uuid = "cd9154b2-5d6d-4493-a0bc-3471f84f9c90"
 version = "0.1.0"
 

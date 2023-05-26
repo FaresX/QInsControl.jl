@@ -1,6 +1,6 @@
 name = "QInsControl"
 uuid = "cd8eea83-5d95-422f-a2e4-c18f783a50cc"
-authors = ["22112 "]
+authors = ["FaresX <fyzxst@sina.com> and contributors"]
 version = "0.1.0"
 
 [deps]
@@ -27,3 +27,13 @@ StringEncodings = "69024149-9ee7-55f6-a4c4-859efe599b68"
 TOML = "fa267f1f-6049-4f14-aa54-33bafae1ed76"
 UUIDs = "cf7118a7-6976-5b1a-9a39-7adc72f591a4"
 Unitful = "1986cc42-f94f-5a68-af5c-568840ba703d"
+
+[compat]
+julia = "1.6"
+QInsControlCore = "0.1.0"
+
+[extras]
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
+
+[targets]
+test = ["Test"]
