@@ -108,13 +108,15 @@ lengthpr(s::AbstractString) = s == "" ? 0 : sum(lengthpr(c) for c in s)
 
 function centermultiline(s)
     ss = split(s, '\n')
-    ml = max(lengthpr.(ss)...)
+    ml = max_with_empty(lengthpr.(ss))
     for (i, line) in enumerate(ss)
         line == "" && continue
         ss[i] = " "^((ml - lengthpr(line)) ÷ 2) * line
     end
     join(ss, '\n')
 end
+
+max_with_empty(x) = isempty(x) ? zero(eltype(x)) : max(x...)
 
 function newkey!(dict::OrderedDict, oldkey, newkey)
     newdict = OrderedDict()

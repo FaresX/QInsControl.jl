@@ -140,9 +140,9 @@ alias = "Z状态"
 
 [conf]
 idn = "MERCURY IPS"
-output_labels = []
+output_labels = ["X -", "Y -", "Z -"]
 icon = ""
-input_labels = []
+input_labels = ["X +", "Y +", "Z +"]
 cmdtype = "scpi"
 
 [sigfsety]

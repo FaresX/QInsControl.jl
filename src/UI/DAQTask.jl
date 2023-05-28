@@ -147,12 +147,12 @@ end
 
 function run_remote(daqtask::DAQTask)
     controllers, st = remotecall_fetch(extract_controllers, workers()[1], daqtask.blocks)
+    empty!(databuf)
     if !st
         syncstates[Int(isdaqtask_done)] = true
         return
     end
     rn = length(controllers)
-    empty!(databuf)
     blockcodes = @trypasse tocodes.(daqtask.blocks) begin
         @error "[$(now())]\n代码生成失败!!!"
         syncstates[Int(isdaqtask_done)] = true
@@ -288,13 +288,13 @@ function extract_controllers(bkch::Vector{AbstractBlock})
     controllers = Dict()
     for bk in bkch
         if typeof(bk) in [SettingBlock, SweepBlock, ReadingBlock, WriteBlock, QueryBlock, ReadBlock]
-            bk.instrnm == "VirtualInstr" && (bk.addr = "VirtualAddress")
+            bk.instrnm == "VirtualInstr" && bk.addr != "VirtualAddress" && return controllers, false
             ct = Controller(bk.instrnm, bk.addr)
             try
                 login!(CPU, ct)
                 ct(query, CPU, "*IDN?", Val(:query))
-                push!(controllers, string(bk.instrnm, "_", bk.addr) => ct)
                 logout!(CPU, ct)
+                push!(controllers, string(bk.instrnm, "_", bk.addr) => ct)
             catch e
                 @error "[$(now())]\n仪器设置不正确！！！" exception=e
                 logout!(CPU, ct)

@@ -22,9 +22,9 @@ alias = "系统时间"
 cmdheader = ""
 U = "V"
 enable = true
-optkeys = []
+optkeys = ["test1", "test2", "test3", "test4", "test5", "test6"]
 help = "仅作为设置测试"
-optvalues = ["test1", "test2", "test3", "test4", "test5", "test6"]
+optvalues = ["1", "2", "3", "4", "5", "6"]
 type = "set"
 alias = "设置测试"
 

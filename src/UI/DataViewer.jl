@@ -257,7 +257,7 @@ let
                 CImGui.TableSetupColumn(key)
             end
             CImGui.TableHeadersRow()
-            ls = max(length.(values(data))...)
+            ls = max_with_empty(length.(values(data)))
             for i in 1:ls
                 CImGui.TableNextRow()
                 for (_, val) in data

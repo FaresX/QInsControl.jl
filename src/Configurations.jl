@@ -11,7 +11,7 @@ end
     channel_size::Cint
     packsize::Cint
     plotshowcol::Cint
-    pick_fps::Cint
+    pick_fps::Vector{Cint}
 end
 
 @option mutable struct OptInsBuf

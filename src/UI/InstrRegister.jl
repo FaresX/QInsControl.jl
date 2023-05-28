@@ -67,7 +67,8 @@ function edit(qtcf::QuantityConf)
     @cstatic edithelp::Bool = false begin
         CImGui.TextColored(morestyle.Colors.LogInfo, "帮助文档")
         if edithelp
-            x = max(ncodeunits.(split(qtcf.help, '\n'))...) * CImGui.GetFontSize() ÷ 2
+            lines = split(qtcf.help, '\n')
+            x = CImGui.CalcTextSize(lines[argmax(lengthpr.(lines))]).x
             width = CImGui.GetContentRegionAvailWidth()
             x = x > width ? x : width
             y = (1 + length(findall("\n", qtcf.help))) * CImGui.GetTextLineHeight() + 2unsafe_load(imguistyle.FramePadding.y)

@@ -11,7 +11,7 @@ Hz = ["Hz", "kHz", "MHz", "GHz"]
 
 [Basic]
 isremote = true
-viewportenable = false
+viewportenable = true
 windowsize = [1280, 720]
 encoding = "GBK"
 editor = "code.cmd"
@@ -21,7 +21,7 @@ savetime = 60
 channel_size = 512
 packsize = 6
 plotshowcol = 2
-pick_fps = 3
+pick_fps = [3, 36]
 
 [InsBuf]
 showhelp = true
@@ -40,7 +40,7 @@ size = 18
 [Logs]
 dir = "Assets\\Logs"
 refreshrate = 1
-showlogline = 100
+showlogline = 600
 
 [BGImage]
 path = "Assets\\Necessity/defaultwallpaper.bmp"
@@ -49,5 +49,5 @@ path = "Assets\\Necessity/defaultwallpaper.bmp"
 addrs = ["TCPIP::192.168.31.239::33576::SOCKET"]
 
 [Style]
-dir = "Assets\\Styles"
-default = "Walkr"
+dir = "C:\\Users\\22112\\OneDrive - mails.ucas.ac.cn\\文档\\CODE\\Julia\\MyPackages\\QInsControl.jl\\src\\../Assets\\Styles"
+default = "WarmWinter"

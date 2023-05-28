@@ -38,6 +38,7 @@ let
                 else
                     @c CImGui.Checkbox("多视窗模式 关", &conf.Basic.viewportenable)
                 end
+                io = CImGui.GetIO()
                 if conf.Basic.viewportenable
                     io.ConfigFlags = unsafe_load(io.ConfigFlags) | CImGui.ImGuiConfigFlags_ViewportsEnable
                 else
@@ -59,7 +60,7 @@ let
                 @c CImGui.DragInt("通道大小", &conf.DAQ.channel_size, 1.0, 4, 2048, "%d", CImGui.ImGuiSliderFlags_AlwaysClamp)
                 @c CImGui.DragInt("打包尺寸", &conf.DAQ.packsize, 1.0, 6, 120, "%d", CImGui.ImGuiSliderFlags_AlwaysClamp)
                 @c CImGui.DragInt("绘图列数", &conf.DAQ.plotshowcol, 1.0, 1, 6, "%d", CImGui.ImGuiSliderFlags_AlwaysClamp)
-                @c CImGui.DragInt("拾取帧数", &conf.DAQ.pick_fps, 1.0, 1, 180, "%d", CImGui.ImGuiSliderFlags_AlwaysClamp)
+                CImGui.DragInt2("拾取帧数", conf.DAQ.pick_fps, 1.0, 1, 180, "%d", CImGui.ImGuiSliderFlags_AlwaysClamp)
                 CImGui.Text(" ")
                 CImGui.Separator()
 

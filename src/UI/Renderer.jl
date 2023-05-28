@@ -55,7 +55,7 @@ function UI()
     ctxi = imnodes_CreateContext()
 
     # enable docking and multi-viewport
-    global io = CImGui.GetIO()
+    io = CImGui.GetIO()
     io.ConfigFlags = unsafe_load(io.ConfigFlags) | CImGui.ImGuiConfigFlags_DockingEnable
     conf.Basic.viewportenable && (io.ConfigFlags = unsafe_load(io.ConfigFlags) | CImGui.ImGuiConfigFlags_ViewportsEnable)
     # io.ConfigDockingWithShift = true
@@ -121,6 +121,7 @@ function UI()
         global glfwwindowx = Cint(0)
         global glfwwindowy = Cint(0)
         iswindowiconified::Bool = false
+        pick_fps_normal = conf.DAQ.pick_fps[1]
         while true
             glfwPollEvents()
             ImGuiOpenGLBackend.new_frame(gl_ctx)
@@ -133,9 +134,16 @@ function UI()
                 count_fps = saveimg()
                 if count_fps == 1
                     iswindowiconified = glfwGetWindowAttrib(window, GLFW_ICONIFIED) != 0
+                    if iswindowiconified
+                        pick_fps_normal = conf.DAQ.pick_fps[1]
+                        conf.DAQ.pick_fps[1] = conf.DAQ.pick_fps[2]
+                    end
                 elseif count_fps == 0
                     glfwSetWindowAttrib(window, GLFW_FLOATING, GLFW_FALSE)
-                    iswindowiconified && glfwIconifyWindow(window)
+                    if iswindowiconified
+                        glfwIconifyWindow(window)
+                        conf.DAQ.pick_fps[1] = pick_fps_normal
+                    end
                 else
                     iswindowiconified && glfwRestoreWindow(window)
                     glfwSetWindowAttrib(window, GLFW_FLOATING, GLFW_TRUE)
@@ -170,7 +178,7 @@ function UI()
             glClear(GL_COLOR_BUFFER_BIT)
             ImGuiOpenGLBackend.render(gl_ctx)
 
-            if unsafe_load(igGetIO().ConfigFlags) & ImGuiConfigFlags_ViewportsEnable == ImGuiConfigFlags_ViewportsEnable
+            if unsafe_load(io.ConfigFlags) & ImGuiConfigFlags_ViewportsEnable == ImGuiConfigFlags_ViewportsEnable
                 backup_current_context = glfwGetCurrentContext()
                 igUpdatePlatformWindows()
                 GC.@preserve gl_ctx igRenderPlatformWindowsDefault(C_NULL, pointer_from_objref(gl_ctx))

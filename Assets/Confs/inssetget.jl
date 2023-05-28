@@ -1,4 +1,4 @@
-######VirtualInstr######
+######VirtualInstr######------------------------------------------------------------------------------------------------
 VirtualInstr_SystemTime_get(_) = string(time())
 
 VirtualInstr_DateTime_get(_) = string(now())
@@ -7,20 +7,26 @@ VirtualInstr_Date_get(_) = string(Date(now()))
 
 VirtualInstr_Time_get(_) = string(Time(now()))
 
-VirtualInstr_SweepTest_set(_, setv) = @info "VirtualInstr sweep : $setv"
-VirtualInstr_SweepTest_get(_) = string(rand(Int8))
+let 
+    sweepv::String = "0"
+    global VirtualInstr_SweepTest_set(_, setv) = (sweepv = string(setv); @info "VirtualInstr sweep : $setv")
+    global VirtualInstr_SweepTest_get(_) = sweepv
+end
 
 # VirtualInstr_SweepTest2_set(, setv) = @info "VirtualInstr sweep2 : $setv"
 # VirtualInstr_SweepTest2_get() = string(rand(Int8))
 
-VirtualInstr_SetTest_set(_, setv) = @info "VirtualInstr set : $setv"
-VirtualInstr_SetTest_get(_) = string(rand(Int8))
+let 
+    setval::String = "0"
+    global VirtualInstr_SetTest_set(_, setv) = (setval = string(setv); @info "VirtualInstr set : $setv")
+    global VirtualInstr_SetTest_get(_) = setval
+end
 
 # VirtualInstr_SetTest2_set(, setv) = @info "VirtualInstr set2 : $setv"
 # VirtualInstr_SetTest2_get() = string(rand(Int8))
 
 
-######Mercury IPS######
+######Mercury IPS######-------------------------------------------------------------------------------------------------
 ###X Field###
 MercuryIPS_sigrfstx_set(instr, val) = query(instr, "SET:DEV:GRPX:PSU:SIG:RFST:$val")
 MercuryIPS_sigrfstx_get(instr) = split(query(instr, "READ:DEV:GRPX:PSU:SIG:RFST"), "RFST:")[end][1:end-3]
@@ -63,7 +69,7 @@ MercuryIPS_sigpfldz_get(instr) = split(query(instr, "READ:DEV:GRPZ:PSU:SIG:PFLD"
 
 MercuryIPS_sigfldz_get(instr) = split(query(instr, "READ:DEV:GRPZ:PSU:SIG:PFLD"), "FLD:")[end][1:end-1]
 
-######Triton######
+######Triton######------------------------------------------------------------------------------------------------------
 Triton_temperatureT5_get(instr) = split(query(instr, "READ:DEV:T5:TEMP:SIG:TEMP"), "TEMP:")[end][1:end-1]
 
 Triton_temperatureT8_get(instr) = split(query(instr, "READ:DEV:T8:TEMP:SIG:TEMP"), "TEMP:")[end][1:end-1]

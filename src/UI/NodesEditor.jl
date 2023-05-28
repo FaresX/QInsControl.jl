@@ -112,7 +112,7 @@ mutable struct NodeEditor
 end
 NodeEditor() = NodeEditor(Node[], Tuple{Cint,Cint}[], 0, 0, false, 0, 0, 0)
 
-maxid(nodeeditor::NodeEditor) = isempty(nodeeditor.nodes) ? 0 : max([node.id for node in nodeeditor.nodes]...)
+maxid(nodeeditor::NodeEditor) = isempty(nodeeditor.nodes) ? 0 : max_with_empty([node.id for node in nodeeditor.nodes])
 
 function edit(node::Node)
     imnodes_BeginNode(node.id)
@@ -127,7 +127,16 @@ function edit(node::Node)
         imnodes_EndInputAttribute()
     end
     CImGui.EndGroup()
-    CImGui.SameLine(0, 2CImGui.GetFontSize())
+    inlens = lengthpr.(node.input_labels)
+    outlens = lengthpr.(node.output_labels)
+    if max_with_empty(inlens) + max_with_empty(outlens) < lengthpr(node.title)
+        maxinlabel = isempty(node.input_labels) ? "" : node.input_labels[argmax(inlens)]
+        maxoutlabel = isempty(node.output_labels) ? "" : node.output_labels[argmax(outlens)]
+        spacing = CImGui.CalcTextSize(node.title).x - CImGui.CalcTextSize(maxinlabel).x - CImGui.CalcTextSize(maxoutlabel).x
+        CImGui.SameLine(0, spacing)
+    else
+        CImGui.SameLine(0, 2CImGui.GetFontSize())
+    end
     CImGui.BeginGroup()
     for i in eachindex(node.output_ids)
         imnodes_BeginOutputAttribute(node.output_ids[i], morestyle.PinShapes.output)
@@ -195,7 +204,22 @@ let
             )
             if CImGui.BeginMenu(morestyle.Icons.Edit * " 编辑")
                 @c InputTextRSZ("标题", &hoverednode.title)
-                @c InputTextRSZ("内容", &hoverednode.content)
+                linesnum = (1 + length(findall("\n", hoverednode.content)))
+                mtheigth = (linesnum > 6 ? 6 : linesnum) * CImGui.GetTextLineHeight()
+                @c InputTextMultilineRSZ("内容", &hoverednode.content, (Cfloat(0), mtheigth))
+                if CImGui.BeginPopupContextItem()
+                    for ins in keys(instrbufferviewers)
+                        if !isempty(instrbufferviewers[ins])
+                            if CImGui.BeginMenu(ins)
+                                for addr in keys(instrbufferviewers[ins])
+                                    CImGui.MenuItem(addr) && (hoverednode.content *= addr)
+                                end
+                                CImGui.EndMenu()
+                            end
+                        end
+                    end
+                    CImGui.EndPopup()
+                end
                 width = CImGui.GetItemRectSize().x / 2
                 CImGui.BeginGroup()
                 for i in eachindex(hoverednode.input_ids)

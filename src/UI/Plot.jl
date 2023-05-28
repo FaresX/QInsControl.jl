@@ -367,7 +367,7 @@ function trunc(x::T1, y::T2)::Tuple{T1,T2} where {T1} where {T2}
 end
 
 function xysetting(uip::UIPlot)
-    ylm = max(length.(uip.y)...)
+    ylm = max_with_empty(length.(uip.y))
     xlims = (1, ylm)
     x = uip.x
     if isempty(uip.x)
@@ -382,7 +382,7 @@ function xysetting(uip::UIPlot)
             end
         elseif eltype(uip.x) <: AbstractString
             xl = length(uip.x)
-            xticksnum = round(Int, CImGui.GetContentRegionAvailWidth() / max(ncodeunits.(uip.x)...) / CImGui.GetFontSize())
+            xticksnum = round(Int, 3CImGui.GetContentRegionAvailWidth() / max_with_empty(lengthpr.(uip.x)) / 2CImGui.GetFontSize())
             xticks = uip.x[round.(Int, range(1, xl, length=2xticksnum + 1))[2:2:end-1]]
             ImPlot.SetNextPlotTicksX(1 + xl / 2xticksnum, xl - xl / 2xticksnum, xticksnum, xticks)
             x = collect(eltype(uip.y[1]), 1:ylm)
@@ -411,7 +411,7 @@ function xyzsetting(uip::UIPlot)
             end
         elseif eltype(uip.x) <: AbstractString
             xlims = (1, sz2)
-            xticksnum = round(Int, CImGui.GetContentRegionAvailWidth() / max(ncodeunits.(uip.x)...) / CImGui.GetFontSize())
+            xticksnum = round(Int, 3CImGui.GetContentRegionAvailWidth() / max_with_empty(lengthpr.(uip.x)) / 2CImGui.GetFontSize())
             xticks = uip.x[round.(Int, range(1, sz2, length=2xticksnum + 1))[2:2:end-1]]
             ImPlot.SetNextPlotTicksX(1 + sz2 / 2xticksnum, sz2 - sz2 / 2xticksnum, xticksnum, xticks)
         end
@@ -464,7 +464,7 @@ let
             end
             CImGui.End()
             CImGui.PopStyleVar(2)
-            if count_fps == conf.DAQ.pick_fps
+            if count_fps == conf.DAQ.pick_fps[1]
                 img = ImageMagick.load("screenshot:")
                 vpos, vsize = unsafe_load(viewport.WorkPos), unsafe_load(viewport.WorkSize)
                 conf.Basic.viewportenable || (vpos = CImGui.ImVec2(vpos.x + glfwwindowx, vpos.y + glfwwindowy))

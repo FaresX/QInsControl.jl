@@ -98,11 +98,12 @@ ReadBlock() = ReadBlock("仪器", "", "地址", "", false, false, false, zeros(4
 mutable struct SaveBlock <: AbstractBlock
     varname::String
     mark::String
+    isasync::Bool
     region::Vector{Float32}
 end
-SaveBlock() = SaveBlock("", "", zeros(4))
+SaveBlock() = SaveBlock("", "", false, zeros(4))
 
-############tocodes-------------------------------------------------------------------------------------------------------
+############tocodes-----------------------------------------------------------------------------------------------------
 
 tocodes(::NullBlock) = nothing
 
@@ -163,7 +164,7 @@ function tocodes(bk::SweepBlock)
         @error "[$(now())]\ncodes are wrong in parsing time (SweepBlock)!!!" bk = bk
         return
     end
-    start = :(parse(Float64, $getfunc(instrs[$instr])))
+    start = :(parse(Float64, controllers[$instr]($getfunc, CPU, Val(:read))))
     Uchange = U isa Unitful.MixedUnits ? 1 : ustrip(Us[1], 1U)
     step = Expr(:call, :*, stepc, Uchange)
     stop = Expr(:call, :*, stopc, Uchange)
@@ -228,23 +229,31 @@ function tocodes(bk::ReadingBlock)
         @error "[$(now())]\ncodes are wrong in parsing time (ReadingBlock)!!!" bk = bk
         return
     end
+    index isa Integer && (index = [index])
     if isnothing(index)
         key = string(bk.mark, "_", bk.instrnm, "_", bk.quantity, "_", bk.addr)
         getdata = :(controllers[$instr]($getfunc, CPU, Val(:read)))
-        ex = if bk.isobserve
+        if bk.isobserve
             observable = Symbol(bk.mark)
-            bk.isreading ? quote
-                $observable = $getdata
-                put!(databuf_lc, ($key, $observable))
-            end : :($observable = $getdata)
-        else
-            :(put!(databuf_lc, ($key, $getdata)))
-        end
-        return bk.isasync ? quote
-            @async begin
-                $ex
+            if bk.isasync
+                return bk.isreading ? quote
+                    $observable = $getdata
+                    @async put!(databuf_lc, ($key, $observable))
+                end : :($observable = $getdata)
+            else
+                return bk.isreading ? quote
+                    $observable = $getdata
+                    put!(databuf_lc, ($key, $observable))
+                end : :($observable = $getdata)
             end
-        end : ex
+        else
+            ex = :(put!(databuf_lc, ($key, $getdata)))
+            return bk.isasync ? quote
+                @async begin
+                    $ex
+                end
+            end : ex
+        end
     else
         marks = fill("", length(index))
         for (i, v) in enumerate(split(bk.mark, ","))
@@ -258,26 +267,35 @@ function tocodes(bk::ReadingBlock)
             for (mark, ind) in zip(marks, index)
         ]
         getdata = :(string.(split(controllers[$instr]($getfunc, CPU, Val(:read)), ",")[collect($index)]))
-        ex = if bk.isobserve
+        if bk.isobserve
             observable = Symbol(bk.mark)
-            bk.isreading ? quote
-                $observable = $getdata
-                for data in zip($keyall, $observable)
-                    put!(databuf_lc, data)
-                end
-            end : :($observable = $getdata)
+            if bk.isasync
+                bk.isreading ? quote
+                    $observable = $getdata
+                    @async for data in zip($keyall, $observable)
+                        put!(databuf_lc, data)
+                    end
+                end : :($observable = $getdata)
+            else
+                bk.isreading ? quote
+                    $observable = $getdata
+                    for data in zip($keyall, $observable)
+                        put!(databuf_lc, data)
+                    end
+                end : :($observable = $getdata)
+            end
         else
-            quote
+            ex = quote
                 for data in zip($keyall, $getdata)
                     put!(databuf_lc, data)
                 end
             end
+            return bk.isasync ? quote
+                @async begin
+                    $ex
+                end
+            end : ex
         end
-        return bk.isasync ? quote
-            @async begin
-                $ex
-            end
-        end : ex
     end
 end
 
@@ -300,24 +318,32 @@ function tocodes(bk::QueryBlock)
         @error "[$(now())]\ncodes are wrong in parsing time (QueryBlock)!!!" bk = bk
         return
     end
+    index isa Integer && (index = [index])
     cmd = parsedollar(bk.cmd)
     if isnothing(index)
         key = string(bk.mark, "_", bk.instrnm, "_", bk.addr)
         getdata = :(controllers[$instr](query, CPU, string($cmd), Val(:query)))
-        ex = if bk.isobserve
+        if bk.isobserve
             observable = Symbol(bk.mark)
-            bk.isreading ? quote
-                $observable = $getdata
-                put!(databuf_lc, ($key, $observable))
-            end : :($observable = $getdata)
-        else
-            :(put!(databuf_lc, ($key, $getdata)))
-        end
-        return bk.isasync ? quote
-            @async begin
-                $ex
+            if bk.isasync
+                return bk.isreading ? quote
+                    $observable = $getdata
+                    @async put!(databuf_lc, ($key, $observable))
+                end : :($observable = $getdata)
+            else
+                return bk.isreading ? quote
+                    $observable = $getdata
+                    put!(databuf_lc, ($key, $observable))
+                end : :($observable = $getdata)
             end
-        end : ex
+        else
+            ex = :(put!(databuf_lc, ($key, $getdata)))
+            return bk.isasync ? quote
+                @async begin
+                    $ex
+                end
+            end : ex
+        end
     else
         marks = fill("", length(index))
         for (i, v) in enumerate(split(bk.mark, ","))
@@ -328,26 +354,35 @@ function tocodes(bk::QueryBlock)
         end
         keyall = [string(mark, "_", bk.instrnm, "[", ind, "]", "_", bk.addr) for (mark, ind) in zip(marks, index)]
         getdata = :(string.(split(controllers[$instr](query, CPU, $cmd, Val(:query)), ",")[collect($index)]))
-        ex = if bk.isobserve
+        if bk.isobserve
             observable = Symbol(bk.mark)
-            bk.isreading ? quote
-                $observable = $getdata
-                for data in zip($keyall, $observable)
-                    put!(databuf_lc, data)
-                end
-            end : :($observable = $getdata)
+            if bk.isasync
+                bk.isreading ? quote
+                    $observable = $getdata
+                    @async for data in zip($keyall, $observable)
+                        put!(databuf_lc, data)
+                    end
+                end : :($observable = $getdata)
+            else
+                bk.isreading ? quote
+                    $observable = $getdata
+                    for data in zip($keyall, $observable)
+                        put!(databuf_lc, data)
+                    end
+                end : :($observable = $getdata)
+            end
         else
-            quote
+            ex = quote
                 for data in zip($keyall, $getdata)
                     put!(databuf_lc, data)
                 end
             end
+            return bk.isasync ? quote
+                @async begin
+                    $ex
+                end
+            end : ex
         end
-        return bk.isasync ? quote
-            @async begin
-                $ex
-            end
-        end : ex
     end
 end
 
@@ -357,23 +392,31 @@ function tocodes(bk::ReadBlock)
         @error "[$(now())]\ncodes are wrong in parsing time (ReadBlock)!!!" bk = bk
         return
     end
+    index isa Integer && (index = [index])
     if isnothing(index)
         key = string(bk.mark, "_", bk.instrnm, "_", bk.addr)
         getdata = :(controllers[$instr](read, CPU, Val(:read)))
-        ex = if bk.isobserve
+        if bk.isobserve
             observable = Symbol(bk.mark)
-            bk.isreading ? quote
-                $observable = $getdata
-                put!(databuf_lc, ($key, $observable))
-            end : :($observable = $getdata)
-        else
-            :(put!(databuf_lc, ($key, $getdata)))
-        end
-        return bk.isasync ? quote
-            @async begin
-                $ex
+            if bk.isasync
+                return bk.isreading ? quote
+                    $observable = $getdata
+                    @async put!(databuf_lc, ($key, $observable))
+                end : :($observable = $getdata)
+            else
+                return bk.isreading ? quote
+                    $observable = $getdata
+                    put!(databuf_lc, ($key, $observable))
+                end : :($observable = $getdata)
             end
-        end : ex
+        else
+            ex = :(put!(databuf_lc, ($key, $getdata)))
+            return bk.isasync ? quote
+                @async begin
+                    $ex
+                end
+            end : ex
+        end
     else
         marks = fill("", length(index))
         for (i, v) in enumerate(split(bk.mark, ","))
@@ -384,38 +427,52 @@ function tocodes(bk::ReadBlock)
         end
         keyall = [string(mark, "_", bk.instrnm, "[", ind, "]", "_", bk.addr) for (mark, ind) in zip(marks, index)]
         getdata = :(string.(split(controllers[$instr](read, CPU, Val(:read)), ",")[collect($index)]))
-        ex = if bk.isobserve
+        if bk.isobserve
             observable = Symbol(bk.mark)
-            bk.isreading ? quote
-                $observable = $getdata
-                for data in zip($keyall, $observable)
-                    put!(databuf_lc, data)
-                end
-            end : :($observable = $getdata)
+            if bk.isasync
+                bk.isreading ? quote
+                    $observable = $getdata
+                    @async for data in zip($keyall, $observable)
+                        put!(databuf_lc, data)
+                    end
+                end : :($observable = $getdata)
+            else
+                bk.isreading ? quote
+                    $observable = $getdata
+                    for data in zip($keyall, $observable)
+                        put!(databuf_lc, data)
+                    end
+                end : :($observable = $getdata)
+            end
         else
-            quote
+            ex = quote
                 for data in zip($keyall, $getdata)
                     put!(databuf_lc, data)
                 end
             end
+            return bk.isasync ? quote
+                @async begin
+                    $ex
+                end
+            end : ex
         end
-        return bk.isasync ? quote
-            @async begin
-                $ex
-            end
-        end : ex
     end
 end
 function tocodes(bk::SaveBlock)
     var = Symbol(bk.varname)
-    :(put!(databuf_lc, ($(bk.mark), $var)))
+    ex = rstrip(bk.mark, ' ') == "" ? :(put!(databuf_lc, ($(bk.varname), $var))) : :(put!(databuf_lc, ($(bk.mark), $var)))
+    return bk.isasync ? quote
+        @async begin
+            $ex
+        end
+    end : ex
 end
 
-############bkheight-------------------------------------------------------------------------------------------------------
+############bkheight----------------------------------------------------------------------------------------------------
 
 bkheight(::NullBlock) = zero(Float32)
 function bkheight(bk::CodeBlock)
-    (1 + length(findall("\n", bk.codes))) * CImGui.GetTextLineHeight() + 
+    (1 + length(findall("\n", bk.codes))) * CImGui.GetTextLineHeight() +
     2unsafe_load(imguistyle.FramePadding.y) +
     2unsafe_load(imguistyle.WindowPadding.y) + 1
 end
@@ -463,8 +520,8 @@ end
 
 function edit(bk::SweepBlock)
     bdc = if isempty(skipnull(bk.blocks))
-        CImGui.c_get(imguistyle.Colors, CImGui.ImGuiCol_Border) 
-    else 
+        CImGui.c_get(imguistyle.Colors, CImGui.ImGuiCol_Border)
+    else
         ImVec4(morestyle.Colors.SweepBlockBorder...)
     end
     CImGui.PushStyleVar(CImGui.ImGuiStyleVar_ItemSpacing, (Float32(2), unsafe_load(imguistyle.ItemSpacing.y)))
@@ -839,7 +896,7 @@ function edit(bk::ReadBlock)
     CImGui.PopStyleColor() #标注
 
     CImGui.EndChild()
-    CImGui.IsItemClicked(0) && (bk.isasync ⊻= true)
+    CImGui.IsItemClicked() && (bk.isasync ⊻= true)
     if CImGui.IsItemClicked(2)
         if bk.isobserve
             bk.isreading ? (bk.isobserve = false; bk.isreading = false) : (bk.isreading = true)
@@ -852,6 +909,12 @@ function edit(bk::ReadBlock)
 end
 
 function edit(bk::SaveBlock)
+    bdc = if bk.isasync
+        ImVec4(morestyle.Colors.BlockAsyncBorder...)
+    else
+        CImGui.c_get(imguistyle.Colors, CImGui.ImGuiCol_Border)
+    end
+    CImGui.PushStyleColor(CImGui.ImGuiCol_Border, bdc)
     CImGui.PushStyleVar(CImGui.ImGuiStyleVar_ItemSpacing, (Float32(2), unsafe_load(imguistyle.ItemSpacing.y)))
     CImGui.BeginChild("##SaveBlock", (Float32(0), bkheight(bk)), true)
     CImGui.TextColored(morestyle.Colors.BlockIcons, morestyle.Icons.SaveBlock)
@@ -864,7 +927,9 @@ function edit(bk::SaveBlock)
     @c InputTextWithHintRSZ("##SaveBlock Var", "变量", &bk.varname)
     CImGui.PopItemWidth()
     CImGui.EndChild()
+    CImGui.IsItemClicked() && (bk.isasync ⊻= true)
     CImGui.PopStyleVar()
+    CImGui.PopStyleColor()
 end
 
 function mousein(bk::AbstractBlock, total=false)::Bool
@@ -1234,7 +1299,7 @@ function view(bk::QueryBlock)
             " 地址：", bk.addr,
             " 命令：", bk.cmd,
             " 索引：", bk.index,
-            " 标注：", bk.mar
+            " 标注：", bk.mark
         ),
         (-1, 0)
     )
@@ -1266,7 +1331,6 @@ function view(bk::ReadBlock)
         string(
             "仪器：", bk.instrnm,
             " 地址：", bk.addr,
-            " 命令：", bk.cmd,
             " 索引：", bk.index,
             " 标注：", bk.mark
         ),
@@ -1279,6 +1343,12 @@ function view(bk::ReadBlock)
 end
 
 function view(bk::SaveBlock)
+    bdc = if bk.isasync
+        ImVec4(morestyle.Colors.BlockAsyncBorder...)
+    else
+        CImGui.c_get(imguistyle.Colors, CImGui.ImGuiCol_Border)
+    end
+    CImGui.PushStyleColor(CImGui.ImGuiCol_Border, bdc)
     CImGui.BeginChild("##SaveBlock", (Float32(0), bkheight(bk)), true)
     CImGui.TextColored(morestyle.Colors.BlockIcons, morestyle.Icons.SaveBlock)
     CImGui.SameLine()
@@ -1286,6 +1356,7 @@ function view(bk::SaveBlock)
     CImGui.Button(string("标注：", bk.mark, " 变量：", bk.varname), (-1, 0))
     CImGui.PopStyleVar()
     CImGui.EndChild()
+    CImGui.PopStyleColor()
 end
 
 function view(blocks::Vector{AbstractBlock})
@@ -1435,6 +1506,7 @@ function Base.show(io::IO, bk::SaveBlock)
             region : $(bk.region)
               mark : $(bk.mark)
                var : $(bk.varname)
+             async : $(bk.isasync)
     """
     print(io, str)
 end
