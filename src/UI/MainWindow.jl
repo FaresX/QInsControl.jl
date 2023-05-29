@@ -8,7 +8,7 @@ let
     show_metrics::Bool = false
     # show_debug = false
     show_logger::Bool = false
-    show_helppad::Bool = false
+    # show_helppad::Bool = false
     show_about::Bool = false
 
     #main window flags
@@ -87,7 +87,7 @@ let
         show_metrics && @c CImGui.ShowMetricsWindow(&show_metrics)
         # show_debug && @c debug(&show_debug)
         show_logger && @c LogWindow(&show_logger)
-        show_helppad && @c ShowHelpPad(&show_helppad)
+        # show_helppad && @c ShowHelpPad(&show_helppad)
         ShowAbout()
         show_about && (CImGui.OpenPopup("关于");
         show_about = false)
@@ -173,7 +173,7 @@ let
             if CImGui.BeginMenu(morestyle.Icons.Help * " 帮助")
                 @c CImGui.MenuItem(morestyle.Icons.Metrics * " 监测", C_NULL, &show_metrics)
                 @c CImGui.MenuItem(morestyle.Icons.Logger * " 日志", C_NULL, &show_logger)
-                @c CImGui.MenuItem(morestyle.Icons.HelpPad * " 帮助板", C_NULL, &show_helppad)
+                # @c CImGui.MenuItem(morestyle.Icons.HelpPad * " 帮助板", C_NULL, &show_helppad)
                 @c CImGui.MenuItem(morestyle.Icons.About * " 关于", C_NULL, &show_about)
                 CImGui.EndMenu()
             end

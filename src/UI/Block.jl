@@ -1084,6 +1084,10 @@ end #let
 function swapblock(blocks::Vector{AbstractBlock}, dragbk::AbstractBlock, dropbk::AbstractBlock)
     (dragbk == dropbk || isininnerblocks(dropbk, dragbk)) && return
     disable_drag(blocks, dragbk)
+    if typeof(dropbk) in [SweepBlock, StrideCodeBlock] && (CImGui.IsKeyDown(341) || CImGui.IsKeyDown(345))
+        push!(dropbk.blocks, dragbk)
+        return
+    end
     insert_drop(blocks, dragbk, dropbk)
 end
 
