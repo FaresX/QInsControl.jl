@@ -143,19 +143,6 @@ let
                 CImGui.Text(" ")
                 CImGui.Separator()
 
-                ###Icon###
-                # CImGui.TextColored(morestyle.Colors.HighlightText, "图标")
-                # path = conf["Icon"]["path"]
-                # @c InputTextRSZ("路径##Icon-path", &path); CImGui.SameLine()
-                # CImGui.Button("选择##Icon-path") && (path = pick_file(abspath(path); filterlist="ico"))
-                # if isfile(path)
-                #     conf["Icon"]["path"] = path
-                # else
-                #     CImGui.SameLine(); CImGui.TextColored(morestyle.logerrorcol, "文件不存在！！！")
-                # end
-                # CImGui.Text(" ")
-                # CImGui.Separator()
-
                 ###BGImage###
                 CImGui.TextColored(morestyle.Colors.HighlightText, "背景")
                 bgpath = conf.BGImage.path
@@ -194,54 +181,6 @@ let
                 CImGui.PushStyleColor(CImGui.ImGuiCol_Text, morestyle.Colors.HighlightText)
                 showunitsetting = CImGui.CollapsingHeader("单位")
                 CImGui.PopStyleColor()
-                # if showunitsetting
-                #     CImGui.Text("      类型")
-                #     CImGui.SameLine(0, 5ftsz)
-                #     CImGui.Text("单位集")
-                #     for (i, up) in enumerate(conf.U)
-                #         ut = up.first
-                #         ut == "" && continue
-                #         CImGui.PushID(i)
-                #         CImGui.PushItemWidth(5ftsz)
-                #         if @c InputTextRSZ("##Utype", &ut)
-                #             if ut == "" || haskey(conf.U, ut)
-                #                 ut = up.first
-                #             else
-                #                 newkey!(conf.U, up.first, ut)
-                #             end
-                #         end
-                #         CImGui.PopItemWidth()
-                #         if CImGui.BeginPopupContextItem()
-                #             CImGui.MenuItem("删除", C_NULL, false, length(conf.U) > 2) && (pop!(conf.U, ut); break)
-                #             CImGui.MenuItem("添加") && insert!(conf.U, ut, "NU" => Union{Unitful.FreeUnits,Unitful.MixedUnits}[u"m"], after=true)
-                #             CImGui.EndPopup()
-                #         end
-                #         CImGui.SameLine()
-                #         CImGui.Text("  =>  ")
-                #         CImGui.SameLine()
-                #         for (j, u) in enumerate(up.second)
-                #             ustr = string(u)
-                #             CImGui.PushID(j)
-                #             CImGui.PushItemWidth(5ftsz)
-                #             if @c InputTextRSZ("##U", &ustr)
-                #                 uf = @trypass eval(:(@u_str($ustr))) nothing
-                #                 !isnothing(uf) && (uf isa Unitful.FreeUnits || uf isa Unitful.MixedUnits) && (conf.U[ut][j] = uf)
-                #             end
-                #             CImGui.PopItemWidth()
-                #             if !isa(up.second[1], Unitful.MixedUnits)
-                #                 if CImGui.BeginPopupContextItem()
-                #                     CImGui.MenuItem("删除", C_NULL, false, length(up.second) > 1) && (deleteat!(conf.U[ut], j); break)
-                #                     CImGui.MenuItem("向左添加") && (insert!(conf.U[ut], j, u"m"); break)
-                #                     CImGui.MenuItem("向右添加") && (insert!(conf.U[ut], j + 1, u"m"); break)
-                #                     CImGui.EndPopup()
-                #                 end
-                #             end
-                #             j == length(up.second) || CImGui.SameLine()
-                #             CImGui.PopID()
-                #         end
-                #         CImGui.PopID()
-                #     end
-                # end
                 if showunitsetting
                     CImGui.BeginGroup()
                     CImGui.Text("     类型")
@@ -276,31 +215,7 @@ let
                     for (i, up) in enumerate(conf.U)
                         up.first == "" && continue
                         CImGui.PushID(i)
-                        for (j, u) in enumerate(up.second)
-                            ustr = string(u)
-                            CImGui.PushID(j)
-                            CImGui.PushItemWidth(5ftsz)
-                            if @c InputTextRSZ("##U", &ustr)
-                                uf = @trypass eval(:(@u_str($ustr))) nothing
-                                if !isnothing(uf) && (uf isa Unitful.FreeUnits || uf isa Unitful.MixedUnits)
-                                    conf.U[up.first][j] = uf
-                                end
-                            end
-                            CImGui.PopItemWidth()
-                            if !isa(up.second[1], Unitful.MixedUnits)
-                                if CImGui.BeginPopupContextItem()
-                                    if CImGui.MenuItem("删除", C_NULL, false, length(up.second) > 1)
-                                        deleteat!(conf.U[up.first], j)
-                                        break
-                                    end
-                                    CImGui.MenuItem("向左添加") && (insert!(conf.U[up.first], j, u"m"); break)
-                                    CImGui.MenuItem("向右添加") && (insert!(conf.U[up.first], j + 1, u"m"); break)
-                                    CImGui.EndPopup()
-                                end
-                            end
-                            j == length(up.second) || CImGui.SameLine()
-                            CImGui.PopID()
-                        end
+                        showonesetu(up)
                         CImGui.PopID()
                     end
                     CImGui.EndGroup()
@@ -313,3 +228,32 @@ let
         CImGui.End()
     end
 end # let
+
+function showonesetu(up)
+    for (j, u) in enumerate(up.second)
+        ustr = string(u)
+        CImGui.PushID(j)
+        CImGui.PushItemWidth(5CImGui.GetFontSize())
+        @info CImGui.GetFontSize()
+        if @c InputTextRSZ("##U", &ustr)
+            uf = @trypass eval(:(@u_str($ustr))) nothing
+            if !isnothing(uf) && (uf isa Unitful.FreeUnits || uf isa Unitful.MixedUnits)
+                conf.U[up.first][j] = uf
+            end
+        end
+        CImGui.PopItemWidth()
+        if !isa(up.second[1], Unitful.MixedUnits)
+            if CImGui.BeginPopupContextItem()
+                if CImGui.MenuItem("删除", C_NULL, false, length(up.second) > 1)
+                    deleteat!(conf.U[up.first], j)
+                    break
+                end
+                CImGui.MenuItem("向左添加") && (insert!(conf.U[up.first], j, u"m"); break)
+                CImGui.MenuItem("向右添加") && (insert!(conf.U[up.first], j + 1, u"m"); break)
+                CImGui.EndPopup()
+            end
+        end
+        j == length(up.second) || CImGui.SameLine()
+        CImGui.PopID()
+    end
+end

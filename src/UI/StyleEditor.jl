@@ -241,6 +241,7 @@ let
                     Right-click to open edit options menu.
                     """
                 )
+                CImGui.BeginChild("imnodes Colors", (0, 0), false, CImGui.ImGuiWindowFlags_HorizontalScrollbar)
                 for col in instances(LibCImGui.ColorStyle)[1:end-1]
                     # ImGuiTextFilter_PassFilter(filter, pointer(string(col)), C_NULL) || continue
                     occursin(lowercase(filter), lowercase(string(col))) || continue
@@ -259,6 +260,7 @@ let
                         end
                     end
                 end
+                CImGui.EndChild()
                 CImGui.EndTabItem()
             end
             CImGui.EndTabBar()
@@ -340,7 +342,7 @@ let
                     Right-click to open edit options menu.
                     """
                 )
-                CImGui.BeginChild("Colors")
+                CImGui.BeginChild("Colors", (0, 0), false, CImGui.ImGuiWindowFlags_HorizontalScrollbar)
                 for color in fieldnames(MoreStyleColor)
                     # ImGuiTextFilter_PassFilter(filter, pointer(string(color)), C_NULL) || continue
                     occursin(lowercase(filter), lowercase(string(color))) || continue

@@ -111,21 +111,15 @@ function MultiSelectable(
     size=(Float32(0), CImGui.GetFrameHeight() * ceil(Int, length(labels) / n))
 )
     l = length(labels)
-    m = ceil(Int, l / n)
     size = l == 0 ? (Float32(0), CImGui.GetFrameHeightWithSpacing()) : size
     CImGui.BeginChild("MultiSelectable##$id", size)
     CImGui.Columns(n, C_NULL, false)
-    for i in 1:m
-        for j in 1:n
-            idx = (i - 1) * n + j
-            if idx <= l
-                CImGui.PushStyleVar(CImGui.ImGuiStyleVar_SelectableTextAlign, (0.5, 0.5))
-                CImGui.Selectable(labels[idx], states[idx]) && (states[idx] ⊻= true)
-                CImGui.PopStyleVar()
-                rightclickmenu() && (idxing[] = idx)
-                CImGui.NextColumn()
-            end
-        end
+    for i in 1:l
+        CImGui.PushStyleVar(CImGui.ImGuiStyleVar_SelectableTextAlign, (0.5, 0.5))
+        CImGui.Selectable(labels[i], states[i]) && (states[i] ⊻= true)
+        CImGui.PopStyleVar()
+        rightclickmenu() && (idxing[] = i)
+        CImGui.NextColumn()
     end
     CImGui.EndChild()
 end
@@ -140,39 +134,33 @@ function DragMultiSelectable(
     size=(Float32(0), CImGui.GetFrameHeight() * ceil(Int, length(labels) / n))
 )
     l = length(labels)
-    m = ceil(Int, l / n)
     size = l == 0 ? (Float32(0), CImGui.GetFrameHeightWithSpacing()) : size
     CImGui.BeginChild("MultiSelectable##$id", size)
     CImGui.Columns(n, C_NULL, false)
-    for i in 1:m
-        for j in 1:n
-            idx = (i - 1) * n + j
-            if idx <= l
-                CImGui.PushStyleVar(CImGui.ImGuiStyleVar_SelectableTextAlign, (0.5, 0.5))
-                CImGui.Selectable(labels[idx], states[idx]) && (states[idx] ⊻= true)
-                CImGui.PopStyleVar()
-                rightclickmenu() && (idxing[] = idx)
-                CImGui.Indent()
-                if CImGui.BeginDragDropSource(0)
-                    @c CImGui.SetDragDropPayload("DragMultiSelectable##id", &idx, sizeof(Cint))
-                    CImGui.Text(labels[idx])
-                    CImGui.EndDragDropSource()
-                end
-                if CImGui.BeginDragDropTarget()
-                    payload = CImGui.AcceptDragDropPayload("DragMultiSelectable##id")
-                    if payload != C_NULL && unsafe_load(payload).DataSize == sizeof(Cint)
-                        payload_i = unsafe_load(Ptr{Cint}(unsafe_load(payload).Data))
-                        if idx != payload_i
-                            labels[idx], labels[payload_i] = labels[payload_i], labels[idx]
-                            states[idx], states[payload_i] = states[payload_i], states[idx]
-                        end
-                    end
-                    CImGui.EndDragDropTarget()
-                end
-                CImGui.Unindent()
-                CImGui.NextColumn()
-            end
+    for i in 1:l
+        CImGui.PushStyleVar(CImGui.ImGuiStyleVar_SelectableTextAlign, (0.5, 0.5))
+        CImGui.Selectable(labels[i], states[i]) && (states[i] ⊻= true)
+        CImGui.PopStyleVar()
+        rightclickmenu() && (idxing[] = i)
+        CImGui.Indent()
+        if CImGui.BeginDragDropSource(0)
+            @c CImGui.SetDragDropPayload("DragMultiSelectable##id", &i, sizeof(Cint))
+            CImGui.Text(labels[i])
+            CImGui.EndDragDropSource()
         end
+        if CImGui.BeginDragDropTarget()
+            payload = CImGui.AcceptDragDropPayload("DragMultiSelectable##id")
+            if payload != C_NULL && unsafe_load(payload).DataSize == sizeof(Cint)
+                payload_i = unsafe_load(Ptr{Cint}(unsafe_load(payload).Data))
+                if i != payload_i
+                    labels[i], labels[payload_i] = labels[payload_i], labels[i]
+                    states[i], states[payload_i] = states[payload_i], states[i]
+                end
+            end
+            CImGui.EndDragDropTarget()
+        end
+        CImGui.Unindent()
+        CImGui.NextColumn()
     end
     CImGui.EndChild()
 end
@@ -257,7 +245,7 @@ function edit(rightclickmenu, lo::Layout)
         lo.labeltoidx = Dict(zip(lo.labels, collect(eachindex(lo.labels))))
     end
     DragMultiSelectable(
-        ()->false,
+        () -> false,
         "selected##$(lo.id)",
         lo.selectedlabels,
         trues(length(lo.selectedlabels)),
