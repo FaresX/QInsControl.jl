@@ -32,7 +32,7 @@ let
                     end
                 end
             end
-            CImGui.BeginChild("WrapLog")
+            CImGui.BeginChild("WrapIOs")
             for (col, msg) in logmsgshow
                 CImGui.PushStyleColor(CImGui.ImGuiCol_Text, col)
                 CImGui.PushTextWrapPos(0)
