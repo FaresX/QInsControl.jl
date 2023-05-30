@@ -38,12 +38,12 @@ let
                 else
                     @c CImGui.Checkbox("多视窗模式 关", &conf.Basic.viewportenable)
                 end
-                io = CImGui.GetIO()
-                if conf.Basic.viewportenable
-                    io.ConfigFlags = unsafe_load(io.ConfigFlags) | CImGui.ImGuiConfigFlags_ViewportsEnable
-                else
-                    io.ConfigFlags = unsafe_load(io.ConfigFlags) & ~CImGui.ImGuiConfigFlags_ViewportsEnable
-                end
+                # io = CImGui.GetIO()
+                # if conf.Basic.viewportenable
+                #     io.ConfigFlags = unsafe_load(io.ConfigFlags) | CImGui.ImGuiConfigFlags_ViewportsEnable
+                # else
+                #     io.ConfigFlags = unsafe_load(io.ConfigFlags) & ~CImGui.ImGuiConfigFlags_ViewportsEnable
+                # end
                 CImGui.DragInt2("窗口大小", conf.Basic.windowsize, 2.0, 100, 4000, "%d", CImGui.ImGuiSliderFlags_AlwaysClamp)
                 @c ComBoS("系统编码", &conf.Basic.encoding, ecds)
                 editor = conf.Basic.editor
