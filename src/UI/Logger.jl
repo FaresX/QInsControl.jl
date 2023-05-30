@@ -4,7 +4,7 @@ let
     global function LogWindow(p_open::Ref)
         # CImGui.SetNextWindowPos((100, 100), CImGui.ImGuiCond_Once)
         CImGui.SetNextWindowSize((800, 600), CImGui.ImGuiCond_Once)
-        if CImGui.Begin(morestyle.Icons.Console * "  日志", p_open, CImGui.ImGuiWindowFlags_HorizontalScrollbar)
+        if CImGui.Begin(morestyle.Icons.Logger * "  日志", p_open, CImGui.ImGuiWindowFlags_HorizontalScrollbar)
             if waittime("Logger", conf.Logs.refreshrate)
                 empty!(logmsgshow)
                 textc = CImGui.c_get(imguistyle.Colors, CImGui.ImGuiCol_Text)

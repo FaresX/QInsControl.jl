@@ -460,3 +460,27 @@ a = 1
 [OUT Begin]
 1
 [End]
+
+[IN Begin]2023-05-30T21:18:55.333
+c = a + b
+[End]
+
+[OUT Begin]
+3
+[End]
+
+[IN Begin]2023-05-30T21:19:22.369
+savingimg
+[End]
+
+[OUT Begin]
+
+[End]
+
+[IN Begin]2023-05-30T21:19:34.637
+QInsControl.savingimg
+[End]
+
+[OUT Begin]
+false
+[End]

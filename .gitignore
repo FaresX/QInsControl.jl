@@ -1,6 +1,7 @@
 .VSCodeCounter
 .vscode
 Assets/Logs
+Assets/IOs
 imgui.ini
 docs/build
 docs/Manifest.toml
