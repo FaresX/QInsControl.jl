@@ -1,0 +1,462 @@
+
+[IN Begin]
+@error "test"
+[End]
+
+[OUT Begin]
+nothing
+[End]
+
+[IN Begin]
+@error "tets"
+[End]
+
+[OUT Begin]
+nothing
+[End]
+
+[IN Begin]
+"hello"
+[End]
+
+[OUT Begin]
+hello
+[End]
+
+[IN Begin]
+using Plots
+[End]
+
+[OUT Begin]
+
+[IN Begin]
+using Pkg
+[End]
+
+[OUT Begin]
+nothing
+[End]
+
+[IN Begin]
+Pkg.status()
+[End]
+
+[OUT Begin]
+Project QInsControl v0.1.0
+Status `C:\Users\22112\OneDrive - mails.ucas.ac.cn\文档\CODE\Julia\MyPackages\QInsControl.jl\Project.toml`
+  [5d785b6c] CImGui v1.82.0
+  [3da002f7] ColorTypes v0.11.4
+  [5218b696] Configurations v0.17.4
+  [5789e2e9] FileIO v1.16.1
+  [e8efc688] ImPlot v0.3.0 `https://github.com/wsphillips/ImPlot.jl.git#main`
+  [82e4d734] ImageIO v0.6.6
+  [6218d12a] ImageMagick v1.2.2
+  [033835bb] JLD2 v0.4.31
+  [1914dd2f] MacroTools v0.5.10
+  [e1fe445b] NativeFileDialog v0.2.1
+  [bac558e1] OrderedCollections v1.6.0
+  [cd9154b2] QInsControlCore v0.1.0 `https://github.com/FaresX/QInsControlCore.jl.git#master`
+  [69024149] StringEncodings v0.3.6
+  [1986cc42] Unitful v1.14.0
+  [ade2ca70] Dates
+  [8ba89e20] Distributed
+  [b77e0a4c] InteractiveUtils
+  [56ddb016] Logging
+  [de0858da] Printf
+  [1a1011a3] SharedArrays
+  [6462fe0b] Sockets
+  [fa267f1f] TOML v1.0.3
+  [cf7118a7] UUIDs
+nothing
+[End]
+
+[IN Begin]2023-05-30T19:15:21.396
+a = 1
+[End]
+
+[OUT Begin]
+1
+[End]
+
+[IN Begin]2023-05-30T19:20:49.340
+a = 1
+[End]
+
+[OUT Begin]
+1
+[End]
+
+[IN Begin]2023-05-30T19:20:56.256
+b = 2
+[End]
+
+[OUT Begin]
+2
+[End]
+
+[IN Begin]2023-05-30T19:23:32.728
+a  =1
+[End]
+
+[OUT Begin]
+1
+[End]
+
+[IN Begin]2023-05-30T19:24:05.291
+b = 2
+[End]
+
+[OUT Begin]
+2
+[End]
+
+[IN Begin]2023-05-30T19:24:44.943
+c = 3
+[End]
+
+[OUT Begin]
+3
+[End]
+
+[IN Begin]2023-05-30T19:35:14.518
+hello
+[End]
+
+[OUT Begin]
+
+[IN Begin]2023-05-30T19:37:02.262
+test
+[End]
+
+[OUT Begin]
+
+[End]
+
+[IN Begin]2023-05-30T19:37:46.729
+test
+[End]
+
+[OUT Begin]
+
+[End]
+
+[IN Begin]2023-05-30T19:41:10.552
+using Pkg
+[End]
+
+[OUT Begin]
+nothing
+[End]
+
+[IN Begin]2023-05-30T19:41:26.174
+Pkg.add("UnicodePlots")
+[End]
+
+[OUT Begin]
+nothing
+[End]
+
+[IN Begin]2023-05-30T19:42:56.623
+using UnicodePlots
+[End]
+
+[OUT Begin]
+nothing
+[End]
+
+[IN Begin]2023-05-30T19:43:13.963
+plot(rand(10))
+[End]
+
+[OUT Begin]
+
+[End]
+
+[IN Begin]2023-05-30T19:44:22.313
+lineplot(rand(10))
+[End]
+
+[OUT Begin]
+     ┌────────────────────────────────────────┐ 
+   1 │⠀⠀⠀⠀⣷⠀⠀⠀⠀⠀⠀⠀⠀⡗⢄⠀⠀⠀⠀⠀⠀⢀⡄⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀│ 
+     │⠀⠀⠀⢰⠙⡄⠀⠀⠀⠀⠀⠀⢸⠀⠈⠢⡀⠀⠀⢀⠔⠁⢸⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀│ 
+     │⠀⠀⠀⡎⠀⡇⠀⠀⠀⠀⠀⠀⡎⠀⠀⠀⠑⢄⡠⠊⠀⠀⠀⢇⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀│ 
+     │⠀⠀⢰⠁⠀⢸⠀⠀⠀⠀⠀⢠⠃⠀⠀⠀⠀⠈⠀⠀⠀⠀⠀⠸⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀│ 
+     │⠀⠀⡎⠀⠀⠈⡆⠀⠀⠀⠀⢸⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢣⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀│ 
+     │⠀⢰⠁⠀⠀⠀⢣⠀⠀⠀⠀⡇⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠘⡄⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀│ 
+     │⠀⡎⠀⠀⠀⠀⢸⠀⠀⠀⢰⠁⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢱⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀│ 
+     │⢰⠁⠀⠀⠀⠀⠀⡇⠀⠀⡜⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⡇⠀⠀⣀⣀⡀⠀⠀⠀⠀⠀⠀⠀⠀│ 
+     │⡎⠀⠀⠀⠀⠀⠀⢱⠀⠀⡇⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠈⠉⠉⠀⠀⢣⠀⠀⠀⠀⠀⠀⠀⠀│ 
+     │⠁⠀⠀⠀⠀⠀⠀⠘⡄⢸⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠈⡆⠀⠀⠀⠀⠀⠀⠀│ 
+     │⠀⠀⠀⠀⠀⠀⠀⠀⡇⡎⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠸⡀⠀⠀⠀⠀⠀⢀│ 
+     │⠀⠀⠀⠀⠀⠀⠀⠀⢸⠃⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢇⠀⠀⠀⠀⢀⠎│ 
+     │⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠘⡄⠀⠀⢀⠎⠀│ 
+     │⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢱⠀⢠⠃⠀⠀│ 
+   0 │⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢧⠃⠀⠀⠀│ 
+     └────────────────────────────────────────┘ 
+     ⠀1⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀10⠀ 
+[End]
+
+[IN Begin]2023-05-30T20:19:33.653
+a = 1
+[End]
+
+[OUT Begin]
+1
+[End]
+
+[IN Begin]2023-05-30T20:22:43.327
+a = 1
+[End]
+
+[OUT Begin]
+1
+[End]
+
+[IN Begin]2023-05-30T20:23:00.190
+b = 2
+[End]
+
+[OUT Begin]
+2
+[End]
+
+[IN Begin]2023-05-30T20:23:45.514
+a = 1
+[End]
+
+[OUT Begin]
+1
+[End]
+
+[IN Begin]2023-05-30T20:24:52.941
+a = 1
+[End]
+
+[OUT Begin]
+1
+[End]
+
+[IN Begin]2023-05-30T20:25:41.492
+a = 1
+[End]
+
+[OUT Begin]
+1
+[End]
+
+[IN Begin]2023-05-30T20:27:05.998
+a = 1
+[End]
+
+[OUT Begin]
+1
+[End]
+
+[IN Begin]2023-05-30T20:29:33.819
+a = 1
+[End]
+
+[OUT Begin]
+1
+[End]
+
+[IN Begin]2023-05-30T20:32:17.168
+a = 1
+[End]
+
+[OUT Begin]
+1
+[End]
+
+[IN Begin]2023-05-30T20:32:17.178
+a = 1
+[End]
+
+[OUT Begin]
+1
+[End]
+
+[IN Begin]2023-05-30T20:32:17.178
+a = 1
+[End]
+
+[OUT Begin]
+1
+[End]
+
+[IN Begin]2023-05-30T20:32:17.188
+a = 1
+[End]
+
+[OUT Begin]
+1
+[End]
+
+[IN Begin]2023-05-30T20:32:17.198
+a = 1
+[End]
+
+[OUT Begin]
+1
+[End]
+
+[IN Begin]2023-05-30T20:32:17.198
+a = 1
+[End]
+
+[OUT Begin]
+1
+[End]
+
+[IN Begin]2023-05-30T20:32:17.218
+a = 1
+[End]
+
+[OUT Begin]
+1
+[End]
+
+[IN Begin]2023-05-30T20:32:17.218
+a = 1
+[End]
+
+[OUT Begin]
+1
+[End]
+
+[IN Begin]2023-05-30T20:32:17.228
+a = 1
+[End]
+
+[OUT Begin]
+1
+[End]
+
+[IN Begin]2023-05-30T20:33:32.749
+a = 1
+[End]
+
+[OUT Begin]
+1
+[End]
+
+[IN Begin]2023-05-30T20:36:50.715
+init
+[End]
+
+[OUT Begin]
+
+[End]
+
+[IN Begin]2023-05-30T20:38:07.455
+a = 1
+[End]
+
+[OUT Begin]
+1
+[End]
+
+[IN Begin]2023-05-30T20:42:55.929
+a = 1
+[End]
+
+[OUT Begin]
+1
+[End]
+
+[IN Begin]2023-05-30T20:44:40.981
+a = 1
+[End]
+
+[OUT Begin]
+1
+[End]
+
+[IN Begin]2023-05-30T20:46:43.122
+a = 1
+[End]
+
+[OUT Begin]
+1
+[End]
+
+[IN Begin]2023-05-30T21:08:03.128
+a = 1
+[End]
+
+[OUT Begin]
+1
+[End]
+
+[IN Begin]2023-05-30T21:08:07.388
+b = 2
+[End]
+
+[OUT Begin]
+2
+[End]
+
+[IN Begin]2023-05-30T21:08:45.024
+a = 1
+[End]
+
+[OUT Begin]
+1
+[End]
+
+[IN Begin]2023-05-30T21:10:13.391
+a = 1
+[End]
+
+[OUT Begin]
+1
+[End]
+
+[IN Begin]2023-05-30T21:10:16.838
+b = 2
+[End]
+
+[OUT Begin]
+2
+[End]
+
+[IN Begin]2023-05-30T21:10:22.039
+a = 1
+[End]
+
+[OUT Begin]
+1
+[End]
+
+[IN Begin]2023-05-30T21:14:28.719
+a = 1
+[End]
+
+[OUT Begin]
+1
+[End]
+
+[IN Begin]2023-05-30T21:14:57.418
+a = 1
+[End]
+
+[OUT Begin]
+1
+[End]
+
+[IN Begin]2023-05-30T21:15:03.290
+a = 1
+[End]
+
+[OUT Begin]
+1
+[End]
+
+[IN Begin]2023-05-30T21:15:05.130
+a = 1
+[End]
+
+[OUT Begin]
+1
+[End]

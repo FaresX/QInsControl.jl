@@ -123,6 +123,27 @@ let
                 CImGui.Text(" ")
                 CImGui.Separator()
 
+                ###Console###
+                CImGui.TextColored(morestyle.Colors.HighlightText, "控制台")
+                iodir = conf.Console.dir
+                inputiodir = @c InputTextRSZ("路径##Console", &iodir)
+                CImGui.SameLine()
+                selectiodir = CImGui.Button(morestyle.Icons.SelectPath * "##IO-dir")
+                selectiodir && (iodir = pick_folder(abspath(iodir)))
+                if inputiodir || selectiodir
+                    if isdir(iodir)
+                        conf.Console.dir = iodir
+                    else
+                        CImGui.SameLine()
+                        CImGui.TextColored(morestyle.Colors.LogError, "路径不存在！！！")
+                    end
+                end
+                @c CImGui.DragFloat("刷新率##Console", &conf.Console.refreshrate, 1.0, 0.1, 60, "%.1f", CImGui.ImGuiSliderFlags_AlwaysClamp)
+                @c CImGui.DragInt("显示行数##Console", &conf.Console.showioline, 1.0, 100, 6000, "%d", CImGui.ImGuiSliderFlags_AlwaysClamp)
+                @c CImGui.DragInt("历史命令##Console", &conf.Console.showioline, 1.0, 10, 6000, "%d", CImGui.ImGuiSliderFlags_AlwaysClamp)
+                CImGui.Text(" ")
+                CImGui.Separator()
+
                 ###Logs###
                 CImGui.TextColored(morestyle.Colors.HighlightText, "日志")
                 logdir = conf.Logs.dir
@@ -138,8 +159,8 @@ let
                         CImGui.TextColored(morestyle.Colors.LogError, "路径不存在！！！")
                     end
                 end
-                @c CImGui.DragInt("刷新率", &conf.Logs.refreshrate, 1.0, 0, 60, "%d", CImGui.ImGuiSliderFlags_AlwaysClamp)
-                @c CImGui.DragInt("显示行数", &conf.Logs.showlogline, 1.0, 100, 6000, "%d", CImGui.ImGuiSliderFlags_AlwaysClamp)
+                @c CImGui.DragFloat("刷新率##Logs", &conf.Logs.refreshrate, 1.0, 0.1, 60, "%.1f", CImGui.ImGuiSliderFlags_AlwaysClamp)
+                @c CImGui.DragInt("显示行数##Logs", &conf.Logs.showlogline, 1.0, 100, 6000, "%d", CImGui.ImGuiSliderFlags_AlwaysClamp)
                 CImGui.Text(" ")
                 CImGui.Separator()
 

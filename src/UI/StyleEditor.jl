@@ -79,6 +79,8 @@ Base.@kwdef mutable struct MoreStyleIcon
     InstrumentsAutoDetect::String = ICONS.ICON_CLOCK
 
     Help::String = ICONS.ICON_BOOK_TANAKH
+    Console::String = ICONS.ICON_COMPUTER
+    SendMsg::String = ICONS.ICON_PAPER_PLANE
     Metrics::String = ICONS.ICON_EYE
     Logger::String = ICONS.ICON_BOX_ARCHIVE
     HelpPad::String = ICONS.ICON_ENVELOPE_CIRCLE_CHECK

@@ -11,7 +11,7 @@ Hz = ["Hz", "kHz", "MHz", "GHz"]
 
 [Basic]
 isremote = true
-viewportenable = true
+viewportenable = false
 windowsize = [1280, 720]
 encoding = "GBK"
 editor = "code.cmd"
@@ -37,9 +37,15 @@ second = "arial.ttf"
 [Icons]
 size = 18
 
+[Console]
+dir = "C:\\Users\\22112\\OneDrive - mails.ucas.ac.cn\\文档\\CODE\\Julia\\MyPackages\\QInsControl.jl\\src\\../Assets\\IOs"
+refreshrate = 60.0
+showioline = 100
+historylen = 100
+
 [Logs]
 dir = "Assets\\Logs"
-refreshrate = 1
+refreshrate = 1.0
 showlogline = 600
 
 [BGImage]

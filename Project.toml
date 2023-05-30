@@ -26,11 +26,12 @@ Sockets = "6462fe0b-24de-5631-8697-dd941f90decc"
 StringEncodings = "69024149-9ee7-55f6-a4c4-859efe599b68"
 TOML = "fa267f1f-6049-4f14-aa54-33bafae1ed76"
 UUIDs = "cf7118a7-6976-5b1a-9a39-7adc72f591a4"
+UnicodePlots = "b8865327-cd53-5732-bb35-84acbb429228"
 Unitful = "1986cc42-f94f-5a68-af5c-568840ba703d"
 
 [compat]
-julia = "1.6"
 QInsControlCore = "0.1.0"
+julia = "1.6"
 
 [extras]
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"

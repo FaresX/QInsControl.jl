@@ -205,7 +205,7 @@ let
             if CImGui.BeginMenu(morestyle.Icons.Edit * " 编辑")
                 @c InputTextRSZ("标题", &hoverednode.title)
                 linesnum = (1 + length(findall("\n", hoverednode.content)))
-                mtheigth = (linesnum > 6 ? 6 : linesnum) * CImGui.GetTextLineHeight()
+                mtheigth = (linesnum > 6 ? 6 : linesnum) * CImGui.GetTextLineHeight() + 2unsafe_load(imguistyle.FramePadding.y)
                 @c InputTextMultilineRSZ("内容", &hoverednode.content, (Cfloat(0), mtheigth))
                 if CImGui.BeginPopupContextItem()
                     for ins in keys(instrbufferviewers)

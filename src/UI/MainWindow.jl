@@ -5,6 +5,7 @@ let
     show_instr_buffer::Bool = false
     show_daq::Bool = false
     
+    show_console::Bool = false
     show_metrics::Bool = false
     # show_debug = false
     show_logger::Bool = false
@@ -84,6 +85,8 @@ let
             end
         end
         show_daq && @c DAQ(&show_daq)
+
+        show_console && @c ShowConsole(&show_console)
         show_metrics && @c CImGui.ShowMetricsWindow(&show_metrics)
         # show_debug && @c debug(&show_debug)
         show_logger && @c LogWindow(&show_logger)
@@ -171,6 +174,7 @@ let
             end
             #Help Menu
             if CImGui.BeginMenu(morestyle.Icons.Help * " 帮助")
+                @c CImGui.MenuItem(morestyle.Icons.Console * " 控制台", C_NULL, &show_console)
                 @c CImGui.MenuItem(morestyle.Icons.Metrics * " 监测", C_NULL, &show_metrics)
                 @c CImGui.MenuItem(morestyle.Icons.Logger * " 日志", C_NULL, &show_logger)
                 # @c CImGui.MenuItem(morestyle.Icons.HelpPad * " 帮助板", C_NULL, &show_helppad)

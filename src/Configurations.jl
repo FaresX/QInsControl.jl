@@ -31,9 +31,16 @@ end
     size::Cint
 end
 
+@option mutable struct OptConsole
+    dir::String
+    refreshrate::Cfloat
+    showioline::Cint
+    historylen::Cint
+end
+
 @option mutable struct OptLogs
     dir::String
-    refreshrate::Cint
+    refreshrate::Cfloat
     showlogline::Cint
 end
 
@@ -57,6 +64,7 @@ end
     InsBuf::OptInsBuf
     Fonts::OptFonts
     Icons::OptIcons
+    Console::OptConsole
     Logs::OptLogs
     BGImage::OptBGImage
     ComAddr::OptComAddr
