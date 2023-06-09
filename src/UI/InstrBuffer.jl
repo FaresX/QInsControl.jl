@@ -139,7 +139,7 @@ let
                 end
                 CImGui.Text(morestyle.Icons.ShowCol * " 显示列数")
                 CImGui.SameLine()
-                CImGui.PushItemWidth(3CImGui.GetFontSize()/2)
+                CImGui.PushItemWidth(3CImGui.GetFontSize() / 2)
                 @c CImGui.DragInt("##显示列数", &conf.InsBuf.showcol, 1, 1, 12, "%d", CImGui.ImGuiSliderFlags_AlwaysClamp)
                 CImGui.PopItemWidth()
                 CImGui.EndPopup()
@@ -196,7 +196,7 @@ let
                 end
                 CImGui.Text(morestyle.Icons.ShowCol * " 显示列数")
                 CImGui.SameLine()
-                CImGui.PushItemWidth(3CImGui.GetFontSize()/2)
+                CImGui.PushItemWidth(3CImGui.GetFontSize() / 2)
                 @c CImGui.DragInt("##显示列数", &conf.InsBuf.showcol, 1, 1, 12, "%d", CImGui.ImGuiSliderFlags_AlwaysClamp)
                 CImGui.PopItemWidth()
                 CImGui.EndPopup()
@@ -255,7 +255,7 @@ function testcmd(ins, addr, inputcmd::Ref{String}, readstr::Ref{String})
                         ct(write, CPU, inputcmd, Val(:write))
                         logout!(CPU, ct)
                     catch e
-                        @error "[$(now())]\n仪器通信故障！！！" exception=e
+                        @error "[$(now())]\n仪器通信故障！！！" exception = e
                         logout!(CPU, ct)
                     end
                 end
@@ -272,7 +272,7 @@ function testcmd(ins, addr, inputcmd::Ref{String}, readstr::Ref{String})
                         logout!(CPU, ct)
                         return readstr
                     catch e
-                        @error "[$(now())]\n仪器通信故障！！！" exception=e
+                        @error "[$(now())]\n仪器通信故障！！！" exception = e
                         logout!(CPU, ct)
                     end
                 end
@@ -290,10 +290,10 @@ function testcmd(ins, addr, inputcmd::Ref{String}, readstr::Ref{String})
                         logout!(CPU, ct)
                         return readstr
                     catch e
-                        @error "[$(now())]\n仪器通信故障！！！" exception=e
+                        @error "[$(now())]\n仪器通信故障！！！" exception = e
                         logout!(CPU, ct)
                     end
-                end 
+                end
                 isnothing(fetchdata) || (readstr[] = fetchdata)
             end
         end
@@ -304,40 +304,58 @@ function testcmd(ins, addr, inputcmd::Ref{String}, readstr::Ref{String})
     end
 end
 
-function edit(insbuf::InstrBuffer, addr)
-    CImGui.PushID(insbuf.instrnm)
-    CImGui.PushID(addr)
-    CImGui.BeginChild("InstrBuffer")
-    CImGui.Columns(conf.InsBuf.showcol, C_NULL, false)
-    for (i, qt) in enumerate(values(insbuf.quantities))
-        qt.enable || continue
-        CImGui.PushID(qt.name)
-        edit(qt, insbuf.instrnm, addr)
-        CImGui.PopID()
-        CImGui.NextColumn()
-        CImGui.Indent()
-        if CImGui.BeginDragDropSource(0)
-            @c CImGui.SetDragDropPayload("Swap DAQTask", &i, sizeof(Cint))
-            CImGui.Text(qt.alias)
-            CImGui.EndDragDropSource()
+let
+    filter::String = ""
+    filtervarname::Bool = false
+    global function edit(insbuf::InstrBuffer, addr)
+        CImGui.PushID(insbuf.instrnm)
+        CImGui.PushID(addr)
+        CImGui.BeginChild("InstrBuffer")
+        @c InputTextRSZ("##filterqt", &filter)
+        CImGui.SameLine()
+        if filtervarname
+            @c CImGui.Checkbox("筛选变量", &filtervarname)
+        else
+            @c CImGui.Checkbox("筛选别称", &filtervarname)
         end
-        if CImGui.BeginDragDropTarget()
-            payload = CImGui.AcceptDragDropPayload("Swap DAQTask")
-            if payload != C_NULL && unsafe_load(payload).DataSize == sizeof(Cint)
-                payload_i = unsafe_load(Ptr{Cint}(unsafe_load(payload).Data))
-                if i != payload_i
-                    key_i = idxkey(insbuf.quantities, i)
-                    key_payload_i = idxkey(insbuf.quantities, payload_i)
-                    swapvalue!(insbuf.quantities, key_i, key_payload_i)
+        CImGui.Columns(conf.InsBuf.showcol, C_NULL, false)
+        for (i, qt) in enumerate(values(insbuf.quantities))
+            qt.enable || continue
+            if isvalid(filter)
+                if filtervarname
+                    occursin(lowercase(filter), lowercase(qt.name)) || continue
+                else
+                    occursin(lowercase(filter), lowercase(qt.alias)) || continue
                 end
             end
-            CImGui.EndDragDropTarget()
+            CImGui.PushID(qt.name)
+            edit(qt, insbuf.instrnm, addr)
+            CImGui.PopID()
+            CImGui.NextColumn()
+            CImGui.Indent()
+            if CImGui.BeginDragDropSource(0)
+                @c CImGui.SetDragDropPayload("Swap DAQTask", &i, sizeof(Cint))
+                CImGui.Text(qt.alias)
+                CImGui.EndDragDropSource()
+            end
+            if CImGui.BeginDragDropTarget()
+                payload = CImGui.AcceptDragDropPayload("Swap DAQTask")
+                if payload != C_NULL && unsafe_load(payload).DataSize == sizeof(Cint)
+                    payload_i = unsafe_load(Ptr{Cint}(unsafe_load(payload).Data))
+                    if i != payload_i
+                        key_i = idxkey(insbuf.quantities, i)
+                        key_payload_i = idxkey(insbuf.quantities, payload_i)
+                        swapvalue!(insbuf.quantities, key_i, key_payload_i)
+                    end
+                end
+                CImGui.EndDragDropTarget()
+            end
+            CImGui.Unindent()
         end
-        CImGui.Unindent()
+        CImGui.EndChild()
+        CImGui.PopID()
+        CImGui.PopID()
     end
-    CImGui.EndChild()
-    CImGui.PopID()
-    CImGui.PopID()
 end
 
 edit(qt::InstrQuantity, instrnm::String, addr::String) = edit(qt, instrnm, addr, Val(qt.type))
@@ -395,7 +413,7 @@ let
                                 logout!(CPU, ct)
                                 return parse(Float64, readstr)
                             catch e
-                                @error "[$(now())]\nstart获取错误！！！" instrument = string(instrnm, "-", addr) exception=e
+                                @error "[$(now())]\nstart获取错误！！！" instrument = string(instrnm, "-", addr) exception = e
                                 logout!(CPU, ct)
                             end
                         end
@@ -403,7 +421,7 @@ let
                             @error "[$(now())]\nstep解析错误！！！" step = qt.step
                         end
                         stop = @trypasse eval(Meta.parse(qt.stop)) * Uchange begin
-                        @error "[$(now())]\nstop解析错误！！！" stop = qt.stop
+                            @error "[$(now())]\nstop解析错误！！！" stop = qt.stop
                         end
                         if !(isnothing(start) || isnothing(step) || isnothing(stop))
                             sweepsteps = ceil(Int, abs((start - stop) / step))
@@ -427,7 +445,7 @@ let
                                         end
                                     end
                                 catch e
-                                    @error "[$(now())]\n仪器通信故障！！！" exception=e
+                                    @error "[$(now())]\n仪器通信故障！！！" exception = e
                                 finally
                                     remotecall_wait(() -> logout!(CPU, sweepct), workers()[1])
                                 end
@@ -461,6 +479,10 @@ let
         U = isempty(Us) ? "" : Us[qt.uindex]
         U == "" || (Uchange::Float64 = Us[1] isa Unitful.FreeUnits ? ustrip(Us[1], 1U) : 1.0)
         val = U == "" ? qt.read : @trypass string(parse(Float64, qt.read) / Uchange) qt.read
+        if val in qt.optvalues
+            validx = findfirst(==(val), qt.optvalues)
+            val = string(qt.optkeys[validx], " => ", qt.optvalues[validx])
+        end
         content = string(qt.alias, "\n \n设置值：", qt.set, " ", U, "\n \n", val, " ", U) |> centermultiline
         content = string(content, "###for rename")
         CImGui.PushStyleColor(
@@ -479,7 +501,7 @@ let
         end
         if CImGui.BeginPopupContextItem()
             @c InputTextWithHintRSZ("##设置", "设置值", &qt.set)
-            if CImGui.Button(" 确认 ", (-1, 0)) || triggerset
+            if CImGui.Button(" 确认 ", (-Cfloat(0.1), Cfloat(0))) || triggerset
                 triggerset = false
                 if addr != ""
                     sv = U == "" ? qt.set : @trypasse string(float(eval(Meta.parse(qt.set)) * Uchange)) qt.set
@@ -495,18 +517,26 @@ let
                             logout!(CPU, ct)
                             return readstr
                         catch e
-                            @error "[$(now())]\n仪器通信故障！！！" exception=e
+                            @error "[$(now())]\n仪器通信故障！！！" exception = e
                             logout!(CPU, ct)
                         end
-                    end 
+                    end
                     isnothing(fetchdata) || (qt.read = fetchdata)
                 end
             end
+            CImGui.BeginGroup()
             for (i, optv) in enumerate(qt.optvalues)
-                optv == "" && continue
+                (iseven(i) || optv == "") && continue
                 @c(CImGui.RadioButton(qt.optkeys[i], &qt.optedidx, i)) && (qt.set = optv; triggerset = true)
-                i % 2 == 1 && CImGui.SameLine(0, 2CImGui.GetFontSize())
             end
+            CImGui.EndGroup()
+            CImGui.SameLine(0, 2CImGui.GetFontSize())
+            CImGui.BeginGroup()
+            for (i, optv) in enumerate(qt.optvalues)
+                (isodd(i) || optv == "") && continue
+                @c(CImGui.RadioButton(qt.optkeys[i], &qt.optedidx, i)) && (qt.set = optv; triggerset = true)
+            end
+            CImGui.EndGroup()
             CImGui.Text("单位 ")
             CImGui.SameLine()
             CImGui.PushItemWidth(6CImGui.GetFontSize())
@@ -596,6 +626,10 @@ let
         U = isempty(Us) ? "" : Us[qt.uindex]
         U == "" || (Uchange::Float64 = Us[1] isa Unitful.FreeUnits ? ustrip(Us[1], 1U) : 1.0)
         val = U == "" ? qt.read : @trypass string(parse(Float64, qt.read) / Uchange) qt.read
+        if qt.type == :set && val in qt.optvalues
+            validx = findfirst(==(val), qt.optvalues)
+            val = string(qt.optkeys[validx], " => ", qt.optvalues[validx])
+        end
         content = string(qt.alias, "\n", val, " ", U) |> centermultiline
         if CImGui.Button(content, (-1, 0))
             qt.uindex = (qt.uindex + 1) % length(Us)
@@ -614,7 +648,7 @@ function refresh_qt(instrnm, addr, qtnm)
             logout!(CPU, ct)
             return readstr
         catch e
-            @error "[$(now())]\n仪器通信故障！！！" exception=e
+            @error "[$(now())]\n仪器通信故障！！！" exception = e
             logout!(CPU, ct)
         end
     end
@@ -643,7 +677,7 @@ function refresh_fetch_ibvs(ibvs_local; log=false)
                             end
                             logout!(CPU, ct)
                         catch e
-                            @error "[$(now())]\n仪器通信故障！！！" exception=e
+                            @error "[$(now())]\n仪器通信故障！！！" exception = e
                             logout!(CPU, ct)
                         end
                     end
@@ -655,7 +689,7 @@ function refresh_fetch_ibvs(ibvs_local; log=false)
 end
 
 function manualrefresh()
-    ibvs_remote = refresh_fetch_ibvs(instrbufferviewers; log = true)
+    ibvs_remote = refresh_fetch_ibvs(instrbufferviewers; log=true)
     for ins in keys(instrbufferviewers)
         ins == "Others" && continue
         for (addr, ibv) in instrbufferviewers[ins]

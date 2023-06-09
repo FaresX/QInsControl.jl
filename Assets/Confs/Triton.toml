@@ -24,3 +24,13 @@ help = "MC Plate RuO2"
 optvalues = []
 type = "read"
 alias = "温度T8"
+
+[temperatureT13]
+cmdheader = ""
+U = "K"
+enable = true
+optkeys = []
+help = "Magnet"
+optvalues = []
+type = "read"
+alias = "温度T13"

@@ -24,7 +24,7 @@ U = ""
 enable = true
 optkeys = ["ON", "OFF"]
 help = "Turn source on or off\r\n\r\n[:STATe] <b>\r\n\r\n:OUTPut[1][:STATe] <b>                      Turn source on or off\r\n\r\nParameters <b> = 0 or OFF                   Turn source off (standby)\r\n                 1 or ON                    Turn source on (operate)\r\n\r\nQuery      :OUTPut?                         Query state of source\r\n\r\nDescription     \r\nThis command is used to turn the source output on or off. \\\nMeasurements cannot be made while the source is off. \r\nTurning the source off places the SourceMeter in the idle state. \\\nThe only exception to this is when source auto clear is enabled. \\\nIn this mode, the source turns on during each source phase of \\\nthe SDM cycle and turns off after each measurement. \\\n(See “:SOURce[1]:CLEar:AUTO <b> Control auto out-put off,” page 18-72.)\r\n\r\nNOTE        The :SOURce:CLEar command will also turn the source off.   \r\n\r\nFor the Model 2430 Pulse Mode, the instrument is taken out of \\\nthe idle state when the output is turned on.     \r\n"
-optvalues = ["ON", "OFF"]
+optvalues = ["1", "0"]
 type = "set"
 alias = "输出"
 

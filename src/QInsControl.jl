@@ -25,7 +25,6 @@ using OrderedCollections
 using StringEncodings
 import ImageMagick
 # using ImageIO
-# using Logging
 
 import Base: +, -, /
 using Distributed
@@ -35,7 +34,7 @@ using Dates
 using UUIDs
 using Printf
 using InteractiveUtils
-using Sockets
+using Logging
 
 export start
 
@@ -47,6 +46,7 @@ export start
     isinterrupt 
     isblock
     isautorefresh
+    newloging
 end
 
 global savingimg::Bool = false
@@ -95,10 +95,15 @@ function julia_main()::Cint
         loadconf()
         databuf_c::Channel{Vector{Tuple{String,String}}} = Channel{Vector{NTuple{2,String}}}(conf.DAQ.channel_size)
         progress_c::Channel{Vector{Tuple{UUID,Int,Int,Float64}}} = Channel{Vector{Tuple{UUID,Int,Int,Float64}}}(conf.DAQ.channel_size)
-        global syncstates = SharedVector{Bool}(7)
+        global syncstates = SharedVector{Bool}(8)
         global databuf_rc = RemoteChannel(() -> databuf_c)
         global progress_rc = RemoteChannel(() -> progress_c)
-        include(joinpath(ENV["QInsControlAssets"], "Necessity/Logger.jl"))
+        global logio = IOBuffer()
+        global_logger(SimpleLogger(logio))
+        errormonitor(@async while true
+            sleep(1)
+            update_log()
+        end)
         @info ARGS
         isempty(ARGS) || @info reencoding.(ARGS, conf.Basic.encoding)
         uitask = UI()
@@ -108,11 +113,18 @@ function julia_main()::Cint
         if conf.Basic.isremote
             nprocs() == 1 && addprocs(1)
             @eval @everywhere using QInsControl
-            syncstates = SharedVector{Bool}(7)
+            syncstates = SharedVector{Bool}(8)
             databuf_rc = RemoteChannel(() -> databuf_c)
             progress_rc = RemoteChannel(() -> progress_c)
-            remote_do(loadconf, workers()[1])
-            remote_do(include, workers()[1], joinpath(ENV["QInsControlAssets"], "Necessity/Logger.jl"))
+            remotecall_wait(workers()[1], syncstates) do syncstates
+                loadconf()
+                global logio = IOBuffer()
+                global_logger(SimpleLogger(logio))
+                errormonitor(@async while true
+                    sleep(1)
+                    update_log(syncstates=syncstates)
+                end)
+            end
         end
         remotecall_wait(()->start!(CPU), workers()[1])
         autorefresh()

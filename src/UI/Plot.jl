@@ -470,7 +470,11 @@ let
                 conf.Basic.viewportenable || (vpos = CImGui.ImVec2(vpos.x + glfwwindowx, vpos.y + glfwwindowy))
                 u, d = round(Int, vpos.y+1), round(Int, vpos.y + vsize.y-4)
                 l, r = round(Int, vpos.x+1), round(Int, vpos.x + vsize.x-1)
-                @trypasse FileIO.save(path, img[u:d,l:r]) @error "[$(now())]\n不支持的存储格式"
+                @info path
+                @info size(img)
+                @info "u=$u; d=$d; l=$l; r=$r"
+                @info size(img[u:d,l:r])
+                @trypass FileIO.save(path, img[u:d,l:r]) @error "[$(now())]\n图像保存错误！！！"
                 savingimg = false
                 count_fps = 0
                 return 0

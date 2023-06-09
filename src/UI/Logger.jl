@@ -5,7 +5,7 @@ let
         # CImGui.SetNextWindowPos((100, 100), CImGui.ImGuiCond_Once)
         CImGui.SetNextWindowSize((800, 600), CImGui.ImGuiCond_Once)
         if CImGui.Begin(morestyle.Icons.Logger * "  日志", p_open, CImGui.ImGuiWindowFlags_HorizontalScrollbar)
-            if waittime("Logger", conf.Logs.refreshrate)
+            if syncstates[Int(newloging)] || waittime("Logger", conf.Logs.refreshrate)
                 empty!(logmsgshow)
                 textc = CImGui.c_get(imguistyle.Colors, CImGui.ImGuiCol_Text)
                 markerlist = ["┌ Info", "┌ Warning", "┌ Error"]
@@ -31,6 +31,7 @@ let
                         i == limitline && push!(logmsgshow, (textc, logmsg))
                     end
                 end
+                syncstates[Int(newloging)] = false
             end
             CImGui.BeginChild("WrapIOs")
             for (col, msg) in logmsgshow
@@ -45,5 +46,30 @@ let
         end
         CImGui.End()
         p_open.x || (firsttime = true)
+    end
+end
+
+function update_log(;syncstates=syncstates)
+    date = today()
+    logdir = joinpath(conf.Logs.dir, string(year(date)), string(year(date), "-", month(date)))
+    isdir(logdir) || mkpath(logdir)
+    logfile = joinpath(logdir, string(date, ".log"))
+    if myid() == 1
+        flush(logio)
+        msg = String(take!(logio))
+        isempty(msg) || (open(file -> write(file, msg), logfile, "a+"); syncstates[Int(newloging)] = true)
+    else
+        flush(logio)
+        msg = String(take!(logio))
+        if !isempty(msg)
+            open(logfile, "a+") do file
+                msgsp = split(msg, '\n')
+                for (i, s) in enumerate(msgsp)
+                    isempty(rstrip(s)) || (msgsp[i] = string("from worker $(myid()): ", msgsp[i], '\n'))
+                end
+                write(file, string(msgsp...))
+            end
+            syncstates[Int(newloging)] = true
+        end
     end
 end

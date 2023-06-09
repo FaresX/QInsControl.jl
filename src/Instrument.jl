@@ -20,7 +20,6 @@ function manualadd(addr)
             ins == "Others" && continue
             if haskey(instrbufferviewers[ins], addr)
                 delete!(instrbufferviewers[ins], addr)
-                delete!(instrcontrollers[ins], addr)
             end
         end
         st = false
@@ -32,8 +31,6 @@ function manualadd(addr)
                     return true
                 else
                     push!(instrbufferviewers[ins], addr => InstrBufferViewer(ins, addr))
-                    newct = Controller(ins, addr)
-                    push!(instrcontrollers[ins], addr => newct)
                     return true
                 end
             end

@@ -25,6 +25,12 @@ end
 # VirtualInstr_SetTest2_set(, setv) = @info "VirtualInstr set2 : $setv"
 # VirtualInstr_SetTest2_get() = string(rand(Int8))
 
+######LI5640######------------------------------------------------------------------------------------------------------
+LI5640_tconst_set(instr, val) = query(instr, "BTC $val")
+LI5640_tconst_get(instr) = query(instr, "?BTC")
+
+LI5640_dynres_set(instr, val) = query(instr, "BDR $val")
+LI5640_dynres_get(instr) = query(instr, "?BDR")
 
 ######Mercury IPS######-------------------------------------------------------------------------------------------------
 ###X Field###
@@ -73,3 +79,5 @@ MercuryIPS_sigfldz_get(instr) = split(query(instr, "READ:DEV:GRPZ:PSU:SIG:PFLD")
 Triton_temperatureT5_get(instr) = split(query(instr, "READ:DEV:T5:TEMP:SIG:TEMP"), "TEMP:")[end][1:end-1]
 
 Triton_temperatureT8_get(instr) = split(query(instr, "READ:DEV:T8:TEMP:SIG:TEMP"), "TEMP:")[end][1:end-1]
+
+Triton_temperatureT13_get(instr) = split(query(instr, "READ:DEV:T13:TEMP:SIG:TEMP"), "TEMP:")[end][1:end-1]

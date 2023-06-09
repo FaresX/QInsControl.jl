@@ -1,6 +1,6 @@
 let
     buffer::String = ""
-    historyins::Vector{String} = []
+    historyins::Vector{String} = [""]
     historyins_i::Int = 1
     iomsgshow = Tuple{CImGui.LibCImGui.ImVec4,String}[]
     iofile::String = ""

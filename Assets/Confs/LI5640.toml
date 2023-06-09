@@ -1,3 +1,73 @@
+[tconst]
+cmdheader = "TCON"
+U = ""
+enable = true
+optkeys = ["10μs", "30μs", "100μs", "300μs", "1ms", "3ms", "10ms", "30ms", "100ms", "300ms", "1s", "3s", "10s", "30s", "100s", "300s", "1ks", "3ks", "10ks", "30ks"]
+help = ""
+optvalues = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19"]
+type = "set"
+alias = "时间常数"
+
+[coupling]
+cmdheader = "ICPL"
+U = ""
+enable = true
+optkeys = ["AC", "DC"]
+help = ""
+optvalues = ["0", "1"]
+type = "set"
+alias = "耦合"
+
+[acfrequency]
+cmdheader = "FREQ"
+U = "Hz"
+enable = true
+optkeys = []
+help = ""
+optvalues = []
+type = "sweep"
+alias = "交流频率"
+
+[sensitivityv]
+cmdheader = "VSEN"
+U = ""
+enable = true
+optkeys = ["2nV", "5nV", "10nV", "20nV", "50nV", "100nV", "200nV", "500nV", "1μV", "2μV", "5μV", "10μV", "20μV", "50μV", "100μV", "200μV", "500μV", "1mV", "2mV", "5mV", "10mV", "20mV", "50mV", "100mV", "200mV", "500mV", "1V"]
+help = ""
+optvalues = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19", "20", "21", "22", "23", "24", "25", "26"]
+type = "set"
+alias = "电压灵敏度"
+
+[ground]
+cmdheader = "IGND"
+U = ""
+enable = true
+optkeys = ["FLOAT", "GROUND"]
+help = ""
+optvalues = ["0", "1"]
+type = "set"
+alias = "接地"
+
+[auxout1]
+cmdheader = "AUXV 1"
+U = "V"
+enable = true
+optkeys = []
+help = ""
+optvalues = []
+type = "sweep"
+alias = "附加输出1"
+
+[sensitivityi]
+cmdheader = "ISEN"
+U = ""
+enable = true
+optkeys = ["5fA", "10fA", "20fA", "50fA", "100fA", "200fA", "500fA", "1pA", "2pA", "5pA", "10pA", "20pA", "50pA", "100pA", "200pA", "500pA", "1nA", "2nA", "5nA", "10nA", "20nA", "50nA", "100nA", "200nA", "500nA", "1μA"]
+help = ""
+optvalues = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19", "20", "21", "22", "23", "24", "25", "26"]
+type = "set"
+alias = "电流灵敏度"
+
 [acvoltage]
 cmdheader = "AMPL"
 U = ""
@@ -7,6 +77,16 @@ help = ""
 optvalues = []
 type = "set"
 alias = "交流电压"
+
+[slope]
+cmdheader = "SLOP"
+U = ""
+enable = true
+optkeys = ["6dB", "12dB", "18dB", "24dB"]
+help = ""
+optvalues = ["0", "1", "2", "3"]
+type = "set"
+alias = "衰减率"
 
 [dataout]
 cmdheader = "DOUT?"
@@ -28,25 +108,15 @@ optvalues = []
 type = "sweep"
 alias = "附加输出2"
 
-[acfrequency]
-cmdheader = "FREQ"
-U = "Hz"
+[dynres]
+cmdheader = "DRSV"
+U = ""
 enable = true
-optkeys = []
+optkeys = ["HIGH", "MEDIUM", "LOW"]
 help = ""
-optvalues = []
-type = "sweep"
-alias = "交流频率"
-
-[auxout1]
-cmdheader = "AUXV 1"
-U = "V"
-enable = true
-optkeys = []
-help = ""
-optvalues = []
-type = "sweep"
-alias = "附加输出1"
+optvalues = ["0", "1", "2"]
+type = "set"
+alias = "动态储量"
 
 [conf]
 idn = "LI5640"
@@ -54,23 +124,3 @@ output_labels = ["OSC OUT", "REF OUT"]
 icon = ""
 input_labels = ["I", "A", "B", "REF IN"]
 cmdtype = "scpi"
-
-[sensitivityi]
-cmdheader = "ISEN"
-U = ""
-enable = true
-optkeys = []
-help = ""
-optvalues = []
-type = "set"
-alias = "电流灵敏度"
-
-[sensitivityv]
-cmdheader = "VSEN"
-U = ""
-enable = true
-optkeys = []
-help = ""
-optvalues = []
-type = "set"
-alias = "电压灵敏度"
