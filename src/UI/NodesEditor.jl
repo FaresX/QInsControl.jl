@@ -291,6 +291,7 @@ let
             end
         end
         for node in nodeeditor.nodes
+            imnodes_SetNodeGridSpacePos(node.id, node.position)
             edit(node)
         end
         for (i, link) in enumerate(nodeeditor.links)
