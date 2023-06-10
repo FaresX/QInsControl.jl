@@ -62,26 +62,29 @@ end
 
 function poll_autodetect()
     errormonitor(
-        @async while true
-            if waittime("Autodetect Instruments", 120)
-                syncstates[Int(autodetecting)] = false
-                syncstates[Int(autodetect_done)] = false
-                break
-            end
-            if syncstates[Int(autodetect_done)]
-                instrbufferviewers_remote = remotecall_fetch(() -> instrbufferviewers, workers()[1])
-                for ins in keys(instrbufferviewers_remote)
-                    ins == "VirtualInstr" && continue
-                    empty!(instrbufferviewers[ins])
-                    for addr in keys(instrbufferviewers_remote[ins])
-                        push!(instrbufferviewers[ins], addr => InstrBufferViewer(ins, addr))
-                    end
+        @async begin
+            starttime = time()
+            while true
+                if time() - starttime > 120
+                    syncstates[Int(autodetecting)] = false
+                    syncstates[Int(autodetect_done)] = false
+                    break
                 end
-                syncstates[Int(autodetecting)] = false
-                syncstates[Int(autodetect_done)] = false
-                break
-            else
-                yield()
+                if syncstates[Int(autodetect_done)]
+                    instrbufferviewers_remote = remotecall_fetch(() -> instrbufferviewers, workers()[1])
+                    for ins in keys(instrbufferviewers_remote)
+                        ins == "VirtualInstr" && continue
+                        empty!(instrbufferviewers[ins])
+                        for addr in keys(instrbufferviewers_remote[ins])
+                            push!(instrbufferviewers[ins], addr => InstrBufferViewer(ins, addr))
+                        end
+                    end
+                    syncstates[Int(autodetecting)] = false
+                    syncstates[Int(autodetect_done)] = false
+                    break
+                else
+                    yield()
+                end
             end
         end
     )
