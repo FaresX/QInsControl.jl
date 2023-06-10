@@ -122,7 +122,7 @@ let
                         isempty(confsvpath) || jldsave(confsvpath; daqtask=task)
                     end
                     if CImGui.MenuItem(morestyle.Icons.Load * " 加载")
-                        confldpath = pick_file(filterlist="cfg;qdt")
+                        confldpath = pick_file(filterlist="cfg,qdt")
                         if isfile(confldpath)
                             loadcfg = @trypass load(confldpath, "daqtask") (@error "不支持的文件！！！" filepath = confldpath)
                             daqtasks[i] = isnothing(loadcfg) ? task : loadcfg
