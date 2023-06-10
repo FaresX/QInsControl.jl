@@ -29,7 +29,7 @@ type = "sweep"
 alias = "功率"
 
 [conf]
-idn = "E8254A"
+idn = "E8254A;ESG-3000B"
 output_labels = ["RF out"]
 icon = ""
 input_labels = []

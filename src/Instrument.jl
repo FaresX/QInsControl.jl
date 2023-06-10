@@ -26,7 +26,7 @@ function manualadd(addr)
     end
     if st
         for (ins, cf) in insconf
-            if occursin(cf.conf.idn, idn)
+            if true in occursin.(split(cf.conf.idn, ';'), idn)
                 if haskey(instrbufferviewers[ins], addr)
                     return true
                 else
@@ -48,6 +48,10 @@ function refresh_instrlist()
         remote_do(workers()[1], syncstates) do syncstates
             errormonitor(@async begin
                 try
+                    for ins in keys(instrbufferviewers)
+                        ins == "VirtualInstr" && continue
+                        empty!(instrbufferviewers[ins])
+                    end
                     autodetect()
                     syncstates[Int(autodetect_done)] = true
                 catch e

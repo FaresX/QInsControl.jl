@@ -11,7 +11,7 @@ Hz = ["Hz", "kHz", "MHz", "GHz"]
 
 [Basic]
 isremote = true
-viewportenable = true
+viewportenable = false
 windowsize = [1280, 720]
 encoding = "GBK"
 editor = "code.cmd"

@@ -42,8 +42,9 @@ mutable struct InstrBuffer
     instrnm::String
     quantities::OrderedDict{String,InstrQuantity}
     isautorefresh::Bool
+    filter::String
 end
-InstrBuffer() = InstrBuffer("", OrderedDict(), false)
+InstrBuffer() = InstrBuffer("", OrderedDict(), false, "")
 
 function InstrBuffer(instrnm)
     haskey(insconf, instrnm) || @error "[$(now())]\n不支持的仪器!!!" instrument = instrnm
@@ -83,7 +84,7 @@ function InstrBuffer(instrnm)
             )
         )
     end
-    InstrBuffer(instrnm, instrqts, false)
+    InstrBuffer(instrnm, instrqts, false, "")
 end
 
 mutable struct InstrBufferViewer
@@ -100,54 +101,51 @@ InstrBufferViewer() = InstrBufferViewer("", "", "*IDN?", "", false, InstrBuffer(
 # const instrcontrollers::Dict{String,Dict{String,Controller}} = Dict()
 const instrbufferviewers::Dict{String,Dict{String,InstrBufferViewer}} = Dict()
 
-let
-    # window_ids::Dict{Tuple{String,String},String} = Dict()
-    global function edit(ibv::InstrBufferViewer)
-        # CImGui.SetNextWindowPos((100, 100), CImGui.ImGuiCond_Once)
-        CImGui.SetNextWindowSize((800, 600), CImGui.ImGuiCond_Once)
-        ins, addr = ibv.instrnm, ibv.addr
-        if @c CImGui.Begin(string(insconf[ins].conf.icon, "  ", ins, " --- ", addr), &ibv.p_open)
-            @c testcmd(ins, addr, &ibv.inputcmd, &ibv.readstr)
-            edit(ibv.insbuf, addr)
-            if !CImGui.IsAnyItemHovered() && CImGui.IsWindowHovered(CImGui.ImGuiHoveredFlags_ChildWindows)
-                CImGui.OpenPopupOnItemClick("rightclick")
-            end
-            if CImGui.BeginPopup("rightclick")
-                if CImGui.MenuItem(
-                    morestyle.Icons.InstrumentsManualRef * " 手动刷新",
-                    "F5",
-                    false,
-                    !syncstates[Int(isdaqtask_running)]
-                )
-                    ibv.insbuf.isautorefresh = true
-                    manualrefresh()
-                end
-                CImGui.Text(morestyle.Icons.InstrumentsAutoRef * " 自动刷新")
-                CImGui.SameLine()
-                isautoref = syncstates[Int(isautorefresh)]
-                @c CImGui.Checkbox("##自动刷新", &isautoref)
-                syncstates[Int(isautorefresh)] = isautoref
-                ibv.insbuf.isautorefresh = syncstates[Int(isautorefresh)]
-                if isautoref
-                    CImGui.SameLine()
-                    CImGui.Text(" ")
-                    CImGui.SameLine()
-                    CImGui.PushItemWidth(CImGui.GetFontSize() * 2)
-                    @c CImGui.DragFloat("##自动刷新", &conf.InsBuf.refreshrate, 0.1, 0.1, 60, "%.1f", CImGui.ImGuiSliderFlags_AlwaysClamp)
-                    # remotecall_wait((x) -> (global refreshrate = x), workers()[1], refreshrate)
-                    CImGui.PopItemWidth()
-                end
-                CImGui.Text(morestyle.Icons.ShowCol * " 显示列数")
-                CImGui.SameLine()
-                CImGui.PushItemWidth(3CImGui.GetFontSize() / 2)
-                @c CImGui.DragInt("##显示列数", &conf.InsBuf.showcol, 1, 1, 12, "%d", CImGui.ImGuiSliderFlags_AlwaysClamp)
-                CImGui.PopItemWidth()
-                CImGui.EndPopup()
-            end
-            CImGui.IsKeyReleased(294) && manualrefresh()
+function edit(ibv::InstrBufferViewer)
+    # CImGui.SetNextWindowPos((100, 100), CImGui.ImGuiCond_Once)
+    CImGui.SetNextWindowSize((800, 600), CImGui.ImGuiCond_Once)
+    ins, addr = ibv.instrnm, ibv.addr
+    if @c CImGui.Begin(string(insconf[ins].conf.icon, "  ", ins, " --- ", addr), &ibv.p_open)
+        @c testcmd(ins, addr, &ibv.inputcmd, &ibv.readstr)
+        edit(ibv.insbuf, addr)
+        if !CImGui.IsAnyItemHovered() && CImGui.IsWindowHovered(CImGui.ImGuiHoveredFlags_ChildWindows)
+            CImGui.OpenPopupOnItemClick("rightclick")
         end
-        CImGui.End()
+        if CImGui.BeginPopup("rightclick")
+            if CImGui.MenuItem(
+                morestyle.Icons.InstrumentsManualRef * " 手动刷新",
+                "F5",
+                false,
+                !syncstates[Int(isdaqtask_running)]
+            )
+                ibv.insbuf.isautorefresh = true
+                manualrefresh()
+            end
+            CImGui.Text(morestyle.Icons.InstrumentsAutoRef * " 自动刷新")
+            CImGui.SameLine()
+            isautoref = syncstates[Int(isautorefresh)]
+            @c CImGui.Checkbox("##自动刷新", &isautoref)
+            syncstates[Int(isautorefresh)] = isautoref
+            ibv.insbuf.isautorefresh = syncstates[Int(isautorefresh)]
+            if isautoref
+                CImGui.SameLine()
+                CImGui.Text(" ")
+                CImGui.SameLine()
+                CImGui.PushItemWidth(CImGui.GetFontSize() * 2)
+                @c CImGui.DragFloat("##自动刷新", &conf.InsBuf.refreshrate, 0.1, 0.1, 60, "%.1f", CImGui.ImGuiSliderFlags_AlwaysClamp)
+                # remotecall_wait((x) -> (global refreshrate = x), workers()[1], refreshrate)
+                CImGui.PopItemWidth()
+            end
+            CImGui.Text(morestyle.Icons.ShowCol * " 显示列数")
+            CImGui.SameLine()
+            CImGui.PushItemWidth(3CImGui.GetFontSize() / 2)
+            @c CImGui.DragInt("##显示列数", &conf.InsBuf.showcol, 1, 1, 12, "%d", CImGui.ImGuiSliderFlags_AlwaysClamp)
+            CImGui.PopItemWidth()
+            CImGui.EndPopup()
+        end
+        CImGui.IsKeyReleased(294) && manualrefresh()
     end
+    CImGui.End()
 end
 
 let
@@ -305,13 +303,12 @@ function testcmd(ins, addr, inputcmd::Ref{String}, readstr::Ref{String})
 end
 
 let
-    filter::String = ""
     filtervarname::Bool = false
     global function edit(insbuf::InstrBuffer, addr)
         CImGui.PushID(insbuf.instrnm)
         CImGui.PushID(addr)
         CImGui.BeginChild("InstrBuffer")
-        @c InputTextRSZ("##filterqt", &filter)
+        @c InputTextRSZ("##filterqt", &insbuf.filter)
         CImGui.SameLine()
         if filtervarname
             @c CImGui.Checkbox("筛选变量", &filtervarname)
@@ -321,11 +318,11 @@ let
         CImGui.Columns(conf.InsBuf.showcol, C_NULL, false)
         for (i, qt) in enumerate(values(insbuf.quantities))
             qt.enable || continue
-            if isvalid(filter)
+            if isvalid(insbuf.filter)
                 if filtervarname
-                    occursin(lowercase(filter), lowercase(qt.name)) || continue
+                    occursin(lowercase(insbuf.filter), lowercase(qt.name)) || continue
                 else
-                    occursin(lowercase(filter), lowercase(qt.alias)) || continue
+                    occursin(lowercase(insbuf.filter), lowercase(qt.alias)) || continue
                 end
             end
             CImGui.PushID(qt.name)
@@ -431,23 +428,27 @@ let
                                 ct = Controller(instrnm, addr)
                                 try
                                     remotecall_wait(workers()[1], ct) do ct
-                                        global sweepct = ct
+                                        @isdefined(sweepcts) || (global sweepcts = Dict{UUID,Controller}())
+                                        push!(sweepcts, ct.id => ct)
                                         login!(CPU, ct)
                                     end
                                     for i in range(start, stop, length=sweepsteps)
                                         qt.issweeping || break
                                         sleep(qt.delay)
-                                        qt.read = remotecall_fetch(workers()[1], i) do i
+                                        qt.read = remotecall_fetch(workers()[1], i, ct.id) do i, ctid
                                             setfunc = Symbol(instrnm, :_, qt.name, :_set) |> eval
                                             getfunc = Symbol(instrnm, :_, qt.name, :_get) |> eval
-                                            sweepct(setfunc, CPU, string(i), Val(:write))
-                                            return sweepct(getfunc, CPU, Val(:read))
+                                            sweepcts[ctid](setfunc, CPU, string(i), Val(:write))
+                                            return sweepcts[ctid](getfunc, CPU, Val(:read))
                                         end
                                     end
                                 catch e
                                     @error "[$(now())]\n仪器通信故障！！！" exception = e
                                 finally
-                                    remotecall_wait(() -> logout!(CPU, sweepct), workers()[1])
+                                    remotecall_wait(workers()[1], ct.id) do ctid
+                                        logout!(CPU, sweepcts[ctid])
+                                        pop!(sweepcts, ctid) 
+                                    end
                                 end
                                 qt.issweeping = false
                             end
