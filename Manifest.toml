@@ -692,7 +692,7 @@ version = "1.7.2"
 
 [[deps.QInsControlCore]]
 deps = ["Instruments", "Sockets", "UUIDs"]
-git-tree-sha1 = "9eaa267f9c50b3f3e34c6f2a07ea9d8d81828ef8"
+git-tree-sha1 = "06d619701a468dbf55a149cb173c2a4b10d03f10"
 repo-rev = "master"
 repo-url = "https://github.com/FaresX/QInsControlCore.jl.git"
 uuid = "cd9154b2-5d6d-4493-a0bc-3471f84f9c90"

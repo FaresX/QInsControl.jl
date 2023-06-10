@@ -46,7 +46,7 @@ historylen = 100
 [Logs]
 dir = "Assets\\Logs"
 refreshrate = 60.0
-showlogline = 100
+showlogline = 600
 
 [BGImage]
 path = "Assets\\Necessity/defaultwallpaper.bmp"

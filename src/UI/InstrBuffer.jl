@@ -378,7 +378,7 @@ let
             "\n延迟：", qt.delay, " s\n",
             val, " ", U
         ) |> centermultiline
-        content = string(content, "###for rename")
+        content = string(content, "###for refresh")
         CImGui.PushStyleColor(
             CImGui.ImGuiCol_Button,
             qt.isautorefresh || qt.issweeping ? morestyle.Colors.DAQTaskRunning : CImGui.c_get(imguistyle.Colors, CImGui.ImGuiCol_Button)
@@ -484,7 +484,7 @@ let
             val = string(qt.optkeys[validx], " => ", qt.optvalues[validx])
         end
         content = string(qt.alias, "\n \n设置值：", qt.set, " ", U, "\n \n", val, " ", U) |> centermultiline
-        content = string(content, "###for rename")
+        content = string(content, "###for refresh")
         CImGui.PushStyleColor(
             CImGui.ImGuiCol_Button,
             qt.isautorefresh ? morestyle.Colors.DAQTaskRunning : CImGui.c_get(imguistyle.Colors, CImGui.ImGuiCol_Button)
@@ -561,6 +561,7 @@ let
         U == "" || (Uchange::Float64 = Us[1] isa Unitful.FreeUnits ? ustrip(Us[1], 1U) : 1.0)
         val = U == "" ? qt.read : @trypass string(parse(Float64, qt.read) / Uchange) qt.read
         content = string(qt.alias, "\n \n \n", val, " ", U, "\n ") |> centermultiline
+        content = string(content, "###for refresh")
         CImGui.PushStyleColor(
             CImGui.ImGuiCol_Button,
             qt.isautorefresh ? morestyle.Colors.DAQTaskRunning : CImGui.c_get(imguistyle.Colors, CImGui.ImGuiCol_Button)
