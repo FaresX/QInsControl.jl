@@ -27,7 +27,6 @@ let
     global function DAQ(p_open::Ref)
         # CImGui.SetNextWindowPos((100, 100), CImGui.ImGuiCond_Once)
         CImGui.SetNextWindowSize((800, 600), CImGui.ImGuiCond_Once)
-        isinner = false
         if CImGui.Begin(morestyle.Icons.InstrumentsDAQ * "  数据采集", p_open)
             global workpath
             global savepath
@@ -54,7 +53,6 @@ let
             firsttime && (CImGui.SetColumnOffset(1, CImGui.GetWindowWidth() * 0.25); firsttime = false)
             CImGui.BeginChild("队列", (Float32(0), -CImGui.GetFrameHeightWithSpacing()))
             CImGui.BulletText("任务队列")
-            isinner = isinner || CImGui.IsItemHovered()
             for (i, task) in enumerate(daqtasks)
                 task.enable || showdisabled || continue
                 CImGui.PushID(i)
@@ -73,10 +71,10 @@ let
                 end
                 CImGui.PopStyleColor()
                 haskey(editmenu_ids, i) || push!(editmenu_ids, i => "队列编辑菜单$i")
-                CImGui.OpenPopupOnItemClick(editmenu_ids[i], 1)
+                
+                CImGui.OpenPopupOnItemClick(editmenu_ids[i])
                 isrunning_i && ShowProgressBar()
                 show_daq_editor && show_daq_editor_i == i && @c edit(task, i, &show_daq_editor)
-                isinner = isinner || CImGui.IsItemHovered()
                 if !syncstates[Int(isdaqtask_running)]
                     CImGui.Indent()
                     if CImGui.BeginDragDropSource(0)
@@ -244,7 +242,7 @@ let
                     update!(daq_plot_layout)
                 end
             end
-            !isinner && CImGui.OpenPopupOnItemClick("添加队列", 1)
+            CImGui.IsAnyItemHovered() || CImGui.OpenPopupOnItemClick("添加队列")
             runallbtc = if isrunall
                 ImVec4(morestyle.Colors.DAQTaskRunning...)
             else
