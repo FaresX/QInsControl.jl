@@ -123,7 +123,8 @@ mutable struct MoreStyle
     Colors::MoreStyleColor
     Icons::MoreStyleIcon
     PinShapes::MoreStylePinShape
-    MoreStyle() = new(MoreStyleColor(), MoreStyleIcon(), MoreStylePinShape())
+    ImPlotMarker::Cint
+    MoreStyle() = new(MoreStyleColor(), MoreStyleIcon(), MoreStylePinShape(), 0)
 end
 
 mutable struct UnionStyle
@@ -403,6 +404,15 @@ let
                 end
                 CImGui.EndTabItem()
             end
+            if CImGui.BeginTabItem("ImPlotMarkers")
+                selectedmarker = unsafe_string(ImPlot.GetMarkerName(morestyle.ImPlotMarker))
+                implotmarkerlist = [unsafe_string(ImPlot.GetMarkerName(i-1)) for i in 1:ImPlot.ImPlotMarker_COUNT]
+                if @c ComBoS("ImPlotMarker", &selectedmarker, implotmarkerlist)
+                    morestyle.ImPlotMarker = findfirst(==(selectedmarker), implotmarkerlist) - 1
+                    implotstyle.Marker = morestyle.ImPlotMarker
+                end
+                CImGui.EndTabItem()
+            end
             CImGui.EndTabBar()
         end
     end
@@ -435,7 +445,7 @@ function loadstyle(style_ref::ImNodesStyle)
         CImGui.c_set!(imnodesstyle.colors, i - 1, style_ref.colors[i])
     end
 end
-loadstyle(style_ref::MoreStyle) = (global morestyle = deepcopy(style_ref))
+loadstyle(style_ref::MoreStyle) = (global morestyle = deepcopy(style_ref); implotstyle.Marker = morestyle.ImPlotMarker)
 function loadstyle(ustyle::UnionStyle)
     for s in fieldnames(UnionStyle)
         loadstyle(getproperty(ustyle, s))
