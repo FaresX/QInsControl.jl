@@ -210,6 +210,10 @@ let
                         CImGui.Text(string("\t\t", addr, "\t\t"))
                         CImGui.SameLine()
                         @c CImGui.Checkbox("##是否自动刷新$addr", &ibv.insbuf.isautorefresh)
+                        if ins != "VirtualInstr"
+                            CImGui.SameLine()
+                            CImGui.Button(morestyle.Icons.CloseFile * "##delete $addr") && delete!(instrbufferviewers[ins], addr)
+                        end
                     end
                     CImGui.Separator()
                 end
@@ -447,7 +451,7 @@ let
                                 finally
                                     remotecall_wait(workers()[1], ct.id) do ctid
                                         logout!(CPU, sweepcts[ctid])
-                                        pop!(sweepcts, ctid) 
+                                        pop!(sweepcts, ctid)
                                     end
                                 end
                                 qt.issweeping = false
