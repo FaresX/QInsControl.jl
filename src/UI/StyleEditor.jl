@@ -508,6 +508,7 @@ let
             selected_style = ""
         end
         CImGui.PushItemWidth(ws * 0.5)
+        selected_style == "" && haskey(styles, conf.Style.default) && (selected_style = conf.Style.default)
         if @c ComBoS("Style", &selected_style, keys(styles))
             if selected_style != ""
                 ustyle = styles[selected_style]
