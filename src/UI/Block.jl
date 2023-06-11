@@ -195,8 +195,8 @@ function tocodes(bk::SweepBlock)
                 @warn "[$(now())]\n中断！" SweepBlock = $instr
                 return
             end
-            sleep($(bk.delay))
             controllers[$instr]($setfunc, CPU, string($ijk), Val(:write))
+            sleep($(bk.delay))
             $interpcodes
         end
     end
