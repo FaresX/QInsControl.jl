@@ -36,7 +36,7 @@ using Printf
 using InteractiveUtils
 using Logging
 
-export start
+# export start
 
 @enum SyncStatesIndex begin
     autodetecting = 1 #是否正在自动查询仪器

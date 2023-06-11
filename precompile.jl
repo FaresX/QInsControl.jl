@@ -5,4 +5,4 @@ using Pkg
 Pkg.activate(Base.@__DIR__)
 using QInsControl
 # julia_main()
-start()
+QInsControl.start()

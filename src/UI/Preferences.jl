@@ -255,7 +255,6 @@ function showonesetu(up)
         ustr = string(u)
         CImGui.PushID(j)
         CImGui.PushItemWidth(5CImGui.GetFontSize())
-        @info CImGui.GetFontSize()
         if @c InputTextRSZ("##U", &ustr)
             uf = @trypass eval(:(@u_str($ustr))) nothing
             if !isnothing(uf) && (uf isa Unitful.FreeUnits || uf isa Unitful.MixedUnits)
