@@ -11,7 +11,7 @@ Hz = ["Hz", "kHz", "MHz", "GHz"]
 
 [Basic]
 isremote = true
-viewportenable = true
+viewportenable = false
 windowsize = [1280, 720]
 encoding = "GBK"
 editor = "code.cmd"
@@ -26,7 +26,7 @@ pick_fps = [3, 36]
 [InsBuf]
 showhelp = false
 showcol = 3
-refreshrate = 1.0
+refreshrate = 60.0
 
 [Fonts]
 dir = "Assets\\Fonts"
@@ -38,7 +38,7 @@ second = "arial.ttf"
 size = 18
 
 [Console]
-dir = "C:\\Users\\22112\\OneDrive - mails.ucas.ac.cn\\文档\\CODE\\Julia\\MyPackages\\QInsControl.jl\\src\\../Assets\\IOs"
+dir = "C:\\Users\\q02\\Desktop\\QInsControl.jl\\src\\../Assets\\IOs"
 refreshrate = 60.0
 showioline = 100
 historylen = 100
@@ -55,5 +55,5 @@ path = "Assets\\Necessity/defaultwallpaper.bmp"
 addrs = ["TCPIP::192.168.31.237::33576::SOCKET", "TCPIP::192.168.1.116::33576::SOCKET"]
 
 [Style]
-dir = "C:\\Users\\22112\\OneDrive - mails.ucas.ac.cn\\文档\\CODE\\Julia\\MyPackages\\QInsControl.jl\\src\\../Assets\\Styles"
+dir = "C:\\Users\\q02\\Desktop\\QInsControl.jl\\src\\../Assets\\Styles"
 default = "WarmWinter"
