@@ -45,3 +45,16 @@ function interpVs(Vs, Rs)
     end
     rangev, Rsn
 end
+
+function normalization(z) 
+    zn = copy(z)
+    for j in axes(zn, 2)
+        all(ismissing, z[:,j]) && continue
+        minj, maxj = extrema(skipmissing(z[:,j]))
+        maxj == minj && continue
+        for i in axes(z, 1)
+            zn[i,j] = (z[i,j]-minj)/(maxj-minj)
+        end
+    end
+    zn
+end
