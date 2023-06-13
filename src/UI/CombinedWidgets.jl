@@ -224,19 +224,20 @@ mutable struct Layout
     showcol::Cint
     idxing::Cint
     labels::Vector{String}
+    marks::Vector{String}
     states::Vector{Bool}
     selectedlabels::Vector{String}
     labeltoidx::Dict{String,Int}
     selectedidx::Vector{Int}
 end
-Layout(id) = Layout(id, 3, 1, ["default"], [false], [], Dict(), [])
+Layout(id) = Layout(id, 3, 1, ["default"], [""], [false], [], Dict(), [])
 Layout() = Layout("Layout")
 
 labeltoidx!(lo::Layout) = lo.selectedidx = [lo.labeltoidx[lb] for lb in lo.selectedlabels]
 
 function edit(rightclickmenu, lo::Layout)
     states_old = copy(lo.states)
-    @c MultiSelectable(rightclickmenu, "select##$(lo.id)", lo.labels, lo.states, lo.showcol, &lo.idxing)
+    @c MultiSelectable(rightclickmenu, "select##$(lo.id)", lo.labels.*" ".*lo.marks, lo.states, lo.showcol, &lo.idxing)
     CImGui.Separator()
     CImGui.Text("布局")
     selectedlabels_old = copy(lo.selectedlabels)

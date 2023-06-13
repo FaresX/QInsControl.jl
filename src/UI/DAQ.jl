@@ -5,9 +5,10 @@ let
     show_daq_selector::Bool = false
     show_daq_selector_i::Int = 0
     show_circuit_editor::Bool = false
-    show_plot_num::Cint = 1
     isdeldaqtask::Bool = false
     isrename::Bool = false
+    isremarkplot::Bool = false
+    isremarkplot_i::Cint = 0
     showdisabled::Bool = false
     isdelall::Bool = false
     oldworkpath::String = ""
@@ -17,7 +18,7 @@ let
     global circuit_editor::NodeEditor = NodeEditor()
     global uipsweeps::Vector{UIPlot} = [UIPlot()] #绘图缓存
     global daq_dtpks::Vector{DataPicker} = [DataPicker()] #绘图数据选择
-    global daq_plot_layout::Layout = Layout("DAQ Plot Layout", 3, 1, ["1"], falses(1), [], Dict(), [])
+    global daq_plot_layout::Layout = Layout("DAQ Plot Layout", 3, 1, ["1"], [""], falses(1), [], Dict(), [])
     isdelplot::Bool = false
     delplot_i::Int = 0
     # layout
@@ -209,6 +210,7 @@ let
                     CImGui.PushID("add new plot")
                     if CImGui.Button(morestyle.Icons.NewFile)
                         push!(daq_plot_layout.labels, string(length(daq_plot_layout.labels) + 1))
+                        push!(daq_plot_layout.marks, "")
                         push!(daq_plot_layout.states, false)
                         push!(uipsweeps, UIPlot())
                         push!(daq_dtpks, DataPicker())
@@ -227,6 +229,10 @@ let
                             if CImGui.MenuItem(morestyle.Icons.CloseFile * " 删除")
                                 isdelplot = true
                                 delplot_i = daq_plot_layout.idxing
+                            end
+                            if CImGui.MenuItem(morestyle.Icons.Rename * " 标注")
+                                isremarkplot = true
+                                isremarkplot_i = daq_plot_layout.idxing
                             end
                             CImGui.EndPopup()
                         end
@@ -252,6 +258,13 @@ let
                     update!(daq_plot_layout)
                 end
             end
+            # isremarkplot && (CImGui.OpenPopup("标注绘图"); isremarkplot = false)
+            # if CImGui.BeginPopup("标注绘图")
+            #     buf = 
+            #     @c InputTextRSZ(daq_plot_layout.labels[isremarkplot_i], &task.name)
+            #     CImGui.EndPopup()
+            # end
+
             CImGui.IsAnyItemHovered() || CImGui.OpenPopupOnItemClick("添加队列")
             runallbtc = if isrunall
                 ImVec4(morestyle.Colors.DAQTaskRunning...)

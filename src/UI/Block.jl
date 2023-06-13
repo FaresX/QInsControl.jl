@@ -274,6 +274,7 @@ function tocodes(bk::ReadingBlock)
                     $observable = $getdata
                     @async for data in zip($keyall, $observable)
                         put!(databuf_lc, data)
+                        yield()
                     end
                 end : :($observable = $getdata)
             else
@@ -361,6 +362,7 @@ function tocodes(bk::QueryBlock)
                     $observable = $getdata
                     @async for data in zip($keyall, $observable)
                         put!(databuf_lc, data)
+                        yield()
                     end
                 end : :($observable = $getdata)
             else
@@ -434,6 +436,7 @@ function tocodes(bk::ReadBlock)
                     $observable = $getdata
                     @async for data in zip($keyall, $observable)
                         put!(databuf_lc, data)
+                        yield()
                     end
                 end : :($observable = $getdata)
             else
