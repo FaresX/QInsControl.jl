@@ -237,7 +237,8 @@ labeltoidx!(lo::Layout) = lo.selectedidx = [lo.labeltoidx[lb] for lb in lo.selec
 
 function edit(rightclickmenu, lo::Layout)
     states_old = copy(lo.states)
-    @c MultiSelectable(rightclickmenu, "select##$(lo.id)", lo.labels.*" ".*lo.marks, lo.states, lo.showcol, &lo.idxing)
+    editlabels = [lo.labels[i]*" "*lo.marks[i]*"###for rename"*lo.labels[i] for i in eachindex(lo.labels)]
+    @c MultiSelectable(rightclickmenu, "select##$(lo.id)", editlabels, lo.states, lo.showcol, &lo.idxing)
     CImGui.Separator()
     CImGui.Text("布局")
     selectedlabels_old = copy(lo.selectedlabels)

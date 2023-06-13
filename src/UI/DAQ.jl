@@ -7,8 +7,6 @@ let
     show_circuit_editor::Bool = false
     isdeldaqtask::Bool = false
     isrename::Bool = false
-    isremarkplot::Bool = false
-    isremarkplot_i::Cint = 0
     showdisabled::Bool = false
     isdelall::Bool = false
     oldworkpath::String = ""
@@ -187,16 +185,36 @@ let
                 end
                 if CImGui.MenuItem(morestyle.Icons.SaveButton * " 保存项目")
                     daqsvpath = save_file(filterlist="daq")
-                    isempty(daqsvpath) || jldsave(daqsvpath; daqtasks=daqtasks)
+                    if daqsvpath != ""
+                        jldsave(daqsvpath;
+                            daqtasks=daqtasks,
+                            circuit_editor=circuit_editor,
+                            uipsweeps=uipsweeps,
+                            daq_dtpks=daq_dtpks,
+                            daq_plot_layout=daq_plot_layout
+                        )
+                    end
                 end
                 if CImGui.MenuItem(morestyle.Icons.Load * " 加载项目")
                     daqloadpath = pick_file(filterlist="daq")
                     if isfile(daqloadpath)
-                        loaddaqtasks = @trypasse load(daqloadpath, "daqtasks") (@error "不支持的文件！！！" filepath = daqloadpath)
-                        isnothing(loaddaqtasks) || (empty!(daqtasks);
-                        for task in loaddaqtasks
-                            push!(daqtasks, task)
-                        end)
+                        loaddaqproj = @trypasse load(daqloadpath) (@error "不支持的文件！！！" filepath = daqloadpath)
+                        if !isnothing(loaddaqproj)
+                            empty!(daqtasks)
+                            for task in loaddaqproj["daqtasks"]
+                                push!(daqtasks, task)
+                            end
+                            circuit_editor = loaddaqproj["circuit_editor"]
+                            empty!(uipsweeps)
+                            for uip in loaddaqproj["uipsweeps"]
+                                push!(uipsweeps, uip)
+                            end
+                            empty!(daq_dtpks)
+                            for dtpk in loaddaqproj["daq_dtpks"]
+                                push!(daq_dtpks, dtpk)
+                            end
+                            daq_plot_layout = loaddaqproj["daq_plot_layout"]
+                        end
                     end
                 end
                 CImGui.Separator()
@@ -222,18 +240,21 @@ let
                     edit(daq_plot_layout) do
                         openright = CImGui.BeginPopupContextItem()
                         if openright
-                            if CImGui.MenuItem("选择数据") && daq_plot_layout.states[daq_plot_layout.idxing]
-                                show_daq_selector = true
-                                show_daq_selector_i = daq_plot_layout.idxing
+                            if CImGui.MenuItem(morestyle.Icons.SelectData * " 选择数据")
+                                if daq_plot_layout.states[daq_plot_layout.idxing]
+                                    show_daq_selector = true
+                                    show_daq_selector_i = daq_plot_layout.idxing
+                                end
                             end
                             if CImGui.MenuItem(morestyle.Icons.CloseFile * " 删除")
                                 isdelplot = true
                                 delplot_i = daq_plot_layout.idxing
                             end
-                            if CImGui.MenuItem(morestyle.Icons.Rename * " 标注")
-                                isremarkplot = true
-                                isremarkplot_i = daq_plot_layout.idxing
-                            end
+                            markbuf = daq_plot_layout.marks[daq_plot_layout.idxing]
+                            CImGui.PushItemWidth(6CImGui.GetFontSize())
+                            @c InputTextRSZ(daq_plot_layout.labels[daq_plot_layout.idxing], &markbuf)
+                            CImGui.PopItemWidth()
+                            daq_plot_layout.marks[daq_plot_layout.idxing] = markbuf
                             CImGui.EndPopup()
                         end
                         return openright
@@ -258,12 +279,6 @@ let
                     update!(daq_plot_layout)
                 end
             end
-            # isremarkplot && (CImGui.OpenPopup("标注绘图"); isremarkplot = false)
-            # if CImGui.BeginPopup("标注绘图")
-            #     buf = 
-            #     @c InputTextRSZ(daq_plot_layout.labels[isremarkplot_i], &task.name)
-            #     CImGui.EndPopup()
-            # end
 
             CImGui.IsAnyItemHovered() || CImGui.OpenPopupOnItemClick("添加队列")
             runallbtc = if isrunall

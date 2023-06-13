@@ -286,16 +286,20 @@ function tocodes(bk::ReadingBlock)
                 end : :($observable = $getdata)
             end
         else
-            ex = quote
-                for data in zip($keyall, $getdata)
-                    put!(databuf_lc, data)
+            if bk.isasync
+                return quote
+                    @async for data in zip($keyall, $getdata)
+                        put!(databuf_lc, data)
+                        yield()
+                    end
+                end
+            else
+                return quote
+                    for data in zip($keyall, $getdata)
+                        put!(databuf_lc, data)
+                    end
                 end
             end
-            return bk.isasync ? quote
-                @async begin
-                    $ex
-                end
-            end : ex
         end
     end
 end
@@ -374,16 +378,20 @@ function tocodes(bk::QueryBlock)
                 end : :($observable = $getdata)
             end
         else
-            ex = quote
-                for data in zip($keyall, $getdata)
-                    put!(databuf_lc, data)
+            if bk.isasync
+                return quote
+                    @async for data in zip($keyall, $getdata)
+                        put!(databuf_lc, data)
+                        yield()
+                    end
+                end
+            else
+                return quote
+                    for data in zip($keyall, $getdata)
+                        put!(databuf_lc, data)
+                    end
                 end
             end
-            return bk.isasync ? quote
-                @async begin
-                    $ex
-                end
-            end : ex
         end
     end
 end
@@ -448,16 +456,20 @@ function tocodes(bk::ReadBlock)
                 end : :($observable = $getdata)
             end
         else
-            ex = quote
-                for data in zip($keyall, $getdata)
-                    put!(databuf_lc, data)
+            if bk.isasync
+                return quote
+                    @async for data in zip($keyall, $getdata)
+                        put!(databuf_lc, data)
+                        yield()
+                    end
+                end
+            else
+                return quote
+                    for data in zip($keyall, $getdata)
+                        put!(databuf_lc, data)
+                    end
                 end
             end
-            return bk.isasync ? quote
-                @async begin
-                    $ex
-                end
-            end : ex
         end
     end
 end

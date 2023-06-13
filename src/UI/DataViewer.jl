@@ -127,6 +127,7 @@ let
                                 CImGui.PushID("add new plot")
                                 if CImGui.Button(morestyle.Icons.NewFile)
                                     push!(dtviewer.layout.labels, string(length(dtviewer.layout.labels) + 1))
+                                    push!(dtviewer.layout.marks, "")
                                     push!(dtviewer.layout.states, false)
                                     push!(dtviewer.uiplots, UIPlot())
                                     push!(dtviewer.dtpickers, DataPicker())
@@ -147,6 +148,11 @@ let
                                             isdelplot = true
                                             delplot_i = dtviewer.layout.idxing
                                         end
+                                        markbuf = dtviewer.layout.marks[dtviewer.layout.idxing]
+                                        CImGui.PushItemWidth(6CImGui.GetFontSize())
+                                        @c InputTextRSZ(dtviewer.layout.labels[dtviewer.layout.idxing], &markbuf)
+                                        CImGui.PopItemWidth()
+                                        dtviewer.layout.marks[dtviewer.layout.idxing] = markbuf
                                         CImGui.EndPopup()
                                     end
                                     return openright
