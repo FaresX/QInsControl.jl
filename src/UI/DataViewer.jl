@@ -137,7 +137,22 @@ let
                                 dtviewer.layout.showcol = conf.DAQ.plotshowcol
                                 dtviewer.layout.labels = morestyle.Icons.SelectData * " " .*
                                                          string.(collect(eachindex(dtviewer.layout.labels)))
-                                edit(dtviewer.layout) do
+                                maxplotmarkidx = argmax(lengthpr.(dtviewer.layout.marks))
+                                maxploticonwidth = dtviewer.layout.showcol * CImGui.CalcTextSize(
+                                    string(
+                                        morestyle.Icons.SelectData,
+                                        " ",
+                                        dtviewer.layout.labels[maxplotmarkidx],
+                                        dtviewer.layout.marks[maxplotmarkidx]
+                                    )
+                                ).x
+                                edit(
+                                    dtviewer.layout,
+                                    (
+                                        maxploticonwidth,
+                                        CImGui.GetFrameHeight() * ceil(Int, length(dtviewer.layout.labels) / dtviewer.layout.showcol)
+                                    )
+                                ) do
                                     openright = CImGui.BeginPopupContextItem()
                                     if openright
                                         if CImGui.MenuItem("选择数据") && dtviewer.layout.states[dtviewer.layout.idxing]
@@ -178,6 +193,7 @@ let
                     if YesNoDialog("##删除绘图$(dtviewer.layout.idxing)", "确认删除？", CImGui.ImGuiWindowFlags_AlwaysAutoResize)
                         if length(dtviewer.uiplots) > 1
                             deleteat!(dtviewer.layout.labels, delplot_i)
+                            deleteat!(dtviewer.layout.marks, delplot_i)
                             deleteat!(dtviewer.layout.states, delplot_i)
                             deleteat!(dtviewer.uiplots, delplot_i)
                             deleteat!(dtviewer.dtpickers, delplot_i)

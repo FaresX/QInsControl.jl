@@ -243,7 +243,22 @@ let
 
                     daq_plot_layout.showcol = conf.DAQ.plotshowcol
                     daq_plot_layout.labels = morestyle.Icons.SelectData * " " .* string.(collect(eachindex(daq_plot_layout.labels)))
-                    edit(daq_plot_layout) do
+                    maxplotmarkidx = argmax(lengthpr.(daq_plot_layout.marks))
+                    maxploticonwidth = daq_plot_layout.showcol * CImGui.CalcTextSize(
+                        string(
+                            morestyle.Icons.SelectData,
+                            " ",
+                            daq_plot_layout.labels[maxplotmarkidx],
+                            daq_plot_layout.marks[maxplotmarkidx]
+                        )
+                    ).x
+                    edit(
+                        daq_plot_layout,
+                        (
+                            maxploticonwidth,
+                            CImGui.GetFrameHeight() * ceil(Int, length(daq_plot_layout.labels) / daq_plot_layout.showcol)
+                        )
+                    ) do
                         openright = CImGui.BeginPopupContextItem()
                         if openright
                             if CImGui.MenuItem(morestyle.Icons.SelectData * " 选择数据")
@@ -279,6 +294,7 @@ let
             if YesNoDialog("##删除绘图$(daq_plot_layout.idxing)", "确认删除？", CImGui.ImGuiWindowFlags_AlwaysAutoResize)
                 if length(uipsweeps) > 1
                     deleteat!(daq_plot_layout.labels, delplot_i)
+                    deleteat!(daq_plot_layout.marks, delplot_i)
                     deleteat!(daq_plot_layout.states, delplot_i)
                     deleteat!(uipsweeps, delplot_i)
                     deleteat!(daq_dtpks, delplot_i)

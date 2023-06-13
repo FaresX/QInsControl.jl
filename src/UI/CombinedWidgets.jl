@@ -108,10 +108,10 @@ function MultiSelectable(
     states,
     n,
     idxing=Ref(1),
-    size=(Float32(0), CImGui.GetFrameHeight() * ceil(Int, length(labels) / n))
+    size=(Cfloat(0), CImGui.GetFrameHeight() * ceil(Int, length(labels) / n))
 )
     l = length(labels)
-    size = l == 0 ? (Float32(0), CImGui.GetFrameHeightWithSpacing()) : size
+    size = l == 0 ? (Cfloat(0), CImGui.GetFrameHeightWithSpacing()) : size
     CImGui.BeginChild("MultiSelectable##$id", size)
     CImGui.Columns(n, C_NULL, false)
     for i in 1:l
@@ -131,10 +131,10 @@ function DragMultiSelectable(
     states,
     n,
     idxing=Ref(1),
-    size=(Float32(0), CImGui.GetFrameHeight() * ceil(Int, length(labels) / n))
+    size=(Cfloat(0), CImGui.GetFrameHeight() * ceil(Int, length(labels) / n))
 )
     l = length(labels)
-    size = l == 0 ? (Float32(0), CImGui.GetFrameHeightWithSpacing()) : size
+    size = l == 0 ? (Cfloat(0), CImGui.GetFrameHeightWithSpacing()) : size
     CImGui.BeginChild("MultiSelectable##$id", size)
     CImGui.Columns(n, C_NULL, false)
     for i in 1:l
@@ -235,23 +235,27 @@ Layout() = Layout("Layout")
 
 labeltoidx!(lo::Layout) = lo.selectedidx = [lo.labeltoidx[lb] for lb in lo.selectedlabels]
 
-function edit(rightclickmenu, lo::Layout)
+function edit(rightclickmenu, lo::Layout, size=(Cfloat(0), CImGui.GetFrameHeight() * ceil(Int, length(lo.labels) / lo.showcol)))
     states_old = copy(lo.states)
-    editlabels = [lo.labels[i]*" "*lo.marks[i]*"###for rename"*lo.labels[i] for i in eachindex(lo.labels)]
-    @c MultiSelectable(rightclickmenu, "select##$(lo.id)", editlabels, lo.states, lo.showcol, &lo.idxing)
+    marks_old = copy(lo.marks)
+    editlabels = @. lo.labels * " " * lo.marks * "###for rename" * lo.labels
+    @c MultiSelectable(rightclickmenu, "select##$(lo.id)", editlabels, lo.states, lo.showcol, &lo.idxing, size)
     CImGui.Separator()
     CImGui.Text("布局")
     selectedlabels_old = copy(lo.selectedlabels)
-    if lo.states != states_old
-        lo.selectedlabels = lo.labels[lo.states]
-        lo.labeltoidx = Dict(zip(lo.labels, collect(eachindex(lo.labels))))
+    if lo.states != states_old || lo.marks != marks_old
+        editlabels = @. lo.labels * " " * lo.marks
+        lo.selectedlabels = editlabels[lo.states]
+        lo.labeltoidx = Dict(zip(editlabels, collect(eachindex(editlabels))))
     end
     DragMultiSelectable(
         () -> false,
         "selected##$(lo.id)",
         lo.selectedlabels,
         trues(length(lo.selectedlabels)),
-        lo.showcol
+        lo.showcol,
+        Ref(1),
+        size
     )
     lo.selectedlabels == selectedlabels_old || labeltoidx!(lo)
 end
