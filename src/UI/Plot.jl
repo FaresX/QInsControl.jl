@@ -45,7 +45,7 @@ let
         CImGui.BeginChild("Plot", size)
         if uip.ptype == "heatmap"
             if isempty(uip.z)
-                ps = Plot(psize=CImGui.ImVec2(-1, -1))
+                ps = PlotHolder(CImGui.ImVec2(-1, -1))
             else
                 xlims, ylims, zlims, xlabel, ylabel = xyzsetting(uip)
                 ps = @c Plot(
@@ -62,7 +62,7 @@ let
             end
         else
             if isempty(uip.y) || isempty(uip.y[1])
-                ps = Plot(psize=CImGui.ImVec2(-1, -1))
+                ps = PlotHolder(CImGui.ImVec2(-1, -1))
             else
                 x, xlabel = xysetting(uip)
                 ps = Plot(
@@ -286,7 +286,7 @@ end
 
 let
     ps::PlotState = PlotState()
-    global function Plot(args...; psize=CImGui.ImVec2(0, 0), kwargs...)
+    global function PlotHolder(psize=CImGui.ImVec2(0, 0))
         if ImPlot.BeginPlot("没有数据输入或输入数据有误！！！", "X", "Y", psize)
             ps.xhv = ImPlot.IsPlotXAxisHovered()
             ps.yhv = ImPlot.IsPlotYAxisHovered()
