@@ -303,6 +303,7 @@ let
             newnode || imnodes_SetNodeGridSpacePos(node.id, node.position)
             edit(node)
         end
+        newnode = false
         for (i, link) in enumerate(nodeeditor.links)
             imnodes_Link(i, link...)
         end
