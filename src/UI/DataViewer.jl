@@ -90,9 +90,9 @@ let
                     CImGui.EndTabItem()
                 end
                 if CImGui.BeginTabItem("电路")
-                    if !isempty(dtviewer.data) && haskey(dtviewer.data, "daqtask")
+                    if !isempty(dtviewer.data) && haskey(dtviewer.data, "circuit")
                         CImGui.PushID(id)
-                        view(dtviewer.data["daqtask"].nodeeditor)
+                        view(dtviewer.data["circuit"])
                         CImGui.PopID()
                     else
                         CImGui.Text("未加载数据或数据格式不支持！")

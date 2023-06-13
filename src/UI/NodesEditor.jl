@@ -311,6 +311,29 @@ let
     end
 end
 
+let 
+    hold::Bool = false
+    holdsz::Cfloat = 0
+    global function edit(nodeeditor::NodeEditor, id, p_open::Ref{Bool})
+        CImGui.SetNextWindowSize((600, 600), CImGui.ImGuiCond_Once)
+        CImGui.PushStyleColor(CImGui.ImGuiCol_WindowBg, CImGui.c_get(imguistyle.Colors, CImGui.ImGuiCol_PopupBg))
+        CImGui.PushStyleVar(CImGui.ImGuiStyleVar_WindowRounding, unsafe_load(imguistyle.PopupRounding))
+        isfocus = true
+        if CImGui.Begin(id, p_open, CImGui.ImGuiWindowFlags_NoTitleBar | CImGui.ImGuiWindowFlags_NoDocking)
+            CImGui.BulletText(morestyle.Icons.Circuit * " 电路")
+            CImGui.SameLine(CImGui.GetContentRegionAvailWidth() - holdsz)
+            @c CImGui.Checkbox("HOLD", &hold)
+            holdsz = CImGui.GetItemRectSize().x
+            edit(nodeeditor)
+            isfocus &= CImGui.IsWindowFocused(CImGui.ImGuiFocusedFlags_ChildWindows)
+        end
+        CImGui.End()
+        CImGui.PopStyleVar()
+        CImGui.PopStyleColor()
+        p_open[] &= (isfocus | hold)
+    end
+end
+
 function view(nodeeditor::NodeEditor)
     imnodes_BeginNodeEditor()
     for node in nodeeditor.nodes

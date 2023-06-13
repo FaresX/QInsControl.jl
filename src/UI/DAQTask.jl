@@ -2,10 +2,9 @@ mutable struct DAQTask
     name::String
     explog::String
     blocks::Vector{AbstractBlock}
-    nodeeditor::NodeEditor
     enable::Bool
 end
-DAQTask() = DAQTask("", "", [SweepBlock(1)], NodeEditor(), true)
+DAQTask() = DAQTask("", "", [SweepBlock(1)], true)
 
 old_i::Int = 0
 workpath::String = ""
@@ -14,34 +13,17 @@ const cfgbuf = Dict{String,Any}()
 
 let
     hold::Bool = false
-    holdsz::Float32 = 0
-    show_circuit_editor::Bool = false
-    ws_circuit_off::CImGui.ImVec2 = (600, 800)
-    ws_circuit_on::CImGui.ImVec2 = (1800, 800)
-    coloffset::Cfloat = 600
-    first_show_col::Bool = true
-    first_show_circuit::Bool = true
+    holdsz::Cfloat = 0
     window_ids::Dict{Int,String} = Dict()
     # taskbt_ids::Dict{Tuple{Int,String},String} = Dict()
     global function edit(daqtask::DAQTask, id, p_open::Ref{Bool})
-        CImGui.SetNextWindowSize(show_circuit_editor ? ws_circuit_on : ws_circuit_off)
-        # hold && CImGui.SetNextWindowFocus()
+        CImGui.SetNextWindowSize((600, 800), CImGui.ImGuiCond_Once)
         CImGui.PushStyleColor(CImGui.ImGuiCol_WindowBg, CImGui.c_get(imguistyle.Colors, CImGui.ImGuiCol_PopupBg))
         CImGui.PushStyleVar(CImGui.ImGuiStyleVar_WindowRounding, unsafe_load(imguistyle.PopupRounding))
         isfocus = true
         global old_i
         haskey(window_ids, id) || push!(window_ids, id => "编辑任务$id")
         if CImGui.Begin(window_ids[id], p_open, CImGui.ImGuiWindowFlags_NoTitleBar | CImGui.ImGuiWindowFlags_NoDocking)
-            if show_circuit_editor
-                CImGui.Columns(2)
-                first_show_col && (CImGui.SetColumnOffset(1, coloffset); first_show_col = false)
-                ws_circuit_on = CImGui.GetWindowSize()
-                ws_circuit_off = (CImGui.GetColumnOffset(1), ws_circuit_on.y)
-            else
-                ws_circuit_off = CImGui.GetWindowSize()
-                coloffset = ws_circuit_off.x
-                ws_circuit_on = (ws_circuit_on.x, ws_circuit_off.y)
-            end
             CImGui.BeginChild("Blocks")
             CImGui.BulletText("编辑队列：任务 $(id+old_i) $(daqtask.name)")
             CImGui.SameLine(CImGui.GetContentRegionAvailWidth() - holdsz)
@@ -49,21 +31,6 @@ let
             holdsz = CImGui.GetItemRectSize().x
             CImGui.Separator()
             CImGui.TextColored(morestyle.Colors.HighlightText, "实验记录")
-            CImGui.SameLine(
-                CImGui.GetContentRegionAvailWidth() -
-                2unsafe_load(imguistyle.FramePadding).x -
-                CImGui.CalcTextSize(morestyle.Icons.Circuit * " 电路").x
-            )
-            if CImGui.Button(morestyle.Icons.Circuit * " 电路")
-                show_circuit_editor ⊻= true
-                if show_circuit_editor
-                    if first_show_circuit
-                        ws_circuit_on = (3ws_circuit_off.x, ws_circuit_off.y)
-                        first_show_circuit = false
-                    end
-                    first_show_col = true
-                end
-            end
             y = (1 + length(findall("\n", daqtask.explog))) * CImGui.GetTextLineHeight() + 2unsafe_load(imguistyle.FramePadding.y)
             @c InputTextMultilineRSZ("##实验记录", &daqtask.explog, (Float32(-1), y))
             if CImGui.BeginPopupContextItem("清空##实验记录")
@@ -101,19 +68,12 @@ let
                 CImGui.EndPopup()
             end
             CImGui.EndChild()
-            if show_circuit_editor
-                CImGui.NextColumn()
-                CImGui.BeginChild("NodeEditor")
-                edit(daqtask.nodeeditor)
-                CImGui.EndChild()
-            end
             isfocus &= CImGui.IsWindowFocused(CImGui.ImGuiFocusedFlags_ChildWindows)
         end
         CImGui.End()
         CImGui.PopStyleVar()
         CImGui.PopStyleColor()
         p_open[] &= (isfocus | hold)
-        p_open[] || (show_circuit_editor = false)
     end
 end
 
@@ -236,6 +196,7 @@ function update_data()
         if waittime("savedatabuf", conf.DAQ.savetime)
             jldopen(savepath, "w") do file
                 file["data"] = databuf
+                file["circuit"] = circuit_editor
                 file["uiplots"] = uipsweeps
                 file["datapickers"] = daq_dtpks
                 file["plotlayout"] = daq_plot_layout
@@ -257,6 +218,7 @@ function update_all()
             end
             jldopen(savepath, "w") do file
                 file["data"] = databuf
+                file["circuit"] = circuit_editor
                 file["uiplots"] = uipsweeps
                 file["datapickers"] = daq_dtpks
                 file["plotlayout"] = daq_plot_layout

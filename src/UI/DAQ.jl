@@ -4,6 +4,7 @@ let
     show_daq_editor_i::Int = 0
     show_daq_selector::Bool = false
     show_daq_selector_i::Int = 0
+    show_circuit_editor::Bool = false
     show_plot_num::Cint = 1
     isdeldaqtask::Bool = false
     isrename::Bool = false
@@ -13,11 +14,15 @@ let
     running_i::Int = 0
     isrunall::Bool = false
     daqtasks::Vector{DAQTask} = [DAQTask()] #任务列表
+    global circuit_editor::NodeEditor = NodeEditor()
     global uipsweeps::Vector{UIPlot} = [UIPlot()] #绘图缓存
     global daq_dtpks::Vector{DataPicker} = [DataPicker()] #绘图数据选择
     global daq_plot_layout::Layout = Layout("DAQ Plot Layout", 3, 1, ["1"], falses(1), [], Dict(), [])
     isdelplot::Bool = false
     delplot_i::Int = 0
+    # layout
+    ccbtsz::Cfloat = 0
+    bottombtsz::Cfloat = 0
 
     # taskbt_ids::Dict{Tuple{Int,String},String} = Dict()
     editmenu_ids::Dict{Int,String} = Dict()
@@ -51,8 +56,13 @@ let
             CImGui.Separator()
             CImGui.Columns(2)
             firsttime && (CImGui.SetColumnOffset(1, CImGui.GetWindowWidth() * 0.25); firsttime = false)
+            column1pos = CImGui.GetColumnOffset(1)
             CImGui.BeginChild("队列", (Float32(0), -CImGui.GetFrameHeightWithSpacing()))
             CImGui.BulletText("任务队列")
+            CImGui.SameLine(column1pos - ccbtsz - unsafe_load(imguistyle.WindowPadding.x) - 3)
+            CImGui.Button(morestyle.Icons.Circuit * "##电路") && (show_circuit_editor ⊻= true)
+            show_circuit_editor && @c edit(circuit_editor, "Circuit Editor", &show_circuit_editor)
+            ccbtsz = CImGui.GetItemRectSize().x
             for (i, task) in enumerate(daqtasks)
                 task.enable || showdisabled || continue
                 CImGui.PushID(i)
@@ -71,7 +81,7 @@ let
                 end
                 CImGui.PopStyleColor()
                 haskey(editmenu_ids, i) || push!(editmenu_ids, i => "队列编辑菜单$i")
-                
+
                 CImGui.OpenPopupOnItemClick(editmenu_ids[i])
                 isrunning_i && ShowProgressBar()
                 show_daq_editor && show_daq_editor_i == i && @c edit(task, i, &show_daq_editor)
@@ -270,35 +280,33 @@ let
             end
             CImGui.PopStyleColor()
 
-            @cstatic btsz::Float32 = 0 begin
-                CImGui.SameLine(CImGui.GetColumnOffset(1) - btsz - unsafe_load(imguistyle.WindowPadding.x))
-                if syncstates[Int(isblock)]
-                    if CImGui.Button(morestyle.Icons.RunTask * " 继续")
+            CImGui.SameLine(CImGui.GetColumnOffset(1) - bottombtsz - unsafe_load(imguistyle.WindowPadding.x))
+            if syncstates[Int(isblock)]
+                if CImGui.Button(morestyle.Icons.RunTask * " 继续")
+                    syncstates[Int(isblock)] = false
+                    remote_do(workers()[1]) do
+                        lock(() -> notify(block), block)
+                    end
+                end
+            else
+                if CImGui.Button(morestyle.Icons.BlockTask * " 暂停")
+                    syncstates[Int(isdaqtask_running)] && (syncstates[Int(isblock)] = true)
+                end
+            end
+            bottombtsz = CImGui.GetItemRectSize().x
+            CImGui.SameLine()
+            if CImGui.Button(morestyle.Icons.InterruptTask * " 中断")
+                if syncstates[Int(isdaqtask_running)]
+                    syncstates[Int(isinterrupt)] = true
+                    if syncstates[Int(isblock)]
                         syncstates[Int(isblock)] = false
                         remote_do(workers()[1]) do
                             lock(() -> notify(block), block)
                         end
                     end
-                else
-                    if CImGui.Button(morestyle.Icons.BlockTask * " 暂停")
-                        syncstates[Int(isdaqtask_running)] && (syncstates[Int(isblock)] = true)
-                    end
                 end
-                btsz = CImGui.GetItemRectSize().x
-                CImGui.SameLine(0, 0)
-                if CImGui.Button(morestyle.Icons.InterruptTask * " 中断")
-                    if syncstates[Int(isdaqtask_running)]
-                        syncstates[Int(isinterrupt)] = true
-                        if syncstates[Int(isblock)]
-                            syncstates[Int(isblock)] = false
-                            remote_do(workers()[1]) do
-                                lock(() -> notify(block), block)
-                            end
-                        end
-                    end
-                end
-                btsz += CImGui.GetItemRectSize().x
             end
+            bottombtsz += CImGui.GetItemRectSize().x
 
             if show_daq_selector
                 daq_dtpk = daq_dtpks[show_daq_selector_i]
@@ -338,7 +346,7 @@ let
                     end
                 end
             end
-            
+
             CImGui.EndChild()
             CImGui.NextColumn()
         end
