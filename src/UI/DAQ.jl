@@ -200,20 +200,26 @@ let
                     if isfile(daqloadpath)
                         loaddaqproj = @trypasse load(daqloadpath) (@error "不支持的文件！！！" filepath = daqloadpath)
                         if !isnothing(loaddaqproj)
-                            empty!(daqtasks)
-                            for task in loaddaqproj["daqtasks"]
-                                push!(daqtasks, task)
+                            if haskey(loaddaqproj, "daqtasks")
+                                empty!(daqtasks)
+                                for task in loaddaqproj["daqtasks"]
+                                    push!(daqtasks, task)
+                                end
                             end
-                            circuit_editor = loaddaqproj["circuit_editor"]
-                            empty!(uipsweeps)
-                            for uip in loaddaqproj["uipsweeps"]
-                                push!(uipsweeps, uip)
+                            haskey(loaddaqproj, "circuit_editor") && (circuit_editor = loaddaqproj["circuit_editor"])
+                            if haskey(loaddaqproj, "uipsweeps")
+                                empty!(uipsweeps)
+                                for uip in loaddaqproj["uipsweeps"]
+                                    push!(uipsweeps, uip)
+                                end
                             end
-                            empty!(daq_dtpks)
-                            for dtpk in loaddaqproj["daq_dtpks"]
-                                push!(daq_dtpks, dtpk)
+                            if haskey(loaddaqproj, "daq_dtpks")
+                                empty!(daq_dtpks)
+                                for dtpk in loaddaqproj["daq_dtpks"]
+                                    push!(daq_dtpks, dtpk)
+                                end
                             end
-                            daq_plot_layout = loaddaqproj["daq_plot_layout"]
+                            haskey(loaddaqproj, "daq_plot_layout") && (daq_plot_layout = loaddaqproj["daq_plot_layout"])
                         end
                     end
                 end
