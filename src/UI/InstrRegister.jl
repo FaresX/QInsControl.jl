@@ -261,7 +261,7 @@ let
                     if @c ComBoS("变量", &selectedqt, keys(selectedinscf.quantities))
                         if selectedqt != "" && haskey(selectedinscf.quantities, selectedqt)
                             qtname = selectedqt
-                            editqt = QuantityConf(todict(selectedinscf.quantities[selectedqt]))
+                            editqt = deepcopy(selectedinscf.quantities[selectedqt])
                         end
                     end
                     CImGui.SameLine()
@@ -280,12 +280,12 @@ let
                     CImGui.TextColored(morestyle.Colors.HighlightText, "编辑")
                     CImGui.SameLine()
                     if CImGui.Button(morestyle.Icons.SaveButton * "##QuantityConf to insconf")
-                        push!(selectedinscf.quantities, qtname => editqt)
+                        push!(selectedinscf.quantities, qtname => deepcopy(editqt))
                         remotecall_wait(workers()[1], selectedins, qtname, editqt) do selectedins, qtname, editqt
                             push!(insconf[selectedins].quantities, qtname => editqt)
                         end
                         for ibv in values(instrbufferviewers[selectedins])
-                            push!(ibv.insbuf.quantities, qtname => InstrQuantity(qtname, editqt))
+                            push!(ibv.insbuf.quantities, qtname => InstrQuantity(qtname, deepcopy(editqt)))
                         end
                     end
                     @c InputTextRSZ("变量名", &qtname)
