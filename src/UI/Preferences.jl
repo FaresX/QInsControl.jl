@@ -62,6 +62,11 @@ let
                 else
                     @c CImGui.Checkbox("记录启用变量", &conf.DAQ.logall)
                 end
+                if conf.DAQ.equalstep
+                    @c CImGui.Checkbox("等长采点", &conf.DAQ.equalstep)
+                else
+                    @c CImGui.Checkbox("定长采点", &conf.DAQ.equalstep)
+                end
                 @c CImGui.DragInt("保存时间", &conf.DAQ.savetime, 1.0, 1, 180, "%d", CImGui.ImGuiSliderFlags_AlwaysClamp)
                 @c CImGui.DragInt("通道大小", &conf.DAQ.channel_size, 1.0, 4, 2048, "%d", CImGui.ImGuiSliderFlags_AlwaysClamp)
                 @c CImGui.DragInt("打包尺寸", &conf.DAQ.packsize, 1.0, 6, 120, "%d", CImGui.ImGuiSliderFlags_AlwaysClamp)

@@ -20,6 +20,7 @@ editor = "code.cmd"
 [DAQ]
 saveimg = false
 logall = false
+equalstep = false
 savetime = 60
 channel_size = 512
 packsize = 6

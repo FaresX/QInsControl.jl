@@ -9,6 +9,7 @@ end
 @option mutable struct OptDAQ
     saveimg::Bool
     logall::Bool
+    equalstep::Bool
     savetime::Cint
     channel_size::Cint
     packsize::Cint

@@ -426,8 +426,15 @@ let
                             @error "[$(now())]\nstop解析错误！！！" stop = qt.stop
                         end
                         if !(isnothing(start) || isnothing(step) || isnothing(stop))
-                            sweepsteps = ceil(Int, abs((start - stop) / step))
-                            sweepsteps = sweepsteps == 1 ? 2 : sweepsteps
+                            if conf.DAQ.equalstep
+                                sweepsteps = ceil(Int, abs((start - stop) / step))
+                                sweepsteps = sweepsteps == 1 ? 2 : sweepsteps
+                                sweeplist = range(start, stop, length=sweepsteps)
+                            else
+                                step = start < stop ? abs(step) : -abs(step)
+                                sweeplist = collect(start:step:stop)
+                                sweeplist[end] == stop || push!(sweeplist, stop)
+                            end
                             sweeptask = @async begin
                                 qt.issweeping = true
                                 ct = Controller(instrnm, addr)
@@ -437,7 +444,7 @@ let
                                         push!(sweepcts, ct.id => ct)
                                         login!(CPU, ct)
                                     end
-                                    for i in range(start, stop, length=sweepsteps)
+                                    for i in sweeplist
                                         qt.issweeping || break
                                         sleep(qt.delay)
                                         qt.read = remotecall_fetch(workers()[1], i, ct.id) do i, ctid

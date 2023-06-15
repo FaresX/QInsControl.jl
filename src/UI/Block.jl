@@ -181,11 +181,23 @@ function tocodes(bk::SweepBlock)
         $(innercodes...)
     end
     @gensym ijk
+    @gensym sweeplist
     @gensym sweepsteps
+    ex1 = if conf.DAQ.equalstep
+        quote
+            $sweepsteps = ceil(Int, abs(($start - $stop) / $step))
+            $sweepsteps = $sweepsteps == 1 ? 2 : $sweepsteps
+            $sweeplist = range($start, $stop, length=$sweepsteps)
+        end
+    else
+        quote
+            $sweeplist = collect($start:($start < $stop ? abs($step) : -abs($step)):$stop)
+            $sweeplist[end] == $stop || push!($sweeplist, $stop)
+        end
+    end
     return quote
-        $sweepsteps = ceil(Int, abs(($start - $stop) / $step))
-        $sweepsteps = $sweepsteps == 1 ? 2 : $sweepsteps
-        @progress for $ijk in range($start, $stop, length=$sweepsteps)
+        $ex1
+        @progress for $ijk in $sweeplist
             if syncstates[Int(isblock)]
                 @warn "[$(now())]\n暂停！" SweepBlock = $instr
                 lock(() -> wait(block), block)
