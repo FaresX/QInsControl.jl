@@ -192,12 +192,9 @@ let
                     isdelplot = false)
                     if YesNoDialog("##删除绘图$(dtviewer.layout.idxing)", "确认删除？", CImGui.ImGuiWindowFlags_AlwaysAutoResize)
                         if length(dtviewer.uiplots) > 1
-                            deleteat!(dtviewer.layout.labels, delplot_i)
-                            deleteat!(dtviewer.layout.marks, delplot_i)
-                            deleteat!(dtviewer.layout.states, delplot_i)
+                            deleteat!(dtviewer.layout, delplot_i)
                             deleteat!(dtviewer.uiplots, delplot_i)
                             deleteat!(dtviewer.dtpickers, delplot_i)
-                            update!(dtviewer.layout)
                         end
                     end
                     CImGui.BeginChild("绘图")

@@ -293,12 +293,9 @@ let
             isdelplot = false)
             if YesNoDialog("##删除绘图$(daq_plot_layout.idxing)", "确认删除？", CImGui.ImGuiWindowFlags_AlwaysAutoResize)
                 if length(uipsweeps) > 1
-                    deleteat!(daq_plot_layout.labels, delplot_i)
-                    deleteat!(daq_plot_layout.marks, delplot_i)
-                    deleteat!(daq_plot_layout.states, delplot_i)
+                    deleteat!(daq_plot_layout, delplot_i)
                     deleteat!(uipsweeps, delplot_i)
                     deleteat!(daq_dtpks, delplot_i)
-                    update!(daq_plot_layout)
                 end
             end
 

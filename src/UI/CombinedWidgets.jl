@@ -263,4 +263,12 @@ function update!(lo::Layout)
     lo.selectedlabels = editlabels[lo.states]
     lo.labeltoidx = Dict(zip(editlabels, collect(eachindex(editlabels))))
     labeltoidx!(lo)
+    lo.idxing = 1
+end
+
+function Base.deleteat!(lo::Layout, i)
+    deleteat!(lo.labels, i)
+    deleteat!(lo.marks, i)'
+    deleteat!(lo.states, i)
+    update!(lo)
 end
