@@ -1,32 +1,12 @@
-[acvoltage]
-cmdheader = ":SOURce:VOLTage:LEVel:IMMediate:AMPLitude"
-U = "V"
-enable = true
-optkeys = []
-help = ""
-optvalues = []
-type = "sweep"
-alias = "交流电压"
-
-[dataout]
-cmdheader = "FETCh?"
+[coupling]
+cmdheader = ":INPut1:COUPling"
 U = ""
 enable = true
-optkeys = []
+optkeys = ["AC", "DC"]
 help = ""
-optvalues = []
-type = "read"
-alias = "DATA"
-
-[auxout2]
-cmdheader = ":SOURce6:VOLTage:LEVel:IMMediate:OFFSet"
-U = "V"
-enable = true
-optkeys = []
-help = ""
-optvalues = []
-type = "sweep"
-alias = "附加输出2"
+optvalues = ["AC", "DC"]
+type = "set"
+alias = "耦合"
 
 [acfrequency]
 cmdheader = ":SOURce:FREQuency1:CW"
@@ -38,6 +18,16 @@ optvalues = []
 type = "sweep"
 alias = "交流频率"
 
+[ground]
+cmdheader = ":INPut1:LOW"
+U = ""
+enable = true
+optkeys = ["FLOAT", "GROUND"]
+help = ""
+optvalues = ["FLO", "GRO"]
+type = "set"
+alias = "接地"
+
 [auxout1]
 cmdheader = ":SOURce5:VOLTage:LEVel:IMMediate:OFFSet"
 U = "V"
@@ -47,6 +37,96 @@ help = ""
 optvalues = []
 type = "sweep"
 alias = "附加输出1"
+
+[acvoltage]
+cmdheader = ":SOURce:VOLTage:LEVel:IMMediate:AMPLitude"
+U = "V"
+enable = true
+optkeys = []
+help = ""
+optvalues = []
+type = "sweep"
+alias = "交流电压"
+
+[slopepPSD]
+cmdheader = ":SENSe:FILTer1:LPASs:SLOPe"
+U = ""
+enable = true
+optkeys = ["6dB", "12dB", "18dB", "24dB"]
+help = ""
+optvalues = ["6", "12", "18", "24"]
+type = "set"
+alias = "衰减率pPSD"
+
+[dataout]
+cmdheader = "FETCh?"
+U = ""
+enable = true
+optkeys = []
+help = ""
+optvalues = []
+type = "read"
+alias = "DATA"
+
+[sensitivityipPSD]
+cmdheader = ":SENSe:CURRent1:AC:RANGe:UPPer"
+U = "A"
+enable = true
+optkeys = []
+help = ""
+optvalues = []
+type = "set"
+alias = "电流灵敏度pPSD"
+
+[auxout2]
+cmdheader = ":SOURce6:VOLTage:LEVel:IMMediate:OFFSet"
+U = "V"
+enable = true
+optkeys = []
+help = ""
+optvalues = []
+type = "sweep"
+alias = "附加输出2"
+
+[tconstpPSD]
+cmdheader = ":SENSe:FILTer1:LPASs:TCONstant"
+U = "s"
+enable = true
+optkeys = []
+help = ""
+optvalues = []
+type = "set"
+alias = "时间常数pPSD"
+
+[dynres]
+cmdheader = ":SENSe:DREServe"
+U = ""
+enable = true
+optkeys = ["HIGH", "MEDIUM", "LOW"]
+help = ""
+optvalues = ["HIGH", "MEDium", "LOW"]
+type = "set"
+alias = "动态储量"
+
+[acphasepPSD]
+cmdheader = ":SENSe:PHASe1"
+U = "°"
+enable = true
+optkeys = []
+help = ""
+optvalues = []
+type = "set"
+alias = "交流相位pPSD"
+
+[sensitivityvpPSD]
+cmdheader = ":SENSe:VOLTage1:AC:RANGe:UPPer"
+U = "V"
+enable = true
+optkeys = []
+help = ""
+optvalues = []
+type = "set"
+alias = "电压灵敏度pPSD"
 
 [conf]
 idn = "LI5650"

@@ -25,7 +25,7 @@ enable = true
 optkeys = []
 help = ""
 optvalues = []
-type = "sweep"
+type = "set"
 alias = "Z扫描速率"
 
 [sigfsetx]
@@ -35,7 +35,7 @@ enable = true
 optkeys = []
 help = ""
 optvalues = []
-type = "sweep"
+type = "set"
 alias = "X目标场"
 
 [sigfldx]
@@ -55,7 +55,7 @@ enable = true
 optkeys = []
 help = ""
 optvalues = []
-type = "sweep"
+type = "set"
 alias = "Y扫描速率"
 
 [sigactnx]
@@ -85,7 +85,7 @@ enable = true
 optkeys = []
 help = ""
 optvalues = []
-type = "sweep"
+type = "set"
 alias = "Z目标场"
 
 [sigrfstx]
@@ -95,7 +95,7 @@ enable = true
 optkeys = []
 help = ""
 optvalues = []
-type = "sweep"
+type = "set"
 alias = "X扫描速率"
 
 [sigpfldz]
@@ -152,5 +152,5 @@ enable = true
 optkeys = []
 help = ""
 optvalues = []
-type = "sweep"
+type = "set"
 alias = "Y目标场"

@@ -56,6 +56,12 @@ let
 
                 ###DAQ###
                 CImGui.TextColored(morestyle.Colors.HighlightText, "DAQ")
+                @c CImGui.Checkbox("截图保存", &conf.DAQ.saveimg)
+                if conf.DAQ.logall
+                    @c CImGui.Checkbox("记录全部变量", &conf.DAQ.logall)
+                else
+                    @c CImGui.Checkbox("记录启用变量", &conf.DAQ.logall)
+                end
                 @c CImGui.DragInt("保存时间", &conf.DAQ.savetime, 1.0, 1, 180, "%d", CImGui.ImGuiSliderFlags_AlwaysClamp)
                 @c CImGui.DragInt("通道大小", &conf.DAQ.channel_size, 1.0, 4, 2048, "%d", CImGui.ImGuiSliderFlags_AlwaysClamp)
                 @c CImGui.DragInt("打包尺寸", &conf.DAQ.packsize, 1.0, 6, 120, "%d", CImGui.ImGuiSliderFlags_AlwaysClamp)

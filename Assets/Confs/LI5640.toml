@@ -118,6 +118,16 @@ optvalues = ["0", "1", "2"]
 type = "set"
 alias = "动态储量"
 
+[phase]
+cmdheader = "PHAS"
+U = "°"
+enable = true
+optkeys = []
+help = ""
+optvalues = []
+type = "set"
+alias = "交流相位"
+
 [conf]
 idn = "LI5640"
 output_labels = ["OSC OUT", "REF OUT"]

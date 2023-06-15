@@ -253,9 +253,7 @@ function edit(rightclickmenu, lo::Layout, size=(Cfloat(0), CImGui.GetFrameHeight
         "selected##$(lo.id)",
         lo.selectedlabels,
         trues(length(lo.selectedlabels)),
-        lo.showcol,
-        Ref(1),
-        size
+        lo.showcol
     )
     lo.selectedlabels == selectedlabels_old || labeltoidx!(lo)
 end

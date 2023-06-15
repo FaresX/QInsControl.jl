@@ -257,7 +257,7 @@ function testcmd(ins, addr, inputcmd::Ref{String}, readstr::Ref{String})
                         ct(write, CPU, inputcmd, Val(:write))
                         logout!(CPU, ct)
                     catch e
-                        @error "[$(now())]\n仪器通信故障！！！" exception = e
+                        @error "[$(now())]\n仪器通信故障！！！" instrument=string(ins, ": ", addr) exception = e
                         logout!(CPU, ct)
                     end
                 end
@@ -274,7 +274,7 @@ function testcmd(ins, addr, inputcmd::Ref{String}, readstr::Ref{String})
                         logout!(CPU, ct)
                         return readstr
                     catch e
-                        @error "[$(now())]\n仪器通信故障！！！" exception = e
+                        @error "[$(now())]\n仪器通信故障！！！" instrument=string(ins, ": ", addr) exception = e
                         logout!(CPU, ct)
                     end
                 end
@@ -292,7 +292,7 @@ function testcmd(ins, addr, inputcmd::Ref{String}, readstr::Ref{String})
                         logout!(CPU, ct)
                         return readstr
                     catch e
-                        @error "[$(now())]\n仪器通信故障！！！" exception = e
+                        @error "[$(now())]\n仪器通信故障！！！" instrument=string(ins, ": ", addr) exception = e
                         logout!(CPU, ct)
                     end
                 end
@@ -401,9 +401,10 @@ let
             if qt.issweeping
                 if CImGui.Button(" 结束 ", (-1, 0))
                     qt.issweeping = false
+                    CImGui.CloseCurrentPopup()
                 end
             else
-                if CImGui.Button(" 开始 ", (-1, 0))
+                if CImGui.Button(" 开始 ", (-1, 0)) || CImGui.IsKeyDown(257) || CImGui.IsKeyDown(335)
                     if addr != ""
                         start = remotecall_fetch(workers()[1], instrnm, addr) do instrnm, addr
                             ct = Controller(instrnm, addr)
@@ -447,7 +448,7 @@ let
                                         end
                                     end
                                 catch e
-                                    @error "[$(now())]\n仪器通信故障！！！" exception = e
+                                    @error "[$(now())]\n仪器通信故障！！！" instrument=string(instrnm, ": ", addr) exception = e
                                 finally
                                     remotecall_wait(workers()[1], ct.id) do ctid
                                         logout!(CPU, sweepcts[ctid])
@@ -459,6 +460,7 @@ let
                             errormonitor(sweeptask)
                         end
                     end
+                    CImGui.CloseCurrentPopup()
                 end
             end
             CImGui.Text("单位 ")
@@ -506,7 +508,7 @@ let
         end
         if CImGui.BeginPopupContextItem()
             @c InputTextWithHintRSZ("##设置", "设置值", &qt.set)
-            if CImGui.Button(" 确认 ", (-Cfloat(0.1), Cfloat(0))) || triggerset
+            if CImGui.Button(" 确认 ", (-Cfloat(0.1), Cfloat(0))) || triggerset || CImGui.IsKeyDown(257) || CImGui.IsKeyDown(335)
                 triggerset = false
                 if addr != ""
                     sv = U == "" ? qt.set : @trypasse string(float(eval(Meta.parse(qt.set)) * Uchange)) qt.set
@@ -522,11 +524,18 @@ let
                             logout!(CPU, ct)
                             return readstr
                         catch e
-                            @error "[$(now())]\n仪器通信故障！！！" exception = e
+                            @error "[$(now())]\n仪器通信故障！！！" instrument=string(instrnm, ": ", addr) exception = e
                             logout!(CPU, ct)
                         end
                     end
                     isnothing(fetchdata) || (qt.read = fetchdata)
+                end
+                CImGui.CloseCurrentPopup()
+            end
+            if addr != ""
+                fetchdata = refresh_qt(instrnm, addr, qt.name)
+                if !isnothing(fetchdata)
+                    fetchdata in qt.optvalues && (qt.optedidx = findfirst(==(fetchdata), qt.optvalues))
                 end
             end
             CImGui.BeginGroup()
@@ -654,7 +663,7 @@ function refresh_qt(instrnm, addr, qtnm)
             logout!(CPU, ct)
             return readstr
         catch e
-            @error "[$(now())]\n仪器通信故障！！！" exception = e
+            @error "[$(now())]\n仪器通信故障！！！" instrument=string(instrnm, ": ", addr) exception = e
             logout!(CPU, ct)
         end
     end
@@ -676,14 +685,14 @@ function refresh_fetch_ibvs(ibvs_local; log=false)
                         try
                             login!(CPU, ct)
                             for (qtnm, qt) in ibv.insbuf.quantities
-                                if qt.isautorefresh || log
+                                if (qt.isautorefresh && qt.enable) || (log && (conf.DAQ.logall || qt.enable))
                                     getfunc = Symbol(ins, :_, qtnm, :_get) |> eval
                                     qt.read = ct(getfunc, CPU, Val(:read))
                                 end
                             end
                             logout!(CPU, ct)
                         catch e
-                            @error "[$(now())]\n仪器通信故障！！！" exception = e
+                            @error "[$(now())]\n仪器通信故障！！！" instrument=string(ins, ": ", addr) exception = e
                             logout!(CPU, ct)
                         end
                     end

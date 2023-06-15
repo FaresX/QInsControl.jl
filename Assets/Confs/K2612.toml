@@ -71,7 +71,7 @@ alias = "A输出电压范围"
 [Ameasurev]
 cmdheader = "smua.measure.v()"
 U = "V"
-enable = true
+enable = false
 optkeys = []
 help = ""
 optvalues = []
@@ -82,16 +82,16 @@ alias = "A测量电压"
 cmdheader = "smub.source.func"
 U = ""
 enable = true
-optkeys = ["B_OUTPUT_DCAMPS", "B_OUTPUT_DCVOLTS"]
+optkeys = ["AMP", "VOLT"]
 help = ""
-optvalues = ["smub.OUTPUT_DCAMPS", "smub.OUTPUT_DCVOLTS"]
+optvalues = ["0.00000e+00", "1.00000e+00"]
 type = "set"
 alias = "B输出模式"
 
 [Bmeasurev]
 cmdheader = "smub.measure.v()"
 U = "V"
-enable = true
+enable = false
 optkeys = []
 help = ""
 optvalues = []
@@ -142,9 +142,9 @@ alias = "B输出电压范围"
 cmdheader = "smua.source.func"
 U = ""
 enable = true
-optkeys = ["A_OUTPUT_DCAMPS", "A_OUTPUT_DCVOLTS"]
+optkeys = ["AMP", "VOLT"]
 help = ""
-optvalues = ["smua.OUTPUT_DCAMPS", "smua.OUTPUT_DCVOLTS"]
+optvalues = ["0.00000e+00", "1.00000e+00"]
 type = "set"
 alias = "A输出模式"
 
@@ -152,9 +152,9 @@ alias = "A输出模式"
 cmdheader = "smub.source.output"
 U = ""
 enable = true
-optkeys = ["B_OUTPUT_ON", "B_OUTPUT_OFF"]
+optkeys = ["ON", "OFF"]
 help = ""
-optvalues = ["smub.OUTPUT_ON", "smub.OUTPUT_OFF"]
+optvalues = ["1.00000e+00", "0.00000e+00"]
 type = "set"
 alias = "B输出"
 
@@ -181,7 +181,7 @@ alias = "B输出电压"
 [Ameasurei]
 cmdheader = "smua.measure.i()"
 U = "A"
-enable = true
+enable = false
 optkeys = []
 help = ""
 optvalues = []
@@ -192,16 +192,16 @@ alias = "A测量电流"
 cmdheader = "smua.source.output"
 U = ""
 enable = true
-optkeys = ["A_OUTPUT_ON", "A_OUTPUT_OFF"]
+optkeys = ["ON", "OFF"]
 help = ""
-optvalues = ["smua.OUTPUT_ON", "smua.OUTPUT_OFF"]
+optvalues = ["1.00000e+00", "0.00000e+00"]
 type = "set"
 alias = "A输出"
 
 [Bmeasurei]
 cmdheader = "smub.measure.i()"
 U = "A"
-enable = true
+enable = false
 optkeys = []
 help = ""
 optvalues = []

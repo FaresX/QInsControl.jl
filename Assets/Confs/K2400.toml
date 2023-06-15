@@ -14,7 +14,7 @@ U = ""
 enable = true
 optkeys = ["VOLT:DC", "CURR:DC", "RES"]
 help = ""
-optvalues = ["VOLT:DC", "CURR:DC", "RES"]
+optvalues = ["\"VOLT:DC\"", "\"CURR:DC\"", "\"RES\""]
 type = "set"
 alias = "启用测量模式"
 
@@ -44,7 +44,7 @@ U = ""
 enable = true
 optkeys = ["VOLT:DC", "CURR:DC", "RES"]
 help = ""
-optvalues = ["VOLT:DC", "CURR:DC", "RES"]
+optvalues = ["\"VOLT:DC\"", "\"CURR:DC\"", "\"RES\""]
 type = "set"
 alias = "停用测量模式"
 
@@ -61,7 +61,7 @@ alias = "测量电流保护"
 [dataout]
 cmdheader = "FETCh?"
 U = ""
-enable = true
+enable = false
 optkeys = []
 help = ""
 optvalues = []
@@ -102,7 +102,7 @@ alias = "测量电压范围"
 idn = "MODEL 2400"
 output_labels = ["H", "HS"]
 icon = ""
-input_labels = ["L", "LS", "Input 3"]
+input_labels = ["L", "LS"]
 cmdtype = "scpi"
 
 [measureprotv]
@@ -115,16 +115,6 @@ optvalues = []
 type = "set"
 alias = "测量电压保护"
 
-[sourcerangev]
-cmdheader = ":SOURce:VOLTage:RANGe"
-U = "V"
-enable = true
-optkeys = []
-help = ""
-optvalues = []
-type = "set"
-alias = "输出电压范围"
-
 [levelv]
 cmdheader = ":SOURce:VOLTage:LEVel"
 U = "V"
@@ -134,3 +124,13 @@ help = ""
 optvalues = []
 type = "sweep"
 alias = "输出电压"
+
+[sourcerangev]
+cmdheader = ":SOURce:VOLTage:RANGe"
+U = "V"
+enable = true
+optkeys = []
+help = ""
+optvalues = []
+type = "set"
+alias = "输出电压范围"

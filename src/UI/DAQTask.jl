@@ -226,12 +226,14 @@ function update_all()
                     file[key] = val
                 end
             end
-            if isempty(daq_plot_layout.selectedidx)
-                saveimg_seting("$savepath.png", uipsweeps[[1]])
-            else
-                saveimg_seting("$savepath.png", uipsweeps[daq_plot_layout.selectedidx])
+            if conf.DAQ.saveimg
+                if isempty(daq_plot_layout.selectedidx)
+                    saveimg_seting("$savepath.png", uipsweeps[[1]])
+                else
+                    saveimg_seting("$savepath.png", uipsweeps[daq_plot_layout.selectedidx])
+                end
+                global savingimg = true
             end
-            global savingimg = true
             global old_i += 1
         end
         empty!(progresslist)
@@ -258,7 +260,7 @@ function extract_controllers(bkch::Vector{AbstractBlock})
                 logout!(CPU, ct)
                 push!(controllers, string(bk.instrnm, "_", bk.addr) => ct)
             catch e
-                @error "[$(now())]\n仪器设置不正确！！！" exception=e
+                @error "[$(now())]\n仪器设置不正确！！！" instrument=string(bk.instrnm, ": ", bk.addr) exception=e
                 logout!(CPU, ct)
                 return controllers, false
             end

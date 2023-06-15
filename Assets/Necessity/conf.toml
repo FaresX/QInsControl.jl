@@ -3,10 +3,11 @@
 A = ["A", "mA", "μA", "nA"]
 T = ["T", "mT", "Gauss"]
 dBm = ["dBm"]
+"°" = ["°", "rad"]
 V = ["V", "mV", "μV", "nV"]
 "" = [""]
 K = ["K", "mK"]
-s = ["s", "minute", "hr", "d"]
+s = ["s", "minute", "hr", "d", "ms", "μs"]
 Hz = ["Hz", "kHz", "MHz", "GHz"]
 
 [Basic]
@@ -17,6 +18,8 @@ encoding = "GBK"
 editor = "code.cmd"
 
 [DAQ]
+saveimg = false
+logall = false
 savetime = 60
 channel_size = 512
 packsize = 6
