@@ -259,7 +259,8 @@ function edit(rightclickmenu, lo::Layout, size=(Cfloat(0), CImGui.GetFrameHeight
 end
 
 function update!(lo::Layout)
-    lo.selectedlabels = lo.labels[lo.states]
-    lo.labeltoidx = Dict(zip(lo.labels, collect(eachindex(lo.labels))))
+    editlabels = @. lo.labels * " " * lo.marks
+    lo.selectedlabels = editlabels[lo.states]
+    lo.labeltoidx = Dict(zip(editlabels, collect(eachindex(editlabels))))
     labeltoidx!(lo)
 end
