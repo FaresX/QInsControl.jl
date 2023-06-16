@@ -455,7 +455,7 @@ let
                                         end
                                     end
                                 catch e
-                                    @error "[$(now())]\n仪器通信故障！！！" instrument=string(instrnm, ": ", addr) exception = e
+                                    @error "[$(now())]\n仪器通信故障！！！" instrument=string(instrnm, ": ", addr) quantity=qt.name exception = e
                                 finally
                                     remotecall_wait(workers()[1], ct.id) do ctid
                                         logout!(CPU, sweepcts[ctid])
@@ -531,7 +531,7 @@ let
                             logout!(CPU, ct)
                             return readstr
                         catch e
-                            @error "[$(now())]\n仪器通信故障！！！" instrument=string(instrnm, ": ", addr) exception = e
+                            @error "[$(now())]\n仪器通信故障！！！" instrument=string(instrnm, ": ", addr) quantity=qt.name exception = e
                             logout!(CPU, ct)
                         end
                     end
@@ -670,7 +670,7 @@ function refresh_qt(instrnm, addr, qtnm)
             logout!(CPU, ct)
             return readstr
         catch e
-            @error "[$(now())]\n仪器通信故障！！！" instrument=string(instrnm, ": ", addr) exception = e
+            @error "[$(now())]\n仪器通信故障！！！" instrument=string(instrnm, ": ", addr) quantity=qtnm exception = e
             logout!(CPU, ct)
         end
     end
@@ -682,7 +682,7 @@ function log_instrbufferviewers()
 end
 
 function refresh_fetch_ibvs(ibvs_local; log=false)
-    remotecall_fetch(workers()[1], ibvs_local, log) do ibvs_local, log
+    remotecall_fetch(workers()[1], ibvs_local, log, conf.DAQ.logall) do ibvs_local, log, logall
         @sync for ins in keys(ibvs_local)
             ins == "Others" && continue
             for (addr, ibv) in ibvs_local[ins]
@@ -692,7 +692,7 @@ function refresh_fetch_ibvs(ibvs_local; log=false)
                         try
                             login!(CPU, ct)
                             for (qtnm, qt) in ibv.insbuf.quantities
-                                if (qt.isautorefresh && qt.enable) || (log && (conf.DAQ.logall || qt.enable))
+                                if (qt.isautorefresh && qt.enable) || (log && (logall || qt.enable))
                                     getfunc = Symbol(ins, :_, qtnm, :_get) |> eval
                                     qt.read = ct(getfunc, CPU, Val(:read))
                                 end
