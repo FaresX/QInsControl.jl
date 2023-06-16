@@ -111,6 +111,7 @@ function MultiSelectable(
     size=(Cfloat(0), CImGui.GetFrameHeight() * ceil(Int, length(labels) / n))
 )
     l = length(labels)
+    length(states) == l || resize!(states, l)
     size = l == 0 ? (Cfloat(0), CImGui.GetFrameHeightWithSpacing()) : size
     CImGui.BeginChild("MultiSelectable##$id", size)
     CImGui.Columns(n, C_NULL, false)
@@ -134,6 +135,7 @@ function DragMultiSelectable(
     size=(Cfloat(0), CImGui.GetFrameHeight() * ceil(Int, length(labels) / n))
 )
     l = length(labels)
+    length(states) == l || resize!(states, l)
     size = l == 0 ? (Cfloat(0), CImGui.GetFrameHeightWithSpacing()) : size
     CImGui.BeginChild("MultiSelectable##$id", size)
     CImGui.Columns(n, C_NULL, false)

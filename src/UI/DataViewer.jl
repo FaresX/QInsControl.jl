@@ -245,6 +245,7 @@ let
                     if datakeys != Set(dtpk.datalist)
                         dtpk.datalist = collect(datakeys)
                         dtpk.y = falses(length(datakeys))
+                        dtpk.w = falses(length(datakeys))
                     end
                     isupdate = @c edit(dtpk, id, &dtviewer.show_dtpicker)
                     if !dtviewer.show_dtpicker || isupdate ||

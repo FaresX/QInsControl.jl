@@ -358,7 +358,11 @@ let
             if show_daq_selector
                 daq_dtpk = daq_dtpks[show_daq_selector_i]
                 datakeys::Set{String} = keys(databuf)
-                datakeys == Set(daq_dtpk.datalist) || (daq_dtpk.datalist = collect(datakeys); daq_dtpk.y = falses(length(datakeys)))
+                if datakeys != Set(daq_dtpk.datalist)
+                    daq_dtpk.datalist = collect(datakeys)
+                    daq_dtpk.y = falses(length(datakeys))
+                    daq_dtpk.w = falses(length(datakeys))
+                end
                 isupdate = @c edit(daq_dtpk, "DAQ", &show_daq_selector)
                 !show_daq_selector || isupdate && syncplotdata(uipsweeps[show_daq_selector_i], daq_dtpk, databuf)
             end

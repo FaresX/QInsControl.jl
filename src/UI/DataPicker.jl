@@ -3,6 +3,7 @@ mutable struct DataPicker
     x::String
     y::Vector{Bool}
     z::String
+    w::Vector{Bool}
     xtype::Bool # true = > Number false = > String
     codes::CodeBlock
     hold::Bool
@@ -10,7 +11,7 @@ mutable struct DataPicker
     refreshrate::Cfloat
     alsz::Float32
 end
-DataPicker() = DataPicker([""], "", [false], "", true, CodeBlock(), false, false, Cint(1), 0)
+DataPicker() = DataPicker([""], "", [false], "", [false], true, CodeBlock(), false, false, Cint(1), 0)
 
 let
     window_ids::Dict = Dict()
@@ -46,12 +47,20 @@ let
             CImGui.PopItemWidth()
 
             CImGui.TextColored(morestyle.Colors.HighlightText, "选择Y")
-            isempty(dtpk.datalist) ? CImGui.Selectable("") : MultiSelectable(()->false, "数据选择", dtpk.datalist, dtpk.y, 1)
+            isempty(dtpk.datalist) ? CImGui.Selectable("") : MultiSelectable(()->false, "数据选择Y", dtpk.datalist, dtpk.y, 1)
 
             CImGui.PushItemWidth(-1)
             CImGui.TextColored(morestyle.Colors.HighlightText, "选择Z")
             @c ComBoS("##选择Z", &dtpk.z, [dtpk.datalist; ""])
             CImGui.PopItemWidth()
+
+            CImGui.PushStyleColor(CImGui.ImGuiCol_Text, morestyle.Colors.HighlightText)
+            selectw = CImGui.CollapsingHeader("选择W")
+            CImGui.PopStyleColor()
+            if selectw
+                # CImGui.TextColored(morestyle.Colors.HighlightText, "选择W")
+                isempty(dtpk.datalist) ? CImGui.Selectable("") : MultiSelectable(()->false, "数据选择W", dtpk.datalist, dtpk.w, 1)
+            end
 
             CImGui.TextColored(morestyle.Colors.LogInfo, "数据微处理")
             CImGui.SameLine(CImGui.GetWindowContentRegionWidth() - dtpk.alsz)
@@ -103,6 +112,7 @@ function syncplotdata(uiplot::UIPlot, dtpk::DataPicker, data)
     if uiplot.ptype == "heatmap"
         zbuf = @trypass replace(tryparse.(Float64, data[dtpk.z]), nothing => 0) Matrix{Float64}(undef, 0, 0)
     end
+    wbuf = @trypass [replace(tryparse.(Float64, data[key]), nothing => NaN) for key in dtpk.datalist[dtpk.w]] [Float64[]]
     innercodes = tocodes(dtpk.codes)
     ex::Expr = quote
         let
@@ -111,6 +121,9 @@ function syncplotdata(uiplot::UIPlot, dtpk::DataPicker, data)
             isempty(ys) && (ys = [Float64[]])
             y = ys[1]
             z = $zbuf
+            ws = $wbuf
+            isempty(ws) && (ws = [Float64[]])
+            w = ws[1]
             $innercodes
             ys[1] = y
             x, ys, z

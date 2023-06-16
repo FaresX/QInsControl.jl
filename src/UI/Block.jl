@@ -487,7 +487,11 @@ function tocodes(bk::ReadBlock)
 end
 function tocodes(bk::SaveBlock)
     var = Symbol(bk.varname)
-    ex = rstrip(bk.mark, ' ') == "" ? :(put!(databuf_lc, ($(bk.varname), $var))) : :(put!(databuf_lc, ($(bk.mark), $var)))
+    ex = if rstrip(bk.mark, ' ') == ""
+        :(put!(databuf_lc, ($(bk.varname), string($var))))
+    else
+        :(put!(databuf_lc, ($(bk.mark), string($var))))
+    end
     return bk.isasync ? quote
         @async begin
             $ex
@@ -1003,7 +1007,7 @@ let
             end
             CImGui.PopID()
             if CImGui.IsMouseDown(0)
-                if CImGui.c_get(CImGui.GetIO().MouseDownDuration, 0) > 0.1 && !isdragging && mousein(bk)
+                if CImGui.c_get(CImGui.GetIO().MouseDownDuration, 0) > 0.4 && !isdragging && mousein(bk)
                     bk in dragblock || length(dragblock) == 1 || push!(dragblock, bk)
                     isdragging = true
                 end
