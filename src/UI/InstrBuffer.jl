@@ -623,7 +623,7 @@ function view(instrbufferviewers_local)
 end
 
 function view(insbuf::InstrBuffer)
-    y = ceil(Int, length(insbuf.quantities) / conf.InsBuf.showcol) * 2CImGui.GetFrameHeight()
+    y = ceil(Int, sum(qt.enable for (_, qt) in insbuf.quantities) / conf.InsBuf.showcol) * 2CImGui.GetFrameHeight()
     CImGui.BeginChild("view insbuf", (Float32(0), y))
     CImGui.Columns(conf.InsBuf.showcol, C_NULL, false)
     CImGui.PushID(insbuf.instrnm)
