@@ -38,8 +38,8 @@ UIPlot(x, y, z) = UIPlot(x, y, z, "line", "title", "x", "y", "z", [string("y", i
 UIPlot() = UIPlot(Union{Real,String}[], [Real[]], Matrix{Float64}(undef, 0, 0))
 
 let
-    annbuf::Annotation = Annotation()
-    openpopup_mspos::Vector{Cfloat} = [0, 0]
+    annbufs::Dict{String,Annotation} = Dict()
+    openpopup_mspos_list::Dict{String,Vector{Cfloat}} = Dict()
     global function Plot(uip::UIPlot, id, size=(0, 0))
         CImGui.PushID(id)
         CImGui.BeginChild("Plot", size)
@@ -79,9 +79,12 @@ let
             end
         end
         ps.phv && CImGui.IsMouseClicked(2) && CImGui.OpenPopup("title$id")
+        openpopup_mspos = get!(openpopup_mspos_list, id, Cfloat[0, 0])
         if CImGui.BeginPopup("title$id")
+            annbuf = get!(annbufs, id, Annotation())
             if openpopup_mspos == Cfloat[0, 0]
-                openpopup_mspos = [ps.mspos.x, ps.mspos.y]
+                openpopup_mspos[1] = ps.mspos.x
+                openpopup_mspos[2] = ps.mspos.y
                 annbuf.posx, annbuf.posy = openpopup_mspos
                 annbuf.offsetx, annbuf.offsety = openpopup_mspos
             end
@@ -100,16 +103,7 @@ let
                 CImGui.ColorEdit4("颜色", annbuf.color, CImGui.ImGuiColorEditFlags_AlphaBar)
                 CImGui.SameLine()
                 if CImGui.Button(morestyle.Icons.NewFile * "##标签")
-                    newann = Annotation(
-                        annbuf.label,
-                        annbuf.posx,
-                        annbuf.posy,
-                        annbuf.offsetx,
-                        annbuf.offsety,
-                        copy(annbuf.color),
-                        annbuf.possz
-                    )
-                    push!(uip.anns, newann)
+                    push!(uip.anns, deepcopy(annbuf))
                 end
             end
             if CImGui.Button(morestyle.Icons.SaveButton * " 保存##图像")
@@ -119,9 +113,10 @@ let
             end
             CImGui.EndPopup()
         end
-        igIsPopupOpenStr("title$id", 0) || openpopup_mspos == Cfloat[0, 0] || (openpopup_mspos = Cfloat[0, 0])
-        ps.annhv && CImGui.IsMouseClicked(1) && CImGui.OpenPopup("注释")
-        if CImGui.BeginPopup("注释")
+        igIsPopupOpenStr("title$id", 0) || openpopup_mspos == Cfloat[0, 0] || fill!(openpopup_mspos, 0)
+        ps.annhv && CImGui.IsMouseClicked(1) && CImGui.OpenPopup("注释$id")
+        if CImGui.BeginPopup("注释$id")
+            @info id
             ann_i = uip.anns[ps.annhv_i]
             @c InputTextRSZ("内容", &ann_i.label)
             pos = Cfloat[ann_i.posx, ann_i.posy]
@@ -155,9 +150,7 @@ let
 end
 
 let
-    px = []
-    py = []
-    ps::PlotState = PlotState()
+    ps_list::Dict{String,PlotState} = Dict()
     global function Plot(x::Vector{T1}, ys::Vector{Vector{T2}};
         psize=CImGui.ImVec2(0, 0),
         ptype="line",
@@ -179,6 +172,7 @@ let
         xflags = savingimg ? ImPlot.ImPlotAxisFlags_AutoFit : 0
         yflags = savingimg ? ImPlot.ImPlotAxisFlags_AutoFit : 0
         if ImPlot.BeginPlot(title, xlabel, ylabel, psize, 0, xflags, yflags)
+            ps = get!(ps_list, id, PlotState())
             ps.xhv = ImPlot.IsPlotXAxisHovered()
             ps.yhv = ImPlot.IsPlotYAxisHovered()
             ps.phv = ImPlot.IsPlotHovered()
@@ -216,9 +210,9 @@ let
 end
 
 let
-    cmap::Cint = Cint(ImPlot.ImPlotColormap_Viridis)
-    width::Cfloat = 0
-    ps::PlotState = PlotState()
+    cmap_list::Dict{String,Cint} = Dict()
+    width_list::Dict{String,Cfloat} = Dict()
+    ps_list::Dict{String,PlotState} = Dict()
     global function Plot(z::Matrix{Float64}, zlabel::Ref, id;
         psize=CImGui.ImVec2(0, 0),
         ptype="heatmap",
@@ -232,7 +226,8 @@ let
     )
         CImGui.BeginChild("Heatmap", psize)
         CImGui.PushStyleVar(CImGui.ImGuiStyleVar_ItemSpacing, (0, 2))
-        if ImPlot.ColormapButton(unsafe_string(ImPlot.GetColormapName(cmap)), ImVec2(-1, 0), cmap)
+        cmap = get!(cmap_list, id, Cint(ImPlot.ImPlotColormap_Viridis))
+        if ImPlot.ColormapButton(unsafe_string(ImPlot.GetColormapName(cmap)), ImVec2(Cfloat(-0.1), Cfloat(0)), cmap)
             cmap = (cmap + 1) % Cint(ImPlot.GetColormapCount())
         end
         ImPlot.PushColormap(cmap)
@@ -241,9 +236,18 @@ let
         global savingimg
         xflags = savingimg ? ImPlot.ImPlotAxisFlags_AutoFit : 0
         yflags = savingimg ? ImPlot.ImPlotAxisFlags_AutoFit : 0
-        if ImPlot.BeginPlot(title, xlabel, ylabel, CImGui.ImVec2(CImGui.GetContentRegionAvailWidth() - width, -1), 0, xflags, yflags)
+        if ImPlot.BeginPlot(
+            title,
+            xlabel,
+            ylabel,
+            CImGui.ImVec2(CImGui.GetContentRegionAvailWidth() - get!(width_list, id, Cfloat(0)), -1),
+            0,
+            xflags,
+            yflags
+        )
             pz = Matrix(transpose(z))
             ImPlot.PlotHeatmap("", pz, size(z)..., zlims..., "", lb, rt)
+            ps = get!(ps_list, id, PlotState())
             ps.xhv = ImPlot.IsPlotXAxisHovered()
             ps.yhv = ImPlot.IsPlotYAxisHovered()
             ps.phv = ImPlot.IsPlotHovered()
@@ -271,7 +275,7 @@ let
         ImPlot.ColormapScale(string(zlabel[], "###$id"), zlims..., CImGui.ImVec2(0, -1))
         cmssize = CImGui.GetItemRectSize()
         ps.plotsize = (ps.plotsize.x + cmssize.x, ps.plotsize.y)
-        width = cmssize.x
+        width_list[id] = cmssize.x
         CImGui.IsItemHovered() && CImGui.IsMouseDoubleClicked(0) && CImGui.OpenPopup("z标签$id")
         if CImGui.BeginPopup("z标签$id")
             InputTextRSZ("z标签##$id", zlabel)
