@@ -228,7 +228,7 @@ let
         CImGui.PushStyleVar(CImGui.ImGuiStyleVar_ItemSpacing, (0, 2))
         cmap = get!(cmap_list, id, Cint(ImPlot.ImPlotColormap_Viridis))
         if ImPlot.ColormapButton(unsafe_string(ImPlot.GetColormapName(cmap)), ImVec2(Cfloat(-0.1), Cfloat(0)), cmap)
-            cmap = (cmap + 1) % Cint(ImPlot.GetColormapCount())
+            cmap_list[id] = (cmap + 1) % Cint(ImPlot.GetColormapCount())
         end
         ImPlot.PushColormap(cmap)
         lb = ImPlot.ImPlotPoint(CImGui.ImVec2(xlims[1], ylims[1]))
