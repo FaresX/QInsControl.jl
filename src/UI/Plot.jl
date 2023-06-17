@@ -38,7 +38,7 @@ UIPlot(x, y, z) = UIPlot(x, y, z, "line", "title", "x", "y", "z", [string("y", i
 UIPlot() = UIPlot(Union{Real,String}[], [Real[]], Matrix{Float64}(undef, 0, 0))
 
 let
-    annbufs::Dict{String,Annotation} = Dict()
+    annbuf_list::Dict{String,Annotation} = Dict()
     openpopup_mspos_list::Dict{String,Vector{Cfloat}} = Dict()
     global function Plot(uip::UIPlot, id, size=(0, 0))
         CImGui.PushID(id)
@@ -81,7 +81,7 @@ let
         ps.phv && CImGui.IsMouseClicked(2) && CImGui.OpenPopup("title$id")
         openpopup_mspos = get!(openpopup_mspos_list, id, Cfloat[0, 0])
         if CImGui.BeginPopup("title$id")
-            annbuf = get!(annbufs, id, Annotation())
+            annbuf = get!(annbuf_list, id, Annotation())
             if openpopup_mspos == Cfloat[0, 0]
                 openpopup_mspos[1] = ps.mspos.x
                 openpopup_mspos[2] = ps.mspos.y
