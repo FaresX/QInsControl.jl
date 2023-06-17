@@ -1,4 +1,5 @@
 Base.@kwdef mutable struct PlotState
+    id::String = ""
     xhv::Bool = false
     yhv::Bool = false
     phv::Bool = false
@@ -40,16 +41,19 @@ UIPlot() = UIPlot(Union{Real,String}[], [Real[]], Matrix{Float64}(undef, 0, 0))
 let
     annbuf_list::Dict{String,Annotation} = Dict()
     openpopup_mspos_list::Dict{String,Vector{Cfloat}} = Dict()
+    ps_list::Dict{String,PlotState} = Dict()
     global function Plot(uip::UIPlot, id, size=(0, 0))
+        haskey(ps_list, id) || push!(ps_list, id => PlotState(id=id))
+        ps = ps_list[id]
         CImGui.PushID(id)
         CImGui.BeginChild("Plot", size)
         if uip.ptype == "heatmap"
             if isempty(uip.z)
-                ps = PlotHolder(CImGui.ImVec2(-1, -1))
+                PlotHolder(CImGui.ImVec2(-1, -1))
             else
                 xlims, ylims, zlims, xlabel, ylabel = xyzsetting(uip)
-                ps = @c Plot(
-                    uip.z, &uip.zlabel, id;
+                @c Plot(
+                    uip.z, &uip.zlabel, ps;
                     psize=CImGui.ImVec2(-1, -1),
                     title=uip.title,
                     xlabel=xlabel,
@@ -62,11 +66,11 @@ let
             end
         else
             if isempty(uip.y) || isempty(uip.y[1])
-                ps = PlotHolder(CImGui.ImVec2(-1, -1))
+                PlotHolder(CImGui.ImVec2(-1, -1))
             else
                 x, xlabel = xysetting(uip)
-                ps = Plot(
-                    x, uip.y;
+                Plot(
+                    x, uip.y, ps;
                     psize=CImGui.ImVec2(-1, -1),
                     ptype=uip.ptype,
                     title=uip.title,
@@ -79,9 +83,11 @@ let
             end
         end
         ps.phv && CImGui.IsMouseClicked(2) && CImGui.OpenPopup("title$id")
-        openpopup_mspos = get!(openpopup_mspos_list, id, Cfloat[0, 0])
+        haskey(openpopup_mspos_list, id) || push!(openpopup_mspos_list, id => Cfloat[0, 0])
+        openpopup_mspos = openpopup_mspos_list[id]
         if CImGui.BeginPopup("title$id")
-            annbuf = get!(annbuf_list, id, Annotation())
+            haskey(annbuf_list, id) || push!(annbuf_list, id => Annotation())
+            annbuf = annbuf_list[id]
             if openpopup_mspos == Cfloat[0, 0]
                 openpopup_mspos[1] = ps.mspos.x
                 openpopup_mspos[2] = ps.mspos.y
@@ -116,7 +122,6 @@ let
         igIsPopupOpenStr("title$id", 0) || openpopup_mspos == Cfloat[0, 0] || fill!(openpopup_mspos, 0)
         ps.annhv && CImGui.IsMouseClicked(1) && CImGui.OpenPopup("注释$id")
         if CImGui.BeginPopup("注释$id")
-            @info id
             ann_i = uip.anns[ps.annhv_i]
             @c InputTextRSZ("内容", &ann_i.label)
             pos = Cfloat[ann_i.posx, ann_i.posy]
@@ -149,71 +154,65 @@ let
     end
 end
 
-let
-    ps_list::Dict{String,PlotState} = Dict()
-    global function Plot(x::Vector{T1}, ys::Vector{Vector{T2}};
-        psize=CImGui.ImVec2(0, 0),
-        ptype="line",
-        title="title",
-        xlabel="x",
-        ylabel="y",
-        legends=[],
-        xticks=[],
-        anns=[]
-    ) where {T1<:Real} where {T2<:Real}
-        llg = length(legends)
-        lys = length(ys)
-        if llg < lys
-            for i in llg+1:lys
-                push!(legends, string("y", i))
-            end
+function Plot(x::Vector{T1}, ys::Vector{Vector{T2}}, ps::PlotState;
+    psize=CImGui.ImVec2(0, 0),
+    ptype="line",
+    title="title",
+    xlabel="x",
+    ylabel="y",
+    legends=[],
+    xticks=[],
+    anns=[]
+) where {T1<:Real} where {T2<:Real}
+    llg = length(legends)
+    lys = length(ys)
+    if llg < lys
+        for i in llg+1:lys
+            push!(legends, string("y", i))
         end
-        global savingimg
-        xflags = savingimg ? ImPlot.ImPlotAxisFlags_AutoFit : 0
-        yflags = savingimg ? ImPlot.ImPlotAxisFlags_AutoFit : 0
-        if ImPlot.BeginPlot(title, xlabel, ylabel, psize, 0, xflags, yflags)
-            ps = get!(ps_list, id, PlotState())
-            ps.xhv = ImPlot.IsPlotXAxisHovered()
-            ps.yhv = ImPlot.IsPlotYAxisHovered()
-            ps.phv = ImPlot.IsPlotHovered()
-            for (lg, y) in zip(legends, ys)
-                px, py = Vector{T2}.(trunc(x, y))
-                ptype == "line" && ImPlot.PlotLine(lg, px, py, length(py))
-                ptype == "scatter" && ImPlot.PlotScatter(lg, px, py, length(py))
-                xl, xr = extrema(px)
-                ps.mspos = ImPlot.GetPlotMousePos()
-                if ps.showtooltip && ps.phv && xl <= ps.mspos.x <= xr && !savingimg
-                    idx = argmin(abs.(px .- ps.mspos.x))
-                    yrg = ImPlot.GetPlotLimits().Y
-                    yl, yr = yrg.Min, yrg.Max
-                    if abs(py[idx] - ps.mspos.y) < 0.04(yr - yl)
-                        CImGui.BeginTooltip()
-                        CImGui.PushTextWrapPos(CImGui.GetFontSize() * 35.0)
-                        if isempty(xticks)
-                            CImGui.Text(string("x : ", x[idx]))
-                        else
-                            CImGui.Text(string("x : ", xticks[idx]))
-                        end
-                        CImGui.Text(string("y : ", py[idx]))
-                        CImGui.PopTextWrapPos()
-                        CImGui.EndTooltip()
+    end
+    global savingimg
+    xflags = savingimg ? ImPlot.ImPlotAxisFlags_AutoFit : 0
+    yflags = savingimg ? ImPlot.ImPlotAxisFlags_AutoFit : 0
+    if ImPlot.BeginPlot(title, xlabel, ylabel, psize, 0, xflags, yflags)
+        ps.xhv = ImPlot.IsPlotXAxisHovered()
+        ps.yhv = ImPlot.IsPlotYAxisHovered()
+        ps.phv = ImPlot.IsPlotHovered()
+        for (lg, y) in zip(legends, ys)
+            px, py = Vector{T2}.(trunc(x, y))
+            ptype == "line" && ImPlot.PlotLine(lg, px, py, length(py))
+            ptype == "scatter" && ImPlot.PlotScatter(lg, px, py, length(py))
+            xl, xr = extrema(px)
+            ps.mspos = ImPlot.GetPlotMousePos()
+            if ps.showtooltip && ps.phv && xl <= ps.mspos.x <= xr && !savingimg
+                idx = argmin(abs.(px .- ps.mspos.x))
+                yrg = ImPlot.GetPlotLimits().Y
+                yl, yr = yrg.Min, yrg.Max
+                if abs(py[idx] - ps.mspos.y) < 0.04(yr - yl)
+                    CImGui.BeginTooltip()
+                    CImGui.PushTextWrapPos(CImGui.GetFontSize() * 35.0)
+                    if isempty(xticks)
+                        CImGui.Text(string("x : ", x[idx]))
+                    else
+                        CImGui.Text(string("x : ", xticks[idx]))
                     end
+                    CImGui.Text(string("y : ", py[idx]))
+                    CImGui.PopTextWrapPos()
+                    CImGui.EndTooltip()
                 end
             end
-            PlotAnns(anns, ps)
-            ImPlot.EndPlot()
         end
-        ps.plotpos = CImGui.GetItemRectMin()
-        ps.plotsize = CImGui.GetItemRectSize()
-        ps
+        PlotAnns(anns, ps)
+        ImPlot.EndPlot()
     end
+    ps.plotpos = CImGui.GetItemRectMin()
+    ps.plotsize = CImGui.GetItemRectSize()
 end
 
 let
     cmap_list::Dict{String,Cint} = Dict()
     width_list::Dict{String,Cfloat} = Dict()
-    ps_list::Dict{String,PlotState} = Dict()
-    global function Plot(z::Matrix{Float64}, zlabel::Ref, id;
+    global function Plot(z::Matrix{Float64}, zlabel::Ref, ps::PlotState;
         psize=CImGui.ImVec2(0, 0),
         ptype="heatmap",
         title="title",
@@ -226,11 +225,15 @@ let
     )
         CImGui.BeginChild("Heatmap", psize)
         CImGui.PushStyleVar(CImGui.ImGuiStyleVar_ItemSpacing, (0, 2))
-        cmap = get!(cmap_list, id, Cint(ImPlot.ImPlotColormap_Viridis))
-        if ImPlot.ColormapButton(unsafe_string(ImPlot.GetColormapName(cmap)), ImVec2(Cfloat(-0.1), Cfloat(0)), cmap)
-            cmap_list[id] = (cmap + 1) % Cint(ImPlot.GetColormapCount())
+        haskey(cmap_list, ps.id) || push!(cmap_list, ps.id => Cint(ImPlot.ImPlotColormap_Viridis))
+        if ImPlot.ColormapButton(
+            unsafe_string(ImPlot.GetColormapName(cmap_list[ps.id])),
+            ImVec2(Cfloat(-0.1), Cfloat(0)),
+            cmap_list[ps.id]
+        )
+            cmap_list[ps.id] = (cmap_list[ps.id] + 1) % Cint(ImPlot.GetColormapCount())
         end
-        ImPlot.PushColormap(cmap)
+        ImPlot.PushColormap(cmap_list[ps.id])
         lb = ImPlot.ImPlotPoint(CImGui.ImVec2(xlims[1], ylims[1]))
         rt = ImPlot.ImPlotPoint(CImGui.ImVec2(xlims[2], ylims[2]))
         global savingimg
@@ -240,14 +243,13 @@ let
             title,
             xlabel,
             ylabel,
-            CImGui.ImVec2(CImGui.GetContentRegionAvailWidth() - get!(width_list, id, Cfloat(0)), -1),
+            CImGui.ImVec2(CImGui.GetContentRegionAvailWidth() - get!(width_list, ps.id, Cfloat(0)), -1),
             0,
             xflags,
             yflags
         )
             pz = Matrix(transpose(z))
             ImPlot.PlotHeatmap("", pz, size(z)..., zlims..., "", lb, rt)
-            ps = get!(ps_list, id, PlotState())
             ps.xhv = ImPlot.IsPlotXAxisHovered()
             ps.yhv = ImPlot.IsPlotYAxisHovered()
             ps.phv = ImPlot.IsPlotHovered()
@@ -272,33 +274,28 @@ let
         ps.plotpos = CImGui.GetItemRectMin()
         ps.plotsize = CImGui.GetItemRectSize()
         CImGui.SameLine()
-        ImPlot.ColormapScale(string(zlabel[], "###$id"), zlims..., CImGui.ImVec2(0, -1))
+        ImPlot.ColormapScale(string(zlabel[], "###$(ps.id)"), zlims..., CImGui.ImVec2(0, -1))
         cmssize = CImGui.GetItemRectSize()
         ps.plotsize = (ps.plotsize.x + cmssize.x, ps.plotsize.y)
-        width_list[id] = cmssize.x
-        CImGui.IsItemHovered() && CImGui.IsMouseDoubleClicked(0) && CImGui.OpenPopup("z标签$id")
-        if CImGui.BeginPopup("z标签$id")
-            InputTextRSZ("z标签##$id", zlabel)
+        width_list[ps.id] = cmssize.x
+        CImGui.IsItemHovered() && CImGui.IsMouseDoubleClicked(0) && CImGui.OpenPopup("z标签$(ps.id)")
+        if CImGui.BeginPopup("z标签$(ps.id)")
+            InputTextRSZ("z标签##$(ps.id)", zlabel)
             CImGui.EndPopup()
         end
         ImPlot.PopColormap()
         CImGui.PopStyleVar()
         CImGui.EndChild()
-        ps
     end
 end
 
-let
-    ps::PlotState = PlotState()
-    global function PlotHolder(psize=CImGui.ImVec2(0, 0))
-        if ImPlot.BeginPlot("没有数据输入或输入数据有误！！！", "X", "Y", psize)
-            ps.xhv = ImPlot.IsPlotXAxisHovered()
-            ps.yhv = ImPlot.IsPlotYAxisHovered()
-            ps.phv = ImPlot.IsPlotHovered()
-            ps.mspos = ImPlot.GetPlotMousePos()
-            ImPlot.EndPlot()
-        end
-        ps
+function PlotHolder(psize=CImGui.ImVec2(0, 0))
+    if ImPlot.BeginPlot("没有数据输入或输入数据有误！！！", "X", "Y", psize)
+        # ps.xhv = ImPlot.IsPlotXAxisHovered()
+        # ps.yhv = ImPlot.IsPlotYAxisHovered()
+        # ps.phv = ImPlot.IsPlotHovered()
+        # ps.mspos = ImPlot.GetPlotMousePos()
+        ImPlot.EndPlot()
     end
 end
 
@@ -472,13 +469,13 @@ let
                 img = ImageMagick.load("screenshot:")
                 vpos, vsize = unsafe_load(viewport.WorkPos), unsafe_load(viewport.WorkSize)
                 conf.Basic.viewportenable || (vpos = CImGui.ImVec2(vpos.x + glfwwindowx, vpos.y + glfwwindowy))
-                u, d = round(Int, vpos.y+1), round(Int, vpos.y + vsize.y-4)
-                l, r = round(Int, vpos.x+1), round(Int, vpos.x + vsize.x-1)
+                u, d = round(Int, vpos.y + 1), round(Int, vpos.y + vsize.y - 4)
+                l, r = round(Int, vpos.x + 1), round(Int, vpos.x + vsize.x - 1)
                 if length(size(img)) == 3
                     imgr, imgc, imgh = size(img)
-                    img = reshape(img, imgr, imgh*imgc)
+                    img = reshape(img, imgr, imgh * imgc)
                 end
-                @trypass FileIO.save(path, img[u:d,l:r]) @error "[$(now())]\n图像保存错误！！！"
+                @trypass FileIO.save(path, img[u:d, l:r]) @error "[$(now())]\n图像保存错误！！！"
                 savingimg = false
                 count_fps = 0
                 return 0
@@ -490,6 +487,8 @@ let
     global function saveimg_seting(setpath, setuips)
         empty!(uips)
         path = setpath
-        for p in setuips push!(uips, deepcopy(p)) end
+        for p in setuips
+            push!(uips, deepcopy(p))
+        end
     end
 end
