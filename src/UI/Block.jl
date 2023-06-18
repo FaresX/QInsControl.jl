@@ -200,16 +200,17 @@ function tocodes(bk::SweepBlock)
             $sweeplist[end] == $stop || push!($sweeplist, $stop)
         end
     end
+    writecmd = :(controllers[$instr]($setfunc, CPU, string($ijk), Val(:write)))
     ex2 = if bk.istrycatch
         quote
             try
-                controllers[$instr]($setfunc, CPU, string($ijk), Val(:write))
+                $writecmd
             catch e
                 @error "[$(now)]\n仪器通信故障！！！" instrument = $(string(bk.instr, ": ", bk.addr)) exception = e
             end
         end
     else
-        :(controllers[$instr]($setfunc, CPU, string($ijk), Val(:write)))
+        writecmd
     end
     return quote
         $ex1
@@ -247,16 +248,17 @@ function tocodes(bk::SettingBlock)
         setvalue = Expr(:call, float, Expr(:call, :*, setvaluec, Uchange))
     end
     setfunc = Symbol(bk.instrnm, :_, bk.quantity, :_set)
+    settingcmd = :(controllers[$instr]($setfunc, CPU, string($setvalue), Val(:write)))
     return if bk.istrycatch
         quote
             try
-                :(controllers[$instr]($setfunc, CPU, string($setvalue), Val(:write)))
+                $settingcmd
             catch e
                 @error "[$(now)]\n仪器通信故障！！！" instrument = $(string(bk.instr, ": ", bk.addr)) exception = e
             end
         end
     else
-        :(controllers[$instr]($setfunc, CPU, string($setvalue), Val(:write)))
+        settingcmd
     end
 end
 
@@ -270,17 +272,18 @@ function tocodes(bk::ReadingBlock)
     index isa Integer && (index = [index])
     if isnothing(index)
         key = string(bk.mark, "_", bk.instrnm, "_", bk.quantity, "_", bk.addr)
+        getcmd = :(controllers[$instr]($getfunc, CPU, Val(:read)))
         getdata = if bk.istrycatch
             quote
                 try
-                    :(controllers[$instr]($getfunc, CPU, Val(:read)))
+                    $getcmd
                 catch e
                     @error "[$(now)]\n仪器通信故障！！！" instrument = $(string(bk.instr, ": ", bk.addr)) exception = e
                     ""
                 end
             end
         else
-            :(controllers[$instr]($getfunc, CPU, Val(:read)))
+            getcmd
         end
         if bk.isobserve
             observable = Symbol(bk.mark)
@@ -308,17 +311,22 @@ function tocodes(bk::ReadingBlock)
             string(mark, "_", bk.instrnm, "_", bk.quantity, "[", ind, "]", "_", bk.addr)
             for (mark, ind) in zip(marks, index)
         ]
+        getcmd = if length(index) == 1
+            :(only(string.(split(controllers[$instr]($getfunc, CPU, Val(:read)), ","))))
+        else
+            :(string.(split(controllers[$instr]($getfunc, CPU, Val(:read)), ",")[collect($index)]))
+        end
         getdata = if bk.istrycatch
             quote
                 try
-                    :(string.(split(controllers[$instr]($getfunc, CPU, Val(:read)), ",")[collect($index)]))
+                    $getcmd
                 catch e
                     @error "[$(now)]\n仪器通信故障！！！" instrument = $(string(bk.instr, ": ", bk.addr)) exception = e
                     fill("", length(index))
                 end
             end
         else
-            :(string.(split(controllers[$instr]($getfunc, CPU, Val(:read)), ",")[collect($index)]))
+            getcmd
         end
         if bk.isobserve
             observable = Symbol(bk.mark)
@@ -352,16 +360,17 @@ tocodes(::LogBlock) = :(remotecall_wait(eval, 1, :(log_instrbufferviewers())))
 function tocodes(bk::WriteBlock)
     instr = string(bk.instrnm, "_", bk.addr)
     cmd = parsedollar(bk.cmd)
+    writecmd = :(controllers[$instr](write, CPU, string($cmd), Val(:write)))
     ex = if bk.istrycatch
         quote
             try
-                :(controllers[$instr](write, CPU, string($cmd), Val(:write)))
+                $writecmd
             catch e
                 @error "[$(now)]\n仪器通信故障！！！" instrument = $(string(bk.instr, ": ", bk.addr)) exception = e
             end
         end
     else
-        :(controllers[$instr](write, CPU, string($cmd), Val(:write)))
+        writecmd
     end
     return bk.isasync ? quote
         @async begin
@@ -380,17 +389,18 @@ function tocodes(bk::QueryBlock)
     cmd = parsedollar(bk.cmd)
     if isnothing(index)
         key = string(bk.mark, "_", bk.instrnm, "_", bk.addr)
+        getcmd = :(controllers[$instr](query, CPU, string($cmd), Val(:query)))
         getdata = if bk.istrycatch
             quote
                 try
-                    :(controllers[$instr](query, CPU, string($cmd), Val(:query)))
+                    $getcmd
                 catch e
                     @error "[$(now)]\n仪器通信故障！！！" instrument = $(string(bk.instr, ": ", bk.addr)) exception = e
                     ""
                 end
             end
         else
-            :(controllers[$instr](query, CPU, string($cmd), Val(:query)))
+            getcmd
         end
         if bk.isobserve
             observable = Symbol(bk.mark)
@@ -415,17 +425,22 @@ function tocodes(bk::QueryBlock)
             marks[i] == "" && (marks[i] = "mark$i")
         end
         keyall = [string(mark, "_", bk.instrnm, "[", ind, "]", "_", bk.addr) for (mark, ind) in zip(marks, index)]
+        getcmd = if length(index) == 1
+            :(only(string.(split(controllers[$instr](query, CPU, $cmd, Val(:query)), ","))))
+        else
+            :(string.(split(controllers[$instr](query, CPU, $cmd, Val(:query)), ",")[collect($index)]))
+        end
         getdata = if bk.istrycatch
             quote
                 try
-                    :(string.(split(controllers[$instr](query, CPU, $cmd, Val(:query)), ",")[collect($index)]))
+                    $getcmd
                 catch e
                     @error "[$(now)]\n仪器通信故障！！！" instrument = $(string(bk.instr, ": ", bk.addr)) exception = e
                     fill("", length(index))
                 end
             end
         else
-            :(string.(split(controllers[$instr](query, CPU, $cmd, Val(:query)), ",")[collect($index)]))
+            getcmd
         end
         if bk.isobserve
             observable = Symbol(bk.mark)
@@ -463,17 +478,18 @@ function tocodes(bk::ReadBlock)
     index isa Integer && (index = [index])
     if isnothing(index)
         key = string(bk.mark, "_", bk.instrnm, "_", bk.addr)
+        getcmd = :(controllers[$instr](read, CPU, Val(:read)))
         getdata = if bk.istrycatch
             quote
                 try
-                    :(controllers[$instr](read, CPU, Val(:read)))
+                    $getcmd
                 catch e
                     @error "[$(now)]\n仪器通信故障！！！" instrument = $(string(bk.instr, ": ", bk.addr)) exception = e
                     ""
                 end
             end
         else
-            :(controllers[$instr](read, CPU, Val(:read)))
+            getcmd
         end
         if bk.isobserve
             observable = Symbol(bk.mark)
@@ -498,17 +514,22 @@ function tocodes(bk::ReadBlock)
             marks[i] == "" && (marks[i] = "mark$i")
         end
         keyall = [string(mark, "_", bk.instrnm, "[", ind, "]", "_", bk.addr) for (mark, ind) in zip(marks, index)]
+        getcmd = if length(index) == 1
+            :(only(string.(split(controllers[$instr](read, CPU, Val(:read)), ","))))
+        else
+            :(string.(split(controllers[$instr](read, CPU, Val(:read)), ",")[collect($index)]))
+        end
         getdata = if bk.istrycatch
             quote
                 try
-                    :(string.(split(controllers[$instr](read, CPU, Val(:read)), ",")[collect($index)]))
+                    $getcmd
                 catch e
                     @error "[$(now)]\n仪器通信故障！！！" instrument = $(string(bk.instr, ": ", bk.addr)) exception = e
                     fill("", length(index))
                 end
             end
         else
-            :(string.(split(controllers[$instr](read, CPU, Val(:read)), ",")[collect($index)]))
+            getcmd
         end
         if bk.isobserve
             observable = Symbol(bk.mark)
@@ -1025,7 +1046,7 @@ let
             if isdragging && mousein(bk)
                 CImGui.PushStyleColor(CImGui.ImGuiCol_Separator, morestyle.Colors.HighlightText)
                 draw_list = CImGui.GetWindowDrawList()
-                rectcolor = CImGui.ColorConvertFloat4ToU32([morestyle.Colors.HighlightText[1:3]; 0.4])
+                rectcolor = CImGui.ColorConvertFloat4ToU32(morestyle.Colors.BlockDragdrop)
                 CImGui.AddRectFilled(
                     draw_list,
                     CImGui.ImVec2(bk.region[1:2]...),

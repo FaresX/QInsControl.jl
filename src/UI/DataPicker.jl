@@ -131,6 +131,7 @@ function syncplotdata(uiplot::UIPlot, dtpk::DataPicker, data)
     end |> prettify
     try
         uiplot.x, uiplot.y, uiplot.z = eval(ex)
+        uiplot.z = transposeimg(uiplot.z)
         dtpk.isrealtime || @info "[$(now())]" data_processing = innercodes
     catch e
         dtpk.isrealtime || @error "[$(now())]\ncodes are wrong in evaluating time (sync UIPlot)!!!" exception = e codes = ex

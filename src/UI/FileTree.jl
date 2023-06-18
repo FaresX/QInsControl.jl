@@ -4,31 +4,34 @@ mutable struct FileFileTree <: FileTree
     filepath::String
     filepath_bnm::String
     selectedpath::Ref{String}
+    filter::Ref{String}
     isdeleted::Bool
 end
 mutable struct FolderFileTree <: FileTree
     rootpath::String
     rootpath_bnm::String
     selectedpath::Ref{String}
+    filter::Ref{String}
     filetrees::Vector{T} where {T<:FileTree}
-    function FolderFileTree(rootpath::String, selectedpath::Ref{String}=Ref(""))
+    function FolderFileTree(rootpath::String, selectedpath::Ref{String}=Ref(""), filter::Ref{String}=Ref(""))
         ft = new()
         ft.rootpath = rootpath
         ft.rootpath_bnm = basename(ft.rootpath)
         ft.selectedpath = selectedpath
+        ft.filter = filter
         ft.filetrees = FileTree[]
         dircontent = readdir(rootpath, join=true)
         for p in dircontent
             if isdir(p)
-                push!(ft.filetrees, FolderFileTree(p, ft.selectedpath))
+                push!(ft.filetrees, FolderFileTree(p, ft.selectedpath, ft.filter))
             elseif isfile(p)
-                push!(ft.filetrees, FileFileTree(p, basename(p), ft.selectedpath, false))
+                push!(ft.filetrees, FileFileTree(p, basename(p), ft.selectedpath, ft.filter, false))
             end
         end
         ft
     end
-    function FolderFileTree(pathes::Vector{String}, selectedpath::Ref{String}=Ref(""))
-        new(dirname(pathes[1]), "", selectedpath, [FileFileTree(p, basename(p), selectedpath, false) for p in pathes])
+    function FolderFileTree(pathes::Vector{String}, selectedpath::Ref{String}=Ref(""), filter::Ref{String}=Ref(""))
+        new(dirname(pathes[1]), "", selectedpath, [FileFileTree(p, basename(p), selectedpath, filter, false) for p in pathes])
     end
 end
 
@@ -42,7 +45,9 @@ function edit(filetree::FolderFileTree, isrename::Dict{String,Bool}, bnm=false)
 end
 
 function edit(filetree::FileFileTree, isrename::Dict{String,Bool}, ::Bool)
-    filetree.isdeleted || filemenu(filetree, isrename)
+    if !filetree.isdeleted || filetree.filter[] == "" || occursin(lowercase(filetree.filter[]), lowercase(filetree.filepath_bnm))
+        filemenu(filetree, isrename)
+    end
 end
 
 let

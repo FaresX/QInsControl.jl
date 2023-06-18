@@ -31,6 +31,7 @@ let
 
             CImGui.BeginChild("DataViewer-FileTree")
             oldfile = filetree.selectedpath[]
+            InputTextRSZ("筛选##$id", filetree.filter)
             edit(filetree, isrename)
             if filetree.selectedpath[] != oldfile && split(basename(filetree.selectedpath[]), '.')[end] in ["qdt", "cfg"]
                 dtviewer.data = @trypasse load(filetree.selectedpath[]) Dict()

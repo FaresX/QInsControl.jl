@@ -248,8 +248,7 @@ let
             xflags,
             yflags
         )
-            pz = Matrix(transpose(z))
-            ImPlot.PlotHeatmap("", pz, size(z)..., zlims..., "", lb, rt)
+            ImPlot.PlotHeatmap("", z, reverse(size(z))..., zlims..., "", lb, rt)
             ps.xhv = ImPlot.IsPlotXAxisHovered()
             ps.yhv = ImPlot.IsPlotYAxisHovered()
             ps.phv = ImPlot.IsPlotHovered()

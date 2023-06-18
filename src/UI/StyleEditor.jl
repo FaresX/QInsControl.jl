@@ -10,6 +10,7 @@ Base.@kwdef mutable struct MoreStyleColor
     BlockObserveReadingBG::Vector{Cfloat} = [1.000, 0.600, 0.000, 0.700]
     BlockIcons::Vector{Cfloat} = [1.000, 0.600, 0.000, 1.000]
     BlockTrycatch::Vector{Cfloat} = [1.000, 0.000, 0.000, 1.000]
+    BlockDragdrop::Vector{Cfloat} = [0.000, 0.000, 1.000, 0.400]
     ShowTextRect::Vector{Cfloat} = [1.000, 1.000, 0.000, 1.000]
     DAQTaskRunning::Vector{Cfloat} = [0.000, 1.000, 0.000, 1.000]
 end
