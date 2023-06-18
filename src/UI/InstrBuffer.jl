@@ -695,12 +695,17 @@ function refresh_fetch_ibvs(ibvs_local; log=false)
                                 if (qt.isautorefresh && qt.enable) || (log && (logall || qt.enable))
                                     getfunc = Symbol(ins, :_, qtnm, :_get) |> eval
                                     qt.read = ct(getfunc, CPU, Val(:read))
+                                elseif !qt.enable
+                                    qt.read = ""
                                 end
                             end
                             logout!(CPU, ct)
                         catch e
                             @error "[$(now())]\n仪器通信故障！！！" instrument=string(ins, ": ", addr) exception = e
                             logout!(CPU, ct)
+                            for (_, qt) in ibv.insbuf.quantities
+                                qt.read = ""
+                            end
                         end
                     end
                 end

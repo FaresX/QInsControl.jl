@@ -26,11 +26,12 @@ mutable struct SweepBlock <: AbstractBlock
     stop::String
     level::Int
     blocks::Vector{AbstractBlock}
-    ui::Int
     delay::Cfloat
+    ui::Int
+    istrycatch::Bool
     region::Vector{Float32}
 end
-SweepBlock(level) = SweepBlock("仪器", "地址", "扫描量", "", "", level, Vector{AbstractBlock}(), 1, 0.1, zeros(4))
+SweepBlock(level) = SweepBlock("仪器", "地址", "扫描量", "", "", level, Vector{AbstractBlock}(), 0.1, 1, false, zeros(4))
 SweepBlock() = SweepBlock(1)
 
 mutable struct SettingBlock <: AbstractBlock
@@ -39,9 +40,10 @@ mutable struct SettingBlock <: AbstractBlock
     quantity::String
     setvalue::String
     ui::Int
+    istrycatch::Bool
     region::Vector{Float32}
 end
-SettingBlock() = SettingBlock("仪器", "地址", "设置", "", 1, zeros(4))
+SettingBlock() = SettingBlock("仪器", "地址", "设置", "", 1, false, zeros(4))
 
 mutable struct ReadingBlock <: AbstractBlock
     instrnm::String
@@ -52,9 +54,10 @@ mutable struct ReadingBlock <: AbstractBlock
     isasync::Bool
     isobserve::Bool
     isreading::Bool
+    istrycatch::Bool
     region::Vector{Float32}
 end
-ReadingBlock() = ReadingBlock("仪器", "", "地址", "读取量", "", false, false, false, zeros(4))
+ReadingBlock() = ReadingBlock("仪器", "", "地址", "读取量", "", false, false, false, false, zeros(4))
 
 mutable struct LogBlock <: AbstractBlock
     region::Vector{Float32}
@@ -66,9 +69,10 @@ mutable struct WriteBlock <: AbstractBlock
     addr::String
     cmd::String
     isasync::Bool
+    istrycatch::Bool
     region::Vector{Float32}
 end
-WriteBlock() = WriteBlock("仪器", "地址", "", false, zeros(4))
+WriteBlock() = WriteBlock("仪器", "地址", "", false, false, zeros(4))
 
 mutable struct QueryBlock <: AbstractBlock
     instrnm::String
@@ -79,9 +83,10 @@ mutable struct QueryBlock <: AbstractBlock
     isasync::Bool
     isobserve::Bool
     isreading::Bool
+    istrycatch::Bool
     region::Vector{Float32}
 end
-QueryBlock() = QueryBlock("仪器", "", "地址", "", "", false, false, false, zeros(4))
+QueryBlock() = QueryBlock("仪器", "", "地址", "", "", false, false, false, false, zeros(4))
 
 mutable struct ReadBlock <: AbstractBlock
     instrnm::String
@@ -91,17 +96,17 @@ mutable struct ReadBlock <: AbstractBlock
     isasync::Bool
     isobserve::Bool
     isreading::Bool
+    istrycatch::Bool
     region::Vector{Float32}
 end
-ReadBlock() = ReadBlock("仪器", "", "地址", "", false, false, false, zeros(4))
+ReadBlock() = ReadBlock("仪器", "", "地址", "", false, false, false, false, zeros(4))
 
 mutable struct SaveBlock <: AbstractBlock
     varname::String
     mark::String
-    isasync::Bool
     region::Vector{Float32}
 end
-SaveBlock() = SaveBlock("", "", false, zeros(4))
+SaveBlock() = SaveBlock("", "", zeros(4))
 
 ############tocodes-----------------------------------------------------------------------------------------------------
 
@@ -195,6 +200,17 @@ function tocodes(bk::SweepBlock)
             $sweeplist[end] == $stop || push!($sweeplist, $stop)
         end
     end
+    ex2 = if bk.istrycatch
+        quote
+            try
+                controllers[$instr]($setfunc, CPU, string($ijk), Val(:write))
+            catch e
+                @error "[$(now)]\n仪器通信故障！！！" instrument = $(string(bk.instr, ": ", bk.addr)) exception = e
+            end
+        end
+    else
+        :(controllers[$instr]($setfunc, CPU, string($ijk), Val(:write)))
+    end
     return quote
         $ex1
         @progress for $ijk in $sweeplist
@@ -207,7 +223,7 @@ function tocodes(bk::SweepBlock)
                 @warn "[$(now())]\n中断！" SweepBlock = $instr
                 return
             end
-            controllers[$instr]($setfunc, CPU, string($ijk), Val(:write))
+            $ex2
             sleep($(bk.delay))
             $interpcodes
         end
@@ -231,7 +247,17 @@ function tocodes(bk::SettingBlock)
         setvalue = Expr(:call, float, Expr(:call, :*, setvaluec, Uchange))
     end
     setfunc = Symbol(bk.instrnm, :_, bk.quantity, :_set)
-    return :(controllers[$instr]($setfunc, CPU, string($setvalue), Val(:write)))
+    return if bk.istrycatch
+        quote
+            try
+                :(controllers[$instr]($setfunc, CPU, string($setvalue), Val(:write)))
+            catch e
+                @error "[$(now)]\n仪器通信故障！！！" instrument = $(string(bk.instr, ": ", bk.addr)) exception = e
+            end
+        end
+    else
+        :(controllers[$instr]($setfunc, CPU, string($setvalue), Val(:write)))
+    end
 end
 
 function tocodes(bk::ReadingBlock)
@@ -244,20 +270,24 @@ function tocodes(bk::ReadingBlock)
     index isa Integer && (index = [index])
     if isnothing(index)
         key = string(bk.mark, "_", bk.instrnm, "_", bk.quantity, "_", bk.addr)
-        getdata = :(controllers[$instr]($getfunc, CPU, Val(:read)))
+        getdata = if bk.istrycatch
+            quote
+                try
+                    :(controllers[$instr]($getfunc, CPU, Val(:read)))
+                catch e
+                    @error "[$(now)]\n仪器通信故障！！！" instrument = $(string(bk.instr, ": ", bk.addr)) exception = e
+                    ""
+                end
+            end
+        else
+            :(controllers[$instr]($getfunc, CPU, Val(:read)))
+        end
         if bk.isobserve
             observable = Symbol(bk.mark)
-            if bk.isasync
-                return bk.isreading ? quote
-                    $observable = $getdata
-                    @async put!(databuf_lc, ($key, $observable))
-                end : :($observable = $getdata)
-            else
-                return bk.isreading ? quote
-                    $observable = $getdata
-                    put!(databuf_lc, ($key, $observable))
-                end : :($observable = $getdata)
-            end
+            return bk.isreading ? quote
+                $observable = $getdata
+                put!(databuf_lc, ($key, $observable))
+            end : :($observable = $getdata)
         else
             ex = :(put!(databuf_lc, ($key, $getdata)))
             return bk.isasync ? quote
@@ -278,25 +308,26 @@ function tocodes(bk::ReadingBlock)
             string(mark, "_", bk.instrnm, "_", bk.quantity, "[", ind, "]", "_", bk.addr)
             for (mark, ind) in zip(marks, index)
         ]
-        getdata = :(string.(split(controllers[$instr]($getfunc, CPU, Val(:read)), ",")[collect($index)]))
+        getdata = if bk.istrycatch
+            quote
+                try
+                    :(string.(split(controllers[$instr]($getfunc, CPU, Val(:read)), ",")[collect($index)]))
+                catch e
+                    @error "[$(now)]\n仪器通信故障！！！" instrument = $(string(bk.instr, ": ", bk.addr)) exception = e
+                    fill("", length(index))
+                end
+            end
+        else
+            :(string.(split(controllers[$instr]($getfunc, CPU, Val(:read)), ",")[collect($index)]))
+        end
         if bk.isobserve
             observable = Symbol(bk.mark)
-            if bk.isasync
-                bk.isreading ? quote
-                    $observable = $getdata
-                    @async for data in zip($keyall, $observable)
-                        put!(databuf_lc, data)
-                        yield()
-                    end
-                end : :($observable = $getdata)
-            else
-                bk.isreading ? quote
-                    $observable = $getdata
-                    for data in zip($keyall, $observable)
-                        put!(databuf_lc, data)
-                    end
-                end : :($observable = $getdata)
-            end
+            return bk.isreading ? quote
+                $observable = $getdata
+                for data in zip($keyall, $observable)
+                    put!(databuf_lc, data)
+                end
+            end : :($observable = $getdata)
         else
             if bk.isasync
                 return quote
@@ -321,7 +352,17 @@ tocodes(::LogBlock) = :(remotecall_wait(eval, 1, :(log_instrbufferviewers())))
 function tocodes(bk::WriteBlock)
     instr = string(bk.instrnm, "_", bk.addr)
     cmd = parsedollar(bk.cmd)
-    ex = :(controllers[$instr](write, CPU, string($cmd), Val(:write)))
+    ex = if bk.istrycatch
+        quote
+            try
+                :(controllers[$instr](write, CPU, string($cmd), Val(:write)))
+            catch e
+                @error "[$(now)]\n仪器通信故障！！！" instrument = $(string(bk.instr, ": ", bk.addr)) exception = e
+            end
+        end
+    else
+        :(controllers[$instr](write, CPU, string($cmd), Val(:write)))
+    end
     return bk.isasync ? quote
         @async begin
             $ex
@@ -339,20 +380,24 @@ function tocodes(bk::QueryBlock)
     cmd = parsedollar(bk.cmd)
     if isnothing(index)
         key = string(bk.mark, "_", bk.instrnm, "_", bk.addr)
-        getdata = :(controllers[$instr](query, CPU, string($cmd), Val(:query)))
+        getdata = if bk.istrycatch
+            quote
+                try
+                    :(controllers[$instr](query, CPU, string($cmd), Val(:query)))
+                catch e
+                    @error "[$(now)]\n仪器通信故障！！！" instrument = $(string(bk.instr, ": ", bk.addr)) exception = e
+                    ""
+                end
+            end
+        else
+            :(controllers[$instr](query, CPU, string($cmd), Val(:query)))
+        end
         if bk.isobserve
             observable = Symbol(bk.mark)
-            if bk.isasync
-                return bk.isreading ? quote
-                    $observable = $getdata
-                    @async put!(databuf_lc, ($key, $observable))
-                end : :($observable = $getdata)
-            else
-                return bk.isreading ? quote
-                    $observable = $getdata
-                    put!(databuf_lc, ($key, $observable))
-                end : :($observable = $getdata)
-            end
+            return bk.isreading ? quote
+                $observable = $getdata
+                put!(databuf_lc, ($key, $observable))
+            end : :($observable = $getdata)
         else
             ex = :(put!(databuf_lc, ($key, $getdata)))
             return bk.isasync ? quote
@@ -370,25 +415,26 @@ function tocodes(bk::QueryBlock)
             marks[i] == "" && (marks[i] = "mark$i")
         end
         keyall = [string(mark, "_", bk.instrnm, "[", ind, "]", "_", bk.addr) for (mark, ind) in zip(marks, index)]
-        getdata = :(string.(split(controllers[$instr](query, CPU, $cmd, Val(:query)), ",")[collect($index)]))
+        getdata = if bk.istrycatch
+            quote
+                try
+                    :(string.(split(controllers[$instr](query, CPU, $cmd, Val(:query)), ",")[collect($index)]))
+                catch e
+                    @error "[$(now)]\n仪器通信故障！！！" instrument = $(string(bk.instr, ": ", bk.addr)) exception = e
+                    fill("", length(index))
+                end
+            end
+        else
+            :(string.(split(controllers[$instr](query, CPU, $cmd, Val(:query)), ",")[collect($index)]))
+        end
         if bk.isobserve
             observable = Symbol(bk.mark)
-            if bk.isasync
-                bk.isreading ? quote
-                    $observable = $getdata
-                    @async for data in zip($keyall, $observable)
-                        put!(databuf_lc, data)
-                        yield()
-                    end
-                end : :($observable = $getdata)
-            else
-                bk.isreading ? quote
-                    $observable = $getdata
-                    for data in zip($keyall, $observable)
-                        put!(databuf_lc, data)
-                    end
-                end : :($observable = $getdata)
-            end
+            bk.isreading ? quote
+                $observable = $getdata
+                for data in zip($keyall, $observable)
+                    put!(databuf_lc, data)
+                end
+            end : :($observable = $getdata)
         else
             if bk.isasync
                 return quote
@@ -417,20 +463,24 @@ function tocodes(bk::ReadBlock)
     index isa Integer && (index = [index])
     if isnothing(index)
         key = string(bk.mark, "_", bk.instrnm, "_", bk.addr)
-        getdata = :(controllers[$instr](read, CPU, Val(:read)))
+        getdata = if bk.istrycatch
+            quote
+                try
+                    :(controllers[$instr](read, CPU, Val(:read)))
+                catch e
+                    @error "[$(now)]\n仪器通信故障！！！" instrument = $(string(bk.instr, ": ", bk.addr)) exception = e
+                    ""
+                end
+            end
+        else
+            :(controllers[$instr](read, CPU, Val(:read)))
+        end
         if bk.isobserve
             observable = Symbol(bk.mark)
-            if bk.isasync
-                return bk.isreading ? quote
-                    $observable = $getdata
-                    @async put!(databuf_lc, ($key, $observable))
-                end : :($observable = $getdata)
-            else
-                return bk.isreading ? quote
-                    $observable = $getdata
-                    put!(databuf_lc, ($key, $observable))
-                end : :($observable = $getdata)
-            end
+            return bk.isreading ? quote
+                $observable = $getdata
+                put!(databuf_lc, ($key, $observable))
+            end : :($observable = $getdata)
         else
             ex = :(put!(databuf_lc, ($key, $getdata)))
             return bk.isasync ? quote
@@ -448,25 +498,26 @@ function tocodes(bk::ReadBlock)
             marks[i] == "" && (marks[i] = "mark$i")
         end
         keyall = [string(mark, "_", bk.instrnm, "[", ind, "]", "_", bk.addr) for (mark, ind) in zip(marks, index)]
-        getdata = :(string.(split(controllers[$instr](read, CPU, Val(:read)), ",")[collect($index)]))
+        getdata = if bk.istrycatch
+            quote
+                try
+                    :(string.(split(controllers[$instr](read, CPU, Val(:read)), ",")[collect($index)]))
+                catch e
+                    @error "[$(now)]\n仪器通信故障！！！" instrument = $(string(bk.instr, ": ", bk.addr)) exception = e
+                    fill("", length(index))
+                end
+            end
+        else
+            :(string.(split(controllers[$instr](read, CPU, Val(:read)), ",")[collect($index)]))
+        end
         if bk.isobserve
             observable = Symbol(bk.mark)
-            if bk.isasync
-                bk.isreading ? quote
-                    $observable = $getdata
-                    @async for data in zip($keyall, $observable)
-                        put!(databuf_lc, data)
-                        yield()
-                    end
-                end : :($observable = $getdata)
-            else
-                bk.isreading ? quote
-                    $observable = $getdata
-                    for data in zip($keyall, $observable)
-                        put!(databuf_lc, data)
-                    end
-                end : :($observable = $getdata)
-            end
+            bk.isreading ? quote
+                $observable = $getdata
+                for data in zip($keyall, $observable)
+                    put!(databuf_lc, data)
+                end
+            end : :($observable = $getdata)
         else
             if bk.isasync
                 return quote
@@ -487,16 +538,11 @@ function tocodes(bk::ReadBlock)
 end
 function tocodes(bk::SaveBlock)
     var = Symbol(bk.varname)
-    ex = if rstrip(bk.mark, ' ') == ""
+    return if rstrip(bk.mark, ' ') == ""
         :(put!(databuf_lc, ($(bk.varname), string($var))))
     else
         :(put!(databuf_lc, ($(bk.mark), string($var))))
     end
-    return bk.isasync ? quote
-        @async begin
-            $ex
-        end
-    end : ex
 end
 
 ############bkheight----------------------------------------------------------------------------------------------------
@@ -558,7 +604,8 @@ function edit(bk::SweepBlock)
     CImGui.PushStyleVar(CImGui.ImGuiStyleVar_ItemSpacing, (Float32(2), unsafe_load(imguistyle.ItemSpacing.y)))
     CImGui.PushStyleColor(CImGui.ImGuiCol_Border, bdc)
     CImGui.BeginChild("##SweepBlock", (Float32(0), bkheight(bk)), true)
-    CImGui.TextColored(morestyle.Colors.BlockIcons, morestyle.Icons.SweepBlock)
+    CImGui.TextColored(bk.istrycatch ? morestyle.Colors.BlockTrycatch : morestyle.Colors.BlockIcons, morestyle.Icons.SweepBlock)
+    CImGui.IsItemClicked(2) && (bk.istrycatch ⊻= true)
     CImGui.SameLine()
     width = (CImGui.GetContentRegionAvailWidth() - 2CImGui.GetFontSize()) / 5
     CImGui.PushItemWidth(width)
@@ -632,7 +679,8 @@ end
 function edit(bk::SettingBlock)
     CImGui.PushStyleVar(CImGui.ImGuiStyleVar_ItemSpacing, (Float32(2), unsafe_load(imguistyle.ItemSpacing.y)))
     CImGui.BeginChild("##SettingBlock", (Float32(0), bkheight(bk)), true)
-    CImGui.TextColored(morestyle.Colors.BlockIcons, morestyle.Icons.SettingBlock)
+    CImGui.TextColored(bk.istrycatch ? morestyle.Colors.BlockTrycatch : morestyle.Colors.BlockIcons, morestyle.Icons.SettingBlock)
+    CImGui.IsItemClicked(2) && (bk.istrycatch ⊻= true)
     CImGui.SameLine()
     width = (CImGui.GetContentRegionAvailWidth() - 2CImGui.GetFontSize()) / 5
     CImGui.PushItemWidth(width)
@@ -706,7 +754,7 @@ function edit(bk::SettingBlock)
 end
 
 function edit(bk::ReadingBlock)
-    bdc = if bk.isasync
+    bdc = if bk.isasync && !bk.isobserve
         ImVec4(morestyle.Colors.BlockAsyncBorder...)
     else
         CImGui.c_get(imguistyle.Colors, CImGui.ImGuiCol_Border)
@@ -714,7 +762,8 @@ function edit(bk::ReadingBlock)
     CImGui.PushStyleVar(CImGui.ImGuiStyleVar_ItemSpacing, (Float32(2), unsafe_load(imguistyle.ItemSpacing.y)))
     CImGui.PushStyleColor(CImGui.ImGuiCol_Border, bdc)
     CImGui.BeginChild("##ReadingBlock", (Float32(0), bkheight(bk)), true)
-    CImGui.TextColored(morestyle.Colors.BlockIcons, morestyle.Icons.ReadingBlock)
+    CImGui.TextColored(bk.istrycatch ? morestyle.Colors.BlockTrycatch : morestyle.Colors.BlockIcons, morestyle.Icons.ReadingBlock)
+    CImGui.IsItemClicked(2) && (bk.istrycatch ⊻= true)
     CImGui.SameLine()
     width = (CImGui.GetContentRegionAvailWidth() - 2CImGui.GetFontSize()) / 5
     CImGui.PushItemWidth(width)
@@ -766,10 +815,6 @@ function edit(bk::ReadingBlock)
     @c InputTextWithHintRSZ("##ReadingBlock", "标注", &bk.mark)
     CImGui.PopItemWidth()
     CImGui.PopStyleColor()
-    CImGui.SameLine()
-
-    CImGui.EndChild()
-    CImGui.IsItemClicked(0) && (bk.isasync ⊻= true)
     if CImGui.IsItemClicked(2)
         if bk.isobserve
             bk.isreading ? (bk.isobserve = false; bk.isreading = false) : (bk.isreading = true)
@@ -777,6 +822,9 @@ function edit(bk::ReadingBlock)
             bk.isobserve = true
         end
     end
+
+    CImGui.EndChild()
+    CImGui.IsItemClicked(0) && (bk.isasync ⊻= true)
     CImGui.PopStyleColor()
     CImGui.PopStyleVar()
 end
@@ -798,7 +846,8 @@ function edit(bk::WriteBlock)
     CImGui.PushStyleColor(CImGui.ImGuiCol_Border, bdc)
     CImGui.PushStyleVar(CImGui.ImGuiStyleVar_ItemSpacing, (Float32(2), unsafe_load(imguistyle.ItemSpacing.y)))
     CImGui.BeginChild("##WriteBlock", (Float32(0), bkheight(bk)), true)
-    CImGui.TextColored(morestyle.Colors.BlockIcons, morestyle.Icons.WriteBlock)
+    CImGui.TextColored(bk.istrycatch ? morestyle.Colors.BlockTrycatch : morestyle.Colors.BlockIcons, morestyle.Icons.SweepBlock)
+    CImGui.IsItemClicked(2) && (bk.istrycatch ⊻= true)
     CImGui.SameLine()
     width = (CImGui.GetContentRegionAvailWidth() - 2CImGui.GetFontSize()) / 5
     CImGui.PushItemWidth(width)
@@ -825,7 +874,7 @@ function edit(bk::WriteBlock)
 end
 
 function edit(bk::QueryBlock)
-    bdc = if bk.isasync
+    bdc = if bk.isasync && !bk.isobserve
         ImVec4(morestyle.Colors.BlockAsyncBorder...)
     else
         CImGui.c_get(imguistyle.Colors, CImGui.ImGuiCol_Border)
@@ -833,7 +882,8 @@ function edit(bk::QueryBlock)
     CImGui.PushStyleColor(CImGui.ImGuiCol_Border, bdc)
     CImGui.PushStyleVar(CImGui.ImGuiStyleVar_ItemSpacing, (Float32(2), unsafe_load(imguistyle.ItemSpacing.y)))
     CImGui.BeginChild("##QueryBlock", (Float32(0), bkheight(bk)), true)
-    CImGui.TextColored(morestyle.Colors.BlockIcons, morestyle.Icons.QueryBlock)
+    CImGui.TextColored(bk.istrycatch ? morestyle.Colors.BlockTrycatch : morestyle.Colors.BlockIcons, morestyle.Icons.SweepBlock)
+    CImGui.IsItemClicked(2) && (bk.istrycatch ⊻= true)
     CImGui.SameLine()
     width = (CImGui.GetContentRegionAvailWidth() - 2CImGui.GetFontSize()) / 5
     CImGui.PushItemWidth(width)
@@ -870,9 +920,6 @@ function edit(bk::QueryBlock)
     @c InputTextWithHintRSZ("##QueryBlock Mark", "标注", &bk.mark)
     CImGui.PopItemWidth()
     CImGui.PopStyleColor() #标注
-
-    CImGui.EndChild()
-    CImGui.IsItemClicked(0) && (bk.isasync ⊻= true)
     if CImGui.IsItemClicked(2)
         if bk.isobserve
             bk.isreading ? (bk.isobserve = false; bk.isreading = false) : (bk.isreading = true)
@@ -880,12 +927,15 @@ function edit(bk::QueryBlock)
             bk.isobserve = true
         end
     end
+
+    CImGui.EndChild()
+    CImGui.IsItemClicked(0) && (bk.isasync ⊻= true)
     CImGui.PopStyleVar()
     CImGui.PopStyleColor()
 end
 
 function edit(bk::ReadBlock)
-    bdc = if bk.isasync
+    bdc = if bk.isasync && !bk.isobserve
         ImVec4(morestyle.Colors.BlockAsyncBorder...)
     else
         CImGui.c_get(imguistyle.Colors, CImGui.ImGuiCol_Border)
@@ -893,7 +943,8 @@ function edit(bk::ReadBlock)
     CImGui.PushStyleColor(CImGui.ImGuiCol_Border, bdc)
     CImGui.PushStyleVar(CImGui.ImGuiStyleVar_ItemSpacing, (Float32(2), unsafe_load(imguistyle.ItemSpacing.y)))
     CImGui.BeginChild("##ReadBlock", (Float32(0), bkheight(bk)), true)
-    CImGui.TextColored(morestyle.Colors.BlockIcons, morestyle.Icons.ReadBlock)
+    CImGui.TextColored(bk.istrycatch ? morestyle.Colors.BlockTrycatch : morestyle.Colors.BlockIcons, morestyle.Icons.SweepBlock)
+    CImGui.IsItemClicked(2) && (bk.istrycatch ⊻= true)
     CImGui.SameLine()
     width = (CImGui.GetContentRegionAvailWidth() - 2CImGui.GetFontSize()) / 5
     CImGui.PushItemWidth(width)
@@ -925,9 +976,6 @@ function edit(bk::ReadBlock)
     @c InputTextWithHintRSZ("##ReadBlock Mark", "标注", &bk.mark)
     CImGui.PopItemWidth()
     CImGui.PopStyleColor() #标注
-
-    CImGui.EndChild()
-    CImGui.IsItemClicked() && (bk.isasync ⊻= true)
     if CImGui.IsItemClicked(2)
         if bk.isobserve
             bk.isreading ? (bk.isobserve = false; bk.isreading = false) : (bk.isreading = true)
@@ -935,17 +983,14 @@ function edit(bk::ReadBlock)
             bk.isobserve = true
         end
     end
+
+    CImGui.EndChild()
+    CImGui.IsItemClicked() && (bk.isasync ⊻= true)
     CImGui.PopStyleVar()
     CImGui.PopStyleColor()
 end
 
 function edit(bk::SaveBlock)
-    bdc = if bk.isasync
-        ImVec4(morestyle.Colors.BlockAsyncBorder...)
-    else
-        CImGui.c_get(imguistyle.Colors, CImGui.ImGuiCol_Border)
-    end
-    CImGui.PushStyleColor(CImGui.ImGuiCol_Border, bdc)
     CImGui.PushStyleVar(CImGui.ImGuiStyleVar_ItemSpacing, (Float32(2), unsafe_load(imguistyle.ItemSpacing.y)))
     CImGui.BeginChild("##SaveBlock", (Float32(0), bkheight(bk)), true)
     CImGui.TextColored(morestyle.Colors.BlockIcons, morestyle.Icons.SaveBlock)
@@ -958,9 +1003,7 @@ function edit(bk::SaveBlock)
     @c InputTextWithHintRSZ("##SaveBlock Var", "变量", &bk.varname)
     CImGui.PopItemWidth()
     CImGui.EndChild()
-    CImGui.IsItemClicked() && (bk.isasync ⊻= true)
     CImGui.PopStyleVar()
-    CImGui.PopStyleColor()
 end
 
 function mousein(bk::AbstractBlock, total=false)::Bool
@@ -1446,6 +1489,7 @@ function Base.show(io::IO, bk::SweepBlock)
               stop : $(bk.stop)
               unit : $u
              delay : $(bk.delay)
+          trycatch : $(bk.istrycatch)
               body :
     """
     print(io, str)
@@ -1469,6 +1513,7 @@ function Base.show(io::IO, bk::SettingBlock)
           quantity : $(bk.quantity)
          set value : $(bk.setvalue)
               unit : $u
+          trycatch : $(bk.istrycatch)
     """
     print(io, str)
 end
@@ -1484,6 +1529,7 @@ function Base.show(io::IO, bk::ReadingBlock)
              async : $(bk.isasync)
            observe : $(bk.isobserve)
            reading : $(bk.isreading)
+          trycatch : $(bk.istrycatch)
     """
     print(io, str)
 end
@@ -1502,6 +1548,7 @@ function Base.show(io::IO, bk::WriteBlock)
            address : $(bk.addr)
            command : $(bk.cmd)
              async : $(bk.isasync)
+          trycatch : $(bk.istrycatch)
     """
     print(io, str)
 end
@@ -1517,6 +1564,7 @@ function Base.show(io::IO, bk::QueryBlock)
              async : $(bk.isasync)
            observe : $(bk.isobserve)
            reading : $(bk.isreading)
+          trycatch : $(bk.istrycatch)
     """
     print(io, str)
 end
@@ -1531,6 +1579,7 @@ function Base.show(io::IO, bk::ReadBlock)
              async : $(bk.isasync)
            observe : $(bk.isobserve)
            reading : $(bk.isreading)
+          trycatch : $(bk.istrycatch)
     """
     print(io, str)
 end
@@ -1540,7 +1589,6 @@ function Base.show(io::IO, bk::SaveBlock)
             region : $(bk.region)
               mark : $(bk.mark)
                var : $(bk.varname)
-             async : $(bk.isasync)
     """
     print(io, str)
 end
