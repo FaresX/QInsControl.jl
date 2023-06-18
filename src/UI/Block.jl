@@ -1237,7 +1237,7 @@ function view(bk::SweepBlock)
     end
     units::Vector{String} = string.(conf.U[Ut])
     showu = @trypass units[bk.ui] ""
-    CImGui.TextColored(morestyle.Colors.BlockIcons, morestyle.Icons.SweepBlock)
+    CImGui.TextColored(bk.istrycatch ? morestyle.Colors.BlockTrycatch : morestyle.Colors.BlockIcons, morestyle.Icons.SweepBlock)
     CImGui.SameLine()
     CImGui.PushStyleVar(CImGui.ImGuiStyleVar_ButtonTextAlign, (0.0, 0.5))
     CImGui.Button(
@@ -1269,7 +1269,7 @@ function view(bk::SettingBlock)
     end
     units::Vector{String} = string.(conf.U[Ut])
     showu = @trypass units[bk.ui] ""
-    CImGui.TextColored(morestyle.Colors.BlockIcons, morestyle.Icons.SettingBlock)
+    CImGui.TextColored(bk.istrycatch ? morestyle.Colors.BlockTrycatch : morestyle.Colors.BlockIcons, morestyle.Icons.SettingBlock)
     CImGui.SameLine()
     CImGui.PushStyleVar(CImGui.ImGuiStyleVar_ButtonTextAlign, (0.0, 0.5))
     CImGui.Button(
@@ -1300,7 +1300,7 @@ function view(bk::ReadingBlock)
         CImGui.c_get(imguistyle.Colors, CImGui.ImGuiCol_Text)
     end
     bk.isobserve && bk.isreading && (markc = ImVec4(morestyle.Colors.BlockObserveReadingBG...))
-    CImGui.TextColored(morestyle.Colors.BlockIcons, morestyle.Icons.ReadingBlock)
+    CImGui.TextColored(bk.istrycatch ? morestyle.Colors.BlockTrycatch : morestyle.Colors.BlockIcons, morestyle.Icons.ReadingBlock)
     CImGui.SameLine()
     CImGui.PushStyleColor(CImGui.ImGuiCol_Text, markc)
     CImGui.PushStyleVar(CImGui.ImGuiStyleVar_ButtonTextAlign, (0.0, 0.5))
@@ -1336,7 +1336,7 @@ function view(bk::WriteBlock)
     end
     CImGui.PushStyleColor(CImGui.ImGuiCol_Border, bdc)
     CImGui.BeginChild("##WriteBlockViewer", (Float32(0), bkheight(bk)), true)
-    CImGui.TextColored(morestyle.Colors.BlockIcons, morestyle.Icons.WriteBlock)
+    CImGui.TextColored(bk.istrycatch ? morestyle.Colors.BlockTrycatch : morestyle.Colors.BlockIcons, morestyle.Icons.WriteBlock)
     CImGui.SameLine()
     CImGui.PushStyleVar(CImGui.ImGuiStyleVar_ButtonTextAlign, (0.0, 0.5))
     CImGui.Button(
@@ -1366,7 +1366,7 @@ function view(bk::QueryBlock)
         CImGui.c_get(imguistyle.Colors, CImGui.ImGuiCol_Text)
     end
     bk.isobserve && bk.isreading && (markc = ImVec4(morestyle.Colors.BlockObserveReadingBG...))
-    CImGui.TextColored(morestyle.Colors.BlockIcons, morestyle.Icons.QueryBlock)
+    CImGui.TextColored(bk.istrycatch ? morestyle.Colors.BlockTrycatch : morestyle.Colors.BlockIcons, morestyle.Icons.QueryBlock)
     CImGui.SameLine()
     CImGui.PushStyleColor(CImGui.ImGuiCol_Text, markc)
     CImGui.PushStyleVar(CImGui.ImGuiStyleVar_ButtonTextAlign, (0.0, 0.5))
@@ -1400,7 +1400,7 @@ function view(bk::ReadBlock)
         CImGui.c_get(imguistyle.Colors, CImGui.ImGuiCol_Text)
     end
     bk.isobserve && bk.isreading && (markc = ImVec4(morestyle.Colors.BlockObserveReadingBG...))
-    CImGui.TextColored(morestyle.Colors.BlockIcons, morestyle.Icons.ReadBlock)
+    CImGui.TextColored(bk.istrycatch ? morestyle.Colors.BlockTrycatch : morestyle.Colors.BlockIcons, morestyle.Icons.ReadBlock)
     CImGui.SameLine()
     CImGui.PushStyleColor(CImGui.ImGuiCol_Text, markc)
     CImGui.PushStyleVar(CImGui.ImGuiStyleVar_ButtonTextAlign, (0.0, 0.5))
@@ -1420,12 +1420,6 @@ function view(bk::ReadBlock)
 end
 
 function view(bk::SaveBlock)
-    bdc = if bk.isasync
-        ImVec4(morestyle.Colors.BlockAsyncBorder...)
-    else
-        CImGui.c_get(imguistyle.Colors, CImGui.ImGuiCol_Border)
-    end
-    CImGui.PushStyleColor(CImGui.ImGuiCol_Border, bdc)
     CImGui.BeginChild("##SaveBlock", (Float32(0), bkheight(bk)), true)
     CImGui.TextColored(morestyle.Colors.BlockIcons, morestyle.Icons.SaveBlock)
     CImGui.SameLine()
@@ -1433,7 +1427,6 @@ function view(bk::SaveBlock)
     CImGui.Button(string("标注：", bk.mark, " 变量：", bk.varname), (-1, 0))
     CImGui.PopStyleVar()
     CImGui.EndChild()
-    CImGui.PopStyleColor()
 end
 
 function view(blocks::Vector{AbstractBlock})

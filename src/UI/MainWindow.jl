@@ -45,6 +45,11 @@ let
         for dtv in dtviewers
             dtv[1].p_open = false
         end
+        for ins in keys(instrbufferviewers)
+            for (_, ibv) in instrbufferviewers[ins]
+                ibv.p_open = false
+            end
+        end
     end
 
     global function MainWindow()
@@ -97,8 +102,7 @@ let
         show_cpu_monitor && @c CPUMonitor(&show_cpu_monitor)
         show_instr_buffer && @c ShowInstrBuffer(&show_instr_buffer)
         for ins in keys(instrbufferviewers)
-            for addr in keys(instrbufferviewers[ins])
-                ibv = instrbufferviewers[ins][addr]
+            for (_, ibv) in instrbufferviewers[ins]
                 ibv.p_open && edit(ibv)
             end
         end
