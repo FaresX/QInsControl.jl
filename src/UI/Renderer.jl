@@ -1,6 +1,4 @@
-global window::Ptr{GLFWwindow}
-
-function UI()
+function UI(breakdown=false)
     glfwDefaultWindowHints()
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3)
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 2)
@@ -115,6 +113,8 @@ function UI()
     global imnodesstyle = imnodes_GetStyle()
     global morestyle = MoreStyle()
     haskey(styles, conf.Style.default) && loadstyle(styles[conf.Style.default])
+
+    breakdown && closeallwindow()
 
     @async try
         clear_color = Cfloat[0.45, 0.55, 0.60, 1.00]

@@ -4,7 +4,7 @@ let
     show_cpu_monitor::Bool = false
     show_instr_buffer::Bool = false
     show_daq::Bool = false
-    
+
     show_console::Bool = false
     show_metrics::Bool = false
     # show_debug = false
@@ -29,6 +29,24 @@ let
     # window_class = ImGuiWindowClass_ImGuiWindowClass()
     # labels = ["a", "b", "c", "d", "e"]
     # states = falses(5)
+    global function closeallwindow()
+        show_preferences = false
+        show_instr_register = false
+        show_cpu_monitor = false
+        show_instr_buffer = false
+        show_daq = false
+
+        show_console = false
+        show_metrics = false
+        # show_debug = false
+        show_logger = false
+        # show_helppad = false
+        show_about = false
+        for dtv in dtviewers
+            dtv[1].p_open = false
+        end
+    end
+
     global function MainWindow()
         window_flags = UInt32(0)
         no_titlebar && (window_flags |= CImGui.ImGuiWindowFlags_NoTitleBar)
@@ -41,7 +59,7 @@ let
         no_background && (window_flags |= CImGui.ImGuiWindowFlags_NoBackground)
         no_bring_to_front && (window_flags |= CImGui.ImGuiWindowFlags_NoBringToFrontOnFocus)
         no_docking && (window_flags |= CImGui.ImGuiWindowFlags_NoDocking)
-        
+
         ######加载背景######
         # igDockSpaceOverViewport(igGetMainViewport(), ImGuiDockNodeFlags_None, C_NULL)
         viewport = igGetMainViewport()
@@ -129,7 +147,7 @@ let
                         if dtv[2].rootpath_bnm != ""
                             @c CImGui.MenuItem(basename(dtv[2].rootpath), C_NULL, &dtv[1].p_open)
                             if CImGui.BeginPopupContextItem()
-                                if CImGui.MenuItem(morestyle.Icons.InstrumentsAutoRef*" 刷新")
+                                if CImGui.MenuItem(morestyle.Icons.InstrumentsAutoRef * " 刷新")
                                     dtv[2].filetrees = FolderFileTree(dtv[2].rootpath, dtv[2].selectedpath).filetrees
                                 end
                                 CImGui.MenuItem(morestyle.Icons.CloseFile * " 关闭") && (dtv[1].noclose = false)
