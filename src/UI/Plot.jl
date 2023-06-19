@@ -53,12 +53,11 @@ let
             else
                 xlims, ylims, zlims, xlabel, ylabel = xyzsetting(uip)
                 @c Plot(
-                    uip.z, &uip.zlabel, uip.ps;
+                    uip.z, &uip.zlabel, &uip.cmap, uip.ps;
                     psize=CImGui.ImVec2(-1, -1),
                     title=uip.title,
                     xlabel=xlabel,
                     ylabel=ylabel,
-                    cmap=uip.cmap,
                     xlims=xlims,
                     ylims=ylims,
                     zlims=zlims,
@@ -209,13 +208,12 @@ end
 
 let
     width_list::Dict{String,Cfloat} = Dict()
-    global function Plot(z::Matrix{Float64}, zlabel::Ref, ps::PlotState;
+    global function Plot(z::Matrix{Float64}, zlabel::Ref{String}, cmap::Ref{Cint}, ps::PlotState;
         psize=CImGui.ImVec2(0, 0),
         ptype="heatmap",
         title="title",
         xlabel="x",
         ylabel="y",
-        cmap=Cint(ImPlot.ImPlotColormap_Viridis),
         xlims=(0, 1),
         ylims=(0, 1),
         zlims=(0, 1),
@@ -224,13 +222,13 @@ let
         CImGui.BeginChild("Heatmap", psize)
         CImGui.PushStyleVar(CImGui.ImGuiStyleVar_ItemSpacing, (0, 2))
         if ImPlot.ColormapButton(
-            unsafe_string(ImPlot.GetColormapName(cmap)),
+            unsafe_string(ImPlot.GetColormapName(cmap[])),
             ImVec2(Cfloat(-0.1), Cfloat(0)),
-            cmap
+            cmap[]
         )
-            cmap = (cmap + 1) % Cint(ImPlot.GetColormapCount())
+            cmap[] = (cmap[] + 1) % Cint(ImPlot.GetColormapCount())
         end
-        ImPlot.PushColormap(cmap)
+        ImPlot.PushColormap(cmap[])
         lb = ImPlot.ImPlotPoint(CImGui.ImVec2(xlims[1], ylims[1]))
         rt = ImPlot.ImPlotPoint(CImGui.ImVec2(xlims[2], ylims[2]))
         global savingimg
