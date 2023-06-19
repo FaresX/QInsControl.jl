@@ -249,7 +249,7 @@ let
             ps.phv = ImPlot.IsPlotHovered()
             ps.mspos = ImPlot.GetPlotMousePos()
             if ps.showtooltip && ps.phv && inregion(ps.mspos, [xlims[1], ylims[1], xlims[2], ylims[2]]) && !savingimg
-                zsz = size(z)
+                zsz = reverse(size(z))
                 xr = range(xlims[1], xlims[2], length=zsz[2])
                 yr = range(ylims[2], ylims[1], length=zsz[1])
                 xidx = argmin(abs.(xr .- ps.mspos.x))
