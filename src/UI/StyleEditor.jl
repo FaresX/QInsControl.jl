@@ -249,7 +249,7 @@ let
                 CImGui.BeginChild("imnodes Colors", (0, 0), false, CImGui.ImGuiWindowFlags_HorizontalScrollbar)
                 for col in instances(LibCImGui.ColorStyle)[1:end-1]
                     # ImGuiTextFilter_PassFilter(filter, pointer(string(col)), C_NULL) || continue
-                    (isvalid(filter) && occursin(lowercase(filter), lowercase(string(col)))) || continue
+                    (filter == "" || !isvalid(filter) || occursin(lowercase(filter), lowercase(string(col)))) || continue
                     col_imvec4 = CImGui.ColorConvertU32ToFloat4(CImGui.c_get(imnodesstyle.colors, col))
                     col_arr = [col_imvec4.x, col_imvec4.y, col_imvec4.z, col_imvec4.w]
                     CImGui.ColorEdit4(string(col), col_arr, CImGui.ImGuiColorEditFlags_AlphaBar | alpha_flags)
@@ -350,7 +350,7 @@ let
                 CImGui.BeginChild("Colors", (0, 0), false, CImGui.ImGuiWindowFlags_HorizontalScrollbar)
                 for color in fieldnames(MoreStyleColor)
                     # ImGuiTextFilter_PassFilter(filter, pointer(string(color)), C_NULL) || continue
-                    (isvalid(filter) && occursin(lowercase(filter), lowercase(string(color)))) || continue
+                    (filter == "" || !isvalid(filter) || occursin(lowercase(filter), lowercase(string(color)))) || continue
                     CImGui.ColorEdit4(
                         string(color),
                         getproperty(morestyle.Colors, color),

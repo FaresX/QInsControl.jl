@@ -45,7 +45,8 @@ function edit(filetree::FolderFileTree, isrename::Dict{String,Bool}, bnm=false)
 end
 
 function edit(filetree::FileFileTree, isrename::Dict{String,Bool}, ::Bool)
-    if !filetree.isdeleted || filetree.filter[] == "" || occursin(lowercase(filetree.filter[]), lowercase(filetree.filepath_bnm))
+    if !filetree.isdeleted && (filetree.filter[] == "" ||
+       !isvalid(filetree.filter[]) || occursin(lowercase(filetree.filter[]), lowercase(filetree.filepath_bnm)))
         filemenu(filetree, isrename)
     end
 end

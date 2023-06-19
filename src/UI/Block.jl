@@ -311,11 +311,7 @@ function tocodes(bk::ReadingBlock)
             string(mark, "_", bk.instrnm, "_", bk.quantity, "[", ind, "]", "_", bk.addr)
             for (mark, ind) in zip(marks, index)
         ]
-        getcmd = if length(index) == 1
-            :(only(string.(split(controllers[$instr]($getfunc, CPU, Val(:read)), ","))))
-        else
-            :(string.(split(controllers[$instr]($getfunc, CPU, Val(:read)), ",")[collect($index)]))
-        end
+        getcmd = :(string.(split(controllers[$instr]($getfunc, CPU, Val(:read)), ",")[collect($index)]))
         getdata = if bk.istrycatch
             quote
                 try
@@ -329,7 +325,7 @@ function tocodes(bk::ReadingBlock)
             getcmd
         end
         if bk.isobserve
-            observable = Symbol(bk.mark)
+            observable = length(index) == 1 ? Expr(:tuple, Symbol(bk.mark)) : Symbol(bk.mark)
             return bk.isreading ? quote
                 $observable = $getdata
                 for data in zip($keyall, $observable)
@@ -425,11 +421,7 @@ function tocodes(bk::QueryBlock)
             marks[i] == "" && (marks[i] = "mark$i")
         end
         keyall = [string(mark, "_", bk.instrnm, "[", ind, "]", "_", bk.addr) for (mark, ind) in zip(marks, index)]
-        getcmd = if length(index) == 1
-            :(only(string.(split(controllers[$instr](query, CPU, $cmd, Val(:query)), ","))))
-        else
-            :(string.(split(controllers[$instr](query, CPU, $cmd, Val(:query)), ",")[collect($index)]))
-        end
+        getcmd = :(string.(split(controllers[$instr](query, CPU, $cmd, Val(:query)), ",")[collect($index)]))
         getdata = if bk.istrycatch
             quote
                 try
@@ -443,7 +435,7 @@ function tocodes(bk::QueryBlock)
             getcmd
         end
         if bk.isobserve
-            observable = Symbol(bk.mark)
+            observable = length(index) == 1 ? Expr(:tuple, Symbol(bk.mark)) : Symbol(bk.mark)
             bk.isreading ? quote
                 $observable = $getdata
                 for data in zip($keyall, $observable)
@@ -514,11 +506,7 @@ function tocodes(bk::ReadBlock)
             marks[i] == "" && (marks[i] = "mark$i")
         end
         keyall = [string(mark, "_", bk.instrnm, "[", ind, "]", "_", bk.addr) for (mark, ind) in zip(marks, index)]
-        getcmd = if length(index) == 1
-            :(only(string.(split(controllers[$instr](read, CPU, Val(:read)), ","))))
-        else
-            :(string.(split(controllers[$instr](read, CPU, Val(:read)), ",")[collect($index)]))
-        end
+        getcmd = :(string.(split(controllers[$instr](read, CPU, Val(:read)), ",")[collect($index)]))
         getdata = if bk.istrycatch
             quote
                 try
@@ -532,7 +520,7 @@ function tocodes(bk::ReadBlock)
             getcmd
         end
         if bk.isobserve
-            observable = Symbol(bk.mark)
+            observable = length(index) == 1 ? Expr(:tuple, Symbol(bk.mark)) : Symbol(bk.mark)
             bk.isreading ? quote
                 $observable = $getdata
                 for data in zip($keyall, $observable)
@@ -1064,10 +1052,10 @@ let
                 rmin, rmax = CImGui.GetItemRectMin(), CImGui.GetItemRectMax()
                 wp = unsafe_load(imguistyle.WindowPadding.y)
                 extraheight = isempty(bk.blocks) ? wp : unsafe_load(imguistyle.ItemSpacing.y) ÷ 2
-                bk.region = [rmin.x, rmin.y, rmax.x, rmin.y + wp + CImGui.GetFrameHeight() + extraheight]
+                bk.region .= rmin.x, rmin.y, rmax.x, rmin.y + wp + CImGui.GetFrameHeight() + extraheight
             else
                 rmin, rmax = CImGui.GetItemRectMin(), CImGui.GetItemRectMax()
-                bk.region = [rmin.x, rmin.y, rmax.x, rmax.y]
+                bk.region .= rmin.x, rmin.y, rmax.x, rmax.y
             end
             CImGui.PopID()
             if CImGui.IsMouseDown(0)

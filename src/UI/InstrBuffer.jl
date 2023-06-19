@@ -1,4 +1,5 @@
 mutable struct InstrQuantity
+    # back end
     enable::Bool
     name::String
     alias::String
@@ -16,8 +17,11 @@ mutable struct InstrQuantity
     help::String
     isautorefresh::Bool
     issweeping::Bool
+    # front end
+    show_edit::String
+    show_view::String
 end
-InstrQuantity() = InstrQuantity(true, "", "", "", "", Cfloat(0.1), "", [], [], 1, "", "", 1, :set, "", false, false)
+InstrQuantity() = InstrQuantity(true, "", "", "", "", Cfloat(0.1), "", [], [], 1, "", "", 1, :set, "", false, false, "", "")
 InstrQuantity(name, qtcf::QuantityConf) = InstrQuantity(
     qtcf.enable,
     name,
@@ -35,8 +39,59 @@ InstrQuantity(name, qtcf::QuantityConf) = InstrQuantity(
     Symbol(qtcf.type),
     qtcf.help,
     false,
-    false
+    false,
+    "",
+    ""
 )
+
+function getvalU(qt::InstrQuantity)
+    Us = conf.U[qt.utype]
+    U = isempty(Us) ? "" : Us[qt.uindex]
+    U == "" || (Uchange::Float64 = Us[1] isa Unitful.FreeUnits ? ustrip(Us[1], 1U) : 1.0)
+    val = U == "" ? qt.read : @trypass string(parse(Float64, qt.read) / Uchange) qt.read
+    return val, U
+end
+
+function updatefront!(qt::InstrQuantity, ::Val{:sweep})
+    val, U = getvalU(qt)
+    content = string(
+        qt.alias,
+        "\n步长：", qt.step, " ", U,
+        "\n终点：", qt.stop, " ", U,
+        "\n延迟：", qt.delay, " s\n",
+        val, " ", U
+    ) |> centermultiline
+    qt.show_edit = string(content, "###for refresh")
+end
+
+function updatefront!(qt::InstrQuantity, ::Val{:set})
+    val, U = getvalU(qt)
+    if val in qt.optvalues
+        validx = findfirst(==(val), qt.optvalues)
+        val = string(qt.optkeys[validx], " => ", qt.optvalues[validx])
+    end
+    content = string(qt.alias, "\n \n设置值：", qt.set, " ", U, "\n \n", val, " ", U) |> centermultiline
+    qt.show_edit = string(content, "###for refresh")
+end
+
+function updatefront!(qt::InstrQuantity, ::Val{:read})
+    val, U = getvalU(qt)
+    content = string(qt.alias, "\n \n \n", val, " ", U, "\n ") |> centermultiline
+    qt.show_edit = string(content, "###for refresh")
+end
+
+function updatefront!(qt::InstrQuantity; show_edit=true)
+    if show_edit
+        updatefront!(qt, Val(qt.type))
+    else
+        val, U = getvalU(qt)
+        if qt.type == :set && val in qt.optvalues
+            validx = findfirst(==(val), qt.optvalues)
+            val = string(qt.optkeys[validx], " => ", qt.optvalues[validx])
+        end
+        qt.show_view = string(qt.alias, "\n", val, " ", U) |> centermultiline
+    end
+end
 
 mutable struct InstrBuffer
     instrnm::String
@@ -80,9 +135,12 @@ function InstrBuffer(instrnm)
                 type,
                 help,
                 false,
-                false
+                false,
+                "",
+                ""
             )
         )
+        updatefront!(instrqts[qt])
     end
     InstrBuffer(instrnm, instrqts, false, "")
 end
@@ -257,7 +315,7 @@ function testcmd(ins, addr, inputcmd::Ref{String}, readstr::Ref{String})
                         ct(write, CPU, inputcmd, Val(:write))
                         logout!(CPU, ct)
                     catch e
-                        @error "[$(now())]\n仪器通信故障！！！" instrument=string(ins, ": ", addr) exception = e
+                        @error "[$(now())]\n仪器通信故障！！！" instrument = string(ins, ": ", addr) exception = e
                         logout!(CPU, ct)
                     end
                 end
@@ -274,7 +332,7 @@ function testcmd(ins, addr, inputcmd::Ref{String}, readstr::Ref{String})
                         logout!(CPU, ct)
                         return readstr
                     catch e
-                        @error "[$(now())]\n仪器通信故障！！！" instrument=string(ins, ": ", addr) exception = e
+                        @error "[$(now())]\n仪器通信故障！！！" instrument = string(ins, ": ", addr) exception = e
                         logout!(CPU, ct)
                     end
                 end
@@ -292,7 +350,7 @@ function testcmd(ins, addr, inputcmd::Ref{String}, readstr::Ref{String})
                         logout!(CPU, ct)
                         return readstr
                     catch e
-                        @error "[$(now())]\n仪器通信故障！！！" instrument=string(ins, ": ", addr) exception = e
+                        @error "[$(now())]\n仪器通信故障！！！" instrument = string(ins, ": ", addr) exception = e
                         logout!(CPU, ct)
                     end
                 end
@@ -322,7 +380,7 @@ let
         CImGui.Columns(conf.InsBuf.showcol, C_NULL, false)
         for (i, qt) in enumerate(values(insbuf.quantities))
             qt.enable || continue
-            if isvalid(insbuf.filter)
+            if insbuf.filter != "" && isvalid(insbuf.filter)
                 if filtervarname
                     occursin(lowercase(insbuf.filter), lowercase(qt.name)) || continue
                 else
@@ -363,31 +421,16 @@ edit(qt::InstrQuantity, instrnm::String, addr::String) = edit(qt, instrnm, addr,
 
 let
     stbtsz::Float32 = 0
-    Us = []
-    U = ""
-    val::String = ""
-    content::String = ""
     global function edit(qt::InstrQuantity, instrnm::String, addr::String, ::Val{:sweep})
-        Us = conf.U[qt.utype]
-        U = isempty(Us) ? "" : Us[qt.uindex]
-        U == "" || (Uchange::Float64 = Us[1] isa Unitful.FreeUnits ? ustrip(Us[1], 1U) : 1.0)
-        val = U == "" ? qt.read : @trypass string(parse(Float64, qt.read) / Uchange) qt.read
-        content = string(
-            qt.alias,
-            "\n步长：", qt.step, " ", U,
-            "\n终点：", qt.stop, " ", U,
-            "\n延迟：", qt.delay, " s\n",
-            val, " ", U
-        ) |> centermultiline
-        content = string(content, "###for refresh")
         CImGui.PushStyleColor(
             CImGui.ImGuiCol_Button,
             qt.isautorefresh || qt.issweeping ? morestyle.Colors.DAQTaskRunning : CImGui.c_get(imguistyle.Colors, CImGui.ImGuiCol_Button)
         )
-        if CImGui.Button(content, (-1, 0))
+        if CImGui.Button(qt.show_edit, (-1, 0))
             if addr != ""
                 fetchdata = refresh_qt(instrnm, addr, qt.name)
                 isnothing(fetchdata) || (qt.read = fetchdata)
+                updatefront!(qt)
             end
         end
         CImGui.PopStyleColor()
@@ -406,6 +449,9 @@ let
             else
                 if CImGui.Button(" 开始 ", (-1, 0)) || CImGui.IsKeyDown(257) || CImGui.IsKeyDown(335)
                     if addr != ""
+                        Us = conf.U[qt.utype]
+                        U = isempty(Us) ? "" : Us[qt.uindex]
+                        U == "" || (Uchange::Float64 = Us[1] isa Unitful.FreeUnits ? ustrip(Us[1], 1U) : 1.0)
                         start = remotecall_fetch(workers()[1], instrnm, addr) do instrnm, addr
                             ct = Controller(instrnm, addr)
                             try
@@ -455,7 +501,7 @@ let
                                         end
                                     end
                                 catch e
-                                    @error "[$(now())]\n仪器通信故障！！！" instrument=string(instrnm, ": ", addr) quantity=qt.name exception = e
+                                    @error "[$(now())]\n仪器通信故障！！！" instrument = string(instrnm, ": ", addr) quantity = qt.name exception = e
                                 finally
                                     remotecall_wait(workers()[1], ct.id) do ctid
                                         logout!(CPU, sweepcts[ctid])
@@ -478,35 +524,24 @@ let
             CImGui.SameLine(0, 2CImGui.GetFontSize())
             @c CImGui.Checkbox("刷新", &qt.isautorefresh)
             CImGui.EndPopup()
+            updatefront!(qt)
         end
+        (qt.issweeping || qt.isautorefresh) && updatefront!(qt)
     end
 end #let
 
 let
     triggerset::Bool = false
-    Us = []
-    U = ""
-    val::String = ""
-    content::String = ""
     global function edit(qt::InstrQuantity, instrnm::String, addr::String, ::Val{:set})
-        Us = conf.U[qt.utype]
-        U = isempty(Us) ? "" : Us[qt.uindex]
-        U == "" || (Uchange::Float64 = Us[1] isa Unitful.FreeUnits ? ustrip(Us[1], 1U) : 1.0)
-        val = U == "" ? qt.read : @trypass string(parse(Float64, qt.read) / Uchange) qt.read
-        if val in qt.optvalues
-            validx = findfirst(==(val), qt.optvalues)
-            val = string(qt.optkeys[validx], " => ", qt.optvalues[validx])
-        end
-        content = string(qt.alias, "\n \n设置值：", qt.set, " ", U, "\n \n", val, " ", U) |> centermultiline
-        content = string(content, "###for refresh")
         CImGui.PushStyleColor(
             CImGui.ImGuiCol_Button,
             qt.isautorefresh ? morestyle.Colors.DAQTaskRunning : CImGui.c_get(imguistyle.Colors, CImGui.ImGuiCol_Button)
         )
-        if CImGui.Button(content, (-1, 0))
+        if CImGui.Button(qt.show_edit, (-1, 0))
             if addr != ""
                 fetchdata = refresh_qt(instrnm, addr, qt.name)
                 isnothing(fetchdata) || (qt.read = fetchdata)
+                updatefront!(qt)
             end
         end
         CImGui.PopStyleColor()
@@ -518,6 +553,9 @@ let
             if CImGui.Button(" 确认 ", (-Cfloat(0.1), Cfloat(0))) || triggerset || CImGui.IsKeyDown(257) || CImGui.IsKeyDown(335)
                 triggerset = false
                 if addr != ""
+                    Us = conf.U[qt.utype]
+                    U = isempty(Us) ? "" : Us[qt.uindex]
+                    U == "" || (Uchange::Float64 = Us[1] isa Unitful.FreeUnits ? ustrip(Us[1], 1U) : 1.0)
                     sv = U == "" ? qt.set : @trypasse string(float(eval(Meta.parse(qt.set)) * Uchange)) qt.set
                     triggerset && (sv = qt.optvalues[qt.optedidx])
                     fetchdata = remotecall_fetch(workers()[1], instrnm, addr, sv) do instrnm, addr, sv
@@ -531,7 +569,7 @@ let
                             logout!(CPU, ct)
                             return readstr
                         catch e
-                            @error "[$(now())]\n仪器通信故障！！！" instrument=string(instrnm, ": ", addr) quantity=qt.name exception = e
+                            @error "[$(now())]\n仪器通信故障！！！" instrument = string(instrnm, ": ", addr) quantity = qt.name exception = e
                             logout!(CPU, ct)
                         end
                     end
@@ -566,31 +604,24 @@ let
             CImGui.SameLine(0, 2CImGui.GetFontSize())
             @c CImGui.Checkbox("刷新", &qt.isautorefresh)
             CImGui.EndPopup()
+            updatefront!(qt)
         end
+        qt.isautorefresh && updatefront!(qt)
     end
 end
 
 let
     refbtsz::Float32 = 0
-    Us = []
-    U = ""
-    val::String = ""
-    content::String = ""
     global function edit(qt::InstrQuantity, instrnm, addr, ::Val{:read})
-        Us = conf.U[qt.utype]
-        U = isempty(Us) ? "" : Us[qt.uindex]
-        U == "" || (Uchange::Float64 = Us[1] isa Unitful.FreeUnits ? ustrip(Us[1], 1U) : 1.0)
-        val = U == "" ? qt.read : @trypass string(parse(Float64, qt.read) / Uchange) qt.read
-        content = string(qt.alias, "\n \n \n", val, " ", U, "\n ") |> centermultiline
-        content = string(content, "###for refresh")
         CImGui.PushStyleColor(
             CImGui.ImGuiCol_Button,
             qt.isautorefresh ? morestyle.Colors.DAQTaskRunning : CImGui.c_get(imguistyle.Colors, CImGui.ImGuiCol_Button)
         )
-        if CImGui.Button(content, (-1, 0))
+        if CImGui.Button(qt.show_edit, (-1, 0))
             if addr != ""
                 fetchdata = refresh_qt(instrnm, addr, qt.name)
                 isnothing(fetchdata) || (qt.read = fetchdata)
+                updatefront!(qt)
             end
         end
         CImGui.PopStyleColor()
@@ -606,7 +637,9 @@ let
             CImGui.SameLine(0, 2CImGui.GetFontSize())
             @c CImGui.Checkbox("刷新", &qt.isautorefresh)
             CImGui.EndPopup()
+            updatefront!(qt)
         end
+        qt.isautorefresh && updatefront!(qt)
     end
 end
 
@@ -638,25 +671,13 @@ function view(insbuf::InstrBuffer)
     CImGui.EndChild()
 end
 
-let
-    Us = []
-    U = ""
-    val::String = ""
-    content::String = ""
-    global function view(qt::InstrQuantity)
+function view(qt::InstrQuantity)
+    qt.show_view == "" && updatefront!(qt; show_edit=false)
+    if CImGui.Button(qt.show_view, (-1, 0))
         Us = conf.U[qt.utype]
-        U = isempty(Us) ? "" : Us[qt.uindex]
-        U == "" || (Uchange::Float64 = Us[1] isa Unitful.FreeUnits ? ustrip(Us[1], 1U) : 1.0)
-        val = U == "" ? qt.read : @trypass string(parse(Float64, qt.read) / Uchange) qt.read
-        if qt.type == :set && val in qt.optvalues
-            validx = findfirst(==(val), qt.optvalues)
-            val = string(qt.optkeys[validx], " => ", qt.optvalues[validx])
-        end
-        content = string(qt.alias, "\n", val, " ", U) |> centermultiline
-        if CImGui.Button(content, (-1, 0))
-            qt.uindex = (qt.uindex + 1) % length(Us)
-            qt.uindex == 0 && (qt.uindex = length(Us))
-        end
+        qt.uindex = (qt.uindex + 1) % length(Us)
+        qt.uindex == 0 && (qt.uindex = length(Us))
+        updatefront!(qt; show_edit=false)
     end
 end
 
@@ -670,7 +691,7 @@ function refresh_qt(instrnm, addr, qtnm)
             logout!(CPU, ct)
             return readstr
         catch e
-            @error "[$(now())]\n仪器通信故障！！！" instrument=string(instrnm, ": ", addr) quantity=qtnm exception = e
+            @error "[$(now())]\n仪器通信故障！！！" instrument = string(instrnm, ": ", addr) quantity = qtnm exception = e
             logout!(CPU, ct)
         end
     end
@@ -701,7 +722,7 @@ function refresh_fetch_ibvs(ibvs_local; log=false)
                             end
                             logout!(CPU, ct)
                         catch e
-                            @error "[$(now())]\n仪器通信故障！！！" instrument=string(ins, ": ", addr) exception = e
+                            @error "[$(now())]\n仪器通信故障！！！" instrument = string(ins, ": ", addr) exception = e
                             logout!(CPU, ct)
                             for (_, qt) in ibv.insbuf.quantities
                                 qt.read = ""

@@ -9,7 +9,7 @@ VirtualInstr_Time_get(_) = string(Time(now()))
 
 let 
     sweepv::String = "0"
-    global VirtualInstr_SweepTest_set(_, setv) = (sweepv = string(setv); @info "VirtualInstr sweep : $setv")
+    global VirtualInstr_SweepTest_set(_, setv) = (sweepv = string(setv))
     global VirtualInstr_SweepTest_get(_) = sweepv
 end
 
@@ -18,7 +18,7 @@ end
 
 let 
     setval::String = "0"
-    global VirtualInstr_SetTest_set(_, setv) = (setval = string(setv); @info "VirtualInstr set : $setv")
+    global VirtualInstr_SetTest_set(_, setv) = (setval = string(setv))
     global VirtualInstr_SetTest_get(_) = setval
 end
 

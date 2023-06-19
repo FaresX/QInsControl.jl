@@ -33,18 +33,18 @@ mutable struct UIPlot
     ylabel::String
     zlabel::String
     legends::Vector{String}
+    cmap::Cint
     anns::Vector{Annotation}
+    ps::PlotState
 end
-UIPlot(x, y, z) = UIPlot(x, y, z, "line", "title", "x", "y", "z", [string("y", i) for i in eachindex(y)], Annotation[])
+UIPlot(x, y, z) = UIPlot(x, y, z, "line", "title", "x", "y", "z", [string("y", i) for i in eachindex(y)], 4, Annotation[], PlotState())
 UIPlot() = UIPlot(Union{Real,String}[], [Real[]], Matrix{Float64}(undef, 0, 0))
 
 let
-    annbuf_list::Dict{String,Annotation} = Dict()
+    annbuf::Annotation = Annotation()
     openpopup_mspos_list::Dict{String,Vector{Cfloat}} = Dict()
-    ps_list::Dict{String,PlotState} = Dict()
     global function Plot(uip::UIPlot, id, size=(0, 0))
-        haskey(ps_list, id) || push!(ps_list, id => PlotState(id=id))
-        ps = ps_list[id]
+        uip.ps.id = id
         CImGui.PushID(id)
         CImGui.BeginChild("Plot", size)
         if uip.ptype == "heatmap"
@@ -53,11 +53,12 @@ let
             else
                 xlims, ylims, zlims, xlabel, ylabel = xyzsetting(uip)
                 @c Plot(
-                    uip.z, &uip.zlabel, ps;
+                    uip.z, &uip.zlabel, uip.ps;
                     psize=CImGui.ImVec2(-1, -1),
                     title=uip.title,
                     xlabel=xlabel,
                     ylabel=ylabel,
+                    cmap=uip.cmap,
                     xlims=xlims,
                     ylims=ylims,
                     zlims=zlims,
@@ -70,7 +71,7 @@ let
             else
                 x, xlabel = xysetting(uip)
                 Plot(
-                    x, uip.y, ps;
+                    x, uip.y, uip.ps;
                     psize=CImGui.ImVec2(-1, -1),
                     ptype=uip.ptype,
                     title=uip.title,
@@ -82,21 +83,18 @@ let
                 )
             end
         end
-        ps.phv && CImGui.IsMouseClicked(2) && CImGui.OpenPopup("title$id")
+        uip.ps.phv && CImGui.IsMouseClicked(2) && CImGui.OpenPopup("title$id")
         haskey(openpopup_mspos_list, id) || push!(openpopup_mspos_list, id => Cfloat[0, 0])
         openpopup_mspos = openpopup_mspos_list[id]
         if CImGui.BeginPopup("title$id")
-            haskey(annbuf_list, id) || push!(annbuf_list, id => Annotation())
-            annbuf = annbuf_list[id]
             if openpopup_mspos == Cfloat[0, 0]
-                openpopup_mspos[1] = ps.mspos.x
-                openpopup_mspos[2] = ps.mspos.y
+                openpopup_mspos .= uip.ps.mspos.x, uip.ps.mspos.y
                 annbuf.posx, annbuf.posy = openpopup_mspos
                 annbuf.offsetx, annbuf.offsety = openpopup_mspos
             end
             @c InputTextRSZ("标题", &uip.title)
             @c ComBoS("绘图类型", &uip.ptype, ["line", "scatter", "heatmap"])
-            @c CImGui.Checkbox("数据提示", &ps.showtooltip)
+            @c CImGui.Checkbox("数据提示", &uip.ps.showtooltip)
             if CImGui.CollapsingHeader("标签")
                 @c InputTextRSZ("内容", &annbuf.label)
                 pos = Cfloat[annbuf.posx, annbuf.posy]
@@ -120,9 +118,9 @@ let
             CImGui.EndPopup()
         end
         igIsPopupOpenStr("title$id", 0) || openpopup_mspos == Cfloat[0, 0] || fill!(openpopup_mspos, 0)
-        ps.annhv && CImGui.IsMouseClicked(1) && CImGui.OpenPopup("注释$id")
+        uip.ps.annhv && CImGui.IsMouseClicked(1) && CImGui.OpenPopup("注释$id")
         if CImGui.BeginPopup("注释$id")
-            ann_i = uip.anns[ps.annhv_i]
+            ann_i = uip.anns[uip.ps.annhv_i]
             @c InputTextRSZ("内容", &ann_i.label)
             pos = Cfloat[ann_i.posx, ann_i.posy]
             CImGui.InputFloat2("坐标", pos)
@@ -134,17 +132,17 @@ let
             CImGui.ColorEdit4("颜色", ann_i.color, CImGui.ImGuiColorEditFlags_AlphaBar)
             CImGui.SameLine()
             if CImGui.Button(morestyle.Icons.CloseFile * "##标签")
-                deleteat!(uip.anns, ps.annhv_i)
+                deleteat!(uip.anns, uip.ps.annhv_i)
                 CImGui.CloseCurrentPopup()
             end
             CImGui.EndPopup()
         end
-        ps.xhv && CImGui.IsMouseDoubleClicked(0) && CImGui.OpenPopup("x标签$id")
+        uip.ps.xhv && CImGui.IsMouseDoubleClicked(0) && CImGui.OpenPopup("x标签$id")
         if CImGui.BeginPopup("x标签$id")
             @c InputTextRSZ("x标签", &uip.xlabel)
             CImGui.EndPopup()
         end
-        ps.yhv && CImGui.IsMouseDoubleClicked(0) && CImGui.OpenPopup("y标签$id")
+        uip.ps.yhv && CImGui.IsMouseDoubleClicked(0) && CImGui.OpenPopup("y标签$id")
         if CImGui.BeginPopup("y标签$id")
             @c InputTextRSZ("y标签", &uip.ylabel)
             CImGui.EndPopup()
@@ -210,7 +208,6 @@ function Plot(x::Vector{T1}, ys::Vector{Vector{T2}}, ps::PlotState;
 end
 
 let
-    cmap_list::Dict{String,Cint} = Dict()
     width_list::Dict{String,Cfloat} = Dict()
     global function Plot(z::Matrix{Float64}, zlabel::Ref, ps::PlotState;
         psize=CImGui.ImVec2(0, 0),
@@ -218,6 +215,7 @@ let
         title="title",
         xlabel="x",
         ylabel="y",
+        cmap=Cint(ImPlot.ImPlotColormap_Viridis),
         xlims=(0, 1),
         ylims=(0, 1),
         zlims=(0, 1),
@@ -225,15 +223,14 @@ let
     )
         CImGui.BeginChild("Heatmap", psize)
         CImGui.PushStyleVar(CImGui.ImGuiStyleVar_ItemSpacing, (0, 2))
-        haskey(cmap_list, ps.id) || push!(cmap_list, ps.id => Cint(ImPlot.ImPlotColormap_Viridis))
         if ImPlot.ColormapButton(
-            unsafe_string(ImPlot.GetColormapName(cmap_list[ps.id])),
+            unsafe_string(ImPlot.GetColormapName(cmap)),
             ImVec2(Cfloat(-0.1), Cfloat(0)),
-            cmap_list[ps.id]
+            cmap
         )
-            cmap_list[ps.id] = (cmap_list[ps.id] + 1) % Cint(ImPlot.GetColormapCount())
+            cmap = (cmap + 1) % Cint(ImPlot.GetColormapCount())
         end
-        ImPlot.PushColormap(cmap_list[ps.id])
+        ImPlot.PushColormap(cmap)
         lb = ImPlot.ImPlotPoint(CImGui.ImVec2(xlims[1], ylims[1]))
         rt = ImPlot.ImPlotPoint(CImGui.ImVec2(xlims[2], ylims[2]))
         global savingimg
@@ -360,9 +357,9 @@ function trunc(x::T1, y::T2)::Tuple{T1,T2} where {T1} where {T2}
     if nx == ny
         return x, y
     elseif nx > ny
-        return x[1:ny], y
+        return @view(x[1:ny]), y
     else
-        return x, y[1:nx]
+        return x, @view(y[1:nx])
     end
 end
 
