@@ -258,7 +258,7 @@ let
                 CImGui.PushTextWrapPos(CImGui.GetFontSize() * 35.0)
                 CImGui.Text(string("x : ", xr[xidx]))
                 CImGui.Text(string("y : ", yr[yidx]))
-                CImGui.Text(string("z : ", z[yidx, xidx]))
+                CImGui.Text(string("z : ", z[xidx, yidx]))
                 CImGui.PopTextWrapPos()
                 CImGui.EndTooltip()
             end

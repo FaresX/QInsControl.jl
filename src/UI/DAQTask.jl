@@ -192,6 +192,7 @@ function update_data()
             occursin(r"\[.*\]", qt) && continue
             insbuf = instrbufferviewers[instrnm][addr].insbuf
             insbuf.quantities[qt].read = data[2]
+            updatefront!(insbuf.quantities[qt])
         end
         if waittime("savedatabuf", conf.DAQ.savetime)
             jldopen(savepath, "w") do file
