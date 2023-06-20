@@ -2,7 +2,7 @@
 
 julia_version = "1.9.0"
 manifest_format = "2.0"
-project_hash = "d17f24e8afe7a7fcea8e22b8aec861153b0106c4"
+project_hash = "15d12a9ace9c814b9b2d7474024070035bc904cd"
 
 [[deps.ATK_jll]]
 deps = ["Artifacts", "Glib_jll", "JLLWrappers", "Libdl"]
@@ -695,14 +695,6 @@ deps = ["Distributed", "Printf"]
 git-tree-sha1 = "d7a7aef8f8f2d537104f170139553b14dfe39fe9"
 uuid = "92933f4c-e287-5a05-a399-4b506db050ca"
 version = "1.7.2"
-
-[[deps.QInsControlCore]]
-deps = ["Instruments", "Sockets", "UUIDs"]
-git-tree-sha1 = "3d11566f124a593329b97b545c4fbe3ad781e8f2"
-repo-rev = "master"
-repo-url = "https://github.com/FaresX/QInsControlCore.jl.git"
-uuid = "cd9154b2-5d6d-4493-a0bc-3471f84f9c90"
-version = "0.1.0"
 
 [[deps.QOI]]
 deps = ["ColorTypes", "FileIO", "FixedPointNumbers"]

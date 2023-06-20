@@ -18,7 +18,7 @@ using Unitful
 using MacroTools
 import FileIO
 using JLD2
-using QInsControlCore
+# using QInsControlCore
 using Configurations
 using ColorTypes
 using OrderedCollections
@@ -36,6 +36,8 @@ using Printf
 using InteractiveUtils
 using Logging
 
+include("QInsControlCore/QInsControlCore.jl")
+using .QInsControlCore
 # export start
 
 @enum SyncStatesIndex begin
