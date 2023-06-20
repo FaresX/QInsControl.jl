@@ -27,7 +27,6 @@ let
             CImGui.BeginChild("Blocks")
             CImGui.TextColored(morestyle.Colors.HighlightText, morestyle.Icons.TaskButton)
             CImGui.SameLine()
-            CImGui.SameLine()
             CImGui.Text(" 编辑队列：任务 $(id+old_i) $(daqtask.name)")
             CImGui.SameLine(CImGui.GetContentRegionAvailWidth() - holdsz)
             @c CImGui.Checkbox("HOLD", &hold)
