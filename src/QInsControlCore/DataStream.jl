@@ -58,7 +58,7 @@ struct Processor
     instrs::Dict{String,Instrument}
     running::Ref{Bool}
     fast::Ref{Bool}
-    Processor() = new(uuid4(), Dict(), [], Dict(), Dict(), Dict(), ResourceManager(), Dict(), false, false)
+    Processor() = new(uuid4(), Dict(), [], Dict(), Dict(), Dict(), 0, Dict(), false, false)
 end
 function Base.show(io::IO, cpu::Processor)
     str1 = """

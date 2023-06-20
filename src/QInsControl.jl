@@ -91,7 +91,6 @@ include("UI/Renderer.jl")
 include("JLD2Struct.jl")
 include("Conf.jl")
 
-
 function julia_main()::Cint
     try
         loadconf()
