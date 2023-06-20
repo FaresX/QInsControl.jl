@@ -25,7 +25,9 @@ let
         haskey(window_ids, id) || push!(window_ids, id => "数据选择$id")
         if CImGui.Begin(window_ids[id], p_open, CImGui.ImGuiWindowFlags_NoTitleBar | CImGui.ImGuiWindowFlags_NoDocking)
             @cstatic holdsz::Float32 = 0 begin
-                CImGui.BulletText("数据选择")
+                CImGui.TextColored(morestyle.Colors.HighlightText, morestyle.Icons.SelectData)
+                CImGui.SameLine()
+                CImGui.Text(" 数据选择")
                 CImGui.SameLine(CImGui.GetContentRegionAvailWidth() - holdsz)
                 @c CImGui.Checkbox("HOLD", &dtpk.hold)
                 holdsz = CImGui.GetItemRectSize().x

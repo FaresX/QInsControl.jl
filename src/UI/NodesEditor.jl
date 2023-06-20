@@ -330,7 +330,9 @@ let
         CImGui.PushStyleVar(CImGui.ImGuiStyleVar_WindowRounding, unsafe_load(imguistyle.PopupRounding))
         isfocus = true
         if CImGui.Begin(id, p_open, CImGui.ImGuiWindowFlags_NoTitleBar | CImGui.ImGuiWindowFlags_NoDocking)
-            CImGui.BulletText(morestyle.Icons.Circuit * " 电路")
+            CImGui.TextColored(morestyle.Colors.HighlightText, morestyle.Icons.Circuit)
+            CImGui.SameLine()
+            CImGui.Text(" 电路")
             CImGui.SameLine(CImGui.GetContentRegionAvailWidth() - holdsz)
             @c CImGui.Checkbox("HOLD", &hold)
             holdsz = CImGui.GetItemRectSize().x
