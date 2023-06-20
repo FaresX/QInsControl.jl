@@ -8,11 +8,17 @@
 # QInsControl
 ## install
 ```
-julia> ]
-(@v1.9) pkg> add https://github.com/Faresx/QInsControl.jl.git
+julia> ]add https://github.com/FaresX/QInsControl.jl.git
 ```
 ## usage
 ```julia
 using QInsControl
-start()
+QInsControl.start()
 ```
+## <font color=#FF0000>**Note**</font>
+At present, some bugs may make the GUI crashed but don't interrupt the running DAQ program. When encountered, 
+one could run
+```
+QInsControl.UI(true)
+```
+to restart the interface and give feedback on github Issues.
