@@ -152,7 +152,11 @@ let
                             @c CImGui.MenuItem(basename(dtv[2].rootpath), C_NULL, &dtv[1].p_open)
                             if CImGui.BeginPopupContextItem()
                                 if CImGui.MenuItem(morestyle.Icons.InstrumentsAutoRef * " 刷新")
-                                    dtv[2].filetrees = FolderFileTree(dtv[2].rootpath, dtv[2].selectedpath).filetrees
+                                    dtv[2].filetrees = FolderFileTree(
+                                        dtv[2].rootpath,
+                                        dtv[2].selectedpath,
+                                        dtv[2].filter
+                                    ).filetrees
                                 end
                                 CImGui.MenuItem(morestyle.Icons.CloseFile * " 关闭") && (dtv[1].noclose = false)
                                 CImGui.EndPopup()
