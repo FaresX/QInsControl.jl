@@ -25,7 +25,10 @@ let
         haskey(window_ids, id) || push!(window_ids, id => "编辑任务$id")
         if CImGui.Begin(window_ids[id], p_open, CImGui.ImGuiWindowFlags_NoTitleBar | CImGui.ImGuiWindowFlags_NoDocking)
             CImGui.BeginChild("Blocks")
-            CImGui.BulletText("编辑队列：任务 $(id+old_i) $(daqtask.name)")
+            CImGui.TextColored(morestyle.Colors.HighlightText, morestyle.Icons.TaskButton)
+            CImGui.SameLine()
+            CImGui.SameLine()
+            CImGui.Text(" 编辑队列：任务 $(id+old_i) $(daqtask.name)")
             CImGui.SameLine(CImGui.GetContentRegionAvailWidth() - holdsz)
             @c CImGui.Checkbox("HOLD", &hold)
             holdsz = CImGui.GetItemRectSize().x
