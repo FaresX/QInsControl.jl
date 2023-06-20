@@ -1059,7 +1059,7 @@ let
             end
             CImGui.PopID()
             if CImGui.IsMouseDown(0)
-                if CImGui.c_get(CImGui.GetIO().MouseDownDuration, 0) > 0.4 && !isdragging && mousein(bk)
+                if CImGui.c_get(CImGui.GetIO().MouseDownDuration, 0) > 0.2 && !isdragging && mousein(bk)
                     bk in dragblock || length(dragblock) == 1 || push!(dragblock, bk)
                     isdragging = true
                 end
