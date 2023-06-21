@@ -17,6 +17,9 @@ windowsize = [1280, 720]
 encoding = "GBK"
 editor = "code.cmd"
 
+[DtViewer]
+showdatarow = 10000
+
 [DAQ]
 saveimg = false
 logall = false

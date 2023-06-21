@@ -6,6 +6,10 @@
     editor::String
 end
 
+@option mutable struct OptDtViewer
+    showdatarow::Cint
+end
+
 @option mutable struct OptDAQ
     saveimg::Bool
     logall::Bool
@@ -63,6 +67,7 @@ end
 @option mutable struct Conf
     U::OrderedDict{String,Vector}
     Basic::OptBasic
+    DtViewer::OptDtViewer
     DAQ::OptDAQ
     InsBuf::OptInsBuf
     Fonts::OptFonts

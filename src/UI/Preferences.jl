@@ -54,6 +54,12 @@ let
                 CImGui.Text(" ")
                 CImGui.Separator()
 
+                ###DtViewer###
+                CImGui.TextColored(morestyle.Colors.HighlightText, "数据浏览")
+                @c CImGui.DragInt("单页数据量", &conf.DtViewer.showdatarow, 1, 1, 200000, "%d", CImGui.ImGuiSliderFlags_AlwaysClamp)
+                CImGui.Text(" ")
+                CImGui.Separator()
+
                 ###DAQ###
                 CImGui.TextColored(morestyle.Colors.HighlightText, "DAQ")
                 @c CImGui.Checkbox("截图保存", &conf.DAQ.saveimg)

@@ -103,7 +103,7 @@ let
                 if CImGui.BeginTabItem("数据")
                     if !isempty(dtviewer.data) && haskey(dtviewer.data, "data")
                         CImGui.BeginChild("ShowData")
-                        showdata(dtviewer.data["data"])
+                        showdata(dtviewer.data["data"], id)
                         CImGui.EndChild()
                     else
                         CImGui.Text("未加载数据或数据格式不支持！")
@@ -272,22 +272,51 @@ let
     # flags |= CImGui.ImGuiTableFlags_BordersOuter
     flags |= CImGui.ImGuiTableFlags_BordersInnerV
     flags |= CImGui.ImGuiTableFlags_RowBg
-    global function showdata(data)
+    pagei::Dict = Dict()
+    global function showdata(data, id)
+        lmax = max_with_empty(length.(values(data)))
+        haskey(pagei, id) || push!(pagei, id => 1)
+        pages = ceil(Int, lmax / conf.DtViewer.showdatarow)
+        pagei[id] > pages && (pagei[id] = 1)
+        showpagewidth = CImGui.CalcTextSize(string(" ", pagei[id], " / ", pages, " ")).x
+        contentwidth = CImGui.GetContentRegionAvailWidth()
+        CImGui.PushID(id)
+        if CImGui.Button(ICONS.ICON_CARET_LEFT, ((contentwidth - showpagewidth) / 2, Cfloat(0)))
+            pagei[id] > 1 && (pagei[id] -= 1)
+        end
+        CImGui.SameLine()
+        CImGui.Text(string(" ", pagei[id], " / ", pages, " "))
+        CImGui.IsItemHovered() && CImGui.IsMouseDoubleClicked(0) && CImGui.OpenPopup("selectpage$id")
+        if CImGui.BeginPopup("selectpage$id")
+            pagei_buf::Cint = pagei[id]
+            @c CImGui.DragInt("##selectpage$id", &pagei_buf, 1, 1, lmax, "%d", CImGui.ImGuiSliderFlags_AlwaysClamp)
+            pagei[id] = pagei_buf
+            CImGui.EndPopup()
+        end
+        CImGui.SameLine()
+        if CImGui.Button(ICONS.ICON_CARET_RIGHT, ((contentwidth - showpagewidth) / 2, Cfloat(0)))
+            pagei[id] < pages && (pagei[id] += 1)
+        end
+        CImGui.BeginChild("showdatatable")
         if CImGui.BeginTable("showdata", length(data), flags)
             for key in keys(data)
                 CImGui.TableSetupColumn(key)
             end
             CImGui.TableHeadersRow()
-            ls = max_with_empty(length.(values(data)))
-            for i in 1:ls
+
+            startpage = (pagei[id] - 1) * conf.DtViewer.showdatarow + 1
+            stoppage = pagei[id] * conf.DtViewer.showdatarow
+            for i in startpage:(pagei[id] == pages ? lmax : stoppage)
                 CImGui.TableNextRow()
                 for (_, val) in data
                     CImGui.TableNextColumn()
-                    i > length(val) ? CImGui.Text("") : CImGui.Text(val[i])
+                    CImGui.Text(i > length(val) ? "" : val[i])
                 end
             end
             CImGui.EndTable()
         end
+        CImGui.EndChild()
+        CImGui.PopID()
     end
 end
 
