@@ -11,13 +11,20 @@
 julia> ]
 julia> add https://github.com/FaresX/QInsControl.jl.git
 ```
+
 ## usage
 ```julia
 using QInsControl
 QInsControl.start()
 ```
+
+## example
+A simple project file demo.daq is in the example folder, which may give some ideas to write your own scripts.
+One can load it as follows
+![image](example/loadproject.gif)
+
 ## <font color=#FF0000>**Note**</font>
-At present, some bugs may make the GUI crashed but don't interrupt the running DAQ program. When encountered, 
+At present, the GUI may get crashed thanks to some bugs that does not interrupt the running DAQ program. When encountered, 
 one could run
 ```julia
 QInsControl.UI(true)

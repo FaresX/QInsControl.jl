@@ -45,7 +45,7 @@ second = "arial.ttf"
 size = 18
 
 [Console]
-dir = "C:\\Users\\q02\\Desktop\\QInsControl.jl\\src\\../Assets\\IOs"
+dir = "./Assets\\IOs"
 refreshrate = 60.0
 showioline = 100
 historylen = 100
@@ -62,5 +62,5 @@ path = "Assets\\Necessity/defaultwallpaper.bmp"
 addrs = ["TCPIP::192.168.31.237::33576::SOCKET", "TCPIP::192.168.1.116::33576::SOCKET"]
 
 [Style]
-dir = "C:\\Users\\q02\\Desktop\\QInsControl.jl\\src\\../Assets\\Styles"
+dir = "./Assets\\Styles"
 default = "WarmWinter"
