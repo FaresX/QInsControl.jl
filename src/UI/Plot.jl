@@ -136,12 +136,16 @@ let
             end
             CImGui.EndPopup()
         end
-        uip.ps.xhv && CImGui.IsMouseDoubleClicked(0) && CImGui.OpenPopup("x标签$id")
+        if CImGui.IsWindowHovered(CImGui.ImGuiHoveredFlags_RootAndChildWindows)
+            uip.ps.xhv && CImGui.IsMouseDoubleClicked(0) && CImGui.OpenPopup("x标签$id")
+        end
         if CImGui.BeginPopup("x标签$id")
             @c InputTextRSZ("x标签", &uip.xlabel)
             CImGui.EndPopup()
         end
-        uip.ps.yhv && CImGui.IsMouseDoubleClicked(0) && CImGui.OpenPopup("y标签$id")
+        if CImGui.IsWindowHovered(CImGui.ImGuiHoveredFlags_RootAndChildWindows)
+            uip.ps.yhv && CImGui.IsMouseDoubleClicked(0) && CImGui.OpenPopup("y标签$id")
+        end
         if CImGui.BeginPopup("y标签$id")
             @c InputTextRSZ("y标签", &uip.ylabel)
             CImGui.EndPopup()
@@ -272,7 +276,9 @@ let
         cmssize = CImGui.GetItemRectSize()
         ps.plotsize = (ps.plotsize.x + cmssize.x, ps.plotsize.y)
         width_list[ps.id] = cmssize.x
-        CImGui.IsItemHovered() && CImGui.IsMouseDoubleClicked(0) && CImGui.OpenPopup("z标签$(ps.id)")
+        if CImGui.IsWindowHovered(CImGui.ImGuiHoveredFlags_RootAndChildWindows)
+            CImGui.IsItemHovered() && CImGui.IsMouseDoubleClicked(0) && CImGui.OpenPopup("z标签$(ps.id)")
+        end
         if CImGui.BeginPopup("z标签$(ps.id)")
             InputTextRSZ("z标签##$(ps.id)", zlabel)
             CImGui.EndPopup()
