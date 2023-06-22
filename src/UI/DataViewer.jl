@@ -22,7 +22,7 @@ let
                 stcstr(morestyle.Icons.OpenFile, "  数据浏览##", id)
             else
                 stcstr(morestyle.Icons.OpenFolder, "  数据浏览##", id)
-            end
+            end,
             &dtviewer.p_open
         )
             CImGui.Columns(2)
