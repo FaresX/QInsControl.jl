@@ -4,5 +4,8 @@ Assets/Logs
 Assets/IOs
 imgui.ini
 docs/build
-docs/Manifest.toml
 QInsControlCompile.so
+src/*.mem
+src/UI/*.mem
+src/QInsControlCore/*.mem
+Assets/Confs/*.mem
