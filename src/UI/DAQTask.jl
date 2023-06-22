@@ -217,7 +217,7 @@ function update_all()
             try
                 log_instrbufferviewers()
             catch e
-                @error "[($now())]\n仪器记录错误，无法保存结束状态！！！" exception=e
+                @error "[$(now())]\n仪器记录错误，无法保存结束状态！！！" exception=e
             end
             jldopen(savepath, "w") do file
                 file["data"] = databuf
