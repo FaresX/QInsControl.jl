@@ -88,12 +88,11 @@ let
     selectedqt::String = ""
     deldialog::Bool = false
     isrename::Dict{String,Bool} = Dict()
-    yesnodialog_ids::Dict{String,String} = Dict()
     global function InstrRegister(p_open::Ref)
         # CImGui.SetNextWindowPos((100, 100), CImGui.ImGuiCond_Once)
         CImGui.SetNextWindowSize((800, 600), CImGui.ImGuiCond_Once)
 
-        if CImGui.Begin(morestyle.Icons.InstrumentsRegister * "  仪器注册", p_open)
+        if CImGui.Begin(stcstr(morestyle.Icons.InstrumentsRegister, "  仪器注册"), p_open)
             CImGui.Columns(2)
             @cstatic firsttime::Bool = true begin
                 firsttime && (CImGui.SetColumnOffset(1, CImGui.GetWindowWidth() * 0.25); firsttime = false)
@@ -130,15 +129,14 @@ let
                 end
                 if CImGui.BeginPopupContextItem()
                     CImGui.MenuItem(
-                        morestyle.Icons.CloseFile * " 删除##insconf",
+                        stcstr(morestyle.Icons.CloseFile, " 删除##insconf"),
                         C_NULL,
                         false,
                         !in(oldinsnm, ["VirtualInstr", "Others"])
                     ) && (deldialog = true)
                     CImGui.EndPopup()
                 end
-                haskey(yesnodialog_ids, oldinsnm) || push!(yesnodialog_ids, oldinsnm => "##是否删除仪器配置$oldinsnm")
-                if YesNoDialog(yesnodialog_ids[oldinsnm], "确认删除？", CImGui.ImGuiWindowFlags_AlwaysAutoResize)
+                if YesNoDialog(stcstr("##是否删除仪器配置", oldinsnm), "确认删除？", CImGui.ImGuiWindowFlags_AlwaysAutoResize)
                     pop!(insconf, oldinsnm, 0)
                     remotecall_wait(workers()[1], oldinsnm) do oldinsnm
                         pop!(insconf, oldinsnm, 0)
@@ -146,13 +144,13 @@ let
                     pop!(instrbufferviewers, oldinsnm, 0)
                     selectedins = ""
                 end
-                deldialog && (CImGui.OpenPopup(yesnodialog_ids[oldinsnm]);
+                deldialog && (CImGui.OpenPopup(stcstr("##是否删除仪器配置", oldinsnm));
                 deldialog = false)
                 CImGui.PopID()
             end
 
             CImGui.EndChild()
-            if CImGui.Button(morestyle.Icons.SaveButton * " 保存##Write QuantityConf to toml")
+            if CImGui.Button(stcstr(morestyle.Icons.SaveButton, " 保存##Write QuantityConf to toml"))
                 conffiles = readdir(joinpath(ENV["QInsControlAssets"], "Confs"))
                 allins = keys(insconf)
                 for cf in conffiles
@@ -170,7 +168,7 @@ let
 
             CImGui.SameLine(CImGui.GetColumnOffset(1) - CImGui.GetItemRectSize().x - unsafe_load(imguistyle.WindowPadding.x))
 
-            if CImGui.Button(morestyle.Icons.NewFile * " 新建")
+            if CImGui.Button(stcstr(morestyle.Icons.NewFile, " 新建"))
                 newins = OneInsConf(
                     BasicConf(
                         Dict(
@@ -216,7 +214,7 @@ let
                 width = CImGui.GetItemRectSize().x / 3
                 CImGui.Text("接口")
                 CImGui.BeginGroup()
-                if CImGui.Button(morestyle.Icons.NewFile * " 输入")
+                if CImGui.Button(stcstr(morestyle.Icons.NewFile, " 输入"))
                     push!(selectedinscf.conf.input_labels, string("Input ", length(selectedinscf.conf.input_labels) + 1))
                 end
                 for (i, input) in enumerate(selectedinscf.conf.input_labels)
@@ -235,7 +233,7 @@ let
                 CImGui.EndGroup()
                 CImGui.SameLine()
                 CImGui.BeginGroup()
-                if CImGui.Button(morestyle.Icons.NewFile * " 输出")
+                if CImGui.Button(stcstr(morestyle.Icons.NewFile, " 输出"))
                     push!(selectedinscf.conf.output_labels, string("Output ", length(selectedinscf.conf.output_labels) + 1))
                 end
                 for (i, output) in enumerate(selectedinscf.conf.output_labels)
@@ -265,7 +263,7 @@ let
                         end
                     end
                     CImGui.SameLine()
-                    if CImGui.Button(morestyle.Icons.CloseFile * "##QuantityConf")
+                    if CImGui.Button(stcstr(morestyle.Icons.CloseFile, "##QuantityConf"))
                         pop!(selectedinscf.quantities, selectedqt, 0)
                         remotecall_wait(workers()[1], selectedins, selectedqt) do selectedins, selectedqt
                             pop!(insconf[selectedins].quantities, selectedqt, 0)
@@ -279,7 +277,7 @@ let
                     CImGui.Separator()
                     CImGui.TextColored(morestyle.Colors.HighlightText, "编辑")
                     CImGui.SameLine()
-                    if CImGui.Button(morestyle.Icons.SaveButton * "##QuantityConf to insconf")
+                    if CImGui.Button(stcstr(morestyle.Icons.SaveButton, "##QuantityConf to insconf"))
                         push!(selectedinscf.quantities, qtname => deepcopy(editqt))
                         remotecall_wait(workers()[1], selectedins, qtname, editqt) do selectedins, qtname, editqt
                             push!(insconf[selectedins].quantities, qtname => editqt)

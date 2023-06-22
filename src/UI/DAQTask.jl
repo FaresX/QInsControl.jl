@@ -14,20 +14,17 @@ const cfgbuf = Dict{String,Any}()
 let
     hold::Bool = false
     holdsz::Cfloat = 0
-    window_ids::Dict{Int,String} = Dict()
-    # taskbt_ids::Dict{Tuple{Int,String},String} = Dict()
     global function edit(daqtask::DAQTask, id, p_open::Ref{Bool})
         CImGui.SetNextWindowSize((600, 800), CImGui.ImGuiCond_Once)
         CImGui.PushStyleColor(CImGui.ImGuiCol_WindowBg, CImGui.c_get(imguistyle.Colors, CImGui.ImGuiCol_PopupBg))
         CImGui.PushStyleVar(CImGui.ImGuiStyleVar_WindowRounding, unsafe_load(imguistyle.PopupRounding))
         isfocus = true
         global old_i
-        haskey(window_ids, id) || push!(window_ids, id => "编辑任务$id")
-        if CImGui.Begin(window_ids[id], p_open, CImGui.ImGuiWindowFlags_NoTitleBar | CImGui.ImGuiWindowFlags_NoDocking)
+        if CImGui.Begin(stcstr("编辑任务 ", id), p_open, CImGui.ImGuiWindowFlags_NoTitleBar | CImGui.ImGuiWindowFlags_NoDocking)
             CImGui.BeginChild("Blocks")
             CImGui.TextColored(morestyle.Colors.HighlightText, morestyle.Icons.TaskButton)
             CImGui.SameLine()
-            CImGui.Text(" 编辑队列：任务 $(id+old_i) $(daqtask.name)")
+            CImGui.Text(stcstr(" 编辑队列：任务 ", id+old_i, " ", daqtask.name))
             CImGui.SameLine(CImGui.GetContentRegionAvailWidth() - holdsz)
             @c CImGui.Checkbox("HOLD", &hold)
             holdsz = CImGui.GetItemRectSize().x
@@ -39,7 +36,7 @@ let
                 CImGui.MenuItem("清空##实验记录") && (daqtask.explog = "")
                 CImGui.EndPopup()
             end
-            CImGui.Button(morestyle.Icons.InstrumentsAutoDetect * " 刷新仪器列表") && refresh_instrlist()
+            CImGui.Button(stcstr(morestyle.Icons.InstrumentsAutoDetect, " 刷新仪器列表")) && refresh_instrlist()
             if CImGui.BeginPopupContextItem()
                 manualadd_ui()
                 CImGui.EndPopup()
@@ -110,6 +107,7 @@ end
 function run_remote(daqtask::DAQTask)
     controllers, st = remotecall_fetch(extract_controllers, workers()[1], daqtask.blocks)
     empty!(databuf)
+    empty!(databuf_parsed)
     if !st
         syncstates[Int(isdaqtask_done)] = true
         return
@@ -183,8 +181,11 @@ function update_data()
     if isready(databuf_rc)
         packdata = take!(databuf_rc)
         for data in packdata
-            haskey(databuf, data[1]) || push!(databuf, data[1] => [])
+            haskey(databuf, data[1]) || push!(databuf, data[1] => String[])
+            haskey(databuf_parsed, data[1]) || push!(databuf_parsed, data[1] => Float64[])
             push!(databuf[data[1]], data[2])
+            parsed_data = tryparse(Float64, data[2])
+            push!(databuf_parsed[data[1]], isnothing(parsed_data) ? NaN : parsed_data)
             splitdata = split(data[1], "_")
             if length(splitdata) == 4
                 _, instrnm, qt, addr = splitdata

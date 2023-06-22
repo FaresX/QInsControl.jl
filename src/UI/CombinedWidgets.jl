@@ -91,7 +91,7 @@ end
 function ShowUnit(id, utype, ui::Ref, flags=CImGui.ImGuiComboFlags_NoArrowButton)
     units = string.(conf.U[utype])
     showu = @trypass units[ui.x] ""
-    if CImGui.BeginCombo("##单位$id", showu, flags)
+    if CImGui.BeginCombo(stcstr("##单位", id), showu, flags)
         for u in eachindex(units)
             local selected = ui.x == u
             CImGui.Selectable(units[u], selected) && (ui.x = u)
@@ -113,7 +113,7 @@ function MultiSelectable(
     l = length(labels)
     length(states) == l || resize!(states, l)
     size = l == 0 ? (Cfloat(0), CImGui.GetFrameHeightWithSpacing()) : size
-    CImGui.BeginChild("MultiSelectable##$id", size)
+    CImGui.BeginChild(stcstr("MultiSelectable##", id), size)
     CImGui.Columns(n, C_NULL, false)
     for i in 1:l
         CImGui.PushStyleVar(CImGui.ImGuiStyleVar_SelectableTextAlign, (0.5, 0.5))
@@ -137,7 +137,7 @@ function DragMultiSelectable(
     l = length(labels)
     length(states) == l || resize!(states, l)
     size = l == 0 ? (Cfloat(0), CImGui.GetFrameHeightWithSpacing()) : size
-    CImGui.BeginChild("MultiSelectable##$id", size)
+    CImGui.BeginChild(stcstr("DragMultiSelectable##", id), size)
     CImGui.Columns(n, C_NULL, false)
     for i in 1:l
         CImGui.PushStyleVar(CImGui.ImGuiStyleVar_SelectableTextAlign, (0.5, 0.5))
@@ -146,12 +146,12 @@ function DragMultiSelectable(
         rightclickmenu() && (idxing[] = i)
         CImGui.Indent()
         if CImGui.BeginDragDropSource(0)
-            @c CImGui.SetDragDropPayload("DragMultiSelectable##id", &i, sizeof(Cint))
+            @c CImGui.SetDragDropPayload(stcstr("DragMultiSelectable##", id), &i, sizeof(Cint))
             CImGui.Text(labels[i])
             CImGui.EndDragDropSource()
         end
         if CImGui.BeginDragDropTarget()
-            payload = CImGui.AcceptDragDropPayload("DragMultiSelectable##id")
+            payload = CImGui.AcceptDragDropPayload(stcstr("DragMultiSelectable##", id))
             if payload != C_NULL && unsafe_load(payload).DataSize == sizeof(Cint)
                 payload_i = unsafe_load(Ptr{Cint}(unsafe_load(payload).Data))
                 if i != payload_i
@@ -241,7 +241,7 @@ function edit(rightclickmenu, lo::Layout, size=(Cfloat(0), CImGui.GetFrameHeight
     states_old = copy(lo.states)
     marks_old = copy(lo.marks)
     editlabels = @. lo.labels * " " * lo.marks * "###for rename" * lo.labels
-    @c MultiSelectable(rightclickmenu, "select##$(lo.id)", editlabels, lo.states, lo.showcol, &lo.idxing, size)
+    @c MultiSelectable(rightclickmenu, stcstr("select##", lo.id), editlabels, lo.states, lo.showcol, &lo.idxing, size)
     CImGui.Separator()
     CImGui.Text("布局")
     selectedlabels_old = copy(lo.selectedlabels)
@@ -252,7 +252,7 @@ function edit(rightclickmenu, lo::Layout, size=(Cfloat(0), CImGui.GetFrameHeight
     end
     DragMultiSelectable(
         () -> false,
-        "selected##$(lo.id)",
+        stcstr("selected##", lo.id),
         lo.selectedlabels,
         trues(length(lo.selectedlabels)),
         lo.showcol

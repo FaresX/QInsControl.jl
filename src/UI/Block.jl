@@ -1047,7 +1047,7 @@ let
             end
             CImGui.PushID(i)
             edit(bk)
-            id = string(CImGui.igGetItemID())
+            id = stcstr(CImGui.igGetItemID())
             if typeof(bk) in [SweepBlock, StrideCodeBlock]
                 rmin, rmax = CImGui.GetItemRectMin(), CImGui.GetItemRectMax()
                 wp = unsafe_load(imguistyle.WindowPadding.y)
@@ -1250,7 +1250,7 @@ function view(bk::SweepBlock)
     CImGui.SameLine()
     CImGui.PushStyleVar(CImGui.ImGuiStyleVar_ButtonTextAlign, (0.0, 0.5))
     CImGui.Button(
-        string(
+        stcstr(
             "仪器：", instrnm,
             " 地址：", addr,
             " 扫描量：", quantity,
@@ -1282,7 +1282,7 @@ function view(bk::SettingBlock)
     CImGui.SameLine()
     CImGui.PushStyleVar(CImGui.ImGuiStyleVar_ButtonTextAlign, (0.0, 0.5))
     CImGui.Button(
-        string(
+        stcstr(
             "仪器：", instrnm,
             " 地址：", addr,
             " 设置：", quantity,
@@ -1314,7 +1314,7 @@ function view(bk::ReadingBlock)
     CImGui.PushStyleColor(CImGui.ImGuiCol_Text, markc)
     CImGui.PushStyleVar(CImGui.ImGuiStyleVar_ButtonTextAlign, (0.0, 0.5))
     CImGui.Button(
-        string(
+        stcstr(
             "仪器：", bk.instrnm,
             " 地址：", bk.addr,
             " 读取量：", quantity,
@@ -1349,7 +1349,7 @@ function view(bk::WriteBlock)
     CImGui.SameLine()
     CImGui.PushStyleVar(CImGui.ImGuiStyleVar_ButtonTextAlign, (0.0, 0.5))
     CImGui.Button(
-        string(
+        stcstr(
             "仪器：", bk.instrnm,
             " 地址：", bk.addr,
             " 命令：", bk.cmd
@@ -1380,7 +1380,7 @@ function view(bk::QueryBlock)
     CImGui.PushStyleColor(CImGui.ImGuiCol_Text, markc)
     CImGui.PushStyleVar(CImGui.ImGuiStyleVar_ButtonTextAlign, (0.0, 0.5))
     CImGui.Button(
-        string(
+        stcstr(
             "仪器：", bk.instrnm,
             " 地址：", bk.addr,
             " 命令：", bk.cmd,
@@ -1414,7 +1414,7 @@ function view(bk::ReadBlock)
     CImGui.PushStyleColor(CImGui.ImGuiCol_Text, markc)
     CImGui.PushStyleVar(CImGui.ImGuiStyleVar_ButtonTextAlign, (0.0, 0.5))
     CImGui.Button(
-        string(
+        stcstr(
             "仪器：", bk.instrnm,
             " 地址：", bk.addr,
             " 索引：", bk.index,
@@ -1433,7 +1433,7 @@ function view(bk::SaveBlock)
     CImGui.TextColored(morestyle.Colors.BlockIcons, morestyle.Icons.SaveBlock)
     CImGui.SameLine()
     CImGui.PushStyleVar(CImGui.ImGuiStyleVar_ButtonTextAlign, (0.0, 0.5))
-    CImGui.Button(string("标注：", bk.mark, " 变量：", bk.varname), (-1, 0))
+    CImGui.Button(stcstr("标注：", bk.mark, " 变量：", bk.varname), (-1, 0))
     CImGui.PopStyleVar()
     CImGui.EndChild()
 end

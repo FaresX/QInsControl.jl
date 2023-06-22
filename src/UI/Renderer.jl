@@ -128,6 +128,9 @@ function UI(breakdown=false)
             ImGuiGLFWBackend.new_frame(window_ctx)
             CImGui.NewFrame()
 
+            ######检查STATICSTRINGS######
+            waittime("Check STATICSTRINGS", 60) && checklifetime()
+
             ######保存图像######
             if savingimg
                 @c glfwGetWindowPos(window, &glfwwindowx, &glfwwindowy)

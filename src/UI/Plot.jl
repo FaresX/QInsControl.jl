@@ -49,7 +49,7 @@ let
         CImGui.BeginChild("Plot", size)
         if uip.ptype == "heatmap"
             if isempty(uip.z)
-                PlotHolder(CImGui.ImVec2(-1, -1))
+                PlotHolder(uip.ps, CImGui.ImVec2(-1, -1))
             else
                 xlims, ylims, zlims, xlabel, ylabel = xyzsetting(uip)
                 @c Plot(
@@ -66,7 +66,7 @@ let
             end
         else
             if isempty(uip.y) || isempty(uip.y[1])
-                PlotHolder(CImGui.ImVec2(-1, -1))
+                PlotHolder(uip.ps, CImGui.ImVec2(-1, -1))
             else
                 x, xlabel = xysetting(uip)
                 Plot(
@@ -82,10 +82,10 @@ let
                 )
             end
         end
-        uip.ps.phv && CImGui.IsMouseClicked(2) && CImGui.OpenPopup("title$id")
+        uip.ps.phv && CImGui.IsMouseClicked(2) && CImGui.OpenPopup(stcstr("title", id))
         haskey(openpopup_mspos_list, id) || push!(openpopup_mspos_list, id => Cfloat[0, 0])
         openpopup_mspos = openpopup_mspos_list[id]
-        if CImGui.BeginPopup("title$id")
+        if CImGui.BeginPopup(stcstr("title", id))
             if openpopup_mspos == Cfloat[0, 0]
                 openpopup_mspos .= uip.ps.mspos.x, uip.ps.mspos.y
                 annbuf.posx, annbuf.posy = openpopup_mspos
@@ -109,16 +109,16 @@ let
                     push!(uip.anns, deepcopy(annbuf))
                 end
             end
-            if CImGui.Button(morestyle.Icons.SaveButton * " 保存##图像")
+            if CImGui.Button(stcstr(morestyle.Icons.SaveButton, " 保存##图像"))
                 CImGui.CloseCurrentPopup()
                 saveimg_seting(save_file(; filterlist="png;jpg;jpeg;bmp;eps;tif"), [uip])
                 global savingimg = true
             end
             CImGui.EndPopup()
         end
-        igIsPopupOpenStr("title$id", 0) || openpopup_mspos == Cfloat[0, 0] || fill!(openpopup_mspos, 0)
-        uip.ps.annhv && CImGui.IsMouseClicked(1) && CImGui.OpenPopup("注释$id")
-        if CImGui.BeginPopup("注释$id")
+        igIsPopupOpenStr(stcstr("title", id), 0) || openpopup_mspos == Cfloat[0, 0] || fill!(openpopup_mspos, 0)
+        uip.ps.annhv && CImGui.IsMouseClicked(1) && CImGui.OpenPopup(stcstr("注释", id))
+        if CImGui.BeginPopup(stcstr("注释", id))
             ann_i = uip.anns[uip.ps.annhv_i]
             @c InputTextRSZ("内容", &ann_i.label)
             pos = Cfloat[ann_i.posx, ann_i.posy]
@@ -130,23 +130,23 @@ let
             @c CImGui.DragFloat("尺寸", &ann_i.possz, 1.0, 1, 60, "%.3f", CImGui.ImGuiSliderFlags_AlwaysClamp)
             CImGui.ColorEdit4("颜色", ann_i.color, CImGui.ImGuiColorEditFlags_AlphaBar)
             CImGui.SameLine()
-            if CImGui.Button(morestyle.Icons.CloseFile * "##标签")
+            if CImGui.Button(stcstr(morestyle.Icons.CloseFile, "##标签"))
                 deleteat!(uip.anns, uip.ps.annhv_i)
                 CImGui.CloseCurrentPopup()
             end
             CImGui.EndPopup()
         end
         if CImGui.IsWindowHovered(CImGui.ImGuiHoveredFlags_RootAndChildWindows)
-            uip.ps.xhv && CImGui.IsMouseDoubleClicked(0) && CImGui.OpenPopup("x标签$id")
+            uip.ps.xhv && CImGui.IsMouseDoubleClicked(0) && CImGui.OpenPopup(stcstr("x标签", id))
         end
-        if CImGui.BeginPopup("x标签$id")
+        if CImGui.BeginPopup(stcstr("x标签", id))
             @c InputTextRSZ("x标签", &uip.xlabel)
             CImGui.EndPopup()
         end
         if CImGui.IsWindowHovered(CImGui.ImGuiHoveredFlags_RootAndChildWindows)
-            uip.ps.yhv && CImGui.IsMouseDoubleClicked(0) && CImGui.OpenPopup("y标签$id")
+            uip.ps.yhv && CImGui.IsMouseDoubleClicked(0) && CImGui.OpenPopup(stcstr("y标签", id))
         end
-        if CImGui.BeginPopup("y标签$id")
+        if CImGui.BeginPopup(stcstr("y标签", id))
             @c InputTextRSZ("y标签", &uip.ylabel)
             CImGui.EndPopup()
         end
@@ -272,15 +272,15 @@ let
         ps.plotpos = CImGui.GetItemRectMin()
         ps.plotsize = CImGui.GetItemRectSize()
         CImGui.SameLine()
-        ImPlot.ColormapScale(string(zlabel[], "###$(ps.id)"), zlims..., CImGui.ImVec2(0, -1))
+        ImPlot.ColormapScale(stcstr(zlabel[], "###$(ps.id)"), zlims..., CImGui.ImVec2(0, -1))
         cmssize = CImGui.GetItemRectSize()
         ps.plotsize = (ps.plotsize.x + cmssize.x, ps.plotsize.y)
         width_list[ps.id] = cmssize.x
         if CImGui.IsWindowHovered(CImGui.ImGuiHoveredFlags_RootAndChildWindows)
-            CImGui.IsItemHovered() && CImGui.IsMouseDoubleClicked(0) && CImGui.OpenPopup("z标签$(ps.id)")
+            CImGui.IsItemHovered() && CImGui.IsMouseDoubleClicked(0) && CImGui.OpenPopup(stcstr("z标签", ps.id))
         end
-        if CImGui.BeginPopup("z标签$(ps.id)")
-            InputTextRSZ("z标签##$(ps.id)", zlabel)
+        if CImGui.BeginPopup(stcstr("z标签", ps.id))
+            InputTextRSZ(stcstr("z标签##", ps.id), zlabel)
             CImGui.EndPopup()
         end
         ImPlot.PopColormap()
@@ -289,12 +289,12 @@ let
     end
 end
 
-function PlotHolder(psize=CImGui.ImVec2(0, 0))
+function PlotHolder(ps::PlotState, psize=CImGui.ImVec2(0, 0))
     if ImPlot.BeginPlot("没有数据输入或输入数据有误！！！", "X", "Y", psize)
-        # ps.xhv = ImPlot.IsPlotXAxisHovered()
-        # ps.yhv = ImPlot.IsPlotYAxisHovered()
-        # ps.phv = ImPlot.IsPlotHovered()
-        # ps.mspos = ImPlot.GetPlotMousePos()
+        ps.xhv = ImPlot.IsPlotXAxisHovered()
+        ps.yhv = ImPlot.IsPlotYAxisHovered()
+        ps.phv = ImPlot.IsPlotHovered()
+        ps.mspos = ImPlot.GetPlotMousePos()
         ImPlot.EndPlot()
     end
 end
@@ -413,7 +413,7 @@ function xyzsetting(uip::UIPlot)
         elseif eltype(uip.x) <: AbstractString
             xlims = (1, sz2)
             xticksnum = round(Int, 3CImGui.GetContentRegionAvailWidth() / max_with_empty(lengthpr.(uip.x)) / 2CImGui.GetFontSize())
-            xticks = uip.x[round.(Int, range(1, sz2, length=2xticksnum + 1))[2:2:end-1]]
+            xticks = length(uip.x) < xticksnum ? uip.x : uip.x[round.(Int, range(1, sz2, length=2xticksnum + 1))[2:2:end-1]]
             ImPlot.SetNextPlotTicksX(1 + sz2 / 2xticksnum, sz2 - sz2 / 2xticksnum, xticksnum, xticks)
         end
     end
@@ -458,7 +458,7 @@ let
                 for j in 1:n
                     idx = (i - 1) * n + j
                     if idx <= l
-                        Plot(uips[idx], "Save Plot$idx", (Cfloat(0), height))
+                        Plot(uips[idx], stcstr("Save Plot", idx), (Cfloat(0), height))
                         CImGui.NextColumn()
                     end
                 end

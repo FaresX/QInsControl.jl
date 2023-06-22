@@ -9,7 +9,7 @@ let
     global function ShowConsole(p_open::Ref{Bool})
         # CImGui.SetNextWindowPos((100, 100), CImGui.ImGuiCond_Once)
         CImGui.SetNextWindowSize((600, 400), CImGui.ImGuiCond_Once)
-        if CImGui.Begin(morestyle.Icons.Console * "  控制台", p_open)
+        if CImGui.Begin(stcstr(morestyle.Icons.Console, "  控制台"), p_open)
             if newmsg || waittime("Console", conf.Console.refreshrate)
                 empty!(iomsgshow)
                 textc = CImGui.c_get(imguistyle.Colors, CImGui.ImGuiCol_Text)
@@ -67,7 +67,7 @@ let
                 end
             end
             CImGui.SameLine()
-            if CImGui.Button(morestyle.Icons.SendMsg * " 发送") ||
+            if CImGui.Button(stcstr(morestyle.Icons.SendMsg, " 发送")) ||
                ((CImGui.IsKeyDown(341) || CImGui.IsKeyDown(345)) && (CImGui.IsKeyDown(257) || CImGui.IsKeyDown(335)))
                 if buffer != ""
                     iofile_open = open(iofile, "a+")

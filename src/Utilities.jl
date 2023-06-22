@@ -54,9 +54,9 @@ function packtake!(c, n=12)
 end
 
 resize(z, m, n; fillms=0) = if length(z) > m * n
-    reshape(z[1:m*n], m, n)
+    @views reshape(z[1:m*n], m, n)
 else
-    reshape([reshape(z, :); fill(fillms, m * n - length(z))], m, n)
+    @views reshape([reshape(z, :); fill(fillms, m * n - length(z))], m, n)
 end
 
 inregion(location, region) = region[1] < location.x < region[3] && region[2] < location.y < region[4]

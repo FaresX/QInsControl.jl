@@ -12,26 +12,25 @@ end
 DataViewer() = DataViewer(true, true, false, 1, true, [DataPicker()], [UIPlot()], Layout(), Dict())
 
 let
-    window_ids::Dict{Int,String} = Dict()
     isdelplot::Bool = false
     delplot_i::Int = 0
     global function edit(dtviewer::DataViewer, filetree::FileTree, isrename::Dict{String,Bool}, id)
         # CImGui.SetNextWindowPos((100, 100), CImGui.ImGuiCond_Once)
         CImGui.SetNextWindowSize((800, 600), CImGui.ImGuiCond_Once)
-        if !haskey(window_ids, id)
+        if @c CImGui.Begin(
             if filetree.rootpath_bnm == ""
-                push!(window_ids, id => morestyle.Icons.OpenFile * "  数据浏览##$id")
+                stcstr(morestyle.Icons.OpenFile, "  数据浏览##", id)
             else
-                push!(window_ids, id => morestyle.Icons.OpenFolder * "  数据浏览##$id")
+                stcstr(morestyle.Icons.OpenFolder, "  数据浏览##", id)
             end
-        end
-        if @c CImGui.Begin(window_ids[id], &dtviewer.p_open)
+            &dtviewer.p_open
+        )
             CImGui.Columns(2)
             dtviewer.firsttime && (CImGui.SetColumnOffset(1, CImGui.GetWindowWidth() * 0.3); dtviewer.firsttime = false)
 
             CImGui.BeginChild("DataViewer-FileTree")
             oldfile = filetree.selectedpath[]
-            InputTextRSZ("筛选##$id", filetree.filter)
+            InputTextRSZ(stcstr("筛选##", id), filetree.filter)
             edit(filetree, isrename)
             if filetree.selectedpath[] != oldfile && split(basename(filetree.selectedpath[]), '.')[end] in ["qdt", "cfg"]
                 dtviewer.data = @trypasse load(filetree.selectedpath[]) Dict()
@@ -140,7 +139,7 @@ let
                                                          string.(collect(eachindex(dtviewer.layout.labels)))
                                 maxplotmarkidx = argmax(lengthpr.(dtviewer.layout.marks))
                                 maxploticonwidth = dtviewer.layout.showcol * CImGui.CalcTextSize(
-                                    string(
+                                    stcstr(
                                         morestyle.Icons.SelectData,
                                         " ",
                                         dtviewer.layout.labels[maxplotmarkidx],
@@ -160,7 +159,7 @@ let
                                             dtviewer.show_dtpicker = true
                                             dtviewer.show_dtpicker_i = dtviewer.layout.idxing
                                         end
-                                        if CImGui.MenuItem(morestyle.Icons.CloseFile * " 删除")
+                                        if CImGui.MenuItem(stcstr(morestyle.Icons.CloseFile, " 删除"))
                                             isdelplot = true
                                             delplot_i = dtviewer.layout.idxing
                                         end
@@ -177,7 +176,7 @@ let
                             end
                             # CImGui.MenuItem(morestyle.Icons.SelectData * " 选择数据") && (dtviewer.show_dtpicker = true)
                             CImGui.Separator()
-                            if CImGui.MenuItem(morestyle.Icons.SaveButton * " 保存")
+                            if CImGui.MenuItem(stcstr(morestyle.Icons.SaveButton, " 保存"))
                                 if !isempty(dtviewer.data)
                                     jldopen(filetree.selectedpath[], "w") do file
                                         for key in keys(dtviewer.data)
@@ -189,9 +188,9 @@ let
                             CImGui.EndPopup()
                         end
                     end
-                    isdelplot && ((CImGui.OpenPopup("##删除绘图$(dtviewer.layout.idxing)"));
+                    isdelplot && ((CImGui.OpenPopup(stcstr("##删除绘图", dtviewer.layout.idxing)));
                     isdelplot = false)
-                    if YesNoDialog("##删除绘图$(dtviewer.layout.idxing)", "确认删除？", CImGui.ImGuiWindowFlags_AlwaysAutoResize)
+                    if YesNoDialog(stcstr("##删除绘图", dtviewer.layout.idxing), "确认删除？", CImGui.ImGuiWindowFlags_AlwaysAutoResize)
                         if length(dtviewer.uiplots) > 1
                             deleteat!(dtviewer.layout, delplot_i)
                             deleteat!(dtviewer.uiplots, delplot_i)
@@ -200,7 +199,7 @@ let
                     end
                     CImGui.BeginChild("绘图")
                     if isempty(dtviewer.layout.selectedidx)
-                        Plot(dtviewer.uiplots[1], "文件绘图1")
+                        Plot(dtviewer.uiplots[1], stcstr("文件绘图", filetree.selectedpath[], "-", 1))
                     else
                         totalsz = CImGui.GetContentRegionAvail()
                         l = length(dtviewer.layout.selectedidx)
@@ -216,7 +215,7 @@ let
                                     index = dtviewer.layout.selectedidx[idx]
                                     Plot(
                                         dtviewer.uiplots[index],
-                                        "文件绘图$(filetree.selectedpath[])-$index",
+                                        stcstr("文件绘图", filetree.selectedpath[], "-", index),
                                         (Cfloat(0), height)
                                     )
                                     CImGui.NextColumn()
@@ -250,8 +249,8 @@ let
                     end
                     isupdate = @c edit(dtpk, id, &dtviewer.show_dtpicker)
                     if !dtviewer.show_dtpicker || isupdate ||
-                       (dtpk.isrealtime && waittime("DataViewer$id-DataPicker$show_i", dtpk.refreshrate))
-                        syncplotdata(dtviewer.uiplots[show_i], dtpk, dtviewer.data["data"])
+                       (dtpk.isrealtime && waittime(stcstr("DataViewer", id, "-DataPicker", show_i), dtpk.refreshrate))
+                        syncplotdata(dtviewer.uiplots[show_i], dtpk, dtviewer.data["data"], [])
                     end
                 else
                     CImGui.OpenPopup("文件中没有数据")
@@ -278,18 +277,18 @@ let
         haskey(pagei, id) || push!(pagei, id => 1)
         pages = ceil(Int, lmax / conf.DtViewer.showdatarow)
         pagei[id] > pages && (pagei[id] = 1)
-        showpagewidth = CImGui.CalcTextSize(string(" ", pagei[id], " / ", pages, " ")).x
+        showpagewidth = CImGui.CalcTextSize(stcstr(" ", pagei[id], " / ", pages, " ")).x
         contentwidth = CImGui.GetContentRegionAvailWidth()
         CImGui.PushID(id)
         if CImGui.Button(ICONS.ICON_CARET_LEFT, ((contentwidth - showpagewidth) / 2, Cfloat(0)))
             pagei[id] > 1 && (pagei[id] -= 1)
         end
         CImGui.SameLine()
-        CImGui.Text(string(" ", pagei[id], " / ", pages, " "))
-        CImGui.IsItemHovered() && CImGui.IsMouseDoubleClicked(0) && CImGui.OpenPopup("selectpage$id")
-        if CImGui.BeginPopup("selectpage$id")
+        CImGui.Text(stcstr(" ", pagei[id], " / ", pages, " "))
+        CImGui.IsItemHovered() && CImGui.IsMouseDoubleClicked(0) && CImGui.OpenPopup(stcstr("selectpage", id))
+        if CImGui.BeginPopup(stcstr("selectpage", id))
             pagei_buf::Cint = pagei[id]
-            @c CImGui.DragInt("##selectpage$id", &pagei_buf, 1, 1, lmax, "%d", CImGui.ImGuiSliderFlags_AlwaysClamp)
+            @c CImGui.DragInt(stcstr("##selectpage", id), &pagei_buf, 1, 1, lmax, "%d", CImGui.ImGuiSliderFlags_AlwaysClamp)
             pagei[id] = pagei_buf
             CImGui.EndPopup()
         end

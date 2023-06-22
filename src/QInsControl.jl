@@ -54,7 +54,8 @@ end
 global savingimg::Bool = false
 const CPU = Processor()
 const databuf = Dict{String,Vector{String}}() #数据缓存
-const progresslist = Dict{UUID,Tuple{UUID,Int,Int,Float64}}() #进度条缓存
+const databuf_parsed = Dict{String,Vector{Float64}}()
+const progresslist = OrderedDict{UUID,Tuple{UUID,Int,Int,Float64}}() #进度条缓存
 
 global syncstates::SharedVector{Bool}
 global instrbuffer_rc::RemoteChannel{Channel{Vector{NTuple{4,String}}}}
@@ -64,6 +65,7 @@ global progress_rc::RemoteChannel{Channel{Vector{Tuple{UUID,Int,Int,Float64}}}}
 include("Configurations.jl")
 include("Instrument.jl")
 include("Utilities.jl")
+include("StaticString.jl")
 include("UI/NodesEditor.jl")
 include("UI/IconsFontAwesome6.jl")
 include("UI/IconSelector.jl")

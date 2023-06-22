@@ -196,7 +196,7 @@ let
             if CImGui.BeginTabItem("Variables")
                 for var in fieldnames(LibCImGui.Style)
                     fieldtype(LibCImGui.Style, var) == Cfloat || continue
-                    CImGui.DragFloat(string(var), getproperty(imnodesstyle, var), 1.0, 0, 120, "%.3f", CImGui.ImGuiSliderFlags_AlwaysClamp)
+                    CImGui.DragFloat(stcstr(var), getproperty(imnodesstyle, var), 1.0, 0, 120, "%.3f", CImGui.ImGuiSliderFlags_AlwaysClamp)
                 end
                 CImGui.CheckboxFlags("NodeOutLine", imnodesstyle.flags, LibCImGui.StyleFlags_NodeOutline)
                 CImGui.SameLine()
@@ -252,7 +252,7 @@ let
                     (filter == "" || !isvalid(filter) || occursin(lowercase(filter), lowercase(string(col)))) || continue
                     col_imvec4 = CImGui.ColorConvertU32ToFloat4(CImGui.c_get(imnodesstyle.colors, col))
                     col_arr = [col_imvec4.x, col_imvec4.y, col_imvec4.z, col_imvec4.w]
-                    CImGui.ColorEdit4(string(col), col_arr, CImGui.ImGuiColorEditFlags_AlphaBar | alpha_flags)
+                    CImGui.ColorEdit4(stcstr(col), col_arr, CImGui.ImGuiColorEditFlags_AlphaBar | alpha_flags)
                     CImGui.c_set!(imnodesstyle.colors, col, CImGui.ColorConvertFloat4ToU32(col_arr))
                     if style_ref.colors[Int(col)+1] != CImGui.c_get(imnodesstyle.colors, col)
                         CImGui.SameLine()
@@ -352,7 +352,7 @@ let
                     # ImGuiTextFilter_PassFilter(filter, pointer(string(color)), C_NULL) || continue
                     (filter == "" || !isvalid(filter) || occursin(lowercase(filter), lowercase(string(color)))) || continue
                     CImGui.ColorEdit4(
-                        string(color),
+                        stcstr(color),
                         getproperty(morestyle.Colors, color),
                         CImGui.ImGuiColorEditFlags_AlphaBar | alpha_flags
                     )
@@ -388,7 +388,7 @@ let
                     # ImGuiTextFilter_PassFilter(icons_filter, pointer(string(icon)), C_NULL) || continue
                     occursin(lowercase(icons_filter), lowercase(string(icon))) || continue
                     editicon = getproperty(morestyle.Icons, icon)
-                    @c IconSelector(string(icon), &editicon)
+                    @c IconSelector(stcstr(icon), &editicon)
                     setproperty!(morestyle.Icons, icon, editicon)
                     CImGui.NextColumn()
                 end

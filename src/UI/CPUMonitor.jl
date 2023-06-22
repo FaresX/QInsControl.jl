@@ -1,9 +1,9 @@
 function CPUMonitor(p_open::Ref)
     CImGui.SetNextWindowSize((600, 300), CImGui.ImGuiCond_Once)
-    if CImGui.Begin(morestyle.Icons.CPUMonitor * " 仪器CPU监测", p_open)
+    if CImGui.Begin(stcstr(morestyle.Icons.CPUMonitor, " 仪器CPU监测"), p_open)
         CImGui.TextColored(morestyle.Colors.HighlightText, "ID: ")
         CImGui.SameLine()
-        CImGui.Text(string(remotecall_fetch(()->CPU.id, workers()[1])))
+        CImGui.Text(stcstr(remotecall_fetch(()->CPU.id, workers()[1])))
         CImGui.Spacing()
         CImGui.TextColored(morestyle.Colors.HighlightText, "状态")
         CImGui.Indent()
@@ -13,14 +13,14 @@ function CPUMonitor(p_open::Ref)
             if syncstates[Int(isdaqtask_running)]
                 CImGui.PushStyleColor(CImGui.ImGuiCol_Text, CImGui.c_get(imguistyle.Colors, CImGui.ImGuiCol_TextDisabled))
             end
-            if CImGui.Button(morestyle.Icons.InterruptTask * " 停止")
+            if CImGui.Button(stcstr(morestyle.Icons.InterruptTask, " 停止"))
                 syncstates[Int(isdaqtask_running)] || remotecall_wait(()->stop!(CPU), workers()[1])
             end
             syncstates[Int(isdaqtask_running)] && CImGui.PopStyleColor()
             CImGui.SameLine(0, 4CImGui.GetFontSize())
             remotecall_fetch(()->CPU.fast, workers()[1])[] ? CImGui.Text("快速模式") : CImGui.Text("慢速模式")
             CImGui.SameLine()
-            if CImGui.Button(morestyle.Icons.Convert * " 切换")
+            if CImGui.Button(stcstr(morestyle.Icons.Convert, " 切换"))
                 remotecall_wait(workers()[1]) do 
                     CPU.fast[] ⊻= true
                 end
@@ -28,13 +28,13 @@ function CPUMonitor(p_open::Ref)
         else
             CImGui.TextColored(morestyle.Colors.LogError, "已停止")
             CImGui.SameLine()
-            CImGui.Button(morestyle.Icons.RunTask * " 重启") && remotecall_wait(()->start!(CPU), workers()[1])
+            CImGui.Button(stcstr(morestyle.Icons.RunTask, " 重启")) && remotecall_wait(()->start!(CPU), workers()[1])
         end
         CImGui.Unindent()
         CImGui.Spacing()
         CImGui.TextColored(morestyle.Colors.HighlightText, "控制器")
         CImGui.SameLine()
-        CImGui.Button(morestyle.Icons.InstrumentsManualRef * " 重连") && remotecall_wait(()->reconnect!(CPU), workers()[1])
+        CImGui.Button(stcstr(morestyle.Icons.InstrumentsManualRef, " 重连")) && remotecall_wait(()->reconnect!(CPU), workers()[1])
         CImGui.Indent()
         cts = values(remotecall_fetch(()->CPU.controllers, workers()[1]))
         if isempty(cts)
@@ -55,7 +55,7 @@ end
 function showct(ct::Controller, running, connected)
     CImGui.TextColored(morestyle.Colors.HighlightText, "ID: ")
     CImGui.SameLine()
-    CImGui.Text(string(ct.id))
+    CImGui.Text(stcstr(ct.id))
     CImGui.TextColored(morestyle.Colors.HighlightText, "状态")
     CImGui.Indent()
     if running
@@ -82,7 +82,7 @@ function showct(ct::Controller, running, connected)
         CImGui.TextDisabled("(空)")
     else
         for (id, dt) in ct.databuf
-            CImGui.Text(string(id, " => ", dt))
+            CImGui.Text(stcstr(id, " => ", dt))
         end
     end
     CImGui.Unindent()

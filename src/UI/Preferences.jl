@@ -5,16 +5,16 @@ let
         # CImGui.SetNextWindowPos((100, 100), CImGui.ImGuiCond_Once)
         CImGui.SetNextWindowSize((800, 600), CImGui.ImGuiCond_Once)
 
-        if CImGui.Begin(morestyle.Icons.Preferences * "  首选项", p_open)
+        if CImGui.Begin(stcstr(morestyle.Icons.Preferences, "  首选项"), p_open)
             CImGui.Columns(2)
             @cstatic firsttime::Bool = true begin
                 firsttime && (CImGui.SetColumnOffset(1, CImGui.GetWindowWidth() * 0.2); firsttime = false)
             end
             CImGui.BeginChild("选项", (Float32(0), -CImGui.GetFrameHeightWithSpacing()))
-            CImGui.Selectable(morestyle.Icons.CommonSetting * " 通用", selectedpref == "通用") && (selectedpref = "通用")
-            CImGui.Selectable(morestyle.Icons.StyleSetting * " 风格", selectedpref == "风格") && (selectedpref = "风格")
+            CImGui.Selectable(stcstr(morestyle.Icons.CommonSetting, " 通用"), selectedpref == "通用") && (selectedpref = "通用")
+            CImGui.Selectable(stcstr(morestyle.Icons.StyleSetting, " 风格"), selectedpref == "风格") && (selectedpref = "风格")
             CImGui.EndChild()
-            if CImGui.Button(morestyle.Icons.SaveButton * " 保存", (-1, 0))
+            if CImGui.Button(stcstr(morestyle.Icons.SaveButton, " 保存"), (-1, 0))
                 svconf = deepcopy(conf)
                 svconf.U = Dict(up.first => string.(up.second) for up in conf.U)
                 to_toml(joinpath(ENV["QInsControlAssets"], "Necessity/conf.toml"), svconf)
@@ -94,7 +94,7 @@ let
                 fontdir = conf.Fonts.dir
                 inputfontdir = @c InputTextRSZ("路径##Fonts", &fontdir)
                 CImGui.SameLine()
-                selectfontdir = CImGui.Button(morestyle.Icons.SelectPath * "##Fonts-dir")
+                selectfontdir = CImGui.Button(stcstr(morestyle.Icons.SelectPath, "##Fonts-dir"))
                 selectfontdir && (fontdir = pick_folder(abspath(fontdir)))
                 if inputfontdir || selectfontdir
                     if isdir(fontdir)
@@ -107,7 +107,7 @@ let
                 ft1 = conf.Fonts.first
                 inputft1 = @c InputTextRSZ("字体1", &ft1)
                 CImGui.SameLine()
-                selectft1 = CImGui.Button(morestyle.Icons.SelectPath * "##Fonts-first")
+                selectft1 = CImGui.Button(stcstr(morestyle.Icons.SelectPath, "##Fonts-first"))
                 selectft1 && (ft1 = basename(pick_file(joinpath(abspath(fontdir), ft1); filterlist="ttf,ttc,otf")))
                 if inputft1 || selectft1
                     if isfile(joinpath(fontdir, ft1))
@@ -120,7 +120,7 @@ let
                 ft2 = conf.Fonts.second
                 inputft2 = @c InputTextRSZ("字体2", &ft2)
                 CImGui.SameLine()
-                selectft2 = CImGui.Button(morestyle.Icons.SelectPath * "##Fonts-second")
+                selectft2 = CImGui.Button(stcstr(morestyle.Icons.SelectPath, "##Fonts-second"))
                 selectft2 && (ft2 = basename(pick_file(joinpath(abspath(fontdir), ft2); filterlist="ttf,ttc,otf")))
                 if inputft2 || selectft2
                     if isfile(joinpath(fontdir, ft2))
@@ -145,7 +145,7 @@ let
                 iodir = conf.Console.dir
                 inputiodir = @c InputTextRSZ("路径##Console", &iodir)
                 CImGui.SameLine()
-                selectiodir = CImGui.Button(morestyle.Icons.SelectPath * "##IO-dir")
+                selectiodir = CImGui.Button(stcstr(morestyle.Icons.SelectPath, "##IO-dir"))
                 selectiodir && (iodir = pick_folder(abspath(iodir)))
                 if inputiodir || selectiodir
                     if isdir(iodir)
@@ -166,7 +166,7 @@ let
                 logdir = conf.Logs.dir
                 inputlogdir = @c InputTextRSZ("路径##Logs", &logdir)
                 CImGui.SameLine()
-                selectlogdir = CImGui.Button(morestyle.Icons.SelectPath * "##Logs-dir")
+                selectlogdir = CImGui.Button(stcstr(morestyle.Icons.SelectPath, "##Logs-dir"))
                 selectlogdir && (logdir = pick_folder(abspath(logdir)))
                 if inputlogdir || selectlogdir
                     if isdir(logdir)
@@ -186,7 +186,7 @@ let
                 bgpath = conf.BGImage.path
                 inputbgpath = @c InputTextRSZ("路径##BGImage-path", &bgpath)
                 CImGui.SameLine()
-                selectbgpath = CImGui.Button(morestyle.Icons.SelectPath * "##BGImage-path")
+                selectbgpath = CImGui.Button(stcstr(morestyle.Icons.SelectPath, "##BGImage-path"))
                 selectbgpath && (bgpath = pick_file(abspath(bgpath); filterlist="png,jpg,jpeg,tif,bmp"))
                 if inputbgpath || selectbgpath
                     if isfile(bgpath)

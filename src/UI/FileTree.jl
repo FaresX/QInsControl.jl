@@ -53,7 +53,6 @@ end
 
 let
     deldialog::Bool = false
-    yesnodialog_ids::Dict{String,String} = Dict()
     global function filemenu(filetree::FileFileTree, isrename)
         path = filetree.filepath
         file = filetree.filepath_bnm
@@ -82,12 +81,11 @@ let
             CImGui.MenuItem("删除") && (deldialog = true)
             CImGui.EndPopup()
         end
-        haskey(yesnodialog_ids, path) || push!(yesnodialog_ids, path => "##是否删除$path")
-        if YesNoDialog(yesnodialog_ids[path], "确认删除？", CImGui.ImGuiWindowFlags_AlwaysAutoResize)
+        if YesNoDialog(stcstr("##是否删除", path), "确认删除？", CImGui.ImGuiWindowFlags_AlwaysAutoResize)
             Base.Filesystem.rm(path)
             filetree.isdeleted = true
         end
-        deldialog && (CImGui.OpenPopup(yesnodialog_ids[path]);
+        deldialog && (CImGui.OpenPopup(stcstr("##是否删除", path));
         deldialog = false)
         CImGui.PopID()
     end
