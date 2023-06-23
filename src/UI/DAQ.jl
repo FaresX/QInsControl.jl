@@ -60,7 +60,7 @@ let
             for (i, task) in enumerate(daqtasks)
                 task.enable || showdisabled || continue
                 CImGui.PushID(i)
-                isrunning_i = syncstates[Int(isdaqtask_running)] && i == running_i
+                isrunning_i = SyncStates[Int(isdaqtask_running)] && i == running_i
                 CImGui.PushStyleColor(
                     CImGui.ImGuiCol_Button,
                     if task.enable
@@ -73,7 +73,7 @@ let
                         morestyle.Colors.LogError
                     end
                 )
-                if CImGui.Button(stcstr(morestyle.Icons.TaskButton, " 任务 ", i+old_i, " ", task.name, "###rename"), (-1, 0))
+                if CImGui.Button(stcstr(morestyle.Icons.TaskButton, " 任务 ", i + old_i, " ", task.name, "###rename"), (-1, 0))
                     show_daq_editor_i = i
                     show_daq_editor = true
                 end
@@ -82,11 +82,11 @@ let
                 CImGui.OpenPopupOnItemClick(stcstr("队列编辑菜单", i))
                 isrunning_i && ShowProgressBar()
                 show_daq_editor && show_daq_editor_i == i && @c edit(task, i, &show_daq_editor)
-                if !syncstates[Int(isdaqtask_running)]
+                if !SyncStates[Int(isdaqtask_running)]
                     CImGui.Indent()
                     if CImGui.BeginDragDropSource(0)
                         @c CImGui.SetDragDropPayload("Swap DAQTask", &i, sizeof(Cint))
-                        CImGui.Text(stcstr("任务 ", i+old_i, " ", task.name))
+                        CImGui.Text(stcstr("任务 ", i + old_i, " ", task.name))
                         CImGui.EndDragDropSource()
                     end
                     if CImGui.BeginDragDropTarget()
@@ -108,13 +108,13 @@ let
                         morestyle.Icons.RunTask * " 运行",
                         C_NULL,
                         false,
-                        !syncstates[Int(isdaqtask_running)] && task.enable
+                        !SyncStates[Int(isdaqtask_running)] && task.enable
                     )
                         if ispath(workpath)
                             running_i = i
-                            errormonitor(@async begin
+                            errormonitor(Threads.@spawn begin
                                 run(task)
-                                syncstates[Int(isinterrupt)] && (syncstates[Int(isinterrupt)] = false)
+                                SyncStates[Int(isinterrupt)] && (SyncStates[Int(isinterrupt)] = false)
                             end)
                             show_daq_selector = false
                         else
@@ -157,7 +157,7 @@ let
                 isrename && (CImGui.OpenPopup(stcstr("重命名", i));
                 isrename = false)
                 if CImGui.BeginPopup(stcstr("重命名", i))
-                    @c InputTextRSZ(stcstr(morestyle.Icons.TaskButton, " 任务 ", i+old_i), &task.name)
+                    @c InputTextRSZ(stcstr(morestyle.Icons.TaskButton, " 任务 ", i + old_i), &task.name)
                     CImGui.EndPopup()
                 end
                 CImGui.PopID()
@@ -305,14 +305,14 @@ let
                 end
             )
             if CImGui.Button(stcstr(morestyle.Icons.RunTask, " 全部运行"))
-                if !syncstates[Int(isdaqtask_running)]
+                if !SyncStates[Int(isdaqtask_running)]
                     if ispath(workpath)
-                        runalltask = @async begin
+                        runalltask = Threads.@spawn begin
                             isrunall = true
                             for (i, task) in enumerate(daqtasks)
                                 running_i = i
                                 run(task)
-                                syncstates[Int(isinterrupt)] && (syncstates[Int(isinterrupt)] = false; break)
+                                SyncStates[Int(isinterrupt)] && (SyncStates[Int(isinterrupt)] = false; break)
                             end
                             isrunall = false
                         end
@@ -326,28 +326,24 @@ let
             CImGui.PopStyleColor()
 
             CImGui.SameLine(CImGui.GetColumnOffset(1) - bottombtsz - unsafe_load(imguistyle.WindowPadding.x))
-            if syncstates[Int(isblock)]
+            if SyncStates[Int(isblock)]
                 if CImGui.Button(stcstr(morestyle.Icons.RunTask, " 继续"))
-                    syncstates[Int(isblock)] = false
-                    remote_do(workers()[1]) do
-                        lock(() -> notify(block), block)
-                    end
+                    SyncStates[Int(isblock)] = false
+                    lock(() -> notify(block), block)
                 end
             else
                 if CImGui.Button(stcstr(morestyle.Icons.BlockTask, " 暂停"))
-                    syncstates[Int(isdaqtask_running)] && (syncstates[Int(isblock)] = true)
+                    SyncStates[Int(isdaqtask_running)] && (SyncStates[Int(isblock)] = true)
                 end
             end
             bottombtsz = CImGui.GetItemRectSize().x
             CImGui.SameLine()
             if CImGui.Button(stcstr(morestyle.Icons.InterruptTask, " 中断"))
-                if syncstates[Int(isdaqtask_running)]
-                    syncstates[Int(isinterrupt)] = true
-                    if syncstates[Int(isblock)]
-                        syncstates[Int(isblock)] = false
-                        remote_do(workers()[1]) do
-                            lock(() -> notify(block), block)
-                        end
+                if SyncStates[Int(isdaqtask_running)]
+                    SyncStates[Int(isinterrupt)] = true
+                    if SyncStates[Int(isblock)]
+                        SyncStates[Int(isblock)] = false
+                        lock(() -> notify(block), block)
                     end
                 end
             end

@@ -28,11 +28,6 @@ let
                 # CImGui.SetWindowFontScale(1.2)
                 CImGui.TextColored(morestyle.Colors.HighlightText, "基本设置")
                 # CImGui.SetWindowFontScale(1)
-                if conf.Basic.isremote
-                    @c CImGui.Checkbox("双核", &conf.Basic.isremote)
-                else
-                    @c CImGui.Checkbox("单核", &conf.Basic.isremote)
-                end
                 if conf.Basic.viewportenable
                     @c CImGui.Checkbox("多视窗模式 开", &conf.Basic.viewportenable)
                 else
@@ -74,8 +69,6 @@ let
                     @c CImGui.Checkbox("定长采点", &conf.DAQ.equalstep)
                 end
                 @c CImGui.DragInt("保存时间", &conf.DAQ.savetime, 1.0, 1, 180, "%d", CImGui.ImGuiSliderFlags_AlwaysClamp)
-                @c CImGui.DragInt("通道大小", &conf.DAQ.channel_size, 1.0, 4, 2048, "%d", CImGui.ImGuiSliderFlags_AlwaysClamp)
-                @c CImGui.DragInt("打包尺寸", &conf.DAQ.packsize, 1.0, 6, 120, "%d", CImGui.ImGuiSliderFlags_AlwaysClamp)
                 @c CImGui.DragInt("绘图列数", &conf.DAQ.plotshowcol, 1.0, 1, 6, "%d", CImGui.ImGuiSliderFlags_AlwaysClamp)
                 CImGui.DragInt2("拾取帧数", conf.DAQ.pick_fps, 1.0, 1, 180, "%d", CImGui.ImGuiSliderFlags_AlwaysClamp)
                 CImGui.Text(" ")

@@ -10,13 +10,13 @@ function CPUMonitor(p_open::Ref)
         if CPU.running[]
             CImGui.TextColored(morestyle.Colors.LogInfo, "运行中")
             CImGui.SameLine()
-            if syncstates[Int(isdaqtask_running)]
+            if SyncStates[Int(isdaqtask_running)]
                 CImGui.PushStyleColor(CImGui.ImGuiCol_Text, CImGui.c_get(imguistyle.Colors, CImGui.ImGuiCol_TextDisabled))
             end
             if CImGui.Button(stcstr(morestyle.Icons.InterruptTask, " 停止"))
-                syncstates[Int(isdaqtask_running)] || stop!(CPU)
+                SyncStates[Int(isdaqtask_running)] || stop!(CPU)
             end
-            syncstates[Int(isdaqtask_running)] && CImGui.PopStyleColor()
+            SyncStates[Int(isdaqtask_running)] && CImGui.PopStyleColor()
             CImGui.SameLine(0, 4CImGui.GetFontSize())
             CPU.fast[] ? CImGui.Text("快速模式") : CImGui.Text("慢速模式")
             CImGui.SameLine()

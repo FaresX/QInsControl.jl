@@ -43,18 +43,16 @@ using .QInsControlCore
     isblock
     isautorefresh
     newloging
+    savingimg
 end
+const SyncStates::Vector{Bool} = falses(9)
 
-global savingimg::Bool = false
 const CPU = Processor()
 const databuf = Dict{String,Vector{String}}() #数据缓存
 const databuf_parsed = Dict{String,Vector{Float64}}()
+const databuf_lc::Channel{Tuple{String,String}} = Channel{Tuple{String,String}}()
 const progresslist = OrderedDict{UUID,Tuple{UUID,Int,Int,Float64}}() #进度条缓存
-
-global syncstates::SharedVector{Bool}
-global instrbuffer_rc::RemoteChannel{Channel{Vector{NTuple{4,String}}}}
-global databuf_rc::RemoteChannel{Channel{Vector{NTuple{2,String}}}}
-global progress_rc::RemoteChannel{Channel{Vector{Tuple{UUID,Int,Int,Float64}}}}
+const progress_lc::Channel{Tuple{UUID,Int,Int,Float64}} = Channel{Tuple{UUID,Int,Int,Float64}}()
 
 include("Configurations.jl")
 include("Instrument.jl")
@@ -90,17 +88,12 @@ include("Conf.jl")
 function julia_main()::Cint
     try
         loadconf()
-        databuf_c::Channel{Vector{Tuple{String,String}}} = Channel{Vector{NTuple{2,String}}}(conf.DAQ.channel_size)
-        progress_c::Channel{Vector{Tuple{UUID,Int,Int,Float64}}} = Channel{Vector{Tuple{UUID,Int,Int,Float64}}}(conf.DAQ.channel_size)
-        global syncstates = SharedVector{Bool}(8)
-        global databuf_rc = RemoteChannel(() -> databuf_c)
-        global progress_rc = RemoteChannel(() -> progress_c)
-        global logio = IOBuffer()
-        global_logger(SimpleLogger(logio))
-        errormonitor(@async while true
-            sleep(1)
-            update_log()
-        end)
+        # global logio = IOBuffer()
+        # global_logger(SimpleLogger(logio))
+        # errormonitor(@async while true
+        #     sleep(1)
+        #     update_log()
+        # end)
         @info ARGS
         isempty(ARGS) || @info reencoding.(ARGS, conf.Basic.encoding)
         uitask = UI()
@@ -112,7 +105,7 @@ function julia_main()::Cint
         @info "[$(now())]\n启动成功！"
         if !isinteractive()
             wait(uitask)
-            while syncstates[Int(isdaqtask_running)]
+            while SyncStates[Int(isdaqtask_running)]
                 yield()
             end
             sleep(0.1)

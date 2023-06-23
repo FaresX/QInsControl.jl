@@ -45,14 +45,6 @@ function parsedollar(str)
     end
 end
 
-function packtake!(c, n=12)
-    buf = eltype(c)[]
-    for _ in 1:n
-        isready(c) && push!(buf, take!(c))
-    end
-    buf
-end
-
 resize(z, m, n; fillms=0) = if length(z) > m * n
     @views reshape(z[1:m*n], m, n)
 else

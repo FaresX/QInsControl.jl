@@ -183,28 +183,29 @@ function edit(ibv::InstrBufferViewer)
             CImGui.OpenPopupOnItemClick("rightclick")
         end
         if CImGui.BeginPopup("rightclick")
-            if CImGui.MenuItem(
-                stcstr(morestyle.Icons.InstrumentsManualRef, " 手动刷新"),
-                "F5",
-                false,
-                !syncstates[Int(isdaqtask_running)]
-            )
+            if CImGui.MenuItem(stcstr(morestyle.Icons.InstrumentsManualRef, " 手动刷新"), "F5") || CImGui.IsKeyReleased(294)
                 ibv.insbuf.isautorefresh = true
-                manualrefresh()
+                refresh_ibvs(true)
+                for ins in keys(instrbufferviewers)
+                    for (addr, ibv) in instrbufferviewers[ins]
+                        for (_, qt) in ibv.insbuf.quantities
+                            updatefront!(qt)
+                        end
+                    end
+                end
             end
             CImGui.Text(stcstr(morestyle.Icons.InstrumentsAutoRef, " 自动刷新"))
             CImGui.SameLine()
-            isautoref = syncstates[Int(isautorefresh)]
+            isautoref = SyncStates[Int(isautorefresh)]
             @c CImGui.Checkbox("##自动刷新", &isautoref)
-            syncstates[Int(isautorefresh)] = isautoref
-            ibv.insbuf.isautorefresh = syncstates[Int(isautorefresh)]
+            SyncStates[Int(isautorefresh)] = isautoref
+            ibv.insbuf.isautorefresh = SyncStates[Int(isautorefresh)]
             if isautoref
                 CImGui.SameLine()
                 CImGui.Text(" ")
                 CImGui.SameLine()
                 CImGui.PushItemWidth(CImGui.GetFontSize() * 2)
                 @c CImGui.DragFloat("##自动刷新", &conf.InsBuf.refreshrate, 0.1, 0.1, 60, "%.1f", CImGui.ImGuiSliderFlags_AlwaysClamp)
-                # remotecall_wait((x) -> (global refreshrate = x), workers()[1], refreshrate)
                 CImGui.PopItemWidth()
             end
             CImGui.Text(stcstr(morestyle.Icons.ShowCol, " 显示列数"))
@@ -214,7 +215,6 @@ function edit(ibv::InstrBufferViewer)
             CImGui.PopItemWidth()
             CImGui.EndPopup()
         end
-        CImGui.IsKeyReleased(294) && manualrefresh()
     end
     CImGui.End()
 end
@@ -241,26 +241,27 @@ let
             end
             CImGui.EndChild()
             if CImGui.BeginPopupContextItem()
-                if CImGui.MenuItem(
-                    stcstr(morestyle.Icons.InstrumentsManualRef, " 手动刷新"),
-                    "F5",
-                    false,
-                    !syncstates[Int(isdaqtask_running)]
-                )
-                    manualrefresh()
+                if CImGui.MenuItem(stcstr(morestyle.Icons.InstrumentsManualRef, " 手动刷新"), "F5") || CImGui.IsKeyReleased(294)
+                    refresh_ibvs(true)
+                    for ins in keys(instrbufferviewers)
+                        for (addr, ibv) in instrbufferviewers[ins]
+                            for (_, qt) in ibv.insbuf.quantities
+                                updatefront!(qt)
+                            end
+                        end
+                    end
                 end
                 CImGui.Text(stcstr(morestyle.Icons.InstrumentsAutoRef, " 自动刷新"))
                 CImGui.SameLine()
-                isautoref = syncstates[Int(isautorefresh)]
+                isautoref = SyncStates[Int(isautorefresh)]
                 @c CImGui.Checkbox("##自动刷新", &isautoref)
-                syncstates[Int(isautorefresh)] = isautoref
+                SyncStates[Int(isautorefresh)] = isautoref
                 if isautoref
                     CImGui.SameLine()
                     CImGui.Text(" ")
                     CImGui.SameLine()
                     CImGui.PushItemWidth(CImGui.GetFontSize() * 2)
                     @c CImGui.DragFloat("##自动刷新", &conf.InsBuf.refreshrate, 0.1, 0.1, 60, "%.1f", CImGui.ImGuiSliderFlags_AlwaysClamp)
-                    # remotecall_wait((x) -> (global refreshrate = x), workers()[1], refreshrate)
                     CImGui.PopItemWidth()
                 end
                 CImGui.Text(stcstr(morestyle.Icons.ShowCol, " 显示列数"))
@@ -270,7 +271,6 @@ let
                 CImGui.PopItemWidth()
                 CImGui.EndPopup()
             end
-            CImGui.IsKeyReleased(294) && manualrefresh()
             CImGui.NextColumn()
             CImGui.BeginChild("设置选项")
             haskey(instrbufferviewers, selectedins) || (selectedins = "")
@@ -321,53 +321,46 @@ function testcmd(ins, addr, inputcmd::Ref{String}, readstr::Ref{String})
         CImGui.Columns(3, C_NULL, false)
         if CImGui.Button(stcstr(morestyle.Icons.WriteBlock, "  Write"), (-1, 0))
             if addr != ""
-                remotecall_wait(workers()[1], ins, addr, inputcmd[]) do ins, addr, inputcmd
-                    ct = Controller(ins, addr)
-                    try
-                        login!(CPU, ct)
-                        ct(write, CPU, inputcmd, Val(:write))
-                        logout!(CPU, ct)
-                    catch e
-                        @error "[$(now())]\n仪器通信故障！！！" instrument = string(ins, ": ", addr) exception = e
-                        logout!(CPU, ct)
-                    end
+                ct = Controller(ins, addr)
+                try
+                    login!(CPU, ct)
+                    ct(write, CPU, inputcmd[], Val(:write))
+                    logout!(CPU, ct)
+                catch e
+                    @error "[$(now())]\n仪器通信故障！！！" instrument = string(ins, ": ", addr) exception = e
+                    logout!(CPU, ct)
                 end
             end
         end
         CImGui.NextColumn()
         if CImGui.Button(stcstr(morestyle.Icons.QueryBlock, "  Query"), (-1, 0))
             if addr != ""
-                fetchdata = remotecall_fetch(workers()[1], ins, addr, inputcmd[]) do ins, addr, inputcmd
-                    ct = Controller(ins, addr)
-                    try
-                        login!(CPU, ct)
-                        readstr = ct(query, CPU, inputcmd, Val(:query))
-                        logout!(CPU, ct)
-                        return readstr
-                    catch e
-                        @error "[$(now())]\n仪器通信故障！！！" instrument = string(ins, ": ", addr) exception = e
-                        logout!(CPU, ct)
-                    end
+                ct = Controller(ins, addr)
+                try
+                    login!(CPU, ct)
+                    readstrbuf = ct(query, CPU, inputcmd, Val(:query))
+                    isnothing(readstrbuf) || (readstr[] = readstrbuf)
+                    logout!(CPU, ct)
+                catch e
+                    @error "[$(now())]\n仪器通信故障！！！" instrument = string(ins, ": ", addr) exception = e
+                    logout!(CPU, ct)
                 end
-                isnothing(fetchdata) || (readstr[] = fetchdata)
+
             end
         end
         CImGui.NextColumn()
         if CImGui.Button(stcstr(morestyle.Icons.ReadBlock, "  Read"), (-1, 0))
             if addr != ""
-                fetchdata = remotecall_fetch(workers()[1], ins, addr) do ins, addr
-                    ct = Controller(ins, addr)
-                    try
-                        login!(CPU, ct)
-                        readstr = ct(read, CPU, Val(:read))
-                        logout!(CPU, ct)
-                        return readstr
-                    catch e
-                        @error "[$(now())]\n仪器通信故障！！！" instrument = string(ins, ": ", addr) exception = e
-                        logout!(CPU, ct)
-                    end
+                ct = Controller(ins, addr)
+                try
+                    login!(CPU, ct)
+                    readstrbuf = ct(read, CPU, Val(:read))
+                    isnothing(readstrbuf) || (readstr[] = readstrbuf)
+                    logout!(CPU, ct)
+                catch e
+                    @error "[$(now())]\n仪器通信故障！！！" instrument = string(ins, ": ", addr) exception = e
+                    logout!(CPU, ct)
                 end
-                isnothing(fetchdata) || (readstr[] = fetchdata)
             end
         end
         CImGui.NextColumn()
@@ -432,6 +425,7 @@ edit(qt::InstrQuantity, instrnm::String, addr::String) = edit(qt, instrnm, addr,
 
 let
     stbtsz::Float32 = 0
+    sweepcts = Dict{UUID,Controller}()
     global function edit(qt::InstrQuantity, instrnm::String, addr::String, ::Val{:sweep})
         CImGui.PushStyleColor(
             CImGui.ImGuiCol_Button,
@@ -441,14 +435,22 @@ let
                 CImGui.c_get(imguistyle.Colors, CImGui.ImGuiCol_Button)
             end
         )
+        CImGui.PushStyleColor(
+            CImGui.ImGuiCol_ButtonHovered,
+            if qt.isautorefresh || qt.issweeping
+                morestyle.Colors.DAQTaskRunning
+            else
+                CImGui.c_get(imguistyle.Colors, CImGui.ImGuiCol_ButtonHovered)
+            end
+        )
         if CImGui.Button(qt.show_edit, (-1, 0))
             if addr != ""
-                fetchdata = refresh_qt(instrnm, addr, qt.name)
-                isnothing(fetchdata) || (qt.read = fetchdata)
+                readstrbuf = refresh_qt(instrnm, addr, qt.name)
+                isnothing(readstrbuf) || (qt.read = readstrbuf)
                 updatefront!(qt)
             end
         end
-        CImGui.PopStyleColor()
+        CImGui.PopStyleColor(2)
         if conf.InsBuf.showhelp && CImGui.IsItemHovered() && qt.help != ""
             ItemTooltip(qt.help)
         end
@@ -467,18 +469,16 @@ let
                         Us = conf.U[qt.utype]
                         U = isempty(Us) ? "" : Us[qt.uindex]
                         U == "" || (Uchange::Float64 = Us[1] isa Unitful.FreeUnits ? ustrip(Us[1], 1U) : 1.0)
-                        start = remotecall_fetch(workers()[1], instrnm, addr) do instrnm, addr
+                        start = @trypasse begin
                             ct = Controller(instrnm, addr)
-                            try
-                                getfunc = Symbol(instrnm, :_, qt.name, :_get) |> eval
-                                login!(CPU, ct)
-                                readstr = ct(getfunc, CPU, Val(:read))
-                                logout!(CPU, ct)
-                                return parse(Float64, readstr)
-                            catch e
-                                @error "[$(now())]\nstart获取错误！！！" instrument = string(instrnm, "-", addr) exception = e
-                                logout!(CPU, ct)
-                            end
+                            getfunc = Symbol(instrnm, :_, qt.name, :_get) |> eval
+                            login!(CPU, ct)
+                            readstr = ct(getfunc, CPU, Val(:read))
+                            logout!(CPU, ct)
+                            parse(Float64, readstr)
+                        end begin
+                            @error "[$(now())]\nstart获取错误！！！" instrument = string(instrnm, "-", addr)
+                            logout!(CPU, ct)
                         end
                         step = @trypasse eval(Meta.parse(qt.step)) * Uchange begin
                             @error "[$(now())]\nstep解析错误！！！" step = qt.step
@@ -496,36 +496,31 @@ let
                                 sweeplist = collect(start:step:stop)
                                 sweeplist[end] == stop || push!(sweeplist, stop)
                             end
-                            sweeptask = @async begin
-                                qt.issweeping = true
-                                ct = Controller(instrnm, addr)
-                                try
-                                    remotecall_wait(workers()[1], ct) do ct
-                                        @isdefined(sweepcts) || (global sweepcts = Dict{UUID,Controller}())
-                                        push!(sweepcts, ct.id => ct)
+                            qt.issweeping = true
+                            ct = Controller(instrnm, addr)
+                            push!(sweepcts, ct.id => ct)
+                            errormonitor(
+                                Threads.@spawn begin
+                                    try
                                         login!(CPU, ct)
-                                    end
-                                    for i in sweeplist
-                                        qt.issweeping || break
-                                        sleep(qt.delay)
-                                        qt.read = remotecall_fetch(workers()[1], i, ct.id) do i, ctid
-                                            setfunc = Symbol(instrnm, :_, qt.name, :_set) |> eval
-                                            getfunc = Symbol(instrnm, :_, qt.name, :_get) |> eval
-                                            sweepcts[ctid](setfunc, CPU, string(i), Val(:write))
-                                            return sweepcts[ctid](getfunc, CPU, Val(:read))
+                                        setfunc = Symbol(instrnm, :_, qt.name, :_set) |> eval
+                                        getfunc = Symbol(instrnm, :_, qt.name, :_get) |> eval
+                                        for i in sweeplist
+                                            qt.issweeping || break
+                                            sweepcts[ct.id](setfunc, CPU, string(i), Val(:write))
+                                            sleep(qt.delay)
+                                            qt.read = sweepcts[ct.id](getfunc, CPU, Val(:read))
+                                            updatefront!(qt)
                                         end
-                                    end
-                                catch e
-                                    @error "[$(now())]\n仪器通信故障！！！" instrument = string(instrnm, ": ", addr) quantity = qt.name exception = e
-                                finally
-                                    remotecall_wait(workers()[1], ct.id) do ctid
-                                        logout!(CPU, sweepcts[ctid])
-                                        pop!(sweepcts, ctid)
+                                    catch e
+                                        @error "[$(now())]\n仪器通信故障！！！" instrument = string(instrnm, ": ", addr) quantity = qt.name exception = e
+                                    finally
+                                        logout!(CPU, sweepcts[ct.id])
+                                        delete!(sweepcts, ct.id)
+                                        qt.issweeping = false
                                     end
                                 end
-                                qt.issweeping = false
-                            end
-                            errormonitor(sweeptask)
+                            )
                         end
                     end
                     CImGui.CloseCurrentPopup()
@@ -541,29 +536,35 @@ let
             CImGui.EndPopup()
             updatefront!(qt)
         end
-        (qt.issweeping || qt.isautorefresh) && updatefront!(qt)
+        qt.isautorefresh && updatefront!(qt)
     end
 end #let
 
 let
     triggerset::Bool = false
+    openpopup::Bool = false
     global function edit(qt::InstrQuantity, instrnm::String, addr::String, ::Val{:set})
         CImGui.PushStyleColor(
             CImGui.ImGuiCol_Button,
             qt.isautorefresh ? morestyle.Colors.DAQTaskRunning : CImGui.c_get(imguistyle.Colors, CImGui.ImGuiCol_Button)
         )
+        CImGui.PushStyleColor(
+            CImGui.ImGuiCol_ButtonHovered,
+            qt.isautorefresh ? morestyle.Colors.DAQTaskRunning : CImGui.c_get(imguistyle.Colors, CImGui.ImGuiCol_ButtonHovered)
+        )
         if CImGui.Button(qt.show_edit, (-1, 0))
             if addr != ""
-                fetchdata = refresh_qt(instrnm, addr, qt.name)
-                isnothing(fetchdata) || (qt.read = fetchdata)
+                readstrbuf = refresh_qt(instrnm, addr, qt.name)
+                isnothing(readstrbuf) || (qt.read = readstrbuf)
                 updatefront!(qt)
             end
         end
-        CImGui.PopStyleColor()
+        CImGui.IsItemClicked(1) && (CImGui.OpenPopup(stcstr("rightclickmenu", instrnm, addr, qt.name)); openpopup = true)
+        CImGui.PopStyleColor(2)
         if conf.InsBuf.showhelp && CImGui.IsItemHovered() && qt.help != ""
             ItemTooltip(qt.help)
         end
-        if CImGui.BeginPopupContextItem()
+        if CImGui.BeginPopup(stcstr("rightclickmenu", instrnm, addr, qt.name))
             @c InputTextWithHintRSZ("##设置", "设置值", &qt.set)
             if CImGui.Button(" 确认 ", (-Cfloat(0.1), Cfloat(0))) || triggerset || CImGui.IsKeyDown(257) || CImGui.IsKeyDown(335)
                 triggerset = false
@@ -573,30 +574,28 @@ let
                     U == "" || (Uchange::Float64 = Us[1] isa Unitful.FreeUnits ? ustrip(Us[1], 1U) : 1.0)
                     sv = U == "" ? qt.set : @trypasse string(float(eval(Meta.parse(qt.set)) * Uchange)) qt.set
                     triggerset && (sv = qt.optvalues[qt.optedidx])
-                    fetchdata = remotecall_fetch(workers()[1], instrnm, addr, sv) do instrnm, addr, sv
-                        ct = Controller(instrnm, addr)
-                        try
-                            setfunc = Symbol(instrnm, :_, qt.name, :_set) |> eval
-                            getfunc = Symbol(instrnm, :_, qt.name, :_get) |> eval
-                            login!(CPU, ct)
-                            ct(setfunc, CPU, sv, Val(:write))
-                            readstr = ct(getfunc, CPU, Val(:read))
-                            logout!(CPU, ct)
-                            return readstr
-                        catch e
-                            @error "[$(now())]\n仪器通信故障！！！" instrument = string(instrnm, ": ", addr) quantity = qt.name exception = e
-                            logout!(CPU, ct)
-                        end
+                    ct = Controller(instrnm, addr)
+                    try
+                        setfunc = Symbol(instrnm, :_, qt.name, :_set) |> eval
+                        getfunc = Symbol(instrnm, :_, qt.name, :_get) |> eval
+                        login!(CPU, ct)
+                        ct(setfunc, CPU, sv, Val(:write))
+                        readstrbuf = ct(getfunc, CPU, Val(:read))
+                        isnothing(readstrbuf) || (qt.read = readstrbuf)
+                    catch e
+                        @error "[$(now())]\n仪器通信故障！！！" instrument = string(instrnm, ": ", addr) quantity = qt.name exception = e
+                    finally
+                        logout!(CPU, ct)
                     end
-                    isnothing(fetchdata) || (qt.read = fetchdata)
                 end
                 CImGui.CloseCurrentPopup()
             end
-            if addr != ""
-                fetchdata = refresh_qt(instrnm, addr, qt.name)
-                if !isnothing(fetchdata)
-                    fetchdata in qt.optvalues && (qt.optedidx = findfirst(==(fetchdata), qt.optvalues))
+            if openpopup && addr != ""
+                readstrbuf = refresh_qt(instrnm, addr, qt.name)
+                if !isnothing(readstrbuf)
+                    readstrbuf in qt.optvalues && (qt.optedidx = findfirst(==(readstrbuf), qt.optvalues))
                 end
+                openpopup = false
             end
             CImGui.BeginGroup()
             for (i, optv) in enumerate(qt.optvalues)
@@ -632,14 +631,18 @@ let
             CImGui.ImGuiCol_Button,
             qt.isautorefresh ? morestyle.Colors.DAQTaskRunning : CImGui.c_get(imguistyle.Colors, CImGui.ImGuiCol_Button)
         )
+        CImGui.PushStyleColor(
+            CImGui.ImGuiCol_ButtonHovered,
+            qt.isautorefresh ? morestyle.Colors.DAQTaskRunning : CImGui.c_get(imguistyle.Colors, CImGui.ImGuiCol_ButtonHovered)
+        )
         if CImGui.Button(qt.show_edit, (-1, 0))
             if addr != ""
-                fetchdata = refresh_qt(instrnm, addr, qt.name)
-                isnothing(fetchdata) || (qt.read = fetchdata)
+                readstrbuf = refresh_qt(instrnm, addr, qt.name)
+                isnothing(readstrbuf) || (qt.read = readstrbuf)
                 updatefront!(qt)
             end
         end
-        CImGui.PopStyleColor()
+        CImGui.PopStyleColor(2)
         if conf.InsBuf.showhelp && CImGui.IsItemHovered() && qt.help != ""
             ItemTooltip(qt.help)
         end
@@ -697,69 +700,51 @@ function view(qt::InstrQuantity)
 end
 
 function refresh_qt(instrnm, addr, qtnm)
-    remotecall_fetch(workers()[1], instrnm, addr) do instrnm, addr
-        ct = Controller(instrnm, addr)
-        try
-            getfunc = Symbol(instrnm, :_, qtnm, :_get) |> eval
-            login!(CPU, ct)
-            readstr = ct(getfunc, CPU, Val(:read))
-            logout!(CPU, ct)
-            return readstr
-        catch e
-            @error "[$(now())]\n仪器通信故障！！！" instrument = string(instrnm, ": ", addr) quantity = qtnm exception = e
-            logout!(CPU, ct)
-        end
+    ct = Controller(instrnm, addr)
+    try
+        getfunc = Symbol(instrnm, :_, qtnm, :_get) |> eval
+        login!(CPU, ct)
+        readstrbuf = ct(getfunc, CPU, Val(:read))
+        logout!(CPU, ct)
+        return isnothing(readstrbuf) ? "" : readstrbuf
+    catch e
+        @error "[$(now())]\n仪器通信故障！！！" instrument = string(instrnm, ": ", addr) quantity = qtnm exception = e
+        logout!(CPU, ct)
+        return ""
     end
 end
 
 function log_instrbufferviewers()
-    manualrefresh()
+    refresh_ibvs(true)
     push!(cfgbuf, "instrbufferviewers/[$(now())]" => deepcopy(instrbufferviewers))
 end
 
-function refresh_fetch_ibvs(ibvs_local; log=false)
-    remotecall_fetch(workers()[1], ibvs_local, log, conf.DAQ.logall) do ibvs_local, log, logall
-        cts = Dict()
-        @sync for ins in keys(ibvs_local)
-            ins == "Others" && continue
-            push!(cts, ins => Dict())
-            for (addr, ibv) in ibvs_local[ins]
-                push!(cts[ins], addr => Controller(ins, addr))
-                @async begin
-                    if ibv.insbuf.isautorefresh || log
-                        try
-                            login!(CPU, cts[ins][addr])
-                            for (qtnm, qt) in ibv.insbuf.quantities
-                                if (qt.isautorefresh && qt.enable) || (log && (logall || qt.enable))
-                                    getfunc = Symbol(ins, :_, qtnm, :_get) |> eval
-                                    qt.read = cts[ins][addr](getfunc, CPU, Val(:read))
-                                elseif !qt.enable
-                                    qt.read = ""
-                                end
-                            end
-                            logout!(CPU, cts[ins][addr])
-                        catch e
-                            @error "[$(now())]\n仪器通信故障！！！" instrument = string(ins, ": ", addr) exception = e
-                            logout!(CPU, cts[ins][addr])
-                            for (_, qt) in ibv.insbuf.quantities
-                                qt.read = ""
-                            end
+function refresh_ibvs(log=false)
+    cts = Dict()
+    @sync for ins in keys(instrbufferviewers)
+        ins == "Others" && continue
+        push!(cts, ins => Dict())
+        for (addr, ibv) in instrbufferviewers[ins]
+            push!(cts[ins], addr => Controller(ins, addr))
+            Threads.@spawn if ibv.insbuf.isautorefresh || log
+                try
+                    login!(CPU, cts[ins][addr])
+                    for (qtnm, qt) in ibv.insbuf.quantities
+                        if (qt.isautorefresh && qt.enable) || (log && (conf.DAQ.logall || qt.enable))
+                            getfunc = Symbol(ins, :_, qtnm, :_get) |> eval
+                            qt.read = cts[ins][addr](getfunc, CPU, Val(:read))
+                        elseif !qt.enable
+                            qt.read = ""
                         end
                     end
+                    logout!(CPU, cts[ins][addr])
+                catch e
+                    @error "[$(now())]\n仪器通信故障！！！" instrument = string(ins, ": ", addr) exception = e
+                    logout!(CPU, cts[ins][addr])
+                    for (_, qt) in ibv.insbuf.quantities
+                        qt.read = ""
+                    end
                 end
-            end
-        end
-        return ibvs_local
-    end
-end
-
-function manualrefresh()
-    ibvs_remote = refresh_fetch_ibvs(instrbufferviewers; log=true)
-    for ins in keys(instrbufferviewers)
-        ins == "Others" && continue
-        for (addr, ibv) in instrbufferviewers[ins]
-            for (qtnm, qt) in ibv.insbuf.quantities
-                qt.read = ibvs_remote[ins][addr].insbuf.quantities[qtnm].read
             end
         end
     end
@@ -767,26 +752,14 @@ end
 
 function autorefresh()
     errormonitor(
-        @async while true
+        Threads.@spawn while true
             i_sleep = 0
             while i_sleep < conf.InsBuf.refreshrate
                 sleep(0.1)
                 i_sleep += 0.1
             end
-            if syncstates[Int(isautorefresh)]
-                ibvs_remote = refresh_fetch_ibvs(instrbufferviewers)
-                for ins in keys(instrbufferviewers)
-                    ins == "Others" && continue
-                    for (addr, ibv) in instrbufferviewers[ins]
-                        if ibv.insbuf.isautorefresh
-                            for (qtnm, qt) in ibv.insbuf.quantities
-                                if qt.isautorefresh
-                                    qt.read = ibvs_remote[ins][addr].insbuf.quantities[qtnm].read
-                                end
-                            end
-                        end
-                    end
-                end
+            if SyncStates[Int(isautorefresh)]
+                refresh_ibvs()
             end
         end
     )

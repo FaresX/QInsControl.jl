@@ -136,12 +136,11 @@ function tocodes(bk::StrideCodeBlock)
         $(innercodes...)
     end
     interpall = quote
-        if syncstates[Int(isblock)]
+        if SyncStates[Int(isblock)]
             @warn "[$(now())]\n暂停！" StrideCodeBlock = $headcodes
             lock(() -> wait(block), block)
             @info "[$(now())]\n继续！" StrideCodeBlock = $headcodes
-        end
-        if syncstates[Int(isinterrupt)]
+        elseif SyncStates[Int(isinterrupt)]
             @warn "[$(now())]\n中断！" StrideCodeBlock = $headcodes
             return
         end
@@ -215,12 +214,11 @@ function tocodes(bk::SweepBlock)
     return quote
         $ex1
         @progress for $ijk in $sweeplist
-            if syncstates[Int(isblock)]
+            if SyncStates[Int(isblock)]
                 @warn "[$(now())]\n暂停！" SweepBlock = $instr
                 lock(() -> wait(block), block)
                 @info "[$(now())]\n继续！" SweepBlock = $instr
-            end
-            if syncstates[Int(isinterrupt)]
+            elseif SyncStates[Int(isinterrupt)]
                 @warn "[$(now())]\n中断！" SweepBlock = $instr
                 return
             end
@@ -335,7 +333,7 @@ function tocodes(bk::ReadingBlock)
         else
             if bk.isasync
                 return quote
-                    Threads.@threads for data in zip($keyall, $getdata)
+                    Threads.@spawn for data in zip($keyall, $getdata)
                         put!(databuf_lc, data)
                         yield()
                     end
@@ -446,7 +444,7 @@ function tocodes(bk::QueryBlock)
         else
             if bk.isasync
                 return quote
-                    Threads.@threads for data in zip($keyall, $getdata)
+                    Threads.@spawn for data in zip($keyall, $getdata)
                         put!(databuf_lc, data)
                         yield()
                     end
@@ -531,7 +529,7 @@ function tocodes(bk::ReadBlock)
         else
             if bk.isasync
                 return quote
-                    Threads.@threads for data in zip($keyall, $getdata)
+                    Threads.@spawn for data in zip($keyall, $getdata)
                         put!(databuf_lc, data)
                         yield()
                     end

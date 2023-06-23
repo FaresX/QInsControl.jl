@@ -43,70 +43,39 @@ function manualadd(addr)
 end
 
 function refresh_instrlist()
-    if !syncstates[Int(autodetecting)] && !syncstates[Int(autodetect_done)]
-        syncstates[Int(autodetecting)] = true
-        remote_do(workers()[1], syncstates) do syncstates
-            errormonitor(@async begin
-                try
-                    for ins in keys(instrbufferviewers)
-                        ins == "VirtualInstr" && continue
-                        empty!(instrbufferviewers[ins])
-                    end
-                    autodetect()
-                    syncstates[Int(autodetect_done)] = true
-                catch e
-                    syncstates[Int(autodetect_done)] = true
-                    @error "自动查询失败!!!" exception = e
+    if !SyncStates[Int(autodetecting)] && !SyncStates[Int(autodetect_done)]
+        SyncStates[Int(autodetecting)] = true
+        errormonitor(Threads.@spawn begin
+            try
+                for ins in keys(instrbufferviewers)
+                    ins == "VirtualInstr" && continue
+                    empty!(instrbufferviewers[ins])
                 end
-            end)
-        end
-        poll_autodetect()
+                autodetect()
+                SyncStates[Int(autodetect_done)] = true
+            catch e
+                SyncStates[Int(autodetect_done)] = true
+                @error "自动查询失败!!!" exception = e
+            end
+        end)
     end
+    poll_autodetect()
 end
 
 function poll_autodetect()
     errormonitor(
-        @async begin
+        Threads.@spawn begin
             starttime = time()
             while true
-                if time() - starttime > 120
-                    syncstates[Int(autodetecting)] = false
-                    syncstates[Int(autodetect_done)] = false
+                if time() - starttime > 120 || SyncStates[Int(autodetect_done)]
+                    SyncStates[Int(autodetecting)] = false
+                    SyncStates[Int(autodetect_done)] = false
                     break
                 end
-                if syncstates[Int(autodetect_done)]
-                    instrbufferviewers_remote = remotecall_fetch(() -> instrbufferviewers, workers()[1])
-                    for ins in keys(instrbufferviewers_remote)
-                        ins == "VirtualInstr" && continue
-                        empty!(instrbufferviewers[ins])
-                        for addr in keys(instrbufferviewers_remote[ins])
-                            push!(instrbufferviewers[ins], addr => InstrBufferViewer(ins, addr))
-                        end
-                    end
-                    syncstates[Int(autodetecting)] = false
-                    syncstates[Int(autodetect_done)] = false
-                    break
-                else
-                    yield()
-                end
+                yield()
             end
         end
     )
-end
-
-function fetch_ibvs(addinstr)
-    remotecall_wait(workers()[1], addinstr) do addinstr
-        delete!(instrbufferviewers["Others"], addinstr)
-    end
-    delete!(instrbufferviewers["Others"], addinstr)
-    instrbufferviewers_remote = remotecall_fetch(() -> instrbufferviewers, workers()[1])
-    for ins in keys(instrbufferviewers_remote)
-        ins == "VirtualInstr" && continue
-        for addr in keys(instrbufferviewers_remote[ins])
-            haskey(instrbufferviewers[ins], addr) && continue
-            push!(instrbufferviewers[ins], addr => InstrBufferViewer(ins, addr))
-        end
-    end
 end
 
 let
@@ -116,8 +85,8 @@ let
     global function manualadd_from_others()
         @c ComBoS("##OthersIns", &addinstr, keys(instrbufferviewers["Others"]))
         if CImGui.Button(morestyle.Icons.NewFile * " 添加  ")
-            st = remotecall_fetch(manualadd, workers()[1], addinstr)
-            st && (fetch_ibvs(addinstr); addinstr = "")
+            st = manualadd(addinstr)
+            st && (addinstr = "")
             time_old = time()
         end
         if time() - time_old < 2
@@ -151,8 +120,8 @@ let
             end
             CImGui.OpenPopupOnItemClick("选择常用地址", 1)
             if CImGui.Button(morestyle.Icons.NewFile * " 添加  ##手动输入仪器地址")
-                st = remotecall_fetch(manualadd, workers()[1], newinsaddr)
-                st && (fetch_ibvs(newinsaddr); newinsaddr = "")
+                st = manualadd(newinsaddr)
+                st && (newinsaddr = "")
                 time_old = time()
             end
             if time() - time_old < 2

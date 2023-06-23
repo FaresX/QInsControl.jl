@@ -28,11 +28,9 @@ function tohms(second)
 end
 
 function update_progress()
-    if isready(progress_rc)
-        packpb = take!(progress_rc)
-        for pb in packpb
-            haskey(progresslist, pb[1]) || push!(progresslist, pb[1] => pb)
-            progresslist[pb[1]] = pb
-        end
+    if isready(progress_lc)
+        pb = take!(progress_lc)
+        haskey(progresslist, pb[1]) || push!(progresslist, pb[1] => pb)
+        progresslist[pb[1]] = pb
     end
 end

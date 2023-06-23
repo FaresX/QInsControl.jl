@@ -1,5 +1,4 @@
 @option mutable struct OptBasic
-    isremote::Bool
     viewportenable::Bool
     windowsize::Vector{Cint}
     encoding::String
@@ -15,8 +14,6 @@ end
     logall::Bool
     equalstep::Bool
     savetime::Cint
-    channel_size::Cint
-    packsize::Cint
     plotshowcol::Cint
     pick_fps::Vector{Cint}
 end

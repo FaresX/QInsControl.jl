@@ -24,7 +24,7 @@ let
             CImGui.BeginChild("Blocks")
             CImGui.TextColored(morestyle.Colors.HighlightText, morestyle.Icons.TaskButton)
             CImGui.SameLine()
-            CImGui.Text(stcstr(" 编辑队列：任务 ", id+old_i, " ", daqtask.name))
+            CImGui.Text(stcstr(" 编辑队列：任务 ", id + old_i, " ", daqtask.name))
             CImGui.SameLine(CImGui.GetContentRegionAvailWidth() - holdsz)
             @c CImGui.Checkbox("HOLD", &hold)
             holdsz = CImGui.GetItemRectSize().x
@@ -41,7 +41,7 @@ let
                 manualadd_ui()
                 CImGui.EndPopup()
             end
-            if syncstates[Int(autodetecting)]
+            if SyncStates[Int(autodetecting)]
                 CImGui.SameLine()
                 CImGui.TextColored(morestyle.Colors.HighlightText, "查找仪器中......")
             end
@@ -82,7 +82,7 @@ function run(daqtask::DAQTask)
     global old_i
     global issweeping
     daqtask.enable || return
-    syncstates[Int(isdaqtask_running)] = true
+    SyncStates[Int(isdaqtask_running)] = true
     date = today()
     find_old_i(joinpath(workpath, string(year(date)), string(year(date), "-", month(date)), string(date)))
     cfgsvdir = joinpath(workpath, string(year(date)), string(year(date), "-", month(date)), string(date))
@@ -92,7 +92,8 @@ function run(daqtask::DAQTask)
     try
         log_instrbufferviewers()
     catch e
-        @error "[($now())]\n仪器记录错误，程序终止！！！" exception=e
+        @error "[($now())]\n仪器记录错误，程序终止！！！" exception = e
+        SyncStates[Int(isdaqtask_running)] = false
         return
     end
     run_remote(daqtask)
@@ -103,99 +104,80 @@ function run(daqtask::DAQTask)
     )
 end
 
-
+const block::Threads.Condition = Threads.Condition()
 function run_remote(daqtask::DAQTask)
-    controllers, st = remotecall_fetch(extract_controllers, workers()[1], daqtask.blocks)
+    controllers, st = extract_controllers(daqtask.blocks)
     empty!(databuf)
     empty!(databuf_parsed)
     if !st
-        syncstates[Int(isdaqtask_done)] = true
+        SyncStates[Int(isdaqtask_done)] = true
         return
     end
-    rn = length(controllers)
     blockcodes = @trypasse tocodes.(daqtask.blocks) begin
         @error "[$(now())]\n代码生成失败!!!"
-        syncstates[Int(isdaqtask_done)] = true
+        SyncStates[Int(isdaqtask_done)] = true
         return
     end
     ex = quote
-        function remote_sweep_block(controllers, databuf_lc, progress_lc, syncstates)
+        function remote_sweep_block(controllers, SyncStates)
             $(blockcodes...)
         end
-        function remote_do_block(databuf_rc, progress_rc, syncstates, rn)
+        function remote_do_block()
             controllers = $controllers
             try
-                databuf_lc = Channel{Tuple{String,String}}(conf.DAQ.channel_size)
-                progress_lc = Channel{Tuple{UUID,Int,Int,Float64}}(conf.DAQ.channel_size)
                 @sync begin
-                    remotedotask = errormonitor(@async begin
-                        remotecall_wait(()->(start!(CPU); fast!(CPU)), workers()[1])
-                        for ct in values(controllers)
-                            login!(CPU, ct)
-                        end
-                        remote_sweep_block(controllers, databuf_lc, progress_lc, syncstates)
-                    end)
+                    start!(CPU)
+                    fast!(CPU)
+                    for ct in values(controllers)
+                        login!(CPU, ct)
+                    end
+                    remotedotask = errormonitor(Threads.@spawn remote_sweep_block(controllers, SyncStates))
                     errormonitor(@async while true
-                        if istaskdone(remotedotask) && all(.!isready.([databuf_lc, databuf_rc, progress_lc, progress_rc]))
-                            syncstates[Int(isdaqtask_done)] = true
+                        if istaskdone(remotedotask) && !isready(databuf_lc) && !isready(progress_lc)
+                            SyncStates[Int(isdaqtask_done)] = true
                             break
-                        else
-                            isready(databuf_lc) && put!(databuf_rc, packtake!(databuf_lc, 2rn * conf.DAQ.packsize))
-                            isready(progress_lc) && put!(progress_rc, packtake!(progress_lc, conf.DAQ.packsize))
                         end
                         yield()
                     end)
                 end
             catch e
                 @error "[$(now())]\n任务失败！！！" exeption = e
+                SyncStates[Int(isdaqtask_done)] = true
             finally
                 for ct in values(controllers)
                     logout!(CPU, ct)
                 end
-                remotecall_wait(()->slow!(CPU), workers()[1])
+                slow!(CPU)
             end
         end
     end |> prettify
-    remotecall_wait(workers()[1], ex, syncstates) do ex, syncstates
-        try
-            @info "[$(now())]\n" task = ex
-            eval(ex)
-        catch e
-            syncstates[Int(isdaqtask_done)] = true
-            @error "[$(now())]\n程序定义有误！！！" exception = e
-        end
+    try
+        @info "[$(now())]\n" task = ex
+        @eval $ex
+    catch e
+        SyncStates[Int(isdaqtask_done)] = true
+        @error "[$(now())]\n程序定义有误！！！" exception = e
     end
-    syncstates[Int(isdaqtask_done)] && return
-    remote_do(workers()[1], databuf_rc, progress_rc, syncstates, rn) do databuf_rc, progress_rc, syncstates, rn
-        try
-            global block = Threads.Condition()
-            remote_do_block(databuf_rc, progress_rc, syncstates, rn)
-        catch e
-            syncstates[Int(isdaqtask_done)] = true
-            @error "[$(now())]\n程序执行有误！！！" exception = e
-        end
-    end
+    SyncStates[Int(isdaqtask_done)] && return
+    errormonitor(Threads.@spawn @eval remote_do_block())
 end
 
 function update_data()
-    if isready(databuf_rc)
-        packdata = take!(databuf_rc)
-        for data in packdata
-            haskey(databuf, data[1]) || push!(databuf, data[1] => String[])
-            haskey(databuf_parsed, data[1]) || push!(databuf_parsed, data[1] => Float64[])
-            push!(databuf[data[1]], data[2])
-            parsed_data = tryparse(Float64, data[2])
-            push!(databuf_parsed[data[1]], isnothing(parsed_data) ? NaN : parsed_data)
-            splitdata = split(data[1], "_")
+    if isready(databuf_lc)
+        key, val = take!(databuf_lc)
+        haskey(databuf, key) || push!(databuf, key => String[])
+        haskey(databuf_parsed, key) || push!(databuf_parsed, key => Float64[])
+        push!(databuf[key], val)
+        parsed_data = tryparse(Float64, val)
+        push!(databuf_parsed[key], isnothing(parsed_data) ? NaN : parsed_data)
+        if !occursin(r"\[.*\]", key)
+            splitdata = split(key, "_")
             if length(splitdata) == 4
                 _, instrnm, qt, addr = splitdata
-            else
-                continue
+                insbuf = instrbufferviewers[instrnm][addr].insbuf
+                insbuf.quantities[qt].read = val
+                updatefront!(insbuf.quantities[qt])
             end
-            occursin(r"\[.*\]", qt) && continue
-            insbuf = instrbufferviewers[instrnm][addr].insbuf
-            insbuf.quantities[qt].read = data[2]
-            updatefront!(insbuf.quantities[qt])
         end
         if waittime("savedatabuf", conf.DAQ.savetime)
             jldopen(savepath, "w") do file
@@ -213,12 +195,12 @@ function update_data()
 end
 
 function update_all()
-    if syncstates[Int(isdaqtask_done)]
+    if SyncStates[Int(isdaqtask_done)]
         if isfile(savepath) || !isempty(databuf)
             try
                 log_instrbufferviewers()
             catch e
-                @error "[$(now())]\n仪器记录错误，无法保存结束状态！！！" exception=e
+                @error "[$(now())]\n仪器记录错误，无法保存结束状态！！！" exception = e
             end
             jldopen(savepath, "w") do file
                 file["data"] = databuf
@@ -236,14 +218,14 @@ function update_all()
                 else
                     saveimg_seting("$savepath.png", uipsweeps[daq_plot_layout.selectedidx])
                 end
-                global savingimg = true
+                SyncStates[Int(savingimg)] = true
             end
             global old_i += 1
         end
         empty!(progresslist)
         empty!(cfgbuf)
-        syncstates[Int(isdaqtask_done)] = false
-        syncstates[Int(isdaqtask_running)] = false
+        SyncStates[Int(isdaqtask_done)] = false
+        SyncStates[Int(isdaqtask_running)] = false
         return false
     else
         update_data()
@@ -264,7 +246,7 @@ function extract_controllers(bkch::Vector{AbstractBlock})
                 logout!(CPU, ct)
                 push!(controllers, string(bk.instrnm, "_", bk.addr) => ct)
             catch e
-                @error "[$(now())]\n仪器设置不正确！！！" instrument=string(bk.instrnm, ": ", bk.addr) exception=e
+                @error "[$(now())]\n仪器设置不正确！！！" instrument = string(bk.instrnm, ": ", bk.addr) exception = e
                 logout!(CPU, ct)
                 return controllers, false
             end
