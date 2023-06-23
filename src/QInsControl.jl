@@ -1,7 +1,3 @@
-# using Distributed
-# nprocs() == 1 && addprocs(1)
-# @everywhere ENV["QInsControlAssets"] = "Assets"
-# @everywhere module QInsControl
 module QInsControl
 
 using CImGui
@@ -18,7 +14,6 @@ using Unitful
 using MacroTools
 import FileIO
 using JLD2
-# using QInsControlCore
 using Configurations
 using ColorTypes
 using OrderedCollections
@@ -38,7 +33,6 @@ using Logging
 
 include("QInsControlCore/QInsControlCore.jl")
 using .QInsControlCore
-# export start
 
 @enum SyncStatesIndex begin
     autodetecting = 1 #是否正在自动查询仪器
@@ -110,26 +104,10 @@ function julia_main()::Cint
         @info ARGS
         isempty(ARGS) || @info reencoding.(ARGS, conf.Basic.encoding)
         uitask = UI()
+        start!(CPU)
         jlverinfobuf = IOBuffer()
         versioninfo(jlverinfobuf)
         global jlverinfo = wrapmultiline(String(take!(jlverinfobuf)), 48)
-        if conf.Basic.isremote
-            nprocs() == 1 && addprocs(1)
-            @eval @everywhere using QInsControl
-            syncstates = SharedVector{Bool}(8)
-            databuf_rc = RemoteChannel(() -> databuf_c)
-            progress_rc = RemoteChannel(() -> progress_c)
-            remotecall_wait(workers()[1], syncstates) do syncstates
-                loadconf()
-                global logio = IOBuffer()
-                global_logger(SimpleLogger(logio))
-                errormonitor(@async while true
-                    sleep(1)
-                    update_log(syncstates=syncstates)
-                end)
-            end
-        end
-        remotecall_wait(()->start!(CPU), workers()[1])
         autorefresh()
         @info "[$(now())]\n启动成功！"
         if !isinteractive()

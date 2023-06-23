@@ -294,7 +294,7 @@ function tocodes(bk::ReadingBlock)
         else
             ex = :(put!(databuf_lc, ($key, $getdata)))
             return bk.isasync ? quote
-                @async begin
+                Threads.@spawn begin
                     $ex
                 end
             end : ex
@@ -335,7 +335,7 @@ function tocodes(bk::ReadingBlock)
         else
             if bk.isasync
                 return quote
-                    @async for data in zip($keyall, $getdata)
+                    Threads.@threads for data in zip($keyall, $getdata)
                         put!(databuf_lc, data)
                         yield()
                     end
@@ -351,7 +351,8 @@ function tocodes(bk::ReadingBlock)
     end
 end
 
-tocodes(::LogBlock) = :(remotecall_wait(eval, 1, :(log_instrbufferviewers())))
+# tocodes(::LogBlock) = :(remotecall_wait(eval, 1, :(log_instrbufferviewers())))
+tocodes(::LogBlock) = :(log_instrbufferviewers())
 
 function tocodes(bk::WriteBlock)
     instr = string(bk.instrnm, "_", bk.addr)
@@ -369,7 +370,7 @@ function tocodes(bk::WriteBlock)
         writecmd
     end
     return bk.isasync ? quote
-        @async begin
+        Threads.@spawn begin
             $ex
         end
     end : ex
@@ -407,7 +408,7 @@ function tocodes(bk::QueryBlock)
         else
             ex = :(put!(databuf_lc, ($key, $getdata)))
             return bk.isasync ? quote
-                @async begin
+                Threads.@spawn begin
                     $ex
                 end
             end : ex
@@ -445,7 +446,7 @@ function tocodes(bk::QueryBlock)
         else
             if bk.isasync
                 return quote
-                    @async for data in zip($keyall, $getdata)
+                    Threads.@threads for data in zip($keyall, $getdata)
                         put!(databuf_lc, data)
                         yield()
                     end
@@ -492,7 +493,7 @@ function tocodes(bk::ReadBlock)
         else
             ex = :(put!(databuf_lc, ($key, $getdata)))
             return bk.isasync ? quote
-                @async begin
+                Threads.@spawn begin
                     $ex
                 end
             end : ex
@@ -530,7 +531,7 @@ function tocodes(bk::ReadBlock)
         else
             if bk.isasync
                 return quote
-                    @async for data in zip($keyall, $getdata)
+                    Threads.@threads for data in zip($keyall, $getdata)
                         put!(databuf_lc, data)
                         yield()
                     end
