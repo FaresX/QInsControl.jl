@@ -110,7 +110,7 @@ function syncplotdata(uiplot::UIPlot, dtpk::DataPicker, datastr, datafloat)
         if dtpk.xtype
             uiplot.x = haskey(datastr, dtpk.x) ? replace(tryparse.(Float64, datastr[dtpk.x]), nothing => NaN) : Float64[]
         else
-            uiplot.x = haskey(datastr, dtpk.x) ? datastr[dtpk.x] : String[]
+            uiplot.x = haskey(datastr, dtpk.x) ? copy(datastr[dtpk.x]) : String[]
         end
         uiplot.y = @trypass [replace(tryparse.(Float64, datastr[key]), nothing => NaN) for key in dtpk.datalist[dtpk.y]] [Float64[]]
         uiplot.legends = @trypass dtpk.datalist[dtpk.y] uiplot.legends
@@ -122,22 +122,22 @@ function syncplotdata(uiplot::UIPlot, dtpk::DataPicker, datastr, datafloat)
         wbuf = @trypass [replace(tryparse.(Float64, datastr[key]), nothing => NaN) for key in dtpk.datalist[dtpk.w]] [Float64[]]
     else
         if dtpk.xtype
-            uiplot.x = haskey(datafloat, dtpk.x) ? datafloat[dtpk.x] : Float64[]
+            uiplot.x = haskey(datafloat, dtpk.x) ? copy(datafloat[dtpk.x]) : Float64[]
         else
-            uiplot.x = haskey(datastr, dtpk.x) ? datastr[dtpk.x] : String[]
+            uiplot.x = haskey(datastr, dtpk.x) ? copy(datastr[dtpk.x]) : String[]
         end
-        uiplot.y = @trypass [datafloat[key] for key in dtpk.datalist[dtpk.y]] [Float64[]]
+        uiplot.y = @trypass [copy(datafloat[key]) for key in dtpk.datalist[dtpk.y]] [Float64[]]
         uiplot.legends = @trypass dtpk.datalist[dtpk.y] uiplot.legends
         zbuf = uiplot.z
         if uiplot.ptype == "heatmap"
             zbuf = if haskey(datafloat, dtpk.z)
-                all(!isnan, datafloat[dtpk.z]) ? datafloat[dtpk.z] : replace(datafloat[dtpk.z], NaN => 0)
+                all(!isnan, datafloat[dtpk.z]) ? copy(datafloat[dtpk.z]) : replace(datafloat[dtpk.z], NaN => 0)
             else
                 Matrix{Float64}(undef, 0, 0)
             end
             all(size(uiplot.z) .== reverse(dtpk.zsize)) || (uiplot.z = zeros(Float64, reverse(dtpk.zsize)...))
         end
-        wbuf = @trypass [datafloat[key] for key in dtpk.datalist[dtpk.w]] [Float64[]]
+        wbuf = @trypass [copy(datafloat[key]) for key in dtpk.datalist[dtpk.w]] [Float64[]]
     end
     innercodes = tocodes(dtpk.codes)
     ex::Expr = quote
