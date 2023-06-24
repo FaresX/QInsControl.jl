@@ -6,10 +6,14 @@ mutable struct DAQTask
 end
 DAQTask() = DAQTask("", "", [SweepBlock(1)], true)
 
-old_i::Int = 0
-workpath::String = ""
-savepath::String = ""
+const databuf = Dict{String,Vector{String}}() #数据缓存
+const databuf_parsed = Dict{String,Vector{Float64}}()
+const databuf_lc::Channel{Tuple{String,String}} = Channel{Tuple{String,String}}(64)
+global old_i::Int = 0
+global workpath::String = ""
+global savepath::String = ""
 const cfgbuf = Dict{String,Any}()
+const block::Threads.Condition = Threads.Condition()
 
 let
     hold::Bool = false
@@ -80,7 +84,6 @@ function run(daqtask::DAQTask)
     global workpath
     global savepath
     global old_i
-    global issweeping
     daqtask.enable || return
     SyncStates[Int(isdaqtask_running)] = true
     date = today()
@@ -97,14 +100,18 @@ function run(daqtask::DAQTask)
         return
     end
     run_remote(daqtask)
+    lk = ReentrantLock()
     wait(
-        @async while update_all()
-            yield()
+        Threads.@spawn begin
+            lock(lk) do 
+                while update_all()
+                    yield()
+                end
+            end
         end
     )
 end
 
-const block::Threads.Condition = Threads.Condition()
 function run_remote(daqtask::DAQTask)
     controllers, st = extract_controllers(daqtask.blocks)
     empty!(databuf)
@@ -137,6 +144,7 @@ function run_remote(daqtask::DAQTask)
                             SyncStates[Int(isdaqtask_done)] = true
                             break
                         end
+                        sleep(0.001)
                         yield()
                     end)
                 end

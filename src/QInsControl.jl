@@ -48,11 +48,6 @@ end
 const SyncStates::Vector{Bool} = falses(9)
 
 const CPU = Processor()
-const databuf = Dict{String,Vector{String}}() #数据缓存
-const databuf_parsed = Dict{String,Vector{Float64}}()
-const databuf_lc::Channel{Tuple{String,String}} = Channel{Tuple{String,String}}()
-const progresslist = OrderedDict{UUID,Tuple{UUID,Int,Int,Float64}}() #进度条缓存
-const progress_lc::Channel{Tuple{UUID,Int,Int,Float64}} = Channel{Tuple{UUID,Int,Int,Float64}}()
 
 include("Configurations.jl")
 include("Instrument.jl")

@@ -1,3 +1,6 @@
+const progresslist = OrderedDict{UUID,Tuple{UUID,Int,Int,Float64}}() #进度条缓存
+const progress_lc::Channel{Tuple{UUID,Int,Int,Float64}} = Channel{Tuple{UUID,Int,Int,Float64}}(64)
+
 macro progress(exfor)
     @gensym pgid pgi pgn tn
     ex = quote

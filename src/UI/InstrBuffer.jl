@@ -169,11 +169,9 @@ end
 InstrBufferViewer(instrnm, addr) = InstrBufferViewer(instrnm, addr, "*IDN?", "", false, InstrBuffer(instrnm))
 InstrBufferViewer() = InstrBufferViewer("", "", "*IDN?", "", false, InstrBuffer())
 
-# const instrcontrollers::Dict{String,Dict{String,Controller}} = Dict()
 const instrbufferviewers::Dict{String,Dict{String,InstrBufferViewer}} = Dict()
 
 function edit(ibv::InstrBufferViewer)
-    # CImGui.SetNextWindowPos((100, 100), CImGui.ImGuiCond_Once)
     CImGui.SetNextWindowSize((800, 600), CImGui.ImGuiCond_Once)
     ins, addr = ibv.instrnm, ibv.addr
     if @c CImGui.Begin(stcstr(insconf[ins].conf.icon, "  ", ins, " --- ", addr), &ibv.p_open)
@@ -227,7 +225,6 @@ let
     readstr::String = ""
     default_insbufs = Dict{String,InstrBuffer}()
     global function ShowInstrBuffer(p_open::Ref)
-        # CImGui.SetNextWindowPos((100, 100), CImGui.ImGuiCond_Once)
         CImGui.SetNextWindowSize((800, 600), CImGui.ImGuiCond_Once)
         if CImGui.Begin(stcstr(morestyle.Icons.InstrumentsOverview, "  仪器设置和状态"), p_open)
             CImGui.Columns(2)
@@ -283,7 +280,9 @@ let
                         @c CImGui.Checkbox(stcstr("##是否自动刷新", addr), &ibv.insbuf.isautorefresh)
                         if ins != "VirtualInstr"
                             CImGui.SameLine()
-                            CImGui.Button(stcstr(morestyle.Icons.CloseFile, "##delete ", addr)) && delete!(instrbufferviewers[ins], addr)
+                            if CImGui.Button(stcstr(morestyle.Icons.CloseFile, "##delete ", addr))
+                                delete!(instrbufferviewers[ins], addr)
+                            end
                         end
                     end
                     CImGui.Separator()
@@ -305,7 +304,7 @@ let
         end
         CImGui.End()
     end
-end #let    
+end 
 
 function testcmd(ins, addr, inputcmd::Ref{String}, readstr::Ref{String})
     if CImGui.CollapsingHeader("\t指令测试")
