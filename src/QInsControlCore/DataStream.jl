@@ -59,8 +59,10 @@ struct Processor
     instrs::Dict{String,Instrument}
     running::Ref{Bool}
     fast::Ref{Bool}
-    Processor() = new(uuid4(), Dict(), Channel{Tuple{UUID,UUID,Function,String,Val}}(64),
-        Dict(), Dict(), Dict(), 0, Dict(), false, false)
+    Processor() = new(
+        uuid4(), Dict(), Channel{Tuple{UUID,UUID,Function,String,Val}}(64),
+        Dict(), Dict(), Dict(), 0, Dict(), false, false
+    )
 end
 function Base.show(io::IO, cpu::Processor)
     str1 = """
@@ -279,7 +281,7 @@ function run!(cpu::Processor)
             push!(cpu.tasks, addr => errormonitor(t))
         end
         errormonitor(
-            Threads.@spawn while cpu.running[]
+            @async while cpu.running[]
                 for (addr, t) in cpu.tasks
                     if istaskfailed(t)
                         @warn "task(address: $addr) is failed, recreating..."

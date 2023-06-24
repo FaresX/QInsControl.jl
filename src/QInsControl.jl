@@ -45,7 +45,7 @@ using .QInsControlCore
     newloging
     savingimg
 end
-const SyncStates::Vector{Bool} = falses(9)
+const SyncStates::Vector{Bool} = falses(length(instances(SyncStatesIndex)))
 
 const CPU = Processor()
 
@@ -83,12 +83,12 @@ include("Conf.jl")
 function julia_main()::Cint
     try
         loadconf()
-        # global logio = IOBuffer()
-        # global_logger(SimpleLogger(logio))
-        # errormonitor(@async while true
-        #     sleep(1)
-        #     update_log()
-        # end)
+        global logio = IOBuffer()
+        global_logger(SimpleLogger(logio))
+        errormonitor(@async while true
+            sleep(1)
+            update_log()
+        end)
         @info ARGS
         isempty(ARGS) || @info reencoding.(ARGS, conf.Basic.encoding)
         uitask = UI()

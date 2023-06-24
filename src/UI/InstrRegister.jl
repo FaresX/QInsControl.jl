@@ -115,9 +115,6 @@ let
                 if !(newinsnm == "" || haskey(insconf, newinsnm))
                     if isrename[oldinsnm] && !renamei
                         setvalue!(insconf, oldinsnm, newinsnm => inscf)
-                        remotecall_wait(workers()[1], oldinsnm, newinsnm, inscf) do oldinsnm, newinsnm, inscf
-                            setvalue!(insconf, oldinsnm, newinsnm => inscf)
-                        end
                         push!(instrbufferviewers, newinsnm => pop!(instrbufferviewers, oldinsnm))
                         selectedins = newinsnm
                         isrename[newinsnm] = renamei
@@ -138,9 +135,6 @@ let
                 end
                 if YesNoDialog(stcstr("##是否删除仪器配置", oldinsnm), "确认删除？", CImGui.ImGuiWindowFlags_AlwaysAutoResize)
                     pop!(insconf, oldinsnm, 0)
-                    remotecall_wait(workers()[1], oldinsnm) do oldinsnm
-                        pop!(insconf, oldinsnm, 0)
-                    end
                     pop!(instrbufferviewers, oldinsnm, 0)
                     selectedins = ""
                 end
@@ -196,9 +190,6 @@ let
                     )
                 )
                 push!(insconf, "New Ins" => newins)
-                remotecall_wait(workers()[1], newins) do newins
-                    push!(insconf, "New Ins" => newins)
-                end
                 push!(instrbufferviewers, "New Ins" => Dict{String,InstrBufferViewer}())
             end
             CImGui.NextColumn()
@@ -265,9 +256,6 @@ let
                     CImGui.SameLine()
                     if CImGui.Button(stcstr(morestyle.Icons.CloseFile, "##QuantityConf"))
                         pop!(selectedinscf.quantities, selectedqt, 0)
-                        remotecall_wait(workers()[1], selectedins, selectedqt) do selectedins, selectedqt
-                            pop!(insconf[selectedins].quantities, selectedqt, 0)
-                        end
                         for ibv in values(instrbufferviewers[selectedins])
                             pop!(ibv.insbuf.quantities, qtname, 0)
                         end
@@ -279,9 +267,6 @@ let
                     CImGui.SameLine()
                     if CImGui.Button(stcstr(morestyle.Icons.SaveButton, "##QuantityConf to insconf"))
                         push!(selectedinscf.quantities, qtname => deepcopy(editqt))
-                        remotecall_wait(workers()[1], selectedins, qtname, editqt) do selectedins, qtname, editqt
-                            push!(insconf[selectedins].quantities, qtname => editqt)
-                        end
                         for ibv in values(instrbufferviewers[selectedins])
                             push!(ibv.insbuf.quantities, qtname => InstrQuantity(qtname, deepcopy(editqt)))
                         end

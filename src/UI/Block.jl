@@ -349,7 +349,6 @@ function tocodes(bk::ReadingBlock)
     end
 end
 
-# tocodes(::LogBlock) = :(remotecall_wait(eval, 1, :(log_instrbufferviewers())))
 tocodes(::LogBlock) = :(log_instrbufferviewers())
 
 function tocodes(bk::WriteBlock)
