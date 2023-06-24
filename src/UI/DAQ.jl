@@ -112,7 +112,7 @@ let
                     )
                         if ispath(workpath)
                             running_i = i
-                            errormonitor(Threads.@spawn begin
+                            errormonitor(@async begin
                                 run(task)
                                 SyncStates[Int(isinterrupt)] && (SyncStates[Int(isinterrupt)] = false)
                             end)
@@ -307,7 +307,7 @@ let
             if CImGui.Button(stcstr(morestyle.Icons.RunTask, " 全部运行"))
                 if !SyncStates[Int(isdaqtask_running)]
                     if ispath(workpath)
-                        runalltask = Threads.@spawn begin
+                        runalltask = @async begin
                             isrunall = true
                             for (i, task) in enumerate(daqtasks)
                                 running_i = i

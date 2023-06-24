@@ -499,7 +499,7 @@ let
                             ct = Controller(instrnm, addr)
                             push!(sweepcts, ct.id => ct)
                             errormonitor(
-                                Threads.@spawn begin
+                                @async begin
                                     try
                                         login!(CPU, ct)
                                         setfunc = Symbol(instrnm, :_, qt.name, :_set) |> eval
@@ -725,7 +725,7 @@ function refresh_ibvs(log=false)
         push!(cts, ins => Dict())
         for (addr, ibv) in instrbufferviewers[ins]
             push!(cts[ins], addr => Controller(ins, addr))
-            Threads.@spawn if ibv.insbuf.isautorefresh || log
+            @async if ibv.insbuf.isautorefresh || log
                 try
                     login!(CPU, cts[ins][addr])
                     for (qtnm, qt) in ibv.insbuf.quantities
@@ -751,7 +751,7 @@ end
 
 function autorefresh()
     errormonitor(
-        Threads.@spawn while true
+        @async while true
             i_sleep = 0
             while i_sleep < conf.InsBuf.refreshrate
                 sleep(0.1)

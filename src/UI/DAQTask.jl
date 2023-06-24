@@ -138,7 +138,7 @@ function run_remote(daqtask::DAQTask)
                     for ct in values(controllers)
                         login!(CPU, ct)
                     end
-                    remotedotask = errormonitor(Threads.@spawn remote_sweep_block(controllers, SyncStates))
+                    remotedotask = errormonitor(@async remote_sweep_block(controllers, SyncStates))
                     errormonitor(@async while true
                         if istaskdone(remotedotask) && !isready(databuf_lc) && !isready(progress_lc)
                             SyncStates[Int(isdaqtask_done)] = true
@@ -167,7 +167,14 @@ function run_remote(daqtask::DAQTask)
         @error "[$(now())]\n程序定义有误！！！" exception = e
     end
     SyncStates[Int(isdaqtask_done)] && return
-    errormonitor(Threads.@spawn @eval remote_do_block())
+    lk = ReentrantLock()
+    errormonitor(
+        Threads.@spawn begin
+            lock(lk) do
+                @eval remote_do_block()
+            end
+        end
+    )
 end
 
 function update_data()

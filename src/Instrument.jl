@@ -45,7 +45,9 @@ end
 function refresh_instrlist()
     if !SyncStates[Int(autodetecting)] && !SyncStates[Int(autodetect_done)]
         SyncStates[Int(autodetecting)] = true
+        lk = ReentrantLock()
         errormonitor(Threads.@spawn begin
+            lock(lk)
             try
                 for ins in keys(instrbufferviewers)
                     ins == "VirtualInstr" && continue
@@ -56,6 +58,8 @@ function refresh_instrlist()
             catch e
                 SyncStates[Int(autodetect_done)] = true
                 @error "自动查询失败!!!" exception = e
+            finally
+                unlock(lk)
             end
         end)
     end
@@ -64,7 +68,7 @@ end
 
 function poll_autodetect()
     errormonitor(
-        Threads.@spawn begin
+        @async begin
             starttime = time()
             while true
                 if time() - starttime > 120 || SyncStates[Int(autodetect_done)]
