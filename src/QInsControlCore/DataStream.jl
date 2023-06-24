@@ -112,7 +112,7 @@ function login!(cpu::Processor, ct::Controller)
             push!(cpu.instrs, ct.addr => instrument(ct.instrnm, ct.addr))
             push!(cpu.exechannels, ct.addr => Channel{Tuple{UUID,UUID,Function,String,Val}}(64))
             push!(cpu.taskhandlers, ct.addr => true)
-            t = Threads.@spawn while cpu.taskhandlers[ct.addr]
+            t = Threads.@spawn :interactive while cpu.taskhandlers[ct.addr]
                 isready(cpu.exechannels[ct.addr]) && runcmd(cpu, take!(cpu.exechannels[ct.addr])...)
                 cpu.fast[] || sleep(0.001)
                 yield()
@@ -261,7 +261,7 @@ function run!(cpu::Processor)
     if !cpu.running[]
         cpu.running[] = true
         errormonitor(
-            Threads.@spawn while cpu.running[]
+            Threads.@spawn :interactive while cpu.running[]
                 if isready(cpu.cmdchannel)
                     ctid, cmdid, f, val, type = take!(cpu.cmdchannel)
                     put!(cpu.exechannels[cpu.controllers[ctid].addr], (ctid, cmdid, f, val, type))
@@ -272,7 +272,7 @@ function run!(cpu::Processor)
         )
         for (addr, exec) in cpu.exechannels
             cpu.taskhandlers[addr] = true
-            t = Threads.@spawn while cpu.taskhandlers[addr]
+            t = Threads.@spawn :interactive while cpu.taskhandlers[addr]
                 isready(exec) && runcmd(cpu, take!(exec)...)
                 cpu.fast[] || sleep(0.001)
                 yield()
@@ -285,7 +285,7 @@ function run!(cpu::Processor)
                 for (addr, t) in cpu.tasks
                     if istaskfailed(t)
                         @warn "task(address: $addr) is failed, recreating..."
-                        newt = Threads.@spawn while cpu.taskhandlers[addr]
+                        newt = Threads.@spawn :interactive while cpu.taskhandlers[addr]
                             isready(cpu.exechannels[addr]) && runcmd(cpu, take!(cpu.exechannels[addr])...)
                             cpu.fast[] || sleep(0.001)
                             yield()
