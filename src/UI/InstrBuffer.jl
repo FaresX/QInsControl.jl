@@ -183,14 +183,16 @@ function edit(ibv::InstrBufferViewer)
             CImGui.OpenPopupOnItemClick("rightclick")
         end
         if CImGui.BeginPopup("rightclick")
-            if CImGui.MenuItem(
-                stcstr(morestyle.Icons.InstrumentsManualRef, " 手动刷新"),
-                "F5",
-                false,
-                !syncstates[Int(isdaqtask_running)]
-            )
+            if CImGui.MenuItem(stcstr(morestyle.Icons.InstrumentsManualRef, " 手动刷新"), "F5")
                 ibv.insbuf.isautorefresh = true
                 manualrefresh()
+                for ins in keys(instrbufferviewers)
+                    for (_, ibv) in instrbufferviewers[ins]
+                        for (_, qt) in ibv.insbuf.quantities
+                            updatefront!(qt)
+                        end
+                    end
+                end
             end
             CImGui.Text(stcstr(morestyle.Icons.InstrumentsAutoRef, " 自动刷新"))
             CImGui.SameLine()
@@ -241,13 +243,15 @@ let
             end
             CImGui.EndChild()
             if CImGui.BeginPopupContextItem()
-                if CImGui.MenuItem(
-                    stcstr(morestyle.Icons.InstrumentsManualRef, " 手动刷新"),
-                    "F5",
-                    false,
-                    !syncstates[Int(isdaqtask_running)]
-                )
+                if CImGui.MenuItem(stcstr(morestyle.Icons.InstrumentsManualRef, " 手动刷新"), "F5")
                     manualrefresh()
+                    for ins in keys(instrbufferviewers)
+                        for (_, ibv) in instrbufferviewers[ins]
+                            for (_, qt) in ibv.insbuf.quantities
+                                updatefront!(qt)
+                            end
+                        end
+                    end
                 end
                 CImGui.Text(stcstr(morestyle.Icons.InstrumentsAutoRef, " 自动刷新"))
                 CImGui.SameLine()
