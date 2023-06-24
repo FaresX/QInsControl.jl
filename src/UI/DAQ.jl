@@ -60,7 +60,7 @@ let
             for (i, task) in enumerate(daqtasks)
                 task.enable || showdisabled || continue
                 CImGui.PushID(i)
-                isrunning_i = syncstates[Int(isdaqtask_running)] && i == running_i
+                isrunning_i = SyncStates[Int(isdaqtask_running)] && i == running_i
                 CImGui.PushStyleColor(
                     CImGui.ImGuiCol_Button,
                     if task.enable
@@ -114,7 +114,7 @@ let
                             running_i = i
                             errormonitor(@async begin
                                 run(task)
-                                syncstates[Int(isinterrupt)] && (syncstates[Int(isinterrupt)] = false)
+                                SyncStates[Int(isinterrupt)] && (SyncStates[Int(isinterrupt)] = false)
                             end)
                             show_daq_selector = false
                         else
@@ -312,7 +312,7 @@ let
                             for (i, task) in enumerate(daqtasks)
                                 running_i = i
                                 run(task)
-                                syncstates[Int(isinterrupt)] && (syncstates[Int(isinterrupt)] = false; break)
+                                SyncStates[Int(isinterrupt)] && (SyncStates[Int(isinterrupt)] = false; break)
                             end
                             isrunall = false
                         end
@@ -326,25 +326,25 @@ let
             CImGui.PopStyleColor()
 
             CImGui.SameLine(CImGui.GetColumnOffset(1) - bottombtsz - unsafe_load(imguistyle.WindowPadding.x))
-            if syncstates[Int(isblock)]
+            if SyncStates[Int(isblock)]
                 if CImGui.Button(stcstr(morestyle.Icons.RunTask, " 继续"))
-                    syncstates[Int(isblock)] = false
+                    SyncStates[Int(isblock)] = false
                     remote_do(workers()[1]) do
                         lock(() -> notify(block), block)
                     end
                 end
             else
                 if CImGui.Button(stcstr(morestyle.Icons.BlockTask, " 暂停"))
-                    syncstates[Int(isdaqtask_running)] && (syncstates[Int(isblock)] = true)
+                    SyncStates[Int(isdaqtask_running)] && (SyncStates[Int(isblock)] = true)
                 end
             end
             bottombtsz = CImGui.GetItemRectSize().x
             CImGui.SameLine()
             if CImGui.Button(stcstr(morestyle.Icons.InterruptTask, " 中断"))
-                if syncstates[Int(isdaqtask_running)]
-                    syncstates[Int(isinterrupt)] = true
-                    if syncstates[Int(isblock)]
-                        syncstates[Int(isblock)] = false
+                if SyncStates[Int(isdaqtask_running)]
+                    SyncStates[Int(isinterrupt)] = true
+                    if SyncStates[Int(isblock)]
+                        SyncStates[Int(isblock)] = false
                         remote_do(workers()[1]) do
                             lock(() -> notify(block), block)
                         end

@@ -41,7 +41,7 @@ let
                 manualadd_ui()
                 CImGui.EndPopup()
             end
-            if syncstates[Int(autodetecting)]
+            if SyncStates[Int(autodetecting)]
                 CImGui.SameLine()
                 CImGui.TextColored(morestyle.Colors.HighlightText, "查找仪器中......")
             end
@@ -82,7 +82,7 @@ function run(daqtask::DAQTask)
     global old_i
     global issweeping
     daqtask.enable || return
-    syncstates[Int(isdaqtask_running)] = true
+    SyncStates[Int(isdaqtask_running)] = true
     date = today()
     find_old_i(joinpath(workpath, string(year(date)), string(year(date), "-", month(date)), string(date)))
     cfgsvdir = joinpath(workpath, string(year(date)), string(year(date), "-", month(date)), string(date))
@@ -109,20 +109,20 @@ function run_remote(daqtask::DAQTask)
     empty!(databuf)
     empty!(databuf_parsed)
     if !st
-        syncstates[Int(isdaqtask_done)] = true
+        SyncStates[Int(isdaqtask_done)] = true
         return
     end
     rn = length(controllers)
     blockcodes = @trypasse tocodes.(daqtask.blocks) begin
         @error "[$(now())]\n代码生成失败!!!"
-        syncstates[Int(isdaqtask_done)] = true
+        SyncStates[Int(isdaqtask_done)] = true
         return
     end
     ex = quote
-        function remote_sweep_block(controllers, databuf_lc, progress_lc, syncstates)
+        function remote_sweep_block(controllers, databuf_lc, progress_lc, SyncStates)
             $(blockcodes...)
         end
-        function remote_do_block(databuf_rc, progress_rc, syncstates, rn)
+        function remote_do_block(databuf_rc, progress_rc, SyncStates, rn)
             controllers = $controllers
             try
                 databuf_lc = Channel{Tuple{String,String}}(conf.DAQ.channel_size)
@@ -133,11 +133,11 @@ function run_remote(daqtask::DAQTask)
                         for ct in values(controllers)
                             login!(CPU, ct)
                         end
-                        remote_sweep_block(controllers, databuf_lc, progress_lc, syncstates)
+                        remote_sweep_block(controllers, databuf_lc, progress_lc, SyncStates)
                     end)
                     errormonitor(@async while true
                         if istaskdone(remotedotask) && all(.!isready.([databuf_lc, databuf_rc, progress_lc, progress_rc]))
-                            syncstates[Int(isdaqtask_done)] = true
+                            SyncStates[Int(isdaqtask_done)] = true
                             break
                         else
                             isready(databuf_lc) && put!(databuf_rc, packtake!(databuf_lc, 2rn * conf.DAQ.packsize))
@@ -156,22 +156,22 @@ function run_remote(daqtask::DAQTask)
             end
         end
     end |> prettify
-    remotecall_wait(workers()[1], ex, syncstates) do ex, syncstates
+    remotecall_wait(workers()[1], ex, SyncStates) do ex, SyncStates
         try
             @info "[$(now())]\n" task = ex
             eval(ex)
         catch e
-            syncstates[Int(isdaqtask_done)] = true
+            SyncStates[Int(isdaqtask_done)] = true
             @error "[$(now())]\n程序定义有误！！！" exception = e
         end
     end
-    syncstates[Int(isdaqtask_done)] && return
-    remote_do(workers()[1], databuf_rc, progress_rc, syncstates, rn) do databuf_rc, progress_rc, syncstates, rn
+    SyncStates[Int(isdaqtask_done)] && return
+    remote_do(workers()[1], databuf_rc, progress_rc, SyncStates, rn) do databuf_rc, progress_rc, SyncStates, rn
         try
             global block = Threads.Condition()
-            remote_do_block(databuf_rc, progress_rc, syncstates, rn)
+            remote_do_block(databuf_rc, progress_rc, SyncStates, rn)
         catch e
-            syncstates[Int(isdaqtask_done)] = true
+            SyncStates[Int(isdaqtask_done)] = true
             @error "[$(now())]\n程序执行有误！！！" exception = e
         end
     end
@@ -213,7 +213,7 @@ function update_data()
 end
 
 function update_all()
-    if syncstates[Int(isdaqtask_done)]
+    if SyncStates[Int(isdaqtask_done)]
         if isfile(savepath) || !isempty(databuf)
             try
                 log_instrbufferviewers()
@@ -242,8 +242,8 @@ function update_all()
         end
         empty!(progresslist)
         empty!(cfgbuf)
-        syncstates[Int(isdaqtask_done)] = false
-        syncstates[Int(isdaqtask_running)] = false
+        SyncStates[Int(isdaqtask_done)] = false
+        SyncStates[Int(isdaqtask_running)] = false
         return false
     else
         update_data()

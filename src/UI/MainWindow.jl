@@ -214,7 +214,7 @@ let
                 CImGui.EndMenu()
             end
             ######自动查询仪器######
-            if syncstates[Int(autodetecting)]
+            if SyncStates[Int(autodetecting)]
                 CImGui.TextColored(morestyle.Colors.HighlightText, "查找仪器中......")
             end
             CImGui.EndMainMenuBar()

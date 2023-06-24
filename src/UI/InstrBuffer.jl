@@ -196,10 +196,10 @@ function edit(ibv::InstrBufferViewer)
             end
             CImGui.Text(stcstr(morestyle.Icons.InstrumentsAutoRef, " 自动刷新"))
             CImGui.SameLine()
-            isautoref = syncstates[Int(isautorefresh)]
+            isautoref = SyncStates[Int(isautorefresh)]
             @c CImGui.Checkbox("##自动刷新", &isautoref)
-            syncstates[Int(isautorefresh)] = isautoref
-            ibv.insbuf.isautorefresh = syncstates[Int(isautorefresh)]
+            SyncStates[Int(isautorefresh)] = isautoref
+            ibv.insbuf.isautorefresh = SyncStates[Int(isautorefresh)]
             if isautoref
                 CImGui.SameLine()
                 CImGui.Text(" ")
@@ -255,9 +255,9 @@ let
                 end
                 CImGui.Text(stcstr(morestyle.Icons.InstrumentsAutoRef, " 自动刷新"))
                 CImGui.SameLine()
-                isautoref = syncstates[Int(isautorefresh)]
+                isautoref = SyncStates[Int(isautorefresh)]
                 @c CImGui.Checkbox("##自动刷新", &isautoref)
-                syncstates[Int(isautorefresh)] = isautoref
+                SyncStates[Int(isautorefresh)] = isautoref
                 if isautoref
                     CImGui.SameLine()
                     CImGui.Text(" ")
@@ -777,7 +777,7 @@ function autorefresh()
                 sleep(0.1)
                 i_sleep += 0.1
             end
-            if syncstates[Int(isautorefresh)]
+            if SyncStates[Int(isautorefresh)]
                 ibvs_remote = refresh_fetch_ibvs(instrbufferviewers)
                 for ins in keys(instrbufferviewers)
                     ins == "Others" && continue

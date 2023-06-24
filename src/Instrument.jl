@@ -44,8 +44,8 @@ end
 
 function refresh_instrlist()
     if !syncstates[Int(autodetecting)] && !syncstates[Int(autodetect_done)]
-        syncstates[Int(autodetecting)] = true
-        remote_do(workers()[1], syncstates) do syncstates
+        SyncStates[Int(autodetecting)] = true
+        remote_do(workers()[1], SyncStates) do SyncStates
             errormonitor(@async begin
                 try
                     for ins in keys(instrbufferviewers)
@@ -53,9 +53,9 @@ function refresh_instrlist()
                         empty!(instrbufferviewers[ins])
                     end
                     autodetect()
-                    syncstates[Int(autodetect_done)] = true
+                    SyncStates[Int(autodetect_done)] = true
                 catch e
-                    syncstates[Int(autodetect_done)] = true
+                    SyncStates[Int(autodetect_done)] = true
                     @error "自动查询失败!!!" exception = e
                 end
             end)
@@ -70,11 +70,11 @@ function poll_autodetect()
             starttime = time()
             while true
                 if time() - starttime > 120
-                    syncstates[Int(autodetecting)] = false
-                    syncstates[Int(autodetect_done)] = false
+                    SyncStates[Int(autodetecting)] = false
+                    SyncStates[Int(autodetect_done)] = false
                     break
                 end
-                if syncstates[Int(autodetect_done)]
+                if SyncStates[Int(autodetect_done)]
                     instrbufferviewers_remote = remotecall_fetch(() -> instrbufferviewers, workers()[1])
                     for ins in keys(instrbufferviewers_remote)
                         ins == "VirtualInstr" && continue
@@ -83,8 +83,8 @@ function poll_autodetect()
                             push!(instrbufferviewers[ins], addr => InstrBufferViewer(ins, addr))
                         end
                     end
-                    syncstates[Int(autodetecting)] = false
-                    syncstates[Int(autodetect_done)] = false
+                    SyncStates[Int(autodetecting)] = false
+                    SyncStates[Int(autodetect_done)] = false
                     break
                 else
                     yield()

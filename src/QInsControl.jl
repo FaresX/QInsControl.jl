@@ -57,7 +57,7 @@ const databuf = Dict{String,Vector{String}}() #数据缓存
 const databuf_parsed = Dict{String,Vector{Float64}}()
 const progresslist = OrderedDict{UUID,Tuple{UUID,Int,Int,Float64}}() #进度条缓存
 
-global syncstates::SharedVector{Bool}
+global SyncStates::SharedVector{Bool}
 global instrbuffer_rc::RemoteChannel{Channel{Vector{NTuple{4,String}}}}
 global databuf_rc::RemoteChannel{Channel{Vector{NTuple{2,String}}}}
 global progress_rc::RemoteChannel{Channel{Vector{Tuple{UUID,Int,Int,Float64}}}}
@@ -98,7 +98,7 @@ function julia_main()::Cint
         loadconf()
         databuf_c::Channel{Vector{Tuple{String,String}}} = Channel{Vector{NTuple{2,String}}}(conf.DAQ.channel_size)
         progress_c::Channel{Vector{Tuple{UUID,Int,Int,Float64}}} = Channel{Vector{Tuple{UUID,Int,Int,Float64}}}(conf.DAQ.channel_size)
-        global syncstates = SharedVector{Bool}(8)
+        global SyncStates = SharedVector{Bool}(8)
         global databuf_rc = RemoteChannel(() -> databuf_c)
         global progress_rc = RemoteChannel(() -> progress_c)
         global logio = IOBuffer()
@@ -114,18 +114,19 @@ function julia_main()::Cint
         versioninfo(jlverinfobuf)
         global jlverinfo = wrapmultiline(String(take!(jlverinfobuf)), 48)
         if conf.Basic.isremote
+            ENV["JULIA_NUM_THREADS"] = 4
             nprocs() == 1 && addprocs(1)
             @eval @everywhere using QInsControl
-            syncstates = SharedVector{Bool}(8)
+            SyncStates = SharedVector{Bool}(8)
             databuf_rc = RemoteChannel(() -> databuf_c)
             progress_rc = RemoteChannel(() -> progress_c)
-            remotecall_wait(workers()[1], syncstates) do syncstates
+            remotecall_wait(workers()[1], SyncStates) do SyncStates
                 loadconf()
                 global logio = IOBuffer()
                 global_logger(SimpleLogger(logio))
                 errormonitor(@async while true
                     sleep(1)
-                    update_log(syncstates=syncstates)
+                    update_log(SyncStates=SyncStates)
                 end)
             end
         end
@@ -134,7 +135,7 @@ function julia_main()::Cint
         @info "[$(now())]\n启动成功！"
         if !isinteractive()
             wait(uitask)
-            while syncstates[Int(isdaqtask_running)]
+            while SyncStates[Int(isdaqtask_running)]
                 yield()
             end
             sleep(0.1)
