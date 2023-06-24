@@ -82,7 +82,7 @@ let
                 CImGui.OpenPopupOnItemClick(stcstr("队列编辑菜单", i))
                 isrunning_i && ShowProgressBar()
                 show_daq_editor && show_daq_editor_i == i && @c edit(task, i, &show_daq_editor)
-                if !syncstates[Int(isdaqtask_running)]
+                if !SyncStates[Int(isdaqtask_running)]
                     CImGui.Indent()
                     if CImGui.BeginDragDropSource(0)
                         @c CImGui.SetDragDropPayload("Swap DAQTask", &i, sizeof(Cint))
@@ -108,7 +108,7 @@ let
                         morestyle.Icons.RunTask * " 运行",
                         C_NULL,
                         false,
-                        !syncstates[Int(isdaqtask_running)] && task.enable
+                        !SyncStates[Int(isdaqtask_running)] && task.enable
                     )
                         if ispath(workpath)
                             running_i = i
@@ -305,7 +305,7 @@ let
                 end
             )
             if CImGui.Button(stcstr(morestyle.Icons.RunTask, " 全部运行"))
-                if !syncstates[Int(isdaqtask_running)]
+                if !SyncStates[Int(isdaqtask_running)]
                     if ispath(workpath)
                         runalltask = @async begin
                             isrunall = true

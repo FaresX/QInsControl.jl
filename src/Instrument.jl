@@ -43,7 +43,7 @@ function manualadd(addr)
 end
 
 function refresh_instrlist()
-    if !syncstates[Int(autodetecting)] && !syncstates[Int(autodetect_done)]
+    if !SyncStates[Int(autodetecting)] && !SyncStates[Int(autodetect_done)]
         SyncStates[Int(autodetecting)] = true
         remote_do(workers()[1], SyncStates) do SyncStates
             errormonitor(@async begin
