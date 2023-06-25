@@ -129,10 +129,17 @@ function edit(node::Node)
     CImGui.EndGroup()
     inlens = lengthpr.(node.input_labels)
     outlens = lengthpr.(node.output_labels)
-    if max_with_empty(inlens) + max_with_empty(outlens) < lengthpr(node.title)
+    contentlines = split(node.content, '\n')
+    contentls = lengthpr.(contentlines)
+    maxcontentline = argmax(contentls)
+    if true in (max_with_empty(inlens) + max_with_empty(outlens) .< [lengthpr(node.title), contentls[maxcontentline]])
         maxinlabel = isempty(node.input_labels) ? "" : node.input_labels[argmax(inlens)]
         maxoutlabel = isempty(node.output_labels) ? "" : node.output_labels[argmax(outlens)]
-        spacing = CImGui.CalcTextSize(node.title).x - CImGui.CalcTextSize(maxinlabel).x - CImGui.CalcTextSize(maxoutlabel).x
+        spacing = if lengthpr(node.title) < contentls[maxcontentline]
+            CImGui.CalcTextSize(contentlines[maxcontentline]).x - CImGui.CalcTextSize(maxinlabel).x - CImGui.CalcTextSize(maxoutlabel).x
+        else
+            CImGui.CalcTextSize(node.title).x - CImGui.CalcTextSize(maxinlabel).x - CImGui.CalcTextSize(maxoutlabel).x
+        end
         CImGui.SameLine(0, spacing)
     else
         CImGui.SameLine(0, 2CImGui.GetFontSize())
@@ -321,7 +328,7 @@ let
     end
 end
 
-let 
+let
     hold::Bool = false
     holdsz::Cfloat = 0
     global function edit(nodeeditor::NodeEditor, id, p_open::Ref{Bool})

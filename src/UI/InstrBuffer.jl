@@ -387,7 +387,8 @@ let
         CImGui.PushID(insbuf.instrnm)
         CImGui.PushID(addr)
         CImGui.BeginChild("InstrBuffer")
-        if @c(InputTextRSZ("##filterqt", &insbuf.filter))
+        @c(InputTextRSZ("##filterqt", &insbuf.filter))
+        if CImGui.IsItemActive()
             for (_, qt) in insbuf.quantities
                 update_passfilter!(qt, insbuf.filter, filtervarname)
             end

@@ -140,8 +140,7 @@ function tocodes(bk::StrideCodeBlock)
             @warn "[$(now())]\n暂停！" StrideCodeBlock = $headcodes
             lock(() -> wait(block), block)
             @info "[$(now())]\n继续！" StrideCodeBlock = $headcodes
-        end
-        if SyncStates[Int(isinterrupt)]
+        elseif SyncStates[Int(isinterrupt)]
             @warn "[$(now())]\n中断！" StrideCodeBlock = $headcodes
             return
         end
@@ -219,8 +218,7 @@ function tocodes(bk::SweepBlock)
                 @warn "[$(now())]\n暂停！" SweepBlock = $instr
                 lock(() -> wait(block), block)
                 @info "[$(now())]\n继续！" SweepBlock = $instr
-            end
-            if SyncStates[Int(isinterrupt)]
+            elseif SyncStates[Int(isinterrupt)]
                 @warn "[$(now())]\n中断！" SweepBlock = $instr
                 return
             end
