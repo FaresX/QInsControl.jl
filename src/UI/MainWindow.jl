@@ -147,7 +147,8 @@ let
                         CImGui.Separator()
                         CImGui.TextColored(morestyle.Colors.HighlightText, "已打开")
                     end
-                    for dtv in dtviewers
+                    for (i, dtv) in enumerate(dtviewers)
+                        CImGui.PushID(i)
                         if dtv[2].rootpath_bnm != ""
                             @c CImGui.MenuItem(basename(dtv[2].rootpath), C_NULL, &dtv[1].p_open)
                             if CImGui.BeginPopupContextItem()
@@ -162,6 +163,7 @@ let
                                 CImGui.EndPopup()
                             end
                         end
+                        CImGui.PopID()
                     end
                     CImGui.EndMenu()
                 end

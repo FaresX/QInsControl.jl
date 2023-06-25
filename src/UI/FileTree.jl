@@ -31,7 +31,7 @@ mutable struct FolderFileTree <: FileTree
         ft
     end
     function FolderFileTree(pathes::Vector{String}, selectedpath::Ref{String}=Ref(""), filter::Ref{String}=Ref(""))
-        new(dirname(pathes[1]), "", selectedpath, [FileFileTree(p, basename(p), selectedpath, filter, false) for p in pathes])
+        new(dirname(pathes[1]), "", selectedpath, filter, [FileFileTree(p, basename(p), selectedpath, filter, false) for p in pathes])
     end
 end
 
