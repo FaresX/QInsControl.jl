@@ -114,7 +114,7 @@ function julia_main()::Cint
         versioninfo(jlverinfobuf)
         global jlverinfo = wrapmultiline(String(take!(jlverinfobuf)), 48)
         if conf.Basic.isremote
-            ENV["JULIA_NUM_THREADS"] = 8
+            ENV["JULIA_NUM_THREADS"] = 1
             nprocs() == 1 && addprocs(1)
             @eval @everywhere using QInsControl
             SyncStates = SharedVector{Bool}(8)
