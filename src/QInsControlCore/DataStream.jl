@@ -29,8 +29,8 @@ struct Controller
     id::UUID
     instrnm::String
     addr::String
-    databuf::Dict{UUID,String}
-    Controller(instrnm, addr) = new(uuid4(), instrnm, addr, Dict())
+    databuf::Channel{String}
+    Controller(instrnm, addr) = new(uuid4(), instrnm, addr, Channel{String}())
 end
 function Base.show(io::IO, ct::Controller)
     str = """
@@ -50,8 +50,8 @@ construct a Processor to deal with the commands sended into by Controllers.
 struct Processor
     id::UUID
     controllers::Dict{UUID,Controller}
-    cmdchannel::Vector{Tuple{UUID,UUID,Function,String,Val}}
-    exechannels::Dict{String,Vector{Tuple{UUID,UUID,Function,String,Val}}}
+    cmdchannel::Vector{Tuple{UUID,Function,String,Val}}
+    exechannels::Dict{String,Channel{Tuple{UUID,Function,String,Val}}}
     tasks::Dict{String,Task}
     taskhandlers::Dict{String,Bool}
     resourcemanager::Ref{UInt32}
@@ -72,7 +72,7 @@ function Base.show(io::IO, cpu::Processor)
     for ct in values(cpu.controllers)
         print(io, "\t\t\tController\n")
         ct_strs = split(string(ct), '\n')[1:end-1]
-        print(io, string(join(fill("\t\t", 4).*ct_strs, "\n"), "\n\n"))
+        print(io, string(join(fill("\t\t", 4) .* ct_strs, "\n"), "\n\n"))
     end
     str2 = """
               tasks : 
@@ -81,7 +81,7 @@ function Base.show(io::IO, cpu::Processor)
     for (addr, state) in cpu.taskhandlers
         l = length(addr)
         if l < 26
-            print(io, string(" "^(26-length(addr)), addr, " : ", state))
+            print(io, string(" "^(26 - length(addr)), addr, " : ", state))
         else
             print(io, string(addr, " : ", state))
         end
@@ -106,10 +106,10 @@ function login!(cpu::Processor, ct::Controller)
         # @warn "cpu($(cpu.id)) is running!"
         if !haskey(cpu.instrs, ct.addr)
             push!(cpu.instrs, ct.addr => instrument(ct.instrnm, ct.addr))
-            push!(cpu.exechannels, ct.addr => [])
+            push!(cpu.exechannels, ct.addr => Channel{Tuple{UUID,Function,String,Val}}(64))
             push!(cpu.taskhandlers, ct.addr => true)
-            t = @async while cpu.taskhandlers[ct.addr]
-                isempty(cpu.exechannels[ct.addr]) || runcmd(cpu, popfirst!(cpu.exechannels[ct.addr])...)
+            t = Threads.@spawn while cpu.taskhandlers[ct.addr]
+                isready(cpu.exechannels[ct.addr]) && runcmd(cpu, take!(cpu.exechannels[ct.addr])...)
                 yield()
             end
             # @info "task(address: $(ct.addr)) is created"
@@ -142,11 +142,11 @@ function logout!(cpu::Processor, ct::Controller)
             try
                 wait(cpu.tasks[popinstr.addr])
             catch e
-                @error "an error occurs during logging out" exception=e
+                @error "an error occurs during logging out" exception = e
             end
-            pop!(cpu.taskhandlers, popinstr.addr)
-            pop!(cpu.tasks, popinstr.addr)
-            pop!(cpu.exechannels, popinstr.addr)
+            delete!(cpu.taskhandlers, popinstr.addr)
+            delete!(cpu.tasks, popinstr.addr)
+            delete!(cpu.exechannels, popinstr.addr)
             disconnect!(popinstr)
         end
     end
@@ -160,52 +160,52 @@ end
 
 function (ct::Controller)(f::Function, cpu::Processor, val::String, ::Val{:write})
     @assert haskey(cpu.controllers, ct.id) "Controller is not logged in"
-    cmdid = uuid4()
-    push!(cpu.cmdchannel, (ct.id, cmdid, f, val, Val(:write)))
+    @assert cpu.running[] "Processor is not running"
+    push!(cpu.cmdchannel, (ct.id, f, val, Val(:write)))
     t1 = time()
-    while !haskey(ct.databuf, cmdid) && time() - t1 < 6
+    while !isready(ct.databuf) && time() - t1 < 6
         yield()
     end
-    @assert haskey(ct.databuf, cmdid) "timeout"
-    pop!(ct.databuf, cmdid)
+    @assert isready(ct.databuf) "timeout"
+    take!(ct.databuf)
 end
 function (ct::Controller)(f::Function, cpu::Processor, ::Val{:read})
     @assert haskey(cpu.controllers, ct.id) "Controller is not logged in"
-    cmdid = uuid4()
-    push!(cpu.cmdchannel, (ct.id, cmdid, f, "", Val(:read)))
+    @assert cpu.running[] "Processor is not running"
+    push!(cpu.cmdchannel, (ct.id, f, "", Val(:read)))
     t1 = time()
-    while !haskey(ct.databuf, cmdid) && time() - t1 < 6
+    while !isready(ct.databuf) && time() - t1 < 6
         yield()
     end
-    @assert haskey(ct.databuf, cmdid) "timeout"
-    pop!(ct.databuf, cmdid)
+    @assert isready(ct.databuf) "timeout"
+    take!(ct.databuf)
 end
 function (ct::Controller)(f::Function, cpu::Processor, val::String, ::Val{:query})
     @assert haskey(cpu.controllers, ct.id) "Controller is not logged in"
-    cmdid = uuid4()
-    push!(cpu.cmdchannel, (ct.id, cmdid, f, val, Val(:query)))
+    @assert cpu.running[] "Processor is not running"
+    push!(cpu.cmdchannel, (ct.id, f, val, Val(:query)))
     t1 = time()
-    while !haskey(ct.databuf, cmdid) && time() - t1 < 6
+    while !isready(ct.databuf) && time() - t1 < 6
         yield()
     end
-    @assert haskey(ct.databuf, cmdid) "timeout"
-    pop!(ct.databuf, cmdid)
+    @assert isready(ct.databuf) "timeout"
+    take!(ct.databuf)
 end
 
-function runcmd(cpu::Processor, ctid::UUID, cmdid::UUID, f::Function, val::String, ::Val{:write})
+function runcmd(cpu::Processor, ctid::UUID, f::Function, val::String, ::Val{:write})
     ct = cpu.controllers[ctid]
     f(cpu.instrs[ct.addr], val)
-    push!(ct.databuf, cmdid => "done")
+    put!(ct.databuf, "done")
     return nothing
 end
-function runcmd(cpu::Processor, ctid::UUID, cmdid::UUID, f::Function, ::String, ::Val{:read})
+function runcmd(cpu::Processor, ctid::UUID, f::Function, ::String, ::Val{:read})
     ct = cpu.controllers[ctid]
-    push!(ct.databuf, cmdid => f(cpu.instrs[ct.addr]))
+    put!(ct.databuf, f(cpu.instrs[ct.addr]))
     return nothing
 end
-function runcmd(cpu::Processor, ctid::UUID, cmdid::UUID, f::Function, val::String, ::Val{:query})
+function runcmd(cpu::Processor, ctid::UUID, f::Function, val::String, ::Val{:query})
     ct = cpu.controllers[ctid]
-    push!(ct.databuf, cmdid => f(cpu.instrs[ct.addr], val))
+    put!(ct.databuf, f(cpu.instrs[ct.addr], val))
     return nothing
 end
 
@@ -221,9 +221,9 @@ function init!(cpu::Processor)
             try
                 connect!(cpu.resourcemanager[], instr)
             catch e
-                @error "connecting to $addr failed" exception=e
+                @error "connecting to $addr failed" exception = e
             end
-            push!(cpu.exechannels, addr => [])
+            push!(cpu.exechannels, addr => Channel{Tuple{UUID,Function,String,Val}}(64))
             push!(cpu.taskhandlers, addr => false)
         end
         cpu.running[] = false
@@ -237,8 +237,8 @@ function run!(cpu::Processor)
         errormonitor(
             @async while cpu.running[]
                 if !isempty(cpu.cmdchannel)
-                    ctid, cmdid, f, val, type = popfirst!(cpu.cmdchannel)
-                    push!(cpu.exechannels[cpu.controllers[ctid].addr], (ctid, cmdid, f, val, type))
+                    ctid, f, val, type = popfirst!(cpu.cmdchannel)
+                    put!(cpu.exechannels[cpu.controllers[ctid].addr], (ctid, f, val, type))
                 end
                 cpu.fast[] || sleep(0.001)
                 yield()
@@ -246,8 +246,8 @@ function run!(cpu::Processor)
         )
         for (addr, exec) in cpu.exechannels
             cpu.taskhandlers[addr] = true
-            t = @async while cpu.taskhandlers[addr]
-                isempty(exec) || runcmd(cpu, popfirst!(exec)...)
+            t = Threads.@spawn while cpu.taskhandlers[addr]
+                    isready(exec) && runcmd(cpu, take!(exec)...)
                 cpu.fast[] || sleep(0.001)
                 yield()
             end
@@ -259,8 +259,8 @@ function run!(cpu::Processor)
                 for (addr, t) in cpu.tasks
                     if istaskfailed(t)
                         @warn "task(address: $addr) is failed, recreating..."
-                        newt = @async while cpu.taskhandlers[addr]
-                            isempty(cpu.exechannels[addr]) || runcmd(cpu, popfirst!(cpu.exechannels[addr])...)
+                        newt = Threads.@spawn while cpu.taskhandlers[addr]
+                                isready(cpu.exechannels[addr]) && runcmd(cpu, take!(cpu.exechannels[addr])...)
                             cpu.fast[] || sleep(0.001)
                             yield()
                         end
@@ -292,7 +292,7 @@ function stop!(cpu::Processor)
             try
                 wait(t)
             catch e
-                @error "an error occurs during stopping Processor:\n$cpu" exception=e
+                @error "an error occurs during stopping Processor:\n$cpu" exception = e
             end
         end
         for instr in values(cpu.instrs)
