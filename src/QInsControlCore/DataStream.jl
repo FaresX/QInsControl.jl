@@ -30,7 +30,7 @@ struct Controller
     instrnm::String
     addr::String
     databuf::Channel{String}
-    Controller(instrnm, addr) = new(uuid4(), instrnm, addr, Channel{String}())
+    Controller(instrnm, addr) = new(uuid4(), instrnm, addr, Channel{String}(1))
 end
 function Base.show(io::IO, ct::Controller)
     str = """
