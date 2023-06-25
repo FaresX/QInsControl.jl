@@ -160,6 +160,7 @@ end
 
 function (ct::Controller)(f::Function, cpu::Processor, val::String, ::Val{:write})
     @assert haskey(cpu.controllers, ct.id) "Controller is not logged in"
+    @assert cpu.running[] "Processor is not running"
     cmdid = uuid4()
     push!(cpu.cmdchannel, (ct.id, cmdid, f, val, Val(:write)))
     t1 = time()
@@ -171,6 +172,7 @@ function (ct::Controller)(f::Function, cpu::Processor, val::String, ::Val{:write
 end
 function (ct::Controller)(f::Function, cpu::Processor, ::Val{:read})
     @assert haskey(cpu.controllers, ct.id) "Controller is not logged in"
+    @assert cpu.running[] "Processor is not running"
     cmdid = uuid4()
     push!(cpu.cmdchannel, (ct.id, cmdid, f, "", Val(:read)))
     t1 = time()
@@ -182,6 +184,7 @@ function (ct::Controller)(f::Function, cpu::Processor, ::Val{:read})
 end
 function (ct::Controller)(f::Function, cpu::Processor, val::String, ::Val{:query})
     @assert haskey(cpu.controllers, ct.id) "Controller is not logged in"
+    @assert cpu.running[] "Processor is not running"
     cmdid = uuid4()
     push!(cpu.cmdchannel, (ct.id, cmdid, f, val, Val(:query)))
     t1 = time()

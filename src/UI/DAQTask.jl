@@ -137,6 +137,7 @@ function run_remote(daqtask::DAQTask)
                     end)
                     errormonitor(@async while true
                         if istaskdone(remotedotask) && all(.!isready.([databuf_lc, databuf_rc, progress_lc, progress_rc]))
+                            remotecall_wait(eval, 1, :(log_instrbufferviewers()))
                             SyncStates[Int(isdaqtask_done)] = true
                             break
                         else
@@ -152,7 +153,7 @@ function run_remote(daqtask::DAQTask)
                 for ct in values(controllers)
                     logout!(CPU, ct)
                 end
-                remotecall_wait(()->slow!(CPU), workers()[1])
+                slow!(CPU)
             end
         end
     end |> prettify
@@ -215,11 +216,11 @@ end
 function update_all()
     if SyncStates[Int(isdaqtask_done)]
         if isfile(savepath) || !isempty(databuf)
-            try
-                log_instrbufferviewers()
-            catch e
-                @error "[$(now())]\n仪器记录错误，无法保存结束状态！！！" exception=e
-            end
+            # try
+            #     log_instrbufferviewers()
+            # catch e
+            #     @error "[$(now())]\n仪器记录错误，无法保存结束状态！！！" exception=e
+            # end
             jldopen(savepath, "w") do file
                 file["data"] = databuf
                 file["circuit"] = circuit_editor
