@@ -32,12 +32,14 @@ let
             global old_i
             CImGui.Button(stcstr(morestyle.Icons.SelectPath, " 工作区 ")) && (workpath = pick_folder())
             CImGui.SameLine()
-            txtc = if workpath == "未选择工作区！！！"
-                ImVec4(morestyle.Colors.LogError...)
-            else
-                CImGui.c_get(imguistyle.Colors, CImGui.ImGuiCol_Text)
-            end
-            CImGui.TextColored(txtc, workpath)
+            CImGui.TextColored(
+                if workpath == "未选择工作区！！！"
+                    morestyle.Colors.LogError
+                else
+                    CImGui.c_get(imguistyle.Colors, CImGui.ImGuiCol_Text)
+                end,
+                workpath
+            )
             if workpath != oldworkpath
                 if isdir(workpath)
                     oldworkpath = workpath
@@ -73,11 +75,23 @@ let
                         morestyle.Colors.LogError
                     end
                 )
+                CImGui.PushStyleColor(
+                    CImGui.ImGuiCol_ButtonHovered,
+                    if task.enable
+                        if isrunning_i
+                            morestyle.Colors.DAQTaskRunning
+                        else
+                            CImGui.c_get(imguistyle.Colors, CImGui.ImGuiCol_Button)
+                        end
+                    else
+                        morestyle.Colors.LogError
+                    end
+                )
                 if CImGui.Button(stcstr(morestyle.Icons.TaskButton, " 任务 ", i+old_i, " ", task.name, "###rename"), (-1, 0))
                     show_daq_editor_i = i
                     show_daq_editor = true
                 end
-                CImGui.PopStyleColor()
+                CImGui.PopStyleColor(2)
 
                 CImGui.OpenPopupOnItemClick(stcstr("队列编辑菜单", i))
                 isrunning_i && ShowProgressBar()
