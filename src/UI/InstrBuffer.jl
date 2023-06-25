@@ -445,6 +445,14 @@ let
                 CImGui.c_get(imguistyle.Colors, CImGui.ImGuiCol_Button)
             end
         )
+        CImGui.PushStyleColor(
+            CImGui.ImGuiCol_ButtonHovered,
+            if qt.isautorefresh || qt.issweeping
+                morestyle.Colors.DAQTaskRunning
+            else
+                CImGui.c_get(imguistyle.Colors, CImGui.ImGuiCol_ButtonHovered)
+            end
+        )
         if CImGui.Button(qt.show_edit, (-1, 0))
             if addr != ""
                 fetchdata = refresh_qt(instrnm, addr, qt.name)
@@ -452,7 +460,7 @@ let
                 updatefront!(qt)
             end
         end
-        CImGui.PopStyleColor()
+        CImGui.PopStyleColor(2)
         if conf.InsBuf.showhelp && CImGui.IsItemHovered() && qt.help != ""
             ItemTooltip(qt.help)
         end
@@ -556,6 +564,10 @@ let
             CImGui.ImGuiCol_Button,
             qt.isautorefresh ? morestyle.Colors.DAQTaskRunning : CImGui.c_get(imguistyle.Colors, CImGui.ImGuiCol_Button)
         )
+        CImGui.PushStyleColor(
+            CImGui.ImGuiCol_ButtonHovered,
+            qt.isautorefresh ? morestyle.Colors.DAQTaskRunning : CImGui.c_get(imguistyle.Colors, CImGui.ImGuiCol_ButtonHovered)
+        )
         if CImGui.Button(qt.show_edit, (-1, 0))
             if addr != ""
                 fetchdata = refresh_qt(instrnm, addr, qt.name)
@@ -563,7 +575,7 @@ let
                 updatefront!(qt)
             end
         end
-        CImGui.PopStyleColor()
+        CImGui.PopStyleColor(2)
         if conf.InsBuf.showhelp && CImGui.IsItemHovered() && qt.help != ""
             ItemTooltip(qt.help)
         end
@@ -636,6 +648,10 @@ let
             CImGui.ImGuiCol_Button,
             qt.isautorefresh ? morestyle.Colors.DAQTaskRunning : CImGui.c_get(imguistyle.Colors, CImGui.ImGuiCol_Button)
         )
+        CImGui.PushStyleColor(
+            CImGui.ImGuiCol_ButtonHovered,
+            qt.isautorefresh ? morestyle.Colors.DAQTaskRunning : CImGui.c_get(imguistyle.Colors, CImGui.ImGuiCol_ButtonHovered)
+        )
         if CImGui.Button(qt.show_edit, (-1, 0))
             if addr != ""
                 fetchdata = refresh_qt(instrnm, addr, qt.name)
@@ -643,7 +659,7 @@ let
                 updatefront!(qt)
             end
         end
-        CImGui.PopStyleColor()
+        CImGui.PopStyleColor(2)
         if conf.InsBuf.showhelp && CImGui.IsItemHovered() && qt.help != ""
             ItemTooltip(qt.help)
         end

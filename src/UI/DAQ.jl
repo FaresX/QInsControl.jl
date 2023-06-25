@@ -81,7 +81,7 @@ let
                         if isrunning_i
                             morestyle.Colors.DAQTaskRunning
                         else
-                            CImGui.c_get(imguistyle.Colors, CImGui.ImGuiCol_Button)
+                            CImGui.c_get(imguistyle.Colors, CImGui.ImGuiCol_ButtonHovered)
                         end
                     else
                         morestyle.Colors.LogError
