@@ -186,7 +186,12 @@ let
                                     CImGui.SameLine()
                                     @c CImGui.MenuItem(addr, C_NULL, &ibv.p_open)
                                     if CImGui.BeginPopupContextItem()
-                                        if CImGui.MenuItem(stcstr(morestyle.Icons.CloseFile, " 删除"), C_NULL, false, ins != "VirtualInstr")
+                                        if CImGui.MenuItem(
+                                            stcstr(morestyle.Icons.CloseFile, " 删除"),
+                                            C_NULL,
+                                            false,
+                                            ins != "VirtualInstr"
+                                        )
                                             delete!(instrbufferviewers[ins], addr)
                                         end
                                         CImGui.EndPopup()

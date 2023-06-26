@@ -42,10 +42,10 @@ using .QInsControlCore
 
 @enum SyncStatesIndex begin
     autodetecting = 1 #是否正在自动查询仪器
-    autodetect_done 
-    isdaqtask_running 
-    isdaqtask_done 
-    isinterrupt 
+    autodetect_done
+    isdaqtask_running
+    isdaqtask_done
+    isinterrupt
     isblock
     isautorefresh
     newloging
@@ -130,7 +130,7 @@ function julia_main()::Cint
                 end)
             end
         end
-        remotecall_wait(()->start!(CPU), workers()[1])
+        remotecall_wait(() -> start!(CPU), workers()[1])
         autorefresh()
         @info "[$(now())]\n启动成功！"
         if !isinteractive()

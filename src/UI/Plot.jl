@@ -37,7 +37,13 @@ mutable struct UIPlot
     anns::Vector{Annotation}
     ps::PlotState
 end
-UIPlot(x, y, z) = UIPlot(x, y, z, "line", "title", "x", "y", "z", [string("y", i) for i in eachindex(y)], 4, Annotation[], PlotState())
+UIPlot(x, y, z) = UIPlot(
+    x, y, z,
+    "line",
+    "title", "x", "y", "z", [string("y", i) for i in eachindex(y)], 4,
+    Annotation[],
+    PlotState()
+)
 UIPlot() = UIPlot(Union{Real,String}[], [Real[]], Matrix{Float64}(undef, 0, 0))
 
 let
@@ -383,7 +389,10 @@ function xysetting(uip::UIPlot)
             end
         elseif eltype(uip.x) <: AbstractString
             xl = length(uip.x)
-            xticksnum = round(Int, 3CImGui.GetContentRegionAvailWidth() / max_with_empty(lengthpr.(uip.x)) / 2CImGui.GetFontSize())
+            xticksnum = round(
+                Int,
+                3CImGui.GetContentRegionAvailWidth() / max_with_empty(lengthpr.(uip.x)) / 2CImGui.GetFontSize()
+            )
             xticks = uip.x[round.(Int, range(1, xl, length=2xticksnum + 1))[2:2:end-1]]
             ImPlot.SetNextPlotTicksX(1 + xl / 2xticksnum, xl - xl / 2xticksnum, xticksnum, xticks)
             x = collect(eltype(uip.y[1]), 1:ylm)
@@ -412,8 +421,15 @@ function xyzsetting(uip::UIPlot)
             end
         elseif eltype(uip.x) <: AbstractString
             xlims = (1, sz2)
-            xticksnum = round(Int, 3CImGui.GetContentRegionAvailWidth() / max_with_empty(lengthpr.(uip.x)) / 2CImGui.GetFontSize())
-            xticks = length(uip.x) < xticksnum ? uip.x : uip.x[round.(Int, range(1, sz2, length=2xticksnum + 1))[2:2:end-1]]
+            xticksnum = round(
+                Int,
+                3CImGui.GetContentRegionAvailWidth() / max_with_empty(lengthpr.(uip.x)) / 2CImGui.GetFontSize()
+            )
+            xticks = if length(uip.x) < xticksnum
+                uip.x
+            else
+                uip.x[round.(Int, range(1, sz2, length=2xticksnum + 1))[2:2:end-1]]
+            end
             ImPlot.SetNextPlotTicksX(1 + sz2 / 2xticksnum, sz2 - sz2 / 2xticksnum, xticksnum, xticks)
         end
     end

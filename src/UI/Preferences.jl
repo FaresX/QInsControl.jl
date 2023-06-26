@@ -11,8 +11,14 @@ let
                 firsttime && (CImGui.SetColumnOffset(1, CImGui.GetWindowWidth() * 0.2); firsttime = false)
             end
             CImGui.BeginChild("选项", (Float32(0), -CImGui.GetFrameHeightWithSpacing()))
-            CImGui.Selectable(stcstr(morestyle.Icons.CommonSetting, " 通用"), selectedpref == "通用") && (selectedpref = "通用")
-            CImGui.Selectable(stcstr(morestyle.Icons.StyleSetting, " 风格"), selectedpref == "风格") && (selectedpref = "风格")
+            CImGui.Selectable(
+                stcstr(morestyle.Icons.CommonSetting, " 通用"),
+                selectedpref == "通用"
+            ) && (selectedpref = "通用")
+            CImGui.Selectable(
+                stcstr(morestyle.Icons.StyleSetting, " 风格"),
+                selectedpref == "风格"
+            ) && (selectedpref = "风格")
             CImGui.EndChild()
             if CImGui.Button(stcstr(morestyle.Icons.SaveButton, " 保存"), (-1, 0))
                 svconf = deepcopy(conf)
@@ -44,7 +50,12 @@ let
                 # else
                 #     io.ConfigFlags = unsafe_load(io.ConfigFlags) & ~CImGui.ImGuiConfigFlags_ViewportsEnable
                 # end
-                CImGui.DragInt2("窗口大小", conf.Basic.windowsize, 2.0, 100, 4000, "%d", CImGui.ImGuiSliderFlags_AlwaysClamp)
+                CImGui.DragInt2(
+                    "窗口大小",
+                    conf.Basic.windowsize,
+                    2.0, 100, 4000, "%d",
+                    CImGui.ImGuiSliderFlags_AlwaysClamp
+                )
                 @c ComBoS("系统编码", &conf.Basic.encoding, ecds)
                 editor = conf.Basic.editor
                 @c InputTextRSZ("文本编辑器", &editor)
@@ -56,7 +67,12 @@ let
 
                 ###DtViewer###
                 CImGui.TextColored(morestyle.Colors.HighlightText, "数据浏览")
-                @c CImGui.DragInt("单页数据量", &conf.DtViewer.showdatarow, 1, 1, 200000, "%d", CImGui.ImGuiSliderFlags_AlwaysClamp)
+                @c CImGui.DragInt(
+                    "单页数据量",
+                    &conf.DtViewer.showdatarow,
+                    1, 1, 200000, "%d",
+                    CImGui.ImGuiSliderFlags_AlwaysClamp
+                )
                 CImGui.Text(" ")
                 CImGui.Separator()
 
@@ -73,19 +89,54 @@ let
                 else
                     @c CImGui.Checkbox("定长采点", &conf.DAQ.equalstep)
                 end
-                @c CImGui.DragInt("保存时间", &conf.DAQ.savetime, 1.0, 1, 180, "%d", CImGui.ImGuiSliderFlags_AlwaysClamp)
-                @c CImGui.DragInt("通道大小", &conf.DAQ.channel_size, 1.0, 4, 2048, "%d", CImGui.ImGuiSliderFlags_AlwaysClamp)
-                @c CImGui.DragInt("打包尺寸", &conf.DAQ.packsize, 1.0, 6, 120, "%d", CImGui.ImGuiSliderFlags_AlwaysClamp)
-                @c CImGui.DragInt("绘图列数", &conf.DAQ.plotshowcol, 1.0, 1, 6, "%d", CImGui.ImGuiSliderFlags_AlwaysClamp)
-                CImGui.DragInt2("拾取帧数", conf.DAQ.pick_fps, 1.0, 1, 180, "%d", CImGui.ImGuiSliderFlags_AlwaysClamp)
+                @c CImGui.DragInt(
+                    "保存时间",
+                    &conf.DAQ.savetime,
+                    1.0, 1, 180, "%d",
+                    CImGui.ImGuiSliderFlags_AlwaysClamp
+                )
+                @c CImGui.DragInt(
+                    "通道大小",
+                    &conf.DAQ.channel_size,
+                    1.0, 4, 2048, "%d",
+                    CImGui.ImGuiSliderFlags_AlwaysClamp
+                )
+                @c CImGui.DragInt(
+                    "打包尺寸",
+                    &conf.DAQ.packsize,
+                    1.0, 6, 120, "%d",
+                    CImGui.ImGuiSliderFlags_AlwaysClamp
+                )
+                @c CImGui.DragInt(
+                    "绘图列数",
+                    &conf.DAQ.plotshowcol,
+                    1.0, 1, 6, "%d",
+                    CImGui.ImGuiSliderFlags_AlwaysClamp
+                )
+                CImGui.DragInt2(
+                    "拾取帧数",
+                    conf.DAQ.pick_fps,
+                    1.0, 1, 180, "%d",
+                    CImGui.ImGuiSliderFlags_AlwaysClamp
+                )
                 CImGui.Text(" ")
                 CImGui.Separator()
 
                 ###InsBuf###
                 CImGui.TextColored(morestyle.Colors.HighlightText, "仪器设置和状态")
                 @c CImGui.Checkbox("显示帮助", &conf.InsBuf.showhelp)
-                @c CImGui.DragInt("显示列数", &conf.InsBuf.showcol, 1.0, 1, 6, "%d", CImGui.ImGuiSliderFlags_AlwaysClamp)
-                @c CImGui.DragFloat("刷新速率", &conf.InsBuf.refreshrate, 0.1, 0.1, 60, "%.3f", CImGui.ImGuiSliderFlags_AlwaysClamp)
+                @c CImGui.DragInt(
+                    "显示列数",
+                    &conf.InsBuf.showcol,
+                    1.0, 1, 6, "%d",
+                    CImGui.ImGuiSliderFlags_AlwaysClamp
+                )
+                @c CImGui.DragFloat(
+                    "刷新速率",
+                    &conf.InsBuf.refreshrate,
+                    0.1, 0.1, 60, "%.3f",
+                    CImGui.ImGuiSliderFlags_AlwaysClamp
+                )
                 CImGui.Text(" ")
                 CImGui.Separator()
 
@@ -155,9 +206,24 @@ let
                         CImGui.TextColored(morestyle.Colors.LogError, "路径不存在！！！")
                     end
                 end
-                @c CImGui.DragFloat("刷新率##Console", &conf.Console.refreshrate, 1.0, 0.1, 60, "%.1f", CImGui.ImGuiSliderFlags_AlwaysClamp)
-                @c CImGui.DragInt("显示行数##Console", &conf.Console.showioline, 1.0, 100, 6000, "%d", CImGui.ImGuiSliderFlags_AlwaysClamp)
-                @c CImGui.DragInt("历史命令##Console", &conf.Console.showioline, 1.0, 10, 6000, "%d", CImGui.ImGuiSliderFlags_AlwaysClamp)
+                @c CImGui.DragFloat(
+                    "刷新率##Console",
+                    &conf.Console.refreshrate,
+                    1.0, 0.1, 60, "%.1f",
+                    CImGui.ImGuiSliderFlags_AlwaysClamp
+                )
+                @c CImGui.DragInt(
+                    "显示行数##Console",
+                    &conf.Console.showioline,
+                    1.0, 100, 6000, "%d",
+                    CImGui.ImGuiSliderFlags_AlwaysClamp
+                )
+                @c CImGui.DragInt(
+                    "历史命令##Console",
+                    &conf.Console.showioline,
+                    1.0, 10, 6000, "%d",
+                    CImGui.ImGuiSliderFlags_AlwaysClamp
+                )
                 CImGui.Text(" ")
                 CImGui.Separator()
 
@@ -176,8 +242,18 @@ let
                         CImGui.TextColored(morestyle.Colors.LogError, "路径不存在！！！")
                     end
                 end
-                @c CImGui.DragFloat("刷新率##Logs", &conf.Logs.refreshrate, 1.0, 0.1, 60, "%.1f", CImGui.ImGuiSliderFlags_AlwaysClamp)
-                @c CImGui.DragInt("显示行数##Logs", &conf.Logs.showlogline, 1.0, 100, 6000, "%d", CImGui.ImGuiSliderFlags_AlwaysClamp)
+                @c CImGui.DragFloat(
+                    "刷新率##Logs",
+                    &conf.Logs.refreshrate,
+                    1.0, 0.1, 60, "%.1f",
+                    CImGui.ImGuiSliderFlags_AlwaysClamp
+                )
+                @c CImGui.DragInt(
+                    "显示行数##Logs",
+                    &conf.Logs.showlogline,
+                    1.0, 100, 6000, "%d",
+                    CImGui.ImGuiSliderFlags_AlwaysClamp
+                )
                 CImGui.Text(" ")
                 CImGui.Separator()
 
@@ -211,7 +287,9 @@ let
                 CImGui.TextColored(morestyle.Colors.HighlightText, "常用地址")
                 addrs = join(conf.ComAddr.addrs, "\n")
                 y = length(conf.ComAddr.addrs) * CImGui.GetTextLineHeight() + 2unsafe_load(imguistyle.FramePadding.y)
-                @c(InputTextMultilineRSZ("##常用地址", &addrs, (Float32(0), y))) && (conf.ComAddr.addrs = split(addrs, '\n'))
+                @c(InputTextMultilineRSZ(
+                    "##常用地址", &addrs, (Float32(0), y))
+                ) && (conf.ComAddr.addrs = split(addrs, '\n'))
                 CImGui.Text(" ")
                 CImGui.Separator()
 
@@ -238,7 +316,12 @@ let
                         if CImGui.BeginPopupContextItem()
                             CImGui.MenuItem("删除", C_NULL, false, length(conf.U) > 2) && (pop!(conf.U, ut); break)
                             if CImGui.MenuItem("添加")
-                                insert!(conf.U, ut, "NU" => Union{Unitful.FreeUnits,Unitful.MixedUnits}[u"m"], after=true)
+                                insert!(
+                                    conf.U,
+                                    ut,
+                                    "NU" => Union{Unitful.FreeUnits,Unitful.MixedUnits}[u"m"];
+                                    after=true
+                                )
                             end
                             CImGui.EndPopup()
                         end

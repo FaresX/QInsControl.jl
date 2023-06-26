@@ -294,7 +294,9 @@ let
             CImGui.EndPopup()
         end
         if CImGui.BeginPopup("Edit Link")
-            CImGui.MenuItem(stcstr(morestyle.Icons.CloseFile, " 删除")) && deleteat!(nodeeditor.links, nodeeditor.hoveredlink)
+            CImGui.MenuItem(
+                stcstr(morestyle.Icons.CloseFile, " 删除")
+            ) && deleteat!(nodeeditor.links, nodeeditor.hoveredlink)
             CImGui.EndPopup()
         end
         if CImGui.IsMouseClicked(1)

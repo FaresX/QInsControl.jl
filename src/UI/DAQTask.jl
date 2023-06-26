@@ -20,11 +20,15 @@ let
         CImGui.PushStyleVar(CImGui.ImGuiStyleVar_WindowRounding, unsafe_load(imguistyle.PopupRounding))
         isfocus = true
         global old_i
-        if CImGui.Begin(stcstr("编辑任务 ", id), p_open, CImGui.ImGuiWindowFlags_NoTitleBar | CImGui.ImGuiWindowFlags_NoDocking)
+        if CImGui.Begin(
+            stcstr("编辑任务 ", id),
+            p_open,
+            CImGui.ImGuiWindowFlags_NoTitleBar | CImGui.ImGuiWindowFlags_NoDocking
+        )
             CImGui.BeginChild("Blocks")
             CImGui.TextColored(morestyle.Colors.HighlightText, morestyle.Icons.TaskButton)
             CImGui.SameLine()
-            CImGui.Text(stcstr(" 编辑队列：任务 ", id+old_i, " ", daqtask.name))
+            CImGui.Text(stcstr(" 编辑队列：任务 ", id + old_i, " ", daqtask.name))
             CImGui.SameLine(CImGui.GetContentRegionAvailWidth() - holdsz)
             @c CImGui.Checkbox("HOLD", &hold)
             holdsz = CImGui.GetItemRectSize().x
@@ -92,7 +96,7 @@ function run(daqtask::DAQTask)
     try
         log_instrbufferviewers()
     catch e
-        @error "[($now())]\n仪器记录错误，程序终止！！！" exception=e
+        @error "[($now())]\n仪器记录错误，程序终止！！！" exception = e
         return
     end
     run_remote(daqtask)
@@ -129,7 +133,7 @@ function run_remote(daqtask::DAQTask)
                 progress_lc = Channel{Tuple{UUID,Int,Int,Float64}}(conf.DAQ.channel_size)
                 @sync begin
                     remotedotask = errormonitor(@async begin
-                        remotecall_wait(()->(start!(CPU); fast!(CPU)), workers()[1])
+                        remotecall_wait(() -> (start!(CPU); fast!(CPU)), workers()[1])
                         for ct in values(controllers)
                             login!(CPU, ct)
                         end
@@ -265,7 +269,7 @@ function extract_controllers(bkch::Vector{AbstractBlock})
                 logout!(CPU, ct)
                 push!(controllers, string(bk.instrnm, "_", bk.addr) => ct)
             catch e
-                @error "[$(now())]\n仪器设置不正确！！！" instrument=string(bk.instrnm, ": ", bk.addr) exception=e
+                @error "[$(now())]\n仪器设置不正确！！！" instrument = string(bk.instrnm, ": ", bk.addr) exception = e
                 logout!(CPU, ct)
                 return controllers, false
             end

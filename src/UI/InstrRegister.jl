@@ -1,70 +1,71 @@
-function edit(qtcf::QuantityConf)
-    if qtcf.enable
-        @c CImGui.Checkbox("启用", &qtcf.enable)
-    else
-        @c CImGui.Checkbox("停用", &qtcf.enable)
-    end
-    # @c InputTextRSZ("变量名", &qtcf.name)
-    @c InputTextRSZ("别称", &qtcf.alias)
-    @c ComBoS("单位类型", &qtcf.U, keys(conf.U))
-    @c InputTextRSZ("命令", &qtcf.cmdheader)
-    width = CImGui.GetItemRectSize().x / 2 - 2CImGui.CalcTextSize(" =>  ").x
-    CImGui.SameLine()
-    if CImGui.Button("inssetget.jl")
-        inssetget_jl = joinpath(ENV["QInsControlAssets"], "Confs/inssetget.jl") |> abspath
-        @async try
-            Base.run(Cmd([conf.Basic.editor, inssetget_jl]))
-        catch e
-            @error "[$(now())]\n文本编辑错误！！！" exception=e
+let
+    edithelp::Bool = false
+    global function edit(qtcf::QuantityConf)
+        if qtcf.enable
+            @c CImGui.Checkbox("启用", &qtcf.enable)
+        else
+            @c CImGui.Checkbox("停用", &qtcf.enable)
         end
-    end
-    # optkeys = join(qtcf.optkeys, "\n")
-    # optvalues = join(qtcf.optvalues, "\n")
-    # @c(InputTextRSZ("可选值", &optkeys)) && (qtcf.optkeys = split(optkeys, '\n'))
-    # @c(InputTextRSZ("可选值", &optvalues)) && (qtcf.optvalues = split(optvalues, '\n'))
-    CImGui.BeginGroup()
+        # @c InputTextRSZ("变量名", &qtcf.name)
+        @c InputTextRSZ("别称", &qtcf.alias)
+        @c ComBoS("单位类型", &qtcf.U, keys(conf.U))
+        @c InputTextRSZ("命令", &qtcf.cmdheader)
+        width = CImGui.GetItemRectSize().x / 2 - 2CImGui.CalcTextSize(" =>  ").x
+        CImGui.SameLine()
+        if CImGui.Button("inssetget.jl")
+            inssetget_jl = joinpath(ENV["QInsControlAssets"], "Confs/inssetget.jl") |> abspath
+            @async try
+                Base.run(Cmd([conf.Basic.editor, inssetget_jl]))
+            catch e
+                @error "[$(now())]\n文本编辑错误！！！" exception = e
+            end
+        end
+        # optkeys = join(qtcf.optkeys, "\n")
+        # optvalues = join(qtcf.optvalues, "\n")
+        # @c(InputTextRSZ("可选值", &optkeys)) && (qtcf.optkeys = split(optkeys, '\n'))
+        # @c(InputTextRSZ("可选值", &optvalues)) && (qtcf.optvalues = split(optvalues, '\n'))
+        CImGui.BeginGroup()
 
-    CImGui.BeginGroup()
-    for (i, key) in enumerate(qtcf.optkeys)
-        CImGui.PushID(i)
-        CImGui.PushItemWidth(width)
-        if @c InputTextRSZ("##optkey", &key)
-            key == "" || (qtcf.optkeys[i] = key)
+        CImGui.BeginGroup()
+        for (i, key) in enumerate(qtcf.optkeys)
+            CImGui.PushID(i)
+            CImGui.PushItemWidth(width)
+            if @c InputTextRSZ("##optkey", &key)
+                key == "" || (qtcf.optkeys[i] = key)
+            end
+            CImGui.PopItemWidth()
+            CImGui.SameLine()
+            CImGui.Text(" => ")
+            CImGui.SameLine()
+            CImGui.PushItemWidth(width)
+            val = qtcf.optvalues[i]
+            if @c InputTextRSZ("##optvalue", &val)
+                val == "" || (qtcf.optvalues[i] = val)
+            end
+            CImGui.PopItemWidth()
+            CImGui.SameLine()
+            CImGui.PushID("optvalue")
+            if CImGui.Button(morestyle.Icons.CloseFile)
+                deleteat!(qtcf.optkeys, i)
+                deleteat!(qtcf.optvalues, i)
+                break
+            end
+            CImGui.PopID()
+            CImGui.PopID()
         end
-        CImGui.PopItemWidth()
+        CImGui.EndGroup()
+
+        CImGui.EndGroup()
         CImGui.SameLine()
-        CImGui.Text(" => ")
-        CImGui.SameLine()
-        CImGui.PushItemWidth(width)
-        val = qtcf.optvalues[i]
-        if @c InputTextRSZ("##optvalue", &val)
-            val == "" || (qtcf.optvalues[i] = val)
-        end
-        CImGui.PopItemWidth()
-        CImGui.SameLine()
-        CImGui.PushID("optvalue")
-        if CImGui.Button(morestyle.Icons.CloseFile)
-            deleteat!(qtcf.optkeys, i)
-            deleteat!(qtcf.optvalues, i)
-            break
+        CImGui.PushID("addopt")
+        if CImGui.Button(morestyle.Icons.NewFile)
+            push!(qtcf.optkeys, string("key", length(qtcf.optkeys) + 1))
+            push!(qtcf.optvalues, "")
         end
         CImGui.PopID()
-        CImGui.PopID()
-    end
-    CImGui.EndGroup()
-
-    CImGui.EndGroup()
-    CImGui.SameLine()
-    CImGui.PushID("addopt")
-    if CImGui.Button(morestyle.Icons.NewFile)
-        push!(qtcf.optkeys, string("key", length(qtcf.optkeys)+1))
-        push!(qtcf.optvalues, "")
-    end
-    CImGui.PopID()
-    CImGui.SameLine()
-    CImGui.Text("可选值")
-    @c ComBoS("变量类型", &qtcf.type, ["sweep", "set", "read"])
-    @cstatic edithelp::Bool = false begin
+        CImGui.SameLine()
+        CImGui.Text("可选值")
+        @c ComBoS("变量类型", &qtcf.type, ["sweep", "set", "read"])
         CImGui.TextColored(morestyle.Colors.LogInfo, "帮助文档")
         if edithelp
             lines = split(qtcf.help, '\n')
@@ -84,19 +85,19 @@ function edit(qtcf::QuantityConf)
 end
 
 let
+    firsttime::Bool = true
     selectedins::String = ""
     selectedqt::String = ""
     deldialog::Bool = false
     isrename::Dict{String,Bool} = Dict()
+    qtname::String = ""
+    editqt::QuantityConf = QuantityConf(true, "", "", "", [], [], "set", "")
     global function InstrRegister(p_open::Ref)
-        # CImGui.SetNextWindowPos((100, 100), CImGui.ImGuiCond_Once)
         CImGui.SetNextWindowSize((800, 600), CImGui.ImGuiCond_Once)
 
         if CImGui.Begin(stcstr(morestyle.Icons.InstrumentsRegister, "  仪器注册"), p_open)
             CImGui.Columns(2)
-            @cstatic firsttime::Bool = true begin
-                firsttime && (CImGui.SetColumnOffset(1, CImGui.GetWindowWidth() * 0.25); firsttime = false)
-            end
+            firsttime && (CImGui.SetColumnOffset(1, CImGui.GetWindowWidth() * 0.25); firsttime = false)
             CImGui.BeginChild("仪器", (Float32(0), -CImGui.GetFrameHeightWithSpacing()))
             for (oldinsnm, inscf) in insconf
                 oldinsnm == "Others" && continue
@@ -136,7 +137,11 @@ let
                     ) && (deldialog = true)
                     CImGui.EndPopup()
                 end
-                if YesNoDialog(stcstr("##是否删除仪器配置", oldinsnm), "确认删除？", CImGui.ImGuiWindowFlags_AlwaysAutoResize)
+                if YesNoDialog(
+                    stcstr("##是否删除仪器配置", oldinsnm),
+                    "确认删除？",
+                    CImGui.ImGuiWindowFlags_AlwaysAutoResize
+                )
                     pop!(insconf, oldinsnm, 0)
                     remotecall_wait(workers()[1], oldinsnm) do oldinsnm
                         pop!(insconf, oldinsnm, 0)
@@ -177,8 +182,8 @@ let
                             "idn" => "New Ins",
                             "input_labels" => [],
                             "output_labels" => []
-                            )
-                        ),
+                        )
+                    ),
                     OrderedDict(
                         "quantity" => QuantityConf(
                             Dict(
@@ -234,7 +239,10 @@ let
                 CImGui.SameLine()
                 CImGui.BeginGroup()
                 if CImGui.Button(stcstr(morestyle.Icons.NewFile, " 输出"))
-                    push!(selectedinscf.conf.output_labels, string("Output ", length(selectedinscf.conf.output_labels) + 1))
+                    push!(
+                        selectedinscf.conf.output_labels,
+                        string("Output ", length(selectedinscf.conf.output_labels) + 1)
+                    )
                 end
                 for (i, output) in enumerate(selectedinscf.conf.output_labels)
                     CImGui.PushID(i)
@@ -254,41 +262,39 @@ let
                 CImGui.Separator()
 
                 ###quantities###
-                @cstatic qtname::String = "" editqt::QuantityConf = QuantityConf(true, "", "", "", [], [], "set", "") begin
-                    CImGui.TextColored(morestyle.Colors.HighlightText, "变量")
-                    if @c ComBoS("变量", &selectedqt, keys(selectedinscf.quantities))
-                        if selectedqt != "" && haskey(selectedinscf.quantities, selectedqt)
-                            qtname = selectedqt
-                            editqt = deepcopy(selectedinscf.quantities[selectedqt])
-                        end
+                CImGui.TextColored(morestyle.Colors.HighlightText, "变量")
+                if @c ComBoS("变量", &selectedqt, keys(selectedinscf.quantities))
+                    if selectedqt != "" && haskey(selectedinscf.quantities, selectedqt)
+                        qtname = selectedqt
+                        editqt = deepcopy(selectedinscf.quantities[selectedqt])
                     end
-                    CImGui.SameLine()
-                    if CImGui.Button(stcstr(morestyle.Icons.CloseFile, "##QuantityConf"))
-                        pop!(selectedinscf.quantities, selectedqt, 0)
-                        remotecall_wait(workers()[1], selectedins, selectedqt) do selectedins, selectedqt
-                            pop!(insconf[selectedins].quantities, selectedqt, 0)
-                        end
-                        for ibv in values(instrbufferviewers[selectedins])
-                            pop!(ibv.insbuf.quantities, qtname, 0)
-                        end
-                        selectedqt = ""
-                    end
-                    CImGui.Text(" ") #空行
-                    CImGui.Separator()
-                    CImGui.TextColored(morestyle.Colors.HighlightText, "编辑")
-                    CImGui.SameLine()
-                    if CImGui.Button(stcstr(morestyle.Icons.SaveButton, "##QuantityConf to insconf"))
-                        push!(selectedinscf.quantities, qtname => deepcopy(editqt))
-                        remotecall_wait(workers()[1], selectedins, qtname, editqt) do selectedins, qtname, editqt
-                            push!(insconf[selectedins].quantities, qtname => editqt)
-                        end
-                        for ibv in values(instrbufferviewers[selectedins])
-                            push!(ibv.insbuf.quantities, qtname => InstrQuantity(qtname, deepcopy(editqt)))
-                        end
-                    end
-                    @c InputTextRSZ("变量名", &qtname)
-                    edit(editqt)
                 end
+                CImGui.SameLine()
+                if CImGui.Button(stcstr(morestyle.Icons.CloseFile, "##QuantityConf"))
+                    pop!(selectedinscf.quantities, selectedqt, 0)
+                    remotecall_wait(workers()[1], selectedins, selectedqt) do selectedins, selectedqt
+                        pop!(insconf[selectedins].quantities, selectedqt, 0)
+                    end
+                    for ibv in values(instrbufferviewers[selectedins])
+                        pop!(ibv.insbuf.quantities, qtname, 0)
+                    end
+                    selectedqt = ""
+                end
+                CImGui.Text(" ") #空行
+                CImGui.Separator()
+                CImGui.TextColored(morestyle.Colors.HighlightText, "编辑")
+                CImGui.SameLine()
+                if CImGui.Button(stcstr(morestyle.Icons.SaveButton, "##QuantityConf to insconf"))
+                    push!(selectedinscf.quantities, qtname => deepcopy(editqt))
+                    remotecall_wait(workers()[1], selectedins, qtname, editqt) do selectedins, qtname, editqt
+                        push!(insconf[selectedins].quantities, qtname => editqt)
+                    end
+                    for ibv in values(instrbufferviewers[selectedins])
+                        push!(ibv.insbuf.quantities, qtname => InstrQuantity(qtname, deepcopy(editqt)))
+                    end
+                end
+                @c InputTextRSZ("变量名", &qtname)
+                edit(editqt)
             end
             CImGui.EndChild()
         end

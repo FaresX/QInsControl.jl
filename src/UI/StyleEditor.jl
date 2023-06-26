@@ -196,7 +196,12 @@ let
             if CImGui.BeginTabItem("Variables")
                 for var in fieldnames(LibCImGui.Style)
                     fieldtype(LibCImGui.Style, var) == Cfloat || continue
-                    CImGui.DragFloat(stcstr(var), getproperty(imnodesstyle, var), 1.0, 0, 120, "%.3f", CImGui.ImGuiSliderFlags_AlwaysClamp)
+                    CImGui.DragFloat(
+                        stcstr(var),
+                        getproperty(imnodesstyle, var),
+                        1.0, 0, 120, "%.3f",
+                        CImGui.ImGuiSliderFlags_AlwaysClamp
+                    )
                 end
                 CImGui.CheckboxFlags("NodeOutLine", imnodesstyle.flags, LibCImGui.StyleFlags_NodeOutline)
                 CImGui.SameLine()
@@ -257,7 +262,11 @@ let
                     if style_ref.colors[Int(col)+1] != CImGui.c_get(imnodesstyle.colors, col)
                         CImGui.SameLine()
                         if CImGui.Button("Save")
-                            style_ref.colors = newtuple(style_ref.colors, Int(col) + 1, CImGui.c_get(imnodesstyle.colors, col))
+                            style_ref.colors = newtuple(
+                                style_ref.colors,
+                                Int(col) + 1,
+                                CImGui.c_get(imnodesstyle.colors, col)
+                            )
                         end
                         CImGui.SameLine()
                         if CImGui.Button("Revert")
@@ -408,7 +417,7 @@ let
             end
             if CImGui.BeginTabItem("ImPlotMarkers")
                 selectedmarker = unsafe_string(ImPlot.GetMarkerName(morestyle.ImPlotMarker))
-                implotmarkerlist = [unsafe_string(ImPlot.GetMarkerName(i-1)) for i in 1:ImPlot.ImPlotMarker_COUNT]
+                implotmarkerlist = [unsafe_string(ImPlot.GetMarkerName(i - 1)) for i in 1:ImPlot.ImPlotMarker_COUNT]
                 if @c ComBoS("ImPlotMarker", &selectedmarker, implotmarkerlist)
                     morestyle.ImPlotMarker = findfirst(==(selectedmarker), implotmarkerlist) - 1
                     implotstyle.Marker = morestyle.ImPlotMarker
@@ -494,8 +503,10 @@ let
         bw = CImGui.GetItemRectSize().x
         CImGui.SameLine()
         hinttext = nmerr ? "Illegal Name" : "Style Name"
-        tc = nmerr ? ImVec4(morestyle.Colors.LogError...) : CImGui.c_get(imguistyle.Colors, CImGui.ImGuiCol_TextDisabled)
-        CImGui.PushStyleColor(CImGui.ImGuiCol_TextDisabled, tc)
+        CImGui.PushStyleColor(
+            CImGui.ImGuiCol_TextDisabled,
+            nmerr ? morestyle.Colors.LogError : CImGui.c_get(imguistyle.Colors, CImGui.ImGuiCol_TextDisabled)
+        )
         CImGui.PushItemWidth(ws / 2 - bw - unsafe_load(imguistyle.ItemSpacing.x))
         @c InputTextWithHintRSZ("##Input Style Name", hinttext, &style_name)
         CImGui.PopItemWidth()

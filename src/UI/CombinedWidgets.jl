@@ -237,7 +237,11 @@ Layout() = Layout("Layout")
 
 labeltoidx!(lo::Layout) = lo.selectedidx = [lo.labeltoidx[lb] for lb in lo.selectedlabels]
 
-function edit(rightclickmenu, lo::Layout, size=(Cfloat(0), CImGui.GetFrameHeight() * ceil(Int, length(lo.labels) / lo.showcol)))
+function edit(
+    rightclickmenu,
+    lo::Layout,
+    size=(Cfloat(0), CImGui.GetFrameHeight() * ceil(Int, length(lo.labels) / lo.showcol))
+)
     states_old = copy(lo.states)
     marks_old = copy(lo.marks)
     editlabels = @. lo.labels * " " * lo.marks * "###for rename" * lo.labels

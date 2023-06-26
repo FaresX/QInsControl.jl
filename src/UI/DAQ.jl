@@ -44,7 +44,9 @@ let
                 if isdir(workpath)
                     oldworkpath = workpath
                     date = today()
-                    find_old_i(joinpath(workpath, string(year(date)), string(year(date), "-", month(date)), string(date)))
+                    find_old_i(
+                        joinpath(workpath, string(year(date)), string(year(date), "-", month(date)), string(date))
+                    )
                 else
                     old_i = 0
                 end
@@ -87,7 +89,10 @@ let
                         morestyle.Colors.LogError
                     end
                 )
-                if CImGui.Button(stcstr(morestyle.Icons.TaskButton, " 任务 ", i+old_i, " ", task.name, "###rename"), (-1, 0))
+                if CImGui.Button(
+                    stcstr(morestyle.Icons.TaskButton, " 任务 ", i + old_i, " ", task.name, "###rename"),
+                    (-1, 0)
+                )
                     show_daq_editor_i = i
                     show_daq_editor = true
                 end
@@ -100,7 +105,7 @@ let
                     CImGui.Indent()
                     if CImGui.BeginDragDropSource(0)
                         @c CImGui.SetDragDropPayload("Swap DAQTask", &i, sizeof(Cint))
-                        CImGui.Text(stcstr("任务 ", i+old_i, " ", task.name))
+                        CImGui.Text(stcstr("任务 ", i + old_i, " ", task.name))
                         CImGui.EndDragDropSource()
                     end
                     if CImGui.BeginDragDropTarget()
@@ -171,7 +176,7 @@ let
                 isrename && (CImGui.OpenPopup(stcstr("重命名", i));
                 isrename = false)
                 if CImGui.BeginPopup(stcstr("重命名", i))
-                    @c InputTextRSZ(stcstr(morestyle.Icons.TaskButton, " 任务 ", i+old_i), &task.name)
+                    @c InputTextRSZ(stcstr(morestyle.Icons.TaskButton, " 任务 ", i + old_i), &task.name)
                     CImGui.EndPopup()
                 end
                 CImGui.PopID()
@@ -238,7 +243,12 @@ let
                     CImGui.Text("绘图列数")
                     CImGui.SameLine()
                     CImGui.PushItemWidth(2CImGui.GetFontSize())
-                    @c CImGui.DragInt("##绘图列数", &conf.DAQ.plotshowcol, 1, 1, 6, "%d", CImGui.ImGuiSliderFlags_AlwaysClamp)
+                    @c CImGui.DragInt(
+                        "##绘图列数",
+                        &conf.DAQ.plotshowcol,
+                        1, 1, 6, "%d",
+                        CImGui.ImGuiSliderFlags_AlwaysClamp
+                    )
                     CImGui.PopItemWidth()
                     CImGui.SameLine()
                     CImGui.PushID("add new plot")
@@ -301,7 +311,11 @@ let
             end
             isdelplot && ((CImGui.OpenPopup(stcstr("##删除绘图", daq_plot_layout.idxing)));
             isdelplot = false)
-            if YesNoDialog(stcstr("##删除绘图", daq_plot_layout.idxing), "确认删除？", CImGui.ImGuiWindowFlags_AlwaysAutoResize)
+            if YesNoDialog(
+                stcstr("##删除绘图", daq_plot_layout.idxing),
+                "确认删除？",
+                CImGui.ImGuiWindowFlags_AlwaysAutoResize
+            )
                 if length(uipsweeps) > 1
                     deleteat!(daq_plot_layout, delplot_i)
                     deleteat!(uipsweeps, delplot_i)
@@ -376,7 +390,9 @@ let
                     daq_dtpk.w = falses(length(datakeys))
                 end
                 isupdate = @c edit(daq_dtpk, "DAQ", &show_daq_selector)
-                !show_daq_selector || isupdate && syncplotdata(uipsweeps[show_daq_selector_i], daq_dtpk, databuf, databuf_parsed)
+                if !show_daq_selector || isupdate
+                    syncplotdata(uipsweeps[show_daq_selector_i], daq_dtpk, databuf, databuf_parsed)
+                end
             end
 
             for i in daq_plot_layout.selectedidx

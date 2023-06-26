@@ -196,7 +196,7 @@ function UI(breakdown=false)
         @error "[$(now())]\nError in renderloop!" exception = e
         Base.show_backtrace(stderr, catch_backtrace())
     finally
-        SyncStates[Int(isdaqtask_running)] || remotecall_wait(()->stop!(CPU), workers()[1])
+        SyncStates[Int(isdaqtask_running)] || remotecall_wait(() -> stop!(CPU), workers()[1])
         ImGuiOpenGLBackend.shutdown(gl_ctx)
         ImGuiGLFWBackend.shutdown(window_ctx)
         imnodes_DestroyContext(ctxi)

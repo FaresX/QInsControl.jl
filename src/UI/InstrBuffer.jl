@@ -22,28 +22,21 @@ mutable struct InstrQuantity
     show_view::String
     passfilter::Bool
 end
-InstrQuantity() = InstrQuantity(true, "", "", "", "", Cfloat(0.1), "", [], [], 1, "", "", 1, :set, "", false, false, "", "", true)
+InstrQuantity() = InstrQuantity(
+    true, "", "", "", "", Cfloat(0.1), "", [], [], 1, "", "", 1, :set, "", false, false,
+    "", "", true
+)
 InstrQuantity(name, qtcf::QuantityConf) = InstrQuantity(
-    qtcf.enable,
-    name,
-    qtcf.alias,
+    qtcf.enable, name, qtcf.alias,
+    "", "", Cfloat(0.1),
+    "", qtcf.optkeys, qtcf.optvalues, 1,
     "",
-    "",
-    Cfloat(0.1),
-    "",
-    qtcf.optkeys,
-    qtcf.optvalues,
-    1,
-    "",
-    qtcf.U,
-    1,
+    qtcf.U, 1,
     Symbol(qtcf.type),
     qtcf.help,
     false,
     false,
-    "",
-    "",
-    true
+    "", "", true
 )
 
 function getvalU(qt::InstrQuantity)
@@ -95,25 +88,14 @@ function updatefront!(qt::InstrQuantity; show_edit=true)
     end
 end
 
-function update_passfilter!(qt::InstrQuantity, filter, filtervarname)
-    if filter != "" && isvalid(filter)
-        qt.passfilter = if filtervarname
-            occursin(lowercase(filter), lowercase(qt.name))
-        else
-            occursin(lowercase(filter), lowercase(qt.alias))
-        end
-    else
-        qt.passfilter = true
-    end
-end
-
 mutable struct InstrBuffer
     instrnm::String
     quantities::OrderedDict{String,InstrQuantity}
     isautorefresh::Bool
     filter::String
+    filtervarname::Bool
 end
-InstrBuffer() = InstrBuffer("", OrderedDict(), false, "")
+InstrBuffer() = InstrBuffer("", OrderedDict(), false, "", false)
 
 function InstrBuffer(instrnm)
     haskey(insconf, instrnm) || @error "[$(now())]\n不支持的仪器!!!" instrument = instrnm
@@ -133,31 +115,35 @@ function InstrBuffer(instrnm)
         push!(
             instrqts,
             qt => InstrQuantity(
-                enable,
-                qt,
-                alias,
+                enable, qt, alias,
+                "", "", Cfloat(0.1),
+                "", optkeys, optvalues, 1,
                 "",
-                "",
-                Cfloat(0.1),
-                "",
-                optkeys,
-                optvalues,
-                1,
-                "",
-                utype,
-                1,
+                utype, 1,
                 type,
                 help,
                 false,
                 false,
-                "",
-                "",
-                true
+                "", "", true
             )
         )
         updatefront!(instrqts[qt])
     end
-    InstrBuffer(instrnm, instrqts, false, "")
+    InstrBuffer(instrnm, instrqts, false, "", false)
+end
+
+function update_passfilter!(insbuf::InstrBuffer)
+    for (qtnm, qt) in insbuf.quantities
+        if insbuf.filter != "" && isvalid(insbuf.filter)
+            qt.passfilter = if insbuf.filtervarname
+                occursin(lowercase(insbuf.filter), lowercase(qtnm))
+            else
+                occursin(lowercase(insbuf.filter), lowercase(qt.alias))
+            end
+        else
+            qt.passfilter = true
+        end
+    end
 end
 
 mutable struct InstrBufferViewer
@@ -171,11 +157,9 @@ end
 InstrBufferViewer(instrnm, addr) = InstrBufferViewer(instrnm, addr, "*IDN?", "", false, InstrBuffer(instrnm))
 InstrBufferViewer() = InstrBufferViewer("", "", "*IDN?", "", false, InstrBuffer())
 
-# const instrcontrollers::Dict{String,Dict{String,Controller}} = Dict()
 const instrbufferviewers::Dict{String,Dict{String,InstrBufferViewer}} = Dict()
 
 function edit(ibv::InstrBufferViewer)
-    # CImGui.SetNextWindowPos((100, 100), CImGui.ImGuiCond_Once)
     CImGui.SetNextWindowSize((800, 600), CImGui.ImGuiCond_Once)
     ins, addr = ibv.instrnm, ibv.addr
     if @c CImGui.Begin(stcstr(insconf[ins].conf.icon, "  ", ins, " --- ", addr), &ibv.p_open)
@@ -207,8 +191,12 @@ function edit(ibv::InstrBufferViewer)
                 CImGui.Text(" ")
                 CImGui.SameLine()
                 CImGui.PushItemWidth(CImGui.GetFontSize() * 2)
-                @c CImGui.DragFloat("##自动刷新", &conf.InsBuf.refreshrate, 0.1, 0.1, 60, "%.1f", CImGui.ImGuiSliderFlags_AlwaysClamp)
-                # remotecall_wait((x) -> (global refreshrate = x), workers()[1], refreshrate)
+                @c CImGui.DragFloat(
+                    "##自动刷新",
+                    &conf.InsBuf.refreshrate,
+                    0.1, 0.1, 60, "%.1f",
+                    CImGui.ImGuiSliderFlags_AlwaysClamp
+                )
                 CImGui.PopItemWidth()
             end
             CImGui.Text(stcstr(morestyle.Icons.ShowCol, " 显示列数"))
@@ -231,13 +219,15 @@ let
     readstr::String = ""
     default_insbufs = Dict{String,InstrBuffer}()
     global function ShowInstrBuffer(p_open::Ref)
-        # CImGui.SetNextWindowPos((100, 100), CImGui.ImGuiCond_Once)
         CImGui.SetNextWindowSize((800, 600), CImGui.ImGuiCond_Once)
         if CImGui.Begin(stcstr(morestyle.Icons.InstrumentsOverview, "  仪器设置和状态"), p_open)
             CImGui.Columns(2)
             firsttime && (CImGui.SetColumnOffset(1, CImGui.GetWindowWidth() * 0.25); firsttime = false)
             CImGui.BeginChild("仪器列表")
-            CImGui.Selectable(stcstr(morestyle.Icons.InstrumentsOverview, " 总览"), selectedins == "") && (selectedins = "")
+            CImGui.Selectable(
+                stcstr(morestyle.Icons.InstrumentsOverview, " 总览"),
+                selectedins == ""
+            ) && (selectedins = "")
             for ins in keys(instrbufferviewers)
                 CImGui.Selectable(stcstr(insconf[ins].conf.icon, " ", ins), selectedins == ins) && (selectedins = ins)
                 CImGui.SameLine()
@@ -265,14 +255,23 @@ let
                     CImGui.Text(" ")
                     CImGui.SameLine()
                     CImGui.PushItemWidth(CImGui.GetFontSize() * 2)
-                    @c CImGui.DragFloat("##自动刷新", &conf.InsBuf.refreshrate, 0.1, 0.1, 60, "%.1f", CImGui.ImGuiSliderFlags_AlwaysClamp)
-                    # remotecall_wait((x) -> (global refreshrate = x), workers()[1], refreshrate)
+                    @c CImGui.DragFloat(
+                        "##自动刷新",
+                        &conf.InsBuf.refreshrate,
+                        0.1, 0.1, 60, "%.1f",
+                        CImGui.ImGuiSliderFlags_AlwaysClamp
+                    )
                     CImGui.PopItemWidth()
                 end
                 CImGui.Text(stcstr(morestyle.Icons.ShowCol, " 显示列数"))
                 CImGui.SameLine()
                 CImGui.PushItemWidth(3CImGui.GetFontSize() / 2)
-                @c CImGui.DragInt("##显示列数", &conf.InsBuf.showcol, 1, 1, 12, "%d", CImGui.ImGuiSliderFlags_AlwaysClamp)
+                @c CImGui.DragInt(
+                    "##显示列数",
+                    &conf.InsBuf.showcol,
+                    1, 1, 12, "%d",
+                    CImGui.ImGuiSliderFlags_AlwaysClamp
+                )
                 CImGui.PopItemWidth()
                 CImGui.EndPopup()
             end
@@ -289,7 +288,9 @@ let
                         @c CImGui.Checkbox(stcstr("##是否自动刷新", addr), &ibv.insbuf.isautorefresh)
                         if ins != "VirtualInstr"
                             CImGui.SameLine()
-                            CImGui.Button(stcstr(morestyle.Icons.CloseFile, "##delete ", addr)) && delete!(instrbufferviewers[ins], addr)
+                            CImGui.Button(
+                                stcstr(morestyle.Icons.CloseFile, "##delete ", addr)
+                            ) && delete!(instrbufferviewers[ins], addr)
                         end
                     end
                     CImGui.Separator()
@@ -383,55 +384,49 @@ function testcmd(ins, addr, inputcmd::Ref{String}, readstr::Ref{String})
     end
 end
 
-let
-    filtervarname::Bool = false
-    global function edit(insbuf::InstrBuffer, addr)
-        CImGui.PushID(insbuf.instrnm)
-        CImGui.PushID(addr)
-        if @c InputTextRSZ("##filterqt", &insbuf.filter)
-            for (_, qt) in insbuf.quantities
-                update_passfilter!(qt, insbuf.filter, filtervarname)
-            end
-        end
-        CImGui.SameLine()
-        if filtervarname
-            @c CImGui.Checkbox("筛选变量", &filtervarname)
-        else
-            @c CImGui.Checkbox("筛选别称", &filtervarname)
-        end
-        CImGui.BeginChild("InstrBuffer")
-        CImGui.Columns(conf.InsBuf.showcol, C_NULL, false)
-        for (i, qt) in enumerate(values(insbuf.quantities))
-            qt.enable || continue
-            qt.passfilter || continue
-            CImGui.PushID(qt.name)
-            edit(qt, insbuf.instrnm, addr)
-            CImGui.PopID()
-            CImGui.NextColumn()
-            CImGui.Indent()
-            if CImGui.BeginDragDropSource(0)
-                @c CImGui.SetDragDropPayload("Swap DAQTask", &i, sizeof(Cint))
-                CImGui.Text(qt.alias)
-                CImGui.EndDragDropSource()
-            end
-            if CImGui.BeginDragDropTarget()
-                payload = CImGui.AcceptDragDropPayload("Swap DAQTask")
-                if payload != C_NULL && unsafe_load(payload).DataSize == sizeof(Cint)
-                    payload_i = unsafe_load(Ptr{Cint}(unsafe_load(payload).Data))
-                    if i != payload_i
-                        key_i = idxkey(insbuf.quantities, i)
-                        key_payload_i = idxkey(insbuf.quantities, payload_i)
-                        swapvalue!(insbuf.quantities, key_i, key_payload_i)
-                    end
-                end
-                CImGui.EndDragDropTarget()
-            end
-            CImGui.Unindent()
-        end
-        CImGui.EndChild()
-        CImGui.PopID()
-        CImGui.PopID()
+
+function edit(insbuf::InstrBuffer, addr)
+    CImGui.PushID(insbuf.instrnm)
+    CImGui.PushID(addr)
+    @c(InputTextRSZ("##filterqt", &insbuf.filter)) && update_passfilter!(insbuf)
+    CImGui.SameLine()
+    if insbuf.filtervarname
+        @c CImGui.Checkbox("筛选变量", &insbuf.filtervarname)
+    else
+        @c CImGui.Checkbox("筛选别称", &insbuf.filtervarname)
     end
+    CImGui.BeginChild("InstrBuffer")
+    CImGui.Columns(conf.InsBuf.showcol, C_NULL, false)
+    for (i, qt) in enumerate(values(insbuf.quantities))
+        qt.enable || continue
+        qt.passfilter || continue
+        CImGui.PushID(qt.name)
+        edit(qt, insbuf.instrnm, addr)
+        CImGui.PopID()
+        CImGui.NextColumn()
+        CImGui.Indent()
+        if CImGui.BeginDragDropSource(0)
+            @c CImGui.SetDragDropPayload("Swap DAQTask", &i, sizeof(Cint))
+            CImGui.Text(qt.alias)
+            CImGui.EndDragDropSource()
+        end
+        if CImGui.BeginDragDropTarget()
+            payload = CImGui.AcceptDragDropPayload("Swap DAQTask")
+            if payload != C_NULL && unsafe_load(payload).DataSize == sizeof(Cint)
+                payload_i = unsafe_load(Ptr{Cint}(unsafe_load(payload).Data))
+                if i != payload_i
+                    key_i = idxkey(insbuf.quantities, i)
+                    key_payload_i = idxkey(insbuf.quantities, payload_i)
+                    swapvalue!(insbuf.quantities, key_i, key_payload_i)
+                end
+            end
+            CImGui.EndDragDropTarget()
+        end
+        CImGui.Unindent()
+    end
+    CImGui.EndChild()
+    CImGui.PopID()
+    CImGui.PopID()
 end
 
 edit(qt::InstrQuantity, instrnm::String, addr::String) = edit(qt, instrnm, addr, Val(qt.type))
@@ -490,7 +485,11 @@ let
                                 logout!(CPU, ct)
                                 return parse(Float64, readstr)
                             catch e
-                                @error "[$(now())]\nstart获取错误！！！" instrument = string(instrnm, "-", addr) exception = e
+                                @error(
+                                    "[$(now())]\nstart获取错误！！！",
+                                    instrument = string(instrnm, "-", addr),
+                                    exception = e
+                                )
                                 logout!(CPU, ct)
                             end
                         end
@@ -530,7 +529,12 @@ let
                                         end
                                     end
                                 catch e
-                                    @error "[$(now())]\n仪器通信故障！！！" instrument = string(instrnm, ": ", addr) quantity = qt.name exception = e
+                                    @error(
+                                        "[$(now())]\n仪器通信故障！！！",
+                                        instrument = string(instrnm, ": ", addr),
+                                        quantity = qt.name,
+                                        exception = e
+                                    )
                                 finally
                                     remotecall_wait(workers()[1], ct.id) do ctid
                                         logout!(CPU, sweepcts[ctid])
@@ -583,7 +587,10 @@ let
         end
         if CImGui.BeginPopupContextItem()
             @c InputTextWithHintRSZ("##设置", "设置值", &qt.set)
-            if CImGui.Button(" 确认 ", (-Cfloat(0.1), Cfloat(0))) || triggerset || CImGui.IsKeyDown(257) || CImGui.IsKeyDown(335)
+            if CImGui.Button(
+                   " 确认 ",
+                   (-Cfloat(0.1), Cfloat(0))
+               ) || triggerset || CImGui.IsKeyDown(257) || CImGui.IsKeyDown(335)
                 triggerset = false
                 if addr != ""
                     Us = conf.U[qt.utype]
@@ -602,7 +609,12 @@ let
                             logout!(CPU, ct)
                             return readstr
                         catch e
-                            @error "[$(now())]\n仪器通信故障！！！" instrument = string(instrnm, ": ", addr) quantity = qt.name exception = e
+                            @error(
+                                "[$(now())]\n仪器通信故障！！！",
+                                instrument = string(instrnm, ": ", addr),
+                                quantity = qt.name,
+                                exception = e
+                            )
                             logout!(CPU, ct)
                         end
                     end

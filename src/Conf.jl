@@ -95,7 +95,14 @@ function gen_insconf(conf_file)
         cmdtype = Symbol("@", conf["conf"]["cmdtype"])
         for pair in conf
             if pair.first != "conf" && !isempty(pair.second["cmdheader"])
-                eval(Expr(:macrocall, cmdtype, LineNumberNode(Base.@__LINE__, Base.@__FILE__), instrnm, pair.first, pair.second["cmdheader"]))
+                Expr(
+                    :macrocall,
+                    cmdtype,
+                    LineNumberNode(Base.@__LINE__, Base.@__FILE__),
+                    instrnm,
+                    pair.first,
+                    pair.second["cmdheader"]
+                ) |> eval
             end
         end
     end

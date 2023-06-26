@@ -190,7 +190,11 @@ let
                     end
                     isdelplot && ((CImGui.OpenPopup(stcstr("##删除绘图", dtviewer.layout.idxing)));
                     isdelplot = false)
-                    if YesNoDialog(stcstr("##删除绘图", dtviewer.layout.idxing), "确认删除？", CImGui.ImGuiWindowFlags_AlwaysAutoResize)
+                    if YesNoDialog(
+                        stcstr("##删除绘图", dtviewer.layout.idxing),
+                        "确认删除？",
+                        CImGui.ImGuiWindowFlags_AlwaysAutoResize
+                    )
                         if length(dtviewer.uiplots) > 1
                             deleteat!(dtviewer.layout, delplot_i)
                             deleteat!(dtviewer.uiplots, delplot_i)
@@ -288,7 +292,12 @@ let
         CImGui.IsItemHovered() && CImGui.IsMouseDoubleClicked(0) && CImGui.OpenPopup(stcstr("selectpage", id))
         if CImGui.BeginPopup(stcstr("selectpage", id))
             pagei_buf::Cint = pagei[id]
-            @c CImGui.DragInt(stcstr("##selectpage", id), &pagei_buf, 1, 1, lmax, "%d", CImGui.ImGuiSliderFlags_AlwaysClamp)
+            @c CImGui.DragInt(
+                stcstr("##selectpage", id),
+                &pagei_buf,
+                1, 1, lmax, "%d",
+                CImGui.ImGuiSliderFlags_AlwaysClamp
+            )
             pagei[id] = pagei_buf
             CImGui.EndPopup()
         end

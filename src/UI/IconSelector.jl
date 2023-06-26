@@ -16,7 +16,7 @@ end
 #     @c IconSelector(label, &icon.icon)
 # end
 
-let 
+let
     # filter::Ptr{ImGuiTextFilter} = ImGuiTextFilter_ImGuiTextFilter(C_NULL)
     filter::String = ""
     global function IconSelector(label, icon_str::Ref{String})

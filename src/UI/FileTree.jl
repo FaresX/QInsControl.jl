@@ -31,7 +31,13 @@ mutable struct FolderFileTree <: FileTree
         ft
     end
     function FolderFileTree(pathes::Vector{String}, selectedpath::Ref{String}=Ref(""), filter::Ref{String}=Ref(""))
-        new(dirname(pathes[1]), "", selectedpath, filter, [FileFileTree(p, basename(p), selectedpath, filter, false) for p in pathes])
+        new(
+            dirname(pathes[1]),
+            "",
+            selectedpath,
+            filter,
+            [FileFileTree(p, basename(p), selectedpath, filter, false) for p in pathes]
+        )
     end
 end
 
@@ -46,7 +52,7 @@ end
 
 function edit(filetree::FileFileTree, isrename::Dict{String,Bool}, ::Bool)
     if !filetree.isdeleted && (filetree.filter[] == "" ||
-       !isvalid(filetree.filter[]) || occursin(lowercase(filetree.filter[]), lowercase(filetree.filepath_bnm)))
+                               !isvalid(filetree.filter[]) || occursin(lowercase(filetree.filter[]), lowercase(filetree.filepath_bnm)))
         filemenu(filetree, isrename)
     end
 end

@@ -14,7 +14,14 @@ mutable struct DataPicker
     refreshrate::Cfloat
     alsz::Float32
 end
-DataPicker() = DataPicker([""], "", [false], "", [false], true, [0, 0], false, false, CodeBlock(), false, false, Cint(1), 0)
+DataPicker() = DataPicker(
+    [""],
+    "", [false], "", [false],
+    true,
+    [0, 0], false, false,
+    CodeBlock(),
+    false, false, Cint(1), 0
+)
 
 function edit(dtpk::DataPicker, id, p_open::Ref)
     CImGui.SetNextWindowSize((400, 600), CImGui.ImGuiCond_Appearing)
@@ -23,7 +30,11 @@ function edit(dtpk::DataPicker, id, p_open::Ref)
     CImGui.PushStyleVar(CImGui.ImGuiStyleVar_WindowRounding, unsafe_load(imguistyle.PopupRounding))
     isupdate = false
     isfocus = true
-    if CImGui.Begin(stcstr("数据选择##", id), p_open, CImGui.ImGuiWindowFlags_NoTitleBar | CImGui.ImGuiWindowFlags_NoDocking)
+    if CImGui.Begin(
+        stcstr("数据选择##", id),
+        p_open,
+        CImGui.ImGuiWindowFlags_NoTitleBar | CImGui.ImGuiWindowFlags_NoDocking
+    )
         @cstatic holdsz::Float32 = 0 begin
             CImGui.TextColored(morestyle.Colors.HighlightText, morestyle.Icons.SelectData)
             CImGui.SameLine()
@@ -112,14 +123,24 @@ function syncplotdata(uiplot::UIPlot, dtpk::DataPicker, datastr, datafloat)
         else
             uiplot.x = haskey(datastr, dtpk.x) ? copy(datastr[dtpk.x]) : String[]
         end
-        uiplot.y = @trypass [replace(tryparse.(Float64, datastr[key]), nothing => NaN) for key in dtpk.datalist[dtpk.y]] [Float64[]]
+        uiplot.y = @trypass(
+            [replace(tryparse.(Float64, datastr[key]), nothing => NaN) for key in dtpk.datalist[dtpk.y]],
+            [Float64[]]
+        )
         uiplot.legends = @trypass dtpk.datalist[dtpk.y] uiplot.legends
         zbuf = uiplot.z
         if uiplot.ptype == "heatmap"
-            zbuf = haskey(datastr, dtpk.z) ? replace(tryparse.(Float64, datastr[dtpk.z]), nothing => 0) : Matrix{Float64}(undef, 0, 0)
+            zbuf = if haskey(datastr, dtpk.z)
+                replace(tryparse.(Float64, datastr[dtpk.z]), nothing => 0)
+            else
+                Matrix{Float64}(undef, 0, 0)
+            end
             all(size(uiplot.z) .== reverse(dtpk.zsize)) || (uiplot.z = zeros(Float64, reverse(dtpk.zsize)...))
         end
-        wbuf = @trypass [replace(tryparse.(Float64, datastr[key]), nothing => NaN) for key in dtpk.datalist[dtpk.w]] [Float64[]]
+        wbuf = @trypass(
+            [replace(tryparse.(Float64, datastr[key]), nothing => NaN) for key in dtpk.datalist[dtpk.w]],
+            [Float64[]]
+        )
     else
         if dtpk.xtype
             uiplot.x = haskey(datafloat, dtpk.x) ? copy(datafloat[dtpk.x]) : Float64[]
@@ -166,47 +187,7 @@ function syncplotdata(uiplot::UIPlot, dtpk::DataPicker, datastr, datafloat)
         end
         dtpk.isrealtime || @info "[$(now())]" data_processing = innercodes
     catch e
-        dtpk.isrealtime || @error "[$(now())]\ncodes are wrong in evaluating time (sync UIPlot)!!!" exception = e codes = ex
+        dtpk.isrealtime || @error "[$(now())]\nprocessing data failed!!!" exception = e codes = ex
     end
     nothing
 end
-
-# function syncplotdata(uiplot::UIPlot, dtpk::DataPicker, data)
-#     # dtpk.isrealtime || (uiplot.xlabel = dtpk.x)
-#     if dtpk.xtype
-#         uiplot.x = @trypass replace(tryparse.(Float64, data[dtpk.x]), nothing => NaN) Float64[]
-#     else
-#         uiplot.x = @trypass copy(data[dtpk.x]) String[]
-#     end
-#     uiplot.y = @trypass [replace(tryparse.(Float64, data[key]), nothing => NaN) for key in dtpk.datalist[dtpk.y]] [Float64[]]
-#     uiplot.legends = @trypass dtpk.datalist[dtpk.y] uiplot.legends
-#     zbuf::Array = uiplot.z
-#     if uiplot.ptype == "heatmap"
-#         zbuf = @trypass replace(tryparse.(Float64, data[dtpk.z]), nothing => 0) Matrix{Float64}(undef, 0, 0)
-#     end
-#     wbuf = @trypass [replace(tryparse.(Float64, data[key]), nothing => NaN) for key in dtpk.datalist[dtpk.w]] [Float64[]]
-#     innercodes = tocodes(dtpk.codes)
-#     ex::Expr = quote
-#         let
-#             x = $uiplot.x
-#             ys = $uiplot.y
-#             isempty(ys) && (ys = [Float64[]])
-#             y = ys[1]
-#             z = $zbuf
-#             ws = $wbuf
-#             isempty(ws) && (ws = [Float64[]])
-#             w = ws[1]
-#             $innercodes
-#             ys[1] = y
-#             x, ys, z
-#         end
-#     end |> prettify
-#     try
-#         uiplot.x, uiplot.y, uiplot.z = eval(ex)
-#         uiplot.z = transposeimg(uiplot.z)
-#         dtpk.isrealtime || @info "[$(now())]" data_processing = innercodes
-#     catch e
-#         dtpk.isrealtime || @error "[$(now())]\ncodes are wrong in evaluating time (sync UIPlot)!!!" exception = e codes = ex
-#     end
-#     nothing
-# end

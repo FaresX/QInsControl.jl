@@ -53,11 +53,12 @@ function packtake!(c, n=12)
     buf
 end
 
-resize(z, m, n; fillms=0) = if length(z) > m * n
-    @views reshape(z[1:m*n], m, n)
-else
-    @views reshape([reshape(z, :); fill(fillms, m * n - length(z))], m, n)
-end
+resize(z, m, n; fillms=0) =
+    if length(z) > m * n
+        @views reshape(z[1:m*n], m, n)
+    else
+        @views reshape([reshape(z, :); fill(fillms, m * n - length(z))], m, n)
+    end
 
 inregion(location, region) = region[1] < location.x < region[3] && region[2] < location.y < region[4]
 mousein(region) = inregion(CImGui.GetMousePos(), region)
@@ -186,11 +187,11 @@ end
 
 -(a::CImGui.ImVec2, b::CImGui.ImVec2) = CImGui.ImVec2(a.x - b.x, a.y - b.y)
 +(a::CImGui.ImVec2, b::CImGui.ImVec2) = CImGui.ImVec2(a.x + b.x, a.y + b.y)
-/(a::CImGui.ImVec2, b) = CImGui.ImVec2(a.x/b, a.y/b)
+/(a::CImGui.ImVec2, b) = CImGui.ImVec2(a.x / b, a.y / b)
 
 
 ###Patch###
-Base.convert(::Type{OrderedDict{String,T}}, vec::Vector{T}) where T = OrderedDict(string(i) => v for (i, v) in enumerate(vec))
+Base.convert(::Type{OrderedDict{String,T}}, vec::Vector{T}) where {T} = OrderedDict(string(i) => v for (i, v) in enumerate(vec))
 
 function Base.getproperty(x::Ptr{LibCImGui.Style}, f::Symbol)
     f === :grid_spacing && return Ptr{Cfloat}(x + 0)
@@ -208,7 +209,7 @@ function Base.getproperty(x::Ptr{LibCImGui.Style}, f::Symbol)
     f === :pin_hover_radius && return Ptr{Cfloat}(x + 48)
     f === :pin_offset && return Ptr{Cfloat}(x + 52)
     f === :flags && return Ptr{UInt32}(x + 56)
-    f === :colors && return Ptr{NTuple{16, Cuint}}(x + 60)
+    f === :colors && return Ptr{NTuple{16,Cuint}}(x + 60)
     return getfield(x, f)
 end
 
