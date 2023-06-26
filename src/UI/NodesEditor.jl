@@ -6,12 +6,12 @@ mutable struct Node
     input_labels::Vector{String}
     output_ids::Vector{Cint}
     output_labels::Vector{String}
-    connected_ids::Vector{Cint}
+    connected_ids::Set{Cint}
     position::CImGui.ImVec2
 end
 # input id: x0xx nodeid 0 inputid output id: x1xx nodeid 1 outputid
 
-Node() = Node(1, "Node 1", "", [1001], ["Input 1"], [1101], ["Output 1"], [], (0, 0))
+Node() = Node(1, "Node 1", "", [1001], ["Input 1"], [1101], ["Output 1"], Set(), (0, 0))
 Node(id) = Node(
     id,
     morestyle.Icons.CommonNode * " Node $id",
@@ -20,7 +20,7 @@ Node(id) = Node(
     ["Input 1"],
     [id * 1000 + 100 + 1],
     ["Output 1"],
-    [],
+    Set(),
     (0, 0)
 )
 Node(id, ::Val{:ground}) = Node(
@@ -31,7 +31,7 @@ Node(id, ::Val{:ground}) = Node(
     [],
     [id * 1000 + 100 + 1],
     ["Ground"],
-    [],
+    Set(),
     (0, 0)
 )
 Node(id, ::Val{:resistance}) = Node(
@@ -42,7 +42,7 @@ Node(id, ::Val{:resistance}) = Node(
     ["Input 1"],
     [id * 1000 + 100 + 1],
     ["Output 1"],
-    [],
+    Set(),
     (0, 0)
 )
 Node(id, ::Val{:trilink21}) = Node(
@@ -53,7 +53,7 @@ Node(id, ::Val{:trilink21}) = Node(
     ["Input 1", "Input 2"],
     [id * 1000 + 100 + 1],
     ["Output 1"],
-    [],
+    Set(),
     (0, 0)
 )
 Node(id, ::Val{:trilink12}) = Node(
@@ -64,11 +64,11 @@ Node(id, ::Val{:trilink12}) = Node(
     ["Input 1"],
     [id * 1000 + 100 + 1, id * 1000 + 100 + 2],
     ["Output 1", "Output 2"],
-    [],
+    Set(),
     (0, 0)
 )
 function Node(id, ::Val{:samplebase16})
-    node = Node(id, morestyle.Icons.SampleBaseNode * " 样品座16", "", [], [], [], [], [], (0, 0))
+    node = Node(id, morestyle.Icons.SampleBaseNode * " 样品座16", "", [], [], [], [], Set(), (0, 0))
     for i in 1:16
         push!(node.input_ids, id * 1000 + i)
         push!(node.input_labels, "Input $i")
@@ -78,7 +78,7 @@ function Node(id, ::Val{:samplebase16})
     node
 end
 function Node(id, ::Val{:samplebase24})
-    node = Node(id, morestyle.Icons.SampleBaseNode * " 样品座24", "", [], [], [], [], [], (0, 0))
+    node = Node(id, morestyle.Icons.SampleBaseNode * " 样品座24", "", [], [], [], [], Set(), (0, 0))
     for i in 1:24
         push!(node.input_ids, id * 1000 + i)
         push!(node.input_labels, "Input $i")
@@ -97,7 +97,7 @@ function Node(id, instrnm, ::Val{:instrument})
         insconf[instrnm].conf.input_labels,
         [],
         insconf[instrnm].conf.output_labels,
-        [],
+        Set(),
         (0, 0)
     )
     for i in 1:length(node.input_labels)
@@ -305,17 +305,7 @@ let
                 delete!(nodeeditor.nodes, nodeeditor.hoverednode_id)
                 dellinks = Cint[]
                 for (j, link) in enumerate(nodeeditor.links)
-                    start_node_id = link[1] ÷ 1000
-                    stop_node_id = link[2] ÷ 1000
-                    (start_node_id == hoverednode.id || stop_node_id == hoverednode.id) && push!(dellinks, j)
-                    if start_node_id == hoverednode.id
-                        connected_ids = nodeeditor.nodes[stop_node_id].connected_ids
-                        deleteat!(connected_ids, findfirst(==(link[2]), connected_ids))
-                    end
-                    if stop_node_id == hoverednode.id
-                        connected_ids = nodeeditor.nodes[start_node_id].connected_ids
-                        deleteat!(connected_ids, findfirst(==(link[1]), connected_ids))
-                    end
+                    (link[1] ÷ 1000 == hoverednode.id || link[2] ÷ 1000 == hoverednode.id) && push!(dellinks, j)
                 end
                 deleteat!(nodeeditor.links, dellinks)
             end
@@ -323,13 +313,6 @@ let
         end
         if CImGui.BeginPopup("Edit Link")
             if CImGui.MenuItem(stcstr(morestyle.Icons.CloseFile, " 删除"))
-                link = nodeeditor.links[nodeeditor.hoveredlink_id]
-                start_node_id = link[1] ÷ 1000
-                stop_node_id = link[2] ÷ 1000
-                start_connected_ids = nodeeditor.nodes[start_node_id].connected_ids
-                stop_connected_ids = nodeeditor.nodes[stop_node_id].connected_ids
-                deleteat!(start_connected_ids, findfirst(==(link[1]),start_connected_ids))
-                deleteat!(stop_connected_ids, findfirst(==(link[2]),stop_connected_ids))
                 deleteat!(nodeeditor.links, nodeeditor.hoveredlink_id)
             end
             CImGui.EndPopup()
@@ -346,10 +329,13 @@ let
         for node in values(nodeeditor.nodes)
             newnode || imnodes_SetNodeGridSpacePos(node.id, node.position)
             edit(node)
+            empty!(node.connected_ids)
         end
         newnode = false
         for (i, link) in enumerate(nodeeditor.links)
             imnodes_Link(i, link...)
+            push!(nodeeditor.nodes[link[1]÷1000].connected_ids, link[1])
+            push!(nodeeditor.nodes[link[2]÷1000].connected_ids, link[2])
         end
         imnodes_EndNodeEditor()
         if @c imnodes_IsLinkCreated_BoolPtr(
@@ -359,10 +345,6 @@ let
         )
             if (nodeeditor.link_start, nodeeditor.link_stop) ∉ nodeeditor.links
                 push!(nodeeditor.links, (nodeeditor.link_start, nodeeditor.link_stop))
-                start_node_id = nodeeditor.link_start ÷ 1000
-                stop_node_id = nodeeditor.link_stop ÷ 1000
-                push!(nodeeditor.nodes[start_node_id].connected_ids, nodeeditor.link_start)
-                push!(nodeeditor.nodes[stop_node_id].connected_ids, nodeeditor.link_stop)
             end
         end
         for node in values(nodeeditor.nodes)
@@ -403,12 +385,18 @@ function view(nodeeditor::NodeEditor)
     for node in values(nodeeditor.nodes)
         imnodes_SetNodeGridSpacePos(node.id, node.position)
         edit(node)
+        empty!(node.connected_ids)
     end
     for (i, link) in enumerate(nodeeditor.links)
         imnodes_Link(i, link...)
+        push!(nodeeditor.nodes[link[1]÷1000].connected_ids, link[1])
+        push!(nodeeditor.nodes[link[2]÷1000].connected_ids, link[2])
     end
     imnodes_EndNodeEditor()
     for node in values(nodeeditor.nodes)
         @c imnodes_GetNodeGridSpacePos(&node.position, node.id)
     end
 end
+
+###Patch###
+Base.convert(::Type{Dict{Cint,Node}}, nodes::Vector{Node}) = Dict(node.id => node for node in nodes)
