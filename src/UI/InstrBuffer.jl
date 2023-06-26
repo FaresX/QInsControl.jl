@@ -388,7 +388,6 @@ let
     global function edit(insbuf::InstrBuffer, addr)
         CImGui.PushID(insbuf.instrnm)
         CImGui.PushID(addr)
-        CImGui.BeginChild("InstrBuffer")
         if @c InputTextRSZ("##filterqt", &insbuf.filter)
             for (_, qt) in insbuf.quantities
                 update_passfilter!(qt, insbuf.filter, filtervarname)
@@ -400,6 +399,7 @@ let
         else
             @c CImGui.Checkbox("筛选别称", &filtervarname)
         end
+        CImGui.BeginChild("InstrBuffer")
         CImGui.Columns(conf.InsBuf.showcol, C_NULL, false)
         for (i, qt) in enumerate(values(insbuf.quantities))
             qt.enable || continue
