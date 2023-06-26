@@ -391,9 +391,9 @@ function edit(insbuf::InstrBuffer, addr)
     @c(InputTextRSZ("##filterqt", &insbuf.filter)) && update_passfilter!(insbuf)
     CImGui.SameLine()
     if insbuf.filtervarname
-        @c CImGui.Checkbox("筛选变量", &insbuf.filtervarname)
+        @c(CImGui.Checkbox("筛选变量", &insbuf.filtervarname)) && update_passfilter!(insbuf)
     else
-        @c CImGui.Checkbox("筛选别称", &insbuf.filtervarname)
+        @c(CImGui.Checkbox("筛选别称", &insbuf.filtervarname)) && update_passfilter!(insbuf)
     end
     CImGui.BeginChild("InstrBuffer")
     CImGui.Columns(conf.InsBuf.showcol, C_NULL, false)
