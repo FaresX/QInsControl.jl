@@ -102,6 +102,8 @@ function update_passfilter!(qt::InstrQuantity, filter, filtervarname)
         else
             occursin(lowercase(filter), lowercase(qt.alias))
         end
+    else
+        qt.passfilter = true
     end
 end
 
@@ -387,8 +389,7 @@ let
         CImGui.PushID(insbuf.instrnm)
         CImGui.PushID(addr)
         CImGui.BeginChild("InstrBuffer")
-        @c(InputTextRSZ("##filterqt", &insbuf.filter))
-        if CImGui.IsItemActive()
+        if @c InputTextRSZ("##filterqt", &insbuf.filter)
             for (_, qt) in insbuf.quantities
                 update_passfilter!(qt, insbuf.filter, filtervarname)
             end
