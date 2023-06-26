@@ -133,7 +133,7 @@ let
                         stcstr(morestyle.Icons.CloseFile, " 删除##insconf"),
                         C_NULL,
                         false,
-                        !in(oldinsnm, ["VirtualInstr", "Others"])
+                        oldinsnm ∉ ["VirtualInstr", "Others"]
                     ) && (deldialog = true)
                     CImGui.EndPopup()
                 end
@@ -162,7 +162,7 @@ let
                     filename, filetype = split(cf, '.')
                     filetype != "toml" && continue
                     filename == "conf" && continue
-                    !in(filename, allins) && Base.Filesystem.rm(joinpath(ENV["QInsControlAssets"], "Confs/$cf"))
+                    filename ∉ allins && Base.Filesystem.rm(joinpath(ENV["QInsControlAssets"], "Confs/$cf"))
                 end
                 for (ins, inscf) in insconf
                     open(joinpath(ENV["QInsControlAssets"], "Confs/$ins.toml"), "w") do file

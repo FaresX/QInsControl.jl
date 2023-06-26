@@ -91,7 +91,7 @@ let
                         flush(iofile_open)
                         close(iofile_open)
                     end
-                    if !in(buffer, historyins)
+                    if buffer ∉ historyins
                         if length(historyins) == conf.Console.historylen
                             push!(historyins, buffer)
                             popfirst!(historyins)

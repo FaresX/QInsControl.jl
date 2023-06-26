@@ -6,9 +6,12 @@ mutable struct Node
     input_labels::Vector{String}
     output_ids::Vector{Cint}
     output_labels::Vector{String}
+    connected_ids::Vector{Cint}
     position::CImGui.ImVec2
 end
-Node() = Node(1, "Node 1", "", [1001], ["Input 1"], [1101], ["Output 1"], (0, 0))
+# input id: x0xx nodeid 0 inputid output id: x1xx nodeid 1 outputid
+
+Node() = Node(1, "Node 1", "", [1001], ["Input 1"], [1101], ["Output 1"], [], (0, 0))
 Node(id) = Node(
     id,
     morestyle.Icons.CommonNode * " Node $id",
@@ -17,6 +20,7 @@ Node(id) = Node(
     ["Input 1"],
     [id * 1000 + 100 + 1],
     ["Output 1"],
+    [],
     (0, 0)
 )
 Node(id, ::Val{:ground}) = Node(
@@ -27,6 +31,7 @@ Node(id, ::Val{:ground}) = Node(
     [],
     [id * 1000 + 100 + 1],
     ["Ground"],
+    [],
     (0, 0)
 )
 Node(id, ::Val{:resistance}) = Node(
@@ -37,6 +42,7 @@ Node(id, ::Val{:resistance}) = Node(
     ["Input 1"],
     [id * 1000 + 100 + 1],
     ["Output 1"],
+    [],
     (0, 0)
 )
 Node(id, ::Val{:trilink21}) = Node(
@@ -47,6 +53,7 @@ Node(id, ::Val{:trilink21}) = Node(
     ["Input 1", "Input 2"],
     [id * 1000 + 100 + 1],
     ["Output 1"],
+    [],
     (0, 0)
 )
 Node(id, ::Val{:trilink12}) = Node(
@@ -57,10 +64,11 @@ Node(id, ::Val{:trilink12}) = Node(
     ["Input 1"],
     [id * 1000 + 100 + 1, id * 1000 + 100 + 2],
     ["Output 1", "Output 2"],
+    [],
     (0, 0)
 )
 function Node(id, ::Val{:samplebase16})
-    node = Node(id, morestyle.Icons.SampleBaseNode * " 样品座16", "", [], [], [], [], (0, 0))
+    node = Node(id, morestyle.Icons.SampleBaseNode * " 样品座16", "", [], [], [], [], [], (0, 0))
     for i in 1:16
         push!(node.input_ids, id * 1000 + i)
         push!(node.input_labels, "Input $i")
@@ -70,7 +78,7 @@ function Node(id, ::Val{:samplebase16})
     node
 end
 function Node(id, ::Val{:samplebase24})
-    node = Node(id, morestyle.Icons.SampleBaseNode * " 样品座24", "", [], [], [], [], (0, 0))
+    node = Node(id, morestyle.Icons.SampleBaseNode * " 样品座24", "", [], [], [], [], [], (0, 0))
     for i in 1:24
         push!(node.input_ids, id * 1000 + i)
         push!(node.input_labels, "Input $i")
@@ -89,6 +97,7 @@ function Node(id, instrnm, ::Val{:instrument})
         insconf[instrnm].conf.input_labels,
         [],
         insconf[instrnm].conf.output_labels,
+        [],
         (0, 0)
     )
     for i in 1:length(node.input_labels)
@@ -101,18 +110,17 @@ function Node(id, instrnm, ::Val{:instrument})
 end
 
 mutable struct NodeEditor
-    nodes::Vector{Node}
+    nodes::Dict{Cint,Node}
     links::Vector{Tuple{Cint,Cint}}
     link_start::Cint
     link_stop::Cint
     created_from_snap::Bool
-    link_destroyed::Cint
-    hoverednode::Cint
-    hoveredlink::Cint
+    hoverednode_id::Cint
+    hoveredlink_id::Cint
 end
-NodeEditor() = NodeEditor(Node[], Tuple{Cint,Cint}[], 0, 0, false, 0, 0, 0)
+NodeEditor() = NodeEditor(Dict(), Tuple{Cint,Cint}[], 0, 0, false, 0, 0)
 
-maxid(nodeeditor::NodeEditor) = isempty(nodeeditor.nodes) ? 0 : max_with_empty([node.id for node in nodeeditor.nodes])
+maxid(nodeeditor::NodeEditor) = isempty(nodeeditor.nodes) ? 0 : max_with_empty(keys(nodeeditor.nodes))
 
 function edit(node::Node)
     imnodes_BeginNode(node.id)
@@ -123,7 +131,14 @@ function edit(node::Node)
     CImGui.BeginGroup()
     for i in eachindex(node.input_ids)
         imnodes_BeginInputAttribute(node.input_ids[i], morestyle.PinShapes.input)
-        CImGui.Text(node.input_labels[i])
+        CImGui.TextColored(
+            if node.input_ids[i] in node.connected_ids
+                morestyle.Colors.NodeConnected
+            else
+                CImGui.c_get(imguistyle.Colors, CImGui.ImGuiCol_Text)
+            end,
+            node.input_labels[i]
+        )
         imnodes_EndInputAttribute()
     end
     CImGui.EndGroup()
@@ -140,14 +155,21 @@ function edit(node::Node)
         else
             CImGui.CalcTextSize(node.title).x - CImGui.CalcTextSize(maxinlabel).x - CImGui.CalcTextSize(maxoutlabel).x
         end
-        CImGui.SameLine(0, spacing)
+        CImGui.SameLine(0, max(spacing, 2CImGui.GetFontSize()))
     else
         CImGui.SameLine(0, 2CImGui.GetFontSize())
     end
     CImGui.BeginGroup()
     for i in eachindex(node.output_ids)
         imnodes_BeginOutputAttribute(node.output_ids[i], morestyle.PinShapes.output)
-        CImGui.Text(node.output_labels[i])
+        CImGui.TextColored(
+            if node.output_ids[i] in node.connected_ids
+                morestyle.Colors.NodeConnected
+            else
+                CImGui.c_get(imguistyle.Colors, CImGui.ImGuiCol_Text)
+            end,
+            node.output_labels[i]
+        )
         imnodes_EndOutputAttribute()
     end
     CImGui.EndGroup()
@@ -163,43 +185,43 @@ let
         if CImGui.BeginPopup("NodeEditor")
             if CImGui.MenuItem(stcstr(morestyle.Icons.CommonNode, " 通用节点"))
                 id = maxid(nodeeditor) + 1
-                push!(nodeeditor.nodes, Node(id))
+                push!(nodeeditor.nodes, id => Node(id))
                 imnodes_SetNodeScreenSpacePos(id, CImGui.GetMousePosOnOpeningCurrentPopup())
                 newnode = true
             end
             if CImGui.MenuItem(stcstr(morestyle.Icons.GroundNode, " 接地头"))
                 id = maxid(nodeeditor) + 1
-                push!(nodeeditor.nodes, Node(id, Val(:ground)))
+                push!(nodeeditor.nodes, id => Node(id, Val(:ground)))
                 imnodes_SetNodeScreenSpacePos(id, CImGui.GetMousePosOnOpeningCurrentPopup())
                 newnode = true
             end
             if CImGui.MenuItem(stcstr(morestyle.Icons.ResistanceNode, " 电阻"))
                 id = maxid(nodeeditor) + 1
-                push!(nodeeditor.nodes, Node(id, Val(:resistance)))
+                push!(nodeeditor.nodes, id => Node(id, Val(:resistance)))
                 imnodes_SetNodeScreenSpacePos(id, CImGui.GetMousePosOnOpeningCurrentPopup())
                 newnode = true
             end
             if CImGui.MenuItem(stcstr(morestyle.Icons.TrilinkNode, " 三通21"))
                 id = maxid(nodeeditor) + 1
-                push!(nodeeditor.nodes, Node(id, Val(:trilink21)))
+                push!(nodeeditor.nodes, id => Node(id, Val(:trilink21)))
                 imnodes_SetNodeScreenSpacePos(id, CImGui.GetMousePosOnOpeningCurrentPopup())
                 newnode = true
             end
             if CImGui.MenuItem(stcstr(morestyle.Icons.TrilinkNode, " 三通12"))
                 id = maxid(nodeeditor) + 1
-                push!(nodeeditor.nodes, Node(id, Val(:trilink12)))
+                push!(nodeeditor.nodes, id => Node(id, Val(:trilink12)))
                 imnodes_SetNodeScreenSpacePos(id, CImGui.GetMousePosOnOpeningCurrentPopup())
                 newnode = true
             end
             if CImGui.MenuItem(stcstr(morestyle.Icons.SampleBaseNode, " 样品座16"))
                 id = maxid(nodeeditor) + 1
-                push!(nodeeditor.nodes, Node(id, Val(:samplebase16)))
+                push!(nodeeditor.nodes, id => Node(id, Val(:samplebase16)))
                 imnodes_SetNodeScreenSpacePos(id, CImGui.GetMousePosOnOpeningCurrentPopup())
                 newnode = true
             end
             if CImGui.MenuItem(stcstr(morestyle.Icons.SampleBaseNode, " 样品座24"))
                 id = maxid(nodeeditor) + 1
-                push!(nodeeditor.nodes, Node(id, Val(:samplebase24)))
+                push!(nodeeditor.nodes, id => Node(id, Val(:samplebase24)))
                 imnodes_SetNodeScreenSpacePos(id, CImGui.GetMousePosOnOpeningCurrentPopup())
                 newnode = true
             end
@@ -207,7 +229,7 @@ let
                 ins == "Others" && continue
                 if CImGui.MenuItem(stcstr(insconf[ins].conf.icon, " ", ins))
                     id = maxid(nodeeditor) + 1
-                    push!(nodeeditor.nodes, Node(id, ins, Val(:instrument)))
+                    push!(nodeeditor.nodes, id => Node(id, ins, Val(:instrument)))
                     imnodes_SetNodeScreenSpacePos(id, CImGui.GetMousePosOnOpeningCurrentPopup())
                     newnode = true
                 end
@@ -215,9 +237,7 @@ let
             CImGui.EndPopup()
         end
         if CImGui.BeginPopup("Edit Node")
-            hoverednode_idx, hoverednode = only(
-                [(i, node) for (i, node) in enumerate(nodeeditor.nodes) if node.id == nodeeditor.hoverednode]
-            )
+            hoverednode = nodeeditor.nodes[nodeeditor.hoverednode_id]
             if CImGui.BeginMenu(stcstr(morestyle.Icons.Edit, " 编辑"))
                 @c InputTextRSZ("标题", &hoverednode.title)
                 linesnum = (1 + length(findall("\n", hoverednode.content)))
@@ -282,11 +302,19 @@ let
                 CImGui.EndMenu()
             end
             if CImGui.MenuItem(stcstr(morestyle.Icons.CloseFile, " 删除"))
-                deleteat!(nodeeditor.nodes, hoverednode_idx)
+                delete!(nodeeditor.nodes, nodeeditor.hoverednode_id)
                 dellinks = Cint[]
                 for (j, link) in enumerate(nodeeditor.links)
-                    if link[1] ÷ 1000 == hoverednode.id || link[2] ÷ 1000 == hoverednode.id
-                        push!(dellinks, j)
+                    start_node_id = link[1] ÷ 1000
+                    stop_node_id = link[2] ÷ 1000
+                    (start_node_id == hoverednode.id || stop_node_id == hoverednode.id) && push!(dellinks, j)
+                    if start_node_id == hoverednode.id
+                        connected_ids = nodeeditor.nodes[stop_node_id].connected_ids
+                        deleteat!(connected_ids, findfirst(==(link[2]), connected_ids))
+                    end
+                    if stop_node_id == hoverednode.id
+                        connected_ids = nodeeditor.nodes[start_node_id].connected_ids
+                        deleteat!(connected_ids, findfirst(==(link[1]), connected_ids))
                     end
                 end
                 deleteat!(nodeeditor.links, dellinks)
@@ -294,9 +322,16 @@ let
             CImGui.EndPopup()
         end
         if CImGui.BeginPopup("Edit Link")
-            CImGui.MenuItem(
-                stcstr(morestyle.Icons.CloseFile, " 删除")
-            ) && deleteat!(nodeeditor.links, nodeeditor.hoveredlink)
+            if CImGui.MenuItem(stcstr(morestyle.Icons.CloseFile, " 删除"))
+                link = nodeeditor.links[nodeeditor.hoveredlink_id]
+                start_node_id = link[1] ÷ 1000
+                stop_node_id = link[2] ÷ 1000
+                start_connected_ids = nodeeditor.nodes[start_node_id].connected_ids
+                stop_connected_ids = nodeeditor.nodes[stop_node_id].connected_ids
+                deleteat!(start_connected_ids, findfirst(==(link[1]),start_connected_ids))
+                deleteat!(stop_connected_ids, findfirst(==(link[2]),stop_connected_ids))
+                deleteat!(nodeeditor.links, nodeeditor.hoveredlink_id)
+            end
             CImGui.EndPopup()
         end
         if CImGui.IsMouseClicked(1)
@@ -308,7 +343,7 @@ let
                 CImGui.OpenPopup("Edit Link")
             end
         end
-        for node in nodeeditor.nodes
+        for node in values(nodeeditor.nodes)
             newnode || imnodes_SetNodeGridSpacePos(node.id, node.position)
             edit(node)
         end
@@ -317,16 +352,24 @@ let
             imnodes_Link(i, link...)
         end
         imnodes_EndNodeEditor()
-        if @c imnodes_IsLinkCreated_BoolPtr(&nodeeditor.link_start, &nodeeditor.link_stop, &nodeeditor.created_from_snap)
-            if !((nodeeditor.link_start, nodeeditor.link_stop) in nodeeditor.links)
+        if @c imnodes_IsLinkCreated_BoolPtr(
+            &nodeeditor.link_start,
+            &nodeeditor.link_stop,
+            &nodeeditor.created_from_snap
+        )
+            if (nodeeditor.link_start, nodeeditor.link_stop) ∉ nodeeditor.links
                 push!(nodeeditor.links, (nodeeditor.link_start, nodeeditor.link_stop))
+                start_node_id = nodeeditor.link_start ÷ 1000
+                stop_node_id = nodeeditor.link_stop ÷ 1000
+                push!(nodeeditor.nodes[start_node_id].connected_ids, nodeeditor.link_start)
+                push!(nodeeditor.nodes[stop_node_id].connected_ids, nodeeditor.link_stop)
             end
         end
-        for node in nodeeditor.nodes
+        for node in values(nodeeditor.nodes)
             @c imnodes_GetNodeGridSpacePos(&node.position, node.id)
         end
-        isanynodehovered = @c imnodes_IsNodeHovered(&nodeeditor.hoverednode)
-        isanylinkhovered = @c imnodes_IsLinkHovered(&nodeeditor.hoveredlink)
+        isanynodehovered = @c imnodes_IsNodeHovered(&nodeeditor.hoverednode_id)
+        isanylinkhovered = @c imnodes_IsLinkHovered(&nodeeditor.hoveredlink_id)
     end
 end
 
@@ -357,7 +400,7 @@ end
 
 function view(nodeeditor::NodeEditor)
     imnodes_BeginNodeEditor()
-    for node in nodeeditor.nodes
+    for node in values(nodeeditor.nodes)
         imnodes_SetNodeGridSpacePos(node.id, node.position)
         edit(node)
     end
@@ -365,7 +408,7 @@ function view(nodeeditor::NodeEditor)
         imnodes_Link(i, link...)
     end
     imnodes_EndNodeEditor()
-    for node in nodeeditor.nodes
+    for node in values(nodeeditor.nodes)
         @c imnodes_GetNodeGridSpacePos(&node.position, node.id)
     end
 end

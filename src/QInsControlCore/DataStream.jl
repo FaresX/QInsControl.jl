@@ -134,7 +134,7 @@ log all the Controllers that control the instrument with address addr out the Pr
 function logout!(cpu::Processor, ct::Controller)
     popct = pop!(cpu.controllers, ct.id, 1)
     popct == 1 && return nothing
-    if !in(popct.addr, map(ct -> ct.addr, values(cpu.controllers)))
+    if popct.addr ∉ map(ct -> ct.addr, values(cpu.controllers))
         popinstr = pop!(cpu.instrs, ct.addr)
         if cpu.running[]
             # @warn "cpu($(cpu.id)) is running!"
