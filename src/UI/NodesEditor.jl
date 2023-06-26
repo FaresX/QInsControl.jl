@@ -110,7 +110,7 @@ function Node(id, instrnm, ::Val{:instrument})
 end
 
 mutable struct NodeEditor
-    nodes::Dict{Cint,Node}
+    nodes::OrderedDict{Cint,Node}
     links::Vector{Tuple{Cint,Cint}}
     link_start::Cint
     link_stop::Cint
@@ -118,7 +118,7 @@ mutable struct NodeEditor
     hoverednode_id::Cint
     hoveredlink_id::Cint
 end
-NodeEditor() = NodeEditor(Dict(), Tuple{Cint,Cint}[], 0, 0, false, 0, 0)
+NodeEditor() = NodeEditor(OrderedDict(), Tuple{Cint,Cint}[], 0, 0, false, 0, 0)
 
 maxid(nodeeditor::NodeEditor) = isempty(nodeeditor.nodes) ? 0 : max_with_empty(keys(nodeeditor.nodes))
 
@@ -399,4 +399,4 @@ function view(nodeeditor::NodeEditor)
 end
 
 ###Patch###
-Base.convert(::Type{Dict{Cint,Node}}, nodes::Vector{Node}) = Dict(node.id => node for node in nodes)
+Base.convert(::Type{OrderedDict{Cint,Node}}, nodes::Vector{Node}) = OrderedDict(node.id => node for node in nodes)
