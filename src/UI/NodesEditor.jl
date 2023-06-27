@@ -326,8 +326,8 @@ let
                 CImGui.OpenPopup("Edit Link")
             end
         end
-        for node in values(nodeeditor.nodes)
-            newnode || imnodes_SetNodeGridSpacePos(node.id, node.position)
+        for (id, node) in nodeeditor.nodes
+            newnode || imnodes_SetNodeGridSpacePos(id, node.position)
             edit(node)
             empty!(node.connected_ids)
         end
@@ -347,8 +347,8 @@ let
                 push!(nodeeditor.links, (nodeeditor.link_start, nodeeditor.link_stop))
             end
         end
-        for node in values(nodeeditor.nodes)
-            @c imnodes_GetNodeGridSpacePos(&node.position, node.id)
+        for (id, node) in nodeeditor.nodes
+            @c imnodes_GetNodeGridSpacePos(&node.position, id)
         end
         isanynodehovered = @c imnodes_IsNodeHovered(&nodeeditor.hoverednode_id)
         isanylinkhovered = @c imnodes_IsLinkHovered(&nodeeditor.hoveredlink_id)
@@ -382,7 +382,7 @@ end
 
 function view(nodeeditor::NodeEditor)
     imnodes_BeginNodeEditor()
-    for node in values(nodeeditor.nodes)
+    for (id, node) in nodeeditor.nodes
         imnodes_SetNodeGridSpacePos(node.id, node.position)
         edit(node)
         empty!(node.connected_ids)
@@ -393,8 +393,8 @@ function view(nodeeditor::NodeEditor)
         push!(nodeeditor.nodes[link[2]÷1000].connected_ids, link[2])
     end
     imnodes_EndNodeEditor()
-    for node in values(nodeeditor.nodes)
-        @c imnodes_GetNodeGridSpacePos(&node.position, node.id)
+    for (id, node) in nodeeditor.nodes
+        @c imnodes_GetNodeGridSpacePos(&node.position, id)
     end
 end
 
