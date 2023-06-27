@@ -205,7 +205,7 @@ function tocodes(bk::SweepBlock)
             try
                 $writecmd
             catch e
-                @error "[$(now)]\n仪器通信故障！！！" instrument = $(string(bk.instr, ": ", bk.addr)) exception = e
+                @error "[$(now)]\n仪器通信故障！！！" instrument = $(string(bk.instrnm, ": ", bk.addr)) exception = e
             end
         end
     else
@@ -252,7 +252,7 @@ function tocodes(bk::SettingBlock)
             try
                 $settingcmd
             catch e
-                @error "[$(now)]\n仪器通信故障！！！" instrument = $(string(bk.instr, ": ", bk.addr)) exception = e
+                @error "[$(now)]\n仪器通信故障！！！" instrument = $(string(bk.instrnm, ": ", bk.addr)) exception = e
             end
         end
     else
@@ -276,7 +276,7 @@ function tocodes(bk::ReadingBlock)
                 try
                     $getcmd
                 catch e
-                    @error "[$(now)]\n仪器通信故障！！！" instrument = $(string(bk.instr, ": ", bk.addr)) exception = e
+                    @error "[$(now)]\n仪器通信故障！！！" instrument = $(string(bk.instrnm, ": ", bk.addr)) exception = e
                     ""
                 end
             end
@@ -315,7 +315,7 @@ function tocodes(bk::ReadingBlock)
                 try
                     $getcmd
                 catch e
-                    @error "[$(now)]\n仪器通信故障！！！" instrument = $(string(bk.instr, ": ", bk.addr)) exception = e
+                    @error "[$(now)]\n仪器通信故障！！！" instrument = $(string(bk.instrnm, ": ", bk.addr)) exception = e
                     fill("", length(index))
                 end
             end
@@ -360,7 +360,7 @@ function tocodes(bk::WriteBlock)
             try
                 $writecmd
             catch e
-                @error "[$(now)]\n仪器通信故障！！！" instrument = $(string(bk.instr, ": ", bk.addr)) exception = e
+                @error "[$(now)]\n仪器通信故障！！！" instrument = $(string(bk.instrnm, ": ", bk.addr)) exception = e
             end
         end
     else
@@ -389,7 +389,7 @@ function tocodes(bk::QueryBlock)
                 try
                     $getcmd
                 catch e
-                    @error "[$(now)]\n仪器通信故障！！！" instrument = $(string(bk.instr, ": ", bk.addr)) exception = e
+                    @error "[$(now)]\n仪器通信故障！！！" instrument = $(string(bk.instrnm, ": ", bk.addr)) exception = e
                     ""
                 end
             end
@@ -425,7 +425,7 @@ function tocodes(bk::QueryBlock)
                 try
                     $getcmd
                 catch e
-                    @error "[$(now)]\n仪器通信故障！！！" instrument = $(string(bk.instr, ": ", bk.addr)) exception = e
+                    @error "[$(now)]\n仪器通信故障！！！" instrument = $(string(bk.instrnm, ": ", bk.addr)) exception = e
                     fill("", length(index))
                 end
             end
@@ -474,7 +474,7 @@ function tocodes(bk::ReadBlock)
                 try
                     $getcmd
                 catch e
-                    @error "[$(now)]\n仪器通信故障！！！" instrument = $(string(bk.instr, ": ", bk.addr)) exception = e
+                    @error "[$(now)]\n仪器通信故障！！！" instrument = $(string(bk.instrnm, ": ", bk.addr)) exception = e
                     ""
                 end
             end
@@ -510,7 +510,7 @@ function tocodes(bk::ReadBlock)
                 try
                     $getcmd
                 catch e
-                    @error "[$(now)]\n仪器通信故障！！！" instrument = $(string(bk.instr, ": ", bk.addr)) exception = e
+                    @error "[$(now)]\n仪器通信故障！！！" instrument = $(string(bk.instrnm, ": ", bk.addr)) exception = e
                     fill("", length(index))
                 end
             end
