@@ -9,6 +9,7 @@
 ## install
 ```
 julia> ]
+julia> add ImPlot#main
 julia> add https://github.com/FaresX/QInsControl.jl.git
 ```
 
