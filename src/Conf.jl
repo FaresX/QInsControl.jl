@@ -1,20 +1,25 @@
 function loadconf()
     ######gennerate conf######
-    conf_dict = TOML.parsefile(joinpath(ENV["QInsControlAssets"], "Necessity/conf.toml"))
-    unitslist = Dict("" => [])
-    for Ut::String in keys(conf_dict["U"])
-        if Ut != ""
-            Us = []
-            for U in conf_dict["U"][Ut]
-                ustr = occursin(" ", U) ? replace(U, " " => "*") : U
-                push!(Us, eval(:(@u_str($ustr))))
+    conf_file = joinpath(ENV["QInsControlAssets"], "Necessity/conf.toml")
+    global conf = if isfile(conf_file)
+        conf_dict = TOML.parsefile(conf_file)
+        unitslist = Dict("" => [])
+        for Ut::String in keys(conf_dict["U"])
+            if Ut != ""
+                Us = []
+                for U in conf_dict["U"][Ut]
+                    ustr = occursin(" ", U) ? replace(U, " " => "*") : U
+                    push!(Us, eval(:(@u_str($ustr))))
+                end
+                push!(unitslist, Ut => Us)
             end
-            push!(unitslist, Ut => Us)
         end
+        push!(unitslist, "" => [""])
+        push!(conf_dict, "U" => unitslist)
+        from_dict(Conf, conf_dict)
+    else
+        Conf()
     end
-    push!(unitslist, "" => [""])
-    push!(conf_dict, "U" => unitslist)
-    global conf = from_dict(Conf, conf_dict)
     isdir(conf.Fonts.dir) || (conf.Fonts.dir = joinpath(ENV["QInsControlAssets"], "Fonts"))
     isdir(conf.Console.dir) || (conf.Console.dir = joinpath(ENV["QInsControlAssets"], "IOs"))
     isdir(conf.Logs.dir) || (conf.Logs.dir = joinpath(ENV["QInsControlAssets"], "Logs"))

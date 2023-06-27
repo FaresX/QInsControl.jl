@@ -1,82 +1,93 @@
 @option mutable struct OptBasic
-    isremote::Bool
-    viewportenable::Bool
-    windowsize::Vector{Cint}
-    encoding::String
-    editor::String
+    isremote::Bool = true
+    viewportenable::Bool = false
+    windowsize::Vector{Cint} = [1280, 720]
+    encoding::String = "GBK"
+    editor::String = "notepad"
 end
 
 @option mutable struct OptDtViewer
-    showdatarow::Cint
+    showdatarow::Cint = 10000
 end
 
 @option mutable struct OptDAQ
-    saveimg::Bool
-    logall::Bool
-    equalstep::Bool
-    savetime::Cint
-    channel_size::Cint
-    packsize::Cint
-    plotshowcol::Cint
-    pick_fps::Vector{Cint}
+    saveimg::Bool = false
+    logall::Bool = false
+    equalstep::Bool = true
+    savetime::Cint = 60
+    channel_size::Cint = 512
+    packsize::Cint = 6
+    plotshowcol::Cint = 2
+    pick_fps::Vector{Cint} = [3, 36]
 end
 
 @option mutable struct OptInsBuf
-    showhelp::Bool
-    showcol::Cint
-    refreshrate::Cfloat
+    showhelp::Bool = false
+    showcol::Cint = 3
+    refreshrate::Cfloat = 60
 end
 
 @option mutable struct OptFonts
-    dir::String
-    size::Cint
-    first::String
-    second::String
+    dir::String = ""
+    size::Cint = 18
+    first::String = "ZaoZiGongFangShangHeiG0v1ChangGuiTi-1.otf"
+    second::String = "arial.ttf"
 end
 
 @option mutable struct OptIcons
-    size::Cint
+    size::Cint = 18
 end
 
 @option mutable struct OptConsole
-    dir::String
-    refreshrate::Cfloat
-    showioline::Cint
-    historylen::Cint
+    dir::String = ""
+    refreshrate::Cfloat = 60
+    showioline::Cint = 100
+    historylen::Cint = 100
 end
 
 @option mutable struct OptLogs
-    dir::String
-    refreshrate::Cfloat
-    showlogline::Cint
+    dir::String = ""
+    refreshrate::Cfloat = 60
+    showlogline::Cint = 600
 end
 
 @option mutable struct OptBGImage
-    path::String
+    path::String = ""
 end
 
 @option mutable struct OptComAddr
-    addrs::Vector{String}
+    addrs::Vector{String} = []
 end
 
 @option mutable struct OptStyle
-    dir::String
-    default::String
+    dir::String = ""
+    default::String = "Walkr"
 end
 
 @option mutable struct Conf
-    U::OrderedDict{String,Vector}
-    Basic::OptBasic
-    DtViewer::OptDtViewer
-    DAQ::OptDAQ
-    InsBuf::OptInsBuf
-    Fonts::OptFonts
-    Icons::OptIcons
-    Console::OptConsole
-    Logs::OptLogs
-    BGImage::OptBGImage
-    ComAddr::OptComAddr
-    Style::OptStyle
+    Basic::OptBasic = OptBasic()
+    DtViewer::OptDtViewer = OptDtViewer()
+    DAQ::OptDAQ = OptDAQ()
+    InsBuf::OptInsBuf = OptInsBuf()
+    Fonts::OptFonts = OptFonts()
+    Icons::OptIcons = OptIcons()
+    Console::OptConsole = OptConsole()
+    Logs::OptLogs = OptLogs()
+    BGImage::OptBGImage = OptBGImage()
+    ComAddr::OptComAddr = OptComAddr()
+    Style::OptStyle = OptStyle()
+    U::OrderedDict{String,Vector} = OrderedDict(
+        "T/min" => [u"T/minute"],
+        "A" => [u"A", u"mA", u"μA", u"nA"],
+        "T" => [u"T", u"mT", u"Gauss"],
+        "dBm" => [u"dBm"],
+        "°" => [u"°", u"rad"],
+        "V" => [u"V", u"mV", u"μV", u"nV"],
+        "" => [""],
+        "K" => [u"K", u"mK"],
+        "s" => [u"s", u"minute", u"hr", u"d", u"ms", u"μs"],
+        "Hz" => [u"Hz", u"kHz", u"MHz", u"GHz"]
+    )
 end
 
 global conf::Conf
