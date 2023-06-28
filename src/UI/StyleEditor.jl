@@ -521,9 +521,37 @@ let
             Base.Filesystem.rm(joinpath(conf.Style.dir, "$selected_style.sty"), force=true)
             selected_style = ""
         end
-        CImGui.PushItemWidth(ws * 0.5)
+
+        ###wallpaper###
+        bgpath = conf.BGImage.path
+        CImGui.PushItemWidth(ws / 2)
+        inputbgpath = @c InputTextRSZ("##BGImage-path", &bgpath)
+        CImGui.PopItemWidth()
+        CImGui.SameLine()
+        selectbgpath = CImGui.Button(stcstr(morestyle.Icons.SelectPath, "##BGImage-path"))
+        selectbgpath && (bgpath = pick_file(abspath(bgpath); filterlist="png,jpg,jpeg,tif,bmp"))
+        CImGui.SameLine()
+        CImGui.Text("Wallpaper")
+        if inputbgpath || selectbgpath
+            if isfile(bgpath)
+                try
+                    bgimg = RGB.(collect(transpose(FileIO.load(bgpath))))
+                    conf.BGImage.path = bgpath
+                    bgsize = size(bgimg)
+                    global bgid = ImGui_ImplOpenGL3_CreateImageTexture(bgsize...)
+                    ImGui_ImplOpenGL3_UpdateImageTexture(bgid, bgimg, bgsize...)
+                catch e
+                    @error "[$(now())]\n加载背景出错！！！" exception = e
+                end
+            else
+                CImGui.SameLine()
+                CImGui.TextColored(morestyle.Colors.LogError, "文件不存在！！！")
+            end
+        end
+
+        CImGui.PushItemWidth(ws / 2)
         selected_style == "" && haskey(styles, conf.Style.default) && (selected_style = conf.Style.default)
-        if @c ComBoS("Style", &selected_style, keys(styles))
+        if @c ComBoS("##Style Selecting", &selected_style, keys(styles))
             if selected_style != ""
                 ustyle = styles[selected_style]
                 style_name = selected_style
@@ -533,6 +561,8 @@ let
         CImGui.PopItemWidth()
         CImGui.SameLine()
         CImGui.Button("Set as default") && (selected_style == "" || (conf.Style.default = selected_style))
+        CImGui.SameLine()
+        CImGui.Text("Style")
         if CImGui.BeginTabBar("Style Editor")
             if CImGui.BeginTabItem("ImGui Style")
                 CImGui.BeginChild("ImGui Style")

@@ -258,35 +258,35 @@ let
                 CImGui.Separator()
 
                 ###BGImage###
-                CImGui.TextColored(morestyle.Colors.HighlightText, "背景")
-                bgpath = conf.BGImage.path
-                inputbgpath = @c InputTextRSZ("路径##BGImage-path", &bgpath)
-                CImGui.SameLine()
-                selectbgpath = CImGui.Button(stcstr(morestyle.Icons.SelectPath, "##BGImage-path"))
-                selectbgpath && (bgpath = pick_file(abspath(bgpath); filterlist="png,jpg,jpeg,tif,bmp"))
-                if inputbgpath || selectbgpath
-                    if isfile(bgpath)
-                        try
-                            bgimg = RGB.(transposeimg(FileIO.load(bgpath)))
-                            conf.BGImage.path = bgpath
-                            bgsize = size(bgimg)
-                            global bgid = ImGui_ImplOpenGL3_CreateImageTexture(bgsize...)
-                            ImGui_ImplOpenGL3_UpdateImageTexture(bgid, bgimg, bgsize...)
-                        catch e
-                            @error "[$(now())]\n加载背景出错！！！" exception = e
-                        end
-                    else
-                        CImGui.SameLine()
-                        CImGui.TextColored(morestyle.Colors.LogError, "文件不存在！！！")
-                    end
-                end
-                CImGui.Text(" ")
-                CImGui.Separator()
+                # CImGui.TextColored(morestyle.Colors.HighlightText, "背景")
+                # bgpath = conf.BGImage.path
+                # inputbgpath = @c InputTextRSZ("路径##BGImage-path", &bgpath)
+                # CImGui.SameLine()
+                # selectbgpath = CImGui.Button(stcstr(morestyle.Icons.SelectPath, "##BGImage-path"))
+                # selectbgpath && (bgpath = pick_file(abspath(bgpath); filterlist="png,jpg,jpeg,tif,bmp"))
+                # if inputbgpath || selectbgpath
+                #     if isfile(bgpath)
+                #         try
+                #             bgimg = RGB.(collect(transpose(FileIO.load(bgpath))))
+                #             conf.BGImage.path = bgpath
+                #             bgsize = size(bgimg)
+                #             global bgid = ImGui_ImplOpenGL3_CreateImageTexture(bgsize...)
+                #             ImGui_ImplOpenGL3_UpdateImageTexture(bgid, bgimg, bgsize...)
+                #         catch e
+                #             @error "[$(now())]\n加载背景出错！！！" exception = e
+                #         end
+                #     else
+                #         CImGui.SameLine()
+                #         CImGui.TextColored(morestyle.Colors.LogError, "文件不存在！！！")
+                #     end
+                # end
+                # CImGui.Text(" ")
+                # CImGui.Separator()
 
                 ###ComAddr###
                 CImGui.TextColored(morestyle.Colors.HighlightText, "常用地址")
                 addrs = join(conf.ComAddr.addrs, "\n")
-                y = length(conf.ComAddr.addrs) * CImGui.GetTextLineHeight() + 2unsafe_load(imguistyle.FramePadding.y)
+                y = max(1, length(conf.ComAddr.addrs)) * CImGui.GetTextLineHeight() + 2unsafe_load(imguistyle.FramePadding.y)
                 @c(InputTextMultilineRSZ(
                     "##常用地址", &addrs, (Float32(0), y))
                 ) && (conf.ComAddr.addrs = split(addrs, '\n'))

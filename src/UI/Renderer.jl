@@ -25,11 +25,11 @@ function UI(breakdown=false)
     glfwSetWindowIcon(window, 1, glfwicons)
     iconsize = reverse(size(icons[1]))
     global iconid = ImGui_ImplOpenGL3_CreateImageTexture(iconsize...)
-    ImGui_ImplOpenGL3_UpdateImageTexture(iconid, transposeimg(icons[1]), iconsize...; format=GL_RGBA)
+    ImGui_ImplOpenGL3_UpdateImageTexture(iconid, transpose(icons[1]), iconsize...; format=GL_RGBA)
     # 加载背景
     if isfile(conf.BGImage.path)
         try
-            bgimg = RGB.(transposeimg(FileIO.load(conf.BGImage.path)))
+            bgimg = RGB.(collect(transpose(FileIO.load(conf.BGImage.path))))
             bgsize = size(bgimg)
             global bgid = ImGui_ImplOpenGL3_CreateImageTexture(bgsize...)
             ImGui_ImplOpenGL3_UpdateImageTexture(bgid, bgimg, bgsize...)

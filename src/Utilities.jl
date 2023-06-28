@@ -96,14 +96,6 @@ function wrapmsg(s::AbstractString, n)
     return join(ss, '\n')
 end
 
-function transposeimg(img)
-    tpimg = similar(img, reverse(size(img))...)
-    for j in axes(img, 2)
-        @views tpimg[j, :] = img[:, j]
-    end
-    tpimg
-end
-
 lengthpr(c::Char) = ncodeunits(c) == 1 ? 1 : 2
 lengthpr(s::AbstractString) = s == "" ? 0 : sum(lengthpr(c) for c in s)
 
