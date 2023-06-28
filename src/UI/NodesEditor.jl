@@ -117,10 +117,9 @@ mutable struct NodeEditor
     created_from_snap::Bool
     hoverednode_id::Cint
     hoveredlink_id::Cint
+    maxid::Cint
 end
-NodeEditor() = NodeEditor(OrderedDict(), Tuple{Cint,Cint}[], 0, 0, false, 0, 0)
-
-maxid(nodeeditor::NodeEditor) = isempty(nodeeditor.nodes) ? 0 : max_with_empty(keys(nodeeditor.nodes))
+NodeEditor() = NodeEditor(OrderedDict(), Tuple{Cint,Cint}[], 0, 0, false, 0, 0, 0)
 
 function edit(node::Node)
     imnodes_BeginNode(node.id)
@@ -184,53 +183,53 @@ let
         imnodes_BeginNodeEditor()
         if CImGui.BeginPopup("NodeEditor")
             if CImGui.MenuItem(stcstr(morestyle.Icons.CommonNode, " 通用节点"))
-                id = maxid(nodeeditor) + 1
-                push!(nodeeditor.nodes, id => Node(id))
-                imnodes_SetNodeScreenSpacePos(id, CImGui.GetMousePosOnOpeningCurrentPopup())
+                nodeeditor.maxid += 1
+                push!(nodeeditor.nodes, nodeeditor.maxid => Node(nodeeditor.maxid))
+                imnodes_SetNodeScreenSpacePos(nodeeditor.maxid, CImGui.GetMousePosOnOpeningCurrentPopup())
                 newnode = true
             end
             if CImGui.MenuItem(stcstr(morestyle.Icons.GroundNode, " 接地头"))
-                id = maxid(nodeeditor) + 1
-                push!(nodeeditor.nodes, id => Node(id, Val(:ground)))
-                imnodes_SetNodeScreenSpacePos(id, CImGui.GetMousePosOnOpeningCurrentPopup())
+                nodeeditor.maxid += 1
+                push!(nodeeditor.nodes, nodeeditor.maxid => Node(nodeeditor.maxid, Val(:ground)))
+                imnodes_SetNodeScreenSpacePos(nodeeditor.maxid, CImGui.GetMousePosOnOpeningCurrentPopup())
                 newnode = true
             end
             if CImGui.MenuItem(stcstr(morestyle.Icons.ResistanceNode, " 电阻"))
-                id = maxid(nodeeditor) + 1
-                push!(nodeeditor.nodes, id => Node(id, Val(:resistance)))
-                imnodes_SetNodeScreenSpacePos(id, CImGui.GetMousePosOnOpeningCurrentPopup())
+                nodeeditor.maxid += 1
+                push!(nodeeditor.nodes, nodeeditor.maxid => Node(nodeeditor.maxid, Val(:resistance)))
+                imnodes_SetNodeScreenSpacePos(nodeeditor.maxid, CImGui.GetMousePosOnOpeningCurrentPopup())
                 newnode = true
             end
             if CImGui.MenuItem(stcstr(morestyle.Icons.TrilinkNode, " 三通21"))
-                id = maxid(nodeeditor) + 1
-                push!(nodeeditor.nodes, id => Node(id, Val(:trilink21)))
-                imnodes_SetNodeScreenSpacePos(id, CImGui.GetMousePosOnOpeningCurrentPopup())
+                nodeeditor.maxid += 1
+                push!(nodeeditor.nodes, nodeeditor.maxid => Node(nodeeditor.maxid, Val(:trilink21)))
+                imnodes_SetNodeScreenSpacePos(nodeeditor.maxid, CImGui.GetMousePosOnOpeningCurrentPopup())
                 newnode = true
             end
             if CImGui.MenuItem(stcstr(morestyle.Icons.TrilinkNode, " 三通12"))
-                id = maxid(nodeeditor) + 1
-                push!(nodeeditor.nodes, id => Node(id, Val(:trilink12)))
-                imnodes_SetNodeScreenSpacePos(id, CImGui.GetMousePosOnOpeningCurrentPopup())
+                nodeeditor.maxid += 1
+                push!(nodeeditor.nodes, nodeeditor.maxid => Node(nodeeditor.maxid, Val(:trilink12)))
+                imnodes_SetNodeScreenSpacePos(nodeeditor.maxid, CImGui.GetMousePosOnOpeningCurrentPopup())
                 newnode = true
             end
             if CImGui.MenuItem(stcstr(morestyle.Icons.SampleBaseNode, " 样品座16"))
-                id = maxid(nodeeditor) + 1
-                push!(nodeeditor.nodes, id => Node(id, Val(:samplebase16)))
-                imnodes_SetNodeScreenSpacePos(id, CImGui.GetMousePosOnOpeningCurrentPopup())
+                nodeeditor.maxid += 1
+                push!(nodeeditor.nodes, nodeeditor.maxid => Node(nodeeditor.maxid, Val(:samplebase16)))
+                imnodes_SetNodeScreenSpacePos(nodeeditor.maxid, CImGui.GetMousePosOnOpeningCurrentPopup())
                 newnode = true
             end
             if CImGui.MenuItem(stcstr(morestyle.Icons.SampleBaseNode, " 样品座24"))
-                id = maxid(nodeeditor) + 1
-                push!(nodeeditor.nodes, id => Node(id, Val(:samplebase24)))
-                imnodes_SetNodeScreenSpacePos(id, CImGui.GetMousePosOnOpeningCurrentPopup())
+                nodeeditor.maxid += 1
+                push!(nodeeditor.nodes, nodeeditor.maxid => Node(nodeeditor.maxid, Val(:samplebase24)))
+                imnodes_SetNodeScreenSpacePos(nodeeditor.maxid, CImGui.GetMousePosOnOpeningCurrentPopup())
                 newnode = true
             end
             for ins in keys(insconf)
                 ins == "Others" && continue
                 if CImGui.MenuItem(stcstr(insconf[ins].conf.icon, " ", ins))
-                    id = maxid(nodeeditor) + 1
-                    push!(nodeeditor.nodes, id => Node(id, ins, Val(:instrument)))
-                    imnodes_SetNodeScreenSpacePos(id, CImGui.GetMousePosOnOpeningCurrentPopup())
+                    nodeeditor.maxid += 1
+                    push!(nodeeditor.nodes, nodeeditor.maxid => Node(nodeeditor.maxid, ins, Val(:instrument)))
+                    imnodes_SetNodeScreenSpacePos(nodeeditor.maxid, CImGui.GetMousePosOnOpeningCurrentPopup())
                     newnode = true
                 end
             end
