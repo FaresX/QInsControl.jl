@@ -56,10 +56,11 @@ function UI(breakdown=false)
     io = CImGui.GetIO()
     io.ConfigFlags = unsafe_load(io.ConfigFlags) | CImGui.ImGuiConfigFlags_DockingEnable
     conf.Basic.viewportenable && (io.ConfigFlags = unsafe_load(io.ConfigFlags) | CImGui.ImGuiConfigFlags_ViewportsEnable)
+    io.IniFilename = pointer(joinpath(ENV["QInsControlAssets"], "Necessity/imgui.ini"))
     # io.ConfigDockingWithShift = true
 
     # 加载字体
-    fonts = unsafe_load(CImGui.GetIO().Fonts)
+    fonts = unsafe_load(io.Fonts)
     ranges = ImVector_ImWchar_create()
     ImVector_ImWchar_Init(ranges)
     builder = ImFontGlyphRangesBuilder_ImFontGlyphRangesBuilder()
