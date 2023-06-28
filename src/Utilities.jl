@@ -53,12 +53,13 @@ function packtake!(c, n=12)
     buf
 end
 
-resize(z, m, n; fillms=0) =
-    if length(z) > m * n
+function resize(z, m, n; fillms=0)
+    return if length(z) > m * n
         @views reshape(z[1:m*n], m, n)
     else
         @views reshape([reshape(z, :); fill(fillms, m * n - length(z))], m, n)
     end
+end
 
 inregion(location, region) = region[1] < location.x < region[3] && region[2] < location.y < region[4]
 mousein(region) = inregion(CImGui.GetMousePos(), region)
@@ -205,9 +206,7 @@ function Base.getproperty(x::Ptr{LibCImGui.Style}, f::Symbol)
     return getfield(x, f)
 end
 
-function Base.setproperty!(x::Ptr{LibCImGui.Style}, f::Symbol, v)
-    unsafe_store!(getproperty(x, f), v)
-end
+Base.setproperty!(x::Ptr{LibCImGui.Style}, f::Symbol, v) = unsafe_store!(getproperty(x, f), v)
 
 function newtuple(t::Tuple, i, v)
     newt = []
