@@ -25,7 +25,7 @@ refreshrate = 60.0
 
 [Fonts]
 dir = "C:\\Users\\22112\\OneDrive - mails.ucas.ac.cn\\文档\\CODE\\Julia\\MyPackages\\QInsControl.jl\\src\\../Assets\\Fonts"
-size = 24
+size = 18
 first = "ZaoZiGongFangShangHeiG0v1ChangGuiTi-1.otf"
 second = "arial.ttf"
 
