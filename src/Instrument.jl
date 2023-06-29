@@ -53,9 +53,9 @@ function refresh_instrlist()
                         empty!(instrbufferviewers[ins])
                     end
                     autodetect()
-                    SyncStates[Int(autodetect_done)] = true
+                    SyncStates[Int(autodetecting)] && (SyncStates[Int(autodetect_done)] = true)
                 catch e
-                    SyncStates[Int(autodetect_done)] = true
+                    SyncStates[Int(autodetecting)] && (SyncStates[Int(autodetect_done)] = true)
                     @error "自动查询失败!!!" exception = e
                 end
             end)
@@ -69,7 +69,7 @@ function poll_autodetect()
         @async begin
             starttime = time()
             while true
-                if time() - starttime > 360
+                if time() - starttime > 180
                     SyncStates[Int(autodetecting)] = false
                     SyncStates[Int(autodetect_done)] = false
                     break
