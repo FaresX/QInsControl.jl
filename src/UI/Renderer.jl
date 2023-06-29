@@ -54,13 +54,14 @@ function UI(breakdown=false)
 
     # enable docking and multi-viewport
     io = CImGui.GetIO()
-    io.IniFilename = pointer(joinpath(ENV["QInsControlAssets"], "Necessity/imgui.ini"))
+    imguiinifile = joinpath(ENV["QInsControlAssets"], "Necessity/imgui.ini")
+    io.IniFilename = pointer(imguiinifile)
     io.ConfigFlags = unsafe_load(io.ConfigFlags) | CImGui.ImGuiConfigFlags_DockingEnable
     conf.Basic.viewportenable && (io.ConfigFlags = unsafe_load(io.ConfigFlags) | CImGui.ImGuiConfigFlags_ViewportsEnable)
     # io.ConfigDockingWithShift = true
 
     # load imgui.ini
-    CImGui.LoadIniSettingsFromDisk(joinpath(ENV["QInsControlAssets"], "Necessity/imgui.ini"))
+    isfile(imguiinifile) && CImGui.LoadIniSettingsFromDisk(imguiinifile)
 
     # 加载字体
     fonts = unsafe_load(io.Fonts)
