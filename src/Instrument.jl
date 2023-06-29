@@ -69,7 +69,7 @@ function poll_autodetect()
         @async begin
             starttime = time()
             while true
-                if time() - starttime > 120
+                if time() - starttime > 360
                     SyncStates[Int(autodetecting)] = false
                     SyncStates[Int(autodetect_done)] = false
                     break
