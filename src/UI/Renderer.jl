@@ -61,7 +61,7 @@ function UI(breakdown=false)
     # io.ConfigDockingWithShift = true
 
     # load imgui.ini
-    isfile(imguiinifile) && CImGui.LoadIniSettingsFromDisk(imguiinifile)
+    isfile(imguiinifile) ? CImGui.LoadIniSettingsFromDisk(imguiinifile) : touch(imguiinifile)
 
     # 加载字体
     fonts = unsafe_load(io.Fonts)

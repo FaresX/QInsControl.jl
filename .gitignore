@@ -9,3 +9,4 @@ src/*.mem
 src/UI/*.mem
 src/QInsControlCore/*.mem
 Assets/Confs/*.mem
+Assets/Necessity/conf.toml
