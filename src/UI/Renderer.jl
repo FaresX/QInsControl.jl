@@ -54,14 +54,17 @@ function UI(breakdown=false)
 
     # enable docking and multi-viewport
     io = CImGui.GetIO()
-    imguiinifile = joinpath(ENV["QInsControlAssets"], "Necessity/imgui.ini")
-    io.IniFilename = pointer(imguiinifile)
+    # imguiinifile = joinpath(ENV["QInsControlAssets"], "Necessity/imgui.ini")
+    # io.IniFilename = pointer(imguiinifile)
+    io.IniFilename = C_NULL
     io.ConfigFlags = unsafe_load(io.ConfigFlags) | CImGui.ImGuiConfigFlags_DockingEnable
     conf.Basic.viewportenable && (io.ConfigFlags = unsafe_load(io.ConfigFlags) | CImGui.ImGuiConfigFlags_ViewportsEnable)
     # io.ConfigDockingWithShift = true
 
     # load imgui.ini
-    isfile(imguiinifile) ? CImGui.LoadIniSettingsFromDisk(imguiinifile) : touch(imguiinifile)
+    # isfile(imguiinifile) ? CImGui.LoadIniSettingsFromDisk(imguiinifile) : touch(imguiinifile)
+    imguiinifile = joinpath(ENV["QInsControlAssets"], "Necessity/imgui.ini")
+    isfile(imguiinifile) && CImGui.LoadIniSettingsFromDisk(imguiinifile)
 
     # 加载字体
     fonts = unsafe_load(io.Fonts)
@@ -202,6 +205,7 @@ function UI(breakdown=false)
         Base.show_backtrace(stderr, catch_backtrace())
     finally
         SyncStates[Int(isdaqtask_running)] || remotecall_wait(() -> stop!(CPU), workers()[1])
+        CImGui.SaveIniSettingsToDisk(imguiinifile)
         ImGuiOpenGLBackend.shutdown(gl_ctx)
         ImGuiGLFWBackend.shutdown(window_ctx)
         imnodes_DestroyContext(ctxi)
