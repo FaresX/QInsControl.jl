@@ -1,9 +1,7 @@
 let
     firsttime::Bool = true
-    show_daq_editor::Bool = false
-    show_daq_editor_i::Int = 0
-    show_daq_selector::Bool = false
-    show_daq_selector_i::Int = 0
+    show_daq_editors::Vector{Bool} = [false]
+    show_daq_dtpickers::Vector{Bool} = [false]
     show_circuit_editor::Bool = false
     isdeldaqtask::Bool = false
     isrename::Bool = false
@@ -61,6 +59,9 @@ let
             CImGui.Button(stcstr(morestyle.Icons.Circuit, "##电路")) && (show_circuit_editor ⊻= true)
             show_circuit_editor && @c edit(circuit_editor, "Circuit Editor", &show_circuit_editor)
             ccbtsz = CImGui.GetItemRectSize().x
+
+            length(show_daq_editors) == length(daqtasks) || resize!(show_daq_editors, length(daqtasks))
+            length(show_daq_dtpickers) == length(daq_dtpks) || resize!(show_daq_dtpickers, length(daq_dtpks))
             for (i, task) in enumerate(daqtasks)
                 task.enable || showdisabled || continue
                 CImGui.PushID(i)
@@ -93,14 +94,12 @@ let
                     stcstr(morestyle.Icons.TaskButton, " 任务 ", i + old_i, " ", task.name, "###rename"),
                     (-1, 0)
                 )
-                    show_daq_editor_i = i
-                    show_daq_editor = true
+                    show_daq_editors[i] = true
                 end
                 CImGui.PopStyleColor(2)
 
                 CImGui.OpenPopupOnItemClick(stcstr("队列编辑菜单", i))
                 isrunning_i && ShowProgressBar()
-                show_daq_editor && show_daq_editor_i == i && @c edit(task, i, &show_daq_editor)
                 if !SyncStates[Int(isdaqtask_running)]
                     CImGui.Indent()
                     if CImGui.BeginDragDropSource(0)
@@ -135,13 +134,13 @@ let
                                 run(task)
                                 SyncStates[Int(isinterrupt)] && (SyncStates[Int(isinterrupt)] = false)
                             end)
-                            show_daq_selector = false
+                            show_daq_dtpickers .= false
                         else
                             workpath = "未选择工作区！！！"
                         end
                     end
                     CImGui.Separator()
-                    CImGui.MenuItem(morestyle.Icons.Edit * " 编辑") && (show_daq_editor_i = i; show_daq_editor = true)
+                    CImGui.MenuItem(morestyle.Icons.Edit * " 编辑") && (show_daq_editors[i] = true)
                     CImGui.MenuItem(morestyle.Icons.Copy * " 复制") && (insert!(daqtasks, i + 1, deepcopy(task)))
                     if CImGui.MenuItem(morestyle.Icons.SaveButton * " 保存")
                         confsvpath = save_file(filterlist="cfg")
@@ -165,11 +164,17 @@ let
                     CImGui.EndPopup()
                 end
 
+                ### show daq editors ###
+                isshow_editor = show_daq_editors[i]
+                isshow_editor && @c edit(task, i, &isshow_editor)
+                show_daq_editors[i] = isshow_editor
+
                 # 是否删除
                 isdeldaqtask && (CImGui.OpenPopup(stcstr("##是否删除daqtasks", i));
                 isdeldaqtask = false)
                 if YesNoDialog(stcstr("##是否删除daqtasks", i), "确认删除？", CImGui.ImGuiWindowFlags_AlwaysAutoResize)
                     deleteat!(daqtasks, i)
+                    deleteat!(show_daq_editors, i)
                 end
 
                 # 重命名
@@ -182,6 +187,7 @@ let
                 CImGui.PopID()
             end
             CImGui.EndChild()
+
             if CImGui.BeginPopup("添加队列")
                 CImGui.MenuItem(morestyle.Icons.NewFile * " 添加") && push!(daqtasks, DAQTask())
                 if CImGui.MenuItem(morestyle.Icons.Load * " 加载")
@@ -283,8 +289,7 @@ let
                         if openright
                             if CImGui.MenuItem(morestyle.Icons.SelectData * " 选择数据")
                                 if daq_plot_layout.states[daq_plot_layout.idxing]
-                                    show_daq_selector = true
-                                    show_daq_selector_i = daq_plot_layout.idxing
+                                    show_daq_dtpickers[daq_plot_layout.idxing] = true
                                 end
                             end
                             if CImGui.MenuItem(morestyle.Icons.CloseFile * " 删除")
@@ -308,7 +313,27 @@ let
             isdelall = false)
             if YesNoDialog("##删除所有不可用task", "确认删除？", CImGui.ImGuiWindowFlags_AlwaysAutoResize)
                 deleteat!(daqtasks, findall(task -> !task.enable, daqtasks))
+                deleteat!(show_daq_editors, findall(task -> !task.enable, daqtasks))
             end
+
+            ### show daq datapickers ###
+            for (i, isshow_dtpk) in enumerate(show_daq_dtpickers)
+                if isshow_dtpk
+                    daq_dtpk = daq_dtpks[i]
+                    datakeys::Set{String} = keys(databuf)
+                    if datakeys != Set(daq_dtpk.datalist)
+                        daq_dtpk.datalist = collect(datakeys)
+                        daq_dtpk.y = falses(length(datakeys))
+                        daq_dtpk.w = falses(length(datakeys))
+                    end
+                    isupdate = @c edit(daq_dtpk, stcstr("DAQ", i), &isshow_dtpk)
+                    show_daq_dtpickers[i] = isshow_dtpk
+                    if !isshow_dtpk || isupdate
+                        syncplotdata(uipsweeps[i], daq_dtpk, databuf, databuf_parsed)
+                    end
+                end
+            end
+
             isdelplot && ((CImGui.OpenPopup(stcstr("##删除绘图", daq_plot_layout.idxing)));
             isdelplot = false)
             if YesNoDialog(
@@ -320,6 +345,7 @@ let
                     deleteat!(daq_plot_layout, delplot_i)
                     deleteat!(uipsweeps, delplot_i)
                     deleteat!(daq_dtpks, delplot_i)
+                    deleteat!(show_daq_dtpickers, delplot_i)
                 end
             end
 
@@ -345,7 +371,7 @@ let
                             isrunall = false
                         end
                         errormonitor(runalltask)
-                        show_daq_selector = false
+                        show_daq_dtpickers .= false
                     else
                         workpath = "未选择工作区！！！"
                     end
@@ -380,20 +406,6 @@ let
                 end
             end
             bottombtsz += CImGui.GetItemRectSize().x
-
-            if show_daq_selector
-                daq_dtpk = daq_dtpks[show_daq_selector_i]
-                datakeys::Set{String} = keys(databuf)
-                if datakeys != Set(daq_dtpk.datalist)
-                    daq_dtpk.datalist = collect(datakeys)
-                    daq_dtpk.y = falses(length(datakeys))
-                    daq_dtpk.w = falses(length(datakeys))
-                end
-                isupdate = @c edit(daq_dtpk, "DAQ", &show_daq_selector)
-                if !show_daq_selector || isupdate
-                    syncplotdata(uipsweeps[show_daq_selector_i], daq_dtpk, databuf, databuf_parsed)
-                end
-            end
 
             for i in daq_plot_layout.selectedidx
                 if daq_dtpks[i].isrealtime && waittime(stcstr("DAQ", i), daq_dtpks[i].refreshrate)

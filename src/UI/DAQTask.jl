@@ -3,8 +3,9 @@ mutable struct DAQTask
     explog::String
     blocks::Vector{AbstractBlock}
     enable::Bool
+    hold::Bool
 end
-DAQTask() = DAQTask("", "", [SweepBlock(1)], true)
+DAQTask() = DAQTask("", "", [SweepBlock(1)], true, false)
 
 old_i::Int = 0
 workpath::String = ""
@@ -12,7 +13,6 @@ savepath::String = ""
 const cfgbuf = Dict{String,Any}()
 
 let
-    hold::Bool = false
     holdsz::Cfloat = 0
     global function edit(daqtask::DAQTask, id, p_open::Ref{Bool})
         CImGui.SetNextWindowSize((600, 800), CImGui.ImGuiCond_Once)
@@ -30,7 +30,7 @@ let
             CImGui.SameLine()
             CImGui.Text(stcstr(" 编辑队列：任务 ", id + old_i, " ", daqtask.name))
             CImGui.SameLine(CImGui.GetContentRegionAvailWidth() - holdsz)
-            @c CImGui.Checkbox("HOLD", &hold)
+            @c CImGui.Checkbox("HOLD", &daqtask.hold)
             holdsz = CImGui.GetItemRectSize().x
             CImGui.Separator()
             CImGui.TextColored(morestyle.Colors.HighlightText, "实验记录")
@@ -76,7 +76,7 @@ let
         CImGui.End()
         CImGui.PopStyleVar()
         CImGui.PopStyleColor()
-        p_open[] &= (isfocus | hold)
+        p_open[] &= (isfocus | daqtask.hold)
     end
 end
 
