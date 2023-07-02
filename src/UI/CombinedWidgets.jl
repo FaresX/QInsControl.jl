@@ -137,7 +137,7 @@ function DragMultiSelectable(
     l = length(labels)
     length(states) == l || resize!(states, l)
     size = l == 0 ? (Cfloat(0), CImGui.GetFrameHeightWithSpacing()) : size
-    CImGui.BeginChild(stcstr("DragMultiSelectable##", id), size)
+    CImGui.BeginChild(stcstr("DragMultiS##", id), size)
     CImGui.Columns(n, C_NULL, false)
     for i in 1:l
         CImGui.PushStyleVar(CImGui.ImGuiStyleVar_SelectableTextAlign, (0.5, 0.5))
@@ -145,13 +145,13 @@ function DragMultiSelectable(
         CImGui.PopStyleVar()
         rightclickmenu() && (idxing[] = i)
         CImGui.Indent()
-        if CImGui.BeginDragDropSource(0)
-            @c CImGui.SetDragDropPayload(stcstr("DragMultiSelectable##", id), &i, sizeof(Cint))
+        if CImGui.BeginDragDropSource()
+            @c CImGui.SetDragDropPayload(stcstr("DragMultiS##", id), &i, sizeof(Cint))
             CImGui.Text(labels[i])
             CImGui.EndDragDropSource()
         end
         if CImGui.BeginDragDropTarget()
-            payload = CImGui.AcceptDragDropPayload(stcstr("DragMultiSelectable##", id))
+            payload = CImGui.AcceptDragDropPayload(stcstr("DragMultiS##", id))
             if payload != C_NULL && unsafe_load(payload).DataSize == sizeof(Cint)
                 payload_i = unsafe_load(Ptr{Cint}(unsafe_load(payload).Data))
                 if i != payload_i
@@ -245,7 +245,7 @@ function edit(
     states_old = copy(lo.states)
     marks_old = copy(lo.marks)
     editlabels = @. lo.labels * " " * lo.marks * "###for rename" * lo.labels
-    @c MultiSelectable(rightclickmenu, stcstr("select##", lo.id), editlabels, lo.states, lo.showcol, &lo.idxing, size)
+    @c MultiSelectable(rightclickmenu, lo.id, editlabels, lo.states, lo.showcol, &lo.idxing, size)
     CImGui.Separator()
     CImGui.Text("布局")
     selectedlabels_old = copy(lo.selectedlabels)
@@ -256,7 +256,7 @@ function edit(
     end
     DragMultiSelectable(
         () -> false,
-        stcstr("selected##", lo.id),
+        lo.id,
         lo.selectedlabels,
         trues(length(lo.selectedlabels)),
         lo.showcol
@@ -274,7 +274,7 @@ end
 
 function Base.deleteat!(lo::Layout, i)
     deleteat!(lo.labels, i)
-    deleteat!(lo.marks, i)'
+    deleteat!(lo.marks, i)
     deleteat!(lo.states, i)
     update!(lo)
 end

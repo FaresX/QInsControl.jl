@@ -29,6 +29,7 @@ let
     # window_class = ImGuiWindowClass_ImGuiWindowClass()
     # labels = ["a", "b", "c", "d", "e"]
     # states = falses(5)
+    # lo = Layout("testlayout", 2, 1, ["1", "2", "3"], ["a", "b", "c"], falses(3), [], Dict(), [])
     global function closeallwindow()
         show_preferences = false
         show_instr_register = false
@@ -86,7 +87,8 @@ let
         ######Debug######
         # CImGui.SetNextWindowSize((600, 600))
         # CImGui.Begin("Debug MultiSelectable", Ref(true))
-        # DragMultiSelectable(()->(), "Debug", labels, states, 3)
+        # # DragMultiSelectable(()->false, stcstr("Debug", 1), labels, trues(5), 3)
+        # edit(() -> false, lo)
         # CImGui.End()
 
         ######子窗口######

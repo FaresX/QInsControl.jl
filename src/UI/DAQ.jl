@@ -267,6 +267,7 @@ let
                     end
                     CImGui.PopID()
 
+                    ### edit show plots ###
                     daq_plot_layout.showcol = conf.DAQ.plotshowcol
                     daq_plot_layout.labels = morestyle.Icons.SelectData * " " .* string.(collect(eachindex(daq_plot_layout.labels)))
                     maxplotmarkidx = argmax(lengthpr.(daq_plot_layout.marks))
