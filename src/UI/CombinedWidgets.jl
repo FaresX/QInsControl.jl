@@ -14,7 +14,7 @@ end
 # toint8(s) = [Int8(c) for c in s]
 
 let
-    strbuf = '\0'^1024
+    strbuf::String = '\0'^1024
     # global function ResizeCallback(data::CImGui.ImGuiInputTextCallbackData)::Cint
     #     if data.EventFlag == CImGui.ImGuiInputTextFlags_CallbackResize
     #         occursin('\0', unsafe_pointer_to_objref(Ptr{Cchar}(data.UserData))) || (buf *= '\0')
@@ -35,19 +35,19 @@ let
     #     return 0
     # end
     global function InputTextRSZ(label, str::Ref{String})
-        buf = stcstr(str[], strbuf)
+        buf = string(str[], strbuf)
         input = CImGui.InputText(label, buf, length(buf))
         input && (str[] = replace(buf, r"\0.*" => ""))
         input
     end
     global function InputTextWithHintRSZ(label, hint, str::Ref{String}, flags=0)
-        buf = stcstr(str[], strbuf)
+        buf = string(str[], strbuf)
         input = CImGui.InputTextWithHint(label, hint, buf, length(buf), flags)
         input && (str[] = replace(buf, r"\0.*" => ""))
         input
     end
     global function InputTextMultilineRSZ(label, str::Ref{String}, size=(0, 0), flags=0)
-        buf = stcstr(str[], strbuf)
+        buf = string(str[], strbuf)
         input = CImGui.InputTextMultiline(label, buf, length(buf), size, flags)
         input && (str[] = replace(buf, r"\0.*" => ""))
         input
