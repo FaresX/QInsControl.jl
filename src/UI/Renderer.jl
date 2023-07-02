@@ -137,7 +137,7 @@ function UI(breakdown=false)
             CImGui.NewFrame()
 
             ######检查STATICSTRINGS######
-            waittime("Check STATICSTRINGS", 60) && checklifetime()
+            waittime("Check STATICSTRINGS", 36) && checklifetime()
 
             ######保存图像######
             if savingimg
