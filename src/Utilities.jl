@@ -61,8 +61,25 @@ function resize(z, m, n; fillms=0)
     end
 end
 
-inregion(location, region) = region[1] < location.x < region[3] && region[2] < location.y < region[4]
-mousein(region) = inregion(CImGui.GetMousePos(), region)
+inregion(location, regmin, regmax) = regmin[1] < location[1] < regmax[1] && regmin[2] < location[2] < regmax[2]
+mousein(regmin, regmax) = inregion(CImGui.GetMousePos(), regmin, regmax)
+function cutoff(location, regmin, regmax)
+    x = if location[1] < regmin[1]
+        regmin[1]
+    elseif regmin[1] <= location[1] < regmax[1]
+        location[1]
+    else
+        regmax[1]
+    end
+    y = if location[2] < regmin[2]
+        regmin[2]
+    elseif regmin[2] <= location[2] < regmax[2]
+        location[2]
+    else
+        regmax[2]
+    end
+    return (x, y)
+end
 
 let
     oldtime::Dict{String,Float64} = Dict()
@@ -178,10 +195,25 @@ function swapvalue!(dict::OrderedDict, key1, key2)
     merge!(dict, newdict)
 end
 
--(a::CImGui.ImVec2, b::CImGui.ImVec2) = CImGui.ImVec2(a.x - b.x, a.y - b.y)
-+(a::CImGui.ImVec2, b::CImGui.ImVec2) = CImGui.ImVec2(a.x + b.x, a.y + b.y)
-/(a::CImGui.ImVec2, b) = CImGui.ImVec2(a.x / b, a.y / b)
-
+function Base.iterate(v::Union{ImVec2, ImPlot.ImPlotPoint}, state=1)
+    if state == 1
+        return v.x, 2
+    elseif state == 2
+        return v.y, 3
+    else
+        return nothing
+    end
+end
+function Base.getindex(v::Union{ImVec2, ImPlot.ImPlotPoint}, i)
+    if i == 1
+        return v.x
+    elseif i == 2
+        return v.y
+    else
+        throw(BoundsError(v, i))
+    end
+end
+Base.length(::Union{ImVec2, ImPlot.ImPlotPoint}) = 2
 
 ###Patch###
 Base.convert(::Type{OrderedDict{String,T}}, vec::Vector{T}) where {T} = OrderedDict(string(i) => v for (i, v) in enumerate(vec))

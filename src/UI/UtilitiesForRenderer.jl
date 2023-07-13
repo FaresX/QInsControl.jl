@@ -12,7 +12,7 @@ function ImGui_ImplOpenGL3_CreateImageTexture(image_width, image_height; format=
     return Int(id)
 end
 
-function ImGui_ImplOpenGL3_UpdateImageTexture(id, image_data, image_width, image_height; format=GL_RGB, type=GL_UNSIGNED_BYTE)
+function ImGui_ImplOpenGL3_UpdateImageTexture(id, image_data, image_width, image_height; format=GL_RGBA, type=GL_UNSIGNED_BYTE)
     glBindTexture(GL_TEXTURE_2D, g_ImageTexture[id])
     glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, GLsizei(image_width), GLsizei(image_height), format, type, image_data)
 end

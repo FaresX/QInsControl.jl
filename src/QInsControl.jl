@@ -26,7 +26,6 @@ using StringEncodings
 import ImageMagick
 # using ImageIO
 
-import Base: +, -, /
 using Distributed
 using SharedArrays
 using TOML
@@ -148,11 +147,27 @@ function julia_main()::Cint
     return 0
 end
 
-function start()
-    if !haskey(ENV, "QInsControlAssets")
-        ENV["QInsControlAssets"] = joinpath(dirname(pathof(QInsControl)), "../Assets")
+function start(;compiled=false)
+    sysimage_path = joinpath(@__DIR__, "../QInsControl.so")
+    if compiled && isfile(sysimage_path)        
+        Base.run(`julia -J $sysimage_path -e "QInsControl.start()"`)
+    else
+        if !haskey(ENV, "QInsControlAssets")
+            ENV["QInsControlAssets"] = joinpath(dirname(pathof(QInsControl)), "../Assets")
+        end
+        julia_main()
     end
-    julia_main()
+end
+
+function compile_sysimage()
+    @eval Main begin
+        using PackageCompiler
+        PackageCompiler.create_sysimage(
+            ["QInsControl"];
+            sysimage_path=joinpath(@__DIR__, "../QInsControl.so"),
+            precompile_execution_file=joinpath(@__DIR__, "../precompile.jl")
+        )
+    end
 end
 
 end #QInsControl

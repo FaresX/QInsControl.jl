@@ -30,6 +30,19 @@ let
     # labels = ["a", "b", "c", "d", "e"]
     # states = falses(5)
     # lo = Layout("testlayout", 2, 1, ["1", "2", "3"], ["a", "b", "c"], falses(3), [], Dict(), [])
+    global nodeeditor = NodeEditor()
+
+    window_flags::Cint = 0
+    no_titlebar && (window_flags |= CImGui.ImGuiWindowFlags_NoTitleBar)
+    no_scrollbar && (window_flags |= CImGui.ImGuiWindowFlags_NoScrollbar)
+    !no_menu && (window_flags |= CImGui.ImGuiWindowFlags_MenuBar)
+    no_move && (window_flags |= CImGui.ImGuiWindowFlags_NoMove)
+    no_resize && (window_flags |= CImGui.ImGuiWindowFlags_NoResize)
+    no_collapse && (window_flags |= CImGui.ImGuiWindowFlags_NoCollapse)
+    no_nav && (window_flags |= CImGui.ImGuiWindowFlags_NoNav)
+    no_background && (window_flags |= CImGui.ImGuiWindowFlags_NoBackground)
+    no_bring_to_front && (window_flags |= CImGui.ImGuiWindowFlags_NoBringToFrontOnFocus)
+    no_docking && (window_flags |= CImGui.ImGuiWindowFlags_NoDocking)
     global function closeallwindow()
         show_preferences = false
         show_instr_register = false
@@ -54,18 +67,6 @@ let
     end
 
     global function MainWindow()
-        window_flags = UInt32(0)
-        no_titlebar && (window_flags |= CImGui.ImGuiWindowFlags_NoTitleBar)
-        no_scrollbar && (window_flags |= CImGui.ImGuiWindowFlags_NoScrollbar)
-        !no_menu && (window_flags |= CImGui.ImGuiWindowFlags_MenuBar)
-        no_move && (window_flags |= CImGui.ImGuiWindowFlags_NoMove)
-        no_resize && (window_flags |= CImGui.ImGuiWindowFlags_NoResize)
-        no_collapse && (window_flags |= CImGui.ImGuiWindowFlags_NoCollapse)
-        no_nav && (window_flags |= CImGui.ImGuiWindowFlags_NoNav)
-        no_background && (window_flags |= CImGui.ImGuiWindowFlags_NoBackground)
-        no_bring_to_front && (window_flags |= CImGui.ImGuiWindowFlags_NoBringToFrontOnFocus)
-        no_docking && (window_flags |= CImGui.ImGuiWindowFlags_NoDocking)
-
         ######加载背景######
         # igDockSpaceOverViewport(igGetMainViewport(), ImGuiDockNodeFlags_None, C_NULL)
         viewport = igGetMainViewport()
@@ -85,10 +86,52 @@ let
         CImGui.PopStyleVar(2)
         # igDockSpaceOverViewport(igGetMainViewport(), ImGuiDockNodeFlags_None, C_NULL)
         ######Debug######
-        # CImGui.SetNextWindowSize((600, 600))
+        # CImGui.SetNextWindowSize((600, 1200), CImGui.ImGuiCond_Once)
         # CImGui.Begin("Debug MultiSelectable", Ref(true))
-        # # DragMultiSelectable(()->false, stcstr("Debug", 1), labels, trues(5), 3)
+        # DragMultiSelectable(()->false, stcstr("Debug", 1), labels, trues(5), 3)
         # edit(() -> false, lo)
+        # imnodes_BeginNodeEditor()
+        # imnodes_BeginNode(1)
+        # imnodes_BeginNodeTitleBar()
+        # CImGui.Text("test")
+        # imnodes_EndNodeTitleBar()
+        # # CImGui.Image(Ptr{Cvoid}(iconid), (100, 100))
+        # CImGui.BeginGroup()
+        # imnodes_BeginInputAttribute(1, LibCImGui.PinShape_Circle)
+        # CImGui.Text("test1")
+        # imnodes_EndInputAttribute()
+        # CImGui.Text("test")
+        # imnodes_BeginInputAttribute(2, LibCImGui.PinShape_Circle)
+        # CImGui.Text("test2")
+        # imnodes_EndInputAttribute()
+        # CImGui.EndGroup()
+        # CImGui.SameLine()
+        # CImGui.Image(C_NULL, (100,100))
+        # # CImGui.AddCircle(CImGui.GetWindowDrawList(), )
+        # imnodes_EndNode()
+        # imnodes_EndNodeEditor()
+        # edit(nodeeditor)
+
+        # CImGui.End()
+        # CImGui.SetNextWindowSize((400, 400), CImGui.ImGuiCond_Once)
+        # CImGui.Begin("Debug nodes", Ref(true))
+        # for (_, node) in nodeeditor.nodes
+        #     if node isa SampleBaseNode
+        #         imgr = node.imgr
+        #         CImGui.TextUnformatted(
+        #             """
+        #             mospos : $(CImGui.GetMousePos())
+        #             imgr.posmin : $(imgr.posmin)
+        #             imgr.posmax : $(imgr.posmax)
+        #             rszgrip.pos : $(imgr.rszgrip.pos)
+        #             rszgrip.size : $(imgr.rszgrip.size)
+        #             rszgrip.limmin : $(imgr.rszgrip.limmin)
+        #             rszgrip.limmax : $(imgr.rszgrip.limmax)
+        #             rszgrip.hovered : $(imgr.rszgrip.hovered)
+        #             """
+        #         )
+        #     end
+        # end
         # CImGui.End()
 
         ######子窗口######

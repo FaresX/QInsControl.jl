@@ -14,6 +14,10 @@ Base.@kwdef mutable struct MoreStyleColor
     ShowTextRect::Vector{Cfloat} = [1.000, 1.000, 0.000, 1.000]
     DAQTaskRunning::Vector{Cfloat} = [0.000, 1.000, 0.000, 1.000]
     NodeConnected::Vector{Cfloat} = [0.000, 1.000, 0.000, 1.000]
+    ImagePin::Vector{Cfloat} = [1.000, 1.000, 0.000, 1.000]
+    ImagePinHoveredout::Vector{Cfloat} = [0.000, 0.000, 1.000, 1.000]
+    ImagePinDragging::Vector{Cfloat} = [1.000, 0.000, 0.000, 1.000]
+    ImagePinLinkId::Vector{Cfloat} = [1.000, 1.000, 1.000, 1.000]
 end
 
 Base.@kwdef mutable struct MoreStyleIcon
@@ -70,7 +74,9 @@ Base.@kwdef mutable struct MoreStyleIcon
     QueryBlock::String = ICONS.ICON_ARROW_DOWN_UP_ACROSS_LINE
     ReadBlock::String = ICONS.ICON_DOWNLOAD
     SaveBlock::String = ICONS.ICON_FLOPPY_DISK
+
     Circuit::String = ICONS.ICON_MICROCHIP
+    ResetCoord::String = ICONS.ICON_UP_DOWN_LEFT_RIGHT
     CommonNode::String = ICONS.ICON_LEFT_RIGHT
     GroundNode::String = ICONS.ICON_PLUG_CIRCLE_BOLT
     ResistanceNode::String = ICONS.ICON_ROAD_BARRIER

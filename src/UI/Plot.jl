@@ -97,6 +97,8 @@ let
                 annbuf.posx, annbuf.posy = openpopup_mspos
                 annbuf.offsetx, annbuf.offsety = openpopup_mspos
             end
+            # annbuf.posx, annbuf.posy = CImGui.GetMousePosOnOpeningCurrentPopup()
+            # annbuf.offsetx, annbuf.offsety = CImGui.GetMousePosOnOpeningCurrentPopup()
             @c InputTextRSZ("标题", &uip.title)
             @c ComBoS("绘图类型", &uip.ptype, ["line", "scatter", "heatmap"])
             @c CImGui.Checkbox("数据提示", &uip.ps.showtooltip)
@@ -258,7 +260,7 @@ let
             ps.yhv = ImPlot.IsPlotYAxisHovered()
             ps.phv = ImPlot.IsPlotHovered()
             ps.mspos = ImPlot.GetPlotMousePos()
-            if ps.showtooltip && ps.phv && inregion(ps.mspos, [xlims[1], ylims[1], xlims[2], ylims[2]]) && !savingimg
+            if ps.showtooltip && ps.phv && inregion(ps.mspos, (xlims[1], ylims[1]), (xlims[2], ylims[2])) && !savingimg
                 zsz = reverse(size(z))
                 xr = range(xlims[1], xlims[2], length=zsz[2])
                 yr = range(ylims[2], ylims[1], length=zsz[1])
@@ -306,9 +308,10 @@ function PlotHolder(ps::PlotState, psize=CImGui.ImVec2(0, 0))
 end
 
 function PlotAnns(anns::Vector{Annotation}, ps::PlotState)
+    ps.annhv = false
     for (i, ann) in enumerate(anns)
-        offset = ImPlot.PlotToPixels(ann.offsetx, ann.offsety) - ImPlot.PlotToPixels(ann.posx, ann.posy)
-        halflabelsz = CImGui.CalcTextSize(ann.label) / 2
+        offset = ImPlot.PlotToPixels(ann.offsetx, ann.offsety) .- ImPlot.PlotToPixels(ann.posx, ann.posy)
+        halflabelsz = CImGui.CalcTextSize(ann.label) ./ 2
         ImPlot.AnnotateClamped(
             ann.posx,
             ann.posy,
@@ -318,48 +321,48 @@ function PlotAnns(anns::Vector{Annotation}, ps::PlotState)
         )
         CImGui.PushID(i)
         @c ImPlot.DragPoint(ann.label, &ann.posx, &ann.posy, true, CImGui.ImVec4(ann.color...), ann.possz)
-        ps.annhv = CImGui.IsItemHovered()
+        ishv = CImGui.IsItemHovered()
         @c ImPlot.DragPoint(
             "Offset",
             &ann.offsetx,
             &ann.offsety,
             true,
             CImGui.ImVec4(ann.color[1:3]..., 0.000),
-            halflabelsz.y / 2
+            halflabelsz[2] / 2
         )
-        ps.annhv |= CImGui.IsItemHovered()
-        ps.annhv && (ps.annhv_i = i)
+        ishv |= CImGui.IsItemHovered()
+        ishv && (ps.annhv = true; ps.annhv_i = i)
         CImGui.PopID()
     end
 end
 
 function correct_offset(offset, halflabelsz)
-    if offset.x > halflabelsz.x
-        if offset.y > halflabelsz.y
+    if offset[1] > halflabelsz[1]
+        if offset[2] > halflabelsz[2]
             offset_correct = offset - halflabelsz
-        elseif -halflabelsz.y <= offset.y <= halflabelsz.y
-            offset_correct = CImGui.ImVec2(offset.x - halflabelsz.x, Cfloat(0))
+        elseif -halflabelsz[2] <= offset[2] <= halflabelsz[2]
+            offset_correct = CImGui.ImVec2(offset[1] - halflabelsz[1], Cfloat(0))
         else
-            offset_correct = CImGui.ImVec2(offset.x - halflabelsz.x, offset.y + halflabelsz.y)
+            offset_correct = CImGui.ImVec2(offset[1] - halflabelsz[1], offset[2] + halflabelsz[2])
         end
-    elseif -halflabelsz.x <= offset.x <= halflabelsz.x
-        if offset.y > halflabelsz.y
-            offset_correct = CImGui.ImVec2(Cfloat(0), offset.y - halflabelsz.y)
-        elseif -halflabelsz.y <= offset.y <= halflabelsz.y
+    elseif -halflabelsz[1] <= offset[1] <= halflabelsz[1]
+        if offset[2] > halflabelsz[2]
+            offset_correct = CImGui.ImVec2(Cfloat(0), offset[2] - halflabelsz[2])
+        elseif -halflabelsz[2] <= offset[2] <= halflabelsz[2]
             offset_correct = CImGui.ImVec2(Cfloat(0), Cfloat(0))
         else
-            offset_correct = CImGui.ImVec2(Cfloat(0), offset.y + halflabelsz.y)
+            offset_correct = CImGui.ImVec2(Cfloat(0), offset[2] + halflabelsz[2])
         end
     else
-        if offset.y > halflabelsz.y
-            offset_correct = CImGui.ImVec2(offset.x + halflabelsz.x, offset.y - halflabelsz.y)
-        elseif -halflabelsz.y <= offset.y <= halflabelsz.y
-            offset_correct = CImGui.ImVec2(offset.x + halflabelsz.x, Cfloat(0))
+        if offset[2] > halflabelsz[2]
+            offset_correct = CImGui.ImVec2(offset[1] + halflabelsz[1], offset[2] - halflabelsz[2])
+        elseif -halflabelsz[2] <= offset[2] <= halflabelsz[2]
+            offset_correct = CImGui.ImVec2(offset[1] + halflabelsz[1], Cfloat(0))
         else
             offset_correct = offset + halflabelsz
         end
     end
-    return offset_correct
+    return ImVec2(offset_correct...)
 end
 
 function trunc(x::T1, y::T2)::Tuple{T1,T2} where {T1} where {T2}

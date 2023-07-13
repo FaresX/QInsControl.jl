@@ -250,9 +250,9 @@ alias = "A输出电流"
 
 [conf]
 idn = "Model 2612"
-output_labels = ["H", "HS"]
+output_labels = ["AH", "AHS", "BH", "BHS"]
 icon = ""
-input_labels = ["L", "LS"]
+input_labels = ["AL", "ALS", "BL", "BLS"]
 cmdtype = "tsp"
 
 [Asourcelevelv]

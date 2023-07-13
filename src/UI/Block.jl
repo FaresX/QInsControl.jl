@@ -5,17 +5,19 @@ skipnull(bkch::Vector{AbstractBlock}) = findall(bk -> !isa(bk, NullBlock), bkch)
 
 mutable struct CodeBlock <: AbstractBlock
     codes::String
-    region::Vector{Float32}
+    regmin::ImVec2
+    regmax::ImVec2
 end
-CodeBlock() = CodeBlock("", zeros(4))
+CodeBlock() = CodeBlock("", (0, 0), (0, 0))
 
 mutable struct StrideCodeBlock <: AbstractBlock
     head::String
     level::Int
     blocks::Vector{AbstractBlock}
-    region::Vector{Float32}
+    regmin::ImVec2
+    regmax::ImVec2
 end
-StrideCodeBlock(level) = StrideCodeBlock("", level, Vector{AbstractBlock}(), zeros(4))
+StrideCodeBlock(level) = StrideCodeBlock("", level, Vector{AbstractBlock}(), (0, 0), (0, 0))
 StrideCodeBlock() = StrideCodeBlock(1)
 
 mutable struct SweepBlock <: AbstractBlock
@@ -29,9 +31,10 @@ mutable struct SweepBlock <: AbstractBlock
     delay::Cfloat
     ui::Int
     istrycatch::Bool
-    region::Vector{Float32}
+    regmin::ImVec2
+    regmax::ImVec2
 end
-SweepBlock(level) = SweepBlock("仪器", "地址", "扫描量", "", "", level, Vector{AbstractBlock}(), 0.1, 1, false, zeros(4))
+SweepBlock(level) = SweepBlock("仪器", "地址", "扫描量", "", "", level, Vector{AbstractBlock}(), 0.1, 1, false, (0, 0), (0, 0))
 SweepBlock() = SweepBlock(1)
 
 mutable struct SettingBlock <: AbstractBlock
@@ -41,9 +44,10 @@ mutable struct SettingBlock <: AbstractBlock
     setvalue::String
     ui::Int
     istrycatch::Bool
-    region::Vector{Float32}
+    regmin::ImVec2
+    regmax::ImVec2
 end
-SettingBlock() = SettingBlock("仪器", "地址", "设置", "", 1, false, zeros(4))
+SettingBlock() = SettingBlock("仪器", "地址", "设置", "", 1, false, (0, 0), (0, 0))
 
 mutable struct ReadingBlock <: AbstractBlock
     instrnm::String
@@ -55,14 +59,16 @@ mutable struct ReadingBlock <: AbstractBlock
     isobserve::Bool
     isreading::Bool
     istrycatch::Bool
-    region::Vector{Float32}
+    regmin::ImVec2
+    regmax::ImVec2
 end
-ReadingBlock() = ReadingBlock("仪器", "", "地址", "读取量", "", false, false, false, false, zeros(4))
+ReadingBlock() = ReadingBlock("仪器", "", "地址", "读取量", "", false, false, false, false, (0, 0), (0, 0))
 
 mutable struct LogBlock <: AbstractBlock
-    region::Vector{Float32}
+    regmin::ImVec2
+    regmax::ImVec2
 end
-LogBlock() = LogBlock(zeros(4))
+LogBlock() = LogBlock((0, 0), (0, 0))
 
 mutable struct WriteBlock <: AbstractBlock
     instrnm::String
@@ -70,9 +76,10 @@ mutable struct WriteBlock <: AbstractBlock
     cmd::String
     isasync::Bool
     istrycatch::Bool
-    region::Vector{Float32}
+    regmin::ImVec2
+    regmax::ImVec2
 end
-WriteBlock() = WriteBlock("仪器", "地址", "", false, false, zeros(4))
+WriteBlock() = WriteBlock("仪器", "地址", "", false, false, (0, 0), (0, 0))
 
 mutable struct QueryBlock <: AbstractBlock
     instrnm::String
@@ -84,9 +91,10 @@ mutable struct QueryBlock <: AbstractBlock
     isobserve::Bool
     isreading::Bool
     istrycatch::Bool
-    region::Vector{Float32}
+    regmin::ImVec2
+    regmax::ImVec2
 end
-QueryBlock() = QueryBlock("仪器", "", "地址", "", "", false, false, false, false, zeros(4))
+QueryBlock() = QueryBlock("仪器", "", "地址", "", "", false, false, false, false, (0, 0), (0, 0))
 
 mutable struct ReadBlock <: AbstractBlock
     instrnm::String
@@ -97,16 +105,18 @@ mutable struct ReadBlock <: AbstractBlock
     isobserve::Bool
     isreading::Bool
     istrycatch::Bool
-    region::Vector{Float32}
+    regmin::ImVec2
+    regmax::ImVec2
 end
-ReadBlock() = ReadBlock("仪器", "", "地址", "", false, false, false, false, zeros(4))
+ReadBlock() = ReadBlock("仪器", "", "地址", "", false, false, false, false, (0, 0), (0, 0))
 
 mutable struct SaveBlock <: AbstractBlock
     varname::String
     mark::String
-    region::Vector{Float32}
+    regmin::ImVec2
+    regmax::ImVec2
 end
-SaveBlock() = SaveBlock("", "", zeros(4))
+SaveBlock() = SaveBlock("", "", (0, 0), (0, 0))
 
 ############tocodes-----------------------------------------------------------------------------------------------------
 
@@ -1032,9 +1042,9 @@ end
 
 function mousein(bk::AbstractBlock, total=false)::Bool
     if total
-        mousein(bk.region) || (typeof(bk) in [SweepBlock, StrideCodeBlock] && true in mousein.(bk.blocks, true))
+        mousein(bk.regmin, bk.regmax) || (typeof(bk) in [SweepBlock, StrideCodeBlock] && true in mousein.(bk.blocks, true))
     else
-        mousein(bk.region)
+        mousein(bk.regmin, bk.regmax)
     end
 end
 mousein(::NullBlock, total=false) = false
@@ -1050,14 +1060,7 @@ let
                 CImGui.PushStyleColor(CImGui.ImGuiCol_Separator, morestyle.Colors.HighlightText)
                 draw_list = CImGui.GetWindowDrawList()
                 rectcolor = CImGui.ColorConvertFloat4ToU32(morestyle.Colors.BlockDragdrop)
-                CImGui.AddRectFilled(
-                    draw_list,
-                    CImGui.ImVec2(bk.region[1:2]...),
-                    CImGui.ImVec2(bk.region[3:4]...),
-                    rectcolor,
-                    0.0,
-                    0
-                )
+                CImGui.AddRectFilled(draw_list, bk.regmin, bk.regmax, rectcolor, 0.0, 0)
                 CImGui.PopStyleColor()
             end
             CImGui.PushID(i)
@@ -1067,10 +1070,14 @@ let
                 rmin, rmax = CImGui.GetItemRectMin(), CImGui.GetItemRectMax()
                 wp = unsafe_load(imguistyle.WindowPadding.y)
                 extraheight = isempty(bk.blocks) ? wp : unsafe_load(imguistyle.ItemSpacing.y) ÷ 2
-                bk.region .= rmin.x, rmin.y, rmax.x, rmin.y + wp + CImGui.GetFrameHeight() + extraheight
+                # bk.region .= rmin.x, rmin.y, rmax.x, rmin.y + wp + CImGui.GetFrameHeight() + extraheight
+                bk.regmin = rmin
+                bk.regmax = (rmax.x, rmin.y + wp + CImGui.GetFrameHeight() + extraheight)
             else
                 rmin, rmax = CImGui.GetItemRectMin(), CImGui.GetItemRectMax()
-                bk.region .= rmin.x, rmin.y, rmax.x, rmax.y
+                # bk.region .= rmin.x, rmin.y, rmax.x, rmax.y
+                bk.regmin = rmin
+                bk.regmax = rmax
             end
             CImGui.PopID()
             if CImGui.IsMouseDown(0)
@@ -1486,7 +1493,8 @@ Base.show(io::IO, ::NullBlock) = print(io, "NullBlock")
 function Base.show(io::IO, bk::CodeBlock)
     str = """
     CodeBlock :
-            region :
+        region min : $(bk.regmin)
+        region max : $(bk.regmax)
              codes : 
     """
     print(io, str)
@@ -1495,7 +1503,8 @@ end
 function Base.show(io::IO, bk::StrideCodeBlock)
     str = """
     StrideCodeBlock :
-            region : $(bk.region)
+        region min : $(bk.regmin)
+        region max : $(bk.regmax)
              level : $(bk.level)
               head : $(bk.head)
               body : 
@@ -1515,7 +1524,8 @@ function Base.show(io::IO, bk::SweepBlock)
     u = conf.U[ut][bk.ui]
     str = """
     SweepBlock :
-            region : $(bk.region)
+        region min : $(bk.regmin)
+        region max : $(bk.regmax)
              level : $(bk.level)
         instrument : $(bk.instrnm)
            address : $(bk.addr)
@@ -1542,7 +1552,8 @@ function Base.show(io::IO, bk::SettingBlock)
     u = conf.U[ut][bk.ui]
     str = """
     SettingBlock :
-            region : $(bk.region)
+        region min : $(bk.regmin)
+        region max : $(bk.regmax)
         instrument : $(bk.instrnm)
            address : $(bk.addr)
           quantity : $(bk.quantity)
@@ -1555,7 +1566,8 @@ end
 function Base.show(io::IO, bk::ReadingBlock)
     str = """
     ReadingBlock :
-            region : $(bk.region)
+        region min : $(bk.regmin)
+        region max : $(bk.regmax)
         instrument : $(bk.instrnm)
            address : $(bk.addr)
           quantity : $(bk.quantity)
@@ -1571,14 +1583,16 @@ end
 function Base.show(io::IO, bk::LogBlock)
     str = """
     LogBlock :
-            region : $(bk.region)
+        region min : $(bk.regmin)
+        region max : $(bk.regmax)
     """
     print(io, str)
 end
 function Base.show(io::IO, bk::WriteBlock)
     str = """
     WriteBlock :
-            region : $(bk.region)
+        region min : $(bk.regmin)
+        region max : $(bk.regmax)
         instrument : $(bk.instrnm)
            address : $(bk.addr)
            command : $(bk.cmd)
@@ -1590,7 +1604,8 @@ end
 function Base.show(io::IO, bk::QueryBlock)
     str = """
     QueryBlock :
-            region : $(bk.region)
+        region min : $(bk.regmin)
+        region max : $(bk.regmax)
         instrument : $(bk.instrnm)
            address : $(bk.addr)
            command : $(bk.cmd)
@@ -1606,7 +1621,8 @@ end
 function Base.show(io::IO, bk::ReadBlock)
     str = """
     ReadBlock :
-            region : $(bk.region)
+        region min : $(bk.regmin)
+        region max : $(bk.regmax)
         instrument : $(bk.instrnm)
            address : $(bk.addr)
              index : $(bk.index)
@@ -1621,7 +1637,8 @@ end
 function Base.show(io::IO, bk::SaveBlock)
     str = """
     SaveBlock :
-            region : $(bk.region)
+        region min : $(bk.regmin)
+        region max : $(bk.regmax)
               mark : $(bk.mark)
                var : $(bk.varname)
     """

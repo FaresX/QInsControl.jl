@@ -79,7 +79,7 @@ let
             CImGui.EndChild()
         else
             region = TextRect(replace(string(qtcf.help, "\n "), "\\\n" => ""))
-            CImGui.IsMouseDoubleClicked(0) && mousein(region) && (edithelp = true)
+            CImGui.IsMouseDoubleClicked(0) && mousein(region...) && (edithelp = true)
         end
     end
 end

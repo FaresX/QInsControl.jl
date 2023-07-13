@@ -25,17 +25,17 @@ function UI(breakdown=false)
     glfwSetWindowIcon(window, 1, glfwicons)
     iconsize = reverse(size(icons[1]))
     global iconid = ImGui_ImplOpenGL3_CreateImageTexture(iconsize...)
-    ImGui_ImplOpenGL3_UpdateImageTexture(iconid, transpose(icons[1]), iconsize...; format=GL_RGBA)
+    ImGui_ImplOpenGL3_UpdateImageTexture(iconid, transpose(icons[1]), iconsize...)
     # 加载背景
     if isfile(conf.BGImage.path)
         try
             bgimg = RGB.(collect(transpose(FileIO.load(conf.BGImage.path))))
             bgsize = size(bgimg)
-            global bgid = ImGui_ImplOpenGL3_CreateImageTexture(bgsize...)
-            ImGui_ImplOpenGL3_UpdateImageTexture(bgid, bgimg, bgsize...)
+            global bgid = ImGui_ImplOpenGL3_CreateImageTexture(bgsize...; format=GL_RGB)
+            ImGui_ImplOpenGL3_UpdateImageTexture(bgid, bgimg, bgsize...; format=GL_RGB)
         catch e
             @error "[$now()]\n加载背景出错！！！" exception = e
-            global bgid = ImGui_ImplOpenGL3_CreateImageTexture(conf.Basic.windowsize...)
+            global bgid = ImGui_ImplOpenGL3_CreateImageTexture(conf.Basic.windowsize...; format=GL_RGB)
         end
     else
         global bgid = ImGui_ImplOpenGL3_CreateImageTexture(conf.Basic.windowsize...)

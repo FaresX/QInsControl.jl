@@ -1,6 +1,7 @@
 types = [
-    :InstrQuantity, :InstrBuffer, :InstrBufferViewer,
-    :DAQTask, :NodeEditor, :Node, :UIPlot, :Layout, :Annotation, :DataPicker,
+    :InstrQuantity, :InstrBuffer, :InstrBufferViewer, :DAQTask,
+    :NodeEditor, :Node, :ResizeGrip, :ImagePin, :ImageRegion, :SampleBaseNode,
+    :UIPlot, :Layout, :Annotation, :DataPicker,
     :MoreStyle, :MoreStyleColor, :MoreStyleIcon, :UnionStyle,
     :CodeBlock, :StrideCodeBlock, :SweepBlock, :SettingBlock, :ReadingBlock,
     :LogBlock, :WriteBlock, :QueryBlock, :ReadBlock, :SaveBlock
@@ -18,7 +19,7 @@ for T in types
             obj = $T()
             fdnms = fieldnames($T)
             for fdnm in keys(jld2obj.fieldnames_dict)
-                fdnm in fdnms && setproperty!(obj, fdnm, jld2obj.fieldnames_dict[fdnm])
+                fdnm in fdnms && setproperty!(obj, fdnm, convert(fieldtype($T, fdnm), jld2obj.fieldnames_dict[fdnm]))
             end
             obj
         end

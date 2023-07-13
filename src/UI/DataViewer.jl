@@ -36,6 +36,19 @@ let
                 "uiplots" in datakeys && (dtviewer.uiplots = @trypasse dtviewer.data["uiplots"] dtviewer.uiplot)
                 "datapickers" in datakeys && (dtviewer.dtpickers = @trypasse dtviewer.data["datapickers"] dtviewer.dtpicker)
                 "plotlayout" in datakeys && (dtviewer.layout = @trypasse dtviewer.data["plotlayout"] dtviewer.layout)
+                if !isempty(dtviewer.data) && haskey(dtviewer.data, "circuit")
+                    for (_, node) in dtviewer.data["circuit"].nodes
+                        if node isa SampleBaseNode
+                            try
+                                imgsize = size(node.imgr.image)
+                                node.imgr.id = ImGui_ImplOpenGL3_CreateImageTexture(imgsize...)
+                                ImGui_ImplOpenGL3_UpdateImageTexture(node.imgr.id, node.imgr.image, imgsize...)
+                            catch e
+                                @error "[$(now())]\n加载图像出错！！！" exception = e
+                            end
+                        end
+                    end
+                end
             end
             CImGui.EndChild()
             CImGui.NextColumn() #文件列表
@@ -90,7 +103,7 @@ let
                 if CImGui.BeginTabItem("电路")
                     if !isempty(dtviewer.data) && haskey(dtviewer.data, "circuit")
                         CImGui.PushID(id)
-                        view(dtviewer.data["circuit"])
+                        view(dtviewer.data["circuit"], stcstr("Nodes Editor", id))
                         CImGui.PopID()
                     else
                         CImGui.Text("未加载数据或数据格式不支持！")
@@ -242,10 +255,10 @@ let
                         dtviewer.show_dtpickers[i] = isshow_dtpk
                         if !isshow_dtpk || isupdate ||
                            (dtpk.isrealtime && waittime(
-                                stcstr("DataViewer", stcstr(id, "-", i), "-DataPicker", i),
-                                dtpk.refreshrate
-                                )
-                            )
+                               stcstr("DataViewer", stcstr(id, "-", i), "-DataPicker", i),
+                               dtpk.refreshrate
+                           )
+                           )
                             syncplotdata(dtviewer.uiplots[i], dtpk, dtviewer.data["data"], [])
                         end
                     else
@@ -275,7 +288,7 @@ let
 end
 
 let
-    flags = 0
+    flags::Cint = 0
     flags |= CImGui.ImGuiTableFlags_Resizable
     flags |= CImGui.ImGuiTableFlags_Reorderable
     # flags |= CImGui.ImGuiTableFlags_Sortable

@@ -194,7 +194,7 @@ function TextRect(str)
         0
     )
     CImGui.PopTextWrapPos()
-    [rmin.x, rmin.y, pos.x + width, rmax.y]
+    rmin, (pos.x + width, rmax.y)
 end
 
 function ItemTooltip(tipstr, wrappos=CImGui.GetFontSize() * 36.0)
