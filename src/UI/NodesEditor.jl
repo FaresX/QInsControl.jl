@@ -269,7 +269,7 @@ let
                 pinbuf.pos = CImGui.GetMousePosOnOpeningCurrentPopup()
                 CImGui.SameLine()
                 if CImGui.Button(morestyle.Icons.NewFile * "##imgpin")
-                    reld = (pinbuf.pos .- imgr.posmin) ./ imgr.posmax
+                    reld = (pinbuf.pos .- imgr.posmin) ./ (imgr.posmax .- imgr.posmin)
                     push!(imgr.pins, deepcopy(pinbuf))
                     push!(imgr.pin_relds, reld)
                     CImGui.CloseCurrentPopup()
