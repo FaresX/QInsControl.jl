@@ -34,16 +34,11 @@ let
                 # CImGui.SetWindowFontScale(1.2)
                 CImGui.TextColored(morestyle.Colors.HighlightText, "基本设置")
                 # CImGui.SetWindowFontScale(1)
-                if conf.Basic.isremote
-                    @c CImGui.Checkbox("双核", &conf.Basic.isremote)
-                else
-                    @c CImGui.Checkbox("单核", &conf.Basic.isremote)
-                end
-                if conf.Basic.viewportenable
-                    @c CImGui.Checkbox("多视窗模式 开", &conf.Basic.viewportenable)
-                else
-                    @c CImGui.Checkbox("多视窗模式 关", &conf.Basic.viewportenable)
-                end
+                @c CImGui.Checkbox(conf.Basic.isremote ? "双核" : "单核", &conf.Basic.isremote)
+                @c CImGui.Checkbox(
+                    conf.Basic.viewportenable ? "多视窗模式 开" : "多视窗模式 关",
+                    &conf.Basic.viewportenable
+                )
                 # io = CImGui.GetIO()
                 # if conf.Basic.viewportenable
                 #     io.ConfigFlags = unsafe_load(io.ConfigFlags) | CImGui.ImGuiConfigFlags_ViewportsEnable
@@ -79,16 +74,8 @@ let
                 ###DAQ###
                 CImGui.TextColored(morestyle.Colors.HighlightText, "DAQ")
                 @c CImGui.Checkbox("截图保存", &conf.DAQ.saveimg)
-                if conf.DAQ.logall
-                    @c CImGui.Checkbox("记录全部变量", &conf.DAQ.logall)
-                else
-                    @c CImGui.Checkbox("记录启用变量", &conf.DAQ.logall)
-                end
-                if conf.DAQ.equalstep
-                    @c CImGui.Checkbox("等长采点", &conf.DAQ.equalstep)
-                else
-                    @c CImGui.Checkbox("定长采点", &conf.DAQ.equalstep)
-                end
+                @c CImGui.Checkbox(conf.DAQ.logall ? "记录全部变量" : "记录启用变量", &conf.DAQ.logall)
+                @c CImGui.Checkbox(conf.DAQ.equalstep ? "等长采点" : "定长采点", &conf.DAQ.equalstep)
                 @c CImGui.DragInt(
                     "保存时间",
                     &conf.DAQ.savetime,
@@ -147,40 +134,19 @@ let
                 CImGui.SameLine()
                 selectfontdir = CImGui.Button(stcstr(morestyle.Icons.SelectPath, "##Fonts-dir"))
                 selectfontdir && (fontdir = pick_folder(abspath(fontdir)))
-                if inputfontdir || selectfontdir
-                    if isdir(fontdir)
-                        conf.Fonts.dir = fontdir
-                    else
-                        CImGui.SameLine()
-                        CImGui.TextColored(morestyle.Colors.LogError, "路径不存在！！！")
-                    end
-                end
+                (inputfontdir || selectfontdir) && isvalidpath(fontdir; file=false) && (conf.Fonts.dir = fontdir)
                 ft1 = conf.Fonts.first
                 inputft1 = @c InputTextRSZ("字体1", &ft1)
                 CImGui.SameLine()
                 selectft1 = CImGui.Button(stcstr(morestyle.Icons.SelectPath, "##Fonts-first"))
                 selectft1 && (ft1 = basename(pick_file(joinpath(abspath(fontdir), ft1); filterlist="ttf,ttc,otf")))
-                if inputft1 || selectft1
-                    if isfile(joinpath(fontdir, ft1))
-                        conf.Fonts.first = ft1
-                    else
-                        CImGui.SameLine()
-                        CImGui.TextColored(morestyle.Colors.LogError, "文件不存在！！！")
-                    end
-                end
+                (inputft1 || selectft1) && isvalidpath(joinpath(fontdir, ft1)) && (conf.Fonts.first = ft1)
                 ft2 = conf.Fonts.second
                 inputft2 = @c InputTextRSZ("字体2", &ft2)
                 CImGui.SameLine()
                 selectft2 = CImGui.Button(stcstr(morestyle.Icons.SelectPath, "##Fonts-second"))
                 selectft2 && (ft2 = basename(pick_file(joinpath(abspath(fontdir), ft2); filterlist="ttf,ttc,otf")))
-                if inputft2 || selectft2
-                    if isfile(joinpath(fontdir, ft2))
-                        conf.Fonts.second = ft2
-                    else
-                        CImGui.SameLine()
-                        CImGui.TextColored(morestyle.Colors.LogError, "文件不存在！！！")
-                    end
-                end
+                (inputft2 || selectft2) && isvalidpath(joinpath(fontdir, ft2)) && (conf.Fonts.second = ft2)
                 @c CImGui.DragInt("字体大小", &conf.Fonts.size, 1.0, 6, 60, "%d", CImGui.ImGuiSliderFlags_AlwaysClamp)
                 CImGui.Text(" ")
                 CImGui.Separator()
@@ -198,14 +164,7 @@ let
                 CImGui.SameLine()
                 selectiodir = CImGui.Button(stcstr(morestyle.Icons.SelectPath, "##IO-dir"))
                 selectiodir && (iodir = pick_folder(abspath(iodir)))
-                if inputiodir || selectiodir
-                    if isdir(iodir)
-                        conf.Console.dir = iodir
-                    else
-                        CImGui.SameLine()
-                        CImGui.TextColored(morestyle.Colors.LogError, "路径不存在！！！")
-                    end
-                end
+                (inputiodir || selectiodir) && isvalidpath(iodir; file=false) && (conf.Console.dir = iodir)
                 @c CImGui.DragFloat(
                     "刷新率##Console",
                     &conf.Console.refreshrate,
@@ -234,14 +193,7 @@ let
                 CImGui.SameLine()
                 selectlogdir = CImGui.Button(stcstr(morestyle.Icons.SelectPath, "##Logs-dir"))
                 selectlogdir && (logdir = pick_folder(abspath(logdir)))
-                if inputlogdir || selectlogdir
-                    if isdir(logdir)
-                        conf.Logs.dir = logdir
-                    else
-                        CImGui.SameLine()
-                        CImGui.TextColored(morestyle.Colors.LogError, "路径不存在！！！")
-                    end
-                end
+                (inputlogdir || selectlogdir) && isvalidpath(logdir; file=false) && (conf.Logs.dir = logdir)
                 @c CImGui.DragFloat(
                     "刷新率##Logs",
                     &conf.Logs.refreshrate,
@@ -349,5 +301,15 @@ function showonesetu(up)
         end
         j == length(up.second) || CImGui.SameLine()
         CImGui.PopID()
+    end
+end
+
+function isvalidpath(path; file=true)
+    if file ? isfile(path) : isdir(path)
+        return true
+    else
+        CImGui.SameLine()
+        CImGui.TextColored(morestyle.Colors.LogError, file ? "文件不存在！！！" : "路径不存在！！！")
+        return false
     end
 end

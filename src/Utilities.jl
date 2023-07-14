@@ -195,7 +195,7 @@ function swapvalue!(dict::OrderedDict, key1, key2)
     merge!(dict, newdict)
 end
 
-function Base.iterate(v::Union{ImVec2, ImPlot.ImPlotPoint}, state=1)
+function Base.iterate(v::Union{ImVec2,ImPlot.ImPlotPoint}, state=1)
     if state == 1
         return v.x, 2
     elseif state == 2
@@ -204,7 +204,7 @@ function Base.iterate(v::Union{ImVec2, ImPlot.ImPlotPoint}, state=1)
         return nothing
     end
 end
-function Base.getindex(v::Union{ImVec2, ImPlot.ImPlotPoint}, i)
+function Base.getindex(v::Union{ImVec2,ImPlot.ImPlotPoint}, i)
     if i == 1
         return v.x
     elseif i == 2
@@ -213,7 +213,7 @@ function Base.getindex(v::Union{ImVec2, ImPlot.ImPlotPoint}, i)
         throw(BoundsError(v, i))
     end
 end
-Base.length(::Union{ImVec2, ImPlot.ImPlotPoint}) = 2
+Base.length(::Union{ImVec2,ImPlot.ImPlotPoint}) = 2
 
 ###Patch###
 Base.convert(::Type{OrderedDict{String,T}}, vec::Vector{T}) where {T} = OrderedDict(string(i) => v for (i, v) in enumerate(vec))
@@ -253,3 +253,10 @@ function newtuple(t::Tuple, i, v)
 end
 
 reencoding(s, encoding) = @trypasse decode(unsafe_wrap(Array, pointer(s), ncodeunits(s)), encoding) s
+
+function synccall_wait(f, ids, args...)
+    f(args...)
+    for i in ids
+        remotecall_wait(f, i, args...)
+    end
+end

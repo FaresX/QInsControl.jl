@@ -99,33 +99,6 @@ mutable struct ResizeGrip
     dragging::Bool
 end
 ResizeGrip() = ResizeGrip((0, 0), (24, 24), (0, 0), (Inf, Inf), false, false)
-function update_state!(rszgrip::ResizeGrip)
-    mospos = CImGui.GetMousePos()
-    rszgrip.hovered = inregion(mospos, rszgrip.pos .- rszgrip.size, rszgrip.pos)
-    rszgrip.hovered &= -(rszgrip.size.y / rszgrip.size.x) * (mospos.x - rszgrip.pos.x + rszgrip.size.x) < mospos.y - rszgrip.pos.y
-    if rszgrip.dragging
-        if CImGui.IsMouseDragging(2)
-            rszgrip.pos = cutoff(mospos, rszgrip.limmin, rszgrip.limmax) .+ rszgrip.size ./ 4
-        else
-            rszgrip.dragging = false
-        end
-    else
-        rszgrip.hovered && CImGui.IsMouseDown(2) && (rszgrip.dragging = true)
-    end
-end
-function draw(rszgrip::ResizeGrip)
-    CImGui.AddTriangleFilled(
-        CImGui.GetWindowDrawList(),
-        (rszgrip.pos.x - rszgrip.size.x, rszgrip.pos.y), rszgrip.pos, (rszgrip.pos.x, rszgrip.pos.y - rszgrip.size.y),
-        if rszgrip.hovered && rszgrip.dragging
-            CImGui.ColorConvertFloat4ToU32(CImGui.c_get(imguistyle.Colors, ImGuiCol_ResizeGripActive))
-        elseif rszgrip.hovered
-            CImGui.ColorConvertFloat4ToU32(CImGui.c_get(imguistyle.Colors, ImGuiCol_ResizeGripHovered))
-        else
-            CImGui.ColorConvertFloat4ToU32(CImGui.c_get(imguistyle.Colors, ImGuiCol_ResizeGrip))
-        end
-    )
-end
 
 mutable struct ImagePin
     pos::ImVec2
@@ -142,6 +115,70 @@ mutable struct ImagePin
     dragging_out::Bool
 end
 ImagePin() = ImagePin((0, 0), 24, 12, 4, (0, 0), (Inf, Inf), 1, false, false, false, false, false)
+
+mutable struct ImageRegion
+    id::Int
+    posmin::ImVec2
+    posmax::ImVec2
+    image::Matrix{T} where {T}
+    rszgrip::ResizeGrip
+    pins::Vector{ImagePin}
+    pin_relds::Vector{ImVec2}
+    hovered::Bool
+end
+ImageRegion() = ImageRegion(0, (0, 0), (400, 400), Matrix{RGBA}(undef, 0, 0), ResizeGrip(), [], [], false)
+
+mutable struct SampleBaseNode <: AbstractNode
+    id::Cint
+    title::String
+    content::String
+    attr_ids::Vector{Cint}
+    attr_labels::Vector{String}
+    attr_types::Vector{Bool} # true for input 
+    connected_ids::Set{Cint}
+    position::CImGui.ImVec2
+    imgr::ImageRegion
+end
+SampleBaseNode() = SampleBaseNode(1, morestyle.Icons.SampleBaseNode*"样品座", "", [], [], [], Set(), (0, 0), ImageRegion())
+function SampleBaseNode(id)
+    node = SampleBaseNode()
+    node.id = id
+    for i in 1:24
+        push!(node.attr_ids, id * 1000 + i)
+        push!(node.attr_labels, "Pin $i")
+        push!(node.attr_types, isodd(i))
+    end
+    node
+end
+
+mutable struct NodeEditor
+    nodes::OrderedDict{Cint,AbstractNode}
+    links::Vector{Tuple{Cint,Cint}}
+    link_start::Cint
+    link_stop::Cint
+    created_from_snap::Bool
+    hoverednode_id::Cint
+    hoveredlink_id::Cint
+    maxid::Cint
+end
+NodeEditor() = NodeEditor(OrderedDict(), Tuple{Cint,Cint}[], 0, 0, false, 0, 0, 0)
+
+### update_state ###----------------------------------------------------------------------------------------------------
+function update_state!(rszgrip::ResizeGrip)
+    mospos = CImGui.GetMousePos()
+    rszgrip.hovered = inregion(mospos, rszgrip.pos .- rszgrip.size, rszgrip.pos)
+    rszgrip.hovered &= -(rszgrip.size.y / rszgrip.size.x) * (mospos.x - rszgrip.pos.x + rszgrip.size.x) < mospos.y - rszgrip.pos.y
+    if rszgrip.dragging
+        if CImGui.IsMouseDragging(2)
+            rszgrip.pos = cutoff(mospos, rszgrip.limmin, rszgrip.limmax) .+ rszgrip.size ./ 4
+        else
+            rszgrip.dragging = false
+        end
+    else
+        rszgrip.hovered && CImGui.IsMouseDown(2) && (rszgrip.dragging = true)
+    end
+end
+
 function update_state!(pin::ImagePin)
     mospos = CImGui.GetMousePos()
     reld2 = sqrt(sum(abs2.(mospos .- pin.pos)))
@@ -158,6 +195,39 @@ function update_state!(pin::ImagePin)
         pin.hovered_out && !pin.dragging_in && CImGui.IsMouseClicked(0) && (pin.dragging_out = true)
     end
 end
+
+function update_state!(imgr::ImageRegion)
+    for (i, pin) in enumerate(imgr.pins)
+        imgr.rszgrip.dragging || update_state!(pin)
+        pin.limmin, pin.limmax = imgr.posmin, imgr.posmax
+        pin.dragging_in && (imgr.pin_relds[i] = @. (pin.pos - imgr.posmin) / (imgr.posmax - imgr.posmin); break)
+    end
+    imgr.rszgrip.limmin, imgr.rszgrip.limmax = imgr.posmin, (Inf, Inf)
+    true in map(x -> x.dragging_in, imgr.pins) || update_state!(imgr.rszgrip)
+    newsize = imgr.rszgrip.pos .- imgr.posmin
+    imgr.posmax = Tuple(newsize[i] > 60 ? imgr.rszgrip.pos[i] : imgr.posmax[i] for i in eachindex(newsize))
+    imgr.rszgrip.pos = imgr.posmax
+    imgr.hovered = inregion(CImGui.GetMousePos(), imgr.posmin, imgr.posmax)
+    for (i, pin) in enumerate(imgr.pins)
+        pin.dragging_in ? break : pin.pos = @. (imgr.posmax - imgr.posmin) * imgr.pin_relds[i] + imgr.posmin
+    end
+end
+
+### draw ###------------------------------------------------------------------------------------------------------------
+function draw(rszgrip::ResizeGrip)
+    CImGui.AddTriangleFilled(
+        CImGui.GetWindowDrawList(),
+        (rszgrip.pos.x - rszgrip.size.x, rszgrip.pos.y), rszgrip.pos, (rszgrip.pos.x, rszgrip.pos.y - rszgrip.size.y),
+        if rszgrip.hovered && rszgrip.dragging
+            CImGui.ColorConvertFloat4ToU32(CImGui.c_get(imguistyle.Colors, ImGuiCol_ResizeGripActive))
+        elseif rszgrip.hovered
+            CImGui.ColorConvertFloat4ToU32(CImGui.c_get(imguistyle.Colors, ImGuiCol_ResizeGripHovered))
+        else
+            CImGui.ColorConvertFloat4ToU32(CImGui.c_get(imguistyle.Colors, ImGuiCol_ResizeGrip))
+        end
+    )
+end
+
 function draw(pin::ImagePin)
     drawlist = CImGui.GetWindowDrawList()
     CImGui.AddCircle(
@@ -193,35 +263,7 @@ function draw(pin::ImagePin)
         stcstr(pin.link_idx)
     )
 end
-view(pin::ImagePin) = (draw(pin); pin.dragging_in = false)
 
-mutable struct ImageRegion
-    id::Int
-    posmin::ImVec2
-    posmax::ImVec2
-    image::Matrix{T} where {T}
-    rszgrip::ResizeGrip
-    pins::Vector{ImagePin}
-    pin_relds::Vector{ImVec2}
-    hovered::Bool
-end
-ImageRegion() = ImageRegion(0, (0, 0), (400, 400), Matrix{RGBA}(undef, 0, 0), ResizeGrip(), [], [], false)
-function update_state!(imgr::ImageRegion)
-    for (i, pin) in enumerate(imgr.pins)
-        imgr.rszgrip.dragging ? (pin.dragging_in = false) : update_state!(pin)
-        pin.limmin, pin.limmax = imgr.posmin, imgr.posmax
-        pin.dragging_in && (imgr.pin_relds[i] = @. (pin.pos - imgr.posmin) / (imgr.posmax - imgr.posmin))
-    end
-    imgr.rszgrip.limmin, imgr.rszgrip.limmax = imgr.posmin, (Inf, Inf)
-    update_state!(imgr.rszgrip)
-    newsize = imgr.rszgrip.pos .- imgr.posmin
-    imgr.posmax = Tuple(newsize[i] > 60 ? imgr.rszgrip.pos[i] : imgr.posmax[i] for i in eachindex(newsize))
-    imgr.rszgrip.pos = imgr.posmax
-    imgr.hovered = inregion(CImGui.GetMousePos(), imgr.posmin, imgr.posmax)
-    for (i, pin) in enumerate(imgr.pins)
-        pin.dragging_in || (pin.pos = @. (imgr.posmax - imgr.posmin) * imgr.pin_relds[i] + imgr.posmin)
-    end
-end
 function draw(imgr::ImageRegion)
     CImGui.Image(Ptr{Cvoid}(imgr.id), imgr.posmax .- imgr.posmin)
     imgr.posmin = CImGui.GetItemRectMin()
@@ -241,92 +283,8 @@ function draw(imgr::ImageRegion)
     end
     draw(imgr.rszgrip)
 end
-let
-    pinbuf::ImagePin = ImagePin()
-    global function edit(imgr::ImageRegion)
-        draw(imgr)
-        openpopup = imgr.hovered && !imgr.rszgrip.hovered && CImGui.IsMouseClicked(1) &&
-                    all(map(x -> !x.hovered_in, imgr.pins)) && all(map(x -> !x.hovered_out, imgr.pins))
-        openpopup && CImGui.OpenPopup(stcstr("editimage", imgr.id))
-        if CImGui.BeginPopup(stcstr("editimage", imgr.id))
-            if CImGui.MenuItem(stcstr(morestyle.Icons.Load, "加载"))
-                imgpath = pick_file(filterlist="png,jpg,jpeg,tif,bmp")
-                if isfile(imgpath)
-                    try
-                        img = RGBA.(collect(transpose(FileIO.load(imgpath))))
-                        imgsize = size(img)
-                        imgr.id = ImGui_ImplOpenGL3_CreateImageTexture(imgsize...)
-                        ImGui_ImplOpenGL3_UpdateImageTexture(imgr.id, img, imgsize...)
-                        imgr.image = img
-                    catch e
-                        @error "[$(now())]\n加载图像出错！！！" exception = e
-                    end
-                end
-            end
-            if CImGui.CollapsingHeader("阵脚")
-                @c CImGui.InputInt("阵脚", &pinbuf.link_idx)
-                @c CImGui.DragFloat("大小", &pinbuf.radius, 1.0, 1, 100, "%.3f", CImGui.ImGuiSliderFlags_AlwaysClamp)
-                pinbuf.pos = CImGui.GetMousePosOnOpeningCurrentPopup()
-                CImGui.SameLine()
-                if CImGui.Button(morestyle.Icons.NewFile * "##imgpin")
-                    reld = (pinbuf.pos .- imgr.posmin) ./ (imgr.posmax .- imgr.posmin)
-                    push!(imgr.pins, deepcopy(pinbuf))
-                    push!(imgr.pin_relds, reld)
-                    CImGui.CloseCurrentPopup()
-                end
-            end
-            CImGui.EndPopup()
-        end
-    end
-end
-function view(imgr::ImageRegion)
-    CImGui.Image(Ptr{Cvoid}(imgr.id), imgr.posmax .- imgr.posmin)
-    imgr.posmin = CImGui.GetItemRectMin()
-    imgr.posmax = CImGui.GetItemRectMax()
-    imgr.rszgrip.pos = imgr.posmax
-    update_state!(imgr)
-    for pin in imgr.pins
-        view(pin)
-    end
-    draw(imgr.rszgrip)
-end
 
-mutable struct SampleBaseNode <: AbstractNode
-    id::Cint
-    title::String
-    content::String
-    attr_ids::Vector{Cint}
-    attr_labels::Vector{String}
-    attr_types::Vector{Bool} # true for input 
-    connected_ids::Set{Cint}
-    position::CImGui.ImVec2
-    imgr::ImageRegion
-end
-SampleBaseNode() = SampleBaseNode(1, morestyle.Icons.SampleBaseNode*"样品座", "", [], [], [], Set(), (0, 0), ImageRegion())
-
-function SampleBaseNode(id)
-    node = SampleBaseNode()
-    node.id = id
-    for i in 1:24
-        push!(node.attr_ids, id * 1000 + i)
-        push!(node.attr_labels, "Pin $i")
-        push!(node.attr_types, isodd(i))
-    end
-    node
-end
-
-mutable struct NodeEditor
-    nodes::OrderedDict{Cint,AbstractNode}
-    links::Vector{Tuple{Cint,Cint}}
-    link_start::Cint
-    link_stop::Cint
-    created_from_snap::Bool
-    hoverednode_id::Cint
-    hoveredlink_id::Cint
-    maxid::Cint
-end
-NodeEditor() = NodeEditor(OrderedDict(), Tuple{Cint,Cint}[], 0, 0, false, 0, 0, 0)
-
+### edit ###------------------------------------------------------------------------------------------------------------
 function edit(node::Node)
     imnodes_BeginNode(node.id)
     imnodes_BeginNodeTitleBar()
@@ -379,6 +337,45 @@ function edit(node::Node)
     end
     CImGui.EndGroup()
     imnodes_EndNode()
+end
+
+let
+    pinbuf::ImagePin = ImagePin()
+    global function edit(imgr::ImageRegion)
+        draw(imgr)
+        openpopup = imgr.hovered && !imgr.rszgrip.hovered && CImGui.IsMouseClicked(1) &&
+                    all(map(x -> !x.hovered_in, imgr.pins)) && all(map(x -> !x.hovered_out, imgr.pins))
+        openpopup && CImGui.OpenPopup(stcstr("editimage", imgr.id))
+        if CImGui.BeginPopup(stcstr("editimage", imgr.id))
+            if CImGui.MenuItem(stcstr(morestyle.Icons.Load, "加载"))
+                imgpath = pick_file(filterlist="png,jpg,jpeg,tif,bmp")
+                if isfile(imgpath)
+                    try
+                        img = RGBA.(collect(transpose(FileIO.load(imgpath))))
+                        imgsize = size(img)
+                        imgr.id = ImGui_ImplOpenGL3_CreateImageTexture(imgsize...)
+                        ImGui_ImplOpenGL3_UpdateImageTexture(imgr.id, img, imgsize...)
+                        imgr.image = img
+                    catch e
+                        @error "[$(now())]\n加载图像出错！！！" exception = e
+                    end
+                end
+            end
+            if CImGui.CollapsingHeader("阵脚")
+                @c CImGui.InputInt("阵脚", &pinbuf.link_idx)
+                @c CImGui.DragFloat("大小", &pinbuf.radius, 1.0, 1, 100, "%.3f", CImGui.ImGuiSliderFlags_AlwaysClamp)
+                pinbuf.pos = CImGui.GetMousePosOnOpeningCurrentPopup()
+                CImGui.SameLine()
+                if CImGui.Button(morestyle.Icons.NewFile * "##imgpin")
+                    reld = (pinbuf.pos .- imgr.posmin) ./ (imgr.posmax .- imgr.posmin)
+                    push!(imgr.pins, deepcopy(pinbuf))
+                    push!(imgr.pin_relds, reld)
+                    CImGui.CloseCurrentPopup()
+                end
+            end
+            CImGui.EndPopup()
+        end
+    end
 end
 
 function edit(node::SampleBaseNode)
@@ -687,7 +684,22 @@ let
     end
 end
 
+### view ###------------------------------------------------------------------------------------------------------------
 view(node::Node) = edit(node)
+
+view(pin::ImagePin) = (draw(pin); pin.dragging_in = false)
+
+function view(imgr::ImageRegion)
+    CImGui.Image(Ptr{Cvoid}(imgr.id), imgr.posmax .- imgr.posmin)
+    imgr.posmin = CImGui.GetItemRectMin()
+    imgr.posmax = CImGui.GetItemRectMax()
+    imgr.rszgrip.pos = imgr.posmax
+    update_state!(imgr)
+    for pin in imgr.pins
+        view(pin)
+    end
+    draw(imgr.rszgrip)
+end
 
 function view(node::SampleBaseNode)
     imnodes_BeginNode(node.id)
@@ -806,6 +818,6 @@ end
 #     return auxnodeeditor
 # end
 
-###Patch###
+### Patch ###-----------------------------------------------------------------------------------------------------------
 Base.convert(::Type{OrderedDict{Cint,AbstractNode}}, nodes::Vector{Node}) = OrderedDict(node.id => node for node in nodes)
 Base.convert(::Type{OrderedDict{Cint,AbstractNode}}, nodes::Type{OrderedDict{Cint,Node}}) = OrderedDict{Cint,AbstractNode}(node.id => node for node in nodes)

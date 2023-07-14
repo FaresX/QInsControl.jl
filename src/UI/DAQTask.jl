@@ -14,6 +14,7 @@ const cfgbuf = Dict{String,Any}()
 
 let
     holdsz::Cfloat = 0
+    viewmode::Bool = false
     global function edit(daqtask::DAQTask, id, p_open::Ref{Bool})
         CImGui.SetNextWindowSize((600, 800), CImGui.ImGuiCond_Once)
         CImGui.PushStyleColor(CImGui.ImGuiCol_WindowBg, CImGui.c_get(imguistyle.Colors, CImGui.ImGuiCol_PopupBg))
@@ -49,9 +50,11 @@ let
                 CImGui.SameLine()
                 CImGui.TextColored(morestyle.Colors.HighlightText, "查找仪器中......")
             end
+            CImGui.SameLine(CImGui.GetContentRegionAvailWidth() - holdsz)
+            @c CImGui.Checkbox(viewmode ? "View" : "Edit", &viewmode)
             CImGui.PushID(id)
             CImGui.BeginChild("DAQTask.blocks")
-            edit(daqtask.blocks, 1)
+            viewmode ? view(daqtask.blocks) : edit(daqtask.blocks, 1)
             CImGui.EndChild()
             all(.!mousein.(daqtask.blocks, true)) && CImGui.OpenPopupOnItemClick("添加新Block")
             if CImGui.BeginPopup("添加新Block")

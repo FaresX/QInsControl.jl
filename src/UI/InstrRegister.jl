@@ -1,11 +1,7 @@
 let
     edithelp::Bool = false
     global function edit(qtcf::QuantityConf)
-        if qtcf.enable
-            @c CImGui.Checkbox("启用", &qtcf.enable)
-        else
-            @c CImGui.Checkbox("停用", &qtcf.enable)
-        end
+        @c CImGui.Checkbox(qtcf.enable ? "启用" : "停用", &qtcf.enable)
         # @c InputTextRSZ("变量名", &qtcf.name)
         @c InputTextRSZ("别称", &qtcf.alias)
         @c ComBoS("单位类型", &qtcf.U, keys(conf.U))
@@ -19,6 +15,9 @@ let
             catch e
                 @error "[$(now())]\n文本编辑错误！！！" exception = e
             end
+        end
+        if CImGui.Button(morestyle.Icons.InstrumentsManualRef)
+            @eval include(joinpath(ENV["QInsControlAssets"], "Confs/extra_conf.jl"))
         end
         # optkeys = join(qtcf.optkeys, "\n")
         # optvalues = join(qtcf.optvalues, "\n")
@@ -200,8 +199,8 @@ let
                         )
                     )
                 )
-                push!(insconf, "New Ins" => newins)
-                remotecall_wait(workers()[1], newins) do newins
+                # push!(insconf, "New Ins" => newins)
+                synccall_wait(workers(), newins) do newins
                     push!(insconf, "New Ins" => newins)
                 end
                 push!(instrbufferviewers, "New Ins" => Dict{String,InstrBufferViewer}())
@@ -289,8 +288,26 @@ let
                     remotecall_wait(workers()[1], selectedins, qtname, editqt) do selectedins, qtname, editqt
                         push!(insconf[selectedins].quantities, qtname => editqt)
                     end
+                    cmdtype = Symbol("@", insconf[selectedins].conf.cmdtype)
+                    synccall_wait(workers(), selectedins, cmdtype, qtname, editqt.cmdheader) do instrnm, cmdtype, qtname, cmd
+                        try
+                            if cmd != ""
+                                Expr(
+                                    :macrocall,
+                                    cmdtype,
+                                    LineNumberNode(Base.@__LINE__, Base.@__FILE__),
+                                    instrnm,
+                                    qtname,
+                                    cmd
+                                ) |> eval
+                            end
+                        catch e
+                            @error "仪器注册有误！！！" exception = e
+                        end
+                    end
                     for ibv in values(instrbufferviewers[selectedins])
                         push!(ibv.insbuf.quantities, qtname => InstrQuantity(qtname, deepcopy(editqt)))
+                        updatefront!(ibv.insbuf.quantities[qtname])
                     end
                 end
                 @c InputTextRSZ("变量名", &qtname)

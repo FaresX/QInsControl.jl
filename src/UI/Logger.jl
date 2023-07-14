@@ -31,7 +31,6 @@ let
                         i == limitline && push!(logmsgshow, (textc, logmsg))
                     end
                 end
-                SyncStates[Int(newloging)] = false
             end
             CImGui.BeginChild("WrapIOs")
             for (col, msg) in logmsgshow
@@ -41,6 +40,7 @@ let
                 CImGui.PopTextWrapPos()
                 CImGui.PopStyleColor()
             end
+            SyncStates[Int(newloging)] && (CImGui.SetScrollHereY(1); SyncStates[Int(newloging)] = false)
             firsttime && (CImGui.SetScrollHereY(1); firsttime = false)
             CImGui.EndChild()
         end
