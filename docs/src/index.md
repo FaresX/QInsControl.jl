@@ -10,5 +10,5 @@ Documentation for [QInsControl](https://github.com/FaresX/QInsControl.jl).
 ```
 
 ```@autodocs
-Modules = [QInsControl]
+Modules = [QInsControl, QInsControl.QInsControlCore]
 ```
