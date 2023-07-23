@@ -1,10 +1,14 @@
 # Add Instruments
 
 ## auto-detect
-One can click  to auto-detect the available instruments in NI MAX.
+One can click  to auto-detect the available instruments in NI MAX. 
+
+![image](../assets/auto-detect.png)
 
 ## muanully add
-Or manually add an instrument through clicking "手动添加" after filling the address.
+Or manually add an instrument through clicking "手动添加" after filling the address. 
+
+![image](../assets/manually-add.png)
 
 # Control Instruments
 Once adding instruments finishes, one can click "仪器设置和状态" to query the state of specific instrument or set it.
