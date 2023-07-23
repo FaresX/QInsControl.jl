@@ -16,6 +16,10 @@ makedocs(;
     ),
     pages=[
         "Home" => "index.md",
+        "Workflow" => "Workflow.md",
+        "New Instrument" => "New Instrument.md",
+        "Tips" => "Tips.md",
+        "QInsControlCore" => "QInsControlCore.md"
     ],
 )
 

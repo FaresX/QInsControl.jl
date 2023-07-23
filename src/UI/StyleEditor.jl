@@ -544,8 +544,8 @@ let
                     bgimg = RGB.(collect(transpose(FileIO.load(bgpath))))
                     conf.BGImage.path = bgpath
                     bgsize = size(bgimg)
-                    global bgid = ImGui_ImplOpenGL3_CreateImageTexture(bgsize...)
-                    ImGui_ImplOpenGL3_UpdateImageTexture(bgid, bgimg, bgsize...)
+                    global bgid = ImGui_ImplOpenGL3_CreateImageTexture(bgsize...; format=GL_RGB)
+                    ImGui_ImplOpenGL3_UpdateImageTexture(bgid, bgimg, bgsize...; format=GL_RGB)
                 catch e
                     @error "[$(now())]\n加载背景出错！！！" exception = e
                 end

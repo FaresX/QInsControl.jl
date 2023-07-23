@@ -181,7 +181,8 @@ function syncplotdata(uiplot::UIPlot, dtpk::DataPicker, datastr, datafloat)
         if uiplot.ptype == "heatmap"
             lmin = min(length(uiplot.z), length(nz))
             rows = ceil(Int, lmin / dtpk.zsize[1])
-            @views uiplot.z[1:rows, :] = transpose(resize(nz, dtpk.zsize[1], rows))[1:rows, :]
+            fill!(uiplot.z, zero(eltype(uiplot.z)))
+            @views uiplot.z[1:rows, :] = transpose(resize(nz, dtpk.zsize[1], rows))
             dtpk.vflipz && reverse!(uiplot.z, dims=2)
             dtpk.hflipz && reverse!(uiplot.z, dims=1)
         end
