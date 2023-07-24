@@ -54,7 +54,7 @@ microchip : click it to edit circuit for recording measurement configuration.
 
 "中断" : stop the running task
 
-## edit script
+## Edit script
 
 ### CodeBlock
 ![image](assets/CodeBlock.png)
@@ -114,7 +114,7 @@ Read the specified instrument.
 It is used to save a variable defined in the context. "标注" is an optional input to specify the name to be stored. When
 it is blank, the name will be the same as the variable.
 
-## Note
+## note
 All the blocks that bind to a specified instrument can be middle clicked to enter catch mode. In this mode, the icon is 
 red and the data obtained will be a "" when an error occurs. For ReadingBlock, QueryBlock and ReadBlock, middle clicking
 at the region used to input marks will change the mode from normal to observable to observable and readable. In 
