@@ -1108,8 +1108,8 @@ let
                 if CImGui.BeginMenu(morestyle.Icons.InsertUp * " 在上方插入")
                     CImGui.MenuItem(morestyle.Icons.CodeBlock * " CodeBlock") && insert!(blocks, i, CodeBlock())
                     CImGui.MenuItem(morestyle.Icons.StrideCodeBlock * " StrideCodeBlock") && insert!(blocks, i, StrideCodeBlock(n))
-                    CImGui.MenuItem(morestyle.Icons.SettingBlock * " SettingBlock") && insert!(blocks, i, SettingBlock())
                     CImGui.MenuItem(morestyle.Icons.SweepBlock * " SweepBlock") && insert!(blocks, i, SweepBlock(n))
+                    CImGui.MenuItem(morestyle.Icons.SettingBlock * " SettingBlock") && insert!(blocks, i, SettingBlock())
                     CImGui.MenuItem(morestyle.Icons.ReadingBlock * " ReadingBlock") && insert!(blocks, i, ReadingBlock())
                     CImGui.MenuItem(morestyle.Icons.LogBlock * " LogBlock") && insert!(blocks, i, LogBlock())
                     CImGui.MenuItem(morestyle.Icons.WriteBlock * " WriteBlock") && insert!(blocks, i, WriteBlock())
@@ -1122,8 +1122,8 @@ let
                     if CImGui.BeginMenu(morestyle.Icons.InsertInside * " 在内部插入", bk.level < 6)
                         CImGui.MenuItem(morestyle.Icons.CodeBlock * " CodeBlock") && push!(bk.blocks, CodeBlock())
                         CImGui.MenuItem(morestyle.Icons.StrideCodeBlock * " StrideCodeBlock") && push!(bk.blocks, StrideCodeBlock(n + 1))
-                        CImGui.MenuItem(morestyle.Icons.SettingBlock * " SettingBlock") && push!(bk.blocks, SettingBlock())
                         CImGui.MenuItem(morestyle.Icons.SweepBlock * " SweepBlock") && push!(bk.blocks, SweepBlock(n + 1))
+                        CImGui.MenuItem(morestyle.Icons.SettingBlock * " SettingBlock") && push!(bk.blocks, SettingBlock())
                         CImGui.MenuItem(morestyle.Icons.ReadingBlock * " ReadingBlock") && push!(bk.blocks, ReadingBlock())
                         CImGui.MenuItem(morestyle.Icons.LogBlock * " LogBlock") && push!(bk.blocks, LogBlock())
                         CImGui.MenuItem(morestyle.Icons.WriteBlock * " WriteBlock") && push!(bk.blocks, WriteBlock())
@@ -1136,8 +1136,8 @@ let
                 if CImGui.BeginMenu(morestyle.Icons.InsertDown * " 在下方插入")
                     CImGui.MenuItem(morestyle.Icons.CodeBlock * " CodeBlock") && insert!(blocks, i + 1, CodeBlock())
                     CImGui.MenuItem(morestyle.Icons.StrideCodeBlock * " StrideCodeBlock") && insert!(blocks, i + 1, StrideCodeBlock(n))
-                    CImGui.MenuItem(morestyle.Icons.SettingBlock * " SettingBlock") && insert!(blocks, i + 1, SettingBlock())
                     CImGui.MenuItem(morestyle.Icons.SweepBlock * " SweepBlock") && insert!(blocks, i + 1, SweepBlock(n))
+                    CImGui.MenuItem(morestyle.Icons.SettingBlock * " SettingBlock") && insert!(blocks, i + 1, SettingBlock())
                     CImGui.MenuItem(morestyle.Icons.ReadingBlock * " ReadingBlock") && insert!(blocks, i + 1, ReadingBlock())
                     CImGui.MenuItem(morestyle.Icons.LogBlock * " LogBlock") && insert!(blocks, i + 1, LogBlock())
                     CImGui.MenuItem(morestyle.Icons.WriteBlock * " WriteBlock") && insert!(blocks, i + 1, WriteBlock())
@@ -1158,7 +1158,6 @@ let
                             end
                         end
                     end
-                    CImGui.MenuItem(morestyle.Icons.SettingBlock * " SettingBlock") && (bk isa SettingBlock || (blocks[i] = SettingBlock()))
                     if CImGui.MenuItem(morestyle.Icons.SweepBlock * " SweepBlock")
                         if !(bk isa SweepBlock)
                             if bk isa StrideCodeBlock
@@ -1169,6 +1168,7 @@ let
                             end
                         end
                     end
+                    CImGui.MenuItem(morestyle.Icons.SettingBlock * " SettingBlock") && (bk isa SettingBlock || (blocks[i] = SettingBlock()))
                     CImGui.MenuItem(morestyle.Icons.ReadingBlock * " ReadingBlock") && (bk isa ReadingBlock || (blocks[i] = ReadingBlock()))
                     CImGui.MenuItem(morestyle.Icons.LogBlock * " LogBlock") && (bk isa LogBlock || (blocks[i] = LogBlock()))
                     CImGui.MenuItem(morestyle.Icons.WriteBlock * " WriteBlock") && (bk isa WriteBlock || (blocks[i] = WriteBlock()))
