@@ -19,18 +19,18 @@ The controllable variables are classified by three types: sweep, set, read.
 ## sweep
 For the sweepable variables, it can be swept from the present value to the given value with difinite step size and delay.
 
-![image](assets/control%20-%20sweep.png)
+![image](assets/control-sweep.png)
 
 ## set
 For the settable variables, it can be set by the given value through inputing or simply clicking on a pre-defined optional 
 value.
 
-![image](assets/control%20-%20set.png)
+![image](assets/control-set.png)
 
 ## read
 For the readable variables, it can be only queried.
 
-![image](assets/control%20-%20read.png)
+![image](assets/control-read.png)
 
 All these variables support selecting unit and whether it will auto update the state itself.
 
@@ -125,7 +125,7 @@ border will enter the async mode. In this mode, block border is green and the ge
 this almost always speeds up the measurement.
 
 ## Example
-![image](assets/example%20script.png)
+![image](assets/example-script.png)
 
 This panel includes a title of the editing task, a "HOLD" checkbox to set the panel no-close when selected, an inputable
 region to record something necessary, a button "刷新仪器列表" with the same functionality as previous menu, an "Edit" or 
@@ -140,11 +140,11 @@ the instrument VirtualInstr with address VirtualAddress, variable "扫描测试"
 0.1s for each loop.
 
 ## plot data
-![image](assets/select%20plot.png)
+![image](assets/select-plot.png)
 
 One can right click at the blank region to select plots to show.
 
-![image](assets/select%20data%20plot.png)
+![image](assets/select-data-plot.png)
 
 The data used to plot includes four dimensions X Y Z W. X Y Z is regular dimensions and W is used to be calculated with others. To plot a heatmap, a matrix is necessay but the stored data format is as a vector so that it has to be specified
 the dimensions of the Z plotting matrix and reverse it in dimension 1 or 2. At the bottom region, one can do some simple

@@ -1,7 +1,7 @@
 # Instrument register
 Instrument register provides a convenient mannar to add new instruments and define new quantities to extend the
 functionality.
-![image](assets/Instrument%20register.png)
+![image](assets/Instrument-register.png)
 
 ## Add a new instrument
 It is very easy to add a new instrument by clicking on the button "新建". A well-defined instrument includes an icon, 
