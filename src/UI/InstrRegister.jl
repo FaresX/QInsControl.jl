@@ -16,6 +16,7 @@ let
                 @error "[$(now())]\n文本编辑错误！！！" exception = e
             end
         end
+        CImGui.SameLine()
         if CImGui.Button(morestyle.Icons.InstrumentsManualRef)
             @eval include(joinpath(ENV["QInsControlAssets"], "Confs/extra_conf.jl"))
         end

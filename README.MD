@@ -5,7 +5,9 @@
 [![Build Status](https://github.com/FaresX/QInsControl.jl/actions/workflows/CI.yml/badge.svg?branch=master)](https://github.com/FaresX/QInsControl.jl/actions/workflows/CI.yml?query=branch%3Amaster)
 [![Coverage](https://codecov.io/gh/FaresX/QInsControl.jl/branch/master/graph/badge.svg)](https://codecov.io/gh/FaresX/QInsControl.jl)
 
-# QInsControl
+QInsControl is designed for controling instruments and data aquiring, which is based on the nivisa and provides a 
+user-friendly GUI and a flexible script written mannar to keep both the convenience and universality.
+
 ## install
 ```
 julia> ]
