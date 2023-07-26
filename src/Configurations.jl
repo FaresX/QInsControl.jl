@@ -90,7 +90,7 @@ end
     )
 end
 
-global conf::Conf
+global CONF::Conf
 
 abstract type InsConf end
 

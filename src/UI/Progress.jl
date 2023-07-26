@@ -28,11 +28,22 @@ function tohms(second)
 end
 
 function update_progress()
-    if isready(progress_rc)
-        packpb = take!(progress_rc)
+    if isready(PROGRESSRC)
+        packpb = take!(PROGRESSRC)
         for pb in packpb
-            haskey(progresslist, pb[1]) || push!(progresslist, pb[1] => pb)
-            progresslist[pb[1]] = pb
+            haskey(PROGRESSLIST, pb[1]) || push!(PROGRESSLIST, pb[1] => pb)
+            PROGRESSLIST[pb[1]] = pb
+        end
+    end
+end
+
+function ShowProgressBar()
+    for pgb in values(PROGRESSLIST)
+        pgmark = string(pgb[2], "/", pgb[3], "(", tohms(pgb[4]), "/", tohms(pgb[3] * pgb[4] / pgb[2]), ")")
+        if pgb[2] == pgb[3]
+            delete!(PROGRESSLIST, pgb[1])
+        else
+            CImGui.ProgressBar(pgb[2] / pgb[3], (-1, 0), pgmark)
         end
     end
 end

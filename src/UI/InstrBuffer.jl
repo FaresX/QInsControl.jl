@@ -40,7 +40,7 @@ InstrQuantity(name, qtcf::QuantityConf) = InstrQuantity(
 )
 
 function getvalU(qt::InstrQuantity)
-    Us = conf.U[qt.utype]
+    Us = CONF.U[qt.utype]
     U = isempty(Us) ? "" : Us[qt.uindex]
     U == "" || (Uchange::Float64 = Us[1] isa Unitful.FreeUnits ? ustrip(Us[1], 1U) : 1.0)
     val = U == "" ? qt.read : @trypass string(parse(Float64, qt.read) / Uchange) qt.read
@@ -157,7 +157,7 @@ end
 InstrBufferViewer(instrnm, addr) = InstrBufferViewer(instrnm, addr, "*IDN?", "", false, InstrBuffer(instrnm))
 InstrBufferViewer() = InstrBufferViewer("", "", "*IDN?", "", false, InstrBuffer())
 
-const instrbufferviewers::Dict{String,Dict{String,InstrBufferViewer}} = Dict()
+const INSTRBUFFERVIEWERS::Dict{String,Dict{String,InstrBufferViewer}} = Dict()
 
 function edit(ibv::InstrBufferViewer)
     CImGui.SetNextWindowSize((800, 600), CImGui.ImGuiCond_Once)
@@ -169,23 +169,23 @@ function edit(ibv::InstrBufferViewer)
             CImGui.OpenPopupOnItemClick("rightclick")
         end
         if CImGui.BeginPopup("rightclick")
-            if CImGui.MenuItem(stcstr(morestyle.Icons.InstrumentsManualRef, " 手动刷新"), "F5")
+            if CImGui.MenuItem(stcstr(MORESTYLE.Icons.InstrumentsManualRef, " 手动刷新"), "F5")
                 ibv.insbuf.isautorefresh = true
                 manualrefresh()
-                for ins in keys(instrbufferviewers)
-                    for (_, ibv) in instrbufferviewers[ins]
+                for ins in keys(INSTRBUFFERVIEWERS)
+                    for (_, ibv) in INSTRBUFFERVIEWERS[ins]
                         for (_, qt) in ibv.insbuf.quantities
                             updatefront!(qt)
                         end
                     end
                 end
             end
-            CImGui.Text(stcstr(morestyle.Icons.InstrumentsAutoRef, " 自动刷新"))
+            CImGui.Text(stcstr(MORESTYLE.Icons.InstrumentsAutoRef, " 自动刷新"))
             CImGui.SameLine()
-            isautoref = SyncStates[Int(isautorefresh)]
+            isautoref = SYNCSTATES[Int(IsAutoRefreshing)]
             @c CImGui.Checkbox("##自动刷新", &isautoref)
-            SyncStates[Int(isautorefresh)] = isautoref
-            ibv.insbuf.isautorefresh = SyncStates[Int(isautorefresh)]
+            SYNCSTATES[Int(IsAutoRefreshing)] = isautoref
+            ibv.insbuf.isautorefresh = SYNCSTATES[Int(IsAutoRefreshing)]
             if isautoref
                 CImGui.SameLine()
                 CImGui.Text(" ")
@@ -193,16 +193,16 @@ function edit(ibv::InstrBufferViewer)
                 CImGui.PushItemWidth(CImGui.GetFontSize() * 2)
                 @c CImGui.DragFloat(
                     "##自动刷新",
-                    &conf.InsBuf.refreshrate,
+                    &CONF.InsBuf.refreshrate,
                     0.1, 0.1, 60, "%.1f",
                     CImGui.ImGuiSliderFlags_AlwaysClamp
                 )
                 CImGui.PopItemWidth()
             end
-            CImGui.Text(stcstr(morestyle.Icons.ShowCol, " 显示列数"))
+            CImGui.Text(stcstr(MORESTYLE.Icons.ShowCol, " 显示列数"))
             CImGui.SameLine()
             CImGui.PushItemWidth(3CImGui.GetFontSize() / 2)
-            @c CImGui.DragInt("##显示列数", &conf.InsBuf.showcol, 1, 1, 12, "%d", CImGui.ImGuiSliderFlags_AlwaysClamp)
+            @c CImGui.DragInt("##显示列数", &CONF.InsBuf.showcol, 1, 1, 12, "%d", CImGui.ImGuiSliderFlags_AlwaysClamp)
             CImGui.PopItemWidth()
             CImGui.EndPopup()
         end
@@ -220,36 +220,36 @@ let
     default_insbufs = Dict{String,InstrBuffer}()
     global function ShowInstrBuffer(p_open::Ref)
         CImGui.SetNextWindowSize((800, 600), CImGui.ImGuiCond_Once)
-        if CImGui.Begin(stcstr(morestyle.Icons.InstrumentsOverview, "  仪器设置和状态"), p_open)
+        if CImGui.Begin(stcstr(MORESTYLE.Icons.InstrumentsOverview, "  仪器设置和状态"), p_open)
             CImGui.Columns(2)
             firsttime && (CImGui.SetColumnOffset(1, CImGui.GetWindowWidth() * 0.25); firsttime = false)
             CImGui.BeginChild("仪器列表")
             CImGui.Selectable(
-                stcstr(morestyle.Icons.InstrumentsOverview, " 总览"),
+                stcstr(MORESTYLE.Icons.InstrumentsOverview, " 总览"),
                 selectedins == ""
             ) && (selectedins = "")
-            for ins in keys(instrbufferviewers)
+            for ins in keys(INSTRBUFFERVIEWERS)
                 CImGui.Selectable(stcstr(insconf[ins].conf.icon, " ", ins), selectedins == ins) && (selectedins = ins)
                 CImGui.SameLine()
-                CImGui.TextDisabled(stcstr("(", length(instrbufferviewers[ins]), ")"))
+                CImGui.TextDisabled(stcstr("(", length(INSTRBUFFERVIEWERS[ins]), ")"))
             end
             CImGui.EndChild()
             if CImGui.BeginPopupContextItem()
-                if CImGui.MenuItem(stcstr(morestyle.Icons.InstrumentsManualRef, " 手动刷新"), "F5")
+                if CImGui.MenuItem(stcstr(MORESTYLE.Icons.InstrumentsManualRef, " 手动刷新"), "F5")
                     manualrefresh()
-                    for ins in keys(instrbufferviewers)
-                        for (_, ibv) in instrbufferviewers[ins]
+                    for ins in keys(INSTRBUFFERVIEWERS)
+                        for (_, ibv) in INSTRBUFFERVIEWERS[ins]
                             for (_, qt) in ibv.insbuf.quantities
                                 updatefront!(qt)
                             end
                         end
                     end
                 end
-                CImGui.Text(stcstr(morestyle.Icons.InstrumentsAutoRef, " 自动刷新"))
+                CImGui.Text(stcstr(MORESTYLE.Icons.InstrumentsAutoRef, " 自动刷新"))
                 CImGui.SameLine()
-                isautoref = SyncStates[Int(isautorefresh)]
+                isautoref = SYNCSTATES[Int(IsAutoRefreshing)]
                 @c CImGui.Checkbox("##自动刷新", &isautoref)
-                SyncStates[Int(isautorefresh)] = isautoref
+                SYNCSTATES[Int(IsAutoRefreshing)] = isautoref
                 if isautoref
                     CImGui.SameLine()
                     CImGui.Text(" ")
@@ -257,18 +257,18 @@ let
                     CImGui.PushItemWidth(CImGui.GetFontSize() * 2)
                     @c CImGui.DragFloat(
                         "##自动刷新",
-                        &conf.InsBuf.refreshrate,
+                        &CONF.InsBuf.refreshrate,
                         0.1, 0.1, 60, "%.1f",
                         CImGui.ImGuiSliderFlags_AlwaysClamp
                     )
                     CImGui.PopItemWidth()
                 end
-                CImGui.Text(stcstr(morestyle.Icons.ShowCol, " 显示列数"))
+                CImGui.Text(stcstr(MORESTYLE.Icons.ShowCol, " 显示列数"))
                 CImGui.SameLine()
                 CImGui.PushItemWidth(3CImGui.GetFontSize() / 2)
                 @c CImGui.DragInt(
                     "##显示列数",
-                    &conf.InsBuf.showcol,
+                    &CONF.InsBuf.showcol,
                     1, 1, 12, "%d",
                     CImGui.ImGuiSliderFlags_AlwaysClamp
                 )
@@ -278,34 +278,34 @@ let
             CImGui.IsKeyReleased(294) && manualrefresh()
             CImGui.NextColumn()
             CImGui.BeginChild("设置选项")
-            haskey(instrbufferviewers, selectedins) || (selectedins = "")
+            haskey(INSTRBUFFERVIEWERS, selectedins) || (selectedins = "")
             if selectedins == ""
-                for ins in keys(instrbufferviewers)
-                    CImGui.TextColored(morestyle.Colors.HighlightText, stcstr(ins, "："))
-                    for (addr, ibv) in instrbufferviewers[ins]
+                for ins in keys(INSTRBUFFERVIEWERS)
+                    CImGui.TextColored(MORESTYLE.Colors.HighlightText, stcstr(ins, "："))
+                    for (addr, ibv) in INSTRBUFFERVIEWERS[ins]
                         CImGui.Text(stcstr("\t\t", addr, "\t\t"))
                         CImGui.SameLine()
                         @c CImGui.Checkbox(stcstr("##是否自动刷新", addr), &ibv.insbuf.isautorefresh)
                         if ins != "VirtualInstr"
                             CImGui.SameLine()
                             CImGui.Button(
-                                stcstr(morestyle.Icons.CloseFile, "##delete ", addr)
-                            ) && delete!(instrbufferviewers[ins], addr)
+                                stcstr(MORESTYLE.Icons.CloseFile, "##delete ", addr)
+                            ) && delete!(INSTRBUFFERVIEWERS[ins], addr)
                         end
                     end
                     CImGui.Separator()
                 end
             else
-                showinslist::Set = @trypass keys(instrbufferviewers[selectedins]) Set{String}()
+                showinslist::Set = @trypass keys(INSTRBUFFERVIEWERS[selectedins]) Set{String}()
                 CImGui.PushItemWidth(-CImGui.GetFontSize() * 2.5)
                 @c ComBoS("地址", &selectedaddr, showinslist)
                 CImGui.PopItemWidth()
                 CImGui.Separator()
                 @c testcmd(selectedins, selectedaddr, &inputcmd, &readstr)
 
-                selectedaddr = haskey(instrbufferviewers[selectedins], selectedaddr) ? selectedaddr : ""
+                selectedaddr = haskey(INSTRBUFFERVIEWERS[selectedins], selectedaddr) ? selectedaddr : ""
                 haskey(default_insbufs, selectedins) || push!(default_insbufs, selectedins => InstrBuffer(selectedins))
-                insbuf = selectedaddr == "" ? default_insbufs[selectedins] : instrbufferviewers[selectedins][selectedaddr].insbuf
+                insbuf = selectedaddr == "" ? default_insbufs[selectedins] : INSTRBUFFERVIEWERS[selectedins][selectedaddr].insbuf
                 edit(insbuf, selectedaddr)
             end
             CImGui.EndChild()
@@ -316,7 +316,7 @@ end #let
 
 function testcmd(ins, addr, inputcmd::Ref{String}, readstr::Ref{String})
     if CImGui.CollapsingHeader("\t指令测试")
-        y = (1 + length(findall("\n", inputcmd[]))) * CImGui.GetTextLineHeight() + 2unsafe_load(imguistyle.FramePadding.y)
+        y = (1 + length(findall("\n", inputcmd[]))) * CImGui.GetTextLineHeight() + 2unsafe_load(IMGUISTYLE.FramePadding.y)
         InputTextMultilineRSZ("##输入命令", inputcmd, (Float32(-1), y))
         if CImGui.BeginPopupContextItem()
             CImGui.MenuItem("清空") && (inputcmd[] = "")
@@ -326,7 +326,7 @@ function testcmd(ins, addr, inputcmd::Ref{String}, readstr::Ref{String})
         CImGui.BeginChild("对齐按钮", (Float32(0), CImGui.GetFrameHeightWithSpacing()))
         CImGui.PushStyleVar(CImGui.ImGuiStyleVar_FrameRounding, 12)
         CImGui.Columns(3, C_NULL, false)
-        if CImGui.Button(stcstr(morestyle.Icons.WriteBlock, "  Write"), (-1, 0))
+        if CImGui.Button(stcstr(MORESTYLE.Icons.WriteBlock, "  Write"), (-1, 0))
             if addr != ""
                 remotecall_wait(workers()[1], ins, addr, inputcmd[]) do ins, addr, inputcmd
                     ct = Controller(ins, addr)
@@ -342,7 +342,7 @@ function testcmd(ins, addr, inputcmd::Ref{String}, readstr::Ref{String})
             end
         end
         CImGui.NextColumn()
-        if CImGui.Button(stcstr(morestyle.Icons.QueryBlock, "  Query"), (-1, 0))
+        if CImGui.Button(stcstr(MORESTYLE.Icons.QueryBlock, "  Query"), (-1, 0))
             if addr != ""
                 fetchdata = remotecall_fetch(workers()[1], ins, addr, inputcmd[]) do ins, addr, inputcmd
                     ct = Controller(ins, addr)
@@ -360,7 +360,7 @@ function testcmd(ins, addr, inputcmd::Ref{String}, readstr::Ref{String})
             end
         end
         CImGui.NextColumn()
-        if CImGui.Button(stcstr(morestyle.Icons.ReadBlock, "  Read"), (-1, 0))
+        if CImGui.Button(stcstr(MORESTYLE.Icons.ReadBlock, "  Read"), (-1, 0))
             if addr != ""
                 fetchdata = remotecall_fetch(workers()[1], ins, addr) do ins, addr
                     ct = Controller(ins, addr)
@@ -396,7 +396,7 @@ function edit(insbuf::InstrBuffer, addr)
         @c(CImGui.Checkbox("筛选别称", &insbuf.filtervarname)) && update_passfilter!(insbuf)
     end
     CImGui.BeginChild("InstrBuffer")
-    CImGui.Columns(conf.InsBuf.showcol, C_NULL, false)
+    CImGui.Columns(CONF.InsBuf.showcol, C_NULL, false)
     for (i, qt) in enumerate(values(insbuf.quantities))
         qt.enable || continue
         qt.passfilter || continue
@@ -437,17 +437,17 @@ let
         CImGui.PushStyleColor(
             CImGui.ImGuiCol_Button,
             if qt.isautorefresh || qt.issweeping
-                morestyle.Colors.DAQTaskRunning
+                MORESTYLE.Colors.DAQTaskRunning
             else
-                CImGui.c_get(imguistyle.Colors, CImGui.ImGuiCol_Button)
+                CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_Button)
             end
         )
         CImGui.PushStyleColor(
             CImGui.ImGuiCol_ButtonHovered,
             if qt.isautorefresh || qt.issweeping
-                morestyle.Colors.DAQTaskRunning
+                MORESTYLE.Colors.DAQTaskRunning
             else
-                CImGui.c_get(imguistyle.Colors, CImGui.ImGuiCol_ButtonHovered)
+                CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_ButtonHovered)
             end
         )
         if CImGui.Button(qt.show_edit, (-1, 0))
@@ -458,7 +458,7 @@ let
             end
         end
         CImGui.PopStyleColor(2)
-        if conf.InsBuf.showhelp && CImGui.IsItemHovered() && qt.help != ""
+        if CONF.InsBuf.showhelp && CImGui.IsItemHovered() && qt.help != ""
             ItemTooltip(qt.help)
         end
         if CImGui.BeginPopupContextItem()
@@ -473,7 +473,7 @@ let
             else
                 if CImGui.Button(" 开始 ", (-1, 0)) || CImGui.IsKeyDown(257) || CImGui.IsKeyDown(335)
                     if addr != ""
-                        Us = conf.U[qt.utype]
+                        Us = CONF.U[qt.utype]
                         U = isempty(Us) ? "" : Us[qt.uindex]
                         U == "" || (Uchange::Float64 = Us[1] isa Unitful.FreeUnits ? ustrip(Us[1], 1U) : 1.0)
                         start = remotecall_fetch(workers()[1], instrnm, addr) do instrnm, addr
@@ -500,7 +500,7 @@ let
                             @error "[$(now())]\nstop解析错误！！！" stop = qt.stop
                         end
                         if !(isnothing(start) || isnothing(step) || isnothing(stop))
-                            if conf.DAQ.equalstep
+                            if CONF.DAQ.equalstep
                                 sweepsteps = ceil(Int, abs((start - stop) / step))
                                 sweepsteps = sweepsteps == 1 ? 2 : sweepsteps
                                 sweeplist = range(start, stop, length=sweepsteps)
@@ -568,11 +568,11 @@ let
     global function edit(qt::InstrQuantity, instrnm::String, addr::String, ::Val{:set})
         CImGui.PushStyleColor(
             CImGui.ImGuiCol_Button,
-            qt.isautorefresh ? morestyle.Colors.DAQTaskRunning : CImGui.c_get(imguistyle.Colors, CImGui.ImGuiCol_Button)
+            qt.isautorefresh ? MORESTYLE.Colors.DAQTaskRunning : CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_Button)
         )
         CImGui.PushStyleColor(
             CImGui.ImGuiCol_ButtonHovered,
-            qt.isautorefresh ? morestyle.Colors.DAQTaskRunning : CImGui.c_get(imguistyle.Colors, CImGui.ImGuiCol_ButtonHovered)
+            qt.isautorefresh ? MORESTYLE.Colors.DAQTaskRunning : CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_ButtonHovered)
         )
         if CImGui.Button(qt.show_edit, (-1, 0))
             if addr != ""
@@ -582,7 +582,7 @@ let
             end
         end
         CImGui.PopStyleColor(2)
-        if conf.InsBuf.showhelp && CImGui.IsItemHovered() && qt.help != ""
+        if CONF.InsBuf.showhelp && CImGui.IsItemHovered() && qt.help != ""
             ItemTooltip(qt.help)
         end
         if CImGui.BeginPopupContextItem()
@@ -593,7 +593,7 @@ let
                ) || triggerset || CImGui.IsKeyDown(257) || CImGui.IsKeyDown(335)
                 triggerset = false
                 if addr != ""
-                    Us = conf.U[qt.utype]
+                    Us = CONF.U[qt.utype]
                     U = isempty(Us) ? "" : Us[qt.uindex]
                     U == "" || (Uchange::Float64 = Us[1] isa Unitful.FreeUnits ? ustrip(Us[1], 1U) : 1.0)
                     sv = U == "" ? qt.set : @trypasse string(float(eval(Meta.parse(qt.set)) * Uchange)) qt.set
@@ -660,11 +660,11 @@ let
     global function edit(qt::InstrQuantity, instrnm, addr, ::Val{:read})
         CImGui.PushStyleColor(
             CImGui.ImGuiCol_Button,
-            qt.isautorefresh ? morestyle.Colors.DAQTaskRunning : CImGui.c_get(imguistyle.Colors, CImGui.ImGuiCol_Button)
+            qt.isautorefresh ? MORESTYLE.Colors.DAQTaskRunning : CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_Button)
         )
         CImGui.PushStyleColor(
             CImGui.ImGuiCol_ButtonHovered,
-            qt.isautorefresh ? morestyle.Colors.DAQTaskRunning : CImGui.c_get(imguistyle.Colors, CImGui.ImGuiCol_ButtonHovered)
+            qt.isautorefresh ? MORESTYLE.Colors.DAQTaskRunning : CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_ButtonHovered)
         )
         if CImGui.Button(qt.show_edit, (-1, 0))
             if addr != ""
@@ -674,7 +674,7 @@ let
             end
         end
         CImGui.PopStyleColor(2)
-        if conf.InsBuf.showhelp && CImGui.IsItemHovered() && qt.help != ""
+        if CONF.InsBuf.showhelp && CImGui.IsItemHovered() && qt.help != ""
             ItemTooltip(qt.help)
         end
         if CImGui.BeginPopupContextItem()
@@ -696,7 +696,7 @@ function view(instrbufferviewers_local)
     for ins in keys(instrbufferviewers_local)
         ins == "Others" && continue
         for (addr, ibv) in instrbufferviewers_local[ins]
-            CImGui.TextColored(morestyle.Colors.HighlightText, stcstr(ins, "：", addr))
+            CImGui.TextColored(MORESTYLE.Colors.HighlightText, stcstr(ins, "：", addr))
             CImGui.PushID(addr)
             view(ibv.insbuf)
             CImGui.PopID()
@@ -705,9 +705,9 @@ function view(instrbufferviewers_local)
 end
 
 function view(insbuf::InstrBuffer)
-    y = ceil(Int, sum(qt.enable for (_, qt) in insbuf.quantities) / conf.InsBuf.showcol) * 2CImGui.GetFrameHeight()
+    y = ceil(Int, sum(qt.enable for (_, qt) in insbuf.quantities) / CONF.InsBuf.showcol) * 2CImGui.GetFrameHeight()
     CImGui.BeginChild("view insbuf", (Float32(0), y))
-    CImGui.Columns(conf.InsBuf.showcol, C_NULL, false)
+    CImGui.Columns(CONF.InsBuf.showcol, C_NULL, false)
     CImGui.PushID(insbuf.instrnm)
     for (name, qt) in insbuf.quantities
         qt.enable || continue
@@ -723,7 +723,7 @@ end
 function view(qt::InstrQuantity)
     qt.show_view == "" && updatefront!(qt; show_edit=false)
     if CImGui.Button(qt.show_view, (-1, 0))
-        Us = conf.U[qt.utype]
+        Us = CONF.U[qt.utype]
         qt.uindex = (qt.uindex + 1) % length(Us)
         qt.uindex == 0 && (qt.uindex = length(Us))
         updatefront!(qt; show_edit=false)
@@ -748,11 +748,11 @@ end
 
 function log_instrbufferviewers()
     manualrefresh()
-    push!(cfgbuf, "instrbufferviewers/[$(now())]" => deepcopy(instrbufferviewers))
+    push!(CFGBUF, "INSTRBUFFERVIEWERS/[$(now())]" => deepcopy(INSTRBUFFERVIEWERS))
 end
 
 function refresh_fetch_ibvs(ibvs_local; log=false)
-    remotecall_fetch(workers()[1], ibvs_local, log, conf.DAQ.logall) do ibvs_local, log, logall
+    remotecall_fetch(workers()[1], ibvs_local, log, CONF.DAQ.logall) do ibvs_local, log, logall
         cts = Dict()
         @sync for ins in keys(ibvs_local)
             ins == "Others" && continue
@@ -788,10 +788,10 @@ function refresh_fetch_ibvs(ibvs_local; log=false)
 end
 
 function manualrefresh()
-    ibvs_remote = refresh_fetch_ibvs(instrbufferviewers; log=true)
-    for ins in keys(instrbufferviewers)
+    ibvs_remote = refresh_fetch_ibvs(INSTRBUFFERVIEWERS; log=true)
+    for ins in keys(INSTRBUFFERVIEWERS)
         ins == "Others" && continue
-        for (addr, ibv) in instrbufferviewers[ins]
+        for (addr, ibv) in INSTRBUFFERVIEWERS[ins]
             for (qtnm, qt) in ibv.insbuf.quantities
                 qt.read = ibvs_remote[ins][addr].insbuf.quantities[qtnm].read
             end
@@ -803,15 +803,15 @@ function autorefresh()
     errormonitor(
         @async while true
             i_sleep = 0
-            while i_sleep < conf.InsBuf.refreshrate
+            while i_sleep < CONF.InsBuf.refreshrate
                 sleep(0.1)
                 i_sleep += 0.1
             end
-            if SyncStates[Int(isautorefresh)]
-                ibvs_remote = refresh_fetch_ibvs(instrbufferviewers)
-                for ins in keys(instrbufferviewers)
+            if SYNCSTATES[Int(IsAutoRefreshing)]
+                ibvs_remote = refresh_fetch_ibvs(INSTRBUFFERVIEWERS)
+                for ins in keys(INSTRBUFFERVIEWERS)
                     ins == "Others" && continue
-                    for (addr, ibv) in instrbufferviewers[ins]
+                    for (addr, ibv) in INSTRBUFFERVIEWERS[ins]
                         if ibv.insbuf.isautorefresh
                             for (qtnm, qt) in ibv.insbuf.quantities
                                 if qt.isautorefresh

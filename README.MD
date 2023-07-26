@@ -22,7 +22,7 @@ QInsControl.start()
 ```
 
 ## example
-A simple project file demo.daq is in the example folder, which may give some ideas to write your own scripts.
+A simple project file [demo.daq](example) is in the example folder, which may give some ideas to write your own scripts.
 One can load it as follows
 ![image](example/loadproject.gif)
 

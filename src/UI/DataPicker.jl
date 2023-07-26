@@ -26,8 +26,8 @@ DataPicker() = DataPicker(
 function edit(dtpk::DataPicker, id, p_open::Ref)
     CImGui.SetNextWindowSize((400, 600), CImGui.ImGuiCond_Appearing)
     # dtpk.hold && CImGui.SetNextWindowFocus()
-    CImGui.PushStyleColor(CImGui.ImGuiCol_WindowBg, CImGui.c_get(imguistyle.Colors, CImGui.ImGuiCol_PopupBg))
-    CImGui.PushStyleVar(CImGui.ImGuiStyleVar_WindowRounding, unsafe_load(imguistyle.PopupRounding))
+    CImGui.PushStyleColor(CImGui.ImGuiCol_WindowBg, CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_PopupBg))
+    CImGui.PushStyleVar(CImGui.ImGuiStyleVar_WindowRounding, unsafe_load(IMGUISTYLE.PopupRounding))
     isupdate = false
     isfocus = true
     if CImGui.Begin(
@@ -36,7 +36,7 @@ function edit(dtpk::DataPicker, id, p_open::Ref)
         CImGui.ImGuiWindowFlags_NoTitleBar | CImGui.ImGuiWindowFlags_NoDocking
     )
         @cstatic holdsz::Float32 = 0 begin
-            CImGui.TextColored(morestyle.Colors.HighlightText, morestyle.Icons.SelectData)
+            CImGui.TextColored(MORESTYLE.Colors.HighlightText, MORESTYLE.Icons.SelectData)
             CImGui.SameLine()
             CImGui.Text(" 数据选择")
             CImGui.SameLine(CImGui.GetContentRegionAvailWidth() - holdsz)
@@ -46,7 +46,7 @@ function edit(dtpk::DataPicker, id, p_open::Ref)
         CImGui.Separator()
 
         @cstatic xtypesz::Float32 = 0 begin
-            CImGui.TextColored(morestyle.Colors.HighlightText, "选择X")
+            CImGui.TextColored(MORESTYLE.Colors.HighlightText, "选择X")
             CImGui.SameLine(CImGui.GetContentRegionAvailWidth() - xtypesz)
             if dtpk.xtype
                 @c CImGui.Checkbox("数字", &dtpk.xtype)
@@ -59,11 +59,11 @@ function edit(dtpk::DataPicker, id, p_open::Ref)
         @c ComBoS("##选择X", &dtpk.x, [dtpk.datalist; ""])
         CImGui.PopItemWidth()
 
-        CImGui.TextColored(morestyle.Colors.HighlightText, "选择Y")
+        CImGui.TextColored(MORESTYLE.Colors.HighlightText, "选择Y")
         isempty(dtpk.datalist) ? CImGui.Selectable("") : MultiSelectable(() -> false, "数据选择Y", dtpk.datalist, dtpk.y, 1)
 
         CImGui.PushItemWidth(-1)
-        CImGui.TextColored(morestyle.Colors.HighlightText, "选择Z")
+        CImGui.TextColored(MORESTYLE.Colors.HighlightText, "选择Z")
         @c ComBoS("##选择Z", &dtpk.z, [dtpk.datalist; ""])
         CImGui.PopItemWidth()
         CImGui.DragInt2("矩阵维度", dtpk.zsize, 1, 0, 1000000, "%d", CImGui.ImGuiSliderFlags_AlwaysClamp)
@@ -71,15 +71,15 @@ function edit(dtpk::DataPicker, id, p_open::Ref)
         CImGui.SameLine(CImGui.GetContentRegionAvailWidth() / 2)
         @c CImGui.Checkbox("左右翻转", &dtpk.hflipz)
 
-        CImGui.PushStyleColor(CImGui.ImGuiCol_Text, morestyle.Colors.HighlightText)
+        CImGui.PushStyleColor(CImGui.ImGuiCol_Text, MORESTYLE.Colors.HighlightText)
         selectw = CImGui.CollapsingHeader("选择W")
         CImGui.PopStyleColor()
         if selectw
-            # CImGui.TextColored(morestyle.Colors.HighlightText, "选择W")
+            # CImGui.TextColored(MORESTYLE.Colors.HighlightText, "选择W")
             isempty(dtpk.datalist) ? CImGui.Selectable("") : MultiSelectable(() -> false, "数据选择W", dtpk.datalist, dtpk.w, 1)
         end
 
-        CImGui.TextColored(morestyle.Colors.LogInfo, "数据微处理")
+        CImGui.TextColored(MORESTYLE.Colors.LogInfo, "数据微处理")
         CImGui.SameLine(CImGui.GetWindowContentRegionWidth() - dtpk.alsz)
         if dtpk.isrealtime
             CImGui.Text("采样率")
@@ -89,14 +89,14 @@ function edit(dtpk::DataPicker, id, p_open::Ref)
             @c CImGui.DragFloat("s", &dtpk.refreshrate, 0.01, 0.01, 6, "%.2f", CImGui.ImGuiSliderFlags_AlwaysClamp)
             CImGui.SameLine()
             CImGui.PopItemWidth()
-            dtpk.alsz += CImGui.GetItemRectSize().x + unsafe_load(imguistyle.ItemSpacing.x)
+            dtpk.alsz += CImGui.GetItemRectSize().x + unsafe_load(IMGUISTYLE.ItemSpacing.x)
         else
-            CImGui.Button(stcstr(morestyle.Icons.Update, " 更新  ")) && (isupdate = true)
+            CImGui.Button(stcstr(MORESTYLE.Icons.Update, " 更新  ")) && (isupdate = true)
             dtpk.alsz = CImGui.GetItemRectSize().x
         end
         CImGui.SameLine()
         @c CImGui.Checkbox("RT", &dtpk.isrealtime)
-        dtpk.alsz += CImGui.GetItemRectSize().x + unsafe_load(imguistyle.ItemSpacing.x)
+        dtpk.alsz += CImGui.GetItemRectSize().x + unsafe_load(IMGUISTYLE.ItemSpacing.x)
         CImGui.IsItemHovered() && CImGui.SetTooltip("实时更新数据/手动更新数据")
 
         CImGui.PushID("数据选择XYZ")

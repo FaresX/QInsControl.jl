@@ -117,9 +117,9 @@ version = "0.12.10"
 
 [[deps.Compat]]
 deps = ["UUIDs"]
-git-tree-sha1 = "4e88377ae7ebeaf29a047aa1ee40826e0b708a5d"
+git-tree-sha1 = "5ce999a19f4ca23ea484e92a1774a61b8ca4cf8e"
 uuid = "34da2185-b29b-5c13-b0c7-acf172513d20"
-version = "4.7.0"
+version = "4.8.0"
 weakdeps = ["Dates", "LinearAlgebra"]
 
     [deps.Compat.extensions]
@@ -379,9 +379,9 @@ version = "1.8.0"
 
 [[deps.JLD2]]
 deps = ["FileIO", "MacroTools", "Mmap", "OrderedCollections", "Pkg", "Printf", "Reexport", "Requires", "TranscodingStreams", "UUIDs"]
-git-tree-sha1 = "5df8278ad24772c0c6dbbeb97b162ccf29ced2a9"
+git-tree-sha1 = "aa6ffef1fd85657f4999030c52eaeec22a279738"
 uuid = "033835bb-8acc-5ee8-8aae-3f567f8a3819"
-version = "0.4.32"
+version = "0.4.33"
 
 [[deps.JLLWrappers]]
 deps = ["Preferences"]

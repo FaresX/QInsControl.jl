@@ -89,7 +89,7 @@ function ShowHelpMarker(desc)
 end
 
 function ShowUnit(id, utype, ui::Ref, flags=CImGui.ImGuiComboFlags_NoArrowButton)
-    units = string.(conf.U[utype])
+    units = string.(CONF.U[utype])
     showu = @trypass units[ui.x] ""
     if CImGui.BeginCombo(stcstr("##单位", id), showu, flags)
         for u in eachindex(units)
@@ -169,7 +169,7 @@ end
 
 function YesNoDialog(id, msg, flags=0)::Bool
     if CImGui.BeginPopupModal(id, C_NULL, flags)
-        CImGui.TextColored(morestyle.Colors.LogError, string("\n", msg, "\n\n"))
+        CImGui.TextColored(MORESTYLE.Colors.LogError, string("\n", msg, "\n\n"))
         CImGui.Button("确认") && (CImGui.CloseCurrentPopup(); return true)
         CImGui.SameLine(240)
         CImGui.Button("取消") && (CImGui.CloseCurrentPopup(); return false)
@@ -189,7 +189,7 @@ function TextRect(str)
         draw_list,
         rmin,
         CImGui.ImVec2(pos.x + width, rmax.y),
-        CImGui.ColorConvertFloat4ToU32(morestyle.Colors.ShowTextRect),
+        CImGui.ColorConvertFloat4ToU32(MORESTYLE.Colors.ShowTextRect),
         0.0,
         0
     )

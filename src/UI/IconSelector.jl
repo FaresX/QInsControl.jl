@@ -1,13 +1,13 @@
-ICONS = ICON()
-ICONS_NAME = Dict()
-for f in fieldnames(ICON)
+global ICONS = Icon()
+global ICONS_NAME = Dict()
+for f in fieldnames(Icon)
     push!(ICONS_NAME, getproperty(ICONS, f) => string(f))
 end
 
 # mutable struct IconColored
 #     icon::String
 #     color::Vector{Cfloat}
-#     IconColored(icon) = new(icon, CImGui.c_get(imguistyle.Colors, CImGui.ImGuiCol_Text))
+#     IconColored(icon) = new(icon, CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_Text))
 # end
 
 # function IconColoredSelector(label, icon::IconColored)
@@ -33,7 +33,7 @@ let
             @c InputTextRSZ("Filter ICONS", &filter)
             CImGui.PopItemWidth()
             CImGui.Columns(24, C_NULL, false)
-            for (i, icon) in enumerate(fieldnames(ICON))
+            for (i, icon) in enumerate(fieldnames(Icon))
                 # ImGuiTextFilter_PassFilter(filter, pointer(string(icon)), C_NULL) || continue
                 occursin(lowercase(filter), lowercase(string(icon))) || continue
                 CImGui.PushID(i)

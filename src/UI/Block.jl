@@ -146,11 +146,11 @@ function tocodes(bk::StrideCodeBlock)
         $(innercodes...)
     end
     interpall = quote
-        if SyncStates[Int(isblock)]
+        if SYNCSTATES[Int(IsBlocked)]
             @warn "[$(now())]\n暂停！" StrideCodeBlock = $headcodes
-            lock(() -> wait(block), block)
+            lock(() -> wait(BLOCK), BLOCK)
             @info "[$(now())]\n继续！" StrideCodeBlock = $headcodes
-        elseif SyncStates[Int(isinterrupt)]
+        elseif SYNCSTATES[Int(IsInterrupted)]
             @warn "[$(now())]\n中断！" StrideCodeBlock = $headcodes
             return
         end
@@ -166,7 +166,7 @@ function tocodes(bk::SweepBlock)
     setfunc = Symbol(bk.instrnm, :_, bk.quantity, :_set)
     getfunc = Symbol(bk.instrnm, :_, bk.quantity, :_get)
     Ut = insconf[bk.instrnm].quantities[quantity].U
-    Us = conf.U[Ut]
+    Us = CONF.U[Ut]
     U = Us[bk.ui]
     U == "" && (@error "[$(now())]\n输入数据有误！！！" bk = bk;
     return)
@@ -197,7 +197,7 @@ function tocodes(bk::SweepBlock)
     @gensym ijk
     @gensym sweeplist
     @gensym sweepsteps
-    ex1 = if conf.DAQ.equalstep
+    ex1 = if CONF.DAQ.equalstep
         quote
             $sweepsteps = ceil(Int, abs(($start - $stop) / $step))
             $sweepsteps = $sweepsteps == 1 ? 2 : $sweepsteps
@@ -224,11 +224,11 @@ function tocodes(bk::SweepBlock)
     return quote
         $ex1
         @progress for $ijk in $sweeplist
-            if SyncStates[Int(isblock)]
+            if SYNCSTATES[Int(IsBlocked)]
                 @warn "[$(now())]\n暂停！" SweepBlock = $instr
-                lock(() -> wait(block), block)
+                lock(() -> wait(BLOCK), BLOCK)
                 @info "[$(now())]\n继续！" SweepBlock = $instr
-            elseif SyncStates[Int(isinterrupt)]
+            elseif SYNCSTATES[Int(IsInterrupted)]
                 @warn "[$(now())]\n中断！" SweepBlock = $instr
                 return
             end
@@ -243,7 +243,7 @@ function tocodes(bk::SettingBlock)
     instr = string(bk.instrnm, "_", bk.addr)
     quantity = bk.quantity
     Ut = insconf[bk.instrnm].quantities[quantity].U
-    Us = conf.U[Ut]
+    Us = CONF.U[Ut]
     U = Us[bk.ui]
     if U == ""
         setvalue = parsedollar(bk.setvalue)
@@ -567,28 +567,28 @@ end
 bkheight(::NullBlock) = zero(Float32)
 function bkheight(bk::CodeBlock)
     (1 + length(findall("\n", bk.codes))) * CImGui.GetTextLineHeight() +
-    2unsafe_load(imguistyle.FramePadding.y) +
-    2unsafe_load(imguistyle.WindowPadding.y) + 1
+    2unsafe_load(IMGUISTYLE.FramePadding.y) +
+    2unsafe_load(IMGUISTYLE.WindowPadding.y) + 1
 end
 function bkheight(bk::StrideCodeBlock)
-    2unsafe_load(imguistyle.WindowPadding.y) +
+    2unsafe_load(IMGUISTYLE.WindowPadding.y) +
     CImGui.GetFrameHeight() +
-    length(skipnull(bk.blocks)) * unsafe_load(imguistyle.ItemSpacing.y) +
+    length(skipnull(bk.blocks)) * unsafe_load(IMGUISTYLE.ItemSpacing.y) +
     sum(bkheight.(bk.blocks))
 end
 function bkheight(bk::SweepBlock)
-    2unsafe_load(imguistyle.WindowPadding.y) +
+    2unsafe_load(IMGUISTYLE.WindowPadding.y) +
     CImGui.GetFrameHeight() +
-    length(skipnull(bk.blocks)) * unsafe_load(imguistyle.ItemSpacing.y) +
+    length(skipnull(bk.blocks)) * unsafe_load(IMGUISTYLE.ItemSpacing.y) +
     sum(bkheight.(bk.blocks))
 end
-bkheight(_) = 2unsafe_load(imguistyle.WindowPadding.y) + CImGui.GetFrameHeight()
+bkheight(_) = 2unsafe_load(IMGUISTYLE.WindowPadding.y) + CImGui.GetFrameHeight()
 
 ############edit-------------------------------------------------------------------------------------------------------
 
 function edit(bk::CodeBlock)
     CImGui.BeginChild("##CodeBlock", (Float32(0), bkheight(bk)), true)
-    CImGui.TextColored(morestyle.Colors.BlockIcons, morestyle.Icons.CodeBlock)
+    CImGui.TextColored(MORESTYLE.Colors.BlockIcons, MORESTYLE.Icons.CodeBlock)
     CImGui.SameLine()
     @c InputTextMultilineRSZ("##CodeBlock", &bk.codes, (-1, -1))
     CImGui.EndChild()
@@ -598,13 +598,13 @@ function edit(bk::StrideCodeBlock)
     CImGui.PushStyleColor(
         CImGui.ImGuiCol_Border,
         if isempty(skipnull(bk.blocks))
-            CImGui.c_get(imguistyle.Colors, CImGui.ImGuiCol_Border)
+            CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_Border)
         else
-            morestyle.Colors.StrideCodeBlockBorder
+            MORESTYLE.Colors.StrideCodeBlockBorder
         end
     )
     CImGui.BeginChild("##StrideBlock", (Float32(0), bkheight(bk)), true)
-    CImGui.TextColored(morestyle.Colors.BlockIcons, morestyle.Icons.StrideCodeBlock)
+    CImGui.TextColored(MORESTYLE.Colors.BlockIcons, MORESTYLE.Icons.StrideCodeBlock)
     CImGui.SameLine()
     CImGui.PushItemWidth(-1)
     @c InputTextWithHintRSZ("##代码块头", "代码块头", &bk.head)
@@ -615,19 +615,19 @@ function edit(bk::StrideCodeBlock)
 end
 
 function edit(bk::SweepBlock)
-    CImGui.PushStyleVar(CImGui.ImGuiStyleVar_ItemSpacing, (Float32(2), unsafe_load(imguistyle.ItemSpacing.y)))
+    CImGui.PushStyleVar(CImGui.ImGuiStyleVar_ItemSpacing, (Float32(2), unsafe_load(IMGUISTYLE.ItemSpacing.y)))
     CImGui.PushStyleColor(
         CImGui.ImGuiCol_Border,
         if isempty(skipnull(bk.blocks))
-            CImGui.c_get(imguistyle.Colors, CImGui.ImGuiCol_Border)
+            CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_Border)
         else
-            ImVec4(morestyle.Colors.SweepBlockBorder...)
+            ImVec4(MORESTYLE.Colors.SweepBlockBorder...)
         end
     )
     CImGui.BeginChild("##SweepBlock", (Float32(0), bkheight(bk)), true)
     CImGui.TextColored(
-        bk.istrycatch ? morestyle.Colors.BlockTrycatch : morestyle.Colors.BlockIcons,
-        morestyle.Icons.SweepBlock
+        bk.istrycatch ? MORESTYLE.Colors.BlockTrycatch : MORESTYLE.Colors.BlockIcons,
+        MORESTYLE.Icons.SweepBlock
     )
     CImGui.IsItemClicked(2) && (bk.istrycatch ⊻= true)
     CImGui.SameLine()
@@ -637,9 +637,9 @@ function edit(bk::SweepBlock)
     CImGui.PopItemWidth()
     CImGui.SameLine()
 
-    inlist = haskey(instrbufferviewers, bk.instrnm) && haskey(instrbufferviewers[bk.instrnm], bk.addr)
+    inlist = haskey(INSTRBUFFERVIEWERS, bk.instrnm) && haskey(INSTRBUFFERVIEWERS[bk.instrnm], bk.addr)
     bk.addr = inlist ? bk.addr : "地址"
-    addrlist = haskey(instrbufferviewers, bk.instrnm) ? keys(instrbufferviewers[bk.instrnm]) : String[]
+    addrlist = haskey(INSTRBUFFERVIEWERS, bk.instrnm) ? keys(INSTRBUFFERVIEWERS[bk.instrnm]) : String[]
     CImGui.PushItemWidth(width)
     @c ComBoS("##SweepBlock地址", &bk.addr, addrlist, CImGui.ImGuiComboFlags_NoArrowButton)
     CImGui.PopItemWidth()
@@ -701,11 +701,11 @@ function edit(bk::SweepBlock)
 end
 
 function edit(bk::SettingBlock)
-    CImGui.PushStyleVar(CImGui.ImGuiStyleVar_ItemSpacing, (Float32(2), unsafe_load(imguistyle.ItemSpacing.y)))
+    CImGui.PushStyleVar(CImGui.ImGuiStyleVar_ItemSpacing, (Float32(2), unsafe_load(IMGUISTYLE.ItemSpacing.y)))
     CImGui.BeginChild("##SettingBlock", (Float32(0), bkheight(bk)), true)
     CImGui.TextColored(
-        bk.istrycatch ? morestyle.Colors.BlockTrycatch : morestyle.Colors.BlockIcons,
-        morestyle.Icons.SettingBlock
+        bk.istrycatch ? MORESTYLE.Colors.BlockTrycatch : MORESTYLE.Colors.BlockIcons,
+        MORESTYLE.Icons.SettingBlock
     )
     CImGui.IsItemClicked(2) && (bk.istrycatch ⊻= true)
     CImGui.SameLine()
@@ -715,9 +715,9 @@ function edit(bk::SettingBlock)
     CImGui.PopItemWidth()
     CImGui.SameLine()
 
-    inlist = haskey(instrbufferviewers, bk.instrnm) && haskey(instrbufferviewers[bk.instrnm], bk.addr)
+    inlist = haskey(INSTRBUFFERVIEWERS, bk.instrnm) && haskey(INSTRBUFFERVIEWERS[bk.instrnm], bk.addr)
     bk.addr = inlist ? bk.addr : "地址"
-    addrlist = haskey(instrbufferviewers, bk.instrnm) ? keys(instrbufferviewers[bk.instrnm]) : String[]
+    addrlist = haskey(INSTRBUFFERVIEWERS, bk.instrnm) ? keys(INSTRBUFFERVIEWERS[bk.instrnm]) : String[]
     CImGui.PushItemWidth(width)
     @c ComBoS("##SettingBlock地址", &bk.addr, addrlist, CImGui.ImGuiComboFlags_NoArrowButton)
     CImGui.PopItemWidth()
@@ -756,9 +756,9 @@ function edit(bk::SettingBlock)
     if CImGui.BeginPopup("选择设置值")
         optklist = @trypass insconf[bk.instrnm].quantities[bk.quantity].optkeys [""]
         optvlist = @trypass insconf[bk.instrnm].quantities[bk.quantity].optvalues [""]
-        isempty(optklist) && CImGui.TextColored(morestyle.Colors.HighlightText, "不可用的选项！")
+        isempty(optklist) && CImGui.TextColored(MORESTYLE.Colors.HighlightText, "不可用的选项！")
         for (i, optv) in enumerate(optvlist)
-            optv == "" && (CImGui.TextColored(morestyle.Colors.HighlightText, "不可用的选项！");
+            optv == "" && (CImGui.TextColored(MORESTYLE.Colors.HighlightText, "不可用的选项！");
             continue)
             CImGui.MenuItem(optklist[i]) && (bk.setvalue = optv)
         end
@@ -780,19 +780,19 @@ function edit(bk::SettingBlock)
 end
 
 function edit(bk::ReadingBlock)
-    CImGui.PushStyleVar(CImGui.ImGuiStyleVar_ItemSpacing, (Float32(2), unsafe_load(imguistyle.ItemSpacing.y)))
+    CImGui.PushStyleVar(CImGui.ImGuiStyleVar_ItemSpacing, (Float32(2), unsafe_load(IMGUISTYLE.ItemSpacing.y)))
     CImGui.PushStyleColor(
         CImGui.ImGuiCol_Border,
         if bk.isasync && !bk.isobserve
-            morestyle.Colors.BlockAsyncBorder
+            MORESTYLE.Colors.BlockAsyncBorder
         else
-            CImGui.c_get(imguistyle.Colors, CImGui.ImGuiCol_Border)
+            CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_Border)
         end
     )
     CImGui.BeginChild("##ReadingBlock", (Float32(0), bkheight(bk)), true)
     CImGui.TextColored(
-        bk.istrycatch ? morestyle.Colors.BlockTrycatch : morestyle.Colors.BlockIcons,
-        morestyle.Icons.ReadingBlock
+        bk.istrycatch ? MORESTYLE.Colors.BlockTrycatch : MORESTYLE.Colors.BlockIcons,
+        MORESTYLE.Icons.ReadingBlock
     )
     CImGui.IsItemClicked(2) && (bk.istrycatch ⊻= true)
     CImGui.SameLine()
@@ -802,9 +802,9 @@ function edit(bk::ReadingBlock)
     CImGui.PopItemWidth()
     CImGui.SameLine()
 
-    inlist = haskey(instrbufferviewers, bk.instrnm) && haskey(instrbufferviewers[bk.instrnm], bk.addr)
+    inlist = haskey(INSTRBUFFERVIEWERS, bk.instrnm) && haskey(INSTRBUFFERVIEWERS[bk.instrnm], bk.addr)
     bk.addr = inlist ? bk.addr : "地址"
-    addrlist = @trypass keys(instrbufferviewers[bk.instrnm]) String[]
+    addrlist = @trypass keys(INSTRBUFFERVIEWERS[bk.instrnm]) String[]
     CImGui.PushItemWidth(width)
     @c ComBoS("##ReadingBlock地址", &bk.addr, addrlist, CImGui.ImGuiComboFlags_NoArrowButton)
     CImGui.PopItemWidth()
@@ -836,11 +836,11 @@ function edit(bk::ReadingBlock)
     CImGui.SameLine()
 
     markc = if bk.isobserve
-        ImVec4(morestyle.Colors.BlockObserveBG...)
+        ImVec4(MORESTYLE.Colors.BlockObserveBG...)
     else
-        CImGui.c_get(imguistyle.Colors, CImGui.ImGuiCol_FrameBg)
+        CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_FrameBg)
     end
-    bk.isobserve && bk.isreading && (markc = ImVec4(morestyle.Colors.BlockObserveReadingBG...))
+    bk.isobserve && bk.isreading && (markc = ImVec4(MORESTYLE.Colors.BlockObserveReadingBG...))
     CImGui.PushStyleColor(CImGui.ImGuiCol_FrameBg, markc)
     CImGui.PushItemWidth(-1)
     @c InputTextWithHintRSZ("##ReadingBlock", "标注", &bk.mark)
@@ -862,7 +862,7 @@ end
 
 function edit(bk::LogBlock)
     CImGui.BeginChild("##LogBlock", (Float32(0), bkheight(bk)), true)
-    CImGui.TextColored(morestyle.Colors.BlockIcons, morestyle.Icons.LogBlock)
+    CImGui.TextColored(MORESTYLE.Colors.BlockIcons, MORESTYLE.Icons.LogBlock)
     CImGui.SameLine()
     CImGui.Button("LogBlock##", (-1, 0))
     CImGui.EndChild()
@@ -872,16 +872,16 @@ function edit(bk::WriteBlock)
     CImGui.PushStyleColor(
         CImGui.ImGuiCol_Border,
         if bk.isasync
-            morestyle.Colors.BlockAsyncBorder
+            MORESTYLE.Colors.BlockAsyncBorder
         else
-            CImGui.c_get(imguistyle.Colors, CImGui.ImGuiCol_Border)
+            CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_Border)
         end
     )
-    CImGui.PushStyleVar(CImGui.ImGuiStyleVar_ItemSpacing, (Float32(2), unsafe_load(imguistyle.ItemSpacing.y)))
+    CImGui.PushStyleVar(CImGui.ImGuiStyleVar_ItemSpacing, (Float32(2), unsafe_load(IMGUISTYLE.ItemSpacing.y)))
     CImGui.BeginChild("##WriteBlock", (Float32(0), bkheight(bk)), true)
     CImGui.TextColored(
-        bk.istrycatch ? morestyle.Colors.BlockTrycatch : morestyle.Colors.BlockIcons,
-        morestyle.Icons.WriteBlock
+        bk.istrycatch ? MORESTYLE.Colors.BlockTrycatch : MORESTYLE.Colors.BlockIcons,
+        MORESTYLE.Icons.WriteBlock
     )
     CImGui.IsItemClicked(2) && (bk.istrycatch ⊻= true)
     CImGui.SameLine()
@@ -891,9 +891,9 @@ function edit(bk::WriteBlock)
     CImGui.PopItemWidth()
     CImGui.SameLine() #选仪器
 
-    inlist = haskey(instrbufferviewers, bk.instrnm) && haskey(instrbufferviewers[bk.instrnm], bk.addr)
+    inlist = haskey(INSTRBUFFERVIEWERS, bk.instrnm) && haskey(INSTRBUFFERVIEWERS[bk.instrnm], bk.addr)
     bk.addr = inlist ? bk.addr : "地址"
-    addrlist = @trypass keys(instrbufferviewers[bk.instrnm]) String[]
+    addrlist = @trypass keys(INSTRBUFFERVIEWERS[bk.instrnm]) String[]
     CImGui.PushItemWidth(width)
     @c ComBoS("##WriteBlock地址", &bk.addr, addrlist, CImGui.ImGuiComboFlags_NoArrowButton)
     CImGui.PopItemWidth()
@@ -913,16 +913,16 @@ function edit(bk::QueryBlock)
     CImGui.PushStyleColor(
         CImGui.ImGuiCol_Border,
         if bk.isasync && !bk.isobserve
-            morestyle.Colors.BlockAsyncBorder
+            MORESTYLE.Colors.BlockAsyncBorder
         else
-            CImGui.c_get(imguistyle.Colors, CImGui.ImGuiCol_Border)
+            CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_Border)
         end
     )
-    CImGui.PushStyleVar(CImGui.ImGuiStyleVar_ItemSpacing, (Float32(2), unsafe_load(imguistyle.ItemSpacing.y)))
+    CImGui.PushStyleVar(CImGui.ImGuiStyleVar_ItemSpacing, (Float32(2), unsafe_load(IMGUISTYLE.ItemSpacing.y)))
     CImGui.BeginChild("##QueryBlock", (Float32(0), bkheight(bk)), true)
     CImGui.TextColored(
-        bk.istrycatch ? morestyle.Colors.BlockTrycatch : morestyle.Colors.BlockIcons,
-        morestyle.Icons.QueryBlock
+        bk.istrycatch ? MORESTYLE.Colors.BlockTrycatch : MORESTYLE.Colors.BlockIcons,
+        MORESTYLE.Icons.QueryBlock
     )
     CImGui.IsItemClicked(2) && (bk.istrycatch ⊻= true)
     CImGui.SameLine()
@@ -932,9 +932,9 @@ function edit(bk::QueryBlock)
     CImGui.PopItemWidth()
     CImGui.SameLine() #选仪器
 
-    inlist = haskey(instrbufferviewers, bk.instrnm) && haskey(instrbufferviewers[bk.instrnm], bk.addr)
+    inlist = haskey(INSTRBUFFERVIEWERS, bk.instrnm) && haskey(INSTRBUFFERVIEWERS[bk.instrnm], bk.addr)
     bk.addr = inlist ? bk.addr : "地址"
-    addrlist = @trypass keys(instrbufferviewers[bk.instrnm]) String[]
+    addrlist = @trypass keys(INSTRBUFFERVIEWERS[bk.instrnm]) String[]
     CImGui.PushItemWidth(width)
     @c ComBoS("##QueryBlock地址", &bk.addr, addrlist, CImGui.ImGuiComboFlags_NoArrowButton)
     CImGui.PopItemWidth()
@@ -951,11 +951,11 @@ function edit(bk::QueryBlock)
     CImGui.SameLine() #索引
 
     markc = if bk.isobserve
-        ImVec4(morestyle.Colors.BlockObserveBG...)
+        ImVec4(MORESTYLE.Colors.BlockObserveBG...)
     else
-        CImGui.c_get(imguistyle.Colors, CImGui.ImGuiCol_FrameBg)
+        CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_FrameBg)
     end
-    bk.isobserve && bk.isreading && (markc = ImVec4(morestyle.Colors.BlockObserveReadingBG...))
+    bk.isobserve && bk.isreading && (markc = ImVec4(MORESTYLE.Colors.BlockObserveReadingBG...))
     CImGui.PushStyleColor(CImGui.ImGuiCol_FrameBg, markc)
     CImGui.PushItemWidth(-1)
     @c InputTextWithHintRSZ("##QueryBlock Mark", "标注", &bk.mark)
@@ -979,16 +979,16 @@ function edit(bk::ReadBlock)
     CImGui.PushStyleColor(
         CImGui.ImGuiCol_Border,
         if bk.isasync && !bk.isobserve
-            morestyle.Colors.BlockAsyncBorder
+            MORESTYLE.Colors.BlockAsyncBorder
         else
-            CImGui.c_get(imguistyle.Colors, CImGui.ImGuiCol_Border)
+            CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_Border)
         end
     )
-    CImGui.PushStyleVar(CImGui.ImGuiStyleVar_ItemSpacing, (Float32(2), unsafe_load(imguistyle.ItemSpacing.y)))
+    CImGui.PushStyleVar(CImGui.ImGuiStyleVar_ItemSpacing, (Float32(2), unsafe_load(IMGUISTYLE.ItemSpacing.y)))
     CImGui.BeginChild("##ReadBlock", (Float32(0), bkheight(bk)), true)
     CImGui.TextColored(
-        bk.istrycatch ? morestyle.Colors.BlockTrycatch : morestyle.Colors.BlockIcons,
-        morestyle.Icons.ReadBlock
+        bk.istrycatch ? MORESTYLE.Colors.BlockTrycatch : MORESTYLE.Colors.BlockIcons,
+        MORESTYLE.Icons.ReadBlock
     )
     CImGui.IsItemClicked(2) && (bk.istrycatch ⊻= true)
     CImGui.SameLine()
@@ -998,9 +998,9 @@ function edit(bk::ReadBlock)
     CImGui.PopItemWidth()
     CImGui.SameLine() #选仪器
 
-    inlist = haskey(instrbufferviewers, bk.instrnm) && haskey(instrbufferviewers[bk.instrnm], bk.addr)
+    inlist = haskey(INSTRBUFFERVIEWERS, bk.instrnm) && haskey(INSTRBUFFERVIEWERS[bk.instrnm], bk.addr)
     bk.addr = inlist ? bk.addr : "地址"
-    addrlist = haskey(instrbufferviewers, bk.instrnm) ? keys(instrbufferviewers[bk.instrnm]) : String[]
+    addrlist = haskey(INSTRBUFFERVIEWERS, bk.instrnm) ? keys(INSTRBUFFERVIEWERS[bk.instrnm]) : String[]
     CImGui.PushItemWidth(width)
     @c ComBoS("##ReadBlock地址", &bk.addr, addrlist, CImGui.ImGuiComboFlags_NoArrowButton)
     CImGui.PopItemWidth()
@@ -1012,11 +1012,11 @@ function edit(bk::ReadBlock)
     CImGui.SameLine() #索引
 
     markc = if bk.isobserve
-        ImVec4(morestyle.Colors.BlockObserveBG...)
+        ImVec4(MORESTYLE.Colors.BlockObserveBG...)
     else
-        CImGui.c_get(imguistyle.Colors, CImGui.ImGuiCol_FrameBg)
+        CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_FrameBg)
     end
-    bk.isobserve && bk.isreading && (markc = ImVec4(morestyle.Colors.BlockObserveReadingBG...))
+    bk.isobserve && bk.isreading && (markc = ImVec4(MORESTYLE.Colors.BlockObserveReadingBG...))
     CImGui.PushStyleColor(CImGui.ImGuiCol_FrameBg, markc)
     CImGui.PushItemWidth(-1)
     @c InputTextWithHintRSZ("##ReadBlock Mark", "标注", &bk.mark)
@@ -1037,9 +1037,9 @@ function edit(bk::ReadBlock)
 end
 
 function edit(bk::SaveBlock)
-    CImGui.PushStyleVar(CImGui.ImGuiStyleVar_ItemSpacing, (Float32(2), unsafe_load(imguistyle.ItemSpacing.y)))
+    CImGui.PushStyleVar(CImGui.ImGuiStyleVar_ItemSpacing, (Float32(2), unsafe_load(IMGUISTYLE.ItemSpacing.y)))
     CImGui.BeginChild("##SaveBlock", (Float32(0), bkheight(bk)), true)
-    CImGui.TextColored(morestyle.Colors.BlockIcons, morestyle.Icons.SaveBlock)
+    CImGui.TextColored(MORESTYLE.Colors.BlockIcons, MORESTYLE.Icons.SaveBlock)
     CImGui.SameLine()
     CImGui.PushItemWidth(CImGui.GetContentRegionAvailWidth() / 2)
     @c InputTextWithHintRSZ("##SaveBlock Mark", "标注", &bk.mark)
@@ -1069,9 +1069,9 @@ let
         for (i, bk) in enumerate(blocks)
             bk isa NullBlock && continue
             if isdragging && mousein(bk)
-                CImGui.PushStyleColor(CImGui.ImGuiCol_Separator, morestyle.Colors.HighlightText)
+                CImGui.PushStyleColor(CImGui.ImGuiCol_Separator, MORESTYLE.Colors.HighlightText)
                 draw_list = CImGui.GetWindowDrawList()
-                rectcolor = CImGui.ColorConvertFloat4ToU32(morestyle.Colors.BlockDragdrop)
+                rectcolor = CImGui.ColorConvertFloat4ToU32(MORESTYLE.Colors.BlockDragdrop)
                 CImGui.AddRectFilled(draw_list, bk.regmin, bk.regmax, rectcolor, 0.0, 0)
                 CImGui.PopStyleColor()
             end
@@ -1080,8 +1080,8 @@ let
             id = stcstr(CImGui.igGetItemID())
             if typeof(bk) in [SweepBlock, StrideCodeBlock]
                 rmin, rmax = CImGui.GetItemRectMin(), CImGui.GetItemRectMax()
-                wp = unsafe_load(imguistyle.WindowPadding.y)
-                extraheight = isempty(bk.blocks) ? wp : unsafe_load(imguistyle.ItemSpacing.y) ÷ 2
+                wp = unsafe_load(IMGUISTYLE.WindowPadding.y)
+                extraheight = isempty(bk.blocks) ? wp : unsafe_load(IMGUISTYLE.ItemSpacing.y) ÷ 2
                 # bk.region .= rmin.x, rmin.y, rmax.x, rmin.y + wp + CImGui.GetFrameHeight() + extraheight
                 bk.regmin = rmin
                 bk.regmax = (rmax.x, rmin.y + wp + CImGui.GetFrameHeight() + extraheight)
@@ -1105,50 +1105,50 @@ let
             end
             mousein(bk) && CImGui.OpenPopupOnItemClick(id, 1)
             if CImGui.BeginPopup(id)
-                if CImGui.BeginMenu(morestyle.Icons.InsertUp * " 在上方插入")
-                    CImGui.MenuItem(morestyle.Icons.CodeBlock * " CodeBlock") && insert!(blocks, i, CodeBlock())
-                    CImGui.MenuItem(morestyle.Icons.StrideCodeBlock * " StrideCodeBlock") && insert!(blocks, i, StrideCodeBlock(n))
-                    CImGui.MenuItem(morestyle.Icons.SweepBlock * " SweepBlock") && insert!(blocks, i, SweepBlock(n))
-                    CImGui.MenuItem(morestyle.Icons.SettingBlock * " SettingBlock") && insert!(blocks, i, SettingBlock())
-                    CImGui.MenuItem(morestyle.Icons.ReadingBlock * " ReadingBlock") && insert!(blocks, i, ReadingBlock())
-                    CImGui.MenuItem(morestyle.Icons.LogBlock * " LogBlock") && insert!(blocks, i, LogBlock())
-                    CImGui.MenuItem(morestyle.Icons.WriteBlock * " WriteBlock") && insert!(blocks, i, WriteBlock())
-                    CImGui.MenuItem(morestyle.Icons.QueryBlock * " QueryBlock") && insert!(blocks, i, QueryBlock())
-                    CImGui.MenuItem(morestyle.Icons.ReadBlock * " ReadBlock") && insert!(blocks, i, ReadBlock())
-                    CImGui.MenuItem(morestyle.Icons.SaveBlock * " SaveBlock") && insert!(blocks, i, SaveBlock())
+                if CImGui.BeginMenu(MORESTYLE.Icons.InsertUp * " 在上方插入")
+                    CImGui.MenuItem(MORESTYLE.Icons.CodeBlock * " CodeBlock") && insert!(blocks, i, CodeBlock())
+                    CImGui.MenuItem(MORESTYLE.Icons.StrideCodeBlock * " StrideCodeBlock") && insert!(blocks, i, StrideCodeBlock(n))
+                    CImGui.MenuItem(MORESTYLE.Icons.SweepBlock * " SweepBlock") && insert!(blocks, i, SweepBlock(n))
+                    CImGui.MenuItem(MORESTYLE.Icons.SettingBlock * " SettingBlock") && insert!(blocks, i, SettingBlock())
+                    CImGui.MenuItem(MORESTYLE.Icons.ReadingBlock * " ReadingBlock") && insert!(blocks, i, ReadingBlock())
+                    CImGui.MenuItem(MORESTYLE.Icons.LogBlock * " LogBlock") && insert!(blocks, i, LogBlock())
+                    CImGui.MenuItem(MORESTYLE.Icons.WriteBlock * " WriteBlock") && insert!(blocks, i, WriteBlock())
+                    CImGui.MenuItem(MORESTYLE.Icons.QueryBlock * " QueryBlock") && insert!(blocks, i, QueryBlock())
+                    CImGui.MenuItem(MORESTYLE.Icons.ReadBlock * " ReadBlock") && insert!(blocks, i, ReadBlock())
+                    CImGui.MenuItem(MORESTYLE.Icons.SaveBlock * " SaveBlock") && insert!(blocks, i, SaveBlock())
                     CImGui.EndMenu()
                 end
                 if (bk isa StrideCodeBlock || bk isa SweepBlock) && isempty(skipnull(bk.blocks))
-                    if CImGui.BeginMenu(morestyle.Icons.InsertInside * " 在内部插入", bk.level < 6)
-                        CImGui.MenuItem(morestyle.Icons.CodeBlock * " CodeBlock") && push!(bk.blocks, CodeBlock())
-                        CImGui.MenuItem(morestyle.Icons.StrideCodeBlock * " StrideCodeBlock") && push!(bk.blocks, StrideCodeBlock(n + 1))
-                        CImGui.MenuItem(morestyle.Icons.SweepBlock * " SweepBlock") && push!(bk.blocks, SweepBlock(n + 1))
-                        CImGui.MenuItem(morestyle.Icons.SettingBlock * " SettingBlock") && push!(bk.blocks, SettingBlock())
-                        CImGui.MenuItem(morestyle.Icons.ReadingBlock * " ReadingBlock") && push!(bk.blocks, ReadingBlock())
-                        CImGui.MenuItem(morestyle.Icons.LogBlock * " LogBlock") && push!(bk.blocks, LogBlock())
-                        CImGui.MenuItem(morestyle.Icons.WriteBlock * " WriteBlock") && push!(bk.blocks, WriteBlock())
-                        CImGui.MenuItem(morestyle.Icons.QueryBlock * " QueryBlock") && push!(bk.blocks, QueryBlock())
-                        CImGui.MenuItem(morestyle.Icons.ReadBlock * " ReadBlock") && push!(bk.blocks, ReadBlock())
-                        CImGui.MenuItem(morestyle.Icons.SaveBlock * " SaveBlock") && push!(bk.blocks, SaveBlock())
+                    if CImGui.BeginMenu(MORESTYLE.Icons.InsertInside * " 在内部插入", bk.level < 6)
+                        CImGui.MenuItem(MORESTYLE.Icons.CodeBlock * " CodeBlock") && push!(bk.blocks, CodeBlock())
+                        CImGui.MenuItem(MORESTYLE.Icons.StrideCodeBlock * " StrideCodeBlock") && push!(bk.blocks, StrideCodeBlock(n + 1))
+                        CImGui.MenuItem(MORESTYLE.Icons.SweepBlock * " SweepBlock") && push!(bk.blocks, SweepBlock(n + 1))
+                        CImGui.MenuItem(MORESTYLE.Icons.SettingBlock * " SettingBlock") && push!(bk.blocks, SettingBlock())
+                        CImGui.MenuItem(MORESTYLE.Icons.ReadingBlock * " ReadingBlock") && push!(bk.blocks, ReadingBlock())
+                        CImGui.MenuItem(MORESTYLE.Icons.LogBlock * " LogBlock") && push!(bk.blocks, LogBlock())
+                        CImGui.MenuItem(MORESTYLE.Icons.WriteBlock * " WriteBlock") && push!(bk.blocks, WriteBlock())
+                        CImGui.MenuItem(MORESTYLE.Icons.QueryBlock * " QueryBlock") && push!(bk.blocks, QueryBlock())
+                        CImGui.MenuItem(MORESTYLE.Icons.ReadBlock * " ReadBlock") && push!(bk.blocks, ReadBlock())
+                        CImGui.MenuItem(MORESTYLE.Icons.SaveBlock * " SaveBlock") && push!(bk.blocks, SaveBlock())
                         CImGui.EndMenu()
                     end
                 end
-                if CImGui.BeginMenu(morestyle.Icons.InsertDown * " 在下方插入")
-                    CImGui.MenuItem(morestyle.Icons.CodeBlock * " CodeBlock") && insert!(blocks, i + 1, CodeBlock())
-                    CImGui.MenuItem(morestyle.Icons.StrideCodeBlock * " StrideCodeBlock") && insert!(blocks, i + 1, StrideCodeBlock(n))
-                    CImGui.MenuItem(morestyle.Icons.SweepBlock * " SweepBlock") && insert!(blocks, i + 1, SweepBlock(n))
-                    CImGui.MenuItem(morestyle.Icons.SettingBlock * " SettingBlock") && insert!(blocks, i + 1, SettingBlock())
-                    CImGui.MenuItem(morestyle.Icons.ReadingBlock * " ReadingBlock") && insert!(blocks, i + 1, ReadingBlock())
-                    CImGui.MenuItem(morestyle.Icons.LogBlock * " LogBlock") && insert!(blocks, i + 1, LogBlock())
-                    CImGui.MenuItem(morestyle.Icons.WriteBlock * " WriteBlock") && insert!(blocks, i + 1, WriteBlock())
-                    CImGui.MenuItem(morestyle.Icons.QueryBlock * " QueryBlock") && insert!(blocks, i + 1, QueryBlock())
-                    CImGui.MenuItem(morestyle.Icons.ReadBlock * " ReadBlock") && insert!(blocks, i + 1, ReadBlock())
-                    CImGui.MenuItem(morestyle.Icons.SaveBlock * " SaveBlock") && insert!(blocks, i + 1, SaveBlock())
+                if CImGui.BeginMenu(MORESTYLE.Icons.InsertDown * " 在下方插入")
+                    CImGui.MenuItem(MORESTYLE.Icons.CodeBlock * " CodeBlock") && insert!(blocks, i + 1, CodeBlock())
+                    CImGui.MenuItem(MORESTYLE.Icons.StrideCodeBlock * " StrideCodeBlock") && insert!(blocks, i + 1, StrideCodeBlock(n))
+                    CImGui.MenuItem(MORESTYLE.Icons.SweepBlock * " SweepBlock") && insert!(blocks, i + 1, SweepBlock(n))
+                    CImGui.MenuItem(MORESTYLE.Icons.SettingBlock * " SettingBlock") && insert!(blocks, i + 1, SettingBlock())
+                    CImGui.MenuItem(MORESTYLE.Icons.ReadingBlock * " ReadingBlock") && insert!(blocks, i + 1, ReadingBlock())
+                    CImGui.MenuItem(MORESTYLE.Icons.LogBlock * " LogBlock") && insert!(blocks, i + 1, LogBlock())
+                    CImGui.MenuItem(MORESTYLE.Icons.WriteBlock * " WriteBlock") && insert!(blocks, i + 1, WriteBlock())
+                    CImGui.MenuItem(MORESTYLE.Icons.QueryBlock * " QueryBlock") && insert!(blocks, i + 1, QueryBlock())
+                    CImGui.MenuItem(MORESTYLE.Icons.ReadBlock * " ReadBlock") && insert!(blocks, i + 1, ReadBlock())
+                    CImGui.MenuItem(MORESTYLE.Icons.SaveBlock * " SaveBlock") && insert!(blocks, i + 1, SaveBlock())
                     CImGui.EndMenu()
                 end
-                if CImGui.BeginMenu(morestyle.Icons.Convert * " 转换为")
-                    CImGui.MenuItem(morestyle.Icons.CodeBlock * " CodeBlock") && (bk isa CodeBlock || (blocks[i] = CodeBlock()))
-                    if CImGui.MenuItem(morestyle.Icons.StrideCodeBlock * " StrideCodeBlock")
+                if CImGui.BeginMenu(MORESTYLE.Icons.Convert * " 转换为")
+                    CImGui.MenuItem(MORESTYLE.Icons.CodeBlock * " CodeBlock") && (bk isa CodeBlock || (blocks[i] = CodeBlock()))
+                    if CImGui.MenuItem(MORESTYLE.Icons.StrideCodeBlock * " StrideCodeBlock")
                         if !(bk isa StrideCodeBlock)
                             if bk isa SweepBlock
                                 blocks[i] = StrideCodeBlock(n)
@@ -1158,7 +1158,7 @@ let
                             end
                         end
                     end
-                    if CImGui.MenuItem(morestyle.Icons.SweepBlock * " SweepBlock")
+                    if CImGui.MenuItem(MORESTYLE.Icons.SweepBlock * " SweepBlock")
                         if !(bk isa SweepBlock)
                             if bk isa StrideCodeBlock
                                 blocks[i] = SweepBlock(n)
@@ -1168,18 +1168,18 @@ let
                             end
                         end
                     end
-                    CImGui.MenuItem(morestyle.Icons.SettingBlock * " SettingBlock") && (bk isa SettingBlock || (blocks[i] = SettingBlock()))
-                    CImGui.MenuItem(morestyle.Icons.ReadingBlock * " ReadingBlock") && (bk isa ReadingBlock || (blocks[i] = ReadingBlock()))
-                    CImGui.MenuItem(morestyle.Icons.LogBlock * " LogBlock") && (bk isa LogBlock || (blocks[i] = LogBlock()))
-                    CImGui.MenuItem(morestyle.Icons.WriteBlock * " WriteBlock") && (bk isa WriteBlock || (blocks[i] = WriteBlock()))
-                    CImGui.MenuItem(morestyle.Icons.QueryBlock * " QueryBlock") && (bk isa QueryBlock || (blocks[i] = QueryBlock()))
-                    CImGui.MenuItem(morestyle.Icons.ReadBlock * " ReadBlock") && (bk isa ReadBlock || (blocks[i] = ReadBlock()))
-                    CImGui.MenuItem(morestyle.Icons.SaveBlock * " SaveBlock") && (bk isa SaveBlock || (blocks[i] = SaveBlock()))
+                    CImGui.MenuItem(MORESTYLE.Icons.SettingBlock * " SettingBlock") && (bk isa SettingBlock || (blocks[i] = SettingBlock()))
+                    CImGui.MenuItem(MORESTYLE.Icons.ReadingBlock * " ReadingBlock") && (bk isa ReadingBlock || (blocks[i] = ReadingBlock()))
+                    CImGui.MenuItem(MORESTYLE.Icons.LogBlock * " LogBlock") && (bk isa LogBlock || (blocks[i] = LogBlock()))
+                    CImGui.MenuItem(MORESTYLE.Icons.WriteBlock * " WriteBlock") && (bk isa WriteBlock || (blocks[i] = WriteBlock()))
+                    CImGui.MenuItem(MORESTYLE.Icons.QueryBlock * " QueryBlock") && (bk isa QueryBlock || (blocks[i] = QueryBlock()))
+                    CImGui.MenuItem(MORESTYLE.Icons.ReadBlock * " ReadBlock") && (bk isa ReadBlock || (blocks[i] = ReadBlock()))
+                    CImGui.MenuItem(MORESTYLE.Icons.SaveBlock * " SaveBlock") && (bk isa SaveBlock || (blocks[i] = SaveBlock()))
                     CImGui.EndMenu()
                 end
-                CImGui.MenuItem(morestyle.Icons.CloseFile * " 删除") && (blocks[i] = NullBlock())
-                bk isa CodeBlock && CImGui.MenuItem(morestyle.Icons.CloseFile * " 清空") && (bk.codes = "")
-                bk isa StrideCodeBlock && CImGui.MenuItem(morestyle.Icons.CloseFile * " 清空") && (bk.head = "")
+                CImGui.MenuItem(MORESTYLE.Icons.CloseFile * " 删除") && (blocks[i] = NullBlock())
+                bk isa CodeBlock && CImGui.MenuItem(MORESTYLE.Icons.CloseFile * " 清空") && (bk.codes = "")
+                bk isa StrideCodeBlock && CImGui.MenuItem(MORESTYLE.Icons.CloseFile * " 清空") && (bk.head = "")
                 CImGui.EndPopup()
             end
         end
@@ -1236,7 +1236,7 @@ end
 
 function view(bk::CodeBlock)
     CImGui.BeginChild("##CodeBlockViewer", (Float32(0), bkheight(bk)), true)
-    CImGui.TextColored(morestyle.Colors.BlockIcons, morestyle.Icons.CodeBlock)
+    CImGui.TextColored(MORESTYLE.Colors.BlockIcons, MORESTYLE.Icons.CodeBlock)
     CImGui.SameLine()
     CImGui.PushStyleVar(CImGui.ImGuiStyleVar_ButtonTextAlign, (0.0, 0.5))
     CImGui.Button(bk.codes, (-1, 0))
@@ -1248,13 +1248,13 @@ function view(bk::StrideCodeBlock)
     CImGui.PushStyleColor(
         CImGui.ImGuiCol_Border,
         if isempty(skipnull(bk.blocks))
-            CImGui.c_get(imguistyle.Colors, CImGui.ImGuiCol_Border)
+            CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_Border)
         else
-            morestyle.Colors.StrideCodeBlockBorder
+            MORESTYLE.Colors.StrideCodeBlockBorder
         end
     )
     CImGui.BeginChild("##StrideCodeBlockViewer", (Float32(0), bkheight(bk)), true)
-    CImGui.TextColored(morestyle.Colors.BlockIcons, morestyle.Icons.StrideCodeBlock)
+    CImGui.TextColored(MORESTYLE.Colors.BlockIcons, MORESTYLE.Icons.StrideCodeBlock)
     CImGui.SameLine()
     CImGui.PushStyleVar(CImGui.ImGuiStyleVar_ButtonTextAlign, (0.0, 0.5))
     CImGui.Button(bk.head, (-1, 0))
@@ -1268,9 +1268,9 @@ function view(bk::SweepBlock)
     CImGui.PushStyleColor(
         CImGui.ImGuiCol_Border,
         if isempty(skipnull(bk.blocks))
-            CImGui.c_get(imguistyle.Colors, CImGui.ImGuiCol_Border)
+            CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_Border)
         else
-            morestyle.Colors.SweepBlockBorder
+            MORESTYLE.Colors.SweepBlockBorder
         end
     )
     CImGui.BeginChild("##SweepBlockViewer", (Float32(0), bkheight(bk)), true)
@@ -1282,11 +1282,11 @@ function view(bk::SweepBlock)
     else
         ""
     end
-    units::Vector{String} = string.(conf.U[Ut])
+    units::Vector{String} = string.(CONF.U[Ut])
     showu = @trypass units[bk.ui] ""
     CImGui.TextColored(
-        bk.istrycatch ? morestyle.Colors.BlockTrycatch : morestyle.Colors.BlockIcons,
-        morestyle.Icons.SweepBlock
+        bk.istrycatch ? MORESTYLE.Colors.BlockTrycatch : MORESTYLE.Colors.BlockIcons,
+        MORESTYLE.Icons.SweepBlock
     )
     CImGui.SameLine()
     CImGui.PushStyleVar(CImGui.ImGuiStyleVar_ButtonTextAlign, (0.0, 0.5))
@@ -1317,11 +1317,11 @@ function view(bk::SettingBlock)
     else
         ""
     end
-    units::Vector{String} = string.(conf.U[Ut])
+    units::Vector{String} = string.(CONF.U[Ut])
     showu = @trypass units[bk.ui] ""
     CImGui.TextColored(
-        bk.istrycatch ? morestyle.Colors.BlockTrycatch : morestyle.Colors.BlockIcons,
-        morestyle.Icons.SettingBlock
+        bk.istrycatch ? MORESTYLE.Colors.BlockTrycatch : MORESTYLE.Colors.BlockIcons,
+        MORESTYLE.Icons.SettingBlock
     )
     CImGui.SameLine()
     CImGui.PushStyleVar(CImGui.ImGuiStyleVar_ButtonTextAlign, (0.0, 0.5))
@@ -1342,22 +1342,22 @@ function view(bk::ReadingBlock)
     CImGui.PushStyleColor(
         CImGui.ImGuiCol_Border,
         if bk.isasync && !bk.isobserve
-            morestyle.Colors.BlockAsyncBorder
+            MORESTYLE.Colors.BlockAsyncBorder
         else
-            CImGui.c_get(imguistyle.Colors, CImGui.ImGuiCol_Border)
+            CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_Border)
         end
     )
     CImGui.BeginChild("##ReadingBlockViewer", (Float32(0), bkheight(bk)), true)
     quantity = @trypass insconf[bk.instrnm].quantities[bk.quantity].alias ""
     markc = if bk.isobserve
-        ImVec4(morestyle.Colors.BlockObserveBG...)
+        ImVec4(MORESTYLE.Colors.BlockObserveBG...)
     else
-        CImGui.c_get(imguistyle.Colors, CImGui.ImGuiCol_Text)
+        CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_Text)
     end
-    bk.isobserve && bk.isreading && (markc = ImVec4(morestyle.Colors.BlockObserveReadingBG...))
+    bk.isobserve && bk.isreading && (markc = ImVec4(MORESTYLE.Colors.BlockObserveReadingBG...))
     CImGui.TextColored(
-        bk.istrycatch ? morestyle.Colors.BlockTrycatch : morestyle.Colors.BlockIcons,
-        morestyle.Icons.ReadingBlock
+        bk.istrycatch ? MORESTYLE.Colors.BlockTrycatch : MORESTYLE.Colors.BlockIcons,
+        MORESTYLE.Icons.ReadingBlock
     )
     CImGui.SameLine()
     CImGui.PushStyleColor(CImGui.ImGuiCol_Text, markc)
@@ -1380,7 +1380,7 @@ end
 
 function view(logbk::LogBlock)
     CImGui.BeginChild("##LogBlock", (Float32(0), bkheight(logbk)), true)
-    CImGui.TextColored(morestyle.Colors.BlockIcons, morestyle.Icons.LogBlock)
+    CImGui.TextColored(MORESTYLE.Colors.BlockIcons, MORESTYLE.Icons.LogBlock)
     CImGui.SameLine()
     CImGui.Button("LogBlock", (-1, 0))
     CImGui.EndChild()
@@ -1390,15 +1390,15 @@ function view(bk::WriteBlock)
     CImGui.PushStyleColor(
         CImGui.ImGuiCol_Border,
         if bk.isasync
-            morestyle.Colors.BlockAsyncBorder
+            MORESTYLE.Colors.BlockAsyncBorder
         else
-            CImGui.c_get(imguistyle.Colors, CImGui.ImGuiCol_Border)
+            CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_Border)
         end
     )
     CImGui.BeginChild("##WriteBlockViewer", (Float32(0), bkheight(bk)), true)
     CImGui.TextColored(
-        bk.istrycatch ? morestyle.Colors.BlockTrycatch : morestyle.Colors.BlockIcons,
-        morestyle.Icons.WriteBlock
+        bk.istrycatch ? MORESTYLE.Colors.BlockTrycatch : MORESTYLE.Colors.BlockIcons,
+        MORESTYLE.Icons.WriteBlock
     )
     CImGui.SameLine()
     CImGui.PushStyleVar(CImGui.ImGuiStyleVar_ButtonTextAlign, (0.0, 0.5))
@@ -1419,21 +1419,21 @@ function view(bk::QueryBlock)
     CImGui.PushStyleColor(
         CImGui.ImGuiCol_Border,
         if bk.isasync && !bk.isobserve
-            morestyle.Colors.BlockAsyncBorder
+            MORESTYLE.Colors.BlockAsyncBorder
         else
-            CImGui.c_get(imguistyle.Colors, CImGui.ImGuiCol_Border)
+            CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_Border)
         end
     )
     CImGui.BeginChild("##WriteBlockViewer", (Float32(0), bkheight(bk)), true)
     markc = if bk.isobserve
-        ImVec4(morestyle.Colors.BlockObserveBG...)
+        ImVec4(MORESTYLE.Colors.BlockObserveBG...)
     else
-        CImGui.c_get(imguistyle.Colors, CImGui.ImGuiCol_Text)
+        CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_Text)
     end
-    bk.isobserve && bk.isreading && (markc = ImVec4(morestyle.Colors.BlockObserveReadingBG...))
+    bk.isobserve && bk.isreading && (markc = ImVec4(MORESTYLE.Colors.BlockObserveReadingBG...))
     CImGui.TextColored(
-        bk.istrycatch ? morestyle.Colors.BlockTrycatch : morestyle.Colors.BlockIcons,
-        morestyle.Icons.QueryBlock
+        bk.istrycatch ? MORESTYLE.Colors.BlockTrycatch : MORESTYLE.Colors.BlockIcons,
+        MORESTYLE.Icons.QueryBlock
     )
     CImGui.SameLine()
     CImGui.PushStyleColor(CImGui.ImGuiCol_Text, markc)
@@ -1458,21 +1458,21 @@ function view(bk::ReadBlock)
     CImGui.PushStyleColor(
         CImGui.ImGuiCol_Border,
         if bk.isasync && !bk.isobserve
-            morestyle.Colors.BlockAsyncBorder
+            MORESTYLE.Colors.BlockAsyncBorder
         else
-            CImGui.c_get(imguistyle.Colors, CImGui.ImGuiCol_Border)
+            CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_Border)
         end
     )
     CImGui.BeginChild("##WriteBlockViewer", (Float32(0), bkheight(bk)), true)
     markc = if bk.isobserve
-        ImVec4(morestyle.Colors.BlockObserveBG...)
+        ImVec4(MORESTYLE.Colors.BlockObserveBG...)
     else
-        CImGui.c_get(imguistyle.Colors, CImGui.ImGuiCol_Text)
+        CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_Text)
     end
-    bk.isobserve && bk.isreading && (markc = ImVec4(morestyle.Colors.BlockObserveReadingBG...))
+    bk.isobserve && bk.isreading && (markc = ImVec4(MORESTYLE.Colors.BlockObserveReadingBG...))
     CImGui.TextColored(
-        bk.istrycatch ? morestyle.Colors.BlockTrycatch : morestyle.Colors.BlockIcons,
-        morestyle.Icons.ReadBlock
+        bk.istrycatch ? MORESTYLE.Colors.BlockTrycatch : MORESTYLE.Colors.BlockIcons,
+        MORESTYLE.Icons.ReadBlock
     )
     CImGui.SameLine()
     CImGui.PushStyleColor(CImGui.ImGuiCol_Text, markc)
@@ -1494,7 +1494,7 @@ end
 
 function view(bk::SaveBlock)
     CImGui.BeginChild("##SaveBlock", (Float32(0), bkheight(bk)), true)
-    CImGui.TextColored(morestyle.Colors.BlockIcons, morestyle.Icons.SaveBlock)
+    CImGui.TextColored(MORESTYLE.Colors.BlockIcons, MORESTYLE.Icons.SaveBlock)
     CImGui.SameLine()
     CImGui.PushStyleVar(CImGui.ImGuiStyleVar_ButtonTextAlign, (0.0, 0.5))
     CImGui.Button(stcstr("标注：", bk.mark, "\t变量：", bk.varname), (-1, 0))
@@ -1545,7 +1545,7 @@ function Base.show(io::IO, bk::SweepBlock)
     else
         ""
     end
-    u = conf.U[ut][bk.ui]
+    u = CONF.U[ut][bk.ui]
     str = """
     SweepBlock :
         region min : $(bk.regmin)
@@ -1573,7 +1573,7 @@ function Base.show(io::IO, bk::SettingBlock)
     else
         ""
     end
-    u = conf.U[ut][bk.ui]
+    u = CONF.U[ut][bk.ui]
     str = """
     SettingBlock :
         region min : $(bk.regmin)

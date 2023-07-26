@@ -26,11 +26,6 @@ let
     no_docking::Bool = true
 
     dtviewers = Tuple{DataViewer,FolderFileTree,Dict{String,Bool}}[]
-    # window_class = ImGuiWindowClass_ImGuiWindowClass()
-    # labels = ["a", "b", "c", "d", "e"]
-    # states = falses(5)
-    # lo = Layout("testlayout", 2, 1, ["1", "2", "3"], ["a", "b", "c"], falses(3), [], Dict(), [])
-    global nodeeditor = NodeEditor()
 
     window_flags::Cint = 0
     no_titlebar && (window_flags |= CImGui.ImGuiWindowFlags_NoTitleBar)
@@ -59,8 +54,8 @@ let
         for dtv in dtviewers
             dtv[1].p_open = false
         end
-        for ins in keys(instrbufferviewers)
-            for (_, ibv) in instrbufferviewers[ins]
+        for ins in keys(INSTRBUFFERVIEWERS)
+            for (_, ibv) in INSTRBUFFERVIEWERS[ins]
                 ibv.p_open = false
             end
         end
@@ -75,7 +70,7 @@ let
         CImGui.PushStyleVar(CImGui.ImGuiStyleVar_WindowRounding, 0)
         CImGui.PushStyleVar(CImGui.ImGuiStyleVar_WindowPadding, (0, 0))
         CImGui.Begin("Q仪器控制与采集", C_NULL, window_flags | CImGui.ImGuiWindowFlags_NoBringToFrontOnFocus)
-        CImGui.Image(Ptr{Cvoid}(bgid), unsafe_load(viewport.WorkSize))
+        CImGui.Image(Ptr{Cvoid}(BGID), unsafe_load(viewport.WorkSize))
         CImGui.End()
 
         CImGui.SetNextWindowPos(unsafe_load(viewport.WorkPos))
@@ -86,53 +81,7 @@ let
         CImGui.PopStyleVar(2)
         # igDockSpaceOverViewport(igGetMainViewport(), ImGuiDockNodeFlags_None, C_NULL)
         ######Debug######
-        # CImGui.SetNextWindowSize((600, 1200), CImGui.ImGuiCond_Once)
-        # CImGui.Begin("Debug MultiSelectable", Ref(true))
-        # DragMultiSelectable(()->false, stcstr("Debug", 1), labels, trues(5), 3)
-        # edit(() -> false, lo)
-        # imnodes_BeginNodeEditor()
-        # imnodes_BeginNode(1)
-        # imnodes_BeginNodeTitleBar()
-        # CImGui.Text("test")
-        # imnodes_EndNodeTitleBar()
-        # # CImGui.Image(Ptr{Cvoid}(iconid), (100, 100))
-        # CImGui.BeginGroup()
-        # imnodes_BeginInputAttribute(1, LibCImGui.PinShape_Circle)
-        # CImGui.Text("test1")
-        # imnodes_EndInputAttribute()
-        # CImGui.Text("test")
-        # imnodes_BeginInputAttribute(2, LibCImGui.PinShape_Circle)
-        # CImGui.Text("test2")
-        # imnodes_EndInputAttribute()
-        # CImGui.EndGroup()
-        # CImGui.SameLine()
-        # CImGui.Image(C_NULL, (100,100))
-        # # CImGui.AddCircle(CImGui.GetWindowDrawList(), )
-        # imnodes_EndNode()
-        # imnodes_EndNodeEditor()
-        # edit(nodeeditor)
-
-        # CImGui.End()
-        # CImGui.SetNextWindowSize((400, 400), CImGui.ImGuiCond_Once)
-        # CImGui.Begin("Debug nodes", Ref(true))
-        # for (_, node) in nodeeditor.nodes
-        #     if node isa SampleBaseNode
-        #         imgr = node.imgr
-        #         CImGui.TextUnformatted(
-        #             """
-        #             mospos : $(CImGui.GetMousePos())
-        #             imgr.posmin : $(imgr.posmin)
-        #             imgr.posmax : $(imgr.posmax)
-        #             rszgrip.pos : $(imgr.rszgrip.pos)
-        #             rszgrip.size : $(imgr.rszgrip.size)
-        #             rszgrip.limmin : $(imgr.rszgrip.limmin)
-        #             rszgrip.limmax : $(imgr.rszgrip.limmax)
-        #             rszgrip.hovered : $(imgr.rszgrip.hovered)
-        #             """
-        #         )
-        #     end
-        # end
-        # CImGui.End()
+        
 
         ######子窗口######
         for (i, dtv) in enumerate(dtviewers)
@@ -146,8 +95,8 @@ let
         show_instr_register && @c InstrRegister(&show_instr_register)
         show_cpu_monitor && @c CPUMonitor(&show_cpu_monitor)
         show_instr_buffer && @c ShowInstrBuffer(&show_instr_buffer)
-        for ins in keys(instrbufferviewers)
-            for (_, ibv) in instrbufferviewers[ins]
+        for ins in keys(INSTRBUFFERVIEWERS)
+            for (_, ibv) in INSTRBUFFERVIEWERS[ins]
                 ibv.p_open && edit(ibv)
             end
         end
@@ -167,44 +116,44 @@ let
         isopenfolder = false
         if CImGui.BeginMainMenuBar()
             #File Menu
-            if CImGui.BeginMenu(stcstr(morestyle.Icons.File, " 文件 "))
-                if CImGui.BeginMenu(stcstr(morestyle.Icons.OpenFile, " 打开文件"))
-                    isopenfiles = CImGui.MenuItem(stcstr(morestyle.Icons.NewFile, " 新建"), "Ctrl+O")
+            if CImGui.BeginMenu(stcstr(MORESTYLE.Icons.File, " 文件 "))
+                if CImGui.BeginMenu(stcstr(MORESTYLE.Icons.OpenFile, " 打开文件"))
+                    isopenfiles = CImGui.MenuItem(stcstr(MORESTYLE.Icons.NewFile, " 新建"), "Ctrl+O")
                     if true in [dtv[2].rootpath_bnm == "" for dtv in dtviewers]
                         CImGui.Separator()
-                        CImGui.TextColored(morestyle.Colors.HighlightText, "已打开")
+                        CImGui.TextColored(MORESTYLE.Colors.HighlightText, "已打开")
                     end
                     for dtv in dtviewers
                         if dtv[2].rootpath_bnm == ""
                             title = isempty(dtv[2].filetrees) ? "没有打开文件" : basename(dtv[2].filetrees[1].filepath)
                             @c CImGui.MenuItem(title, C_NULL, &dtv[1].p_open)
                             if CImGui.BeginPopupContextItem()
-                                CImGui.MenuItem(stcstr(morestyle.Icons.CloseFile, " 关闭")) && (dtv[1].noclose = false)
+                                CImGui.MenuItem(stcstr(MORESTYLE.Icons.CloseFile, " 关闭")) && (dtv[1].noclose = false)
                                 CImGui.EndPopup()
                             end
                         end
                     end
                     CImGui.EndMenu()
                 end
-                if CImGui.BeginMenu(stcstr(morestyle.Icons.OpenFolder, " 打开文件夹"))
-                    isopenfolder = CImGui.MenuItem(stcstr(morestyle.Icons.NewFile, " 新建"), "Ctrl+K")
+                if CImGui.BeginMenu(stcstr(MORESTYLE.Icons.OpenFolder, " 打开文件夹"))
+                    isopenfolder = CImGui.MenuItem(stcstr(MORESTYLE.Icons.NewFile, " 新建"), "Ctrl+K")
                     if true in [dtv[2].rootpath_bnm != "" for dtv in dtviewers]
                         CImGui.Separator()
-                        CImGui.TextColored(morestyle.Colors.HighlightText, "已打开")
+                        CImGui.TextColored(MORESTYLE.Colors.HighlightText, "已打开")
                     end
                     for (i, dtv) in enumerate(dtviewers)
                         CImGui.PushID(i)
                         if dtv[2].rootpath_bnm != ""
                             @c CImGui.MenuItem(basename(dtv[2].rootpath), C_NULL, &dtv[1].p_open)
                             if CImGui.BeginPopupContextItem()
-                                if CImGui.MenuItem(stcstr(morestyle.Icons.InstrumentsAutoRef, " 刷新"))
+                                if CImGui.MenuItem(stcstr(MORESTYLE.Icons.InstrumentsAutoRef, " 刷新"))
                                     dtv[2].filetrees = FolderFileTree(
                                         dtv[2].rootpath,
                                         dtv[2].selectedpath,
                                         dtv[2].filter
                                     ).filetrees
                                 end
-                                CImGui.MenuItem(stcstr(morestyle.Icons.CloseFile, " 关闭")) && (dtv[1].noclose = false)
+                                CImGui.MenuItem(stcstr(MORESTYLE.Icons.CloseFile, " 关闭")) && (dtv[1].noclose = false)
                                 CImGui.EndPopup()
                             end
                         end
@@ -212,32 +161,32 @@ let
                     end
                     CImGui.EndMenu()
                 end
-                @c CImGui.MenuItem(stcstr(morestyle.Icons.Preferences, " 首选项"), C_NULL, &show_preferences)
+                @c CImGui.MenuItem(stcstr(MORESTYLE.Icons.Preferences, " 首选项"), C_NULL, &show_preferences)
                 CImGui.EndMenu()
             end
             #Instrument Menu
-            if CImGui.BeginMenu(stcstr(morestyle.Icons.Instrumets, " 仪器 "))
-                @c CImGui.MenuItem(stcstr(morestyle.Icons.InstrumentsRegister, " 仪器注册"), C_NULL, &show_instr_register)
-                @c CImGui.MenuItem(stcstr(morestyle.Icons.CPUMonitor, " 仪器CPU监测"), C_NULL, &show_cpu_monitor)
-                if CImGui.BeginMenu(stcstr(morestyle.Icons.InstrumentsSetting, " 仪器设置和状态"))
-                    @c CImGui.MenuItem(stcstr(morestyle.Icons.InstrumentsOverview, " 总览"), C_NULL, &show_instr_buffer)
+            if CImGui.BeginMenu(stcstr(MORESTYLE.Icons.Instrumets, " 仪器 "))
+                @c CImGui.MenuItem(stcstr(MORESTYLE.Icons.InstrumentsRegister, " 仪器注册"), C_NULL, &show_instr_register)
+                @c CImGui.MenuItem(stcstr(MORESTYLE.Icons.CPUMonitor, " 仪器CPU监测"), C_NULL, &show_cpu_monitor)
+                if CImGui.BeginMenu(stcstr(MORESTYLE.Icons.InstrumentsSetting, " 仪器设置和状态"))
+                    @c CImGui.MenuItem(stcstr(MORESTYLE.Icons.InstrumentsOverview, " 总览"), C_NULL, &show_instr_buffer)
                     CImGui.Separator()
-                    for ins in keys(instrbufferviewers)
-                        if !isempty(instrbufferviewers[ins])
+                    for ins in keys(INSTRBUFFERVIEWERS)
+                        if !isempty(INSTRBUFFERVIEWERS[ins])
                             if CImGui.BeginMenu(stcstr(insconf[ins].conf.icon, " ", ins))
-                                for addr in keys(instrbufferviewers[ins])
-                                    ibv = instrbufferviewers[ins][addr]
+                                for addr in keys(INSTRBUFFERVIEWERS[ins])
+                                    ibv = INSTRBUFFERVIEWERS[ins][addr]
                                     @c CImGui.Checkbox(stcstr("##", ins, addr), &ibv.insbuf.isautorefresh)
                                     CImGui.SameLine()
                                     @c CImGui.MenuItem(addr, C_NULL, &ibv.p_open)
                                     if CImGui.BeginPopupContextItem()
                                         if CImGui.MenuItem(
-                                            stcstr(morestyle.Icons.CloseFile, " 删除"),
+                                            stcstr(MORESTYLE.Icons.CloseFile, " 删除"),
                                             C_NULL,
                                             false,
                                             ins != "VirtualInstr"
                                         )
-                                            delete!(instrbufferviewers[ins], addr)
+                                            delete!(INSTRBUFFERVIEWERS[ins], addr)
                                         end
                                         CImGui.EndPopup()
                                     end
@@ -248,26 +197,26 @@ let
                     end
                     CImGui.EndMenu()
                 end
-                @c CImGui.MenuItem(stcstr(morestyle.Icons.InstrumentsDAQ, " 数据采集"), C_NULL, &show_daq)
-                if CImGui.BeginMenu(stcstr(morestyle.Icons.InstrumentsSeach, " 查找仪器"))
-                    CImGui.MenuItem(stcstr(morestyle.Icons.InstrumentsAutoDetect, " 自动查询")) && refresh_instrlist()
+                @c CImGui.MenuItem(stcstr(MORESTYLE.Icons.InstrumentsDAQ, " 数据采集"), C_NULL, &show_daq)
+                if CImGui.BeginMenu(stcstr(MORESTYLE.Icons.InstrumentsSeach, " 查找仪器"))
+                    CImGui.MenuItem(stcstr(MORESTYLE.Icons.InstrumentsAutoDetect, " 自动查询")) && refresh_instrlist()
                     manualadd_ui()
                     CImGui.EndMenu()
                 end
                 CImGui.EndMenu()
             end
             #Help Menu
-            if CImGui.BeginMenu(stcstr(morestyle.Icons.Help, " 帮助"))
-                @c CImGui.MenuItem(stcstr(morestyle.Icons.Console, " 控制台"), C_NULL, &show_console)
-                @c CImGui.MenuItem(stcstr(morestyle.Icons.Metrics, " 监测"), C_NULL, &show_metrics)
-                @c CImGui.MenuItem(stcstr(morestyle.Icons.Logger, " 日志"), C_NULL, &show_logger)
-                # @c CImGui.MenuItem(morestyle.Icons.HelpPad * " 帮助板", C_NULL, &show_helppad)
-                @c CImGui.MenuItem(stcstr(morestyle.Icons.About, " 关于"), C_NULL, &show_about)
+            if CImGui.BeginMenu(stcstr(MORESTYLE.Icons.Help, " 帮助"))
+                @c CImGui.MenuItem(stcstr(MORESTYLE.Icons.Console, " 控制台"), C_NULL, &show_console)
+                @c CImGui.MenuItem(stcstr(MORESTYLE.Icons.Metrics, " 监测"), C_NULL, &show_metrics)
+                @c CImGui.MenuItem(stcstr(MORESTYLE.Icons.Logger, " 日志"), C_NULL, &show_logger)
+                # @c CImGui.MenuItem(MORESTYLE.Icons.HelpPad * " 帮助板", C_NULL, &show_helppad)
+                @c CImGui.MenuItem(stcstr(MORESTYLE.Icons.About, " 关于"), C_NULL, &show_about)
                 CImGui.EndMenu()
             end
             ######自动查询仪器######
-            if SyncStates[Int(autodetecting)]
-                CImGui.TextColored(morestyle.Colors.HighlightText, "查找仪器中......")
+            if SYNCSTATES[Int(AutoDetecting)]
+                CImGui.TextColored(MORESTYLE.Colors.HighlightText, "查找仪器中......")
             end
             CImGui.EndMainMenuBar()
         end
@@ -281,7 +230,7 @@ let
             isdir(root) && push!(dtviewers, (DataViewer(), FolderFileTree(root), Dict())) #true -> active
         end
         if !isempty(ARGS)
-            filepath = reencoding(ARGS[1], conf.Basic.encoding)
+            filepath = reencoding(ARGS[1], CONF.Basic.encoding)
             isfile(filepath) && push!(dtviewers, (DataViewer(), FolderFileTree([abspath(filepath)]), Dict()))
             empty!(ARGS)
         end

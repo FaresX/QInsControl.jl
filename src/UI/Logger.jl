@@ -4,27 +4,27 @@ let
     global function LogWindow(p_open::Ref)
         # CImGui.SetNextWindowPos((100, 100), CImGui.ImGuiCond_Once)
         CImGui.SetNextWindowSize((800, 600), CImGui.ImGuiCond_Once)
-        if CImGui.Begin(stcstr(morestyle.Icons.Logger, "  日志"), p_open, CImGui.ImGuiWindowFlags_HorizontalScrollbar)
-            if SyncStates[Int(newloging)] || waittime("Logger", conf.Logs.refreshrate)
+        if CImGui.Begin(stcstr(MORESTYLE.Icons.Logger, "  日志"), p_open, CImGui.ImGuiWindowFlags_HorizontalScrollbar)
+            if SYNCSTATES[Int(NewLogging)] || waittime("Logger", CONF.Logs.refreshrate)
                 empty!(logmsgshow)
-                textc = CImGui.c_get(imguistyle.Colors, CImGui.ImGuiCol_Text)
+                textc = CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_Text)
                 markerlist = ["┌ Info", "┌ Warning", "┌ Error"]
                 date = today()
-                logdir = joinpath(conf.Logs.dir, string(year(date)), string(year(date), "-", month(date)))
+                logdir = joinpath(CONF.Logs.dir, string(year(date)), string(year(date), "-", month(date)))
                 isdir(logdir) || mkpath(logdir)
                 logfile = joinpath(logdir, string(date, ".log"))
                 isfile(logfile) || open(file -> write(file, ""), logfile, "w")
                 allmsg::Vector{String} = string.(split(read(logfile, String), '\n'))
-                limitline::Int = length(allmsg) > conf.Logs.showlogline ? conf.Logs.showlogline : length(allmsg)
+                limitline::Int = length(allmsg) > CONF.Logs.showlogline ? CONF.Logs.showlogline : length(allmsg)
                 logmsg = ""
                 for (i, s) in enumerate(allmsg[end-limitline+1:end])
-                    occursin(markerlist[1], s) && (textc = ImVec4(morestyle.Colors.LogInfo...))
-                    occursin(markerlist[2], s) && (textc = ImVec4(morestyle.Colors.LogWarn...))
-                    occursin(markerlist[3], s) && (textc = ImVec4(morestyle.Colors.LogError...))
+                    occursin(markerlist[1], s) && (textc = ImVec4(MORESTYLE.Colors.LogInfo...))
+                    occursin(markerlist[2], s) && (textc = ImVec4(MORESTYLE.Colors.LogWarn...))
+                    occursin(markerlist[3], s) && (textc = ImVec4(MORESTYLE.Colors.LogError...))
                     if occursin("└", s)
                         logmsg *= @sprintf "%-8d%s\n\n" i s
                         push!(logmsgshow, (textc, logmsg))
-                        textc = CImGui.c_get(imguistyle.Colors, CImGui.ImGuiCol_Text)
+                        textc = CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_Text)
                         logmsg = ""
                     else
                         logmsg *= @sprintf "%-8d%s\n" i s
@@ -40,7 +40,7 @@ let
                 CImGui.PopTextWrapPos()
                 CImGui.PopStyleColor()
             end
-            SyncStates[Int(newloging)] && (CImGui.SetScrollHereY(1); SyncStates[Int(newloging)] = false)
+            SYNCSTATES[Int(NewLogging)] && (CImGui.SetScrollHereY(1); SYNCSTATES[Int(NewLogging)] = false)
             firsttime && (CImGui.SetScrollHereY(1); firsttime = false)
             CImGui.EndChild()
         end
@@ -49,18 +49,18 @@ let
     end
 end
 
-function update_log(; SyncStates=SyncStates)
+function update_log(; SYNCSTATES=SYNCSTATES)
     date = today()
-    logdir = joinpath(conf.Logs.dir, string(year(date)), string(year(date), "-", month(date)))
+    logdir = joinpath(CONF.Logs.dir, string(year(date)), string(year(date), "-", month(date)))
     isdir(logdir) || mkpath(logdir)
     logfile = joinpath(logdir, string(date, ".log"))
     if myid() == 1
-        flush(logio)
-        msg = String(take!(logio))
-        isempty(msg) || (open(file -> write(file, msg), logfile, "a+"); SyncStates[Int(newloging)] = true)
+        flush(LOGIO)
+        msg = String(take!(LOGIO))
+        isempty(msg) || (open(file -> write(file, msg), logfile, "a+"); SYNCSTATES[Int(NewLogging)] = true)
     else
-        flush(logio)
-        msg = String(take!(logio))
+        flush(LOGIO)
+        msg = String(take!(LOGIO))
         if !isempty(msg)
             open(logfile, "a+") do file
                 msgsp = split(msg, '\n')
@@ -69,7 +69,7 @@ function update_log(; SyncStates=SyncStates)
                 end
                 write(file, string(msgsp...))
             end
-            SyncStates[Int(newloging)] = true
+            SYNCSTATES[Int(NewLogging)] = true
         end
     end
 end

@@ -7,48 +7,48 @@ mutable struct DAQTask
 end
 DAQTask() = DAQTask("", "", [SweepBlock(1)], true, false)
 
-old_i::Int = 0
-workpath::String = ""
-savepath::String = ""
-const cfgbuf = Dict{String,Any}()
+global OLDI::Int = 0
+global WORKPATH::String = ""
+global SAVEPATH::String = ""
+const CFGBUF = Dict{String,Any}()
 
 let
     holdsz::Cfloat = 0
     viewmode::Bool = false
     global function edit(daqtask::DAQTask, id, p_open::Ref{Bool})
         CImGui.SetNextWindowSize((600, 800), CImGui.ImGuiCond_Once)
-        CImGui.PushStyleColor(CImGui.ImGuiCol_WindowBg, CImGui.c_get(imguistyle.Colors, CImGui.ImGuiCol_PopupBg))
-        CImGui.PushStyleVar(CImGui.ImGuiStyleVar_WindowRounding, unsafe_load(imguistyle.PopupRounding))
+        CImGui.PushStyleColor(CImGui.ImGuiCol_WindowBg, CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_PopupBg))
+        CImGui.PushStyleVar(CImGui.ImGuiStyleVar_WindowRounding, unsafe_load(IMGUISTYLE.PopupRounding))
         isfocus = true
-        global old_i
+        global OLDI
         if CImGui.Begin(
             stcstr("编辑任务 ", id),
             p_open,
             CImGui.ImGuiWindowFlags_NoTitleBar | CImGui.ImGuiWindowFlags_NoDocking
         )
             CImGui.BeginChild("Blocks")
-            CImGui.TextColored(morestyle.Colors.HighlightText, morestyle.Icons.TaskButton)
+            CImGui.TextColored(MORESTYLE.Colors.HighlightText, MORESTYLE.Icons.TaskButton)
             CImGui.SameLine()
-            CImGui.Text(stcstr(" 编辑队列：任务 ", id + old_i, " ", daqtask.name))
+            CImGui.Text(stcstr(" 编辑队列：任务 ", id + OLDI, " ", daqtask.name))
             CImGui.SameLine(CImGui.GetContentRegionAvailWidth() - holdsz)
             @c CImGui.Checkbox("HOLD", &daqtask.hold)
             holdsz = CImGui.GetItemRectSize().x
             CImGui.Separator()
-            CImGui.TextColored(morestyle.Colors.HighlightText, "实验记录")
-            y = (1 + length(findall("\n", daqtask.explog))) * CImGui.GetTextLineHeight() + 2unsafe_load(imguistyle.FramePadding.y)
+            CImGui.TextColored(MORESTYLE.Colors.HighlightText, "实验记录")
+            y = (1 + length(findall("\n", daqtask.explog))) * CImGui.GetTextLineHeight() + 2unsafe_load(IMGUISTYLE.FramePadding.y)
             @c InputTextMultilineRSZ("##实验记录", &daqtask.explog, (Float32(-1), y))
             if CImGui.BeginPopupContextItem("清空##实验记录")
                 CImGui.MenuItem("清空##实验记录") && (daqtask.explog = "")
                 CImGui.EndPopup()
             end
-            CImGui.Button(stcstr(morestyle.Icons.InstrumentsAutoDetect, " 刷新仪器列表")) && refresh_instrlist()
+            CImGui.Button(stcstr(MORESTYLE.Icons.InstrumentsAutoDetect, " 刷新仪器列表")) && refresh_instrlist()
             if CImGui.BeginPopupContextItem()
                 manualadd_ui()
                 CImGui.EndPopup()
             end
-            if SyncStates[Int(autodetecting)]
+            if SYNCSTATES[Int(AutoDetecting)]
                 CImGui.SameLine()
-                CImGui.TextColored(morestyle.Colors.HighlightText, "查找仪器中......")
+                CImGui.TextColored(MORESTYLE.Colors.HighlightText, "查找仪器中......")
             end
             CImGui.SameLine(CImGui.GetContentRegionAvailWidth() - holdsz)
             @c CImGui.Checkbox(viewmode ? "View" : "Edit", &viewmode)
@@ -58,17 +58,17 @@ let
             CImGui.EndChild()
             all(.!mousein.(daqtask.blocks, true)) && CImGui.OpenPopupOnItemClick("添加新Block")
             if CImGui.BeginPopup("添加新Block")
-                if CImGui.BeginMenu(morestyle.Icons.NewFile * " 添加")
-                    CImGui.MenuItem(morestyle.Icons.CodeBlock * " CodeBlock") && push!(daqtask.blocks, CodeBlock())
-                    CImGui.MenuItem(morestyle.Icons.StrideCodeBlock * " StrideCodeBlock") && push!(daqtask.blocks, StrideCodeBlock(1))
-                    CImGui.MenuItem(morestyle.Icons.SweepBlock * " SweepBlock") && push!(daqtask.blocks, SweepBlock(1))
-                    CImGui.MenuItem(morestyle.Icons.SettingBlock * " SettingBlock") && push!(daqtask.blocks, SettingBlock())
-                    CImGui.MenuItem(morestyle.Icons.ReadingBlock * " ReadingBlock") && push!(daqtask.blocks, ReadingBlock())
-                    CImGui.MenuItem(morestyle.Icons.LogBlock * " LogBlock") && push!(daqtask.blocks, LogBlock())
-                    CImGui.MenuItem(morestyle.Icons.WriteBlock * " WriteBlock") && push!(daqtask.blocks, WriteBlock())
-                    CImGui.MenuItem(morestyle.Icons.QueryBlock * " QueryBlock") && push!(daqtask.blocks, QueryBlock())
-                    CImGui.MenuItem(morestyle.Icons.ReadBlock * " ReadBlock") && push!(daqtask.blocks, ReadBlock())
-                    CImGui.MenuItem(morestyle.Icons.SaveBlock * " SaveBlock") && push!(daqtask.blocks, SaveBlock())
+                if CImGui.BeginMenu(MORESTYLE.Icons.NewFile * " 添加")
+                    CImGui.MenuItem(MORESTYLE.Icons.CodeBlock * " CodeBlock") && push!(daqtask.blocks, CodeBlock())
+                    CImGui.MenuItem(MORESTYLE.Icons.StrideCodeBlock * " StrideCodeBlock") && push!(daqtask.blocks, StrideCodeBlock(1))
+                    CImGui.MenuItem(MORESTYLE.Icons.SweepBlock * " SweepBlock") && push!(daqtask.blocks, SweepBlock(1))
+                    CImGui.MenuItem(MORESTYLE.Icons.SettingBlock * " SettingBlock") && push!(daqtask.blocks, SettingBlock())
+                    CImGui.MenuItem(MORESTYLE.Icons.ReadingBlock * " ReadingBlock") && push!(daqtask.blocks, ReadingBlock())
+                    CImGui.MenuItem(MORESTYLE.Icons.LogBlock * " LogBlock") && push!(daqtask.blocks, LogBlock())
+                    CImGui.MenuItem(MORESTYLE.Icons.WriteBlock * " WriteBlock") && push!(daqtask.blocks, WriteBlock())
+                    CImGui.MenuItem(MORESTYLE.Icons.QueryBlock * " QueryBlock") && push!(daqtask.blocks, QueryBlock())
+                    CImGui.MenuItem(MORESTYLE.Icons.ReadBlock * " ReadBlock") && push!(daqtask.blocks, ReadBlock())
+                    CImGui.MenuItem(MORESTYLE.Icons.SaveBlock * " SaveBlock") && push!(daqtask.blocks, SaveBlock())
                     CImGui.EndMenu()
                 end
                 CImGui.EndPopup()
@@ -84,23 +84,23 @@ let
 end
 
 function run(daqtask::DAQTask)
-    global workpath
-    global savepath
-    global old_i
-    global issweeping
+    global WORKPATH
+    global SAVEPATH
+    global OLDI
     daqtask.enable || return
-    SyncStates[Int(isdaqtask_running)] = true
+    SYNCSTATES[Int(IsDAQTaskRunning)] = true
     date = today()
-    find_old_i(joinpath(workpath, string(year(date)), string(year(date), "-", month(date)), string(date)))
-    cfgsvdir = joinpath(workpath, string(year(date)), string(year(date), "-", month(date)), string(date))
+    find_old_i(joinpath(WORKPATH, string(year(date)), string(year(date), "-", month(date)), string(date)))
+    cfgsvdir = joinpath(WORKPATH, string(year(date)), string(year(date), "-", month(date)), string(date))
     ispath(cfgsvdir) || mkpath(cfgsvdir)
-    savepath = joinpath(cfgsvdir, replace("[$(now())] 任务 $(1+old_i) $(daqtask.name).qdt", ':' => '.'))
-    push!(cfgbuf, "daqtask" => daqtask)
+    SAVEPATH = joinpath(cfgsvdir, replace("[$(now())] 任务 $(1+OLDI) $(daqtask.name).qdt", ':' => '.'))
+    push!(CFGBUF, "daqtask" => daqtask)
     try
         log_instrbufferviewers()
     catch e
         @error "[($now())]\n仪器记录错误，程序终止！！！" exception = e
-        return
+        SYNCSTATES[Int(IsDAQTaskRunning)] = false
+        return nothing
     end
     run_remote(daqtask)
     wait(
@@ -113,43 +113,43 @@ end
 
 function run_remote(daqtask::DAQTask)
     controllers, st = remotecall_fetch(extract_controllers, workers()[1], daqtask.blocks)
-    empty!(databuf)
-    empty!(databuf_parsed)
+    empty!(DATABUF)
+    empty!(DATABUFPARSED)
     if !st
-        SyncStates[Int(isdaqtask_done)] = true
+        SYNCSTATES[Int(IsDAQTaskDone)] = true
         return
     end
     rn = length(controllers)
     blockcodes = @trypasse tocodes.(daqtask.blocks) begin
         @error "[$(now())]\n代码生成失败!!!"
-        SyncStates[Int(isdaqtask_done)] = true
+        SYNCSTATES[Int(IsDAQTaskDone)] = true
         return
     end
     ex = quote
-        function remote_sweep_block(controllers, databuf_lc, progress_lc, SyncStates)
+        function remote_sweep_block(controllers, databuf_lc, progress_lc, SYNCSTATES)
             $(blockcodes...)
         end
-        function remote_do_block(databuf_rc, progress_rc, SyncStates, rn)
+        function remote_do_block(databuf_rc, progress_rc, SYNCSTATES, rn)
             controllers = $controllers
             try
-                databuf_lc = Channel{Tuple{String,String}}(conf.DAQ.channel_size)
-                progress_lc = Channel{Tuple{UUID,Int,Int,Float64}}(conf.DAQ.channel_size)
+                databuf_lc = Channel{Tuple{String,String}}(CONF.DAQ.channel_size)
+                progress_lc = Channel{Tuple{UUID,Int,Int,Float64}}(CONF.DAQ.channel_size)
                 @sync begin
                     remotedotask = errormonitor(@async begin
                         remotecall_wait(() -> (start!(CPU); fast!(CPU)), workers()[1])
                         for ct in values(controllers)
                             login!(CPU, ct)
                         end
-                        remote_sweep_block(controllers, databuf_lc, progress_lc, SyncStates)
+                        remote_sweep_block(controllers, databuf_lc, progress_lc, SYNCSTATES)
                     end)
                     errormonitor(@async while true
                         if istaskdone(remotedotask) && all(.!isready.([databuf_lc, databuf_rc, progress_lc, progress_rc]))
                             remotecall_wait(eval, 1, :(log_instrbufferviewers()))
-                            SyncStates[Int(isdaqtask_done)] = true
+                            SYNCSTATES[Int(IsDAQTaskDone)] = true
                             break
                         else
-                            isready(databuf_lc) && put!(databuf_rc, packtake!(databuf_lc, 2rn * conf.DAQ.packsize))
-                            isready(progress_lc) && put!(progress_rc, packtake!(progress_lc, conf.DAQ.packsize))
+                            isready(databuf_lc) && put!(databuf_rc, packtake!(databuf_lc, 2rn * CONF.DAQ.packsize))
+                            isready(progress_lc) && put!(progress_rc, packtake!(progress_lc, CONF.DAQ.packsize))
                         end
                         yield()
                     end)
@@ -164,36 +164,36 @@ function run_remote(daqtask::DAQTask)
             end
         end
     end |> prettify
-    remotecall_wait(workers()[1], ex, SyncStates) do ex, SyncStates
+    remotecall_wait(workers()[1], ex, SYNCSTATES) do ex, SYNCSTATES
         try
             @info "[$(now())]\n" task = ex
             eval(ex)
         catch e
-            SyncStates[Int(isdaqtask_done)] = true
+            SYNCSTATES[Int(IsDAQTaskDone)] = true
             @error "[$(now())]\n程序定义有误！！！" exception = e
         end
     end
-    SyncStates[Int(isdaqtask_done)] && return
-    remote_do(workers()[1], databuf_rc, progress_rc, SyncStates, rn) do databuf_rc, progress_rc, SyncStates, rn
+    SYNCSTATES[Int(IsDAQTaskDone)] && return
+    remote_do(workers()[1], DATABUFRC, PROGRESSRC, SYNCSTATES, rn) do databuf_rc, progress_rc, syncstates, rn
         try
-            global block = Threads.Condition()
-            remote_do_block(databuf_rc, progress_rc, SyncStates, rn)
+            global BLOCK = Threads.Condition()
+            remote_do_block(databuf_rc, progress_rc, syncstates, rn)
         catch e
-            SyncStates[Int(isdaqtask_done)] = true
+            syncstates[Int(IsDAQTaskDone)] = true
             @error "[$(now())]\n程序执行有误！！！" exception = e
         end
     end
 end
 
 function update_data()
-    if isready(databuf_rc)
-        packdata = take!(databuf_rc)
+    if isready(DATABUFRC)
+        packdata = take!(DATABUFRC)
         for data in packdata
-            haskey(databuf, data[1]) || push!(databuf, data[1] => String[])
-            haskey(databuf_parsed, data[1]) || push!(databuf_parsed, data[1] => Float64[])
-            push!(databuf[data[1]], data[2])
+            haskey(DATABUF, data[1]) || push!(DATABUF, data[1] => String[])
+            haskey(DATABUFPARSED, data[1]) || push!(DATABUFPARSED, data[1] => Float64[])
+            push!(DATABUF[data[1]], data[2])
             parsed_data = tryparse(Float64, data[2])
-            push!(databuf_parsed[data[1]], isnothing(parsed_data) ? NaN : parsed_data)
+            push!(DATABUFPARSED[data[1]], isnothing(parsed_data) ? NaN : parsed_data)
             splitdata = split(data[1], "_")
             if length(splitdata) == 4
                 _, instrnm, qt, addr = splitdata
@@ -201,18 +201,18 @@ function update_data()
                 continue
             end
             occursin(r"\[.*\]", qt) && continue
-            insbuf = instrbufferviewers[instrnm][addr].insbuf
+            insbuf = INSTRBUFFERVIEWERS[instrnm][addr].insbuf
             insbuf.quantities[qt].read = data[2]
             updatefront!(insbuf.quantities[qt])
         end
-        if waittime("savedatabuf", conf.DAQ.savetime)
-            jldopen(savepath, "w") do file
-                file["data"] = databuf
-                file["circuit"] = circuit_editor
-                file["uiplots"] = uipsweeps
-                file["datapickers"] = daq_dtpks
-                file["plotlayout"] = daq_plot_layout
-                for (key, val) in cfgbuf
+        if waittime("savedatabuf", CONF.DAQ.savetime)
+            jldopen(SAVEPATH, "w") do file
+                file["data"] = DATABUF
+                file["circuit"] = CIRCUIT
+                file["uiplots"] = UIPSWEEPS
+                file["datapickers"] = DAQDTPKS
+                file["plotlayout"] = DAQPLOTLAYOUT
+                for (key, val) in CFGBUF
                     file[key] = val
                 end
             end
@@ -221,37 +221,32 @@ function update_data()
 end
 
 function update_all()
-    if SyncStates[Int(isdaqtask_done)]
-        if isfile(savepath) || !isempty(databuf)
-            # try
-            #     log_instrbufferviewers()
-            # catch e
-            #     @error "[$(now())]\n仪器记录错误，无法保存结束状态！！！" exception=e
-            # end
-            jldopen(savepath, "w") do file
-                file["data"] = databuf
-                file["circuit"] = circuit_editor
-                file["uiplots"] = uipsweeps
-                file["datapickers"] = daq_dtpks
-                file["plotlayout"] = daq_plot_layout
-                for (key, val) in cfgbuf
+    if SYNCSTATES[Int(IsDAQTaskDone)]
+        if isfile(SAVEPATH) || !isempty(DATABUF)
+            jldopen(SAVEPATH, "w") do file
+                file["data"] = DATABUF
+                file["circuit"] = CIRCUIT
+                file["uiplots"] = UIPSWEEPS
+                file["datapickers"] = DAQDTPKS
+                file["plotlayout"] = DAQPLOTLAYOUT
+                for (key, val) in CFGBUF
                     file[key] = val
                 end
             end
-            if conf.DAQ.saveimg
-                if isempty(daq_plot_layout.selectedidx)
-                    saveimg_seting("$savepath.png", uipsweeps[[1]])
+            if CONF.DAQ.saveimg
+                if isempty(DAQPLOTLAYOUT.selectedidx)
+                    saveimg_seting("$SAVEPATH.png", UIPSWEEPS[[1]])
                 else
-                    saveimg_seting("$savepath.png", uipsweeps[daq_plot_layout.selectedidx])
+                    saveimg_seting("$SAVEPATH.png", UIPSWEEPS[DAQPLOTLAYOUT.selectedidx])
                 end
-                global savingimg = true
+                SYNCSTATES[Int(SavingImg)] = true
             end
-            global old_i += 1
+            global OLDI += 1
         end
-        empty!(progresslist)
-        empty!(cfgbuf)
-        SyncStates[Int(isdaqtask_done)] = false
-        SyncStates[Int(isdaqtask_running)] = false
+        empty!(PROGRESSLIST)
+        empty!(CFGBUF)
+        SYNCSTATES[Int(IsDAQTaskDone)] = false
+        SYNCSTATES[Int(IsDAQTaskRunning)] = false
         return false
     else
         update_data()
@@ -290,7 +285,7 @@ end
 #################################################################
 function view(daqtask::DAQTask)
     CImGui.BeginChild("查看DAQTask")
-    CImGui.TextColored(morestyle.Colors.HighlightText, "实验记录")
+    CImGui.TextColored(MORESTYLE.Colors.HighlightText, "实验记录")
     TextRect(string(daqtask.explog, "\n "))
     view(daqtask.blocks)
     CImGui.EndChild()

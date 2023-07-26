@@ -144,11 +144,11 @@ mutable struct UnionStyle
     UnionStyle() = new(Ref{LibCImGui.ImGuiStyle}()[], Ref{ImPlot.ImPlotStyle}()[], ImNodesStyle(), MoreStyle())
 end
 
-global imguistyle::Ptr{CImGui.LibCImGui.ImGuiStyle}
-global implotstyle::Ptr{ImPlot.ImPlotStyle}
-global imnodesstyle::Ptr{CImGui.LibCImGui.Style}
-global morestyle::MoreStyle
-const styles = Dict{String,UnionStyle}()
+global IMGUISTYLE::Ptr{CImGui.LibCImGui.ImGuiStyle}
+global IMPLOTSTYLE::Ptr{ImPlot.ImPlotStyle}
+global IMNODESSTYLE::Ptr{CImGui.LibCImGui.Style}
+global MORESTYLE::MoreStyle
+const STYLES = Dict{String,UnionStyle}()
 
 let
     nodeoutline::Bool = false
@@ -169,15 +169,15 @@ let
                 imnodes_StyleColorsClassic()
             end
         end
-        imnodesstyle = imnodes_GetStyle()
+        # imnodesstyle = imnodes_GetStyle()
         if CImGui.Button("Save Ref")
             for var in fieldnames(LibCImGui.Style)
                 var == :colors && continue
-                setproperty!(style_ref, var, unsafe_load(getproperty(imnodesstyle, var)))
+                setproperty!(style_ref, var, unsafe_load(getproperty(IMNODESSTYLE, var)))
             end
             storecolors = Cuint[]
             for i in eachindex(instances(LibCImGui.ColorStyle)[1:end-1])
-                push!(storecolors, CImGui.c_get(imnodesstyle.colors, i - 1))
+                push!(storecolors, CImGui.c_get(IMNODESSTYLE.colors, i - 1))
             end
             style_ref.colors = (storecolors...,)
         end
@@ -185,10 +185,10 @@ let
         if CImGui.Button("Revert Ref")
             for var in fieldnames(LibCImGui.Style)
                 var == :colors && continue
-                setproperty!(imnodesstyle, var, getproperty(style_ref, var))
+                setproperty!(IMNODESSTYLE, var, getproperty(style_ref, var))
             end
             for i in eachindex(instances(LibCImGui.ColorStyle)[1:end-1])
-                CImGui.c_set!(imnodesstyle.colors, i - 1, style_ref.colors[i])
+                CImGui.c_set!(IMNODESSTYLE.colors, i - 1, style_ref.colors[i])
             end
         end
         CImGui.SameLine()
@@ -205,14 +205,14 @@ let
                     fieldtype(LibCImGui.Style, var) == Cfloat || continue
                     CImGui.DragFloat(
                         stcstr(var),
-                        getproperty(imnodesstyle, var),
+                        getproperty(IMNODESSTYLE, var),
                         1.0, 0, 120, "%.3f",
                         CImGui.ImGuiSliderFlags_AlwaysClamp
                     )
                 end
-                CImGui.CheckboxFlags("NodeOutLine", imnodesstyle.flags, LibCImGui.StyleFlags_NodeOutline)
+                CImGui.CheckboxFlags("NodeOutLine", IMNODESSTYLE.flags, LibCImGui.StyleFlags_NodeOutline)
                 CImGui.SameLine()
-                CImGui.CheckboxFlags("GridLines", imnodesstyle.flags, LibCImGui.StyleFlags_GridLines)
+                CImGui.CheckboxFlags("GridLines", IMNODESSTYLE.flags, LibCImGui.StyleFlags_GridLines)
                 CImGui.EndTabItem()
             end
             if CImGui.BeginTabItem("Colors")
@@ -224,8 +224,8 @@ let
                     end
                     CImGui.LogText("ImVec4* colors = imnodes_GetStyle().colors;\n")
                     for col in instances(LibCImGui.ColorStyle)[1:end-1]
-                        if !output_only_modified || style_ref.colors[Int(col)+1] != CImGui.c_get(imnodesstyle.colors, col)
-                            CImGui.LogText(string("colors[$col] = ", CImGui.c_get(imnodesstyle.colors, col), "\n"))
+                        if !output_only_modified || style_ref.colors[Int(col)+1] != CImGui.c_get(IMNODESSTYLE.colors, col)
+                            CImGui.LogText(string("colors[$col] = ", CImGui.c_get(IMNODESSTYLE.colors, col), "\n"))
                         end
                     end
                     CImGui.LogFinish()
@@ -262,22 +262,22 @@ let
                 for col in instances(LibCImGui.ColorStyle)[1:end-1]
                     # ImGuiTextFilter_PassFilter(filter, pointer(string(col)), C_NULL) || continue
                     (filter == "" || !isvalid(filter) || occursin(lowercase(filter), lowercase(string(col)))) || continue
-                    col_imvec4 = CImGui.ColorConvertU32ToFloat4(CImGui.c_get(imnodesstyle.colors, col))
+                    col_imvec4 = CImGui.ColorConvertU32ToFloat4(CImGui.c_get(IMNODESSTYLE.colors, col))
                     col_arr = [col_imvec4.x, col_imvec4.y, col_imvec4.z, col_imvec4.w]
                     CImGui.ColorEdit4(stcstr(col), col_arr, CImGui.ImGuiColorEditFlags_AlphaBar | alpha_flags)
-                    CImGui.c_set!(imnodesstyle.colors, col, CImGui.ColorConvertFloat4ToU32(col_arr))
-                    if style_ref.colors[Int(col)+1] != CImGui.c_get(imnodesstyle.colors, col)
+                    CImGui.c_set!(IMNODESSTYLE.colors, col, CImGui.ColorConvertFloat4ToU32(col_arr))
+                    if style_ref.colors[Int(col)+1] != CImGui.c_get(IMNODESSTYLE.colors, col)
                         CImGui.SameLine()
                         if CImGui.Button("Save")
                             style_ref.colors = newtuple(
                                 style_ref.colors,
                                 Int(col) + 1,
-                                CImGui.c_get(imnodesstyle.colors, col)
+                                CImGui.c_get(IMNODESSTYLE.colors, col)
                             )
                         end
                         CImGui.SameLine()
                         if CImGui.Button("Revert")
-                            CImGui.c_set!(imnodesstyle.colors, col, style_ref.colors[Int(col)+1])
+                            CImGui.c_set!(IMNODESSTYLE.colors, col, style_ref.colors[Int(col)+1])
                         end
                     end
                 end
@@ -329,8 +329,8 @@ let
                     end
                     CImGui.LogText("ImVec4* colors = imnodes_GetStyle().colors;\n")
                     for col in fieldnames(MoreStyleColor)
-                        if !output_only_modified || getproperty(style_ref.Colors, col) != getproperty(morestyle.Colors, col)
-                            CImGui.LogText(string("colors[$col] = ", getproperty(morestyle.Colors, col), "\n"))
+                        if !output_only_modified || getproperty(style_ref.Colors, col) != getproperty(MORESTYLE.Colors, col)
+                            CImGui.LogText(string("colors[$col] = ", getproperty(MORESTYLE.Colors, col), "\n"))
                         end
                     end
                     CImGui.LogFinish()
@@ -369,17 +369,17 @@ let
                     (filter == "" || !isvalid(filter) || occursin(lowercase(filter), lowercase(string(color)))) || continue
                     CImGui.ColorEdit4(
                         stcstr(color),
-                        getproperty(morestyle.Colors, color),
+                        getproperty(MORESTYLE.Colors, color),
                         CImGui.ImGuiColorEditFlags_AlphaBar | alpha_flags
                     )
-                    if getproperty(style_ref.Colors, color) != getproperty(morestyle.Colors, color)
+                    if getproperty(style_ref.Colors, color) != getproperty(MORESTYLE.Colors, color)
                         CImGui.SameLine()
                         if CImGui.Button("Save")
-                            setproperty!(style_ref.Colors, color, copy(getproperty(morestyle.Colors, color)))
+                            setproperty!(style_ref.Colors, color, copy(getproperty(MORESTYLE.Colors, color)))
                         end
                         CImGui.SameLine()
                         if CImGui.Button("Revert")
-                            setproperty!(morestyle.Colors, color, copy(getproperty(style_ref.Colors, color)))
+                            setproperty!(MORESTYLE.Colors, color, copy(getproperty(style_ref.Colors, color)))
                         end
                     end
                 end
@@ -403,31 +403,31 @@ let
                 for icon in icons
                     # ImGuiTextFilter_PassFilter(icons_filter, pointer(string(icon)), C_NULL) || continue
                     occursin(lowercase(icons_filter), lowercase(string(icon))) || continue
-                    editicon = getproperty(morestyle.Icons, icon)
+                    editicon = getproperty(MORESTYLE.Icons, icon)
                     @c IconSelector(stcstr(icon), &editicon)
-                    setproperty!(morestyle.Icons, icon, editicon)
+                    setproperty!(MORESTYLE.Icons, icon, editicon)
                     CImGui.NextColumn()
                 end
                 CImGui.EndChild()
                 CImGui.EndTabItem()
             end
             if CImGui.BeginTabItem("PinShapes")
-                inpin = string(morestyle.PinShapes.input)
+                inpin = string(MORESTYLE.PinShapes.input)
                 if @c ComBoS("Input PinShape", &inpin, string.(instances(LibCImGui.PinShape)))
-                    morestyle.PinShapes.input = getproperty(LibCImGui, Symbol(inpin))
+                    MORESTYLE.PinShapes.input = getproperty(LibCImGui, Symbol(inpin))
                 end
-                outpin = string(morestyle.PinShapes.output)
+                outpin = string(MORESTYLE.PinShapes.output)
                 if @c ComBoS("Output PinShape", &outpin, string.(instances(LibCImGui.PinShape)))
-                    morestyle.PinShapes.output = getproperty(LibCImGui, Symbol(outpin))
+                    MORESTYLE.PinShapes.output = getproperty(LibCImGui, Symbol(outpin))
                 end
                 CImGui.EndTabItem()
             end
             if CImGui.BeginTabItem("ImPlotMarkers")
-                selectedmarker = unsafe_string(ImPlot.GetMarkerName(morestyle.ImPlotMarker))
+                selectedmarker = unsafe_string(ImPlot.GetMarkerName(MORESTYLE.ImPlotMarker))
                 implotmarkerlist = [unsafe_string(ImPlot.GetMarkerName(i - 1)) for i in 1:ImPlot.ImPlotMarker_COUNT]
                 if @c ComBoS("ImPlotMarker", &selectedmarker, implotmarkerlist)
-                    morestyle.ImPlotMarker = findfirst(==(selectedmarker), implotmarkerlist) - 1
-                    implotstyle.Marker = morestyle.ImPlotMarker
+                    MORESTYLE.ImPlotMarker = findfirst(==(selectedmarker), implotmarkerlist) - 1
+                    IMPLOTSTYLE.Marker = MORESTYLE.ImPlotMarker
                 end
                 CImGui.EndTabItem()
             end
@@ -439,31 +439,31 @@ end
 function loadstyle(style_ref::LibCImGui.ImGuiStyle)
     for var in fieldnames(LibCImGui.ImGuiStyle)
         var == :Colors && continue
-        setproperty!(imguistyle, var, getproperty(style_ref, var))
+        setproperty!(IMGUISTYLE, var, getproperty(style_ref, var))
     end
     for i in 1:CImGui.ImGuiCol_COUNT
-        CImGui.c_set!(imguistyle.Colors, i - 1, style_ref.Colors[i])
+        CImGui.c_set!(IMGUISTYLE.Colors, i - 1, style_ref.Colors[i])
     end
 end
 function loadstyle(style_ref::ImPlot.ImPlotStyle)
     for var in fieldnames(ImPlot.ImPlotStyle)
         var == :Colors && continue
-        setproperty!(implotstyle, var, getproperty(style_ref, var))
+        setproperty!(IMPLOTSTYLE, var, getproperty(style_ref, var))
     end
     for i in 1:ImPlot.ImPlotCol_COUNT
-        CImGui.c_set!(implotstyle.Colors, i - 1, style_ref.Colors[i])
+        CImGui.c_set!(IMPLOTSTYLE.Colors, i - 1, style_ref.Colors[i])
     end
 end
 function loadstyle(style_ref::ImNodesStyle)
     for var in fieldnames(LibCImGui.Style)
         var == :colors && continue
-        setproperty!(imnodesstyle, var, getproperty(style_ref, var))
+        setproperty!(IMNODESSTYLE, var, getproperty(style_ref, var))
     end
     for i in eachindex(instances(LibCImGui.ColorStyle)[1:end-1])
-        CImGui.c_set!(imnodesstyle.colors, i - 1, style_ref.colors[i])
+        CImGui.c_set!(IMNODESSTYLE.colors, i - 1, style_ref.colors[i])
     end
 end
-loadstyle(style_ref::MoreStyle) = (global morestyle = deepcopy(style_ref); implotstyle.Marker = morestyle.ImPlotMarker)
+loadstyle(style_ref::MoreStyle) = (global MORESTYLE = deepcopy(style_ref); IMPLOTSTYLE.Marker = MORESTYLE.ImPlotMarker)
 function loadstyle(ustyle::UnionStyle)
     for s in fieldnames(UnionStyle)
         loadstyle(getproperty(ustyle, s))
@@ -480,27 +480,27 @@ let
     global function StyleEditor()
         # global imguistyle
         ws = CImGui.GetWindowWidth()
-        styledir = conf.Style.dir
+        styledir = CONF.Style.dir
         CImGui.PushItemWidth(ws / 2)
         inputstyledir = @c InputTextRSZ("##Style-dir", &styledir)
         CImGui.SameLine()
         CImGui.PopItemWidth()
-        selectstyledir = CImGui.Button(morestyle.Icons.SelectPath * "##Style-path")
+        selectstyledir = CImGui.Button(MORESTYLE.Icons.SelectPath * "##Style-path")
         selectstyledir && (styledir = pick_folder(abspath(styledir)))
         if inputstyledir || selectstyledir
             if isfile(styledir)
-                conf.Style.dir = styledir
+                CONF.Style.dir = styledir
             else
                 CImGui.SameLine()
                 CImGui.TextColored((1.000, 0.000, 0.000, 1.000), "路径不存在！！！")
             end
         end
-        if CImGui.Button(morestyle.Icons.SaveButton * " Save to File  ")
+        if CImGui.Button(MORESTYLE.Icons.SaveButton * " Save to File  ")
             if rstrip(style_name, ' ') != ""
-                push!(styles, style_name => ustyle)
+                push!(STYLES, style_name => ustyle)
                 # jldsave(conf.Style.path, styles=styles)
-                jldopen(joinpath(conf.Style.dir, "$style_name.sty"), "w") do file
-                    file[style_name] = styles[style_name]
+                jldopen(joinpath(CONF.Style.dir, "$style_name.sty"), "w") do file
+                    file[style_name] = STYLES[style_name]
                 end
                 nmerr = false
             else
@@ -512,29 +512,29 @@ let
         hinttext = nmerr ? "Illegal Name" : "Style Name"
         CImGui.PushStyleColor(
             CImGui.ImGuiCol_TextDisabled,
-            nmerr ? morestyle.Colors.LogError : CImGui.c_get(imguistyle.Colors, CImGui.ImGuiCol_TextDisabled)
+            nmerr ? MORESTYLE.Colors.LogError : CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_TextDisabled)
         )
-        CImGui.PushItemWidth(ws / 2 - bw - unsafe_load(imguistyle.ItemSpacing.x))
+        CImGui.PushItemWidth(ws / 2 - bw - unsafe_load(IMGUISTYLE.ItemSpacing.x))
         @c InputTextWithHintRSZ("##Input Style Name", hinttext, &style_name)
         CImGui.PopItemWidth()
         CImGui.PopStyleColor()
         CImGui.SameLine()
-        CImGui.Button(morestyle.Icons.CloseFile) && CImGui.OpenPopup("##是否删除style")
+        CImGui.Button(MORESTYLE.Icons.CloseFile) && CImGui.OpenPopup("##是否删除style")
         CImGui.SameLine()
-        ShowHelpMarker("This operation will delete the selected imguistyle. Please be careful!")
+        ShowHelpMarker("This operation will delete the selected IMGUISTYLE. Please be careful!")
         if YesNoDialog("##是否删除style", "确认删除？", CImGui.ImGuiWindowFlags_AlwaysAutoResize)
-            delete!(styles, selected_style)
-            Base.Filesystem.rm(joinpath(conf.Style.dir, "$selected_style.sty"), force=true)
+            delete!(STYLES, selected_style)
+            Base.Filesystem.rm(joinpath(CONF.Style.dir, "$selected_style.sty"), force=true)
             selected_style = ""
         end
 
         ###wallpaper###
-        bgpath = conf.BGImage.path
+        bgpath = CONF.BGImage.path
         CImGui.PushItemWidth(ws / 2)
         inputbgpath = @c InputTextRSZ("##BGImage-path", &bgpath)
         CImGui.PopItemWidth()
         CImGui.SameLine()
-        selectbgpath = CImGui.Button(stcstr(morestyle.Icons.SelectPath, "##BGImage-path"))
+        selectbgpath = CImGui.Button(stcstr(MORESTYLE.Icons.SelectPath, "##BGImage-path"))
         selectbgpath && (bgpath = pick_file(abspath(bgpath); filterlist="png,jpg,jpeg,tif,bmp"))
         CImGui.SameLine()
         CImGui.Text("Wallpaper")
@@ -542,31 +542,31 @@ let
             if isfile(bgpath)
                 try
                     bgimg = RGB.(collect(transpose(FileIO.load(bgpath))))
-                    conf.BGImage.path = bgpath
+                    CONF.BGImage.path = bgpath
                     bgsize = size(bgimg)
-                    global bgid = ImGui_ImplOpenGL3_CreateImageTexture(bgsize...; format=GL_RGB)
-                    ImGui_ImplOpenGL3_UpdateImageTexture(bgid, bgimg, bgsize...; format=GL_RGB)
+                    global BGID = ImGui_ImplOpenGL3_CreateImageTexture(bgsize...; format=GL_RGB)
+                    ImGui_ImplOpenGL3_UpdateImageTexture(BGID, bgimg, bgsize...; format=GL_RGB)
                 catch e
                     @error "[$(now())]\n加载背景出错！！！" exception = e
                 end
             else
                 CImGui.SameLine()
-                CImGui.TextColored(morestyle.Colors.LogError, "文件不存在！！！")
+                CImGui.TextColored(MORESTYLE.Colors.LogError, "文件不存在！！！")
             end
         end
 
         CImGui.PushItemWidth(ws / 2)
-        selected_style == "" && haskey(styles, conf.Style.default) && (selected_style = conf.Style.default)
-        if @c ComBoS("##Style Selecting", &selected_style, keys(styles))
+        selected_style == "" && haskey(STYLES, CONF.Style.default) && (selected_style = CONF.Style.default)
+        if @c ComBoS("##Style Selecting", &selected_style, keys(STYLES))
             if selected_style != ""
-                ustyle = styles[selected_style]
+                ustyle = STYLES[selected_style]
                 style_name = selected_style
                 loadstyle(ustyle)
             end
         end
         CImGui.PopItemWidth()
         CImGui.SameLine()
-        CImGui.Button("Set as default") && (selected_style == "" || (conf.Style.default = selected_style))
+        CImGui.Button("Set as default") && (selected_style == "" || (CONF.Style.default = selected_style))
         CImGui.SameLine()
         CImGui.Text("Style")
         if CImGui.BeginTabBar("Style Editor")

@@ -153,6 +153,10 @@ variables ys and ws respectively and can be accessed by index. For convenience, 
 
 One can middle click or right click at the plot region to find more options.
 
+## project
+All elements above together make up one project. One can save and load a project to conveniently reuse scripts, circuit,
+and plots. One example file [demo.daq](../../example) can be found in example folder.
+
 # Data Reviewing
 
 Click on "文件 -> "打开文件"("打开文件夹") to open saved files. Here One can review the content stored in the file

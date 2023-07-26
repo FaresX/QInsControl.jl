@@ -9,27 +9,27 @@ let
     global function ShowConsole(p_open::Ref{Bool})
         # CImGui.SetNextWindowPos((100, 100), CImGui.ImGuiCond_Once)
         CImGui.SetNextWindowSize((600, 400), CImGui.ImGuiCond_Once)
-        if CImGui.Begin(stcstr(morestyle.Icons.Console, "  控制台"), p_open)
-            if newmsg || waittime("Console", conf.Console.refreshrate)
+        if CImGui.Begin(stcstr(MORESTYLE.Icons.Console, "  控制台"), p_open)
+            if newmsg || waittime("Console", CONF.Console.refreshrate)
                 empty!(iomsgshow)
-                textc = CImGui.c_get(imguistyle.Colors, CImGui.ImGuiCol_Text)
+                textc = CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_Text)
                 markerlist = ["[IN Begin]", "[OUT Begin]"]
                 date = today()
-                iodir = joinpath(conf.Console.dir, string(year(date)), string(year(date), "-", month(date)))
+                iodir = joinpath(CONF.Console.dir, string(year(date)), string(year(date), "-", month(date)))
                 isdir(iodir) || mkpath(iodir)
                 iofile = joinpath(iodir, string(date, ".out"))
                 isfile(iofile) || open(file -> write(file, ""), iofile, "w")
                 allmsg::Vector{String} = string.(split(read(iofile, String), '\n'))
-                limitline::Int = length(allmsg) > conf.Console.showioline ? conf.Console.showioline : length(allmsg)
+                limitline::Int = length(allmsg) > CONF.Console.showioline ? CONF.Console.showioline : length(allmsg)
                 iomsg = ""
                 isinblock = false
                 for (i, s) in enumerate(allmsg[end-limitline+1:end])
-                    occursin(markerlist[1], s) && (textc = ImVec4(morestyle.Colors.HighlightText...))
-                    occursin(markerlist[2], s) && (textc = ImVec4(morestyle.Colors.LogInfo...))
+                    occursin(markerlist[1], s) && (textc = ImVec4(MORESTYLE.Colors.HighlightText...))
+                    occursin(markerlist[2], s) && (textc = ImVec4(MORESTYLE.Colors.LogInfo...))
                     if occursin("[End]", s)
                         isinblock || (iomsg *= "\n")
                         push!(iomsgshow, (textc, iomsg))
-                        textc = CImGui.c_get(imguistyle.Colors, CImGui.ImGuiCol_Text)
+                        textc = CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_Text)
                         iomsg = ""
                     elseif occursin(markerlist[1], s)
                         iomsg *= "IN:\n"
@@ -45,8 +45,8 @@ let
                 end
                 newmsg && (newmsg_updated = true; newmsg = false)
             end
-            lineheigth = (1 + length(findall('\n', buffer))) * CImGui.GetTextLineHeight() + 2unsafe_load(imguistyle.FramePadding.y)
-            CImGui.BeginChild("STD OUT", (Float32(0), -lineheigth - unsafe_load(imguistyle.ItemSpacing.y)))
+            lineheigth = (1 + length(findall('\n', buffer))) * CImGui.GetTextLineHeight() + 2unsafe_load(IMGUISTYLE.FramePadding.y)
+            CImGui.BeginChild("STD OUT", (Float32(0), -lineheigth - unsafe_load(IMGUISTYLE.ItemSpacing.y)))
             for (col, msg) in iomsgshow
                 CImGui.PushStyleColor(CImGui.ImGuiCol_Text, col)
                 CImGui.PushTextWrapPos(0)
@@ -67,7 +67,7 @@ let
                 end
             end
             CImGui.SameLine()
-            if CImGui.Button(stcstr(morestyle.Icons.SendMsg, " 发送")) ||
+            if CImGui.Button(stcstr(MORESTYLE.Icons.SendMsg, " 发送")) ||
                ((CImGui.IsKeyDown(341) || CImGui.IsKeyDown(345)) && (CImGui.IsKeyDown(257) || CImGui.IsKeyDown(335)))
                 if buffer != ""
                     iofile_open = open(iofile, "a+")
@@ -92,7 +92,7 @@ let
                         close(iofile_open)
                     end
                     if buffer ∉ historyins
-                        if length(historyins) == conf.Console.historylen
+                        if length(historyins) == CONF.Console.historylen
                             push!(historyins, buffer)
                             popfirst!(historyins)
                         else

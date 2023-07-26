@@ -8,7 +8,7 @@ function UI(breakdown=false)
     end
 
     # create window
-    initws::Vector{Cint} = conf.Basic.windowsize
+    initws::Vector{Cint} = CONF.Basic.windowsize
     global window = glfwCreateWindow(initws..., "QInsControl", C_NULL, C_NULL)
     @assert window != C_NULL
     glfwMakeContextCurrent(window)
@@ -24,21 +24,21 @@ function UI(breakdown=false)
     glfwicons = Base.unsafe_convert(Ref{GLFWimage}, Base.cconvert(Ref{GLFWimage}, icons_8bit))
     glfwSetWindowIcon(window, 1, glfwicons)
     iconsize = reverse(size(icons[1]))
-    global iconid = ImGui_ImplOpenGL3_CreateImageTexture(iconsize...)
-    ImGui_ImplOpenGL3_UpdateImageTexture(iconid, transpose(icons[1]), iconsize...)
+    global ICONID = ImGui_ImplOpenGL3_CreateImageTexture(iconsize...)
+    ImGui_ImplOpenGL3_UpdateImageTexture(ICONID, transpose(icons[1]), iconsize...)
     # 加载背景
-    if isfile(conf.BGImage.path)
+    if isfile(CONF.BGImage.path)
         try
-            bgimg = RGB.(collect(transpose(FileIO.load(conf.BGImage.path))))
+            bgimg = RGB.(collect(transpose(FileIO.load(CONF.BGImage.path))))
             bgsize = size(bgimg)
-            global bgid = ImGui_ImplOpenGL3_CreateImageTexture(bgsize...; format=GL_RGB)
-            ImGui_ImplOpenGL3_UpdateImageTexture(bgid, bgimg, bgsize...; format=GL_RGB)
+            global BGID = ImGui_ImplOpenGL3_CreateImageTexture(bgsize...; format=GL_RGB)
+            ImGui_ImplOpenGL3_UpdateImageTexture(BGID, bgimg, bgsize...; format=GL_RGB)
         catch e
             @error "[$now()]\n加载背景出错！！！" exception = e
-            global bgid = ImGui_ImplOpenGL3_CreateImageTexture(conf.Basic.windowsize...; format=GL_RGB)
+            global BGID = ImGui_ImplOpenGL3_CreateImageTexture(CONF.Basic.windowsize...; format=GL_RGB)
         end
     else
-        global bgid = ImGui_ImplOpenGL3_CreateImageTexture(conf.Basic.windowsize...)
+        global BGID = ImGui_ImplOpenGL3_CreateImageTexture(CONF.Basic.windowsize...)
     end
 
 
@@ -58,7 +58,7 @@ function UI(breakdown=false)
     # io.IniFilename = pointer(imguiinifile)
     io.IniFilename = C_NULL
     io.ConfigFlags = unsafe_load(io.ConfigFlags) | CImGui.ImGuiConfigFlags_DockingEnable
-    conf.Basic.viewportenable && (io.ConfigFlags = unsafe_load(io.ConfigFlags) | CImGui.ImGuiConfigFlags_ViewportsEnable)
+    CONF.Basic.viewportenable && (io.ConfigFlags = unsafe_load(io.ConfigFlags) | CImGui.ImGuiConfigFlags_ViewportsEnable)
     # io.ConfigDockingWithShift = true
 
     # load imgui.ini
@@ -80,14 +80,14 @@ function UI(breakdown=false)
     r = unsafe_wrap(Vector{ImVector_ImWchar}, ranges, 1)
     CImGui.AddFontFromFileTTF(
         fonts,
-        joinpath(conf.Fonts.dir, conf.Fonts.first),
-        conf.Fonts.size,
+        joinpath(CONF.Fonts.dir, CONF.Fonts.first),
+        CONF.Fonts.size,
         C_NULL,
         ImFontAtlas_GetGlyphRangesChineseFull(fonts)
     )
     fontcfg = ImFontConfig_ImFontConfig()
     fontcfg.MergeMode = true
-    CImGui.AddFontFromFileTTF(fonts, joinpath(conf.Fonts.dir, conf.Fonts.second), conf.Fonts.size, fontcfg, r[1].Data)
+    CImGui.AddFontFromFileTTF(fonts, joinpath(CONF.Fonts.dir, CONF.Fonts.second), CONF.Fonts.size, fontcfg, r[1].Data)
 
     # 加载图标字体
     icon_ranges = ImVector_ImWchar_create()
@@ -100,14 +100,14 @@ function UI(breakdown=false)
     CImGui.AddFontFromFileTTF(
         fonts,
         joinpath(ENV["QInsControlAssets"], "Necessity/fa-regular-400.ttf"),
-        conf.Icons.size,
+        CONF.Icons.size,
         fontcfg,
         icon_r[1].Data
     )
     CImGui.AddFontFromFileTTF(
         fonts,
         joinpath(ENV["QInsControlAssets"], "Necessity/fa-solid-900.ttf"),
-        conf.Icons.size,
+        CONF.Icons.size,
         fontcfg,
         icon_r[1].Data
     )
@@ -116,11 +116,11 @@ function UI(breakdown=false)
     ImGuiGLFWBackend.init(window_ctx)
     ImGuiOpenGLBackend.init(gl_ctx)
 
-    global imguistyle = CImGui.GetStyle()
-    global implotstyle = ImPlot.GetStyle()
-    global imnodesstyle = imnodes_GetStyle()
-    global morestyle = MoreStyle()
-    haskey(styles, conf.Style.default) && loadstyle(styles[conf.Style.default])
+    global IMGUISTYLE = CImGui.GetStyle()
+    global IMPLOTSTYLE = ImPlot.GetStyle()
+    global IMNODESSTYLE = imnodes_GetStyle()
+    global MORESTYLE = MoreStyle()
+    haskey(STYLES, CONF.Style.default) && loadstyle(STYLES[CONF.Style.default])
 
     breakdown && closeallwindow()
 
@@ -129,7 +129,7 @@ function UI(breakdown=false)
         global glfwwindowx = Cint(0)
         global glfwwindowy = Cint(0)
         iswindowiconified::Bool = false
-        pick_fps_normal = conf.DAQ.pick_fps[1]
+        pick_fps_normal = CONF.DAQ.pick_fps[1]
         while true
             glfwPollEvents()
             ImGuiOpenGLBackend.new_frame(gl_ctx)
@@ -140,20 +140,20 @@ function UI(breakdown=false)
             waittime("Check STATICSTRINGS", 36) && checklifetime()
 
             ######保存图像######
-            if savingimg
+            if SYNCSTATES[Int(SavingImg)]
                 @c glfwGetWindowPos(window, &glfwwindowx, &glfwwindowy)
                 count_fps = saveimg()
                 if count_fps == 1
                     iswindowiconified = glfwGetWindowAttrib(window, GLFW_ICONIFIED) != 0
                     if iswindowiconified
-                        pick_fps_normal = conf.DAQ.pick_fps[1]
-                        conf.DAQ.pick_fps[1] = conf.DAQ.pick_fps[2]
+                        pick_fps_normal = CONF.DAQ.pick_fps[1]
+                        CONF.DAQ.pick_fps[1] = CONF.DAQ.pick_fps[2]
                     end
                 elseif count_fps == 0
                     glfwSetWindowAttrib(window, GLFW_FLOATING, GLFW_FALSE)
                     if iswindowiconified
                         glfwIconifyWindow(window)
-                        conf.DAQ.pick_fps[1] = pick_fps_normal
+                        CONF.DAQ.pick_fps[1] = pick_fps_normal
                     end
                 else
                     iswindowiconified && glfwRestoreWindow(window)
@@ -163,12 +163,12 @@ function UI(breakdown=false)
 
             MainWindow()
             if CImGui.BeginPopupModal("##windowshouldclose?", C_NULL, CImGui.ImGuiWindowFlags_AlwaysAutoResize)
-                CImGui.TextColored(morestyle.Colors.LogError, "\n\n正在进行数据采集，请稍等。。。\n\n\n")
+                CImGui.TextColored(MORESTYLE.Colors.LogError, "\n\n正在进行数据采集，请稍等。。。\n\n\n")
                 CImGui.Button("确认", (-1, 0)) && CImGui.CloseCurrentPopup()
                 CImGui.EndPopup()
             end
             if glfwWindowShouldClose(window) != 0
-                if SyncStates[Int(isdaqtask_running)]
+                if SYNCSTATES[Int(IsDAQTaskRunning)]
                     CImGui.OpenPopup("##windowshouldclose?")
                     glfwSetWindowShouldClose(window, false)
                 else
@@ -204,7 +204,7 @@ function UI(breakdown=false)
         @error "[$(now())]\nError in renderloop!" exception = e
         Base.show_backtrace(stderr, catch_backtrace())
     finally
-        SyncStates[Int(isdaqtask_running)] || remotecall_wait(() -> stop!(CPU), workers()[1])
+        SYNCSTATES[Int(IsDAQTaskRunning)] || remotecall_wait(() -> stop!(CPU), workers()[1])
         CImGui.SaveIniSettingsToDisk(imguiinifile)
         ImGuiOpenGLBackend.shutdown(gl_ctx)
         ImGuiGLFWBackend.shutdown(window_ctx)

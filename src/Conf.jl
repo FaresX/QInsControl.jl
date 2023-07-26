@@ -1,7 +1,7 @@
 function loadconf()
-    ######gennerate conf######
+    ###### gennerate conf ######
     conf_file = joinpath(ENV["QInsControlAssets"], "Necessity/conf.toml")
-    global conf = if isfile(conf_file)
+    global CONF = if isfile(conf_file)
         conf_dict = TOML.parsefile(conf_file)
         unitslist = Dict("" => [])
         for Ut::String in keys(conf_dict["U"])
@@ -20,29 +20,29 @@ function loadconf()
     else
         Conf()
     end
-    isdir(conf.Fonts.dir) || (conf.Fonts.dir = joinpath(ENV["QInsControlAssets"], "Fonts"))
-    isdir(conf.Console.dir) || (conf.Console.dir = joinpath(ENV["QInsControlAssets"], "IOs"))
-    isdir(conf.Logs.dir) || (conf.Logs.dir = joinpath(ENV["QInsControlAssets"], "Logs"))
-    isfile(conf.BGImage.path) || (conf.BGImage.path = joinpath(ENV["QInsControlAssets"], "Necessity/defaultwallpaper.bmp"))
-    isfile(conf.Style.dir) || (conf.Style.dir = joinpath(ENV["QInsControlAssets"], "Styles"))
+    isdir(CONF.Fonts.dir) || (CONF.Fonts.dir = joinpath(ENV["QInsControlAssets"], "Fonts"))
+    isdir(CONF.Console.dir) || (CONF.Console.dir = joinpath(ENV["QInsControlAssets"], "IOs"))
+    isdir(CONF.Logs.dir) || (CONF.Logs.dir = joinpath(ENV["QInsControlAssets"], "Logs"))
+    isfile(CONF.BGImage.path) || (CONF.BGImage.path = joinpath(ENV["QInsControlAssets"], "Necessity/defaultwallpaper.bmp"))
+    isfile(CONF.Style.dir) || (CONF.Style.dir = joinpath(ENV["QInsControlAssets"], "Styles"))
 
-    ######generate insconf######
+    ###### generate insconf ######
     include(joinpath(ENV["QInsControlAssets"], "Confs/extra_conf.jl"))
     for file in readdir(joinpath(ENV["QInsControlAssets"], "Confs"), join=true)
         bnm = basename(file)
         split(bnm, '.')[end] != "toml" || gen_insconf(file)
     end
 
-    ######generate instrbufferviewers######
+    ###### generate INSTRBUFFERVIEWERS ######
     for key in keys(insconf)
-        push!(instrbufferviewers, key => Dict{String,InstrBufferViewer}())
+        push!(INSTRBUFFERVIEWERS, key => Dict{String,InstrBufferViewer}())
     end
-    push!(instrbufferviewers, "VirtualInstr" => Dict("VirtualAddress" => InstrBufferViewer("VirtualInstr", "VirtualAddress")))
+    push!(INSTRBUFFERVIEWERS, "VirtualInstr" => Dict("VirtualAddress" => InstrBufferViewer("VirtualInstr", "VirtualAddress")))
 
-    ######load style_conf######
-    for file in readdir(conf.Style.dir, join=true)
+    ###### load style_conf ######
+    for file in readdir(CONF.Style.dir, join=true)
         bnm = basename(file)
-        split(bnm, '.')[end] == "sty" && merge!(styles, load(file))
+        split(bnm, '.')[end] == "sty" && merge!(STYLES, load(file))
     end
 
     return nothing

@@ -1,7 +1,3 @@
-# using Distributed
-# nprocs() == 1 && addprocs(1)
-# @everywhere ENV["QInsControlAssets"] = "Assets"
-# @everywhere module QInsControl
 module QInsControl
 
 using CImGui
@@ -12,54 +8,51 @@ using CImGui.ImGuiOpenGLBackend
 using CImGui.ImGuiGLFWBackend.LibGLFW
 using CImGui.ImGuiOpenGLBackend.ModernGL
 using CImGui.LibCImGui
-using ImPlot
-using NativeFileDialog
-using Unitful
-using MacroTools
-import FileIO
-using JLD2
-# using QInsControlCore
-using Configurations
 using ColorTypes
+using Configurations
+import FileIO
+import ImageMagick
+using ImPlot
+using JLD2
+using MacroTools
+using NativeFileDialog
 using OrderedCollections
 using StringEncodings
-import ImageMagick
+using Unitful
 # using ImageIO
 
-using Distributed
-using SharedArrays
-using TOML
 using Dates
-using UUIDs
-using Printf
+using Distributed
 using InteractiveUtils
 using Logging
+using Printf
+using SharedArrays
+using TOML
+using UUIDs
 
 include("QInsControlCore/QInsControlCore.jl")
 using .QInsControlCore
-# export start
 
 @enum SyncStatesIndex begin
-    autodetecting = 1 #是否正在自动查询仪器
-    autodetect_done
-    isdaqtask_running
-    isdaqtask_done
-    isinterrupt
-    isblock
-    isautorefresh
-    newloging
+    AutoDetecting = 1 #是否正在自动查询仪器
+    AutoDetectDone
+    IsDAQTaskRunning
+    IsDAQTaskDone
+    IsInterrupted
+    IsBlocked
+    IsAutoRefreshing
+    NewLogging
+    SavingImg
 end
 
-global savingimg::Bool = false
 const CPU = Processor()
-const databuf = Dict{String,Vector{String}}() #数据缓存
-const databuf_parsed = Dict{String,Vector{Float64}}()
-const progresslist = OrderedDict{UUID,Tuple{UUID,Int,Int,Float64}}() #进度条缓存
+const DATABUF = Dict{String,Vector{String}}() #数据缓存
+const DATABUFPARSED = Dict{String,Vector{Float64}}()
+const PROGRESSLIST = OrderedDict{UUID,Tuple{UUID,Int,Int,Float64}}() #进度条缓存
 
-global SyncStates::SharedVector{Bool}
-global instrbuffer_rc::RemoteChannel{Channel{Vector{NTuple{4,String}}}}
-global databuf_rc::RemoteChannel{Channel{Vector{NTuple{2,String}}}}
-global progress_rc::RemoteChannel{Channel{Vector{Tuple{UUID,Int,Int,Float64}}}}
+global SYNCSTATES::SharedVector{Bool}
+global DATABUFRC::RemoteChannel{Channel{Vector{NTuple{2,String}}}}
+global PROGRESSRC::RemoteChannel{Channel{Vector{Tuple{UUID,Int,Int,Float64}}}}
 
 include("Configurations.jl")
 include("Instrument.jl")
@@ -95,37 +88,37 @@ include("Conf.jl")
 function julia_main()::Cint
     try
         loadconf()
-        databuf_c::Channel{Vector{Tuple{String,String}}} = Channel{Vector{NTuple{2,String}}}(conf.DAQ.channel_size)
-        progress_c::Channel{Vector{Tuple{UUID,Int,Int,Float64}}} = Channel{Vector{Tuple{UUID,Int,Int,Float64}}}(conf.DAQ.channel_size)
-        global SyncStates = SharedVector{Bool}(8)
-        global databuf_rc = RemoteChannel(() -> databuf_c)
-        global progress_rc = RemoteChannel(() -> progress_c)
-        global logio = IOBuffer()
-        global_logger(SimpleLogger(logio))
+        databuf_c::Channel{Vector{Tuple{String,String}}} = Channel{Vector{NTuple{2,String}}}(CONF.DAQ.channel_size)
+        progress_c::Channel{Vector{Tuple{UUID,Int,Int,Float64}}} = Channel{Vector{Tuple{UUID,Int,Int,Float64}}}(CONF.DAQ.channel_size)
+        global SYNCSTATES = SharedVector{Bool}(9)
+        global DATABUFRC = RemoteChannel(() -> databuf_c)
+        global PROGRESSRC = RemoteChannel(() -> progress_c)
+        global LOGIO = IOBuffer()
+        global_logger(SimpleLogger(LOGIO))
         errormonitor(@async while true
             sleep(1)
             update_log()
         end)
         @info ARGS
-        isempty(ARGS) || @info reencoding.(ARGS, conf.Basic.encoding)
+        isempty(ARGS) || @info reencoding.(ARGS, CONF.Basic.encoding)
         uitask = UI()
         jlverinfobuf = IOBuffer()
         versioninfo(jlverinfobuf)
-        global jlverinfo = wrapmultiline(String(take!(jlverinfobuf)), 48)
-        if conf.Basic.isremote
+        global JLVERINFO = wrapmultiline(String(take!(jlverinfobuf)), 48)
+        if CONF.Basic.isremote
             # ENV["JULIA_NUM_THREADS"] = 4
             nprocs() == 1 && addprocs(1)
             @eval @everywhere using QInsControl
-            SyncStates = SharedVector{Bool}(8)
-            databuf_rc = RemoteChannel(() -> databuf_c)
-            progress_rc = RemoteChannel(() -> progress_c)
-            remotecall_wait(workers()[1], SyncStates) do SyncStates
+            SYNCSTATES = SharedVector{Bool}(9)
+            DATABUFRC = RemoteChannel(() -> databuf_c)
+            PROGRESSRC = RemoteChannel(() -> progress_c)
+            remotecall_wait(workers()[1], SYNCSTATES) do SYNCSTATES
                 loadconf()
-                global logio = IOBuffer()
-                global_logger(SimpleLogger(logio))
+                global LOGIO = IOBuffer()
+                global_logger(SimpleLogger(LOGIO))
                 errormonitor(@async while true
                     sleep(1)
-                    update_log(SyncStates=SyncStates)
+                    update_log(SYNCSTATES=SYNCSTATES)
                 end)
             end
         end
@@ -134,7 +127,7 @@ function julia_main()::Cint
         @info "[$(now())]\n启动成功！"
         if !isinteractive()
             wait(uitask)
-            while SyncStates[Int(isdaqtask_running)]
+            while SYNCSTATES[Int(IsDAQTaskRunning)]
                 yield()
             end
             sleep(0.1)
@@ -149,7 +142,7 @@ end
 
 function start()
     if !haskey(ENV, "QInsControlAssets")
-        ENV["QInsControlAssets"] = joinpath(dirname(pathof(QInsControl)), "../Assets")
+        ENV["QInsControlAssets"] = joinpath(Base.@__DIR__, "../Assets")
     end
     julia_main()
 end

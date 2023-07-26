@@ -17,9 +17,9 @@ let
         CImGui.SetNextWindowSize((800, 600), CImGui.ImGuiCond_Once)
         if @c CImGui.Begin(
             if filetree.rootpath_bnm == ""
-                stcstr(morestyle.Icons.OpenFile, "  数据浏览##", id)
+                stcstr(MORESTYLE.Icons.OpenFile, "  数据浏览##", id)
             else
-                stcstr(morestyle.Icons.OpenFolder, "  数据浏览##", id)
+                stcstr(MORESTYLE.Icons.OpenFolder, "  数据浏览##", id)
             end,
             &dtviewer.p_open
         )
@@ -62,7 +62,7 @@ let
                         CImGui.PushItemWidth(2CImGui.GetFontSize())
                         @c CImGui.DragInt(
                             "##InsBuf列数",
-                            &conf.InsBuf.showcol,
+                            &CONF.InsBuf.showcol,
                             1, 1, 6, "%d",
                             CImGui.ImGuiSliderFlags_AlwaysClamp
                         )
@@ -76,8 +76,8 @@ let
                         )
                         for insbuf in insbufkeys
                             logtime::String = split(insbuf, "/")[2]
-                            CImGui.PushStyleColor(CImGui.ImGuiCol_Button, morestyle.Colors.LogInfo)
-                            CImGui.PushStyleColor(CImGui.ImGuiCol_Text, morestyle.Colors.LogWarn)
+                            CImGui.PushStyleColor(CImGui.ImGuiCol_Button, MORESTYLE.Colors.LogInfo)
+                            CImGui.PushStyleColor(CImGui.ImGuiCol_Text, MORESTYLE.Colors.LogWarn)
                             CImGui.Button(logtime, (-0.1, 0.0))
                             CImGui.PopStyleColor(2)
                             CImGui.PushID(logtime)
@@ -126,20 +126,20 @@ let
                     end
                     if haskey(dtviewer.data, "data")
                         if CImGui.BeginPopupContextItem("选择数据查看")
-                            if CImGui.BeginMenu(morestyle.Icons.SelectData * " 绘图")
+                            if CImGui.BeginMenu(MORESTYLE.Icons.SelectData * " 绘图")
                                 CImGui.Text("绘图列数")
                                 CImGui.SameLine()
                                 CImGui.PushItemWidth(2CImGui.GetFontSize())
                                 @c CImGui.DragInt(
                                     "##绘图列数",
-                                    &conf.DAQ.plotshowcol,
+                                    &CONF.DAQ.plotshowcol,
                                     1, 1, 6, "%d",
                                     CImGui.ImGuiSliderFlags_AlwaysClamp
                                 )
                                 CImGui.PopItemWidth()
                                 CImGui.SameLine()
                                 CImGui.PushID("add new plot")
-                                if CImGui.Button(morestyle.Icons.NewFile)
+                                if CImGui.Button(MORESTYLE.Icons.NewFile)
                                     push!(dtviewer.layout.labels, string(length(dtviewer.layout.labels) + 1))
                                     push!(dtviewer.layout.marks, "")
                                     push!(dtviewer.layout.states, false)
@@ -148,13 +148,13 @@ let
                                 end
                                 CImGui.PopID()
 
-                                dtviewer.layout.showcol = conf.DAQ.plotshowcol
-                                dtviewer.layout.labels = morestyle.Icons.SelectData * " " .*
+                                dtviewer.layout.showcol = CONF.DAQ.plotshowcol
+                                dtviewer.layout.labels = MORESTYLE.Icons.SelectData * " " .*
                                                          string.(collect(eachindex(dtviewer.layout.labels)))
                                 maxplotmarkidx = argmax(lengthpr.(dtviewer.layout.marks))
                                 maxploticonwidth = dtviewer.layout.showcol * CImGui.CalcTextSize(
                                     stcstr(
-                                        morestyle.Icons.SelectData,
+                                        MORESTYLE.Icons.SelectData,
                                         " ",
                                         dtviewer.layout.labels[maxplotmarkidx],
                                         dtviewer.layout.marks[maxplotmarkidx]
@@ -172,7 +172,7 @@ let
                                         if CImGui.MenuItem("选择数据") && dtviewer.layout.states[dtviewer.layout.idxing]
                                             dtviewer.show_dtpickers[dtviewer.layout.idxing] = true
                                         end
-                                        if CImGui.MenuItem(stcstr(morestyle.Icons.CloseFile, " 删除"))
+                                        if CImGui.MenuItem(stcstr(MORESTYLE.Icons.CloseFile, " 删除"))
                                             isdelplot = true
                                             delplot_i = dtviewer.layout.idxing
                                         end
@@ -188,7 +188,7 @@ let
                                 CImGui.EndMenu()
                             end
                             CImGui.Separator()
-                            if CImGui.MenuItem(stcstr(morestyle.Icons.SaveButton, " 保存"))
+                            if CImGui.MenuItem(stcstr(MORESTYLE.Icons.SaveButton, " 保存"))
                                 if !isempty(dtviewer.data)
                                     jldopen(filetree.selectedpath[], "w") do file
                                         for key in keys(dtviewer.data)
@@ -207,10 +207,10 @@ let
                     else
                         totalsz = CImGui.GetContentRegionAvail()
                         l = length(dtviewer.layout.selectedidx)
-                        n = conf.DAQ.plotshowcol
+                        n = CONF.DAQ.plotshowcol
                         m = ceil(Int, l / n)
                         n = m == 1 ? l : n
-                        height = (CImGui.GetContentRegionAvail().y - (m - 1) * unsafe_load(imguistyle.ItemSpacing.y)) / m
+                        height = (CImGui.GetContentRegionAvail().y - (m - 1) * unsafe_load(IMGUISTYLE.ItemSpacing.y)) / m
                         CImGui.Columns(n)
                         for i in 1:m
                             for j in 1:n
@@ -237,7 +237,7 @@ let
             CImGui.NextColumn() #查看菜单
 
             if CImGui.BeginPopupModal("文件中没有数据", C_NULL, CImGui.ImGuiWindowFlags_AlwaysAutoResize)
-                CImGui.TextColored(morestyle.logerrorcol, "文件中没有数据！")
+                CImGui.TextColored(MORESTYLE.logerrorcol, "文件中没有数据！")
                 CImGui.Button("确认##文件中没有数据", (180, 0)) && CImGui.CloseCurrentPopup()
                 CImGui.EndPopup()
             end
@@ -300,7 +300,7 @@ let
     global function showdata(data, id)
         lmax = max_with_empty(length.(values(data)))
         haskey(pagei, id) || push!(pagei, id => 1)
-        pages = ceil(Int, lmax / conf.DtViewer.showdatarow)
+        pages = ceil(Int, lmax / CONF.DtViewer.showdatarow)
         pagei[id] > pages && (pagei[id] = 1)
         showpagewidth = CImGui.CalcTextSize(stcstr(" ", pagei[id], " / ", pages, " ")).x
         contentwidth = CImGui.GetContentRegionAvailWidth()
@@ -333,8 +333,8 @@ let
             end
             CImGui.TableHeadersRow()
 
-            startpage = (pagei[id] - 1) * conf.DtViewer.showdatarow + 1
-            stoppage = pagei[id] * conf.DtViewer.showdatarow
+            startpage = (pagei[id] - 1) * CONF.DtViewer.showdatarow + 1
+            stoppage = pagei[id] * CONF.DtViewer.showdatarow
             for i in startpage:(pagei[id] == pages ? lmax : stoppage)
                 CImGui.TableNextRow()
                 for (_, val) in data

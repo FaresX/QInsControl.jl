@@ -113,14 +113,14 @@ let
                 @c CImGui.DragFloat("尺寸", &annbuf.possz, 1.0, 1, 60, "%.3f", CImGui.ImGuiSliderFlags_AlwaysClamp)
                 CImGui.ColorEdit4("颜色", annbuf.color, CImGui.ImGuiColorEditFlags_AlphaBar)
                 CImGui.SameLine()
-                if CImGui.Button(morestyle.Icons.NewFile * "##标签")
+                if CImGui.Button(MORESTYLE.Icons.NewFile * "##标签")
                     push!(uip.anns, deepcopy(annbuf))
                 end
             end
-            if CImGui.Button(stcstr(morestyle.Icons.SaveButton, " 保存##图像"))
+            if CImGui.Button(stcstr(MORESTYLE.Icons.SaveButton, " 保存##图像"))
                 CImGui.CloseCurrentPopup()
                 saveimg_seting(save_file(; filterlist="png;jpg;jpeg;bmp;eps;tif"), [uip])
-                global savingimg = true
+                SYNCSTATES[Int(SavingImg)] = true
             end
             CImGui.EndPopup()
         end
@@ -138,7 +138,7 @@ let
             @c CImGui.DragFloat("尺寸", &ann_i.possz, 1.0, 1, 60, "%.3f", CImGui.ImGuiSliderFlags_AlwaysClamp)
             CImGui.ColorEdit4("颜色", ann_i.color, CImGui.ImGuiColorEditFlags_AlphaBar)
             CImGui.SameLine()
-            if CImGui.Button(stcstr(morestyle.Icons.CloseFile, "##标签"))
+            if CImGui.Button(stcstr(MORESTYLE.Icons.CloseFile, "##标签"))
                 deleteat!(uip.anns, uip.ps.annhv_i)
                 CImGui.CloseCurrentPopup()
             end
@@ -180,9 +180,8 @@ function Plot(x::Vector{T1}, ys::Vector{Vector{T2}}, ps::PlotState;
             push!(legends, string("y", i))
         end
     end
-    global savingimg
-    xflags = savingimg ? ImPlot.ImPlotAxisFlags_AutoFit : 0
-    yflags = savingimg ? ImPlot.ImPlotAxisFlags_AutoFit : 0
+    xflags = SYNCSTATES[Int(SavingImg)] ? ImPlot.ImPlotAxisFlags_AutoFit : 0
+    yflags = SYNCSTATES[Int(SavingImg)] ? ImPlot.ImPlotAxisFlags_AutoFit : 0
     if ImPlot.BeginPlot(title, xlabel, ylabel, psize, 0, xflags, yflags)
         ps.xhv = ImPlot.IsPlotXAxisHovered()
         ps.yhv = ImPlot.IsPlotYAxisHovered()
@@ -193,7 +192,7 @@ function Plot(x::Vector{T1}, ys::Vector{Vector{T2}}, ps::PlotState;
             ptype == "scatter" && ImPlot.PlotScatter(lg, px, py, length(py))
             xl, xr = extrema(px)
             ps.mspos = ImPlot.GetPlotMousePos()
-            if ps.showtooltip && ps.phv && xl <= ps.mspos.x <= xr && !savingimg
+            if ps.showtooltip && ps.phv && xl <= ps.mspos.x <= xr && !SYNCSTATES[Int(SavingImg)]
                 idx = argmin(abs.(px .- ps.mspos.x))
                 yrg = ImPlot.GetPlotLimits().Y
                 yl, yr = yrg.Min, yrg.Max
@@ -243,9 +242,8 @@ let
         ImPlot.PushColormap(cmap[])
         lb = ImPlot.ImPlotPoint(CImGui.ImVec2(xlims[1], ylims[1]))
         rt = ImPlot.ImPlotPoint(CImGui.ImVec2(xlims[2], ylims[2]))
-        global savingimg
-        xflags = savingimg ? ImPlot.ImPlotAxisFlags_AutoFit : 0
-        yflags = savingimg ? ImPlot.ImPlotAxisFlags_AutoFit : 0
+        xflags = SYNCSTATES[Int(SavingImg)] ? ImPlot.ImPlotAxisFlags_AutoFit : 0
+        yflags = SYNCSTATES[Int(SavingImg)] ? ImPlot.ImPlotAxisFlags_AutoFit : 0
         if ImPlot.BeginPlot(
             title,
             xlabel,
@@ -260,7 +258,8 @@ let
             ps.yhv = ImPlot.IsPlotYAxisHovered()
             ps.phv = ImPlot.IsPlotHovered()
             ps.mspos = ImPlot.GetPlotMousePos()
-            if ps.showtooltip && ps.phv && inregion(ps.mspos, (xlims[1], ylims[1]), (xlims[2], ylims[2])) && !savingimg
+            if ps.showtooltip && ps.phv &&
+                inregion(ps.mspos, (xlims[1], ylims[1]), (xlims[2], ylims[2])) && !SYNCSTATES[Int(SavingImg)]
                 zsz = reverse(size(z))
                 xr = range(xlims[1], xlims[2], length=zsz[2])
                 yr = range(ylims[2], ylims[1], length=zsz[1])
@@ -455,9 +454,8 @@ let
     path::String = ""
     uips::Vector{UIPlot} = []
     global function saveimg()
-        global savingimg
-        if savingimg
-            count_fps == 0 && path == "" && (savingimg = false; return 0)
+        if SYNCSTATES[Int(SavingImg)]
+            count_fps == 0 && path == "" && (SYNCSTATES[Int(SavingImg)] = false; return 0)
             count_fps += 1
             viewport = igGetMainViewport()
             CImGui.SetNextWindowPos(unsafe_load(viewport.WorkPos))
@@ -468,10 +466,10 @@ let
             CImGui.PushStyleVar(CImGui.ImGuiStyleVar_WindowPadding, (0, 0))
             CImGui.Begin("Save Plot", C_NULL, CImGui.ImGuiWindowFlags_NoTitleBar)
             l = length(uips)
-            n = conf.DAQ.plotshowcol
+            n = CONF.DAQ.plotshowcol
             m = ceil(Int, l / n)
             n = m == 1 ? l : n
-            height = (CImGui.GetWindowHeight() - (m - 1) * unsafe_load(imguistyle.ItemSpacing.y)) / m
+            height = (CImGui.GetWindowHeight() - (m - 1) * unsafe_load(IMGUISTYLE.ItemSpacing.y)) / m
             CImGui.Columns(n, C_NULL, false)
             for i in 1:m
                 for j in 1:n
@@ -484,10 +482,10 @@ let
             end
             CImGui.End()
             CImGui.PopStyleVar(2)
-            if count_fps == conf.DAQ.pick_fps[1]
+            if count_fps == CONF.DAQ.pick_fps[1]
                 img = ImageMagick.load("screenshot:")
                 vpos, vsize = unsafe_load(viewport.WorkPos), unsafe_load(viewport.WorkSize)
-                conf.Basic.viewportenable || (vpos = CImGui.ImVec2(vpos.x + glfwwindowx, vpos.y + glfwwindowy))
+                CONF.Basic.viewportenable || (vpos = CImGui.ImVec2(vpos.x + glfwwindowx, vpos.y + glfwwindowy))
                 u, d = round(Int, vpos.y + 1), round(Int, vpos.y + vsize.y - 4)
                 l, r = round(Int, vpos.x + 1), round(Int, vpos.x + vsize.x - 1)
                 if length(size(img)) == 3
@@ -495,7 +493,7 @@ let
                     img = reshape(img, imgr, imgh * imgc)
                 end
                 @trypass FileIO.save(path, img[u:d, l:r]) @error "[$(now())]\n图像保存错误！！！"
-                savingimg = false
+                SYNCSTATES[Int(SavingImg)] = false
                 count_fps = 0
                 return 0
             end
