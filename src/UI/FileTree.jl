@@ -84,14 +84,14 @@ let
             isrename[path] = isrnm
         end
         if CImGui.BeginPopupContextItem()
-            CImGui.MenuItem("删除") && (deldialog = true)
+            CImGui.MenuItem(stcstr(MORESTYLE.Icons.CloseFile, " ", mlstr("Delete"))) && (deldialog = true)
             CImGui.EndPopup()
         end
-        if YesNoDialog(stcstr("##是否删除", path), "确认删除？", CImGui.ImGuiWindowFlags_AlwaysAutoResize)
+        if YesNoDialog(stcstr("##if delete", path), mlstr("Confirm delete?"), CImGui.ImGuiWindowFlags_AlwaysAutoResize)
             Base.Filesystem.rm(path)
             filetree.isdeleted = true
         end
-        deldialog && (CImGui.OpenPopup(stcstr("##是否删除", path));
+        deldialog && (CImGui.OpenPopup(stcstr("##if delete", path));
         deldialog = false)
         CImGui.PopID()
     end

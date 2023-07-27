@@ -17,6 +17,7 @@ using JLD2
 using MacroTools
 using NativeFileDialog
 using OrderedCollections
+using PrecompileTools
 using StringEncodings
 using Unitful
 # using ImageIO
@@ -58,6 +59,7 @@ include("Configurations.jl")
 include("Instrument.jl")
 include("Utilities.jl")
 include("StaticString.jl")
+include("MultiLanguage.jl")
 include("UI/NodesEditor.jl")
 include("UI/IconsFontAwesome6.jl")
 include("UI/IconSelector.jl")
@@ -112,19 +114,19 @@ function julia_main()::Cint
             SYNCSTATES = SharedVector{Bool}(9)
             DATABUFRC = RemoteChannel(() -> databuf_c)
             PROGRESSRC = RemoteChannel(() -> progress_c)
-            remotecall_wait(workers()[1], SYNCSTATES) do SYNCSTATES
+            remotecall_wait(workers()[1], SYNCSTATES) do syncstates
                 loadconf()
                 global LOGIO = IOBuffer()
                 global_logger(SimpleLogger(LOGIO))
                 errormonitor(@async while true
                     sleep(1)
-                    update_log(SYNCSTATES=SYNCSTATES)
+                    update_log(syncstates=syncstates)
                 end)
             end
         end
         remotecall_wait(() -> start!(CPU), workers()[1])
         autorefresh()
-        @info "[$(now())]\n启动成功！"
+        @info "[$(now())]\n$(mlstr("successfully started!"))"
         if !isinteractive()
             wait(uitask)
             while SYNCSTATES[Int(IsDAQTaskRunning)]
@@ -146,27 +148,13 @@ function start()
     end
     julia_main()
 end
-# function start(;compiled=false)
-#     sysimage_path = joinpath(@__DIR__, "../QInsControl.so")
-#     if compiled && isfile(sysimage_path)        
-#         Base.run(`julia -J $sysimage_path -e "QInsControl.start()"`)
-#     else
-#         if !haskey(ENV, "QInsControlAssets")
-#             ENV["QInsControlAssets"] = joinpath(dirname(pathof(QInsControl)), "../Assets")
-#         end
-#         julia_main()
-#     end
-# end
 
-# function compile_sysimage()
-#     @eval Main begin
-#         using PackageCompiler
-#         PackageCompiler.create_sysimage(
-#             ["QInsControl"];
-#             sysimage_path=joinpath(@__DIR__, "../QInsControl.so"),
-#             precompile_execution_file=joinpath(@__DIR__, "../precompile.jl")
-#         )
-#     end
-# end
+@compile_workload begin
+    if !haskey(ENV, "QInsControlAssets")
+        ENV["QInsControlAssets"] = joinpath(Base.@__DIR__, "../Assets")
+    end
+    loadconf()
+    UI(precompile=true)
+end
 
 end #QInsControl

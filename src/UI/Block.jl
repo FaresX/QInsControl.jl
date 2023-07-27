@@ -26,15 +26,22 @@ mutable struct SweepBlock <: AbstractBlock
     quantity::String
     step::String
     stop::String
-    level::Int
-    blocks::Vector{AbstractBlock}
     delay::Cfloat
     ui::Int
+    level::Int
+    blocks::Vector{AbstractBlock}
     istrycatch::Bool
     regmin::ImVec2
     regmax::ImVec2
 end
-SweepBlock(level) = SweepBlock("仪器", "地址", "扫描量", "", "", level, Vector{AbstractBlock}(), 0.1, 1, false, (0, 0), (0, 0))
+SweepBlock(level) = SweepBlock(
+    mlstr("instrument"), mlstr("address"), mlstr("sweep"),
+    "", "", 0.1, 1,
+    level,
+    Vector{AbstractBlock}(),
+    false,
+    (0, 0), (0, 0)
+)
 SweepBlock() = SweepBlock(1)
 
 mutable struct SettingBlock <: AbstractBlock
@@ -47,14 +54,14 @@ mutable struct SettingBlock <: AbstractBlock
     regmin::ImVec2
     regmax::ImVec2
 end
-SettingBlock() = SettingBlock("仪器", "地址", "设置", "", 1, false, (0, 0), (0, 0))
+SettingBlock() = SettingBlock(mlstr("instrument"), mlstr("address"), mlstr("set"), "", 1, false, (0, 0), (0, 0))
 
 mutable struct ReadingBlock <: AbstractBlock
     instrnm::String
-    mark::String
     addr::String
     quantity::String
     index::String
+    mark::String
     isasync::Bool
     isobserve::Bool
     isreading::Bool
@@ -62,7 +69,12 @@ mutable struct ReadingBlock <: AbstractBlock
     regmin::ImVec2
     regmax::ImVec2
 end
-ReadingBlock() = ReadingBlock("仪器", "", "地址", "读取量", "", false, false, false, false, (0, 0), (0, 0))
+ReadingBlock() = ReadingBlock(
+    mlstr("instrument"), mlstr("address"), mlstr("read"),
+    "", "",
+    false, false, false, false,
+    (0, 0), (0, 0)
+)
 
 mutable struct LogBlock <: AbstractBlock
     regmin::ImVec2
@@ -79,14 +91,14 @@ mutable struct WriteBlock <: AbstractBlock
     regmin::ImVec2
     regmax::ImVec2
 end
-WriteBlock() = WriteBlock("仪器", "地址", "", false, false, (0, 0), (0, 0))
+WriteBlock() = WriteBlock(mlstr("instrument"), mlstr("address"), "", false, false, (0, 0), (0, 0))
 
 mutable struct QueryBlock <: AbstractBlock
     instrnm::String
-    mark::String
     addr::String
     cmd::String
     index::String
+    mark::String
     isasync::Bool
     isobserve::Bool
     isreading::Bool
@@ -94,13 +106,18 @@ mutable struct QueryBlock <: AbstractBlock
     regmin::ImVec2
     regmax::ImVec2
 end
-QueryBlock() = QueryBlock("仪器", "", "地址", "", "", false, false, false, false, (0, 0), (0, 0))
+QueryBlock() = QueryBlock(
+    mlstr("instrument"), mlstr("address"),
+    "", "", "",
+    false, false, false, false,
+    (0, 0), (0, 0)
+)
 
 mutable struct ReadBlock <: AbstractBlock
     instrnm::String
-    mark::String
     addr::String
     index::String
+    mark::String
     isasync::Bool
     isobserve::Bool
     isreading::Bool
@@ -108,7 +125,7 @@ mutable struct ReadBlock <: AbstractBlock
     regmin::ImVec2
     regmax::ImVec2
 end
-ReadBlock() = ReadBlock("仪器", "", "地址", "", false, false, false, false, (0, 0), (0, 0))
+ReadBlock() = ReadBlock(mlstr("instrument"), mlstr("address"), "", "", false, false, false, false, (0, 0), (0, 0))
 
 mutable struct SaveBlock <: AbstractBlock
     varname::String
@@ -147,12 +164,12 @@ function tocodes(bk::StrideCodeBlock)
     end
     interpall = quote
         if SYNCSTATES[Int(IsBlocked)]
-            @warn "[$(now())]\n暂停！" StrideCodeBlock = $headcodes
+            @warn "[$(now())]\n$(mlstr("pause!"))" StrideCodeBlock = $headcodes
             lock(() -> wait(BLOCK), BLOCK)
-            @info "[$(now())]\n继续！" StrideCodeBlock = $headcodes
+            @info "[$(now())]\n$(mlstr("continue!"))" StrideCodeBlock = $headcodes
         elseif SYNCSTATES[Int(IsInterrupted)]
-            @warn "[$(now())]\n中断！" StrideCodeBlock = $headcodes
-            return
+            @warn "[$(now())]\n$(mlstr("interrupt!"))" StrideCodeBlock = $headcodes
+            return nothing
         end
         $interpcodes
     end
@@ -168,14 +185,14 @@ function tocodes(bk::SweepBlock)
     Ut = insconf[bk.instrnm].quantities[quantity].U
     Us = CONF.U[Ut]
     U = Us[bk.ui]
-    U == "" && (@error "[$(now())]\n输入数据有误！！！" bk = bk;
+    U == "" && (@error "[$(now())]\n$(mlstr("input data error!!!"))" bk = bk;
     return)
     stepc = @trypass Meta.parse(bk.step) begin
-        @error "[$(now())]\ncodes are wrong in parsing time (SweepBlock)!!!" bk = bk
+        @error "[$(now())]\n$(mlstr("codes are wrong in parsing time (SweepBlock)!!!"))" bk = bk
         return
     end
     stopc = @trypass Meta.parse(bk.stop) begin
-        @error "[$(now())]\ncodes are wrong in parsing time (SweepBlock)!!!" bk = bk
+        @error "[$(now())]\n$(mlstr("codes are wrong in parsing time (SweepBlock)!!!"))" bk = bk
         return
     end
     start = :(parse(Float64, controllers[$instr]($getfunc, CPU, Val(:read))))
@@ -215,7 +232,11 @@ function tocodes(bk::SweepBlock)
             try
                 $writecmd
             catch e
-                @error "[$(now)]\n仪器通信故障！！！" instrument = $(string(bk.instrnm, ": ", bk.addr)) exception = e
+                @error(
+                    "[$(now)]\n$(mlstr("instrument communication failed!!!"))",
+                    instrument = $(string(bk.instrnm, ": ", bk.addr)),
+                    exception = e
+                )
             end
         end
     else
@@ -225,12 +246,12 @@ function tocodes(bk::SweepBlock)
         $ex1
         @progress for $ijk in $sweeplist
             if SYNCSTATES[Int(IsBlocked)]
-                @warn "[$(now())]\n暂停！" SweepBlock = $instr
+                @warn "[$(now())]\n$(mlstr("pause!"))" SweepBlock = $instr
                 lock(() -> wait(BLOCK), BLOCK)
-                @info "[$(now())]\n继续！" SweepBlock = $instr
+                @info "[$(now())]\n$(mlstr("continue!"))" SweepBlock = $instr
             elseif SYNCSTATES[Int(IsInterrupted)]
-                @warn "[$(now())]\n中断！" SweepBlock = $instr
-                return
+                @warn "[$(now())]\n$(mlstr("interrupt!"))" SweepBlock = $instr
+                return nothing
             end
             $ex2
             sleep($(bk.delay))
@@ -249,7 +270,7 @@ function tocodes(bk::SettingBlock)
         setvalue = parsedollar(bk.setvalue)
     else
         setvaluec = @trypass Meta.parse(bk.setvalue) begin
-            @error "[$(now())]\ncodes are wrong in parsing time (SettingBlock)!!!" bk = bk
+            @error "[$(now())]\n$(mlstr("codes are wrong in parsing time (SettingBlock)!!!"))" bk = bk
             return
         end
         Uchange = U isa Unitful.MixedUnits ? 1 : ustrip(Us[1], 1U)
@@ -262,7 +283,11 @@ function tocodes(bk::SettingBlock)
             try
                 $settingcmd
             catch e
-                @error "[$(now)]\n仪器通信故障！！！" instrument = $(string(bk.instrnm, ": ", bk.addr)) exception = e
+                @error(
+                    "[$(now)]\n$(mlstr("instrument communication failed!!!"))",
+                    instrument = $(string(bk.instrnm, ": ", bk.addr)),
+                    exception = e
+                )
             end
         end
     else
@@ -274,7 +299,7 @@ function tocodes(bk::ReadingBlock)
     instr = string(bk.instrnm, "_", bk.addr)
     getfunc = Symbol(bk.instrnm, :_, bk.quantity, :_get)
     index = @trypasse eval(Meta.parse(bk.index)) begin
-        @error "[$(now())]\ncodes are wrong in parsing time (ReadingBlock)!!!" bk = bk
+        @error "[$(now())]\n$(mlstr("codes are wrong in parsing time (ReadingBlock)!!!"))" bk = bk
         return
     end
     index isa Integer && (index = [index])
@@ -286,7 +311,11 @@ function tocodes(bk::ReadingBlock)
                 try
                     $getcmd
                 catch e
-                    @error "[$(now)]\n仪器通信故障！！！" instrument = $(string(bk.instrnm, ": ", bk.addr)) exception = e
+                    @error(
+                        "[$(now)]\n$(mlstr("instrument communication failed!!!"))",
+                        instrument = $(string(bk.instrnm, ": ", bk.addr)),
+                        exception = e
+                    )
                     ""
                 end
             end
@@ -325,7 +354,11 @@ function tocodes(bk::ReadingBlock)
                 try
                     $getcmd
                 catch e
-                    @error "[$(now)]\n仪器通信故障！！！" instrument = $(string(bk.instrnm, ": ", bk.addr)) exception = e
+                    @error(
+                        "[$(now)]\n$(mlstr("instrument communication failed!!!"))",
+                        instrument = $(string(bk.instrnm, ": ", bk.addr)),
+                        exception = e
+                    )
                     fill("", length(index))
                 end
             end
@@ -370,7 +403,11 @@ function tocodes(bk::WriteBlock)
             try
                 $writecmd
             catch e
-                @error "[$(now)]\n仪器通信故障！！！" instrument = $(string(bk.instrnm, ": ", bk.addr)) exception = e
+                @error(
+                    "[$(now)]\n$(mlstr("instrument communication failed!!!"))",
+                    instrument = $(string(bk.instrnm, ": ", bk.addr)),
+                    exception = e
+                )
             end
         end
     else
@@ -386,7 +423,7 @@ end
 function tocodes(bk::QueryBlock)
     instr = string(bk.instrnm, "_", bk.addr)
     index = @trypasse eval(Meta.parse(bk.index)) begin
-        @error "[$(now())]\ncodes are wrong in parsing time (QueryBlock)!!!" bk = bk
+        @error "[$(now())]\n$(mlstr("codes are wrong in parsing time (QueryBlock)!!!"))" bk = bk
         return
     end
     index isa Integer && (index = [index])
@@ -399,7 +436,11 @@ function tocodes(bk::QueryBlock)
                 try
                     $getcmd
                 catch e
-                    @error "[$(now)]\n仪器通信故障！！！" instrument = $(string(bk.instrnm, ": ", bk.addr)) exception = e
+                    @error(
+                        "[$(now)]\n$(mlstr("instrument communication failed!!!"))",
+                        instrument = $(string(bk.instrnm, ": ", bk.addr)),
+                        exception = e
+                    )
                     ""
                 end
             end
@@ -435,7 +476,11 @@ function tocodes(bk::QueryBlock)
                 try
                     $getcmd
                 catch e
-                    @error "[$(now)]\n仪器通信故障！！！" instrument = $(string(bk.instrnm, ": ", bk.addr)) exception = e
+                    @error(
+                        "[$(now)]\n$(mlstr("instrument communication failed!!!"))",
+                        instrument = $(string(bk.instrnm, ": ", bk.addr)),
+                        exception = e
+                    )
                     fill("", length(index))
                 end
             end
@@ -472,7 +517,7 @@ end
 function tocodes(bk::ReadBlock)
     instr = string(bk.instrnm, "_", bk.addr)
     index = @trypasse eval(Meta.parse(bk.index)) begin
-        @error "[$(now())]\ncodes are wrong in parsing time (ReadBlock)!!!" bk = bk
+        @error "[$(now())]\n$(mlstr("codes are wrong in parsing time (ReadBlock)!!!"))" bk = bk
         return
     end
     index isa Integer && (index = [index])
@@ -484,7 +529,11 @@ function tocodes(bk::ReadBlock)
                 try
                     $getcmd
                 catch e
-                    @error "[$(now)]\n仪器通信故障！！！" instrument = $(string(bk.instrnm, ": ", bk.addr)) exception = e
+                    @error(
+                        "[$(now)]\n$(mlstr("instrument communication failed!!!"))",
+                        instrument = $(string(bk.instrnm, ": ", bk.addr)),
+                        exception = e
+                    )
                     ""
                 end
             end
@@ -520,7 +569,11 @@ function tocodes(bk::ReadBlock)
                 try
                     $getcmd
                 catch e
-                    @error "[$(now)]\n仪器通信故障！！！" instrument = $(string(bk.instrnm, ": ", bk.addr)) exception = e
+                    @error(
+                        "[$(now)]\n$(mlstr("instrument communication failed!!!"))",
+                        instrument = $(string(bk.instrnm, ": ", bk.addr)),
+                        exception = e
+                    )
                     fill("", length(index))
                 end
             end
@@ -584,7 +637,7 @@ function bkheight(bk::SweepBlock)
 end
 bkheight(_) = 2unsafe_load(IMGUISTYLE.WindowPadding.y) + CImGui.GetFrameHeight()
 
-############edit-------------------------------------------------------------------------------------------------------
+############ edit-------------------------------------------------------------------------------------------------------
 
 function edit(bk::CodeBlock)
     CImGui.BeginChild("##CodeBlock", (Float32(0), bkheight(bk)), true)
@@ -607,7 +660,7 @@ function edit(bk::StrideCodeBlock)
     CImGui.TextColored(MORESTYLE.Colors.BlockIcons, MORESTYLE.Icons.StrideCodeBlock)
     CImGui.SameLine()
     CImGui.PushItemWidth(-1)
-    @c InputTextWithHintRSZ("##代码块头", "代码块头", &bk.head)
+    @c InputTextWithHintRSZ("##code header", mlstr("code header"), &bk.head)
     CImGui.PopItemWidth()
     CImGui.PopStyleColor()
     isempty(skipnull(bk.blocks)) || edit(bk.blocks, bk.level + 1)
@@ -633,25 +686,25 @@ function edit(bk::SweepBlock)
     CImGui.SameLine()
     width = (CImGui.GetContentRegionAvailWidth() - 2CImGui.GetFontSize()) / 5
     CImGui.PushItemWidth(width)
-    @c ComBoS("##SweepBlock仪器", &bk.instrnm, keys(insconf), CImGui.ImGuiComboFlags_NoArrowButton)
+    @c ComBoS("##SweepBlock instrument", &bk.instrnm, keys(insconf), CImGui.ImGuiComboFlags_NoArrowButton)
     CImGui.PopItemWidth()
     CImGui.SameLine()
 
     inlist = haskey(INSTRBUFFERVIEWERS, bk.instrnm) && haskey(INSTRBUFFERVIEWERS[bk.instrnm], bk.addr)
-    bk.addr = inlist ? bk.addr : "地址"
+    bk.addr = inlist ? bk.addr : mlstr("address")
     addrlist = haskey(INSTRBUFFERVIEWERS, bk.instrnm) ? keys(INSTRBUFFERVIEWERS[bk.instrnm]) : String[]
     CImGui.PushItemWidth(width)
-    @c ComBoS("##SweepBlock地址", &bk.addr, addrlist, CImGui.ImGuiComboFlags_NoArrowButton)
+    @c ComBoS("##SweepBlock address", &bk.addr, addrlist, CImGui.ImGuiComboFlags_NoArrowButton)
     CImGui.PopItemWidth()
     CImGui.SameLine()
 
     showqt = if haskey(insconf, bk.instrnm) && haskey(insconf[bk.instrnm].quantities, bk.quantity)
         insconf[bk.instrnm].quantities[bk.quantity].alias
     else
-        "扫描"
+        mlstr("sweep")
     end
     CImGui.PushItemWidth(width)
-    if CImGui.BeginCombo("##SweepBlock设置", showqt, CImGui.ImGuiComboFlags_NoArrowButton)
+    if CImGui.BeginCombo("##SweepBlock sweep", showqt, CImGui.ImGuiComboFlags_NoArrowButton)
         qtlist = haskey(insconf, bk.instrnm) ? keys(insconf[bk.instrnm].quantities) : Set{String}()
         qts = if haskey(insconf, bk.instrnm)
             [
@@ -674,15 +727,15 @@ function edit(bk::SweepBlock)
     CImGui.SameLine()
 
     CImGui.PushItemWidth(width * 3 / 4)
-    @c InputTextWithHintRSZ("##SweepBlock步长", "步长", &bk.step)
+    @c InputTextWithHintRSZ("##SweepBlock step", mlstr("step"), &bk.step)
     CImGui.PopItemWidth()
     CImGui.SameLine()
     CImGui.PushItemWidth(width * 3 / 4)
-    @c InputTextWithHintRSZ("##SweepBlock终点", "终点", &bk.stop)
+    @c InputTextWithHintRSZ("##SweepBlock stop", mlstr("stop"), &bk.stop)
     CImGui.PopItemWidth()
     CImGui.SameLine()
     CImGui.PushItemWidth(width / 2)
-    @c CImGui.DragFloat("##SweepBlock停顿", &bk.delay, 0.01, 0, 9.99, "%.2f", CImGui.ImGuiSliderFlags_AlwaysClamp)
+    @c CImGui.DragFloat("##SweepBlock delay", &bk.delay, 0.01, 0, 9.99, "%.2f", CImGui.ImGuiSliderFlags_AlwaysClamp)
     CImGui.PopItemWidth()
     CImGui.SameLine()
 
@@ -711,25 +764,25 @@ function edit(bk::SettingBlock)
     CImGui.SameLine()
     width = (CImGui.GetContentRegionAvailWidth() - 2CImGui.GetFontSize()) / 5
     CImGui.PushItemWidth(width)
-    @c ComBoS("##SettingBlock仪器", &bk.instrnm, keys(insconf), CImGui.ImGuiComboFlags_NoArrowButton)
+    @c ComBoS("##SettingBlock instrument", &bk.instrnm, keys(insconf), CImGui.ImGuiComboFlags_NoArrowButton)
     CImGui.PopItemWidth()
     CImGui.SameLine()
 
     inlist = haskey(INSTRBUFFERVIEWERS, bk.instrnm) && haskey(INSTRBUFFERVIEWERS[bk.instrnm], bk.addr)
-    bk.addr = inlist ? bk.addr : "地址"
+    bk.addr = inlist ? bk.addr : mlstr("address")
     addrlist = haskey(INSTRBUFFERVIEWERS, bk.instrnm) ? keys(INSTRBUFFERVIEWERS[bk.instrnm]) : String[]
     CImGui.PushItemWidth(width)
-    @c ComBoS("##SettingBlock地址", &bk.addr, addrlist, CImGui.ImGuiComboFlags_NoArrowButton)
+    @c ComBoS("##SettingBlock address", &bk.addr, addrlist, CImGui.ImGuiComboFlags_NoArrowButton)
     CImGui.PopItemWidth()
     CImGui.SameLine()
 
     showqt = if haskey(insconf, bk.instrnm) && haskey(insconf[bk.instrnm].quantities, bk.quantity)
         insconf[bk.instrnm].quantities[bk.quantity].alias
     else
-        "设置"
+        mlstr("set")
     end
     CImGui.PushItemWidth(width)
-    if CImGui.BeginCombo("##SettingBlock设置", showqt, CImGui.ImGuiComboFlags_NoArrowButton)
+    if CImGui.BeginCombo("##SettingBlock set", showqt, CImGui.ImGuiComboFlags_NoArrowButton)
         qtlist = haskey(insconf, bk.instrnm) ? keys(insconf[bk.instrnm].quantities) : Set{String}()
         sts = if haskey(insconf, bk.instrnm)
             [
@@ -751,20 +804,20 @@ function edit(bk::SettingBlock)
 
     CImGui.SameLine()
     CImGui.PushItemWidth(2width)
-    @c InputTextWithHintRSZ("##SettingBlock设置值", "设置值", &bk.setvalue)
+    @c InputTextWithHintRSZ("##SettingBlock set value", mlstr("set value"), &bk.setvalue)
     CImGui.PopItemWidth()
-    if CImGui.BeginPopup("选择设置值")
+    if CImGui.BeginPopup("select set value")
         optklist = @trypass insconf[bk.instrnm].quantities[bk.quantity].optkeys [""]
         optvlist = @trypass insconf[bk.instrnm].quantities[bk.quantity].optvalues [""]
-        isempty(optklist) && CImGui.TextColored(MORESTYLE.Colors.HighlightText, "不可用的选项！")
+        isempty(optklist) && CImGui.TextColored(MORESTYLE.Colors.HighlightText, mlstr("unavailable options!"))
         for (i, optv) in enumerate(optvlist)
-            optv == "" && (CImGui.TextColored(MORESTYLE.Colors.HighlightText, "不可用的选项！");
+            optv == "" && (CImGui.TextColored(MORESTYLE.Colors.HighlightText, mlstr("unavailable options!"));
             continue)
             CImGui.MenuItem(optklist[i]) && (bk.setvalue = optv)
         end
         CImGui.EndPopup()
     end
-    CImGui.OpenPopupOnItemClick("选择设置值", 2)
+    CImGui.OpenPopupOnItemClick("select set value", 2)
 
     CImGui.SameLine()
     Ut = if haskey(insconf, bk.instrnm) && haskey(insconf[bk.instrnm].quantities, bk.quantity)
@@ -798,25 +851,25 @@ function edit(bk::ReadingBlock)
     CImGui.SameLine()
     width = (CImGui.GetContentRegionAvailWidth() - 2CImGui.GetFontSize()) / 5
     CImGui.PushItemWidth(width)
-    @c ComBoS("##ReadingBlock仪器", &bk.instrnm, keys(insconf), CImGui.ImGuiComboFlags_NoArrowButton)
+    @c ComBoS("##ReadingBlock instrument", &bk.instrnm, keys(insconf), CImGui.ImGuiComboFlags_NoArrowButton)
     CImGui.PopItemWidth()
     CImGui.SameLine()
 
     inlist = haskey(INSTRBUFFERVIEWERS, bk.instrnm) && haskey(INSTRBUFFERVIEWERS[bk.instrnm], bk.addr)
-    bk.addr = inlist ? bk.addr : "地址"
+    bk.addr = inlist ? bk.addr : mlstr("address")
     addrlist = @trypass keys(INSTRBUFFERVIEWERS[bk.instrnm]) String[]
     CImGui.PushItemWidth(width)
-    @c ComBoS("##ReadingBlock地址", &bk.addr, addrlist, CImGui.ImGuiComboFlags_NoArrowButton)
+    @c ComBoS("##ReadingBlock address", &bk.addr, addrlist, CImGui.ImGuiComboFlags_NoArrowButton)
     CImGui.PopItemWidth()
     CImGui.SameLine()
 
     showqt = if haskey(insconf, bk.instrnm) && haskey(insconf[bk.instrnm].quantities, bk.quantity)
         insconf[bk.instrnm].quantities[bk.quantity].alias
     else
-        "读取"
+        mlstr("read")
     end
     CImGui.PushItemWidth(width)
-    if CImGui.BeginCombo("##ReadingBlock设置", showqt, CImGui.ImGuiComboFlags_NoArrowButton)
+    if CImGui.BeginCombo("##ReadingBlock read", showqt, CImGui.ImGuiComboFlags_NoArrowButton)
         qtlist = haskey(insconf, bk.instrnm) ? keys(insconf[bk.instrnm].quantities) : Set{String}()
         qts = @trypass [qt for qt in qtlist if insconf[bk.instrnm].quantities[qt].enable] String[]
         for qt in qts
@@ -831,7 +884,7 @@ function edit(bk::ReadingBlock)
     CImGui.SameLine()
 
     CImGui.PushItemWidth(width * 2 / 3)
-    @c InputTextWithHintRSZ("##ReadingBlock索引", "索引", &bk.index)
+    @c InputTextWithHintRSZ("##ReadingBlock index", mlstr("index"), &bk.index)
     CImGui.PopItemWidth()
     CImGui.SameLine()
 
@@ -843,7 +896,7 @@ function edit(bk::ReadingBlock)
     bk.isobserve && bk.isreading && (markc = ImVec4(MORESTYLE.Colors.BlockObserveReadingBG...))
     CImGui.PushStyleColor(CImGui.ImGuiCol_FrameBg, markc)
     CImGui.PushItemWidth(-1)
-    @c InputTextWithHintRSZ("##ReadingBlock", "标注", &bk.mark)
+    @c InputTextWithHintRSZ("##ReadingBlock mark", mlstr("mark"), &bk.mark)
     CImGui.PopItemWidth()
     CImGui.PopStyleColor()
     if CImGui.IsItemClicked(2)
@@ -887,20 +940,20 @@ function edit(bk::WriteBlock)
     CImGui.SameLine()
     width = (CImGui.GetContentRegionAvailWidth() - 2CImGui.GetFontSize()) / 5
     CImGui.PushItemWidth(width)
-    @c ComBoS("##WriteBlock仪器", &bk.instrnm, keys(insconf), CImGui.ImGuiComboFlags_NoArrowButton)
+    @c ComBoS("##WriteBlock instrument", &bk.instrnm, keys(insconf), CImGui.ImGuiComboFlags_NoArrowButton)
     CImGui.PopItemWidth()
     CImGui.SameLine() #选仪器
 
     inlist = haskey(INSTRBUFFERVIEWERS, bk.instrnm) && haskey(INSTRBUFFERVIEWERS[bk.instrnm], bk.addr)
-    bk.addr = inlist ? bk.addr : "地址"
+    bk.addr = inlist ? bk.addr : mlstr("address")
     addrlist = @trypass keys(INSTRBUFFERVIEWERS[bk.instrnm]) String[]
     CImGui.PushItemWidth(width)
-    @c ComBoS("##WriteBlock地址", &bk.addr, addrlist, CImGui.ImGuiComboFlags_NoArrowButton)
+    @c ComBoS("##WriteBlock address", &bk.addr, addrlist, CImGui.ImGuiComboFlags_NoArrowButton)
     CImGui.PopItemWidth()
     CImGui.SameLine() #选地址
 
     CImGui.PushItemWidth(-1)
-    @c InputTextWithHintRSZ("##WriteBlock CMD", "命令", &bk.cmd)
+    @c InputTextWithHintRSZ("##WriteBlock CMD", mlstr("command"), &bk.cmd)
     CImGui.PopItemWidth() #命令
 
     CImGui.EndChild()
@@ -928,25 +981,25 @@ function edit(bk::QueryBlock)
     CImGui.SameLine()
     width = (CImGui.GetContentRegionAvailWidth() - 2CImGui.GetFontSize()) / 5
     CImGui.PushItemWidth(width)
-    @c ComBoS("##QueryBlock仪器", &bk.instrnm, keys(insconf), CImGui.ImGuiComboFlags_NoArrowButton)
+    @c ComBoS("##QueryBlock instrument", &bk.instrnm, keys(insconf), CImGui.ImGuiComboFlags_NoArrowButton)
     CImGui.PopItemWidth()
     CImGui.SameLine() #选仪器
 
     inlist = haskey(INSTRBUFFERVIEWERS, bk.instrnm) && haskey(INSTRBUFFERVIEWERS[bk.instrnm], bk.addr)
-    bk.addr = inlist ? bk.addr : "地址"
+    bk.addr = inlist ? bk.addr : mlstr("address")
     addrlist = @trypass keys(INSTRBUFFERVIEWERS[bk.instrnm]) String[]
     CImGui.PushItemWidth(width)
-    @c ComBoS("##QueryBlock地址", &bk.addr, addrlist, CImGui.ImGuiComboFlags_NoArrowButton)
+    @c ComBoS("##QueryBlock address", &bk.addr, addrlist, CImGui.ImGuiComboFlags_NoArrowButton)
     CImGui.PopItemWidth()
     CImGui.SameLine() #选地址WriteBlock
 
     CImGui.PushItemWidth(width * 4 / 3)
-    @c InputTextWithHintRSZ("##QueryBlock CMD", "命令", &bk.cmd)
+    @c InputTextWithHintRSZ("##QueryBlock CMD", mlstr("command"), &bk.cmd)
     CImGui.PopItemWidth()
     CImGui.SameLine() #命令
 
     CImGui.PushItemWidth(width * 2 / 3)
-    @c InputTextWithHintRSZ("##QueryBlock索引", "索引", &bk.index)
+    @c InputTextWithHintRSZ("##QueryBlock索引", mlstr("index"), &bk.index)
     CImGui.PopItemWidth()
     CImGui.SameLine() #索引
 
@@ -958,7 +1011,7 @@ function edit(bk::QueryBlock)
     bk.isobserve && bk.isreading && (markc = ImVec4(MORESTYLE.Colors.BlockObserveReadingBG...))
     CImGui.PushStyleColor(CImGui.ImGuiCol_FrameBg, markc)
     CImGui.PushItemWidth(-1)
-    @c InputTextWithHintRSZ("##QueryBlock Mark", "标注", &bk.mark)
+    @c InputTextWithHintRSZ("##QueryBlock mark", mlstr("mark"), &bk.mark)
     CImGui.PopItemWidth()
     CImGui.PopStyleColor() #标注
     if CImGui.IsItemClicked(2)
@@ -994,20 +1047,20 @@ function edit(bk::ReadBlock)
     CImGui.SameLine()
     width = (CImGui.GetContentRegionAvailWidth() - 2CImGui.GetFontSize()) / 5
     CImGui.PushItemWidth(width)
-    @c ComBoS("##ReadBlock仪器", &bk.instrnm, keys(insconf), CImGui.ImGuiComboFlags_NoArrowButton)
+    @c ComBoS("##ReadBlock instrument", &bk.instrnm, keys(insconf), CImGui.ImGuiComboFlags_NoArrowButton)
     CImGui.PopItemWidth()
     CImGui.SameLine() #选仪器
 
     inlist = haskey(INSTRBUFFERVIEWERS, bk.instrnm) && haskey(INSTRBUFFERVIEWERS[bk.instrnm], bk.addr)
-    bk.addr = inlist ? bk.addr : "地址"
+    bk.addr = inlist ? bk.addr : mlstr("address")
     addrlist = haskey(INSTRBUFFERVIEWERS, bk.instrnm) ? keys(INSTRBUFFERVIEWERS[bk.instrnm]) : String[]
     CImGui.PushItemWidth(width)
-    @c ComBoS("##ReadBlock地址", &bk.addr, addrlist, CImGui.ImGuiComboFlags_NoArrowButton)
+    @c ComBoS("##ReadBlock address", &bk.addr, addrlist, CImGui.ImGuiComboFlags_NoArrowButton)
     CImGui.PopItemWidth()
     CImGui.SameLine() #选地址
 
     CImGui.PushItemWidth(width * 2 / 3)
-    @c InputTextWithHintRSZ("##ReadBlock索引", "索引", &bk.index)
+    @c InputTextWithHintRSZ("##ReadBlock index", mlstr("index"), &bk.index)
     CImGui.PopItemWidth()
     CImGui.SameLine() #索引
 
@@ -1019,7 +1072,7 @@ function edit(bk::ReadBlock)
     bk.isobserve && bk.isreading && (markc = ImVec4(MORESTYLE.Colors.BlockObserveReadingBG...))
     CImGui.PushStyleColor(CImGui.ImGuiCol_FrameBg, markc)
     CImGui.PushItemWidth(-1)
-    @c InputTextWithHintRSZ("##ReadBlock Mark", "标注", &bk.mark)
+    @c InputTextWithHintRSZ("##ReadBlock mark", mlstr("mark"), &bk.mark)
     CImGui.PopItemWidth()
     CImGui.PopStyleColor() #标注
     if CImGui.IsItemClicked(2)
@@ -1042,11 +1095,11 @@ function edit(bk::SaveBlock)
     CImGui.TextColored(MORESTYLE.Colors.BlockIcons, MORESTYLE.Icons.SaveBlock)
     CImGui.SameLine()
     CImGui.PushItemWidth(CImGui.GetContentRegionAvailWidth() / 2)
-    @c InputTextWithHintRSZ("##SaveBlock Mark", "标注", &bk.mark)
+    @c InputTextWithHintRSZ("##SaveBlock mark", mlstr("mark"), &bk.mark)
     CImGui.PopItemWidth()
     CImGui.SameLine()
     CImGui.PushItemWidth(-1)
-    @c InputTextWithHintRSZ("##SaveBlock Var", "变量", &bk.varname)
+    @c InputTextWithHintRSZ("##SaveBlock var", mlstr("variable"), &bk.varname)
     CImGui.PopItemWidth()
     CImGui.EndChild()
     CImGui.PopStyleVar()
@@ -1105,50 +1158,50 @@ let
             end
             mousein(bk) && CImGui.OpenPopupOnItemClick(id, 1)
             if CImGui.BeginPopup(id)
-                if CImGui.BeginMenu(MORESTYLE.Icons.InsertUp * " 在上方插入")
-                    CImGui.MenuItem(MORESTYLE.Icons.CodeBlock * " CodeBlock") && insert!(blocks, i, CodeBlock())
-                    CImGui.MenuItem(MORESTYLE.Icons.StrideCodeBlock * " StrideCodeBlock") && insert!(blocks, i, StrideCodeBlock(n))
-                    CImGui.MenuItem(MORESTYLE.Icons.SweepBlock * " SweepBlock") && insert!(blocks, i, SweepBlock(n))
-                    CImGui.MenuItem(MORESTYLE.Icons.SettingBlock * " SettingBlock") && insert!(blocks, i, SettingBlock())
-                    CImGui.MenuItem(MORESTYLE.Icons.ReadingBlock * " ReadingBlock") && insert!(blocks, i, ReadingBlock())
-                    CImGui.MenuItem(MORESTYLE.Icons.LogBlock * " LogBlock") && insert!(blocks, i, LogBlock())
-                    CImGui.MenuItem(MORESTYLE.Icons.WriteBlock * " WriteBlock") && insert!(blocks, i, WriteBlock())
-                    CImGui.MenuItem(MORESTYLE.Icons.QueryBlock * " QueryBlock") && insert!(blocks, i, QueryBlock())
-                    CImGui.MenuItem(MORESTYLE.Icons.ReadBlock * " ReadBlock") && insert!(blocks, i, ReadBlock())
-                    CImGui.MenuItem(MORESTYLE.Icons.SaveBlock * " SaveBlock") && insert!(blocks, i, SaveBlock())
+                if CImGui.BeginMenu(stcstr(MORESTYLE.Icons.InsertUp, " ", mlstr("Insert Above")))
+                    CImGui.MenuItem(stcstr(MORESTYLE.Icons.CodeBlock, " ", mlstr("CodeBlock"))) && insert!(blocks, i, CodeBlock())
+                    CImGui.MenuItem(stcstr(MORESTYLE.Icons.StrideCodeBlock, " ", mlstr("StrideCodeBlock"))) && insert!(blocks, i, StrideCodeBlock(n))
+                    CImGui.MenuItem(stcstr(MORESTYLE.Icons.SweepBlock, " ", mlstr("SweepBlock"))) && insert!(blocks, i, SweepBlock(n))
+                    CImGui.MenuItem(stcstr(MORESTYLE.Icons.SettingBlock, " ", mlstr("SettingBlock"))) && insert!(blocks, i, SettingBlock())
+                    CImGui.MenuItem(stcstr(MORESTYLE.Icons.ReadingBlock, " ", mlstr("ReadingBlock"))) && insert!(blocks, i, ReadingBlock())
+                    CImGui.MenuItem(stcstr(MORESTYLE.Icons.LogBlock, " ", mlstr("LogBlock"))) && insert!(blocks, i, LogBlock())
+                    CImGui.MenuItem(stcstr(MORESTYLE.Icons.WriteBlock, " ", mlstr("WriteBlock"))) && insert!(blocks, i, WriteBlock())
+                    CImGui.MenuItem(stcstr(MORESTYLE.Icons.QueryBlock, " ", mlstr("QueryBlock"))) && insert!(blocks, i, QueryBlock())
+                    CImGui.MenuItem(stcstr(MORESTYLE.Icons.ReadBlock, " ", mlstr("ReadBlock"))) && insert!(blocks, i, ReadBlock())
+                    CImGui.MenuItem(stcstr(MORESTYLE.Icons.SaveBlock, " ", mlstr("SaveBlock"))) && insert!(blocks, i, SaveBlock())
                     CImGui.EndMenu()
                 end
                 if (bk isa StrideCodeBlock || bk isa SweepBlock) && isempty(skipnull(bk.blocks))
-                    if CImGui.BeginMenu(MORESTYLE.Icons.InsertInside * " 在内部插入", bk.level < 6)
-                        CImGui.MenuItem(MORESTYLE.Icons.CodeBlock * " CodeBlock") && push!(bk.blocks, CodeBlock())
-                        CImGui.MenuItem(MORESTYLE.Icons.StrideCodeBlock * " StrideCodeBlock") && push!(bk.blocks, StrideCodeBlock(n + 1))
-                        CImGui.MenuItem(MORESTYLE.Icons.SweepBlock * " SweepBlock") && push!(bk.blocks, SweepBlock(n + 1))
-                        CImGui.MenuItem(MORESTYLE.Icons.SettingBlock * " SettingBlock") && push!(bk.blocks, SettingBlock())
-                        CImGui.MenuItem(MORESTYLE.Icons.ReadingBlock * " ReadingBlock") && push!(bk.blocks, ReadingBlock())
-                        CImGui.MenuItem(MORESTYLE.Icons.LogBlock * " LogBlock") && push!(bk.blocks, LogBlock())
-                        CImGui.MenuItem(MORESTYLE.Icons.WriteBlock * " WriteBlock") && push!(bk.blocks, WriteBlock())
-                        CImGui.MenuItem(MORESTYLE.Icons.QueryBlock * " QueryBlock") && push!(bk.blocks, QueryBlock())
-                        CImGui.MenuItem(MORESTYLE.Icons.ReadBlock * " ReadBlock") && push!(bk.blocks, ReadBlock())
-                        CImGui.MenuItem(MORESTYLE.Icons.SaveBlock * " SaveBlock") && push!(bk.blocks, SaveBlock())
+                    if CImGui.BeginMenu(stcstr(MORESTYLE.Icons.InsertInside, " ", mlstr("Insert Inside")), bk.level < 6)
+                        CImGui.MenuItem(stcstr(MORESTYLE.Icons.CodeBlock, " ", mlstr("CodeBlock"))) && push!(bk.blocks, CodeBlock())
+                        CImGui.MenuItem(stcstr(MORESTYLE.Icons.StrideCodeBlock, " ", mlstr("StrideCodeBlock"))) && push!(bk.blocks, StrideCodeBlock(n + 1))
+                        CImGui.MenuItem(stcstr(MORESTYLE.Icons.SweepBlock, " ", mlstr("SweepBlock"))) && push!(bk.blocks, SweepBlock(n + 1))
+                        CImGui.MenuItem(stcstr(MORESTYLE.Icons.SettingBlock, " ", mlstr("SettingBlock"))) && push!(bk.blocks, SettingBlock())
+                        CImGui.MenuItem(stcstr(MORESTYLE.Icons.ReadingBlock, " ", mlstr("ReadingBlock"))) && push!(bk.blocks, ReadingBlock())
+                        CImGui.MenuItem(stcstr(MORESTYLE.Icons.LogBlock, " ", mlstr("LogBlock"))) && push!(bk.blocks, LogBlock())
+                        CImGui.MenuItem(stcstr(MORESTYLE.Icons.WriteBlock, " ", mlstr("WriteBlock"))) && push!(bk.blocks, WriteBlock())
+                        CImGui.MenuItem(stcstr(MORESTYLE.Icons.QueryBlock, " ", mlstr("QueryBlock"))) && push!(bk.blocks, QueryBlock())
+                        CImGui.MenuItem(stcstr(MORESTYLE.Icons.ReadBlock, " ", mlstr("ReadBlock"))) && push!(bk.blocks, ReadBlock())
+                        CImGui.MenuItem(stcstr(MORESTYLE.Icons.SaveBlock, " ", mlstr("SaveBlock"))) && push!(bk.blocks, SaveBlock())
                         CImGui.EndMenu()
                     end
                 end
-                if CImGui.BeginMenu(MORESTYLE.Icons.InsertDown * " 在下方插入")
-                    CImGui.MenuItem(MORESTYLE.Icons.CodeBlock * " CodeBlock") && insert!(blocks, i + 1, CodeBlock())
-                    CImGui.MenuItem(MORESTYLE.Icons.StrideCodeBlock * " StrideCodeBlock") && insert!(blocks, i + 1, StrideCodeBlock(n))
-                    CImGui.MenuItem(MORESTYLE.Icons.SweepBlock * " SweepBlock") && insert!(blocks, i + 1, SweepBlock(n))
-                    CImGui.MenuItem(MORESTYLE.Icons.SettingBlock * " SettingBlock") && insert!(blocks, i + 1, SettingBlock())
-                    CImGui.MenuItem(MORESTYLE.Icons.ReadingBlock * " ReadingBlock") && insert!(blocks, i + 1, ReadingBlock())
-                    CImGui.MenuItem(MORESTYLE.Icons.LogBlock * " LogBlock") && insert!(blocks, i + 1, LogBlock())
-                    CImGui.MenuItem(MORESTYLE.Icons.WriteBlock * " WriteBlock") && insert!(blocks, i + 1, WriteBlock())
-                    CImGui.MenuItem(MORESTYLE.Icons.QueryBlock * " QueryBlock") && insert!(blocks, i + 1, QueryBlock())
-                    CImGui.MenuItem(MORESTYLE.Icons.ReadBlock * " ReadBlock") && insert!(blocks, i + 1, ReadBlock())
-                    CImGui.MenuItem(MORESTYLE.Icons.SaveBlock * " SaveBlock") && insert!(blocks, i + 1, SaveBlock())
+                if CImGui.BeginMenu(stcstr(MORESTYLE.Icons.InsertDown, " ", mlstr("Insert Below")))
+                    CImGui.MenuItem(stcstr(MORESTYLE.Icons.CodeBlock, " ", mlstr("CodeBlock"))) && insert!(blocks, i + 1, CodeBlock())
+                    CImGui.MenuItem(stcstr(MORESTYLE.Icons.StrideCodeBlock, " ", mlstr("StrideCodeBlock"))) && insert!(blocks, i + 1, StrideCodeBlock(n))
+                    CImGui.MenuItem(stcstr(MORESTYLE.Icons.SweepBlock, " ", mlstr("SweepBlock"))) && insert!(blocks, i + 1, SweepBlock(n))
+                    CImGui.MenuItem(stcstr(MORESTYLE.Icons.SettingBlock, " ", mlstr("SettingBlock"))) && insert!(blocks, i + 1, SettingBlock())
+                    CImGui.MenuItem(stcstr(MORESTYLE.Icons.ReadingBlock, " ", mlstr("ReadingBlock"))) && insert!(blocks, i + 1, ReadingBlock())
+                    CImGui.MenuItem(stcstr(MORESTYLE.Icons.LogBlock, " ", mlstr("LogBlock"))) && insert!(blocks, i + 1, LogBlock())
+                    CImGui.MenuItem(stcstr(MORESTYLE.Icons.WriteBlock, " ", mlstr("WriteBlock"))) && insert!(blocks, i + 1, WriteBlock())
+                    CImGui.MenuItem(stcstr(MORESTYLE.Icons.QueryBlock, " ", mlstr("QueryBlock"))) && insert!(blocks, i + 1, QueryBlock())
+                    CImGui.MenuItem(stcstr(MORESTYLE.Icons.ReadBlock, " ", mlstr("ReadBlock"))) && insert!(blocks, i + 1, ReadBlock())
+                    CImGui.MenuItem(stcstr(MORESTYLE.Icons.SaveBlock, " ", mlstr("SaveBlock"))) && insert!(blocks, i + 1, SaveBlock())
                     CImGui.EndMenu()
                 end
-                if CImGui.BeginMenu(MORESTYLE.Icons.Convert * " 转换为")
-                    CImGui.MenuItem(MORESTYLE.Icons.CodeBlock * " CodeBlock") && (bk isa CodeBlock || (blocks[i] = CodeBlock()))
-                    if CImGui.MenuItem(MORESTYLE.Icons.StrideCodeBlock * " StrideCodeBlock")
+                if CImGui.BeginMenu(stcstr(MORESTYLE.Icons.Convert, " ", mlstr("Convert to")))
+                    CImGui.MenuItem(stcstr(MORESTYLE.Icons.CodeBlock, " ", mlstr("CodeBlock"))) && (bk isa CodeBlock || (blocks[i] = CodeBlock()))
+                    if CImGui.MenuItem(stcstr(MORESTYLE.Icons.StrideCodeBlock, " ", mlstr("StrideCodeBlock")))
                         if !(bk isa StrideCodeBlock)
                             if bk isa SweepBlock
                                 blocks[i] = StrideCodeBlock(n)
@@ -1158,7 +1211,7 @@ let
                             end
                         end
                     end
-                    if CImGui.MenuItem(MORESTYLE.Icons.SweepBlock * " SweepBlock")
+                    if CImGui.MenuItem(stcstr(MORESTYLE.Icons.SweepBlock, " ", mlstr("SweepBlock")))
                         if !(bk isa SweepBlock)
                             if bk isa StrideCodeBlock
                                 blocks[i] = SweepBlock(n)
@@ -1168,18 +1221,18 @@ let
                             end
                         end
                     end
-                    CImGui.MenuItem(MORESTYLE.Icons.SettingBlock * " SettingBlock") && (bk isa SettingBlock || (blocks[i] = SettingBlock()))
-                    CImGui.MenuItem(MORESTYLE.Icons.ReadingBlock * " ReadingBlock") && (bk isa ReadingBlock || (blocks[i] = ReadingBlock()))
-                    CImGui.MenuItem(MORESTYLE.Icons.LogBlock * " LogBlock") && (bk isa LogBlock || (blocks[i] = LogBlock()))
-                    CImGui.MenuItem(MORESTYLE.Icons.WriteBlock * " WriteBlock") && (bk isa WriteBlock || (blocks[i] = WriteBlock()))
-                    CImGui.MenuItem(MORESTYLE.Icons.QueryBlock * " QueryBlock") && (bk isa QueryBlock || (blocks[i] = QueryBlock()))
-                    CImGui.MenuItem(MORESTYLE.Icons.ReadBlock * " ReadBlock") && (bk isa ReadBlock || (blocks[i] = ReadBlock()))
-                    CImGui.MenuItem(MORESTYLE.Icons.SaveBlock * " SaveBlock") && (bk isa SaveBlock || (blocks[i] = SaveBlock()))
+                    CImGui.MenuItem(stcstr(MORESTYLE.Icons.SettingBlock, " ", mlstr("SettingBlock"))) && (bk isa SettingBlock || (blocks[i] = SettingBlock()))
+                    CImGui.MenuItem(stcstr(MORESTYLE.Icons.ReadingBlock, " ", mlstr("ReadingBlock"))) && (bk isa ReadingBlock || (blocks[i] = ReadingBlock()))
+                    CImGui.MenuItem(stcstr(MORESTYLE.Icons.LogBlock, " ", mlstr("LogBlock"))) && (bk isa LogBlock || (blocks[i] = LogBlock()))
+                    CImGui.MenuItem(stcstr(MORESTYLE.Icons.WriteBlock, " ", mlstr("WriteBlock"))) && (bk isa WriteBlock || (blocks[i] = WriteBlock()))
+                    CImGui.MenuItem(stcstr(MORESTYLE.Icons.QueryBlock, " ", mlstr("QueryBlock"))) && (bk isa QueryBlock || (blocks[i] = QueryBlock()))
+                    CImGui.MenuItem(stcstr(MORESTYLE.Icons.ReadBlock, " ", mlstr("ReadBlock"))) && (bk isa ReadBlock || (blocks[i] = ReadBlock()))
+                    CImGui.MenuItem(stcstr(MORESTYLE.Icons.SaveBlock, " ", mlstr("SaveBlock"))) && (bk isa SaveBlock || (blocks[i] = SaveBlock()))
                     CImGui.EndMenu()
                 end
-                CImGui.MenuItem(MORESTYLE.Icons.CloseFile * " 删除") && (blocks[i] = NullBlock())
-                bk isa CodeBlock && CImGui.MenuItem(MORESTYLE.Icons.CloseFile * " 清空") && (bk.codes = "")
-                bk isa StrideCodeBlock && CImGui.MenuItem(MORESTYLE.Icons.CloseFile * " 清空") && (bk.head = "")
+                CImGui.MenuItem(stcstr(MORESTYLE.Icons.CloseFile, " ", mlstr("Delete"))) && (blocks[i] = NullBlock())
+                bk isa CodeBlock && CImGui.MenuItem(stcstr(MORESTYLE.Icons.CloseFile, " ", mlstr("Clear"))) && (bk.codes = "")
+                bk isa StrideCodeBlock && CImGui.MenuItem(stcstr(MORESTYLE.Icons.CloseFile, " ", mlstr("Clear"))) && (bk.head = "")
                 CImGui.EndPopup()
             end
         end
@@ -1292,12 +1345,12 @@ function view(bk::SweepBlock)
     CImGui.PushStyleVar(CImGui.ImGuiStyleVar_ButtonTextAlign, (0.0, 0.5))
     CImGui.Button(
         stcstr(
-            "仪器：", instrnm,
-            "\t地址：", addr,
-            "\t扫描量：", quantity,
-            "\t步长：", bk.step, showu,
-            "\t终点：", bk.stop, showu,
-            "\t延迟：", bk.delay
+            mlstr("instrument"), ": ", instrnm,
+            "\t", mlstr("address"), ": ", addr,
+            "\t", mlstr("sweep"), ": ", quantity,
+            "\t", mlstr("step"), ": ", bk.step, showu,
+            "\t", mlstr("stop"), ": ", bk.stop, showu,
+            "\t", mlstr("delay"), ": ", bk.delay
         ),
         (-1, 0)
     )
@@ -1327,10 +1380,10 @@ function view(bk::SettingBlock)
     CImGui.PushStyleVar(CImGui.ImGuiStyleVar_ButtonTextAlign, (0.0, 0.5))
     CImGui.Button(
         stcstr(
-            "仪器：", instrnm,
-            "\t地址：", addr,
-            "\t设置：", quantity,
-            "\t设置值：", bk.setvalue, showu
+            mlstr("instrument"), ": ", instrnm,
+            "\t", mlstr("address"), ": ", addr,
+            "\t", mlstr("set"), ": ", quantity,
+            "\t", mlstr("set value"), ": ", bk.setvalue, showu
         ),
         (-1, 0)
     )
@@ -1364,11 +1417,11 @@ function view(bk::ReadingBlock)
     CImGui.PushStyleVar(CImGui.ImGuiStyleVar_ButtonTextAlign, (0.0, 0.5))
     CImGui.Button(
         stcstr(
-            "仪器：", bk.instrnm,
-            "\t地址：", bk.addr,
-            "\t读取量：", quantity,
-            "\t索引：", bk.index,
-            "\t标注：", bk.mark
+            mlstr("instrument"), ": ", bk.instrnm,
+            "\t", mlstr("address"), ": ", bk.addr,
+            "\t", mlstr("read"), ": ", quantity,
+            "\t", mlstr("index"), ": ", bk.index,
+            "\t", mlstr("mark"), ": ", bk.mark
         ),
         (-1, 0)
     )
@@ -1404,9 +1457,9 @@ function view(bk::WriteBlock)
     CImGui.PushStyleVar(CImGui.ImGuiStyleVar_ButtonTextAlign, (0.0, 0.5))
     CImGui.Button(
         stcstr(
-            "仪器：", bk.instrnm,
-            "\t地址：", bk.addr,
-            "\t命令：", bk.cmd
+            mlstr("instrument"), ": ", bk.instrnm,
+            "\t", mlstr("address"), ": ", bk.addr,
+            "\t", mlstr("command"), ": ", bk.cmd
         ),
         (-1, 0)
     )
@@ -1440,11 +1493,11 @@ function view(bk::QueryBlock)
     CImGui.PushStyleVar(CImGui.ImGuiStyleVar_ButtonTextAlign, (0.0, 0.5))
     CImGui.Button(
         stcstr(
-            "仪器：", bk.instrnm,
-            "\t地址：", bk.addr,
-            "\t命令：", bk.cmd,
-            "\t索引：", bk.index,
-            "\t标注：", bk.mark
+            mlstr("instrument"), ": ", bk.instrnm,
+            "\t", mlstr("address"), ": ", bk.addr,
+            "\t", mlstr("command"), ": ", bk.cmd,
+            "\t", mlstr("index"), ": ", bk.index,
+            "\t", mlstr("mark"), ": ", bk.mark
         ),
         (-1, 0)
     )
@@ -1479,10 +1532,10 @@ function view(bk::ReadBlock)
     CImGui.PushStyleVar(CImGui.ImGuiStyleVar_ButtonTextAlign, (0.0, 0.5))
     CImGui.Button(
         stcstr(
-            "仪器：", bk.instrnm,
-            "\t地址：", bk.addr,
-            "\t索引：", bk.index,
-            "\t标注：", bk.mark
+            mlstr("instrument"), ": ", bk.instrnm,
+            "\t", mlstr("address"), ": ", bk.addr,
+            "\t", mlstr("index"), ": ", bk.index,
+            "\t", mlstr("mark"), ": ", bk.mark
         ),
         (-1, 0)
     )
@@ -1497,7 +1550,7 @@ function view(bk::SaveBlock)
     CImGui.TextColored(MORESTYLE.Colors.BlockIcons, MORESTYLE.Icons.SaveBlock)
     CImGui.SameLine()
     CImGui.PushStyleVar(CImGui.ImGuiStyleVar_ButtonTextAlign, (0.0, 0.5))
-    CImGui.Button(stcstr("标注：", bk.mark, "\t变量：", bk.varname), (-1, 0))
+    CImGui.Button(stcstr(mlstr("mark"), ": ", bk.mark, "\t", mlstr("variable"), ": ", bk.varname), (-1, 0))
     CImGui.PopStyleVar()
     CImGui.EndChild()
 end

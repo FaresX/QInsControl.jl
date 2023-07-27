@@ -26,11 +26,15 @@ function loadconf()
     isfile(CONF.BGImage.path) || (CONF.BGImage.path = joinpath(ENV["QInsControlAssets"], "Necessity/defaultwallpaper.bmp"))
     isfile(CONF.Style.dir) || (CONF.Style.dir = joinpath(ENV["QInsControlAssets"], "Styles"))
 
+    ###### load language ######
+    CONF.Basic.languages = languageinfo()
+    haskey(CONF.Basic.languages, CONF.Basic.language) && loadlanguage(CONF.Basic.languages[CONF.Basic.language])
+
     ###### generate insconf ######
     include(joinpath(ENV["QInsControlAssets"], "Confs/extra_conf.jl"))
     for file in readdir(joinpath(ENV["QInsControlAssets"], "Confs"), join=true)
         bnm = basename(file)
-        split(bnm, '.')[end] != "toml" || gen_insconf(file)
+        split(bnm, '.')[end] == "toml" && gen_insconf(file)
     end
 
     ###### generate INSTRBUFFERVIEWERS ######

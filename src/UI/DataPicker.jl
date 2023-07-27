@@ -31,58 +31,61 @@ function edit(dtpk::DataPicker, id, p_open::Ref)
     isupdate = false
     isfocus = true
     if CImGui.Begin(
-        stcstr("数据选择##", id),
+        stcstr(mlstr("Data Selecting"), "##", id),
         p_open,
         CImGui.ImGuiWindowFlags_NoTitleBar | CImGui.ImGuiWindowFlags_NoDocking
     )
         @cstatic holdsz::Float32 = 0 begin
-            CImGui.TextColored(MORESTYLE.Colors.HighlightText, MORESTYLE.Icons.SelectData)
+            CImGui.TextColored(MORESTYLE.Colors.HighlightText, MORESTYLE.Icons.Plot)
             CImGui.SameLine()
-            CImGui.Text(" 数据选择")
+            CImGui.Text(stcstr(" ", mlstr("Data Selecting")))
             CImGui.SameLine(CImGui.GetContentRegionAvailWidth() - holdsz)
-            @c CImGui.Checkbox("HOLD", &dtpk.hold)
+            @c CImGui.Checkbox(mlstr("HOLD"), &dtpk.hold)
             holdsz = CImGui.GetItemRectSize().x
         end
         CImGui.Separator()
 
         @cstatic xtypesz::Float32 = 0 begin
-            CImGui.TextColored(MORESTYLE.Colors.HighlightText, "选择X")
+            CImGui.TextColored(MORESTYLE.Colors.HighlightText, stcstr(mlstr("Select"), " X"))
             CImGui.SameLine(CImGui.GetContentRegionAvailWidth() - xtypesz)
-            if dtpk.xtype
-                @c CImGui.Checkbox("数字", &dtpk.xtype)
-            else
-                @c CImGui.Checkbox("文本", &dtpk.xtype)
-            end
+            @c CImGui.Checkbox(dtpk.xtype ? mlstr("number") : mlstr("text"), &dtpk.xtype)
             xtypesz = CImGui.GetItemRectSize().x
         end
         CImGui.PushItemWidth(-1)
-        @c ComBoS("##选择X", &dtpk.x, [dtpk.datalist; ""])
+        @c ComBoS("##select X", &dtpk.x, [dtpk.datalist; ""])
         CImGui.PopItemWidth()
 
-        CImGui.TextColored(MORESTYLE.Colors.HighlightText, "选择Y")
-        isempty(dtpk.datalist) ? CImGui.Selectable("") : MultiSelectable(() -> false, "数据选择Y", dtpk.datalist, dtpk.y, 1)
-
-        CImGui.PushItemWidth(-1)
-        CImGui.TextColored(MORESTYLE.Colors.HighlightText, "选择Z")
-        @c ComBoS("##选择Z", &dtpk.z, [dtpk.datalist; ""])
-        CImGui.PopItemWidth()
-        CImGui.DragInt2("矩阵维度", dtpk.zsize, 1, 0, 1000000, "%d", CImGui.ImGuiSliderFlags_AlwaysClamp)
-        @c CImGui.Checkbox("上下翻转", &dtpk.vflipz)
-        CImGui.SameLine(CImGui.GetContentRegionAvailWidth() / 2)
-        @c CImGui.Checkbox("左右翻转", &dtpk.hflipz)
-
-        CImGui.PushStyleColor(CImGui.ImGuiCol_Text, MORESTYLE.Colors.HighlightText)
-        selectw = CImGui.CollapsingHeader("选择W")
-        CImGui.PopStyleColor()
-        if selectw
-            # CImGui.TextColored(MORESTYLE.Colors.HighlightText, "选择W")
-            isempty(dtpk.datalist) ? CImGui.Selectable("") : MultiSelectable(() -> false, "数据选择W", dtpk.datalist, dtpk.w, 1)
+        CImGui.TextColored(MORESTYLE.Colors.HighlightText, stcstr(mlstr("Select"), " Y"))
+        if isempty(dtpk.datalist)
+            CImGui.Selectable("")
+        else
+            MultiSelectable(() -> false, "select Y", dtpk.datalist, dtpk.y, 1)
         end
 
-        CImGui.TextColored(MORESTYLE.Colors.LogInfo, "数据微处理")
+        CImGui.PushItemWidth(-1)
+        CImGui.TextColored(MORESTYLE.Colors.HighlightText, stcstr(mlstr("Select"), " Z"))
+        @c ComBoS("##select Z", &dtpk.z, [dtpk.datalist; ""])
+        CImGui.PopItemWidth()
+        CImGui.DragInt2(mlstr("matrix dimension"), dtpk.zsize, 1, 0, 1000000, "%d", CImGui.ImGuiSliderFlags_AlwaysClamp)
+        @c CImGui.Checkbox(mlstr("flip vertically"), &dtpk.vflipz)
+        CImGui.SameLine(CImGui.GetContentRegionAvailWidth() / 2)
+        @c CImGui.Checkbox(mlstr("flip horizontally"), &dtpk.hflipz)
+
+        CImGui.PushStyleColor(CImGui.ImGuiCol_Text, MORESTYLE.Colors.HighlightText)
+        selectw = CImGui.CollapsingHeader(stcstr(mlstr("Select"), " W"))
+        CImGui.PopStyleColor()
+        if selectw
+            if isempty(dtpk.datalist)
+                CImGui.Selectable("")
+            else
+                MultiSelectable(() -> false, "select W", dtpk.datalist, dtpk.w, 1)
+            end
+        end
+
+        CImGui.TextColored(MORESTYLE.Colors.LogInfo, mlstr("data processing"))
         CImGui.SameLine(CImGui.GetWindowContentRegionWidth() - dtpk.alsz)
         if dtpk.isrealtime
-            CImGui.Text("采样率")
+            CImGui.Text(mlstr("sampling rate"))
             CImGui.SameLine()
             dtpk.alsz = CImGui.GetItemRectSize().x
             CImGui.PushItemWidth(2CImGui.GetFontSize())
@@ -91,18 +94,18 @@ function edit(dtpk::DataPicker, id, p_open::Ref)
             CImGui.PopItemWidth()
             dtpk.alsz += CImGui.GetItemRectSize().x + unsafe_load(IMGUISTYLE.ItemSpacing.x)
         else
-            CImGui.Button(stcstr(MORESTYLE.Icons.Update, " 更新  ")) && (isupdate = true)
+            CImGui.Button(stcstr(MORESTYLE.Icons.Update, stcstr(" ", mlstr("Update"), " "))) && (isupdate = true)
             dtpk.alsz = CImGui.GetItemRectSize().x
         end
         CImGui.SameLine()
         @c CImGui.Checkbox("RT", &dtpk.isrealtime)
         dtpk.alsz += CImGui.GetItemRectSize().x + unsafe_load(IMGUISTYLE.ItemSpacing.x)
-        CImGui.IsItemHovered() && CImGui.SetTooltip("实时更新数据/手动更新数据")
+        CImGui.IsItemHovered() && CImGui.SetTooltip(mlstr("real-time data update/manual data update"))
 
-        CImGui.PushID("数据选择XYZ")
+        CImGui.PushID("select XYZ")
         edit(dtpk.codes)
         if CImGui.BeginPopupContextItem()
-            CImGui.MenuItem("清空") && (dtpk.codes = CodeBlock())
+            CImGui.MenuItem(mlstr("Clear")) && (dtpk.codes = CodeBlock())
             CImGui.EndPopup()
         end
         CImGui.PopID()
@@ -188,7 +191,7 @@ function syncplotdata(uiplot::UIPlot, dtpk::DataPicker, datastr, datafloat)
         end
         dtpk.isrealtime || @info "[$(now())]" data_processing = innercodes
     catch e
-        dtpk.isrealtime || @error "[$(now())]\nprocessing data failed!!!" exception = e codes = ex
+        dtpk.isrealtime || @error "[$(now())]\n$(mlstr("processing data failed!!!"))" exception = e codes = ex
     end
     nothing
 end

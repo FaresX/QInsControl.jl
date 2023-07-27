@@ -1,11 +1,11 @@
 let
     edithelp::Bool = false
     global function edit(qtcf::QuantityConf)
-        @c CImGui.Checkbox(qtcf.enable ? "启用" : "停用", &qtcf.enable)
+        @c CImGui.Checkbox(qtcf.enable ? mlstr("enable") : mlstr("disable"), &qtcf.enable)
         # @c InputTextRSZ("变量名", &qtcf.name)
-        @c InputTextRSZ("别称", &qtcf.alias)
-        @c ComBoS("单位类型", &qtcf.U, keys(CONF.U))
-        @c InputTextRSZ("命令", &qtcf.cmdheader)
+        @c InputTextRSZ(mlstr("alias"), &qtcf.alias)
+        @c ComBoS(mlstr("unit type"), &qtcf.U, keys(CONF.U))
+        @c InputTextRSZ(mlstr("command"), &qtcf.cmdheader)
         width = CImGui.GetItemRectSize().x / 2 - 2CImGui.CalcTextSize(" =>  ").x
         CImGui.SameLine()
         if CImGui.Button("inssetget.jl")
@@ -13,7 +13,7 @@ let
             @async try
                 Base.run(Cmd([CONF.Basic.editor, inssetget_jl]))
             catch e
-                @error "[$(now())]\n文本编辑错误！！！" exception = e
+                @error "[$(now())]\n$(mlstr("error editing text!!!"))" exception = e
             end
         end
         CImGui.SameLine()
@@ -64,17 +64,17 @@ let
         end
         CImGui.PopID()
         CImGui.SameLine()
-        CImGui.Text("可选值")
-        @c ComBoS("变量类型", &qtcf.type, ["sweep", "set", "read"])
-        CImGui.TextColored(MORESTYLE.Colors.LogInfo, "帮助文档")
+        CImGui.Text(mlstr("optional values"))
+        @c ComBoS(mlstr("variable type"), &qtcf.type, ["sweep", "set", "read"])
+        CImGui.TextColored(MORESTYLE.Colors.LogInfo, mlstr("help document"))
         if edithelp
             lines = split(qtcf.help, '\n')
             x = CImGui.CalcTextSize(lines[argmax(lengthpr.(lines))]).x
             width = CImGui.GetContentRegionAvailWidth()
             x = x > width ? x : width
             y = (1 + length(findall("\n", qtcf.help))) * CImGui.GetTextLineHeight() + 2unsafe_load(IMGUISTYLE.FramePadding.y)
-            CImGui.BeginChild("编辑帮助文档", (Cfloat(0), y), false, CImGui.ImGuiWindowFlags_HorizontalScrollbar)
-            @c InputTextMultilineRSZ("##帮助文档", &qtcf.help, (x, y))
+            CImGui.BeginChild("edit help", (Cfloat(0), y), false, CImGui.ImGuiWindowFlags_HorizontalScrollbar)
+            @c InputTextMultilineRSZ("##help doc", &qtcf.help, (x, y))
             !CImGui.IsItemHovered() && !CImGui.IsItemActive() && CImGui.IsMouseClicked(0) && (edithelp = false)
             CImGui.EndChild()
         else
@@ -95,10 +95,10 @@ let
     global function InstrRegister(p_open::Ref)
         CImGui.SetNextWindowSize((800, 600), CImGui.ImGuiCond_Once)
 
-        if CImGui.Begin(stcstr(MORESTYLE.Icons.InstrumentsRegister, "  仪器注册"), p_open)
+        if CImGui.Begin(stcstr(MORESTYLE.Icons.InstrumentsRegister, "  ", mlstr("Instrument Registration")), p_open)
             CImGui.Columns(2)
             firsttime && (CImGui.SetColumnOffset(1, CImGui.GetWindowWidth() * 0.25); firsttime = false)
-            CImGui.BeginChild("仪器", (Float32(0), -CImGui.GetFrameHeightWithSpacing()))
+            CImGui.BeginChild("InstrumentsOverview", (Float32(0), -CImGui.GetFrameHeightWithSpacing()))
             for (oldinsnm, inscf) in insconf
                 oldinsnm == "Others" && continue
                 haskey(isrename, oldinsnm) || push!(isrename, oldinsnm => false)
@@ -130,7 +130,7 @@ let
                 end
                 if CImGui.BeginPopupContextItem()
                     CImGui.MenuItem(
-                        stcstr(MORESTYLE.Icons.CloseFile, " 删除##insconf"),
+                        stcstr(MORESTYLE.Icons.CloseFile, " ", mlstr("Delete"), "##insconf"),
                         C_NULL,
                         false,
                         oldinsnm ∉ ["VirtualInstr", "Others"]
@@ -138,8 +138,8 @@ let
                     CImGui.EndPopup()
                 end
                 if YesNoDialog(
-                    stcstr("##是否删除仪器配置", oldinsnm),
-                    "确认删除？",
+                    stcstr("##if delete ins conf", oldinsnm),
+                    mlstr("Confirm delete?"),
                     CImGui.ImGuiWindowFlags_AlwaysAutoResize
                 )
                     pop!(insconf, oldinsnm, 0)
@@ -149,13 +149,13 @@ let
                     pop!(INSTRBUFFERVIEWERS, oldinsnm, 0)
                     selectedins = ""
                 end
-                deldialog && (CImGui.OpenPopup(stcstr("##是否删除仪器配置", oldinsnm));
+                deldialog && (CImGui.OpenPopup(stcstr("##if delete ins conf", oldinsnm));
                 deldialog = false)
                 CImGui.PopID()
             end
 
             CImGui.EndChild()
-            if CImGui.Button(stcstr(MORESTYLE.Icons.SaveButton, " 保存##Write QuantityConf to toml"))
+            if CImGui.Button(stcstr(MORESTYLE.Icons.SaveButton, " ", mlstr("Save"), "##qtcf to toml"))
                 conffiles = readdir(joinpath(ENV["QInsControlAssets"], "Confs"))
                 allins = keys(insconf)
                 for cf in conffiles
@@ -173,7 +173,7 @@ let
 
             CImGui.SameLine(CImGui.GetColumnOffset(1) - CImGui.GetItemRectSize().x - unsafe_load(IMGUISTYLE.WindowPadding.x))
 
-            if CImGui.Button(stcstr(MORESTYLE.Icons.NewFile, " 新建"))
+            if CImGui.Button(stcstr(MORESTYLE.Icons.NewFile, " ", mlstr("New")))
                 newins = OneInsConf(
                     BasicConf(
                         Dict(
@@ -188,7 +188,7 @@ let
                         "quantity" => QuantityConf(
                             Dict(
                                 "enable" => true,
-                                "alias" => "变量",
+                                "alias" => "quantity",
                                 "U" => "",
                                 "cmdheader" => "",
                                 "cmdheader" => "",
@@ -208,18 +208,18 @@ let
             end
             CImGui.NextColumn()
 
-            CImGui.BeginChild("编辑变量")
+            CImGui.BeginChild("edit qt")
             if selectedins != ""
                 selectedinscf = insconf[selectedins]
                 ###conf###
-                CImGui.TextColored(MORESTYLE.Colors.HighlightText, "基本")
-                @c IconSelector("图标", &selectedinscf.conf.icon)
-                @c InputTextRSZ("识别字符", &selectedinscf.conf.idn)
-                @c ComBoS("命令类型", &selectedinscf.conf.cmdtype, ["scpi", "tsp", ""])
+                CImGui.TextColored(MORESTYLE.Colors.HighlightText, mlstr("Basic"))
+                @c IconSelector(mlstr("icon"), &selectedinscf.conf.icon)
+                @c InputTextRSZ(mlstr("identification string"), &selectedinscf.conf.idn)
+                @c ComBoS(mlstr("command type"), &selectedinscf.conf.cmdtype, ["scpi", "tsp", ""])
                 width = CImGui.GetItemRectSize().x / 3
-                CImGui.Text("接口")
+                CImGui.TextColored(MORESTYLE.Colors.LogInfo, mlstr("interface"))
                 CImGui.BeginGroup()
-                if CImGui.Button(stcstr(MORESTYLE.Icons.NewFile, " 输入"))
+                if CImGui.Button(stcstr(MORESTYLE.Icons.NewFile, " ", mlstr("input")))
                     push!(selectedinscf.conf.input_labels, string("Input ", length(selectedinscf.conf.input_labels) + 1))
                 end
                 for (i, input) in enumerate(selectedinscf.conf.input_labels)
@@ -238,7 +238,7 @@ let
                 CImGui.EndGroup()
                 CImGui.SameLine()
                 CImGui.BeginGroup()
-                if CImGui.Button(stcstr(MORESTYLE.Icons.NewFile, " 输出"))
+                if CImGui.Button(stcstr(MORESTYLE.Icons.NewFile, " ", mlstr("output")))
                     push!(
                         selectedinscf.conf.output_labels,
                         string("Output ", length(selectedinscf.conf.output_labels) + 1)
@@ -262,8 +262,8 @@ let
                 CImGui.Separator()
 
                 ###quantities###
-                CImGui.TextColored(MORESTYLE.Colors.HighlightText, "变量")
-                if @c ComBoS("变量", &selectedqt, keys(selectedinscf.quantities))
+                CImGui.TextColored(MORESTYLE.Colors.HighlightText, mlstr("Variables"))
+                if @c ComBoS(mlstr("variables"), &selectedqt, keys(selectedinscf.quantities))
                     if selectedqt != "" && haskey(selectedinscf.quantities, selectedqt)
                         qtname = selectedqt
                         editqt = deepcopy(selectedinscf.quantities[selectedqt])
@@ -282,7 +282,7 @@ let
                 end
                 CImGui.Text(" ") #空行
                 CImGui.Separator()
-                CImGui.TextColored(MORESTYLE.Colors.HighlightText, "编辑")
+                CImGui.TextColored(MORESTYLE.Colors.HighlightText, mlstr("Edit"))
                 CImGui.SameLine()
                 if CImGui.Button(stcstr(MORESTYLE.Icons.SaveButton, "##QuantityConf to insconf"))
                     push!(selectedinscf.quantities, qtname => deepcopy(editqt))
@@ -303,7 +303,7 @@ let
                                 ) |> eval
                             end
                         catch e
-                            @error "仪器注册有误！！！" exception = e
+                            @error "[$(now())]\n$(mlstr("instrument registration failed!!!"))" exception = e
                         end
                     end
                     for ibv in values(INSTRBUFFERVIEWERS[selectedins])
@@ -311,7 +311,7 @@ let
                         updatefront!(ibv.insbuf.quantities[qtname])
                     end
                 end
-                @c InputTextRSZ("变量名", &qtname)
+                @c InputTextRSZ(mlstr("variable name"), &qtname)
                 edit(editqt)
             end
             CImGui.EndChild()

@@ -4,7 +4,11 @@ let
     global function LogWindow(p_open::Ref)
         # CImGui.SetNextWindowPos((100, 100), CImGui.ImGuiCond_Once)
         CImGui.SetNextWindowSize((800, 600), CImGui.ImGuiCond_Once)
-        if CImGui.Begin(stcstr(MORESTYLE.Icons.Logger, "  日志"), p_open, CImGui.ImGuiWindowFlags_HorizontalScrollbar)
+        if CImGui.Begin(
+            stcstr(MORESTYLE.Icons.Logger, "  ", mlstr("Logger")),
+            p_open,
+            CImGui.ImGuiWindowFlags_HorizontalScrollbar
+        )
             if SYNCSTATES[Int(NewLogging)] || waittime("Logger", CONF.Logs.refreshrate)
                 empty!(logmsgshow)
                 textc = CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_Text)
@@ -49,7 +53,7 @@ let
     end
 end
 
-function update_log(; SYNCSTATES=SYNCSTATES)
+function update_log(; syncstates=SYNCSTATES)
     date = today()
     logdir = joinpath(CONF.Logs.dir, string(year(date)), string(year(date), "-", month(date)))
     isdir(logdir) || mkpath(logdir)
@@ -57,7 +61,7 @@ function update_log(; SYNCSTATES=SYNCSTATES)
     if myid() == 1
         flush(LOGIO)
         msg = String(take!(LOGIO))
-        isempty(msg) || (open(file -> write(file, msg), logfile, "a+"); SYNCSTATES[Int(NewLogging)] = true)
+        isempty(msg) || (open(file -> write(file, msg), logfile, "a+"); syncstates[Int(NewLogging)] = true)
     else
         flush(LOGIO)
         msg = String(take!(LOGIO))
@@ -69,7 +73,7 @@ function update_log(; SYNCSTATES=SYNCSTATES)
                 end
                 write(file, string(msgsp...))
             end
-            SYNCSTATES[Int(NewLogging)] = true
+            syncstates[Int(NewLogging)] = true
         end
     end
 end

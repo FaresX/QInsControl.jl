@@ -22,53 +22,56 @@ let
         isfocus = true
         global OLDI
         if CImGui.Begin(
-            stcstr("编辑任务 ", id),
+            stcstr(mlstr("Edit Task"), " ", id),
             p_open,
             CImGui.ImGuiWindowFlags_NoTitleBar | CImGui.ImGuiWindowFlags_NoDocking
         )
             CImGui.BeginChild("Blocks")
             CImGui.TextColored(MORESTYLE.Colors.HighlightText, MORESTYLE.Icons.TaskButton)
             CImGui.SameLine()
-            CImGui.Text(stcstr(" 编辑队列：任务 ", id + OLDI, " ", daqtask.name))
+            CImGui.Text(stcstr(" ", mlstr("Edit queue: Task")," ", id + OLDI, " ", daqtask.name))
             CImGui.SameLine(CImGui.GetContentRegionAvailWidth() - holdsz)
-            @c CImGui.Checkbox("HOLD", &daqtask.hold)
+            @c CImGui.Checkbox(mlstr("HOLD"), &daqtask.hold)
             holdsz = CImGui.GetItemRectSize().x
             CImGui.Separator()
-            CImGui.TextColored(MORESTYLE.Colors.HighlightText, "实验记录")
-            y = (1 + length(findall("\n", daqtask.explog))) * CImGui.GetTextLineHeight() + 2unsafe_load(IMGUISTYLE.FramePadding.y)
-            @c InputTextMultilineRSZ("##实验记录", &daqtask.explog, (Float32(-1), y))
-            if CImGui.BeginPopupContextItem("清空##实验记录")
-                CImGui.MenuItem("清空##实验记录") && (daqtask.explog = "")
+            CImGui.TextColored(MORESTYLE.Colors.HighlightText, mlstr("experimental record"))
+            y = (1 + length(findall("\n", daqtask.explog))) * CImGui.GetTextLineHeight() +
+                2unsafe_load(IMGUISTYLE.FramePadding.y)
+            @c InputTextMultilineRSZ("##experimental record", &daqtask.explog, (Float32(-1), y))
+            if CImGui.BeginPopupContextItem("clear##experimental record")
+                CImGui.MenuItem(stcstr(mlstr("clear"), "##experimental record")) && (daqtask.explog = "")
                 CImGui.EndPopup()
             end
-            CImGui.Button(stcstr(MORESTYLE.Icons.InstrumentsAutoDetect, " 刷新仪器列表")) && refresh_instrlist()
+            CImGui.Button(
+                stcstr(MORESTYLE.Icons.InstrumentsAutoDetect, " ", mlstr("Refresh instrument list"))
+            ) && refresh_instrlist()
             if CImGui.BeginPopupContextItem()
                 manualadd_ui()
                 CImGui.EndPopup()
             end
             if SYNCSTATES[Int(AutoDetecting)]
                 CImGui.SameLine()
-                CImGui.TextColored(MORESTYLE.Colors.HighlightText, "查找仪器中......")
+                CImGui.TextColored(MORESTYLE.Colors.HighlightText, stcstr(mlstr("searching instruments"), "......"))
             end
             CImGui.SameLine(CImGui.GetContentRegionAvailWidth() - holdsz)
-            @c CImGui.Checkbox(viewmode ? "View" : "Edit", &viewmode)
+            @c CImGui.Checkbox(viewmode ? mlstr("View") : mlstr("Edit"), &viewmode)
             CImGui.PushID(id)
             CImGui.BeginChild("DAQTask.blocks")
             viewmode ? view(daqtask.blocks) : edit(daqtask.blocks, 1)
             CImGui.EndChild()
-            all(.!mousein.(daqtask.blocks, true)) && CImGui.OpenPopupOnItemClick("添加新Block")
-            if CImGui.BeginPopup("添加新Block")
-                if CImGui.BeginMenu(MORESTYLE.Icons.NewFile * " 添加")
-                    CImGui.MenuItem(MORESTYLE.Icons.CodeBlock * " CodeBlock") && push!(daqtask.blocks, CodeBlock())
-                    CImGui.MenuItem(MORESTYLE.Icons.StrideCodeBlock * " StrideCodeBlock") && push!(daqtask.blocks, StrideCodeBlock(1))
-                    CImGui.MenuItem(MORESTYLE.Icons.SweepBlock * " SweepBlock") && push!(daqtask.blocks, SweepBlock(1))
-                    CImGui.MenuItem(MORESTYLE.Icons.SettingBlock * " SettingBlock") && push!(daqtask.blocks, SettingBlock())
-                    CImGui.MenuItem(MORESTYLE.Icons.ReadingBlock * " ReadingBlock") && push!(daqtask.blocks, ReadingBlock())
-                    CImGui.MenuItem(MORESTYLE.Icons.LogBlock * " LogBlock") && push!(daqtask.blocks, LogBlock())
-                    CImGui.MenuItem(MORESTYLE.Icons.WriteBlock * " WriteBlock") && push!(daqtask.blocks, WriteBlock())
-                    CImGui.MenuItem(MORESTYLE.Icons.QueryBlock * " QueryBlock") && push!(daqtask.blocks, QueryBlock())
-                    CImGui.MenuItem(MORESTYLE.Icons.ReadBlock * " ReadBlock") && push!(daqtask.blocks, ReadBlock())
-                    CImGui.MenuItem(MORESTYLE.Icons.SaveBlock * " SaveBlock") && push!(daqtask.blocks, SaveBlock())
+            all(.!mousein.(daqtask.blocks, true)) && CImGui.OpenPopupOnItemClick("add new Block")
+            if CImGui.BeginPopup("add new Block")
+                if CImGui.BeginMenu(stcstr(MORESTYLE.Icons.NewFile, " ", mlstr("Add")))
+                    CImGui.MenuItem(stcstr(MORESTYLE.Icons.CodeBlock, " ", mlstr("CodeBlock"))) && push!(daqtask.blocks, CodeBlock())
+                    CImGui.MenuItem(stcstr(MORESTYLE.Icons.StrideCodeBlock, " ", mlstr("StrideCodeBlock"))) && push!(daqtask.blocks, StrideCodeBlock(1))
+                    CImGui.MenuItem(stcstr(MORESTYLE.Icons.SweepBlock, " ", mlstr("SweepBlock"))) && push!(daqtask.blocks, SweepBlock(1))
+                    CImGui.MenuItem(stcstr(MORESTYLE.Icons.SettingBlock, " ", mlstr("SettingBlock"))) && push!(daqtask.blocks, SettingBlock())
+                    CImGui.MenuItem(stcstr(MORESTYLE.Icons.ReadingBlock, " ", mlstr("ReadingBlock"))) && push!(daqtask.blocks, ReadingBlock())
+                    CImGui.MenuItem(stcstr(MORESTYLE.Icons.LogBlock, " ", mlstr("LogBlock"))) && push!(daqtask.blocks, LogBlock())
+                    CImGui.MenuItem(stcstr(MORESTYLE.Icons.WriteBlock, " ", mlstr("WriteBlock"))) && push!(daqtask.blocks, WriteBlock())
+                    CImGui.MenuItem(stcstr(MORESTYLE.Icons.QueryBlock, " ", mlstr("QueryBlock"))) && push!(daqtask.blocks, QueryBlock())
+                    CImGui.MenuItem(stcstr(MORESTYLE.Icons.ReadBlock, " ", mlstr("ReadBlock"))) && push!(daqtask.blocks, ReadBlock())
+                    CImGui.MenuItem(stcstr(MORESTYLE.Icons.SaveBlock, " ", mlstr("SaveBlock"))) && push!(daqtask.blocks, SaveBlock())
                     CImGui.EndMenu()
                 end
                 CImGui.EndPopup()
@@ -93,12 +96,12 @@ function run(daqtask::DAQTask)
     find_old_i(joinpath(WORKPATH, string(year(date)), string(year(date), "-", month(date)), string(date)))
     cfgsvdir = joinpath(WORKPATH, string(year(date)), string(year(date), "-", month(date)), string(date))
     ispath(cfgsvdir) || mkpath(cfgsvdir)
-    SAVEPATH = joinpath(cfgsvdir, replace("[$(now())] 任务 $(1+OLDI) $(daqtask.name).qdt", ':' => '.'))
+    SAVEPATH = joinpath(cfgsvdir, replace("[$(now())] $(mlstr("task")) $(1+OLDI) $(daqtask.name).qdt", ':' => '.'))
     push!(CFGBUF, "daqtask" => daqtask)
     try
         log_instrbufferviewers()
     catch e
-        @error "[($now())]\n仪器记录错误，程序终止！！！" exception = e
+        @error "[($now())]\n$(mlstr("instrument logging error, program terminates!!!"))" exception = e
         SYNCSTATES[Int(IsDAQTaskRunning)] = false
         return nothing
     end
@@ -121,7 +124,7 @@ function run_remote(daqtask::DAQTask)
     end
     rn = length(controllers)
     blockcodes = @trypasse tocodes.(daqtask.blocks) begin
-        @error "[$(now())]\n代码生成失败!!!"
+        @error "[$(now())]\n$(mlstr("generating codes failed!!!"))"
         SYNCSTATES[Int(IsDAQTaskDone)] = true
         return
     end
@@ -155,7 +158,7 @@ function run_remote(daqtask::DAQTask)
                     end)
                 end
             catch e
-                @error "[$(now())]\n任务失败！！！" exeption = e
+                @error "[$(now())]\n$(mlstr("task failed!!!"))" exeption = e
             finally
                 for ct in values(controllers)
                     logout!(CPU, ct)
@@ -170,7 +173,7 @@ function run_remote(daqtask::DAQTask)
             eval(ex)
         catch e
             SYNCSTATES[Int(IsDAQTaskDone)] = true
-            @error "[$(now())]\n程序定义有误！！！" exception = e
+            @error "[$(now())]\n$(mlstr("errors in program definition!!!"))" exception = e
         end
     end
     SYNCSTATES[Int(IsDAQTaskDone)] && return
@@ -180,7 +183,7 @@ function run_remote(daqtask::DAQTask)
             remote_do_block(databuf_rc, progress_rc, syncstates, rn)
         catch e
             syncstates[Int(IsDAQTaskDone)] = true
-            @error "[$(now())]\n程序执行有误！！！" exception = e
+            @error "[$(now())]\n$(mlstr("executing program failed!!!"))" exception = e
         end
     end
 end
@@ -267,7 +270,11 @@ function extract_controllers(bkch::Vector{AbstractBlock})
                 logout!(CPU, ct)
                 push!(controllers, string(bk.instrnm, "_", bk.addr) => ct)
             catch e
-                @error "[$(now())]\n仪器设置不正确！！！" instrument = string(bk.instrnm, ": ", bk.addr) exception = e
+                @error(
+                    "[$(now())]\n$(mlstr("incorrect instrument settings!!!"))",
+                    instrument = string(bk.instrnm, ": ", bk.addr),
+                    exception = e
+                )
                 logout!(CPU, ct)
                 return controllers, false
             end
@@ -284,8 +291,8 @@ end
 #DAQTask Viewer
 #################################################################
 function view(daqtask::DAQTask)
-    CImGui.BeginChild("查看DAQTask")
-    CImGui.TextColored(MORESTYLE.Colors.HighlightText, "实验记录")
+    CImGui.BeginChild("view DAQTask")
+    CImGui.TextColored(MORESTYLE.Colors.HighlightText, mlstr("experimental record"))
     TextRect(string(daqtask.explog, "\n "))
     view(daqtask.blocks)
     CImGui.EndChild()

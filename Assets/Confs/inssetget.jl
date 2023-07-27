@@ -26,11 +26,11 @@ end
 # VirtualInstr_SetTest2_get() = string(rand(Int8))
 
 ######LI5640######------------------------------------------------------------------------------------------------------
-LI5640_tconst_set(instr, val) = query(instr, "BTC $val")
-LI5640_tconst_get(instr) = query(instr, "?BTC")
+# LI5640_tconst_set(instr, val) = query(instr, "BTC $val")
+# LI5640_tconst_get(instr) = query(instr, "?BTC")
 
-LI5640_dynres_set(instr, val) = query(instr, "BDR $val")
-LI5640_dynres_get(instr) = query(instr, "?BDR")
+# LI5640_dynres_set(instr, val) = query(instr, "BDR $val")
+# LI5640_dynres_get(instr) = query(instr, "?BDR")
 
 ######Mercury IPS######-------------------------------------------------------------------------------------------------
 ###X Field###

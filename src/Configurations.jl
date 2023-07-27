@@ -4,6 +4,8 @@
     windowsize::Vector{Cint} = [1280, 720]
     encoding::String = "GBK"
     editor::String = "notepad"
+    language::String = "English"
+    languages::Dict{String,String} = Dict()
 end
 
 @option mutable struct OptDtViewer

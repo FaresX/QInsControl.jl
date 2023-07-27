@@ -99,25 +99,25 @@ let
             end
             # annbuf.posx, annbuf.posy = CImGui.GetMousePosOnOpeningCurrentPopup()
             # annbuf.offsetx, annbuf.offsety = CImGui.GetMousePosOnOpeningCurrentPopup()
-            @c InputTextRSZ("标题", &uip.title)
-            @c ComBoS("绘图类型", &uip.ptype, ["line", "scatter", "heatmap"])
-            @c CImGui.Checkbox("数据提示", &uip.ps.showtooltip)
-            if CImGui.CollapsingHeader("标签")
-                @c InputTextRSZ("内容", &annbuf.label)
+            @c InputTextRSZ(mlstr("title"), &uip.title)
+            @c ComBoS(mlstr("plot type"), &uip.ptype, ["line", "scatter", "heatmap"])
+            @c CImGui.Checkbox(mlstr("data tip"), &uip.ps.showtooltip)
+            if CImGui.CollapsingHeader(mlstr("Annotation"))
+                @c InputTextRSZ(mlstr("content"), &annbuf.label)
                 pos = Cfloat[annbuf.posx, annbuf.posy]
-                CImGui.InputFloat2("坐标", pos)
+                CImGui.InputFloat2(mlstr("position"), pos)
                 annbuf.posx, annbuf.posy = pos
                 offset = Cfloat[annbuf.offsetx, annbuf.offsety]
-                CImGui.InputFloat2("偏移", offset)
+                CImGui.InputFloat2(mlstr("offset"), offset)
                 annbuf.offsetx, annbuf.offsety = offset
-                @c CImGui.DragFloat("尺寸", &annbuf.possz, 1.0, 1, 60, "%.3f", CImGui.ImGuiSliderFlags_AlwaysClamp)
-                CImGui.ColorEdit4("颜色", annbuf.color, CImGui.ImGuiColorEditFlags_AlphaBar)
+                @c CImGui.DragFloat(mlstr("size"), &annbuf.possz, 1.0, 1, 60, "%.3f", CImGui.ImGuiSliderFlags_AlwaysClamp)
+                CImGui.ColorEdit4(mlstr("color"), annbuf.color, CImGui.ImGuiColorEditFlags_AlphaBar)
                 CImGui.SameLine()
-                if CImGui.Button(MORESTYLE.Icons.NewFile * "##标签")
+                if CImGui.Button(MORESTYLE.Icons.NewFile * "##annotation")
                     push!(uip.anns, deepcopy(annbuf))
                 end
             end
-            if CImGui.Button(stcstr(MORESTYLE.Icons.SaveButton, " 保存##图像"))
+            if CImGui.Button(stcstr(MORESTYLE.Icons.SaveButton, " ", mlstr("Save Image")))
                 CImGui.CloseCurrentPopup()
                 saveimg_seting(save_file(; filterlist="png;jpg;jpeg;bmp;eps;tif"), [uip])
                 SYNCSTATES[Int(SavingImg)] = true
@@ -125,37 +125,37 @@ let
             CImGui.EndPopup()
         end
         igIsPopupOpenStr(stcstr("title", id), 0) || openpopup_mspos == Cfloat[0, 0] || fill!(openpopup_mspos, 0)
-        uip.ps.annhv && CImGui.IsMouseClicked(1) && CImGui.OpenPopup(stcstr("注释", id))
-        if CImGui.BeginPopup(stcstr("注释", id))
+        uip.ps.annhv && CImGui.IsMouseClicked(1) && CImGui.OpenPopup(stcstr("annotation", id))
+        if CImGui.BeginPopup(stcstr("annotation", id))
             ann_i = uip.anns[uip.ps.annhv_i]
-            @c InputTextRSZ("内容", &ann_i.label)
+            @c InputTextRSZ(mlstr("content"), &ann_i.label)
             pos = Cfloat[ann_i.posx, ann_i.posy]
-            CImGui.InputFloat2("坐标", pos)
+            CImGui.InputFloat2(mlstr("position"), pos)
             ann_i.posx, ann_i.posy = pos
             offset = Cfloat[ann_i.offsetx, ann_i.offsety]
-            CImGui.InputFloat2("偏移", offset)
+            CImGui.InputFloat2(mlstr("offset"), offset)
             ann_i.offsetx, ann_i.offsety = offset
-            @c CImGui.DragFloat("尺寸", &ann_i.possz, 1.0, 1, 60, "%.3f", CImGui.ImGuiSliderFlags_AlwaysClamp)
-            CImGui.ColorEdit4("颜色", ann_i.color, CImGui.ImGuiColorEditFlags_AlphaBar)
+            @c CImGui.DragFloat(mlstr("size"), &ann_i.possz, 1.0, 1, 60, "%.3f", CImGui.ImGuiSliderFlags_AlwaysClamp)
+            CImGui.ColorEdit4(mlstr("color"), ann_i.color, CImGui.ImGuiColorEditFlags_AlphaBar)
             CImGui.SameLine()
-            if CImGui.Button(stcstr(MORESTYLE.Icons.CloseFile, "##标签"))
+            if CImGui.Button(stcstr(MORESTYLE.Icons.CloseFile, "##annotation"))
                 deleteat!(uip.anns, uip.ps.annhv_i)
                 CImGui.CloseCurrentPopup()
             end
             CImGui.EndPopup()
         end
         if CImGui.IsWindowHovered(CImGui.ImGuiHoveredFlags_RootAndChildWindows)
-            uip.ps.xhv && CImGui.IsMouseDoubleClicked(0) && CImGui.OpenPopup(stcstr("x标签", id))
+            uip.ps.xhv && CImGui.IsMouseDoubleClicked(0) && CImGui.OpenPopup(stcstr("xlabel", id))
         end
-        if CImGui.BeginPopup(stcstr("x标签", id))
-            @c InputTextRSZ("x标签", &uip.xlabel)
+        if CImGui.BeginPopup(stcstr("xlabel", id))
+            @c InputTextRSZ(stcstr("X ", mlstr("label")), &uip.xlabel)
             CImGui.EndPopup()
         end
         if CImGui.IsWindowHovered(CImGui.ImGuiHoveredFlags_RootAndChildWindows)
-            uip.ps.yhv && CImGui.IsMouseDoubleClicked(0) && CImGui.OpenPopup(stcstr("y标签", id))
+            uip.ps.yhv && CImGui.IsMouseDoubleClicked(0) && CImGui.OpenPopup(stcstr("ylabel", id))
         end
-        if CImGui.BeginPopup(stcstr("y标签", id))
-            @c InputTextRSZ("y标签", &uip.ylabel)
+        if CImGui.BeginPopup(stcstr("ylabel", id))
+            @c InputTextRSZ(stcstr("Y ", mlstr("label")), &uip.ylabel)
             CImGui.EndPopup()
         end
         CImGui.EndChild()
@@ -284,10 +284,10 @@ let
         ps.plotsize = (ps.plotsize.x + cmssize.x, ps.plotsize.y)
         width_list[ps.id] = cmssize.x
         if CImGui.IsWindowHovered(CImGui.ImGuiHoveredFlags_RootAndChildWindows)
-            CImGui.IsItemHovered() && CImGui.IsMouseDoubleClicked(0) && CImGui.OpenPopup(stcstr("z标签", ps.id))
+            CImGui.IsItemHovered() && CImGui.IsMouseDoubleClicked(0) && CImGui.OpenPopup(stcstr("zlabel", ps.id))
         end
-        if CImGui.BeginPopup(stcstr("z标签", ps.id))
-            InputTextRSZ(stcstr("z标签##", ps.id), zlabel)
+        if CImGui.BeginPopup(stcstr("zlabel", ps.id))
+            InputTextRSZ(stcstr("Z ", mlstr("label"), "##", ps.id), zlabel)
             CImGui.EndPopup()
         end
         ImPlot.PopColormap()
@@ -297,7 +297,7 @@ let
 end
 
 function PlotHolder(ps::PlotState, psize=CImGui.ImVec2(0, 0))
-    if ImPlot.BeginPlot("没有数据输入或输入数据有误！！！", "X", "Y", psize)
+    if ImPlot.BeginPlot(mlstr("No data input or incorrect input data!!!"), "X", "Y", psize)
         ps.xhv = ImPlot.IsPlotXAxisHovered()
         ps.yhv = ImPlot.IsPlotYAxisHovered()
         ps.phv = ImPlot.IsPlotHovered()
@@ -401,7 +401,7 @@ function xysetting(uip::UIPlot)
         end
     end
     ImPlot.SetNextPlotLimitsX(xlims..., CImGui.ImGuiCond_Once)
-    xlabel = xlims != (1, ylm) || eltype(uip.x) <: AbstractString ? uip.xlabel : "No correct X input"
+    xlabel = xlims != (1, ylm) || eltype(uip.x) <: AbstractString ? uip.xlabel : mlstr("No correct X input")
     ylims = (0, 1)
     yall = vcat(uip.y...)
     if !all(isnan, yall)
@@ -436,14 +436,14 @@ function xyzsetting(uip::UIPlot)
         end
     end
     ImPlot.SetNextPlotLimitsX(xlims..., CImGui.ImGuiCond_Once)
-    xlabel = xlims != (1, sz2) || eltype(uip.x) <: AbstractString ? uip.xlabel : "No correct X input"
+    xlabel = xlims != (1, sz2) || eltype(uip.x) <: AbstractString ? uip.xlabel : mlstr("No correct X input")
     ylims = (1, sz1)
     if !isempty(uip.y) && !all(isnan, uip.y[1])
         ylims = extrema(uip.y[1][findall(!isnan, uip.y[1])])
         ylims[1] == ylims[2] && (ylims = (0, 1))
     end
     ImPlot.SetNextPlotLimitsY(ylims..., CImGui.ImGuiCond_Once, ImPlot.ImPlotYAxis_1)
-    ylabel = ylims == (1, sz1) ? "No correct Y input" : uip.ylabel
+    ylabel = ylims == (1, sz1) ? mlstr("No correct Y input") : uip.ylabel
     zlims = extrema(uip.z)
     zlims[1] == zlims[2] && (zlims = (0, 1))
     xlims, ylims, zlims, xlabel, ylabel
@@ -492,7 +492,7 @@ let
                     imgr, imgc, imgh = size(img)
                     img = reshape(img, imgr, imgh * imgc)
                 end
-                @trypass FileIO.save(path, img[u:d, l:r]) @error "[$(now())]\n图像保存错误！！！"
+                @trypass FileIO.save(path, img[u:d, l:r]) @error "[$(now())]\n$(mlstr("error saving image!!!"))"
                 SYNCSTATES[Int(SavingImg)] = false
                 count_fps = 0
                 return 0

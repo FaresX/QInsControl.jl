@@ -24,13 +24,13 @@ let
     global function DAQ(p_open::Ref)
         # CImGui.SetNextWindowPos((100, 100), CImGui.ImGuiCond_Once)
         CImGui.SetNextWindowSize((800, 600), CImGui.ImGuiCond_Once)
-        if CImGui.Begin(stcstr(MORESTYLE.Icons.InstrumentsDAQ, "  数据采集"), p_open)
+        if CImGui.Begin(stcstr(MORESTYLE.Icons.InstrumentsDAQ, "  ", mlstr("Data Acquiring")), p_open)
             global WORKPATH
             global OLDI
-            CImGui.Button(stcstr(MORESTYLE.Icons.SelectPath, " 工作区 ")) && (WORKPATH = pick_folder())
+            CImGui.Button(stcstr(MORESTYLE.Icons.SelectPath, " ", mlstr("Workplace"), " ")) && (WORKPATH = pick_folder())
             CImGui.SameLine()
             CImGui.TextColored(
-                if WORKPATH == "未选择工作区！！！"
+                if WORKPATH == mlstr("no workplace selected!!!")
                     MORESTYLE.Colors.LogError
                 else
                     CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_Text)
@@ -52,10 +52,10 @@ let
             CImGui.Columns(2)
             firsttime && (CImGui.SetColumnOffset(1, CImGui.GetWindowWidth() * 0.25); firsttime = false)
             column1pos = CImGui.GetColumnOffset(1)
-            CImGui.BeginChild("队列", (Float32(0), -CImGui.GetFrameHeightWithSpacing()))
-            CImGui.BulletText("任务队列")
+            CImGui.BeginChild("queue", (Float32(0), -CImGui.GetFrameHeightWithSpacing()))
+            CImGui.BulletText(mlstr("Task Queue"))
             CImGui.SameLine(column1pos - ccbtsz - unsafe_load(IMGUISTYLE.WindowPadding.x) - 3)
-            CImGui.Button(stcstr(MORESTYLE.Icons.Circuit, "##电路")) && (show_circuit_editor ⊻= true)
+            CImGui.Button(stcstr(MORESTYLE.Icons.Circuit, "##circuit")) && (show_circuit_editor ⊻= true)
             show_circuit_editor && @c edit(CIRCUIT, "Circuit Editor", &show_circuit_editor)
             ccbtsz = CImGui.GetItemRectSize().x
 
@@ -90,20 +90,20 @@ let
                     end
                 )
                 if CImGui.Button(
-                    stcstr(MORESTYLE.Icons.TaskButton, " 任务 ", i + OLDI, " ", task.name, "###rename"),
+                    stcstr(MORESTYLE.Icons.TaskButton, " ", mlstr("Task"), " ", i + OLDI, " ", task.name, "###rename"),
                     (-1, 0)
                 )
                     show_daq_editors[i] = true
                 end
                 CImGui.PopStyleColor(2)
 
-                CImGui.OpenPopupOnItemClick(stcstr("队列编辑菜单", i))
+                CImGui.OpenPopupOnItemClick(stcstr("edit queue menu", i))
                 isrunning_i && ShowProgressBar()
                 if !SYNCSTATES[Int(IsDAQTaskRunning)]
                     CImGui.Indent()
                     if CImGui.BeginDragDropSource(0)
                         @c CImGui.SetDragDropPayload("Swap DAQTask", &i, sizeof(Cint))
-                        CImGui.Text(stcstr("任务 ", i + OLDI, " ", task.name))
+                        CImGui.Text(stcstr(mlstr("Task"), " ", i + OLDI, " ", task.name))
                         CImGui.EndDragDropSource()
                     end
                     if CImGui.BeginDragDropTarget()
@@ -120,9 +120,9 @@ let
                     CImGui.Unindent()
                 end
 
-                if CImGui.BeginPopup(stcstr("队列编辑菜单", i))
+                if CImGui.BeginPopup(stcstr("edit queue menu", i))
                     if CImGui.MenuItem(
-                        MORESTYLE.Icons.RunTask * " 运行",
+                        stcstr(MORESTYLE.Icons.RunTask, " ", mlstr("Run")),
                         C_NULL,
                         false,
                         !SYNCSTATES[Int(IsDAQTaskRunning)] && task.enable
@@ -135,30 +135,32 @@ let
                             end)
                             show_daq_dtpickers .= false
                         else
-                            WORKPATH = "未选择工作区！！！"
+                            WORKPATH = mlstr("no workplace selected!!!")
                         end
                     end
                     CImGui.Separator()
-                    CImGui.MenuItem(MORESTYLE.Icons.Edit * " 编辑") && (show_daq_editors[i] = true)
-                    CImGui.MenuItem(MORESTYLE.Icons.Copy * " 复制") && (insert!(daqtasks, i + 1, deepcopy(task)))
-                    if CImGui.MenuItem(MORESTYLE.Icons.SaveButton * " 保存")
+                    CImGui.MenuItem(stcstr(MORESTYLE.Icons.Edit, " ", mlstr("Edit"))) && (show_daq_editors[i] = true)
+                    CImGui.MenuItem(stcstr(MORESTYLE.Icons.Copy, " ", mlstr("Copy"))) && (insert!(daqtasks, i + 1, deepcopy(task)))
+                    if CImGui.MenuItem(stcstr(MORESTYLE.Icons.SaveButton, " ", mlstr("Save")))
                         confsvpath = save_file(filterlist="cfg")
                         isempty(confsvpath) || jldsave(confsvpath; daqtask=task)
                     end
-                    if CImGui.MenuItem(MORESTYLE.Icons.Load * " 加载")
+                    if CImGui.MenuItem(stcstr(MORESTYLE.Icons.Load, " ", mlstr("Load")))
                         confldpath = pick_file(filterlist="cfg,qdt")
                         if isfile(confldpath)
-                            loadcfg = @trypass load(confldpath, "daqtask") (@error "不支持的文件！！！" filepath = confldpath)
+                            loadcfg = @trypass load(confldpath, "daqtask") begin
+                                @error mlstr("unsupported file!!!") filepath = confldpath
+                            end
                             daqtasks[i] = isnothing(loadcfg) ? task : loadcfg
                         end
                     end
                     CImGui.Separator()
-                    CImGui.MenuItem(MORESTYLE.Icons.Rename * " 重命名") && (isrename = true)
+                    CImGui.MenuItem(stcstr(MORESTYLE.Icons.Rename, " ", mlstr("Rename"))) && (isrename = true)
                     if task.enable
-                        CImGui.MenuItem(MORESTYLE.Icons.Disable * " 停用") && (task.enable = false)
+                        CImGui.MenuItem(stcstr(MORESTYLE.Icons.Disable, " ", mlstr("Disable"))) && (task.enable = false)
                     else
-                        CImGui.MenuItem(MORESTYLE.Icons.Restore * " 恢复") && (task.enable = true)
-                        CImGui.MenuItem(MORESTYLE.Icons.CloseFile * " 删除") && (isdeldaqtask = true)
+                        CImGui.MenuItem(stcstr(MORESTYLE.Icons.Restore, " ", mlstr("Enable"))) && (task.enable = true)
+                        CImGui.MenuItem(stcstr(MORESTYLE.Icons.CloseFile, " ", mlstr("Delete"))) && (isdeldaqtask = true)
                     end
                     CImGui.EndPopup()
                 end
@@ -169,41 +171,53 @@ let
                 show_daq_editors[i] = isshow_editor
 
                 # 是否删除
-                isdeldaqtask && (CImGui.OpenPopup(stcstr("##是否删除daqtasks", i));
+                isdeldaqtask && (CImGui.OpenPopup(stcstr("##if delete daqtasks", i));
                 isdeldaqtask = false)
-                if YesNoDialog(stcstr("##是否删除daqtasks", i), "确认删除？", CImGui.ImGuiWindowFlags_AlwaysAutoResize)
+                if YesNoDialog(
+                    stcstr("##if delete daqtasks", i),
+                    mlstr("Confirm delete?"),
+                    CImGui.ImGuiWindowFlags_AlwaysAutoResize
+                )
                     deleteat!(daqtasks, i)
                     deleteat!(show_daq_editors, i)
                 end
 
                 # 重命名
-                isrename && (CImGui.OpenPopup(stcstr("重命名", i));
+                isrename && (CImGui.OpenPopup(stcstr(mlstr("rename"), i));
                 isrename = false)
-                if CImGui.BeginPopup(stcstr("重命名", i))
-                    @c InputTextRSZ(stcstr(MORESTYLE.Icons.TaskButton, " 任务 ", i + OLDI), &task.name)
+                if CImGui.BeginPopup(stcstr(mlstr("rename"), i))
+                    @c InputTextRSZ(stcstr(MORESTYLE.Icons.TaskButton, " ", mlstr("Task"), " ", i + OLDI), &task.name)
                     CImGui.EndPopup()
                 end
                 CImGui.PopID()
             end
             CImGui.EndChild()
 
-            if CImGui.BeginPopup("添加队列")
-                CImGui.MenuItem(MORESTYLE.Icons.NewFile * " 添加") && push!(daqtasks, DAQTask())
-                if CImGui.MenuItem(MORESTYLE.Icons.Load * " 加载")
+            if CImGui.BeginPopup("add task")
+                CImGui.MenuItem(stcstr(MORESTYLE.Icons.NewFile, " ", mlstr("Add"))) && push!(daqtasks, DAQTask())
+                if CImGui.MenuItem(stcstr(MORESTYLE.Icons.Load, " ", mlstr("Load")))
                     confldpath = pick_file(filterlist="cfg")
                     if isfile(confldpath)
-                        newdaqtask = @trypasse load(confldpath, "daqtask") (@error "不支持的文件！！！" filepath = confldpath)
+                        newdaqtask = @trypasse load(confldpath, "daqtask") begin
+                            @error mlstr("unsupported file!!!") filepath = confldpath
+                        end
                         isnothing(newdaqtask) || push!(daqtasks, newdaqtask)
                     end
                 end
                 CImGui.Separator()
                 if showdisabled
-                    CImGui.MenuItem(MORESTYLE.Icons.NotShowDisable * " 隐藏不可用") && (showdisabled = false)
-                    CImGui.MenuItem(MORESTYLE.Icons.CloseFile * " 删除不可用") && (isdelall = true)
+                    CImGui.MenuItem(
+                        stcstr(MORESTYLE.Icons.NotShowDisable, " ", mlstr("Hide Disabled"))
+                    ) && (showdisabled = false)
+                    CImGui.MenuItem(
+                        stcstr(MORESTYLE.Icons.CloseFile, " ", mlstr("Delete Disabled"))
+                    ) && (isdelall = true)
                 else
-                    CImGui.MenuItem(MORESTYLE.Icons.ShowDisable * " 显示不可用") && (showdisabled = true)
+                    CImGui.MenuItem(
+                        stcstr(MORESTYLE.Icons.ShowDisable, " ", mlstr("Show Disabled"))
+                    ) && (showdisabled = true)
                 end
-                if CImGui.MenuItem(MORESTYLE.Icons.SaveButton * " 保存项目")
+                if CImGui.MenuItem(stcstr(MORESTYLE.Icons.SaveButton, " ", mlstr("Save Project")))
                     daqsvpath = save_file(filterlist="daq")
                     if daqsvpath != ""
                         jldsave(daqsvpath;
@@ -215,10 +229,12 @@ let
                         )
                     end
                 end
-                if CImGui.MenuItem(MORESTYLE.Icons.Load * " 加载项目")
+                if CImGui.MenuItem(stcstr(MORESTYLE.Icons.Load, " ", mlstr("Load Project")))
                     daqloadpath = pick_file(filterlist="daq")
                     if isfile(daqloadpath)
-                        loaddaqproj = @trypasse load(daqloadpath) (@error "不支持的文件！！！" filepath = daqloadpath)
+                        loaddaqproj = @trypasse load(daqloadpath) begin
+                            @error mlstr("unsupported file!!!") filepath = daqloadpath
+                        end
                         if !isnothing(loaddaqproj)
                             if haskey(loaddaqproj, "daqtasks")
                                 empty!(daqtasks)
@@ -235,7 +251,7 @@ let
                                             node.imgr.id = ImGui_ImplOpenGL3_CreateImageTexture(imgsize...)
                                             ImGui_ImplOpenGL3_UpdateImageTexture(node.imgr.id, node.imgr.image, imgsize...)
                                         catch e
-                                            @error "[$(now())]\n加载图像出错！！！" exception = e
+                                            @error "[$(now())]\n$(mlstr("loading image failed!!!"))" exception = e
                                         end
                                     end
                                 end
@@ -257,12 +273,12 @@ let
                     end
                 end
                 CImGui.Separator()
-                if CImGui.BeginMenu(MORESTYLE.Icons.SelectData * " 绘图")
-                    CImGui.Text("绘图列数")
+                if CImGui.BeginMenu(stcstr(MORESTYLE.Icons.Plot, " ", mlstr("Plot")))
+                    CImGui.Text(mlstr("plot columns"))
                     CImGui.SameLine()
                     CImGui.PushItemWidth(2CImGui.GetFontSize())
                     @c CImGui.DragInt(
-                        "##绘图列数",
+                        "##plot columns",
                         &CONF.DAQ.plotshowcol,
                         1, 1, 6, "%d",
                         CImGui.ImGuiSliderFlags_AlwaysClamp
@@ -281,11 +297,11 @@ let
 
                     ### edit show plots ###
                     DAQPLOTLAYOUT.showcol = CONF.DAQ.plotshowcol
-                    DAQPLOTLAYOUT.labels = MORESTYLE.Icons.SelectData * " " .* string.(collect(eachindex(DAQPLOTLAYOUT.labels)))
+                    DAQPLOTLAYOUT.labels = MORESTYLE.Icons.Plot * " " .* string.(collect(eachindex(DAQPLOTLAYOUT.labels)))
                     maxplotmarkidx = argmax(lengthpr.(DAQPLOTLAYOUT.marks))
                     maxploticonwidth = DAQPLOTLAYOUT.showcol * CImGui.CalcTextSize(
                         stcstr(
-                            MORESTYLE.Icons.SelectData,
+                            MORESTYLE.Icons.Plot,
                             " ",
                             DAQPLOTLAYOUT.labels[maxplotmarkidx],
                             DAQPLOTLAYOUT.marks[maxplotmarkidx]
@@ -300,12 +316,12 @@ let
                     ) do
                         openright = CImGui.BeginPopupContextItem()
                         if openright
-                            if CImGui.MenuItem(MORESTYLE.Icons.SelectData * " 选择数据")
+                            if CImGui.MenuItem(stcstr(MORESTYLE.Icons.Plot, " ", mlstr("Select Data")))
                                 if DAQPLOTLAYOUT.states[DAQPLOTLAYOUT.idxing]
                                     show_daq_dtpickers[DAQPLOTLAYOUT.idxing] = true
                                 end
                             end
-                            if CImGui.MenuItem(MORESTYLE.Icons.CloseFile * " 删除")
+                            if CImGui.MenuItem(stcstr(MORESTYLE.Icons.CloseFile, " ", mlstr("Delete")))
                                 isdelplot = true
                                 delplot_i = DAQPLOTLAYOUT.idxing
                             end
@@ -322,9 +338,13 @@ let
                 end
                 CImGui.EndPopup()
             end
-            isdelall && (CImGui.OpenPopup("##删除所有不可用task");
+            isdelall && (CImGui.OpenPopup("##delete all disable tasks");
             isdelall = false)
-            if YesNoDialog("##删除所有不可用task", "确认删除？", CImGui.ImGuiWindowFlags_AlwaysAutoResize)
+            if YesNoDialog(
+                "##delete all disable tasks",
+                mlstr("Confirm delete?"),
+                CImGui.ImGuiWindowFlags_AlwaysAutoResize
+            )
                 deleteat!(daqtasks, findall(task -> !task.enable, daqtasks))
                 deleteat!(show_daq_editors, findall(task -> !task.enable, daqtasks))
             end
@@ -347,11 +367,11 @@ let
                 end
             end
 
-            isdelplot && ((CImGui.OpenPopup(stcstr("##删除绘图", DAQPLOTLAYOUT.idxing)));
+            isdelplot && ((CImGui.OpenPopup(stcstr("##delete plot", DAQPLOTLAYOUT.idxing)));
             isdelplot = false)
             if YesNoDialog(
-                stcstr("##删除绘图", DAQPLOTLAYOUT.idxing),
-                "确认删除？",
+                stcstr("##delete plot", DAQPLOTLAYOUT.idxing),
+                mlstr("Confirm delete?"),
                 CImGui.ImGuiWindowFlags_AlwaysAutoResize
             )
                 if length(UIPSWEEPS) > 1
@@ -362,7 +382,7 @@ let
                 end
             end
 
-            CImGui.IsAnyItemHovered() || CImGui.OpenPopupOnItemClick("添加队列")
+            CImGui.IsAnyItemHovered() || CImGui.OpenPopupOnItemClick("add task")
             CImGui.PushStyleColor(
                 CImGui.ImGuiCol_Button,
                 if isrunall
@@ -371,7 +391,7 @@ let
                     CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_Button)
                 end
             )
-            if CImGui.Button(stcstr(MORESTYLE.Icons.RunTask, " 全部运行"))
+            if CImGui.Button(stcstr(MORESTYLE.Icons.RunTask, " ", mlstr("Run All")))
                 if !SYNCSTATES[Int(IsDAQTaskRunning)]
                     if ispath(WORKPATH)
                         runalltask = @async begin
@@ -386,7 +406,7 @@ let
                         errormonitor(runalltask)
                         show_daq_dtpickers .= false
                     else
-                        WORKPATH = "未选择工作区！！！"
+                        WORKPATH = mlstr("no workplace selected!!!")
                     end
                 end
             end
@@ -394,20 +414,20 @@ let
 
             CImGui.SameLine(CImGui.GetColumnOffset(1) - bottombtsz - unsafe_load(IMGUISTYLE.WindowPadding.x))
             if SYNCSTATES[Int(IsBlocked)]
-                if CImGui.Button(stcstr(MORESTYLE.Icons.RunTask, " 继续"))
+                if CImGui.Button(stcstr(MORESTYLE.Icons.RunTask, " ", mlstr("Continue")))
                     SYNCSTATES[Int(IsBlocked)] = false
                     remote_do(workers()[1]) do
                         lock(() -> notify(BLOCK), BLOCK)
                     end
                 end
             else
-                if CImGui.Button(stcstr(MORESTYLE.Icons.BlockTask, " 暂停"))
+                if CImGui.Button(stcstr(MORESTYLE.Icons.BlockTask, " ", mlstr("Pause")))
                     SYNCSTATES[Int(IsDAQTaskRunning)] && (SYNCSTATES[Int(IsBlocked)] = true)
                 end
             end
             bottombtsz = CImGui.GetItemRectSize().x
             CImGui.SameLine()
-            if CImGui.Button(stcstr(MORESTYLE.Icons.InterruptTask, " 中断"))
+            if CImGui.Button(stcstr(MORESTYLE.Icons.InterruptTask, " ", mlstr("Interrupt")))
                 if SYNCSTATES[Int(IsDAQTaskRunning)]
                     SYNCSTATES[Int(IsInterrupted)] = true
                     if SYNCSTATES[Int(IsBlocked)]
@@ -428,9 +448,9 @@ let
 
             CImGui.NextColumn()
 
-            CImGui.BeginChild("绘图")
+            CImGui.BeginChild("plotlayout")
             if isempty(DAQPLOTLAYOUT.selectedidx)
-                Plot(UIPSWEEPS[1], stcstr("扫描实时绘图", 1))
+                Plot(UIPSWEEPS[1], stcstr("sweeping realtime plot", 1))
             else
                 l = length(DAQPLOTLAYOUT.selectedidx)
                 n = CONF.DAQ.plotshowcol
@@ -443,7 +463,7 @@ let
                         idx = (i - 1) * n + j
                         if idx <= l
                             index = DAQPLOTLAYOUT.selectedidx[idx]
-                            Plot(UIPSWEEPS[index], stcstr("扫描实时绘图", index), (Cfloat(0), height))
+                            Plot(UIPSWEEPS[index], stcstr("sweeping realtime plot", index), (Cfloat(0), height))
                             CImGui.NextColumn()
                         end
                     end
@@ -462,7 +482,7 @@ function find_old_i(dir)
     if isdir(dir)
         for file in readdir(dir) # 任务顺序根据文件夹内容确定
             if isfile(joinpath(dir, file))
-                m = match(r"任务 ([0-9]+)", file)
+                m = match(Regex("$(mlstr("Task")) ([0-9]+)"), file)
                 if !isnothing(m)
                     new_i = tryparse(Int, m[1])
                     isnothing(new_i) || (OLDI = new_i > OLDI ? new_i : OLDI)
