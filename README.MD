@@ -5,8 +5,8 @@
 [![Build Status](https://github.com/FaresX/QInsControl.jl/actions/workflows/CI.yml/badge.svg?branch=master)](https://github.com/FaresX/QInsControl.jl/actions/workflows/CI.yml?query=branch%3Amaster)
 [![Coverage](https://codecov.io/gh/FaresX/QInsControl.jl/branch/master/graph/badge.svg)](https://codecov.io/gh/FaresX/QInsControl.jl)
 
-QInsControl is designed for controling instruments and data aquiring, which is based on the nivisa and provides a 
-user-friendly GUI and a flexible script written mannar to keep both the convenience and universality.
+QInsControl is designed for controling instruments and data acquiring, which is based on the NI VISA and provides a 
+friendly GUI and a flexible script written mannar to keep both the convenience and universality.
 
 ## install
 ```
@@ -22,14 +22,14 @@ QInsControl.start()
 ```
 
 ## example
-A simple project file [demo.daq](example) is in the example folder, which may give some ideas to write your own scripts.
+A simple project file [demo.daq](example) is in the example folder, which gives some ideas to write your own scripts.
 One can load it as follows
 ![image](example/loadproject.gif)
 
 ## <font color=#FF0000>**Note**</font>
-At present, the GUI may get crashed thanks to some bugs that does not interrupt the running DAQ program. When encountered, 
+At present, the GUI may get crashed thanks to some bugs that do not interrupt the running DAQ program. When encountered, 
 one could run
 ```julia
 QInsControl.UI(true)
 ```
-to restart the interface and give feedback on github Issues.
+to restart the GUI and give feedback on github Issues.

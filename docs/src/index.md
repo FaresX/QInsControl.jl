@@ -4,8 +4,8 @@ CurrentModule = QInsControl
 
 # QInsControl
 
-QInsControl is designed for controling instruments and data aquiring, which is based on the nivisa and provides a 
-user-friendly GUI and a flexible script written mannar to keep both the convenience and universality.
+QInsControl is designed for controling instruments and data acquiring, which is based on the NI VISA and provides a 
+friendly GUI and a flexible script written mannar to keep both the convenience and universality.
 
 ## install
 ```
