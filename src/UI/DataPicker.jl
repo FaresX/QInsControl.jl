@@ -31,7 +31,7 @@ function edit(dtpk::DataPicker, id, p_open::Ref)
     isupdate = false
     isfocus = true
     if CImGui.Begin(
-        stcstr(mlstr("Data Selecting"), "##", id),
+        stcstr("Data Selecting##", id),
         p_open,
         CImGui.ImGuiWindowFlags_NoTitleBar | CImGui.ImGuiWindowFlags_NoDocking
     )

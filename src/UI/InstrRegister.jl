@@ -95,7 +95,10 @@ let
     global function InstrRegister(p_open::Ref)
         CImGui.SetNextWindowSize((800, 600), CImGui.ImGuiCond_Once)
 
-        if CImGui.Begin(stcstr(MORESTYLE.Icons.InstrumentsRegister, "  ", mlstr("Instrument Registration")), p_open)
+        if CImGui.Begin(
+            stcstr(MORESTYLE.Icons.InstrumentsRegister, "  ", mlstr("Instrument Registration"), "###ml"),
+            p_open
+        )
             CImGui.Columns(2)
             firsttime && (CImGui.SetColumnOffset(1, CImGui.GetWindowWidth() * 0.25); firsttime = false)
             CImGui.BeginChild("InstrumentsOverview", (Float32(0), -CImGui.GetFrameHeightWithSpacing()))

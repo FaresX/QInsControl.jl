@@ -17,9 +17,9 @@ let
         CImGui.SetNextWindowSize((800, 600), CImGui.ImGuiCond_Once)
         if @c CImGui.Begin(
             if filetree.rootpath_bnm == ""
-                stcstr(MORESTYLE.Icons.OpenFile, "  ", mlstr("Data Browse"), "##", id)
+                stcstr(MORESTYLE.Icons.OpenFile, "  ", mlstr("Data Browse"), "###", id)
             else
-                stcstr(MORESTYLE.Icons.OpenFolder, "  ", mlstr("Data Browse"), "##", id)
+                stcstr(MORESTYLE.Icons.OpenFolder, "  ", mlstr("Data Browse"), "###", id)
             end,
             &dtviewer.p_open
         )

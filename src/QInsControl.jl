@@ -143,18 +143,15 @@ function julia_main()::Cint
 end
 
 function start()
-    if !haskey(ENV, "QInsControlAssets")
-        ENV["QInsControlAssets"] = joinpath(Base.@__DIR__, "../Assets")
-    end
+    get!(ENV, "QInsControlAssets", joinpath(Base.@__DIR__, "../Assets"))
     julia_main()
 end
 
 @compile_workload begin
-    if !haskey(ENV, "QInsControlAssets")
-        ENV["QInsControlAssets"] = joinpath(Base.@__DIR__, "../Assets")
-    end
+    get!(ENV, "QInsControlAssets", joinpath(Base.@__DIR__, "../Assets"))
+    global SYNCSTATES = SharedVector{Bool}(9)
     loadconf()
-    UI(precompile=true)
+    UI(precompile=true) |> wait
 end
 
 end #QInsControl

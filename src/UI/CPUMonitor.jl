@@ -1,6 +1,6 @@
 function CPUMonitor(p_open::Ref)
     CImGui.SetNextWindowSize((600, 300), CImGui.ImGuiCond_Once)
-    if CImGui.Begin(stcstr(MORESTYLE.Icons.CPUMonitor, " ", mlstr("Instrument CPU Monitor")), p_open)
+    if CImGui.Begin(stcstr(MORESTYLE.Icons.CPUMonitor, " ", mlstr("Instrument CPU Monitor"), "###ml"), p_open)
         CImGui.TextColored(MORESTYLE.Colors.HighlightText, "ID: ")
         CImGui.SameLine()
         CImGui.Text(stcstr(remotecall_fetch(() -> CPU.id, workers()[1])))
@@ -11,7 +11,10 @@ function CPUMonitor(p_open::Ref)
             CImGui.TextColored(MORESTYLE.Colors.LogInfo, mlstr("running"))
             CImGui.SameLine()
             if SYNCSTATES[Int(IsDAQTaskRunning)]
-                CImGui.PushStyleColor(CImGui.ImGuiCol_Text, CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_TextDisabled))
+                CImGui.PushStyleColor(
+                    CImGui.ImGuiCol_Text,
+                    CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_TextDisabled)
+                )
             end
             if CImGui.Button(stcstr(MORESTYLE.Icons.InterruptTask, " ", mlstr("Stop")))
                 SYNCSTATES[Int(IsDAQTaskRunning)] || remotecall_wait(() -> stop!(CPU), workers()[1])

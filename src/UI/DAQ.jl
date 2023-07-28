@@ -24,7 +24,7 @@ let
     global function DAQ(p_open::Ref)
         # CImGui.SetNextWindowPos((100, 100), CImGui.ImGuiCond_Once)
         CImGui.SetNextWindowSize((800, 600), CImGui.ImGuiCond_Once)
-        if CImGui.Begin(stcstr(MORESTYLE.Icons.InstrumentsDAQ, "  ", mlstr("Data Acquiring")), p_open)
+        if CImGui.Begin(stcstr(MORESTYLE.Icons.InstrumentsDAQ, "  ", mlstr("Data Acquiring"), "###ml"), p_open)
             global WORKPATH
             global OLDI
             CImGui.Button(stcstr(MORESTYLE.Icons.SelectPath, " ", mlstr("Workplace"), " ")) && (WORKPATH = pick_folder())

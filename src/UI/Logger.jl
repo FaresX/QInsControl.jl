@@ -5,7 +5,7 @@ let
         # CImGui.SetNextWindowPos((100, 100), CImGui.ImGuiCond_Once)
         CImGui.SetNextWindowSize((800, 600), CImGui.ImGuiCond_Once)
         if CImGui.Begin(
-            stcstr(MORESTYLE.Icons.Logger, "  ", mlstr("Logger")),
+            stcstr(MORESTYLE.Icons.Logger, "  ", mlstr("Logger"), "###ml"),
             p_open,
             CImGui.ImGuiWindowFlags_HorizontalScrollbar
         )

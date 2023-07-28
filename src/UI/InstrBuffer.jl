@@ -231,7 +231,7 @@ let
     global function ShowInstrBuffer(p_open::Ref)
         CImGui.SetNextWindowSize((800, 600), CImGui.ImGuiCond_Once)
         if CImGui.Begin(
-            stcstr(MORESTYLE.Icons.InstrumentsOverview, "  ", mlstr("Instrument Settings and Status")),
+            stcstr(MORESTYLE.Icons.InstrumentsOverview, "  ", mlstr("Instrument Settings and Status"), "###ml"),
             p_open
         )
             CImGui.Columns(2)

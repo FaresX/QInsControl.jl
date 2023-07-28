@@ -22,7 +22,7 @@ let
         isfocus = true
         global OLDI
         if CImGui.Begin(
-            stcstr(mlstr("Edit Task"), " ", id),
+            stcstr("Edit Task ", id),
             p_open,
             CImGui.ImGuiWindowFlags_NoTitleBar | CImGui.ImGuiWindowFlags_NoDocking
         )

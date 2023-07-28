@@ -1,11 +1,11 @@
 let
-    selectedpref::String = ""
+    selectedpref::String = "General"
     ecds::Vector{String} = encodings()
     global function Preferences(p_open::Ref)
         # CImGui.SetNextWindowPos((100, 100), CImGui.ImGuiCond_Once)
         CImGui.SetNextWindowSize((800, 600), CImGui.ImGuiCond_Once)
 
-        if CImGui.Begin(stcstr(MORESTYLE.Icons.Preferences, "  ", mlstr("Preferences")), p_open)
+        if CImGui.Begin(stcstr(MORESTYLE.Icons.Preferences, "  ", mlstr("Preferences"), "###ml"), p_open)
             CImGui.Columns(2)
             @cstatic firsttime::Bool = true begin
                 firsttime && (CImGui.SetColumnOffset(1, CImGui.GetWindowWidth() * 0.2); firsttime = false)
@@ -13,12 +13,12 @@ let
             CImGui.BeginChild("options", (Float32(0), -CImGui.GetFrameHeightWithSpacing()))
             CImGui.Selectable(
                 stcstr(MORESTYLE.Icons.CommonSetting, " ", mlstr("General")),
-                selectedpref == mlstr("General")
-            ) && (selectedpref = mlstr("General"))
+                selectedpref == "General"
+            ) && (selectedpref = "General")
             CImGui.Selectable(
                 stcstr(MORESTYLE.Icons.StyleSetting, " ", mlstr("Style")),
-                selectedpref == mlstr("Style")
-            ) && (selectedpref = mlstr("Style"))
+                selectedpref == "Style"
+            ) && (selectedpref = "Style")
             CImGui.EndChild()
             if CImGui.Button(stcstr(MORESTYLE.Icons.SaveButton, " ", mlstr("Save")), (-1, 0))
                 svconf = deepcopy(CONF)
@@ -29,7 +29,7 @@ let
 
             CImGui.BeginChild("specific options")
             ftsz = CImGui.GetFontSize()
-            if selectedpref == mlstr("General")
+            if selectedpref == "General"
                 ###Init##
                 # CImGui.SetWindowFontScale(1.2)
                 CImGui.TextColored(MORESTYLE.Colors.HighlightText, mlstr("Basic Setup"))
@@ -291,7 +291,7 @@ let
                     end
                     CImGui.EndGroup()
                 end
-            elseif selectedpref == mlstr("Style")
+            elseif selectedpref == "Style"
                 StyleEditor()
             end
             CImGui.EndChild()

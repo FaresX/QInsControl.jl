@@ -201,7 +201,7 @@ function UI(breakdown=false; precompile=false)
 
             glfwSwapBuffers(window)
             GC.safepoint()
-            precompile && CImGui.GetFrameCount() > 6 && break
+            precompile && CImGui.GetFrameCount() > 36 && break
             yield()
         end
     catch e
