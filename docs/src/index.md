@@ -8,6 +8,7 @@ QInsControl is designed for controling instruments and data acquiring, which is 
 friendly GUI and a flexible script written mannar to keep both the convenience and universality.
 
 ## install
+Before installation, make sure you have NI VISA installed!
 ```
 julia> ]
 (@v1.9) pkg> add ImPlot#main
