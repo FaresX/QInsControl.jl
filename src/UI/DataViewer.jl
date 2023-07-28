@@ -17,9 +17,9 @@ let
         CImGui.SetNextWindowSize((800, 600), CImGui.ImGuiCond_Once)
         if @c CImGui.Begin(
             if filetree.rootpath_bnm == ""
-                stcstr(MORESTYLE.Icons.OpenFile, "  ", mlstr("Data Browse"), "###", id)
+                stcstr(MORESTYLE.Icons.OpenFile, "  ", mlstr("Data Browse"), "###dtv", id)
             else
-                stcstr(MORESTYLE.Icons.OpenFolder, "  ", mlstr("Data Browse"), "###", id)
+                stcstr(MORESTYLE.Icons.OpenFolder, "  ", mlstr("Data Browse"), "###dtv", id)
             end,
             &dtviewer.p_open
         )
@@ -56,24 +56,24 @@ let
             CImGui.BeginChild("DataViewer")
             if CImGui.BeginTabBar("Data Viewer")
                 if CImGui.BeginTabItem(mlstr("Instrument Status"))
-                    if CImGui.BeginPopupContextItem()
-                        CImGui.Text(mlstr("display columns"))
-                        CImGui.SameLine()
-                        CImGui.PushItemWidth(2CImGui.GetFontSize())
-                        @c CImGui.DragInt(
-                            "##InsBuf col num",
-                            &CONF.InsBuf.showcol,
-                            1, 1, 6, "%d",
-                            CImGui.ImGuiSliderFlags_AlwaysClamp
-                        )
-                        CImGui.PopItemWidth()
-                        CImGui.EndPopup()
-                    end
-                    CImGui.BeginChild("instrument status")
                     if !isempty(dtviewer.data) && true in occursin.(r"instrbufferviewers/.*", keys(dtviewer.data))
+                        if CImGui.BeginPopupContextItem()
+                            CImGui.Text(mlstr("display columns"))
+                            CImGui.SameLine()
+                            CImGui.PushItemWidth(2CImGui.GetFontSize())
+                            @c CImGui.DragInt(
+                                "##InsBuf col num",
+                                &CONF.InsBuf.showcol,
+                                1, 1, 6, "%d",
+                                CImGui.ImGuiSliderFlags_AlwaysClamp
+                            )
+                            CImGui.PopItemWidth()
+                            CImGui.EndPopup()
+                        end
                         insbufkeys::Vector{String} = sort(
                             [key for key in keys(dtviewer.data) if occursin(r"instrbufferviewers/.*", key)]
                         )
+                        CImGui.BeginChild("instrument status")
                         for insbuf in insbufkeys
                             logtime::String = split(insbuf, "/")[2]
                             CImGui.PushStyleColor(CImGui.ImGuiCol_Button, MORESTYLE.Colors.LogInfo)
@@ -84,10 +84,10 @@ let
                             view(dtviewer.data[insbuf])
                             CImGui.PopID()
                         end
+                        CImGui.EndChild()
                     else
                         CImGui.Text(mlstr("data not loaded or data format not supported!"))
                     end
-                    CImGui.EndChild()
                     CImGui.EndTabItem()
                 end
                 if CImGui.BeginTabItem(mlstr("Script"))
@@ -112,6 +112,23 @@ let
                 end
                 if CImGui.BeginTabItem(mlstr("Data"))
                     if !isempty(dtviewer.data) && haskey(dtviewer.data, "data")
+                        if CImGui.BeginPopupContextItem()
+                            if CImGui.MenuItem(stcstr(MORESTYLE.Icons.SaveButton, " ", mlstr("Export")))
+                                exportpath = save_file(; filterlist="csv")
+                                if exportpath != ""
+                                    try
+                                        exportdata(
+                                            exportpath,
+                                            dtviewer.data["data"],
+                                            Val(Symbol(split(basename(exportpath), '.')[end]))
+                                        )
+                                    catch e
+                                        @error "[$(now())]\n$(mlstr("exporting data failed!!!"))" exception = e
+                                    end
+                                end
+                            end
+                            CImGui.EndPopup()
+                        end
                         CImGui.BeginChild("ShowData")
                         showdata(dtviewer.data["data"], id)
                         CImGui.EndChild()
@@ -164,8 +181,8 @@ let
                                     dtviewer.layout,
                                     (
                                         maxploticonwidth,
-                                        CImGui.GetFrameHeight() * ceil(Int, length(dtviewer.layout.labels) / 
-                                            dtviewer.layout.showcol)
+                                        CImGui.GetFrameHeight() * ceil(Int, length(dtviewer.layout.labels) /
+                                                                            dtviewer.layout.showcol)
                                     )
                                 ) do
                                     openright = CImGui.BeginPopupContextItem()
@@ -352,3 +369,19 @@ let
     end
 end
 
+function exportdata(path::AbstractString, data::Dict{String,Vector{String}}, ::Val{:csv})
+    maxl = max_with_empty(length.(values(data)))
+    data_cols = length(data)
+    buf = fill("", maxl + 1, data_cols)
+    @views for (i, kv) in enumerate(data)
+        buf[1,i] = kv.first
+        buf[2:length(kv.second)+1,i] = kv.second
+    end
+    open(path, "w") do file
+        for row in eachrow(buf)
+            println(file, join(row, ','))
+        end
+    end
+end
+
+exportdata(path::AbstractString, data::Dict{String,Vector{String}}, _) = exportdata(path, data, Val(:csv))

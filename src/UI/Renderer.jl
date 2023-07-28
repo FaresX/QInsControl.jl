@@ -167,7 +167,7 @@ function UI(breakdown=false; precompile=false)
                     MORESTYLE.Colors.LogError,
                     stcstr("\n\n", mlstr("data acqiring, please wait......"), "\n\n\n")
                 )
-                CImGui.Button(mlstr("confirm"), (-1, 0)) && CImGui.CloseCurrentPopup()
+                CImGui.Button(mlstr("Confirm"), (-1, 0)) && CImGui.CloseCurrentPopup()
                 CImGui.EndPopup()
             end
             if glfwWindowShouldClose(window) != 0

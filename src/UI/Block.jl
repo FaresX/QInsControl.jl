@@ -807,12 +807,11 @@ function edit(bk::SettingBlock)
     @c InputTextWithHintRSZ("##SettingBlock set value", mlstr("set value"), &bk.setvalue)
     CImGui.PopItemWidth()
     if CImGui.BeginPopup("select set value")
-        optklist = @trypass insconf[bk.instrnm].quantities[bk.quantity].optkeys [""]
-        optvlist = @trypass insconf[bk.instrnm].quantities[bk.quantity].optvalues [""]
+        optklist = @trypass insconf[bk.instrnm].quantities[bk.quantity].optkeys []
+        optvlist = @trypass insconf[bk.instrnm].quantities[bk.quantity].optvalues []
         isempty(optklist) && CImGui.TextColored(MORESTYLE.Colors.HighlightText, mlstr("unavailable options!"))
         for (i, optv) in enumerate(optvlist)
-            optv == "" && (CImGui.TextColored(MORESTYLE.Colors.HighlightText, mlstr("unavailable options!"));
-            continue)
+            optv == "" && continue
             CImGui.MenuItem(optklist[i]) && (bk.setvalue = optv)
         end
         CImGui.EndPopup()

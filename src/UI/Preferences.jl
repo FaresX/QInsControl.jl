@@ -5,7 +5,7 @@ let
         # CImGui.SetNextWindowPos((100, 100), CImGui.ImGuiCond_Once)
         CImGui.SetNextWindowSize((800, 600), CImGui.ImGuiCond_Once)
 
-        if CImGui.Begin(stcstr(MORESTYLE.Icons.Preferences, "  ", mlstr("Preferences"), "###ml"), p_open)
+        if CImGui.Begin(stcstr(MORESTYLE.Icons.Preferences, "  ", mlstr("Preferences"), "###pref"), p_open)
             CImGui.Columns(2)
             @cstatic firsttime::Bool = true begin
                 firsttime && (CImGui.SetColumnOffset(1, CImGui.GetWindowWidth() * 0.2); firsttime = false)
@@ -234,9 +234,12 @@ let
                 addrs = join(CONF.ComAddr.addrs, "\n")
                 y = max(1, length(CONF.ComAddr.addrs)) * CImGui.GetTextLineHeight() +
                     2unsafe_load(IMGUISTYLE.FramePadding.y)
-                @c(InputTextMultilineRSZ(
-                    "##common address", &addrs, (Float32(0), y))
-                ) && (CONF.ComAddr.addrs = split(addrs, '\n'))
+                if @c InputTextMultilineRSZ("##common address", &addrs, (Float32(0), y))
+                    CONF.ComAddr.addrs = split(addrs, '\n')
+                    for (i, addr) in enumerate(CONF.ComAddr.addrs)
+                        rstrip(addr, ' ') == "" && deleteat!(CONF.ComAddr.addrs, i)
+                    end
+                end
                 CImGui.Text(" ")
                 CImGui.Separator()
 

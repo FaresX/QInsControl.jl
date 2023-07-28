@@ -18,27 +18,19 @@ function manualadd(addr)
         logout!(CPU, addr)
         for ins in keys(INSTRBUFFERVIEWERS)
             ins == "Others" && continue
-            if haskey(INSTRBUFFERVIEWERS[ins], addr)
-                delete!(INSTRBUFFERVIEWERS[ins], addr)
-            end
+            delete!(INSTRBUFFERVIEWERS[ins], addr)
         end
         st = false
     end
     if st
         for (ins, cf) in insconf
             if true in occursin.(split(cf.conf.idn, ';'), idn)
-                if haskey(INSTRBUFFERVIEWERS[ins], addr)
-                    return true
-                else
-                    push!(INSTRBUFFERVIEWERS[ins], addr => InstrBufferViewer(ins, addr))
-                    return true
-                end
+                get!(INSTRBUFFERVIEWERS[ins], addr, InstrBufferViewer(ins, addr))
+                return true
             end
         end
     end
-    if addr != ""
-        push!(INSTRBUFFERVIEWERS["Others"], addr => InstrBufferViewer("Others", addr))
-    end
+    addr == "" || push!(INSTRBUFFERVIEWERS["Others"], addr => InstrBufferViewer("Others", addr))
     return st
 end
 
@@ -141,15 +133,17 @@ let
         end
         if CImGui.CollapsingHeader(stcstr("\t\t\t", mlstr("Manual Input"), "\t\t\t\t\t\t"))
             @c InputTextWithHintRSZ("##manual input addr", mlstr("instrument address"), &newinsaddr)
-            if CImGui.BeginPopup("select common address")
+            if CImGui.BeginPopupContextItem()
+                isempty(CONF.ComAddr.addrs) && CImGui.TextColored(
+                    MORESTYLE.Colors.HighlightText,
+                    mlstr("unavailable options!")
+                )
                 for addr in CONF.ComAddr.addrs
-                    addr == "" && (CImGui.TextColored(MORESTYLE.Colors.HighlightText, "unavailable option!");
-                    continue)
+                    addr == "" && continue
                     CImGui.MenuItem(addr) && (newinsaddr = addr)
                 end
                 CImGui.EndPopup()
             end
-            CImGui.OpenPopupOnItemClick("select common address", 1)
             if CImGui.Button(stcstr(MORESTYLE.Icons.NewFile, " ", mlstr("Add"), "##manual input addr"))
                 st = remotecall_fetch(manualadd, workers()[1], newinsaddr)
                 st && (fetch_ibvs(newinsaddr); newinsaddr = "")

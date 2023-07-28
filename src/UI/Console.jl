@@ -9,7 +9,7 @@ let
     global function ShowConsole(p_open::Ref{Bool})
         # CImGui.SetNextWindowPos((100, 100), CImGui.ImGuiCond_Once)
         CImGui.SetNextWindowSize((600, 400), CImGui.ImGuiCond_Once)
-        if CImGui.Begin(stcstr(MORESTYLE.Icons.Console, "  ", mlstr("Console"), "###ml"), p_open)
+        if CImGui.Begin(stcstr(MORESTYLE.Icons.Console, "  ", mlstr("Console"), "###console"), p_open)
             if newmsg || waittime("Console", CONF.Console.refreshrate)
                 empty!(iomsgshow)
                 textc = CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_Text)

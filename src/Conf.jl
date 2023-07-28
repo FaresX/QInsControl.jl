@@ -23,7 +23,7 @@ function loadconf()
     isdir(CONF.Fonts.dir) || (CONF.Fonts.dir = joinpath(ENV["QInsControlAssets"], "Fonts"))
     isdir(CONF.Console.dir) || (CONF.Console.dir = joinpath(ENV["QInsControlAssets"], "IOs"))
     isdir(CONF.Logs.dir) || (CONF.Logs.dir = joinpath(ENV["QInsControlAssets"], "Logs"))
-    isfile(CONF.BGImage.path) || (CONF.BGImage.path = joinpath(ENV["QInsControlAssets"], "Necessity/defaultwallpaper.bmp"))
+    isfile(CONF.BGImage.path) || (CONF.BGImage.path = joinpath(ENV["QInsControlAssets"], "Necessity/defaultwallpaper.png"))
     isfile(CONF.Style.dir) || (CONF.Style.dir = joinpath(ENV["QInsControlAssets"], "Styles"))
 
     ###### load language ######

@@ -96,7 +96,7 @@ let
         CImGui.SetNextWindowSize((800, 600), CImGui.ImGuiCond_Once)
 
         if CImGui.Begin(
-            stcstr(MORESTYLE.Icons.InstrumentsRegister, "  ", mlstr("Instrument Registration"), "###ml"),
+            stcstr(MORESTYLE.Icons.InstrumentsRegister, "  ", mlstr("Instrument Registration"), "###ins reg"),
             p_open
         )
             CImGui.Columns(2)

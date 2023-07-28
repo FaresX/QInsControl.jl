@@ -63,7 +63,7 @@ end
 
 @option mutable struct OptStyle
     dir::String = ""
-    default::String = "Walkr"
+    default::String = "WarmWinter"
 end
 
 @option mutable struct Conf
