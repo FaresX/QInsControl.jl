@@ -151,7 +151,10 @@ end
     get!(ENV, "QInsControlAssets", joinpath(Base.@__DIR__, "../Assets"))
     global SYNCSTATES = SharedVector{Bool}(9)
     loadconf()
-    UI(precompile=true) |> wait
+    try
+        UI(precompile=true) |> wait
+    catch
+    end
 end
 
 end #QInsControl
