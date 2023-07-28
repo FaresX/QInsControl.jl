@@ -10,8 +10,8 @@ user-friendly GUI and a flexible script written mannar to keep both the convenie
 ## install
 ```
 julia> ]
-julia> add ImPlot#main
-julia> add https://github.com/FaresX/QInsControl.jl.git
+(@v1.9) pkg> add ImPlot#main
+(@v1.9) pkg> add https://github.com/FaresX/QInsControl.jl.git
 ```
 
 ## usage
