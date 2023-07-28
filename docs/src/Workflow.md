@@ -17,7 +17,7 @@ Once adding instruments finishes, one can click **Instrument Settings and Status
 The controllable variables are classified by three types: sweep, set, read. 
 
 ## sweep
-For the sweepable variables, it can be swept from the present value to the given value with difinite step size and delay.
+For the sweepable variables, it can be swept from the present value to the given value with definite step size and delay.
 
 ![image](assets/control-sweep.png)
 
