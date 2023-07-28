@@ -17,9 +17,9 @@ let
         CImGui.SetNextWindowSize((800, 600), CImGui.ImGuiCond_Once)
         if @c CImGui.Begin(
             if filetree.rootpath_bnm == ""
-                stcstr(MORESTYLE.Icons.OpenFile, "  数据浏览##", id)
+                stcstr(MORESTYLE.Icons.OpenFile, "  ", mlstr("Data Browse"), "###dtv", id)
             else
-                stcstr(MORESTYLE.Icons.OpenFolder, "  数据浏览##", id)
+                stcstr(MORESTYLE.Icons.OpenFolder, "  ", mlstr("Data Browse"), "###dtv", id)
             end,
             &dtviewer.p_open
         )
@@ -28,7 +28,7 @@ let
 
             CImGui.BeginChild("DataViewer-FileTree")
             oldfile = filetree.selectedpath[]
-            InputTextRSZ(stcstr("筛选##", id), filetree.filter)
+            InputTextRSZ(stcstr(mlstr("Filter"), "##", id), filetree.filter)
             edit(filetree, isrename)
             if filetree.selectedpath[] != oldfile && split(basename(filetree.selectedpath[]), '.')[end] in ["qdt", "cfg"]
                 dtviewer.data = @trypasse load(filetree.selectedpath[]) Dict()
@@ -44,7 +44,7 @@ let
                                 node.imgr.id = ImGui_ImplOpenGL3_CreateImageTexture(imgsize...)
                                 ImGui_ImplOpenGL3_UpdateImageTexture(node.imgr.id, node.imgr.image, imgsize...)
                             catch e
-                                @error "[$(now())]\n加载图像出错！！！" exception = e
+                                @error "[$(now())]\n$(mlstr("loading image failed!!!"))" exception = e
                             end
                         end
                     end
@@ -54,26 +54,26 @@ let
             CImGui.NextColumn() #文件列表
 
             CImGui.BeginChild("DataViewer")
-            if CImGui.BeginTabBar("Data_Viewer")
-                if CImGui.BeginTabItem("仪器状态")
-                    if CImGui.BeginPopupContextItem()
-                        CImGui.Text("显示列数")
-                        CImGui.SameLine()
-                        CImGui.PushItemWidth(2CImGui.GetFontSize())
-                        @c CImGui.DragInt(
-                            "##InsBuf列数",
-                            &CONF.InsBuf.showcol,
-                            1, 1, 6, "%d",
-                            CImGui.ImGuiSliderFlags_AlwaysClamp
-                        )
-                        CImGui.PopItemWidth()
-                        CImGui.EndPopup()
-                    end
-                    CImGui.BeginChild("仪器状态")
+            if CImGui.BeginTabBar("Data Viewer")
+                if CImGui.BeginTabItem(mlstr("Instrument Status"))
                     if !isempty(dtviewer.data) && true in occursin.(r"instrbufferviewers/.*", keys(dtviewer.data))
+                        if CImGui.BeginPopupContextItem()
+                            CImGui.Text(mlstr("display columns"))
+                            CImGui.SameLine()
+                            CImGui.PushItemWidth(2CImGui.GetFontSize())
+                            @c CImGui.DragInt(
+                                "##InsBuf col num",
+                                &CONF.InsBuf.showcol,
+                                1, 1, 6, "%d",
+                                CImGui.ImGuiSliderFlags_AlwaysClamp
+                            )
+                            CImGui.PopItemWidth()
+                            CImGui.EndPopup()
+                        end
                         insbufkeys::Vector{String} = sort(
                             [key for key in keys(dtviewer.data) if occursin(r"instrbufferviewers/.*", key)]
                         )
+                        CImGui.BeginChild("instrument status")
                         for insbuf in insbufkeys
                             logtime::String = split(insbuf, "/")[2]
                             CImGui.PushStyleColor(CImGui.ImGuiCol_Button, MORESTYLE.Colors.LogInfo)
@@ -84,54 +84,71 @@ let
                             view(dtviewer.data[insbuf])
                             CImGui.PopID()
                         end
+                        CImGui.EndChild()
                     else
-                        CImGui.Text("未加载数据或数据格式不支持！")
+                        CImGui.Text(mlstr("data not loaded or data format not supported!"))
                     end
-                    CImGui.EndChild()
                     CImGui.EndTabItem()
                 end
-                if CImGui.BeginTabItem("配置")
+                if CImGui.BeginTabItem(mlstr("Script"))
                     if !isempty(dtviewer.data) && haskey(dtviewer.data, "daqtask")
                         CImGui.PushID(id)
                         view(dtviewer.data["daqtask"])
                         CImGui.PopID()
                     else
-                        CImGui.Text("未加载数据或数据格式不支持！")
+                        CImGui.Text(mlstr("data not loaded or data format not supported!"))
                     end
                     CImGui.EndTabItem()
                 end
-                if CImGui.BeginTabItem("电路")
+                if CImGui.BeginTabItem(mlstr("Circuit"))
                     if !isempty(dtviewer.data) && haskey(dtviewer.data, "circuit")
                         CImGui.PushID(id)
                         view(dtviewer.data["circuit"], stcstr("Nodes Editor", id))
                         CImGui.PopID()
                     else
-                        CImGui.Text("未加载数据或数据格式不支持！")
+                        CImGui.Text(mlstr("data not loaded or data format not supported!"))
                     end
                     CImGui.EndTabItem()
                 end
-                if CImGui.BeginTabItem("数据")
+                if CImGui.BeginTabItem(mlstr("Data"))
                     if !isempty(dtviewer.data) && haskey(dtviewer.data, "data")
+                        if CImGui.BeginPopupContextItem()
+                            if CImGui.MenuItem(stcstr(MORESTYLE.Icons.SaveButton, " ", mlstr("Export")))
+                                exportpath = save_file(; filterlist="csv")
+                                if exportpath != ""
+                                    try
+                                        exportdata(
+                                            exportpath,
+                                            dtviewer.data["data"],
+                                            Val(Symbol(split(basename(exportpath), '.')[end]))
+                                        )
+                                    catch e
+                                        @error "[$(now())]\n$(mlstr("exporting data failed!!!"))" exception = e
+                                    end
+                                end
+                            end
+                            CImGui.EndPopup()
+                        end
                         CImGui.BeginChild("ShowData")
                         showdata(dtviewer.data["data"], id)
                         CImGui.EndChild()
                     else
-                        CImGui.Text("未加载数据或数据格式不支持！")
+                        CImGui.Text(mlstr("data not loaded or data format not supported!"))
                     end
                     CImGui.EndTabItem()
                 end
-                if CImGui.BeginTabItem("绘图")
+                if CImGui.BeginTabItem(mlstr("Plots"))
                     if length(dtviewer.show_dtpickers) != length(dtviewer.dtpickers)
                         resize!(dtviewer.show_dtpickers, length(dtviewer.dtpickers))
                     end
                     if haskey(dtviewer.data, "data")
-                        if CImGui.BeginPopupContextItem("选择数据查看")
-                            if CImGui.BeginMenu(MORESTYLE.Icons.SelectData * " 绘图")
-                                CImGui.Text("绘图列数")
+                        if CImGui.BeginPopupContextItem("select data to plot")
+                            if CImGui.BeginMenu(stcstr(MORESTYLE.Icons.Plot, " ", mlstr("Plot")))
+                                CImGui.Text(mlstr("plot columns"))
                                 CImGui.SameLine()
                                 CImGui.PushItemWidth(2CImGui.GetFontSize())
                                 @c CImGui.DragInt(
-                                    "##绘图列数",
+                                    "##plot columns",
                                     &CONF.DAQ.plotshowcol,
                                     1, 1, 6, "%d",
                                     CImGui.ImGuiSliderFlags_AlwaysClamp
@@ -149,12 +166,12 @@ let
                                 CImGui.PopID()
 
                                 dtviewer.layout.showcol = CONF.DAQ.plotshowcol
-                                dtviewer.layout.labels = MORESTYLE.Icons.SelectData * " " .*
+                                dtviewer.layout.labels = MORESTYLE.Icons.Plot * " " .*
                                                          string.(collect(eachindex(dtviewer.layout.labels)))
                                 maxplotmarkidx = argmax(lengthpr.(dtviewer.layout.marks))
                                 maxploticonwidth = dtviewer.layout.showcol * CImGui.CalcTextSize(
                                     stcstr(
-                                        MORESTYLE.Icons.SelectData,
+                                        MORESTYLE.Icons.Plot,
                                         " ",
                                         dtviewer.layout.labels[maxplotmarkidx],
                                         dtviewer.layout.marks[maxplotmarkidx]
@@ -164,15 +181,18 @@ let
                                     dtviewer.layout,
                                     (
                                         maxploticonwidth,
-                                        CImGui.GetFrameHeight() * ceil(Int, length(dtviewer.layout.labels) / dtviewer.layout.showcol)
+                                        CImGui.GetFrameHeight() * ceil(Int, length(dtviewer.layout.labels) /
+                                                                            dtviewer.layout.showcol)
                                     )
                                 ) do
                                     openright = CImGui.BeginPopupContextItem()
                                     if openright
-                                        if CImGui.MenuItem("选择数据") && dtviewer.layout.states[dtviewer.layout.idxing]
+                                        if CImGui.MenuItem(
+                                            stcstr(MORESTYLE.Icons.Plot, " ", mlstr("Select Data"))
+                                        ) && dtviewer.layout.states[dtviewer.layout.idxing]
                                             dtviewer.show_dtpickers[dtviewer.layout.idxing] = true
                                         end
-                                        if CImGui.MenuItem(stcstr(MORESTYLE.Icons.CloseFile, " 删除"))
+                                        if CImGui.MenuItem(stcstr(MORESTYLE.Icons.CloseFile, " ", mlstr("Delete")))
                                             isdelplot = true
                                             delplot_i = dtviewer.layout.idxing
                                         end
@@ -188,7 +208,7 @@ let
                                 CImGui.EndMenu()
                             end
                             CImGui.Separator()
-                            if CImGui.MenuItem(stcstr(MORESTYLE.Icons.SaveButton, " 保存"))
+                            if CImGui.MenuItem(stcstr(MORESTYLE.Icons.SaveButton, " ", mlstr("Save")))
                                 if !isempty(dtviewer.data)
                                     jldopen(filetree.selectedpath[], "w") do file
                                         for key in keys(dtviewer.data)
@@ -201,9 +221,9 @@ let
                         end
                     end
 
-                    CImGui.BeginChild("绘图")
+                    CImGui.BeginChild("plot")
                     if isempty(dtviewer.layout.selectedidx)
-                        Plot(dtviewer.uiplots[1], stcstr("文件绘图", filetree.selectedpath[], "-", 1))
+                        Plot(dtviewer.uiplots[1], stcstr("plot file", filetree.selectedpath[], "-", 1))
                     else
                         totalsz = CImGui.GetContentRegionAvail()
                         l = length(dtviewer.layout.selectedidx)
@@ -219,7 +239,7 @@ let
                                     index = dtviewer.layout.selectedidx[idx]
                                     Plot(
                                         dtviewer.uiplots[index],
-                                        stcstr("文件绘图", filetree.selectedpath[], "-", index),
+                                        stcstr("plot file", filetree.selectedpath[], "-", index),
                                         (Cfloat(0), height)
                                     )
                                     CImGui.NextColumn()
@@ -236,9 +256,9 @@ let
             CImGui.EndChild()
             CImGui.NextColumn() #查看菜单
 
-            if CImGui.BeginPopupModal("文件中没有数据", C_NULL, CImGui.ImGuiWindowFlags_AlwaysAutoResize)
-                CImGui.TextColored(MORESTYLE.logerrorcol, "文件中没有数据！")
-                CImGui.Button("确认##文件中没有数据", (180, 0)) && CImGui.CloseCurrentPopup()
+            if CImGui.BeginPopupModal("no data in file", C_NULL, CImGui.ImGuiWindowFlags_AlwaysAutoResize)
+                CImGui.TextColored(MORESTYLE.logerrorcol, mlstr("no data in the file!"))
+                CImGui.Button(stcstr(mlstr("Confirm"), "##no data"), (180, 0)) && CImGui.CloseCurrentPopup()
                 CImGui.EndPopup()
             end
             for (i, isshow_dtpk) in enumerate(dtviewer.show_dtpickers)
@@ -262,17 +282,17 @@ let
                             syncplotdata(dtviewer.uiplots[i], dtpk, dtviewer.data["data"], [])
                         end
                     else
-                        CImGui.OpenPopup("文件中没有数据")
+                        CImGui.OpenPopup("no data in file")
                         dtviewer.show_dtpickers .= false
                     end
                 end
             end
 
-            isdelplot && ((CImGui.OpenPopup(stcstr("##删除绘图", dtviewer.layout.idxing)));
+            isdelplot && ((CImGui.OpenPopup(stcstr("##delete plot", dtviewer.layout.idxing)));
             isdelplot = false)
             if YesNoDialog(
-                stcstr("##删除绘图", dtviewer.layout.idxing),
-                "确认删除？",
+                stcstr("##delete plot", dtviewer.layout.idxing),
+                mlstr("Confirm delete?"),
                 CImGui.ImGuiWindowFlags_AlwaysAutoResize
             )
                 if length(dtviewer.uiplots) > 1
@@ -349,3 +369,19 @@ let
     end
 end
 
+function exportdata(path::AbstractString, data::Dict{String,Vector{String}}, ::Val{:csv})
+    maxl = max_with_empty(length.(values(data)))
+    data_cols = length(data)
+    buf = fill("", maxl + 1, data_cols)
+    @views for (i, kv) in enumerate(data)
+        buf[1,i] = kv.first
+        buf[2:length(kv.second)+1,i] = kv.second
+    end
+    open(path, "w") do file
+        for row in eachrow(buf)
+            println(file, join(row, ','))
+        end
+    end
+end
+
+exportdata(path::AbstractString, data::Dict{String,Vector{String}}, _) = exportdata(path, data, Val(:csv))

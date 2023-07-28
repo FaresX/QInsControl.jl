@@ -55,7 +55,7 @@ Base.@kwdef mutable struct MoreStyleIcon
     Restore::String = ICONS.ICON_RECYCLE
     ShowDisable::String = ICONS.ICON_EYE
     NotShowDisable::String = ICONS.ICON_EYE_SLASH
-    SelectData::String = ICONS.ICON_CHART_AREA
+    Plot::String = ICONS.ICON_CHART_AREA
     # PlotNumber::String = ICONS.ICON_CODE_BRANCH
     Datai::String = ICONS.ICON_CHART_COLUMN
     Update::String = ICONS.ICON_CLOUD_ARROW_UP
@@ -492,7 +492,7 @@ let
                 CONF.Style.dir = styledir
             else
                 CImGui.SameLine()
-                CImGui.TextColored((1.000, 0.000, 0.000, 1.000), "路径不存在！！！")
+                CImGui.TextColored((1.000, 0.000, 0.000, 1.000), "path does not exist!!!")
             end
         end
         if CImGui.Button(MORESTYLE.Icons.SaveButton * " Save to File  ")
@@ -519,10 +519,10 @@ let
         CImGui.PopItemWidth()
         CImGui.PopStyleColor()
         CImGui.SameLine()
-        CImGui.Button(MORESTYLE.Icons.CloseFile) && CImGui.OpenPopup("##是否删除style")
+        CImGui.Button(MORESTYLE.Icons.CloseFile) && CImGui.OpenPopup("##if delete style")
         CImGui.SameLine()
         ShowHelpMarker("This operation will delete the selected IMGUISTYLE. Please be careful!")
-        if YesNoDialog("##是否删除style", "确认删除？", CImGui.ImGuiWindowFlags_AlwaysAutoResize)
+        if YesNoDialog("##if delete style", mlstr("confirm delete?"), CImGui.ImGuiWindowFlags_AlwaysAutoResize)
             delete!(STYLES, selected_style)
             Base.Filesystem.rm(joinpath(CONF.Style.dir, "$selected_style.sty"), force=true)
             selected_style = ""
@@ -547,11 +547,11 @@ let
                     global BGID = ImGui_ImplOpenGL3_CreateImageTexture(bgsize...; format=GL_RGB)
                     ImGui_ImplOpenGL3_UpdateImageTexture(BGID, bgimg, bgsize...; format=GL_RGB)
                 catch e
-                    @error "[$(now())]\n加载背景出错！！！" exception = e
+                    @error "[$(now())]\n$(mlstr("loading wallpaper failed!!!"))" exception = e
                 end
             else
                 CImGui.SameLine()
-                CImGui.TextColored(MORESTYLE.Colors.LogError, "文件不存在！！！")
+                CImGui.TextColored(MORESTYLE.Colors.LogError, mlstr("path does not exist!!!"))
             end
         end
 

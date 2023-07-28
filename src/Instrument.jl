@@ -14,31 +14,23 @@ function manualadd(addr)
         idn = ct(query, CPU, "*IDN?", Val(:query))
         logout!(CPU, ct)
     catch e
-        @error "[$(now())]\n仪器通讯故障！！！" instrument_address = addr exception = e
+        @error "[$(now())]\n$(mlstr("instrument communication failed!!!"))" instrument_address = addr exception = e
         logout!(CPU, addr)
         for ins in keys(INSTRBUFFERVIEWERS)
             ins == "Others" && continue
-            if haskey(INSTRBUFFERVIEWERS[ins], addr)
-                delete!(INSTRBUFFERVIEWERS[ins], addr)
-            end
+            delete!(INSTRBUFFERVIEWERS[ins], addr)
         end
         st = false
     end
     if st
         for (ins, cf) in insconf
             if true in occursin.(split(cf.conf.idn, ';'), idn)
-                if haskey(INSTRBUFFERVIEWERS[ins], addr)
-                    return true
-                else
-                    push!(INSTRBUFFERVIEWERS[ins], addr => InstrBufferViewer(ins, addr))
-                    return true
-                end
+                get!(INSTRBUFFERVIEWERS[ins], addr, InstrBufferViewer(ins, addr))
+                return true
             end
         end
     end
-    if addr != ""
-        push!(INSTRBUFFERVIEWERS["Others"], addr => InstrBufferViewer("Others", addr))
-    end
+    addr == "" || push!(INSTRBUFFERVIEWERS["Others"], addr => InstrBufferViewer("Others", addr))
     return st
 end
 
@@ -56,7 +48,7 @@ function refresh_instrlist()
                     SYNCSTATES[Int(AutoDetecting)] && (SYNCSTATES[Int(AutoDetectDone)] = true)
                 catch e
                     SYNCSTATES[Int(AutoDetecting)] && (SYNCSTATES[Int(AutoDetectDone)] = true)
-                    @error "自动查询失败!!!" exception = e
+                    @error mlstr("auto searching failed!!!") exception = e
                 end
             end)
         end
@@ -115,7 +107,7 @@ let
     time_old::Float64 = 0
     global function manualadd_from_others()
         @c ComBoS("##OthersIns", &addinstr, keys(INSTRBUFFERVIEWERS["Others"]))
-        if CImGui.Button(MORESTYLE.Icons.NewFile * " 添加  ")
+        if CImGui.Button(stcstr(MORESTYLE.Icons.NewFile, " ", mlstr("Add"), " "))
             st = remotecall_fetch(manualadd, workers()[1], addinstr)
             st && (fetch_ibvs(addinstr); addinstr = "")
             time_old = time()
@@ -123,9 +115,9 @@ let
         if time() - time_old < 2
             CImGui.SameLine()
             if st
-                CImGui.TextColored(MORESTYLE.Colors.HighlightText, "添加成功！")
+                CImGui.TextColored(MORESTYLE.Colors.HighlightText, mlstr("successfully added!"))
             else
-                CImGui.TextColored(MORESTYLE.Colors.LogError, "添加失败！！！")
+                CImGui.TextColored(MORESTYLE.Colors.LogError, mlstr("addition failed!!!"))
             end
         end
     end
@@ -136,21 +128,23 @@ let
     st::Bool = false
     time_old::Float64 = 0
     global function manualadd_ui()
-        if CImGui.CollapsingHeader("\t\t\tOthers\t\t\t\t\t\t")
+        if CImGui.CollapsingHeader(stcstr("\t\t\t", mlstr("Others"), "\t\t\t\t\t\t"))
             manualadd_from_others()
         end
-        if CImGui.CollapsingHeader("\t\t\t手动输入\t\t\t\t\t\t")
-            @c InputTextWithHintRSZ("##手动输入仪器地址", "仪器地址", &newinsaddr)
-            if CImGui.BeginPopup("选择常用地址")
+        if CImGui.CollapsingHeader(stcstr("\t\t\t", mlstr("Manual Input"), "\t\t\t\t\t\t"))
+            @c InputTextWithHintRSZ("##manual input addr", mlstr("instrument address"), &newinsaddr)
+            if CImGui.BeginPopupContextItem()
+                isempty(CONF.ComAddr.addrs) && CImGui.TextColored(
+                    MORESTYLE.Colors.HighlightText,
+                    mlstr("unavailable options!")
+                )
                 for addr in CONF.ComAddr.addrs
-                    addr == "" && (CImGui.TextColored(MORESTYLE.Colors.HighlightText, "不可用的选项！");
-                    continue)
+                    addr == "" && continue
                     CImGui.MenuItem(addr) && (newinsaddr = addr)
                 end
                 CImGui.EndPopup()
             end
-            CImGui.OpenPopupOnItemClick("选择常用地址", 1)
-            if CImGui.Button(MORESTYLE.Icons.NewFile * " 添加  ##手动输入仪器地址")
+            if CImGui.Button(stcstr(MORESTYLE.Icons.NewFile, " ", mlstr("Add"), "##manual input addr"))
                 st = remotecall_fetch(manualadd, workers()[1], newinsaddr)
                 st && (fetch_ibvs(newinsaddr); newinsaddr = "")
                 time_old = time()
@@ -158,9 +152,9 @@ let
             if time() - time_old < 2
                 CImGui.SameLine()
                 if st
-                    CImGui.TextColored(MORESTYLE.Colors.HighlightText, "添加成功！")
+                    CImGui.TextColored(MORESTYLE.Colors.HighlightText, mlstr("successfully added!"))
                 else
-                    CImGui.TextColored(MORESTYLE.Colors.LogError, "添加失败！！！")
+                    CImGui.TextColored(MORESTYLE.Colors.LogError, mlstr("addition failed!!!"))
                 end
             end
         end

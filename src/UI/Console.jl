@@ -9,7 +9,7 @@ let
     global function ShowConsole(p_open::Ref{Bool})
         # CImGui.SetNextWindowPos((100, 100), CImGui.ImGuiCond_Once)
         CImGui.SetNextWindowSize((600, 400), CImGui.ImGuiCond_Once)
-        if CImGui.Begin(stcstr(MORESTYLE.Icons.Console, "  控制台"), p_open)
+        if CImGui.Begin(stcstr(MORESTYLE.Icons.Console, "  ", mlstr("Console"), "###console"), p_open)
             if newmsg || waittime("Console", CONF.Console.refreshrate)
                 empty!(iomsgshow)
                 textc = CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_Text)
@@ -56,7 +56,7 @@ let
             end
             newmsg_updated && (CImGui.SetScrollHereY(1); newmsg_updated = false)
             CImGui.EndChild()
-            @c InputTextMultilineRSZ("输入", &buffer, (Cfloat(0), lineheigth))
+            @c InputTextMultilineRSZ(mlstr("input"), &buffer, (Cfloat(0), lineheigth))
             if CImGui.IsItemHovered() && !CImGui.IsItemActive()
                 if CImGui.IsKeyPressed(265)
                     historyins_i < length(historyins) && (historyins_i += 1)
@@ -67,7 +67,7 @@ let
                 end
             end
             CImGui.SameLine()
-            if CImGui.Button(stcstr(MORESTYLE.Icons.SendMsg, " 发送")) ||
+            if CImGui.Button(stcstr(MORESTYLE.Icons.SendMsg, " ", mlstr("Send"))) ||
                ((CImGui.IsKeyDown(341) || CImGui.IsKeyDown(345)) && (CImGui.IsKeyDown(257) || CImGui.IsKeyDown(335)))
                 if buffer != ""
                     iofile_open = open(iofile, "a+")

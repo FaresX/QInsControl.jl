@@ -69,7 +69,7 @@ let
         CImGui.SetNextWindowSize(unsafe_load(viewport.WorkSize))
         CImGui.PushStyleVar(CImGui.ImGuiStyleVar_WindowRounding, 0)
         CImGui.PushStyleVar(CImGui.ImGuiStyleVar_WindowPadding, (0, 0))
-        CImGui.Begin("Q仪器控制与采集", C_NULL, window_flags | CImGui.ImGuiWindowFlags_NoBringToFrontOnFocus)
+        CImGui.Begin("Wallpaper", C_NULL, window_flags | CImGui.ImGuiWindowFlags_NoBringToFrontOnFocus)
         CImGui.Image(Ptr{Cvoid}(BGID), unsafe_load(viewport.WorkSize))
         CImGui.End()
 
@@ -81,7 +81,7 @@ let
         CImGui.PopStyleVar(2)
         # igDockSpaceOverViewport(igGetMainViewport(), ImGuiDockNodeFlags_None, C_NULL)
         ######Debug######
-        
+
 
         ######子窗口######
         for (i, dtv) in enumerate(dtviewers)
@@ -108,7 +108,7 @@ let
         show_logger && @c LogWindow(&show_logger)
         # show_helppad && @c ShowHelpPad(&show_helppad)
         ShowAbout()
-        show_about && (CImGui.OpenPopup("关于");
+        show_about && (CImGui.OpenPopup(mlstr("About"));
         show_about = false)
 
         ######主菜单######
@@ -116,44 +116,44 @@ let
         isopenfolder = false
         if CImGui.BeginMainMenuBar()
             #File Menu
-            if CImGui.BeginMenu(stcstr(MORESTYLE.Icons.File, " 文件 "))
-                if CImGui.BeginMenu(stcstr(MORESTYLE.Icons.OpenFile, " 打开文件"))
-                    isopenfiles = CImGui.MenuItem(stcstr(MORESTYLE.Icons.NewFile, " 新建"), "Ctrl+O")
+            if CImGui.BeginMenu(stcstr(MORESTYLE.Icons.File, " ", mlstr("File"), " "))
+                if CImGui.BeginMenu(stcstr(MORESTYLE.Icons.OpenFile, " ", mlstr("Open File")))
+                    isopenfiles = CImGui.MenuItem(stcstr(MORESTYLE.Icons.NewFile, " ", mlstr("New")), "Ctrl+O")
                     if true in [dtv[2].rootpath_bnm == "" for dtv in dtviewers]
                         CImGui.Separator()
-                        CImGui.TextColored(MORESTYLE.Colors.HighlightText, "已打开")
+                        CImGui.TextColored(MORESTYLE.Colors.HighlightText, mlstr("Opened"))
                     end
                     for dtv in dtviewers
                         if dtv[2].rootpath_bnm == ""
-                            title = isempty(dtv[2].filetrees) ? "没有打开文件" : basename(dtv[2].filetrees[1].filepath)
+                            title = isempty(dtv[2].filetrees) ? mlstr("no file opened") : basename(dtv[2].filetrees[1].filepath)
                             @c CImGui.MenuItem(title, C_NULL, &dtv[1].p_open)
                             if CImGui.BeginPopupContextItem()
-                                CImGui.MenuItem(stcstr(MORESTYLE.Icons.CloseFile, " 关闭")) && (dtv[1].noclose = false)
+                                CImGui.MenuItem(stcstr(MORESTYLE.Icons.CloseFile, " ", mlstr("Close"))) && (dtv[1].noclose = false)
                                 CImGui.EndPopup()
                             end
                         end
                     end
                     CImGui.EndMenu()
                 end
-                if CImGui.BeginMenu(stcstr(MORESTYLE.Icons.OpenFolder, " 打开文件夹"))
-                    isopenfolder = CImGui.MenuItem(stcstr(MORESTYLE.Icons.NewFile, " 新建"), "Ctrl+K")
+                if CImGui.BeginMenu(stcstr(MORESTYLE.Icons.OpenFolder, " ", mlstr("Open Folder")))
+                    isopenfolder = CImGui.MenuItem(stcstr(MORESTYLE.Icons.NewFile, " ", mlstr("New")), "Ctrl+K")
                     if true in [dtv[2].rootpath_bnm != "" for dtv in dtviewers]
                         CImGui.Separator()
-                        CImGui.TextColored(MORESTYLE.Colors.HighlightText, "已打开")
+                        CImGui.TextColored(MORESTYLE.Colors.HighlightText, mlstr("Opened"))
                     end
                     for (i, dtv) in enumerate(dtviewers)
                         CImGui.PushID(i)
                         if dtv[2].rootpath_bnm != ""
                             @c CImGui.MenuItem(basename(dtv[2].rootpath), C_NULL, &dtv[1].p_open)
                             if CImGui.BeginPopupContextItem()
-                                if CImGui.MenuItem(stcstr(MORESTYLE.Icons.InstrumentsAutoRef, " 刷新"))
+                                if CImGui.MenuItem(stcstr(MORESTYLE.Icons.InstrumentsAutoRef, " ", mlstr("Refresh")))
                                     dtv[2].filetrees = FolderFileTree(
                                         dtv[2].rootpath,
                                         dtv[2].selectedpath,
                                         dtv[2].filter
                                     ).filetrees
                                 end
-                                CImGui.MenuItem(stcstr(MORESTYLE.Icons.CloseFile, " 关闭")) && (dtv[1].noclose = false)
+                                CImGui.MenuItem(stcstr(MORESTYLE.Icons.CloseFile, " ", mlstr("Close"))) && (dtv[1].noclose = false)
                                 CImGui.EndPopup()
                             end
                         end
@@ -161,15 +161,29 @@ let
                     end
                     CImGui.EndMenu()
                 end
-                @c CImGui.MenuItem(stcstr(MORESTYLE.Icons.Preferences, " 首选项"), C_NULL, &show_preferences)
+                @c CImGui.MenuItem(stcstr(MORESTYLE.Icons.Preferences, " ", mlstr("Preferences")), C_NULL, &show_preferences)
                 CImGui.EndMenu()
             end
             #Instrument Menu
-            if CImGui.BeginMenu(stcstr(MORESTYLE.Icons.Instrumets, " 仪器 "))
-                @c CImGui.MenuItem(stcstr(MORESTYLE.Icons.InstrumentsRegister, " 仪器注册"), C_NULL, &show_instr_register)
-                @c CImGui.MenuItem(stcstr(MORESTYLE.Icons.CPUMonitor, " 仪器CPU监测"), C_NULL, &show_cpu_monitor)
-                if CImGui.BeginMenu(stcstr(MORESTYLE.Icons.InstrumentsSetting, " 仪器设置和状态"))
-                    @c CImGui.MenuItem(stcstr(MORESTYLE.Icons.InstrumentsOverview, " 总览"), C_NULL, &show_instr_buffer)
+            if CImGui.BeginMenu(stcstr(MORESTYLE.Icons.Instrumets, " ", mlstr("Instrument"), " "))
+                @c CImGui.MenuItem(
+                    stcstr(MORESTYLE.Icons.InstrumentsRegister, " ", mlstr("Instrument Registration")),
+                    C_NULL,
+                    &show_instr_register
+                )
+                @c CImGui.MenuItem(
+                    stcstr(MORESTYLE.Icons.CPUMonitor, " ", mlstr("Instrument CPU Monitor")),
+                    C_NULL,
+                    &show_cpu_monitor
+                )
+                if CImGui.BeginMenu(
+                    stcstr(MORESTYLE.Icons.InstrumentsSetting, " ", mlstr("Instrument Settings and Status"))
+                )
+                    @c CImGui.MenuItem(
+                        stcstr(MORESTYLE.Icons.InstrumentsOverview, " ", mlstr("Overview")),
+                        C_NULL,
+                        &show_instr_buffer
+                    )
                     CImGui.Separator()
                     for ins in keys(INSTRBUFFERVIEWERS)
                         if !isempty(INSTRBUFFERVIEWERS[ins])
@@ -181,7 +195,7 @@ let
                                     @c CImGui.MenuItem(addr, C_NULL, &ibv.p_open)
                                     if CImGui.BeginPopupContextItem()
                                         if CImGui.MenuItem(
-                                            stcstr(MORESTYLE.Icons.CloseFile, " 删除"),
+                                            stcstr(MORESTYLE.Icons.CloseFile, " ", mlstr("Delete")),
                                             C_NULL,
                                             false,
                                             ins != "VirtualInstr"
@@ -197,26 +211,32 @@ let
                     end
                     CImGui.EndMenu()
                 end
-                @c CImGui.MenuItem(stcstr(MORESTYLE.Icons.InstrumentsDAQ, " 数据采集"), C_NULL, &show_daq)
-                if CImGui.BeginMenu(stcstr(MORESTYLE.Icons.InstrumentsSeach, " 查找仪器"))
-                    CImGui.MenuItem(stcstr(MORESTYLE.Icons.InstrumentsAutoDetect, " 自动查询")) && refresh_instrlist()
+                @c CImGui.MenuItem(
+                    stcstr(MORESTYLE.Icons.InstrumentsDAQ, " ", mlstr("Data Acquiring")),
+                    C_NULL,
+                    &show_daq
+                )
+                if CImGui.BeginMenu(stcstr(MORESTYLE.Icons.InstrumentsSeach, " ", mlstr("Search Instruments")))
+                    CImGui.MenuItem(
+                        stcstr(MORESTYLE.Icons.InstrumentsAutoDetect, " ", mlstr("Auto Search"))
+                    ) && refresh_instrlist()
                     manualadd_ui()
                     CImGui.EndMenu()
                 end
                 CImGui.EndMenu()
             end
             #Help Menu
-            if CImGui.BeginMenu(stcstr(MORESTYLE.Icons.Help, " 帮助"))
-                @c CImGui.MenuItem(stcstr(MORESTYLE.Icons.Console, " 控制台"), C_NULL, &show_console)
-                @c CImGui.MenuItem(stcstr(MORESTYLE.Icons.Metrics, " 监测"), C_NULL, &show_metrics)
-                @c CImGui.MenuItem(stcstr(MORESTYLE.Icons.Logger, " 日志"), C_NULL, &show_logger)
+            if CImGui.BeginMenu(stcstr(MORESTYLE.Icons.Help, " ", mlstr("Help")))
+                @c CImGui.MenuItem(stcstr(MORESTYLE.Icons.Console, " ", mlstr("Console")), C_NULL, &show_console)
+                @c CImGui.MenuItem(stcstr(MORESTYLE.Icons.Metrics, " ", mlstr("Metrics")), C_NULL, &show_metrics)
+                @c CImGui.MenuItem(stcstr(MORESTYLE.Icons.Logger, " ", mlstr("Logger")), C_NULL, &show_logger)
                 # @c CImGui.MenuItem(MORESTYLE.Icons.HelpPad * " 帮助板", C_NULL, &show_helppad)
-                @c CImGui.MenuItem(stcstr(MORESTYLE.Icons.About, " 关于"), C_NULL, &show_about)
+                @c CImGui.MenuItem(stcstr(MORESTYLE.Icons.About, " ", mlstr("About")), C_NULL, &show_about)
                 CImGui.EndMenu()
             end
             ######自动查询仪器######
             if SYNCSTATES[Int(AutoDetecting)]
-                CImGui.TextColored(MORESTYLE.Colors.HighlightText, "查找仪器中......")
+                CImGui.TextColored(MORESTYLE.Colors.HighlightText, stcstr(mlstr("searching instruments"), "......"))
             end
             CImGui.EndMainMenuBar()
         end

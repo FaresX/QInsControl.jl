@@ -1,19 +1,19 @@
 # Add Instruments
 
 ## auto-detect
-One can click on "自动查询" to auto-detect the available instruments in NI MAX. 
+One can click on **Auto Search** to auto-detect the available instruments in NI MAX. 
 
 ![image](assets/auto-detect.png)
 
 ## muanully add
-Or manually add an instrument through clicking on "手动输入" after filling the address and clicking on "添加" in
+Or manually add an instrument through clicking on **Manual Input** after filling the address and clicking on **Add** in
 the end. 
 
 ![image](assets/manually-add.png)
 
 # Control the Instruments
 
-Once adding instruments finishes, one can click "仪器设置和状态" to query the state of specific instrument or set it.
+Once adding instruments finishes, one can click **Instrument Settings and Status** to query the status of specific instrument or set it.
 The controllable variables are classified by three types: sweep, set, read. 
 
 ## sweep
@@ -36,23 +36,27 @@ All these variables support selecting unit and whether it will auto update the s
 
 # Data Aquiring
 
-Clicking on "仪器 -> 数据采集" to do data aquiring
+Clicking on **Instrument** -> **Data Acquiring** to do data aquiring
 
 ![image](assets/DAQ.png)
 
-"工作区" : select root folder for saving data. Data will be stored as
+**Workplace** : select root folder for saving data. Data will be stored as
 ```
 root folder/year/month/day/[time] task name.qdt
 ```
-"任务 1" : represent a task script to aquire data. One can click it to edit the script or right click for more options.
+**Task 1** : represent a task script to aquire data. One can click it to edit the script or right click for more options.
 
-microchip : click it to edit circuit for recording measurement configuration.
+**microchip** : click it to edit circuit for recording measurement configuration.
 
-"全部运行" : run all the available tasks in a top-down order
+**Run All** : run all the available tasks in a top-down order
 
-"暂停" : suspend the running task
+**Pause** : suspend the running task
 
-"中断" : stop the running task
+**Interrupt** : stop the running task
+
+## Edit circuit
+![image](assets/circuit.png)
+QInsControl provides a simple record manner for circuit in an experiment. For a samplebase, one can right click to load a sample image and then add some pins to match the real configuration and these pins can be dragged to the position in demand. For other nodes, one can easily right click to add or modify to satisfy the specified requirements.
 
 ## Edit script
 
@@ -84,7 +88,7 @@ able to be used to interpolate like in julia.
 ### ReadingBlock
 ![image](assets/ReadingBlock.png)
 
-"索引" is used to split the data by ",". When data do not include delimiter, leave it blank. "标注" is used to name the 
+*Index* is used to split the data by ",". When data do not include delimiter, leave it blank. *mark* is used to name the 
 recorded data. When data format includes delimiter, one can use "," to seperate multiple marks.
 
 ### LogBlock
@@ -111,7 +115,7 @@ Read the specified instrument.
 ### SaveBlock
 ![image](assets/SaveBlock.png)
 
-It is used to save a variable defined in the context. "标注" is an optional input to specify the name to be stored. When
+It is used to save a variable defined in the context. *mark* is an optional input to specify the name to be stored. When
 it is blank, the name will be the same as the variable.
 
 ## note
@@ -127,9 +131,9 @@ this almost always speeds up the measurement.
 ## Example
 ![image](assets/example-script.png)
 
-This panel includes a title of the editing task, a "HOLD" checkbox to set the panel no-close when selected, an inputable
-region to record something necessary, a button "刷新仪器列表" with the same functionality as previous menu, an "Edit" or 
-"View" checkbox to change the editing mode and finally a region to write your own script.
+This panel includes a title of the editing task, a **HOLD** checkbox to set the panel no-close when selected, an inputable
+region to record something necessary, a button **Refresh Instrument list** with the same functionality as previous menu, an **Edit** or 
+**View** checkbox to change the editing mode and finally a region to write your own script.
 
 This script includes two loop structures. The outter one is constructed by a StrideCodeBlock with code
 ```julia
@@ -159,6 +163,6 @@ and plots. One example file [demo.daq](../../example) can be found in example fo
 
 # Data Reviewing
 
-Click on "文件 -> "打开文件"("打开文件夹") to open saved files. Here One can review the content stored in the file
-includes the states of instruments, the script, the circuit, the data and the plots. Right click on the tabbar "绘图"
+Click on **File** -> **Open File**(**Open Folder**) to open saved files. Here One can review the content stored in the file
+includes the states of instruments, the script, the circuit, the data and the plots. Right click on the tabbar **Plots**
 can modify the plots.

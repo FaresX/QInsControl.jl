@@ -51,9 +51,9 @@ function updatefront!(qt::InstrQuantity, ::Val{:sweep})
     val, U = getvalU(qt)
     content = string(
         qt.alias,
-        "\n步长：", qt.step, " ", U,
-        "\n终点：", qt.stop, " ", U,
-        "\n延迟：", qt.delay, " s\n",
+        "\n", mlstr("step"), ": ", qt.step, " ", U,
+        "\n", mlstr("stop"), ": ", qt.stop, " ", U,
+        "\n", mlstr("delay"), ": ", qt.delay, " s\n",
         val, " ", U
     ) |> centermultiline
     qt.show_edit = string(content, "###for refresh")
@@ -65,7 +65,13 @@ function updatefront!(qt::InstrQuantity, ::Val{:set})
         validx = findfirst(==(val), qt.optvalues)
         val = string(qt.optkeys[validx], " => ", qt.optvalues[validx])
     end
-    content = string(qt.alias, "\n \n设置值：", qt.set, " ", U, "\n \n", val, " ", U) |> centermultiline
+    content = string(
+        qt.alias,
+        "\n \n",
+        mlstr("set value"), ": ", qt.set, " ", U,
+        "\n \n",
+        val, " ", U
+    ) |> centermultiline
     qt.show_edit = string(content, "###for refresh")
 end
 
@@ -98,7 +104,7 @@ end
 InstrBuffer() = InstrBuffer("", OrderedDict(), false, "", false)
 
 function InstrBuffer(instrnm)
-    haskey(insconf, instrnm) || @error "[$(now())]\n不支持的仪器!!!" instrument = instrnm
+    haskey(insconf, instrnm) || @error "[$(now())]\n$(mlstr("unsupported instrument!!!"))" instrument = instrnm
     sweepqts = [qt for qt in keys(insconf[instrnm].quantities) if insconf[instrnm].quantities[qt].type == "sweep"]
     setqts = [qt for qt in keys(insconf[instrnm].quantities) if insconf[instrnm].quantities[qt].type == "set"]
     readqts = [qt for qt in keys(insconf[instrnm].quantities) if insconf[instrnm].quantities[qt].type == "read"]
@@ -169,7 +175,7 @@ function edit(ibv::InstrBufferViewer)
             CImGui.OpenPopupOnItemClick("rightclick")
         end
         if CImGui.BeginPopup("rightclick")
-            if CImGui.MenuItem(stcstr(MORESTYLE.Icons.InstrumentsManualRef, " 手动刷新"), "F5")
+            if CImGui.MenuItem(stcstr(MORESTYLE.Icons.InstrumentsManualRef, " ", mlstr("manual refresh")), "F5")
                 ibv.insbuf.isautorefresh = true
                 manualrefresh()
                 for ins in keys(INSTRBUFFERVIEWERS)
@@ -180,10 +186,10 @@ function edit(ibv::InstrBufferViewer)
                     end
                 end
             end
-            CImGui.Text(stcstr(MORESTYLE.Icons.InstrumentsAutoRef, " 自动刷新"))
+            CImGui.Text(stcstr(MORESTYLE.Icons.InstrumentsAutoRef, " ", mlstr("auto refresh")))
             CImGui.SameLine()
             isautoref = SYNCSTATES[Int(IsAutoRefreshing)]
-            @c CImGui.Checkbox("##自动刷新", &isautoref)
+            @c CImGui.Checkbox("##auto refresh", &isautoref)
             SYNCSTATES[Int(IsAutoRefreshing)] = isautoref
             ibv.insbuf.isautorefresh = SYNCSTATES[Int(IsAutoRefreshing)]
             if isautoref
@@ -192,17 +198,21 @@ function edit(ibv::InstrBufferViewer)
                 CImGui.SameLine()
                 CImGui.PushItemWidth(CImGui.GetFontSize() * 2)
                 @c CImGui.DragFloat(
-                    "##自动刷新",
+                    "##auto refresh",
                     &CONF.InsBuf.refreshrate,
                     0.1, 0.1, 60, "%.1f",
                     CImGui.ImGuiSliderFlags_AlwaysClamp
                 )
                 CImGui.PopItemWidth()
             end
-            CImGui.Text(stcstr(MORESTYLE.Icons.ShowCol, " 显示列数"))
+            CImGui.Text(stcstr(MORESTYLE.Icons.ShowCol, " ", mlstr("display columns")))
             CImGui.SameLine()
             CImGui.PushItemWidth(3CImGui.GetFontSize() / 2)
-            @c CImGui.DragInt("##显示列数", &CONF.InsBuf.showcol, 1, 1, 12, "%d", CImGui.ImGuiSliderFlags_AlwaysClamp)
+            @c CImGui.DragInt(
+                "##display columns",
+                &CONF.InsBuf.showcol, 1, 1, 12, "%d",
+                CImGui.ImGuiSliderFlags_AlwaysClamp
+            )
             CImGui.PopItemWidth()
             CImGui.EndPopup()
         end
@@ -220,12 +230,15 @@ let
     default_insbufs = Dict{String,InstrBuffer}()
     global function ShowInstrBuffer(p_open::Ref)
         CImGui.SetNextWindowSize((800, 600), CImGui.ImGuiCond_Once)
-        if CImGui.Begin(stcstr(MORESTYLE.Icons.InstrumentsOverview, "  仪器设置和状态"), p_open)
+        if CImGui.Begin(
+            stcstr(MORESTYLE.Icons.InstrumentsOverview, "  ", mlstr("Instrument Settings and Status"), "###insbuf"),
+            p_open
+        )
             CImGui.Columns(2)
             firsttime && (CImGui.SetColumnOffset(1, CImGui.GetWindowWidth() * 0.25); firsttime = false)
-            CImGui.BeginChild("仪器列表")
+            CImGui.BeginChild("instrument list")
             CImGui.Selectable(
-                stcstr(MORESTYLE.Icons.InstrumentsOverview, " 总览"),
+                stcstr(MORESTYLE.Icons.InstrumentsOverview, " ", mlstr("Overview")),
                 selectedins == ""
             ) && (selectedins = "")
             for ins in keys(INSTRBUFFERVIEWERS)
@@ -235,7 +248,7 @@ let
             end
             CImGui.EndChild()
             if CImGui.BeginPopupContextItem()
-                if CImGui.MenuItem(stcstr(MORESTYLE.Icons.InstrumentsManualRef, " 手动刷新"), "F5")
+                if CImGui.MenuItem(stcstr(MORESTYLE.Icons.InstrumentsManualRef, " ", mlstr("manual refresh")), "F5")
                     manualrefresh()
                     for ins in keys(INSTRBUFFERVIEWERS)
                         for (_, ibv) in INSTRBUFFERVIEWERS[ins]
@@ -245,10 +258,10 @@ let
                         end
                     end
                 end
-                CImGui.Text(stcstr(MORESTYLE.Icons.InstrumentsAutoRef, " 自动刷新"))
+                CImGui.Text(stcstr(MORESTYLE.Icons.InstrumentsAutoRef, " ", mlstr("auto refresh")))
                 CImGui.SameLine()
                 isautoref = SYNCSTATES[Int(IsAutoRefreshing)]
-                @c CImGui.Checkbox("##自动刷新", &isautoref)
+                @c CImGui.Checkbox("##auto refresh", &isautoref)
                 SYNCSTATES[Int(IsAutoRefreshing)] = isautoref
                 if isautoref
                     CImGui.SameLine()
@@ -256,18 +269,18 @@ let
                     CImGui.SameLine()
                     CImGui.PushItemWidth(CImGui.GetFontSize() * 2)
                     @c CImGui.DragFloat(
-                        "##自动刷新",
+                        "##auto refresh",
                         &CONF.InsBuf.refreshrate,
                         0.1, 0.1, 60, "%.1f",
                         CImGui.ImGuiSliderFlags_AlwaysClamp
                     )
                     CImGui.PopItemWidth()
                 end
-                CImGui.Text(stcstr(MORESTYLE.Icons.ShowCol, " 显示列数"))
+                CImGui.Text(stcstr(MORESTYLE.Icons.ShowCol, " ", mlstr("display columns")))
                 CImGui.SameLine()
                 CImGui.PushItemWidth(3CImGui.GetFontSize() / 2)
                 @c CImGui.DragInt(
-                    "##显示列数",
+                    "##display columns",
                     &CONF.InsBuf.showcol,
                     1, 1, 12, "%d",
                     CImGui.ImGuiSliderFlags_AlwaysClamp
@@ -277,15 +290,15 @@ let
             end
             CImGui.IsKeyReleased(294) && manualrefresh()
             CImGui.NextColumn()
-            CImGui.BeginChild("设置选项")
+            CImGui.BeginChild("setings")
             haskey(INSTRBUFFERVIEWERS, selectedins) || (selectedins = "")
             if selectedins == ""
                 for ins in keys(INSTRBUFFERVIEWERS)
-                    CImGui.TextColored(MORESTYLE.Colors.HighlightText, stcstr(ins, "："))
+                    CImGui.TextColored(MORESTYLE.Colors.HighlightText, stcstr(ins, ": "))
                     for (addr, ibv) in INSTRBUFFERVIEWERS[ins]
                         CImGui.Text(stcstr("\t\t", addr, "\t\t"))
                         CImGui.SameLine()
-                        @c CImGui.Checkbox(stcstr("##是否自动刷新", addr), &ibv.insbuf.isautorefresh)
+                        @c CImGui.Checkbox(stcstr("##if auto refresh", addr), &ibv.insbuf.isautorefresh)
                         if ins != "VirtualInstr"
                             CImGui.SameLine()
                             CImGui.Button(
@@ -298,7 +311,7 @@ let
             else
                 showinslist::Set = @trypass keys(INSTRBUFFERVIEWERS[selectedins]) Set{String}()
                 CImGui.PushItemWidth(-CImGui.GetFontSize() * 2.5)
-                @c ComBoS("地址", &selectedaddr, showinslist)
+                @c ComBoS(mlstr("address"), &selectedaddr, showinslist)
                 CImGui.PopItemWidth()
                 CImGui.Separator()
                 @c testcmd(selectedins, selectedaddr, &inputcmd, &readstr)
@@ -315,18 +328,19 @@ let
 end #let    
 
 function testcmd(ins, addr, inputcmd::Ref{String}, readstr::Ref{String})
-    if CImGui.CollapsingHeader("\t指令测试")
-        y = (1 + length(findall("\n", inputcmd[]))) * CImGui.GetTextLineHeight() + 2unsafe_load(IMGUISTYLE.FramePadding.y)
-        InputTextMultilineRSZ("##输入命令", inputcmd, (Float32(-1), y))
+    if CImGui.CollapsingHeader(stcstr("\t", mlstr("Command Test")))
+        y = (1 + length(findall("\n", inputcmd[]))) * CImGui.GetTextLineHeight() +
+            2unsafe_load(IMGUISTYLE.FramePadding.y)
+        InputTextMultilineRSZ("##input cmd", inputcmd, (Float32(-1), y))
         if CImGui.BeginPopupContextItem()
-            CImGui.MenuItem("清空") && (inputcmd[] = "")
+            CImGui.MenuItem(mlstr("clear")) && (inputcmd[] = "")
             CImGui.EndPopup()
         end
         TextRect(stcstr(readstr[], "\n "))
-        CImGui.BeginChild("对齐按钮", (Float32(0), CImGui.GetFrameHeightWithSpacing()))
+        CImGui.BeginChild("align buttons", (Float32(0), CImGui.GetFrameHeightWithSpacing()))
         CImGui.PushStyleVar(CImGui.ImGuiStyleVar_FrameRounding, 12)
         CImGui.Columns(3, C_NULL, false)
-        if CImGui.Button(stcstr(MORESTYLE.Icons.WriteBlock, "  Write"), (-1, 0))
+        if CImGui.Button(stcstr(MORESTYLE.Icons.WriteBlock, "  ", mlstr("Write")), (-1, 0))
             if addr != ""
                 remotecall_wait(workers()[1], ins, addr, inputcmd[]) do ins, addr, inputcmd
                     ct = Controller(ins, addr)
@@ -335,14 +349,18 @@ function testcmd(ins, addr, inputcmd::Ref{String}, readstr::Ref{String})
                         ct(write, CPU, inputcmd, Val(:write))
                         logout!(CPU, ct)
                     catch e
-                        @error "[$(now())]\n仪器通信故障！！！" instrument = string(ins, ": ", addr) exception = e
+                        @error(
+                            "[$(now())]\n$(mlstr("instrument communication failed!!!"))",
+                            instrument = string(ins, ": ", addr),
+                            exception = e
+                        )
                         logout!(CPU, ct)
                     end
                 end
             end
         end
         CImGui.NextColumn()
-        if CImGui.Button(stcstr(MORESTYLE.Icons.QueryBlock, "  Query"), (-1, 0))
+        if CImGui.Button(stcstr(MORESTYLE.Icons.QueryBlock, "  ", mlstr("Query")), (-1, 0))
             if addr != ""
                 fetchdata = remotecall_fetch(workers()[1], ins, addr, inputcmd[]) do ins, addr, inputcmd
                     ct = Controller(ins, addr)
@@ -352,7 +370,11 @@ function testcmd(ins, addr, inputcmd::Ref{String}, readstr::Ref{String})
                         logout!(CPU, ct)
                         return readstr
                     catch e
-                        @error "[$(now())]\n仪器通信故障！！！" instrument = string(ins, ": ", addr) exception = e
+                        @error(
+                            "[$(now())]\n$(mlstr("instrument communication failed!!!"))",
+                            instrument = string(ins, ": ", addr),
+                            exception = e
+                        )
                         logout!(CPU, ct)
                     end
                 end
@@ -360,7 +382,7 @@ function testcmd(ins, addr, inputcmd::Ref{String}, readstr::Ref{String})
             end
         end
         CImGui.NextColumn()
-        if CImGui.Button(stcstr(MORESTYLE.Icons.ReadBlock, "  Read"), (-1, 0))
+        if CImGui.Button(stcstr(MORESTYLE.Icons.ReadBlock, "  ", mlstr("Read")), (-1, 0))
             if addr != ""
                 fetchdata = remotecall_fetch(workers()[1], ins, addr) do ins, addr
                     ct = Controller(ins, addr)
@@ -370,7 +392,11 @@ function testcmd(ins, addr, inputcmd::Ref{String}, readstr::Ref{String})
                         logout!(CPU, ct)
                         return readstr
                     catch e
-                        @error "[$(now())]\n仪器通信故障！！！" instrument = string(ins, ": ", addr) exception = e
+                        @error(
+                            "[$(now())]\n$(mlstr("instrument communication failed!!!"))",
+                            instrument = string(ins, ": ", addr),
+                            exception = e
+                        )
                         logout!(CPU, ct)
                     end
                 end
@@ -390,11 +416,10 @@ function edit(insbuf::InstrBuffer, addr)
     CImGui.PushID(addr)
     @c(InputTextRSZ("##filterqt", &insbuf.filter)) && update_passfilter!(insbuf)
     CImGui.SameLine()
-    if insbuf.filtervarname
-        @c(CImGui.Checkbox("筛选变量", &insbuf.filtervarname)) && update_passfilter!(insbuf)
-    else
-        @c(CImGui.Checkbox("筛选别称", &insbuf.filtervarname)) && update_passfilter!(insbuf)
-    end
+    @c(CImGui.Checkbox(
+        insbuf.filtervarname ? mlstr("Filter variables") : mlstr("Filter aliases"),
+        &insbuf.filtervarname
+    )) && update_passfilter!(insbuf)
     CImGui.BeginChild("InstrBuffer")
     CImGui.Columns(CONF.InsBuf.showcol, C_NULL, false)
     for (i, qt) in enumerate(values(insbuf.quantities))
@@ -462,16 +487,16 @@ let
             ItemTooltip(qt.help)
         end
         if CImGui.BeginPopupContextItem()
-            @c InputTextWithHintRSZ("##步长", "步长", &qt.step)
-            @c InputTextWithHintRSZ("##终点", "终点", &qt.stop)
-            @c CImGui.DragFloat("##延迟", &qt.delay, 1.0, 0.05, 60, "%.3f", CImGui.ImGuiSliderFlags_AlwaysClamp)
+            @c InputTextWithHintRSZ("##step", mlstr("step"), &qt.step)
+            @c InputTextWithHintRSZ("##stop", mlstr("stop"), &qt.stop)
+            @c CImGui.DragFloat("##delay", &qt.delay, 1.0, 0.05, 60, "%.3f", CImGui.ImGuiSliderFlags_AlwaysClamp)
             if qt.issweeping
-                if CImGui.Button(" 结束 ", (-1, 0))
+                if CImGui.Button(mlstr(" Stop "), (-1, 0))
                     qt.issweeping = false
                     CImGui.CloseCurrentPopup()
                 end
             else
-                if CImGui.Button(" 开始 ", (-1, 0)) || CImGui.IsKeyDown(257) || CImGui.IsKeyDown(335)
+                if CImGui.Button(mlstr(" Start "), (-1, 0)) || CImGui.IsKeyDown(257) || CImGui.IsKeyDown(335)
                     if addr != ""
                         Us = CONF.U[qt.utype]
                         U = isempty(Us) ? "" : Us[qt.uindex]
@@ -486,7 +511,7 @@ let
                                 return parse(Float64, readstr)
                             catch e
                                 @error(
-                                    "[$(now())]\nstart获取错误！！！",
+                                    "[$(now())]\n$(mlstr("error getting start value!!!"))",
                                     instrument = string(instrnm, "-", addr),
                                     exception = e
                                 )
@@ -494,10 +519,10 @@ let
                             end
                         end
                         step = @trypasse eval(Meta.parse(qt.step)) * Uchange begin
-                            @error "[$(now())]\nstep解析错误！！！" step = qt.step
+                            @error "[$(now())]\n$(mlstr("error parsing step value!!!"))" step = qt.step
                         end
                         stop = @trypasse eval(Meta.parse(qt.stop)) * Uchange begin
-                            @error "[$(now())]\nstop解析错误！！！" stop = qt.stop
+                            @error "[$(now())]\n$(mlstr("error parsing stop value!!!"))" stop = qt.stop
                         end
                         if !(isnothing(start) || isnothing(step) || isnothing(stop))
                             if CONF.DAQ.equalstep
@@ -530,7 +555,7 @@ let
                                     end
                                 catch e
                                     @error(
-                                        "[$(now())]\n仪器通信故障！！！",
+                                        "[$(now())]\n$(mlstr("instrument communication failed!!!"))",
                                         instrument = string(instrnm, ": ", addr),
                                         quantity = qt.name,
                                         exception = e
@@ -549,13 +574,13 @@ let
                     CImGui.CloseCurrentPopup()
                 end
             end
-            CImGui.Text("单位 ")
+            CImGui.Text(stcstr(mlstr("unit"), " "))
             CImGui.SameLine()
             CImGui.PushItemWidth(6CImGui.GetFontSize())
             @c ShowUnit("##insbuf", qt.utype, &qt.uindex)
             CImGui.PopItemWidth()
             CImGui.SameLine(0, 2CImGui.GetFontSize())
-            @c CImGui.Checkbox("刷新", &qt.isautorefresh)
+            @c CImGui.Checkbox(mlstr("refresh"), &qt.isautorefresh)
             CImGui.EndPopup()
             updatefront!(qt)
         end
@@ -586,9 +611,9 @@ let
             ItemTooltip(qt.help)
         end
         if CImGui.BeginPopupContextItem()
-            @c InputTextWithHintRSZ("##设置", "设置值", &qt.set)
+            @c InputTextWithHintRSZ("##set", mlstr("set value"), &qt.set)
             if CImGui.Button(
-                   " 确认 ",
+                   stcstr(" ", mlstr("Confirm"), " "),
                    (-Cfloat(0.1), Cfloat(0))
                ) || triggerset || CImGui.IsKeyDown(257) || CImGui.IsKeyDown(335)
                 triggerset = false
@@ -610,7 +635,7 @@ let
                             return readstr
                         catch e
                             @error(
-                                "[$(now())]\n仪器通信故障！！！",
+                                "[$(now())]\n$(mlstr("instrument communication failed!!!"))",
                                 instrument = string(instrnm, ": ", addr),
                                 quantity = qt.name,
                                 exception = e
@@ -641,13 +666,13 @@ let
                 @c(CImGui.RadioButton(qt.optkeys[i], &qt.optedidx, i)) && (qt.set = optv; triggerset = true)
             end
             CImGui.EndGroup()
-            CImGui.Text("单位 ")
+            CImGui.Text(stcstr(mlstr("unit"), " "))
             CImGui.SameLine()
             CImGui.PushItemWidth(6CImGui.GetFontSize())
             @c ShowUnit("##insbuf", qt.utype, &qt.uindex)
             CImGui.PopItemWidth()
             CImGui.SameLine(0, 2CImGui.GetFontSize())
-            @c CImGui.Checkbox("刷新", &qt.isautorefresh)
+            @c CImGui.Checkbox(mlstr("refresh"), &qt.isautorefresh)
             CImGui.EndPopup()
             updatefront!(qt)
         end
@@ -678,13 +703,13 @@ let
             ItemTooltip(qt.help)
         end
         if CImGui.BeginPopupContextItem()
-            CImGui.Text("单位 ")
+            CImGui.Text(stcstr(mlstr("unit"), " "))
             CImGui.SameLine()
             CImGui.PushItemWidth(6CImGui.GetFontSize())
             @c ShowUnit("##insbuf", qt.utype, &qt.uindex)
             CImGui.PopItemWidth()
             CImGui.SameLine(0, 2CImGui.GetFontSize())
-            @c CImGui.Checkbox("刷新", &qt.isautorefresh)
+            @c CImGui.Checkbox(mlstr("refresh"), &qt.isautorefresh)
             CImGui.EndPopup()
             updatefront!(qt)
         end
@@ -740,7 +765,12 @@ function refresh_qt(instrnm, addr, qtnm)
             logout!(CPU, ct)
             return readstr
         catch e
-            @error "[$(now())]\n仪器通信故障！！！" instrument = string(instrnm, ": ", addr) quantity = qtnm exception = e
+            @error(
+                "[$(now())]\n$(mlstr("instrument communication failed!!!"))",
+                instrument = string(instrnm, ": ", addr),
+                quantity = qtnm,
+                exception = e
+            )
             logout!(CPU, ct)
         end
     end
@@ -748,7 +778,7 @@ end
 
 function log_instrbufferviewers()
     manualrefresh()
-    push!(CFGBUF, "INSTRBUFFERVIEWERS/[$(now())]" => deepcopy(INSTRBUFFERVIEWERS))
+    push!(CFGBUF, "instrbufferviewers/[$(now())]" => deepcopy(INSTRBUFFERVIEWERS))
 end
 
 function refresh_fetch_ibvs(ibvs_local; log=false)
@@ -773,7 +803,11 @@ function refresh_fetch_ibvs(ibvs_local; log=false)
                             end
                             logout!(CPU, cts[ins][addr])
                         catch e
-                            @error "[$(now())]\n仪器通信故障！！！" instrument = string(ins, ": ", addr) exception = e
+                            @error(
+                                "[$(now())]\n$(mlstr("instrument communication failed!!!"))",
+                                instrument = string(ins, ": ", addr),
+                                exception = e
+                            )
                             logout!(CPU, cts[ins][addr])
                             for (_, qt) in ibv.insbuf.quantities
                                 qt.read = ""

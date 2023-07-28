@@ -1,4 +1,4 @@
-function UI(breakdown=false)
+function UI(breakdown=false; precompile=false)
     glfwDefaultWindowHints()
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3)
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 2)
@@ -34,7 +34,7 @@ function UI(breakdown=false)
             global BGID = ImGui_ImplOpenGL3_CreateImageTexture(bgsize...; format=GL_RGB)
             ImGui_ImplOpenGL3_UpdateImageTexture(BGID, bgimg, bgsize...; format=GL_RGB)
         catch e
-            @error "[$now()]\n加载背景出错！！！" exception = e
+            @error "[$now()]\n$(mlstr("loading wallpaper failed!!!"))" exception = e
             global BGID = ImGui_ImplOpenGL3_CreateImageTexture(CONF.Basic.windowsize...; format=GL_RGB)
         end
     else
@@ -163,8 +163,11 @@ function UI(breakdown=false)
 
             MainWindow()
             if CImGui.BeginPopupModal("##windowshouldclose?", C_NULL, CImGui.ImGuiWindowFlags_AlwaysAutoResize)
-                CImGui.TextColored(MORESTYLE.Colors.LogError, "\n\n正在进行数据采集，请稍等。。。\n\n\n")
-                CImGui.Button("确认", (-1, 0)) && CImGui.CloseCurrentPopup()
+                CImGui.TextColored(
+                    MORESTYLE.Colors.LogError,
+                    stcstr("\n\n", mlstr("data acqiring, please wait......"), "\n\n\n")
+                )
+                CImGui.Button(mlstr("Confirm"), (-1, 0)) && CImGui.CloseCurrentPopup()
                 CImGui.EndPopup()
             end
             if glfwWindowShouldClose(window) != 0
@@ -198,10 +201,11 @@ function UI(breakdown=false)
 
             glfwSwapBuffers(window)
             GC.safepoint()
+            precompile && CImGui.GetFrameCount() > 36 && break
             yield()
         end
     catch e
-        @error "[$(now())]\nError in renderloop!" exception = e
+        @error "[$(now())]\n$(mlstr("Error in renderloop!"))" exception = e
         Base.show_backtrace(stderr, catch_backtrace())
     finally
         SYNCSTATES[Int(IsDAQTaskRunning)] || remotecall_wait(() -> stop!(CPU), workers()[1])

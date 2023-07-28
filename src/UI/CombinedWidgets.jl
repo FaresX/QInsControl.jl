@@ -91,7 +91,7 @@ end
 function ShowUnit(id, utype, ui::Ref, flags=CImGui.ImGuiComboFlags_NoArrowButton)
     units = string.(CONF.U[utype])
     showu = @trypass units[ui.x] ""
-    if CImGui.BeginCombo(stcstr("##单位", id), showu, flags)
+    if CImGui.BeginCombo(stcstr("##unit", id), showu, flags)
         for u in eachindex(units)
             local selected = ui.x == u
             CImGui.Selectable(units[u], selected) && (ui.x = u)
@@ -170,9 +170,9 @@ end
 function YesNoDialog(id, msg, flags=0)::Bool
     if CImGui.BeginPopupModal(id, C_NULL, flags)
         CImGui.TextColored(MORESTYLE.Colors.LogError, string("\n", msg, "\n\n"))
-        CImGui.Button("确认") && (CImGui.CloseCurrentPopup(); return true)
+        CImGui.Button(mlstr("Confirm")) && (CImGui.CloseCurrentPopup(); return true)
         CImGui.SameLine(240)
-        CImGui.Button("取消") && (CImGui.CloseCurrentPopup(); return false)
+        CImGui.Button(mlstr("Cancel")) && (CImGui.CloseCurrentPopup(); return false)
         CImGui.EndPopup()
     end
     return false
@@ -247,7 +247,7 @@ function edit(
     editlabels = @. lo.labels * " " * lo.marks * "###for rename" * lo.labels
     @c MultiSelectable(rightclickmenu, lo.id, editlabels, lo.states, lo.showcol, &lo.idxing, size)
     CImGui.Separator()
-    CImGui.Text("布局")
+    CImGui.Text(mlstr("layout"))
     selectedlabels_old = copy(lo.selectedlabels)
     if lo.states != states_old || lo.marks != marks_old
         editlabels = @. lo.labels * " " * lo.marks

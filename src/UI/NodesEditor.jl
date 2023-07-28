@@ -16,7 +16,7 @@ end
 Node() = Node(1, "Node 1", "", [1001], ["Input 1"], [1101], ["Output 1"], Set(), (0, 0))
 Node(id) = Node(
     id,
-    MORESTYLE.Icons.CommonNode * " Node $id",
+    string(MORESTYLE.Icons.CommonNode, " ", mlstr("Universal Node"), id),
     "",
     [id * 1000 + 1],
     ["Input 1"],
@@ -27,7 +27,7 @@ Node(id) = Node(
 )
 Node(id, ::Val{:ground}) = Node(
     id,
-    MORESTYLE.Icons.GroundNode * " 接地头 0Ω",
+    MORESTYLE.Icons.GroundNode * " " * mlstr("Ground End") * " 0Ω",
     "",
     [],
     [],
@@ -38,7 +38,7 @@ Node(id, ::Val{:ground}) = Node(
 )
 Node(id, ::Val{:resistance}) = Node(
     id,
-    MORESTYLE.Icons.ResistanceNode * " 电阻 10MΩ",
+    MORESTYLE.Icons.ResistanceNode * " " * mlstr("Resistance") * " 10MΩ",
     "",
     [id * 1000 + 1],
     ["Input 1"],
@@ -49,7 +49,7 @@ Node(id, ::Val{:resistance}) = Node(
 )
 Node(id, ::Val{:trilink21}) = Node(
     id,
-    MORESTYLE.Icons.TrilinkNode * " 三通21",
+    MORESTYLE.Icons.TrilinkNode * " " * mlstr("Trilink") * "21",
     "",
     [id * 1000 + 1, id * 1000 + 2],
     ["Input 1", "Input 2"],
@@ -60,7 +60,7 @@ Node(id, ::Val{:trilink21}) = Node(
 )
 Node(id, ::Val{:trilink12}) = Node(
     id,
-    MORESTYLE.Icons.TrilinkNode * " 三通12",
+    MORESTYLE.Icons.TrilinkNode * " " * mlstr("Trilink") * "12",
     "",
     [id * 1000 + 1],
     ["Input 1"],
@@ -139,7 +139,9 @@ mutable struct SampleBaseNode <: AbstractNode
     position::CImGui.ImVec2
     imgr::ImageRegion
 end
-SampleBaseNode() = SampleBaseNode(1, MORESTYLE.Icons.SampleBaseNode*"样品座", "", [], [], [], Set(), (0, 0), ImageRegion())
+SampleBaseNode() = SampleBaseNode(
+    1, MORESTYLE.Icons.SampleBaseNode * " " * mlstr("Samplebase"), "", [], [], [], Set(), (0, 0), ImageRegion()
+)
 function SampleBaseNode(id)
     node = SampleBaseNode()
     node.id = id
@@ -274,8 +276,8 @@ function draw(imgr::ImageRegion)
         draw(pin)
         pin.hovered_in && CImGui.IsMouseClicked(1) && CImGui.OpenPopup(stcstr("editpin", pin.pos))
         if CImGui.BeginPopup(stcstr("editpin", pin.pos))
-            @c CImGui.InputInt("阵脚", &pin.link_idx)
-            @c CImGui.DragFloat("大小", &pin.radius, 1.0, 1, 100, "%.3f", CImGui.ImGuiSliderFlags_AlwaysClamp)
+            @c CImGui.InputInt(mlstr("pin"), &pin.link_idx)
+            @c CImGui.DragFloat(mlstr("size"), &pin.radius, 1.0, 1, 100, "%.3f", CImGui.ImGuiSliderFlags_AlwaysClamp)
             CImGui.SameLine()
             CImGui.Button(MORESTYLE.Icons.CloseFile) && (deleteat!(imgr.pins, i); deleteat!(imgr.pin_relds, i))
             CImGui.EndPopup()
@@ -347,7 +349,7 @@ let
                     all(map(x -> !x.hovered_in, imgr.pins)) && all(map(x -> !x.hovered_out, imgr.pins))
         openpopup && CImGui.OpenPopup(stcstr("editimage", imgr.id))
         if CImGui.BeginPopup(stcstr("editimage", imgr.id))
-            if CImGui.MenuItem(stcstr(MORESTYLE.Icons.Load, "加载"))
+            if CImGui.MenuItem(stcstr(MORESTYLE.Icons.Load, " ", mlstr("Load")))
                 imgpath = pick_file(filterlist="png,jpg,jpeg,tif,bmp")
                 if isfile(imgpath)
                     try
@@ -357,13 +359,17 @@ let
                         ImGui_ImplOpenGL3_UpdateImageTexture(imgr.id, img, imgsize...)
                         imgr.image = img
                     catch e
-                        @error "[$(now())]\n加载图像出错！！！" exception = e
+                        @error "[$(now())]\n$(mlstr("loading image failed!!!"))" exception = e
                     end
                 end
             end
-            if CImGui.CollapsingHeader("阵脚")
-                @c CImGui.InputInt("阵脚", &pinbuf.link_idx)
-                @c CImGui.DragFloat("大小", &pinbuf.radius, 1.0, 1, 100, "%.3f", CImGui.ImGuiSliderFlags_AlwaysClamp)
+            if CImGui.CollapsingHeader(mlstr("Pin"))
+                @c CImGui.InputInt(mlstr("pin"), &pinbuf.link_idx)
+                @c CImGui.DragFloat(
+                    mlstr("size"),
+                    &pinbuf.radius, 1.0, 1, 100, "%.3f",
+                    CImGui.ImGuiSliderFlags_AlwaysClamp
+                )
                 pinbuf.pos = CImGui.GetMousePosOnOpeningCurrentPopup()
                 CImGui.SameLine()
                 if CImGui.Button(MORESTYLE.Icons.NewFile * "##imgpin")
@@ -448,37 +454,37 @@ let
         !(isanynodehovered || isanylinkhovered) && CImGui.IsMouseDoubleClicked(0) && imnodes_EditorContextResetPanning((0, 0))
         imnodes_BeginNodeEditor()
         if CImGui.BeginPopup("NodeEditor")
-            if CImGui.MenuItem(stcstr(MORESTYLE.Icons.CommonNode, " 通用节点"))
+            if CImGui.MenuItem(stcstr(MORESTYLE.Icons.CommonNode, " ", mlstr("Universal Node")))
                 nodeeditor.maxid += 1
                 push!(nodeeditor.nodes, nodeeditor.maxid => Node(nodeeditor.maxid))
                 imnodes_SetNodeScreenSpacePos(nodeeditor.maxid, CImGui.GetMousePosOnOpeningCurrentPopup())
                 newnode = true
             end
-            if CImGui.MenuItem(stcstr(MORESTYLE.Icons.GroundNode, " 接地头"))
+            if CImGui.MenuItem(stcstr(MORESTYLE.Icons.GroundNode, " ", mlstr("Ground End")))
                 nodeeditor.maxid += 1
                 push!(nodeeditor.nodes, nodeeditor.maxid => Node(nodeeditor.maxid, Val(:ground)))
                 imnodes_SetNodeScreenSpacePos(nodeeditor.maxid, CImGui.GetMousePosOnOpeningCurrentPopup())
                 newnode = true
             end
-            if CImGui.MenuItem(stcstr(MORESTYLE.Icons.ResistanceNode, " 电阻"))
+            if CImGui.MenuItem(stcstr(MORESTYLE.Icons.ResistanceNode, " ", mlstr("Resistance")))
                 nodeeditor.maxid += 1
                 push!(nodeeditor.nodes, nodeeditor.maxid => Node(nodeeditor.maxid, Val(:resistance)))
                 imnodes_SetNodeScreenSpacePos(nodeeditor.maxid, CImGui.GetMousePosOnOpeningCurrentPopup())
                 newnode = true
             end
-            if CImGui.MenuItem(stcstr(MORESTYLE.Icons.TrilinkNode, " 三通21"))
+            if CImGui.MenuItem(stcstr(MORESTYLE.Icons.TrilinkNode, " ", mlstr("Trilink"), "21"))
                 nodeeditor.maxid += 1
                 push!(nodeeditor.nodes, nodeeditor.maxid => Node(nodeeditor.maxid, Val(:trilink21)))
                 imnodes_SetNodeScreenSpacePos(nodeeditor.maxid, CImGui.GetMousePosOnOpeningCurrentPopup())
                 newnode = true
             end
-            if CImGui.MenuItem(stcstr(MORESTYLE.Icons.TrilinkNode, " 三通12"))
+            if CImGui.MenuItem(stcstr(MORESTYLE.Icons.TrilinkNode, " ", mlstr("Trilink"), "12"))
                 nodeeditor.maxid += 1
                 push!(nodeeditor.nodes, nodeeditor.maxid => Node(nodeeditor.maxid, Val(:trilink12)))
                 imnodes_SetNodeScreenSpacePos(nodeeditor.maxid, CImGui.GetMousePosOnOpeningCurrentPopup())
                 newnode = true
             end
-            if CImGui.MenuItem(stcstr(MORESTYLE.Icons.SampleBaseNode, " 样品座"))
+            if CImGui.MenuItem(stcstr(MORESTYLE.Icons.SampleBaseNode, " ", mlstr("Samplebase")))
                 nodeeditor.maxid += 1
                 push!(nodeeditor.nodes, nodeeditor.maxid => SampleBaseNode(nodeeditor.maxid))
                 imnodes_SetNodeScreenSpacePos(nodeeditor.maxid, CImGui.GetMousePosOnOpeningCurrentPopup())
@@ -497,12 +503,13 @@ let
         end
         if CImGui.BeginPopup("Edit Node")
             hoverednode = nodeeditor.nodes[nodeeditor.hoverednode_id]
-            if CImGui.BeginMenu(stcstr(MORESTYLE.Icons.Edit, " 编辑"))
+            if CImGui.BeginMenu(stcstr(MORESTYLE.Icons.Edit, " ", mlstr("Edit")))
                 if hoverednode isa Node
-                    @c InputTextRSZ("标题", &hoverednode.title)
+                    @c InputTextRSZ(mlstr("title"), &hoverednode.title)
                     linesnum = (1 + length(findall("\n", hoverednode.content)))
-                    mtheigth = (linesnum > 6 ? 6 : linesnum) * CImGui.GetTextLineHeight() + 2unsafe_load(IMGUISTYLE.FramePadding.y)
-                    @c InputTextMultilineRSZ("内容", &hoverednode.content, (Cfloat(0), mtheigth))
+                    mtheigth = (linesnum > 6 ? 6 : linesnum) * CImGui.GetTextLineHeight() +
+                               2unsafe_load(IMGUISTYLE.FramePadding.y)
+                    @c InputTextMultilineRSZ(mlstr("content"), &hoverednode.content, (Cfloat(0), mtheigth))
                     if CImGui.BeginPopupContextItem()
                         for ins in keys(INSTRBUFFERVIEWERS)
                             if !isempty(INSTRBUFFERVIEWERS[ins])
@@ -531,6 +538,11 @@ let
                             break
                         end
                     end
+                    if CImGui.Button(stcstr(MORESTYLE.Icons.NewFile, "##add Input"))
+                        li = length(hoverednode.input_ids)
+                        push!(hoverednode.input_ids, hoverednode.id * 1000 + li + 1)
+                        push!(hoverednode.input_labels, "Input $(li+1)")
+                    end
                     CImGui.EndGroup()
                     CImGui.SameLine()
                     CImGui.BeginGroup()
@@ -547,23 +559,18 @@ let
                             break
                         end
                     end
-                    CImGui.EndGroup()
-                    if CImGui.Button(stcstr(MORESTYLE.Icons.NewFile, " 添加##Input"))
-                        li = length(hoverednode.input_ids)
-                        push!(hoverednode.input_ids, hoverednode.id * 1000 + li + 1)
-                        push!(hoverednode.input_labels, "Input $(li+1)")
-                    end
-                    CImGui.SameLine(width)
-                    if CImGui.Button(stcstr(MORESTYLE.Icons.NewFile, " 添加##Output"))
+                    if CImGui.Button(stcstr(MORESTYLE.Icons.NewFile, "##add Output"))
                         lo = length(hoverednode.output_ids)
                         push!(hoverednode.output_ids, hoverednode.id * 1000 + 100 + lo + 1)
                         push!(hoverednode.output_labels, "Output $(lo+1)")
                     end
+                    CImGui.EndGroup()
                 elseif hoverednode isa SampleBaseNode
-                    @c InputTextRSZ("标题", &hoverednode.title)
+                    @c InputTextRSZ(mlstr("title"), &hoverednode.title)
                     linesnum = (1 + length(findall("\n", hoverednode.content)))
-                    mtheigth = (linesnum > 6 ? 6 : linesnum) * CImGui.GetTextLineHeight() + 2unsafe_load(IMGUISTYLE.FramePadding.y)
-                    @c InputTextMultilineRSZ("内容", &hoverednode.content, (Cfloat(0), mtheigth))
+                    mtheigth = (linesnum > 6 ? 6 : linesnum) * CImGui.GetTextLineHeight() +
+                               2unsafe_load(IMGUISTYLE.FramePadding.y)
+                    @c InputTextMultilineRSZ(mlstr("content"), &hoverednode.content, (Cfloat(0), mtheigth))
                     CImGui.BeginGroup()
                     for i in eachindex(hoverednode.attr_ids)
                         attr_label = hoverednode.attr_labels[i]
@@ -590,7 +597,7 @@ let
                         end
                     end
                     CImGui.EndGroup()
-                    if CImGui.Button(stcstr(MORESTYLE.Icons.NewFile, " 添加##Attr"))
+                    if CImGui.Button(stcstr(MORESTYLE.Icons.NewFile, "##add Attr"))
                         li = length(hoverednode.attr_ids)
                         push!(hoverednode.attr_ids, hoverednode.id * 1000 + li + 1)
                         push!(hoverednode.attr_labels, "Pin $(li+1)")
@@ -599,7 +606,7 @@ let
                 end
                 CImGui.EndMenu()
             end
-            if CImGui.MenuItem(stcstr(MORESTYLE.Icons.CloseFile, " 删除"))
+            if CImGui.MenuItem(stcstr(MORESTYLE.Icons.CloseFile, " ", mlstr("Delete")))
                 delete!(nodeeditor.nodes, nodeeditor.hoverednode_id)
                 dellinks = Cint[]
                 for (j, link) in enumerate(nodeeditor.links)
@@ -610,7 +617,7 @@ let
             CImGui.EndPopup()
         end
         if CImGui.BeginPopup("Edit Link")
-            if CImGui.MenuItem(stcstr(MORESTYLE.Icons.CloseFile, " 删除"))
+            if CImGui.MenuItem(stcstr(MORESTYLE.Icons.CloseFile, " ", mlstr("Delete")))
                 deleteat!(nodeeditor.links, nodeeditor.hoveredlink_id)
             end
             CImGui.EndPopup()
@@ -668,9 +675,9 @@ let
         if CImGui.Begin(id, p_open, CImGui.ImGuiWindowFlags_NoTitleBar | CImGui.ImGuiWindowFlags_NoDocking)
             CImGui.TextColored(MORESTYLE.Colors.HighlightText, MORESTYLE.Icons.Circuit)
             CImGui.SameLine()
-            CImGui.Text(" 电路")
+            CImGui.Text(stcstr(" ", mlstr("Circuit")))
             CImGui.SameLine(CImGui.GetContentRegionAvailWidth() - holdsz)
-            @c CImGui.Checkbox("HOLD", &hold)
+            @c CImGui.Checkbox(mlstr("HOLD"), &hold)
             holdsz = CImGui.GetItemRectSize().x
             haskey(nodeeditor_contexts, id) || push!(nodeeditor_contexts, id => imnodes_EditorContextCreate())
             imnodes_EditorContextSet(nodeeditor_contexts[id])
