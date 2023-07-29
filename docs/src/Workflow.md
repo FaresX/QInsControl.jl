@@ -59,6 +59,11 @@ root folder/year/month/day/[time] task name.qdt
 QInsControl provides a simple record manner for circuit in an experiment. For a samplebase, one can right click to load a sample image and then add some pins to match the real configuration and these pins can be dragged to the position in demand. For other nodes, one can easily right click to add or modify to satisfy the specified requirements.
 
 ## Edit script
+For writing a script with convenience and universality, QInsControl provides several blocks to do this. In general, it is easy to writing an available script with only SweepBlocks and ReadingBlocks. For example
+
+![image](assets/example-easyscript.png)
+
+Here, I drive **A输出电流** of a **K2612** with address **address** (not specified) from its present value to -100 nA with a step 1 nA and a delay 0.1 s. Then, with the same method I drive it to 100 nA. In this process, for each value I drived to I get a reading from two **LI5650** with different address (not specified here). One datum of **DATA** is in the form of "data1,data2" which can be indexed by **1:2** and assigned to two keys **Ix** and **Iy** (or **Vx** and **Vy**). By the way, two ReadingBlocks with green borders means annotation **@async** for faster reading.
 
 ### CodeBlock
 ![image](assets/CodeBlock.png)
@@ -70,7 +75,11 @@ supports all the grammar of julia language.
 ![image](assets/StrideCodeBlock.png)
 
 It is similar to CodeBlock, but it can only be input a block title codes such as *for end*, *begin end*, *function end* and
-so on. It is used to combine block codes in julia with other blocks in QInsControl.
+so on. It is used to combine block codes in julia with other blocks in QInsControl. Middle click on its icon disables its handler which is used for pausing and interrupting.
+
+### BranchBlock
+![image](assets/BranchBlock.png)
+It is only used inside a StrideCodeBlock to be complete. For example, it can be filled with *else*, *catch* and so on.
 
 ### SweepBlock
 ![image](assets/SweepBlock.png)
@@ -83,13 +92,13 @@ correct unit is selected.
 
 Similar to SweepBlock but for a settable quantity (a sweepable quantity is also a settable quantity). One can input a
 string or a number dependent on the unit. When unit type is none, it only supports a string input and a "$" symbol is
-able to be used to interpolate like in julia.
+able to be used to interpolate like in julia. Moreover, middle click at region of set value will open an optional values list for convenience.
 
 ### ReadingBlock
 ![image](assets/ReadingBlock.png)
 
 *Index* is used to split the data by ",". When data do not include delimiter, leave it blank. *mark* is used to name the 
-recorded data. When data format includes delimiter, one can use "," to seperate multiple marks.
+recorded data. When data format includes delimiter, one can use "," to seperate multiple marks which is also unnecessary.
 
 ### LogBlock
 ![image](assets/LogBlock.png)
@@ -127,6 +136,7 @@ and will not be stored in file. In observable and readable region, the mark regi
 but the obtained data will stored in file. For ReadingBlock, WriteBlock, QueryBlock and ReadBlock, clicking on the block
 border will enter the async mode. In this mode, block border is green and the generated codes will be marked by @async,
 this almost always speeds up the measurement.
+Different mode has different color indicator which can be found in **File** -> **Preferences** -> **Style** -> **More Style**. Furthermore, this editor supports dragging to reorder blocks and a Ctrl down to dragging a block into a StrideCodeBlock or SweepBlock.
 
 ## Example
 ![image](assets/example-script.png)
@@ -143,10 +153,12 @@ on it. The macro @progress is used to show a progressbar. The inner one is const
 the instrument VirtualInstr with address VirtualAddress, variable "扫描测试", step 1 μA, destination 200 μA and delay 
 0.1s for each loop.
 
+In general, it is unnecessary to write such a complicated script. Most of them are used to support special demands and ensure universality.
+
 ## plot data
 ![image](assets/select-plot.png)
 
-One can right click at the blank region to select plots to show.
+One can right click at blank region to select plots to show.
 
 ![image](assets/select-data-plot.png)
 
@@ -155,7 +167,7 @@ the dimensions of the Z plotting matrix and reverse it in dimension 1 or 2. At t
 data processing, and the selected data have bind to variables x, ys, z, ws. For Y and W dimension, they relate to
 variables ys and ws respectively and can be accessed by index. For convenience, ys[1] and ws[1] is simply y and w.
 
-One can middle click or right click at the plot region to find more options.
+One can middle click or right click at plot region to find more options.
 
 ## project
 All elements above together make up one project. One can save and load a project to conveniently reuse scripts, circuit,
@@ -163,6 +175,6 @@ and plots. One example file [demo.daq](../../example) can be found in example fo
 
 # Data Reviewing
 
-Click on **File** -> **Open File**(**Open Folder**) to open saved files. Here One can review the content stored in the file
+Click on **File** -> **Open File** (**Open Folder**) to open saved files. Here One can review the content stored in the file
 includes the states of instruments, the script, the circuit, the data and the plots. Right click on the tabbar **Plots**
 can modify the plots.

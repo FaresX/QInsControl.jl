@@ -66,6 +66,7 @@ Base.@kwdef mutable struct MoreStyleIcon
 
     CodeBlock::String = ICONS.ICON_SITEMAP
     StrideCodeBlock::String = ICONS.ICON_RAINBOW
+    BranchBlock::String = ICONS.ICON_CODE_BRANCH
     SweepBlock::String = ICONS.ICON_VOLCANO
     SettingBlock::String = ICONS.ICON_GEARS
     ReadingBlock::String = ICONS.ICON_BOOK_OPEN

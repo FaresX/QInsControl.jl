@@ -14,11 +14,19 @@ mutable struct StrideCodeBlock <: AbstractBlock
     head::String
     level::Int
     blocks::Vector{AbstractBlock}
+    nohandler::Bool
     regmin::ImVec2
     regmax::ImVec2
 end
-StrideCodeBlock(level) = StrideCodeBlock("", level, Vector{AbstractBlock}(), (0, 0), (0, 0))
+StrideCodeBlock(level) = StrideCodeBlock("", level, Vector{AbstractBlock}(), false, (0, 0), (0, 0))
 StrideCodeBlock() = StrideCodeBlock(1)
+
+mutable struct BranchBlock <: AbstractBlock
+    codes::String
+    regmin::ImVec2
+    regmax::ImVec2
+end
+BranchBlock() = BranchBlock("", (0, 0), (0, 0))
 
 mutable struct SweepBlock <: AbstractBlock
     instrnm::String
@@ -149,33 +157,46 @@ function tocodes(bk::CodeBlock)
 end
 
 function tocodes(bk::StrideCodeBlock)
-    innercodes = tocodes.(bk.blocks)
-    headcodes = bk.head
-    isasync = false
-    for bk in bk.blocks
-        typeof(bk) in [ReadingBlock, WriteBlock, QueryBlock, ReadBlock] && bk.isasync && (isasync = true; break)
-    end
-    interpcodes = isasync ? quote
-        @sync begin
-            $(innercodes...)
+    branch_idx = [i for (i, bk) in enumerate(bk.blocks) if bk isa BranchBlock]
+    branch_codes = [bk.codes for bk in bk.blocks[branch_idx]]
+    pushfirst!(branch_idx, 0)
+    push!(branch_idx, length(bk.blocks) + 1)
+    push!(branch_codes, "end")
+    innercodes = []
+    for i in eachindex(branch_idx)[1:end-1]
+        isasync = false
+        for bk in bk.blocks[branch_idx[i]+1:branch_idx[i+1]-1]
+            typeof(bk) in [ReadingBlock, WriteBlock, QueryBlock, ReadBlock] && bk.isasync && (isasync = true; break)
         end
-    end : quote
-        $(innercodes...)
+        push!(
+            innercodes,
+            isasync ? quote
+                @sync begin
+                    $(tocodes.(bk.blocks[branch_idx[i]+1:branch_idx[i+1]-1])...)
+                end
+            end : quote
+                $(tocodes.(bk.blocks[branch_idx[i]+1:branch_idx[i+1]-1])...)
+            end
+        )
     end
-    interpall = quote
+    ex1 = bk.nohandler ? quote end : quote
         if SYNCSTATES[Int(IsBlocked)]
-            @warn "[$(now())]\n$(mlstr("pause!"))" StrideCodeBlock = $headcodes
+            @warn "[$(now())]\n$(mlstr("pause!"))" StrideCodeBlock = $(bk.head)
             lock(() -> wait(BLOCK), BLOCK)
-            @info "[$(now())]\n$(mlstr("continue!"))" StrideCodeBlock = $headcodes
+            @info "[$(now())]\n$(mlstr("continue!"))" StrideCodeBlock = $(bk.head)
         elseif SYNCSTATES[Int(IsInterrupted)]
-            @warn "[$(now())]\n$(mlstr("interrupt!"))" StrideCodeBlock = $headcodes
+            @warn "[$(now())]\n$(mlstr("interrupt!"))" StrideCodeBlock = $(bk.head)
             return nothing
         end
-        $interpcodes
     end
-    codestr = string(headcodes, " ", interpall, " end")
+    codestr = string(bk.head, "\n ", ex1)
+    for i in eachindex(innercodes)
+        codestr *= string("\n ", innercodes[i], "\n ", branch_codes[i])
+    end
     @trypasse Meta.parse(codestr) (@error "[$(now())]\ncodes are wrong in parsing time (StrideCodeBlock)!!!" bk = bk)
 end
+
+tocodes(bk::BranchBlock) = error("[$(now())]\n$(mlstr("BranchBlock has to be in a StrideCodeBlock!!!"))\nbk=$bk")
 
 function tocodes(bk::SweepBlock)
     instr = string(bk.instrnm, "_", bk.addr)
@@ -189,11 +210,11 @@ function tocodes(bk::SweepBlock)
     return)
     stepc = @trypass Meta.parse(bk.step) begin
         @error "[$(now())]\n$(mlstr("codes are wrong in parsing time (SweepBlock)!!!"))" bk = bk
-        return
+        return nothing
     end
     stopc = @trypass Meta.parse(bk.stop) begin
         @error "[$(now())]\n$(mlstr("codes are wrong in parsing time (SweepBlock)!!!"))" bk = bk
-        return
+        return nothing
     end
     start = :(parse(Float64, controllers[$instr]($getfunc, CPU, Val(:read))))
     Uchange = U isa Unitful.MixedUnits ? 1 : ustrip(Us[1], 1U)
@@ -237,6 +258,7 @@ function tocodes(bk::SweepBlock)
                     instrument = $(string(bk.instrnm, ": ", bk.addr)),
                     exception = e
                 )
+                nothing
             end
         end
     else
@@ -288,6 +310,7 @@ function tocodes(bk::SettingBlock)
                     instrument = $(string(bk.instrnm, ": ", bk.addr)),
                     exception = e
                 )
+                nothing
             end
         end
     else
@@ -408,6 +431,7 @@ function tocodes(bk::WriteBlock)
                     instrument = $(string(bk.instrnm, ": ", bk.addr)),
                     exception = e
                 )
+                nothing
             end
         end
     else
@@ -606,6 +630,7 @@ function tocodes(bk::ReadBlock)
         end
     end
 end
+
 function tocodes(bk::SaveBlock)
     var = Symbol(bk.varname)
     return if rstrip(bk.mark, ' ') == ""
@@ -657,13 +682,27 @@ function edit(bk::StrideCodeBlock)
         end
     )
     CImGui.BeginChild("##StrideBlock", (Float32(0), bkheight(bk)), true)
-    CImGui.TextColored(MORESTYLE.Colors.BlockIcons, MORESTYLE.Icons.StrideCodeBlock)
+    CImGui.TextColored(
+        bk.nohandler ? MORESTYLE.Colors.StrideCodeBlockBorder : MORESTYLE.Colors.BlockIcons,
+        MORESTYLE.Icons.StrideCodeBlock
+    )
+    CImGui.IsItemClicked(2) && (bk.nohandler ⊻= true)
     CImGui.SameLine()
     CImGui.PushItemWidth(-1)
     @c InputTextWithHintRSZ("##code header", mlstr("code header"), &bk.head)
     CImGui.PopItemWidth()
     CImGui.PopStyleColor()
     isempty(skipnull(bk.blocks)) || edit(bk.blocks, bk.level + 1)
+    CImGui.EndChild()
+end
+
+function edit(bk::BranchBlock)
+    CImGui.BeginChild("##BranchBlock", (Float32(0), bkheight(bk)), true)
+    CImGui.TextColored(MORESTYLE.Colors.BlockIcons, MORESTYLE.Icons.BranchBlock)
+    CImGui.SameLine()
+    CImGui.PushItemWidth(-1)
+    @c InputTextWithHintRSZ("##BranchBlock", mlstr("code branch"), &bk.codes)
+    CImGui.PopItemWidth()
     CImGui.EndChild()
 end
 
@@ -1160,6 +1199,7 @@ let
                 if CImGui.BeginMenu(stcstr(MORESTYLE.Icons.InsertUp, " ", mlstr("Insert Above")))
                     CImGui.MenuItem(stcstr(MORESTYLE.Icons.CodeBlock, " ", mlstr("CodeBlock"))) && insert!(blocks, i, CodeBlock())
                     CImGui.MenuItem(stcstr(MORESTYLE.Icons.StrideCodeBlock, " ", mlstr("StrideCodeBlock"))) && insert!(blocks, i, StrideCodeBlock(n))
+                    CImGui.MenuItem(stcstr(MORESTYLE.Icons.BranchBlock, " ", mlstr("BranchBlock"))) && insert!(blocks, i, BranchBlock())
                     CImGui.MenuItem(stcstr(MORESTYLE.Icons.SweepBlock, " ", mlstr("SweepBlock"))) && insert!(blocks, i, SweepBlock(n))
                     CImGui.MenuItem(stcstr(MORESTYLE.Icons.SettingBlock, " ", mlstr("SettingBlock"))) && insert!(blocks, i, SettingBlock())
                     CImGui.MenuItem(stcstr(MORESTYLE.Icons.ReadingBlock, " ", mlstr("ReadingBlock"))) && insert!(blocks, i, ReadingBlock())
@@ -1174,6 +1214,7 @@ let
                     if CImGui.BeginMenu(stcstr(MORESTYLE.Icons.InsertInside, " ", mlstr("Insert Inside")), bk.level < 6)
                         CImGui.MenuItem(stcstr(MORESTYLE.Icons.CodeBlock, " ", mlstr("CodeBlock"))) && push!(bk.blocks, CodeBlock())
                         CImGui.MenuItem(stcstr(MORESTYLE.Icons.StrideCodeBlock, " ", mlstr("StrideCodeBlock"))) && push!(bk.blocks, StrideCodeBlock(n + 1))
+                        CImGui.MenuItem(stcstr(MORESTYLE.Icons.BranchBlock, " ", mlstr("BranchBlock"))) && push!(bk.blocks, BranchBlock())
                         CImGui.MenuItem(stcstr(MORESTYLE.Icons.SweepBlock, " ", mlstr("SweepBlock"))) && push!(bk.blocks, SweepBlock(n + 1))
                         CImGui.MenuItem(stcstr(MORESTYLE.Icons.SettingBlock, " ", mlstr("SettingBlock"))) && push!(bk.blocks, SettingBlock())
                         CImGui.MenuItem(stcstr(MORESTYLE.Icons.ReadingBlock, " ", mlstr("ReadingBlock"))) && push!(bk.blocks, ReadingBlock())
@@ -1188,6 +1229,7 @@ let
                 if CImGui.BeginMenu(stcstr(MORESTYLE.Icons.InsertDown, " ", mlstr("Insert Below")))
                     CImGui.MenuItem(stcstr(MORESTYLE.Icons.CodeBlock, " ", mlstr("CodeBlock"))) && insert!(blocks, i + 1, CodeBlock())
                     CImGui.MenuItem(stcstr(MORESTYLE.Icons.StrideCodeBlock, " ", mlstr("StrideCodeBlock"))) && insert!(blocks, i + 1, StrideCodeBlock(n))
+                    CImGui.MenuItem(stcstr(MORESTYLE.Icons.BranchBlock, " ", mlstr("BranchBlock"))) && insert!(blocks, i + 1, BranchBlock())
                     CImGui.MenuItem(stcstr(MORESTYLE.Icons.SweepBlock, " ", mlstr("SweepBlock"))) && insert!(blocks, i + 1, SweepBlock(n))
                     CImGui.MenuItem(stcstr(MORESTYLE.Icons.SettingBlock, " ", mlstr("SettingBlock"))) && insert!(blocks, i + 1, SettingBlock())
                     CImGui.MenuItem(stcstr(MORESTYLE.Icons.ReadingBlock, " ", mlstr("ReadingBlock"))) && insert!(blocks, i + 1, ReadingBlock())
@@ -1210,6 +1252,7 @@ let
                             end
                         end
                     end
+                    CImGui.MenuItem(stcstr(MORESTYLE.Icons.BranchBlock, " ", mlstr("BranchBlock"))) && (bk isa BranchBlock || (blocks[i] = BranchBlock()))
                     if CImGui.MenuItem(stcstr(MORESTYLE.Icons.SweepBlock, " ", mlstr("SweepBlock")))
                         if !(bk isa SweepBlock)
                             if bk isa StrideCodeBlock
@@ -1306,13 +1349,26 @@ function view(bk::StrideCodeBlock)
         end
     )
     CImGui.BeginChild("##StrideCodeBlockViewer", (Float32(0), bkheight(bk)), true)
-    CImGui.TextColored(MORESTYLE.Colors.BlockIcons, MORESTYLE.Icons.StrideCodeBlock)
+    CImGui.TextColored(
+        bk.nohandler ? MORESTYLE.Colors.StrideCodeBlockBorder : MORESTYLE.Colors.BlockIcons,
+        MORESTYLE.Icons.StrideCodeBlock
+    )
     CImGui.SameLine()
     CImGui.PushStyleVar(CImGui.ImGuiStyleVar_ButtonTextAlign, (0.0, 0.5))
     CImGui.Button(bk.head, (-1, 0))
     CImGui.PopStyleVar()
     CImGui.PopStyleColor()
     isempty(skipnull(bk.blocks)) || view(bk.blocks)
+    CImGui.EndChild()
+end
+
+function view(bk::BranchBlock)
+    CImGui.BeginChild("##BranchBlockViewer", (Float32(0), bkheight(bk)), true)
+    CImGui.TextColored(MORESTYLE.Colors.BlockIcons, MORESTYLE.Icons.BranchBlock)
+    CImGui.SameLine()
+    CImGui.PushStyleVar(CImGui.ImGuiStyleVar_ButtonTextAlign, (0.0, 0.5))
+    CImGui.Button(bk.codes, (-1, 0))
+    CImGui.PopStyleVar()
     CImGui.EndChild()
 end
 
@@ -1590,6 +1646,16 @@ function Base.show(io::IO, bk::StrideCodeBlock)
         print(io, string("+"^64, "\n", "\t"^4))
         show(io, b)
     end
+end
+function Base.show(io::IO, bk::BranchBlock)
+    str = """
+    BranchBlock :
+        region min : $(bk.regmin)
+        region max : $(bk.regmax)
+             codes : 
+    """
+    print(io, str)
+    bk.codes == "" || print(io, string(bk.codes, "\n"))
 end
 function Base.show(io::IO, bk::SweepBlock)
     ut = if haskey(insconf, bk.instrnm) && haskey(insconf[bk.instrnm].quantities, bk.quantity)

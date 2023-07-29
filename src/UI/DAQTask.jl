@@ -74,6 +74,12 @@ let
                     CImGui.MenuItem(stcstr(MORESTYLE.Icons.SaveBlock, " ", mlstr("SaveBlock"))) && push!(daqtask.blocks, SaveBlock())
                     CImGui.EndMenu()
                 end
+                if CImGui.MenuItem(stcstr(MORESTYLE.Icons.Convert, " ", mlstr("Interpret")))
+                    codes = @trypasse quote
+                        $(tocodes.(daqtask.blocks)...)
+                    end |> prettify @error "[$(now())]\n$(mlstr("interpreting blocks failed!!!"))"
+                    isnothing(codes) || @info codes
+                end
                 CImGui.EndPopup()
             end
             CImGui.EndChild()
