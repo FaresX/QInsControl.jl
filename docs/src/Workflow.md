@@ -34,9 +34,9 @@ For the readable variables, it can be only queried.
 
 All these variables support selecting unit and whether it will auto update the state itself.
 
-# Data Aquiring
+# Data Acquiring
 
-Clicking on **Instrument** -> **Data Acquiring** to do data aquiring
+Clicking on **Instrument** -> **Data Acquiring** to do data acquiring
 
 ![image](assets/DAQ.png)
 
