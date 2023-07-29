@@ -96,7 +96,7 @@ function run(daqtask::DAQTask)
     find_old_i(joinpath(WORKPATH, string(year(date)), string(year(date), "-", month(date)), string(date)))
     cfgsvdir = joinpath(WORKPATH, string(year(date)), string(year(date), "-", month(date)), string(date))
     ispath(cfgsvdir) || mkpath(cfgsvdir)
-    SAVEPATH = joinpath(cfgsvdir, replace("[$(now())] $(mlstr("task")) $(1+OLDI) $(daqtask.name).qdt", ':' => '.'))
+    SAVEPATH = joinpath(cfgsvdir, replace("[$(now())] $(mlstr("Task")) $(1+OLDI) $(daqtask.name).qdt", ':' => '.'))
     push!(CFGBUF, "daqtask" => daqtask)
     try
         log_instrbufferviewers()

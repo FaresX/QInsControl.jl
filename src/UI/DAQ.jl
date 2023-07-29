@@ -230,7 +230,7 @@ let
                     end
                 end
                 if CImGui.MenuItem(stcstr(MORESTYLE.Icons.Load, " ", mlstr("Load Project")))
-                    daqloadpath = pick_file(filterlist="daq")
+                    daqloadpath = pick_file(filterlist="daq;qdt")
                     if isfile(daqloadpath)
                         loaddaqproj = @trypasse load(daqloadpath) begin
                             @error mlstr("unsupported file!!!") filepath = daqloadpath
@@ -485,12 +485,11 @@ function find_old_i(dir)
                 m = match(Regex("$(mlstr("Task")) ([0-9]+)"), file)
                 if !isnothing(m)
                     new_i = tryparse(Int, m[1])
-                    isnothing(new_i) || (OLDI = new_i > OLDI ? new_i : OLDI)
+                    isnothing(new_i) || (OLDI = max(new_i, OLDI))
                 end
             end
         end
     else
         OLDI = 0
     end
-    nothing
 end
