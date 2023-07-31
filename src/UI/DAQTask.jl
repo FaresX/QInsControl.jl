@@ -15,6 +15,7 @@ const CFGBUF = Dict{String,Any}()
 let
     holdsz::Cfloat = 0
     viewmode::Bool = false
+    # global redolist::Dict{Int,LoopVector{Vector{AbstractBlock}}} = Dict()
     global function edit(daqtask::DAQTask, id, p_open::Ref{Bool})
         CImGui.SetNextWindowSize((600, 800), CImGui.ImGuiCond_Once)
         CImGui.PushStyleColor(CImGui.ImGuiCol_WindowBg, CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_PopupBg))
@@ -59,6 +60,8 @@ let
             CImGui.BeginChild("DAQTask.blocks")
             viewmode ? view(daqtask.blocks) : edit(daqtask.blocks, 1)
             CImGui.EndChild()
+            # haskey(redolist, id) || (push!(redolist, id => LoopVector(fill(AbstractBlock[], 10))); redolist[id][] = deepcopy(daqtask.blocks))
+            # redolist[id][] == daqtask.blocks || (move!(redolist[id]); redolist[id][] = deepcopy(daqtask.blocks))
             all(.!mousein.(daqtask.blocks, true)) && CImGui.OpenPopupOnItemClick("add new Block")
             if CImGui.BeginPopup("add new Block")
                 if CImGui.BeginMenu(stcstr(MORESTYLE.Icons.NewFile, " ", mlstr("Add")))
@@ -72,6 +75,8 @@ let
                     CImGui.MenuItem(stcstr(MORESTYLE.Icons.QueryBlock, " ", mlstr("QueryBlock"))) && push!(daqtask.blocks, QueryBlock())
                     CImGui.MenuItem(stcstr(MORESTYLE.Icons.ReadBlock, " ", mlstr("ReadBlock"))) && push!(daqtask.blocks, ReadBlock())
                     CImGui.MenuItem(stcstr(MORESTYLE.Icons.SaveBlock, " ", mlstr("SaveBlock"))) && push!(daqtask.blocks, SaveBlock())
+                    # CImGui.MenuItem("undo") && (move!(redolist[id], -1); daqtask.blocks = deepcopy(redolist[id][]))
+                    # CImGui.MenuItem("redo") && (move!(redolist[id]); daqtask.blocks = deepcopy(redolist[id][]))
                     CImGui.EndMenu()
                 end
                 if CImGui.MenuItem(stcstr(MORESTYLE.Icons.Convert, " ", mlstr("Interpret")))

@@ -1,7 +1,7 @@
 let
     buffer::String = ""
-    historyins::Vector{String} = [""]
-    historyins_i::Int = 1
+    global historycmd::LoopVector{String} = LoopVector([""])
+    historycmd_max::Int = 0
     iomsgshow = Tuple{CImGui.LibCImGui.ImVec4,String}[]
     iofile::String = ""
     newmsg::Bool = true
@@ -10,6 +10,10 @@ let
         # CImGui.SetNextWindowPos((100, 100), CImGui.ImGuiCond_Once)
         CImGui.SetNextWindowSize((600, 400), CImGui.ImGuiCond_Once)
         if CImGui.Begin(stcstr(MORESTYLE.Icons.Console, "  ", mlstr("Console"), "###console"), p_open)
+            if length(historycmd) != CONF.Console.historylen
+                resize!(historycmd.data, CONF.Console.historylen)
+                fill!(historycmd.data, "")
+            end
             if newmsg || waittime("Console", CONF.Console.refreshrate)
                 empty!(iomsgshow)
                 textc = CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_Text)
@@ -45,7 +49,8 @@ let
                 end
                 newmsg && (newmsg_updated = true; newmsg = false)
             end
-            lineheigth = (1 + length(findall('\n', buffer))) * CImGui.GetTextLineHeight() + 2unsafe_load(IMGUISTYLE.FramePadding.y)
+            lineheigth = (1 + length(findall('\n', buffer))) * CImGui.GetTextLineHeight() +
+                2unsafe_load(IMGUISTYLE.FramePadding.y)
             CImGui.BeginChild("STD OUT", (Float32(0), -lineheigth - unsafe_load(IMGUISTYLE.ItemSpacing.y)))
             for (col, msg) in iomsgshow
                 CImGui.PushStyleColor(CImGui.ImGuiCol_Text, col)
@@ -58,12 +63,14 @@ let
             CImGui.EndChild()
             @c InputTextMultilineRSZ(mlstr("input"), &buffer, (Cfloat(0), lineheigth))
             if CImGui.IsItemHovered() && !CImGui.IsItemActive()
-                if CImGui.IsKeyPressed(265)
-                    historyins_i < length(historyins) && (historyins_i += 1)
-                    buffer = historyins[historyins_i]
-                elseif CImGui.IsKeyPressed(264)
-                    historyins_i > 0 && (historyins_i -= 1)
-                    buffer = historyins_i == 0 ? "" : historyins[historyins_i]
+                if CImGui.IsKeyReleased(igGetKeyIndex(ImGuiKey_UpArrow))
+                    move!(historycmd, -1)
+                    historycmd_max += 1
+                    buffer = historycmd[]
+                elseif CImGui.IsKeyReleased(igGetKeyIndex(ImGuiKey_DownArrow))
+                    move!(historycmd)
+                    historycmd_max -= 1
+                    buffer = historycmd[]
                 end
             end
             CImGui.SameLine()
@@ -91,28 +98,24 @@ let
                         flush(iofile_open)
                         close(iofile_open)
                     end
-                    if buffer ∉ historyins
-                        if length(historyins) == CONF.Console.historylen
-                            push!(historyins, buffer)
-                            popfirst!(historyins)
-                        else
-                            push!(historyins, buffer)
-                        end
-                    end
-                    historyins_i = 1
+                    historycmd[1 + historycmd_max] = buffer
+                    move!(historycmd, 1 + historycmd_max)
+                    historycmd_max = 0
                     buffer = ""
                     newmsg = true
                 end
             end
             CImGui.SameLine()
             if CImGui.Button(ICONS.ICON_CARET_LEFT)
-                historyins_i > 0 && (historyins_i -= 1)
-                buffer = historyins_i == 0 ? "" : historyins[historyins_i]
+                move!(historycmd, -1)
+                historycmd_max += 1
+                buffer = historycmd[]
             end
             CImGui.SameLine()
             if CImGui.Button(ICONS.ICON_CARET_RIGHT)
-                historyins_i < length(historyins) && (historyins_i += 1)
-                buffer = historyins[historyins_i]
+                move!(historycmd)
+                historycmd_max -= 1
+                buffer = historycmd[]
             end
         end
         CImGui.End()
