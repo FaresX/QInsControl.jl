@@ -15,7 +15,7 @@ const CFGBUF = Dict{String,Any}()
 let
     holdsz::Cfloat = 0
     viewmode::Bool = false
-    global redolist::Dict{Int,LoopVector{Vector{AbstractBlock}}} = Dict()
+    redolist::Dict{Int,LoopVector{Vector{AbstractBlock}}} = Dict()
     global function edit(daqtask::DAQTask, id, p_open::Ref{Bool})
         CImGui.SetNextWindowSize((600, 800), CImGui.ImGuiCond_Once)
         CImGui.PushStyleColor(CImGui.ImGuiCol_WindowBg, CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_PopupBg))

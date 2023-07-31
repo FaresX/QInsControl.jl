@@ -1,6 +1,6 @@
 let
     buffer::String = ""
-    global historycmd::LoopVector{String} = LoopVector([""])
+    historycmd::LoopVector{String} = LoopVector([""])
     historycmd_max::Int = 0
     iomsgshow = Tuple{CImGui.LibCImGui.ImVec4,String}[]
     iofile::String = ""
