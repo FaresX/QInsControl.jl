@@ -197,9 +197,9 @@ function syncplotdata(uiplot::UIPlot, dtpk::DataPicker, datastr, datafloat)
             rows = ceil(Int, lmin / dtpk.zsize[1])
             fill!(uiplot.z, zero(eltype(uiplot.z)))
             @views uiplot.z[1:rows, :] = transpose(resize(nz, dtpk.zsize[1], rows))
+            dtpk.nonuniform && uniformz!(uiplot.y[1], uiplot.x, uiplot.z)
             dtpk.vflipz && reverse!(uiplot.z, dims=2)
             dtpk.hflipz && reverse!(uiplot.z, dims=1)
-            dtpk.nonuniform && uniformz!(uiplot.x, uiplot.y[1], uiplot.z)
         end
         dtpk.isrealtime || @info "[$(now())]" data_processing = innercodes
     catch e
