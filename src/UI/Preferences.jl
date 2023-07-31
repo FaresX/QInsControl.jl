@@ -30,10 +30,8 @@ let
             CImGui.BeginChild("specific options")
             ftsz = CImGui.GetFontSize()
             if selectedpref == "General"
-                ###Init##
-                # CImGui.SetWindowFontScale(1.2)
+                ### Basic ###
                 CImGui.TextColored(MORESTYLE.Colors.HighlightText, mlstr("Basic Setup"))
-                # CImGui.SetWindowFontScale(1)
                 @c CImGui.Checkbox(
                     CONF.Basic.isremote ? mlstr("dual core") : mlstr("single core"),
                     &CONF.Basic.isremote
@@ -41,6 +39,10 @@ let
                 @c CImGui.Checkbox(
                     CONF.Basic.viewportenable ? mlstr("multi-viewport mode on") : mlstr("multi-viewport mode off"),
                     &CONF.Basic.viewportenable
+                )
+                @c CImGui.Checkbox(
+                    CONF.Basic.scale ? mlstr("scale on") : mlstr("scale off"),
+                    &CONF.Basic.scale
                 )
                 # io = CImGui.GetIO()
                 # if conf.Basic.viewportenable
@@ -82,7 +84,7 @@ let
                 @c CImGui.Checkbox(mlstr("screenshot save"), &CONF.DAQ.saveimg)
                 @c CImGui.Checkbox(
                     CONF.DAQ.logall ? mlstr("log all quantities") : mlstr("log enabled quantities"),
-                &CONF.DAQ.logall
+                    &CONF.DAQ.logall
                 )
                 @c CImGui.Checkbox(
                     CONF.DAQ.equalstep ? mlstr("equal step sampling") : mlstr("fixed step sampling"),

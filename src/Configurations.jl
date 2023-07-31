@@ -1,6 +1,7 @@
 @option mutable struct OptBasic
     isremote::Bool = true
-    viewportenable::Bool = false
+    viewportenable::Bool = true
+    scale::Bool = true
     windowsize::Vector{Cint} = [1280, 720]
     encoding::String = "GBK"
     editor::String = "notepad"

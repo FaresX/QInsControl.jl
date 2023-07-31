@@ -89,3 +89,86 @@ end
 function Base.unsafe_convert(::Type{Ref{GLFWimage}}, data::Tuple{Vector{GLFWimage},Vector{<:AbstractMatrix{NTuple{4,UInt8}}}})
     Base.unsafe_convert(Ref{GLFWimage}, data[1])
 end
+
+function ImGui_ImplGlfw_UpdateMonitors_fixeddpiscale(ctx::ImGuiGLFWBackend.Context)
+    platform_io::Ptr{ImGuiPlatformIO} = igGetPlatformIO()
+    monitors_count = Cint(0)
+    ptr = @c glfwGetMonitors(&monitors_count)
+    glfw_monitors = unsafe_wrap(Array, ptr, monitors_count)
+    monitors_ptr::Ptr{ImGuiPlatformMonitor} = Libc.malloc(monitors_count * sizeof(ImGuiPlatformMonitor))
+    for i = 1:monitors_count
+        glfw_monitor = glfw_monitors[i]
+        mptr::Ptr{ImGuiPlatformMonitor} = monitors_ptr + (i - 1) * sizeof(ImGuiPlatformMonitor)
+
+        x, y = Cint(0), Cint(0)
+        @c glfwGetMonitorPos(glfw_monitor, &x, &y)
+        vid_mode = unsafe_load(glfwGetVideoMode(glfw_monitor))
+        mptr.MainPos = ImVec2(x, y)
+        mptr.MainSize = ImVec2(vid_mode.width, vid_mode.height)
+        mptr.WorkPos = ImVec2(x, y)
+        mptr.WorkSize = ImVec2(vid_mode.width, vid_mode.height)
+
+        w, h = Cint(0), Cint(0)
+        @c glfwGetMonitorWorkarea(glfw_monitors[i], &x, &y, &w, &h)
+        if w > 0 && h > 0
+            mptr.WorkPos = ImVec2(Cfloat(x), Cfloat(y))
+            mptr.WorkSize = ImVec2(Cfloat(w), Cfloat(h))
+        end
+
+        x_scale, y_scale = Cfloat(0), Cfloat(0)
+        @c glfwGetMonitorContentScale(glfw_monitor, &x_scale, &y_scale)
+        mptr.DpiScale = 1.0f0
+    end
+
+    platform_io.Monitors = ImVector_ImGuiPlatformMonitor(monitors_count, monitors_count, monitors_ptr)
+    ctx.WantUpdateMonitors = false
+
+    return nothing
+end
+
+function Update_DpiScale(x_scale_old::Ref{Cfloat})
+    monitors_count = Cint(0)
+    ptr = @c glfwGetMonitors(&monitors_count)
+    glfw_monitors = unsafe_wrap(Array, ptr, monitors_count)
+    x_scale, y_scale = Cfloat(0), Cfloat(0)
+    @c glfwGetMonitorContentScale(glfw_monitors[1], &x_scale, &y_scale)
+    if x_scale != x_scale_old[]
+        ImGuiStyle_ScaleAllSizes(IMGUISTYLE, x_scale)
+        CImGui.GetIO().FontGlobalScale = x_scale
+        x_scale_old[] = x_scale
+    end
+end
+
+# ImGuiIO = 5440 + 16 = 5456
+# ImVector_ImWchar = 16
+# ImGuiPlatformIO = 208 + 16 = 224
+# ImVector_ImGuiViewportPtr = 16
+# ImGuiStyle = 196 + 55 * 16 = 1076
+# ImVec4 = 16
+# ImGuiConfigFlags = 4
+# ImDrawListSharedData = 508
+# ImVec2 = 8
+# ImDrawListFlags = 4
+# ImU8 = 1
+# ImGuiID = 4
+# ImVector_ImGuiWindowPtr = 16
+# ImGuiStorage = 16
+# ImU32 = 4
+# ImU64 = 8
+# ImGuiInputSource = 4
+# ImGuiNextWindowData = 148
+# ImGuiNextItemData = 16 + 1
+# ImGuiNextWindowDataFlags = 4
+# ImGuiCond = 4
+# ImRect = 16
+# ImGuiSizeCallback = 8
+# ImGuiWindowClass = 28 + 2
+# ImVector_ImGuiColorMod = 16
+# ImVector_ImGuiStyleMod = 16
+# ImVector_ImFontPtr = 16
+# ImVector_ImGuiID = 16
+# ImVector_ImGuiItemFlags = 16
+# ImVector_ImGuiGroupData = 16
+# ImVector_ImGuiPopupData = 16
+# ImVector_ImGuiViewportPPtr = 16
+# ImGuiPlatformMonitor = 36

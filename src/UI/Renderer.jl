@@ -2,6 +2,7 @@ function UI(breakdown=false; precompile=false)
     glfwDefaultWindowHints()
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3)
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 2)
+    glfwWindowHint(GLFW_SCALE_TO_MONITOR, GLFW_TRUE)
     if Sys.isapple()
         glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE) # 3.2+ only
         glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE) # required on Mac
@@ -111,10 +112,11 @@ function UI(breakdown=false; precompile=false)
         fontcfg,
         icon_r[1].Data
     )
-
+    
     # setup Platform/Renderer bindings
     ImGuiGLFWBackend.init(window_ctx)
     ImGuiOpenGLBackend.init(gl_ctx)
+    ImGui_ImplGlfw_UpdateMonitors_fixeddpiscale(window_ctx)
 
     global IMGUISTYLE = CImGui.GetStyle()
     global IMPLOTSTYLE = ImPlot.GetStyle()
@@ -130,11 +132,13 @@ function UI(breakdown=false; precompile=false)
         global glfwwindowy = Cint(0)
         iswindowiconified::Bool = false
         pick_fps_normal = CONF.DAQ.pick_fps[1]
+        scale_old::Cfloat = 0
         while true
             glfwPollEvents()
             ImGuiOpenGLBackend.new_frame(gl_ctx)
             ImGuiGLFWBackend.new_frame(window_ctx)
             CImGui.NewFrame()
+            CONF.Basic.scale && @c Update_DpiScale(&scale_old)
 
             ######检查STATICSTRINGS######
             waittime("Check STATICSTRINGS", 36) && checklifetime()
