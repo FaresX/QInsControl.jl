@@ -143,7 +143,14 @@ mutable struct SaveBlock <: AbstractBlock
 end
 SaveBlock() = SaveBlock("", "", (0, 0), (0, 0))
 
-############tocodes-----------------------------------------------------------------------------------------------------
+############ isapprox --------------------------------------------------------------------------------------------------
+
+Base.isapprox(::T1, ::T2) where T1 <: AbstractBlock where T2 <: AbstractBlock = T1 == T2
+Base.isapprox(x::StrideCodeBlock, y::StrideCodeBlock) = x.blocks ≈ y.blocks
+Base.isapprox(x::SweepBlock, y::SweepBlock) = x.blocks ≈ y.blocks
+Base.isapprox(x::Vector{AbstractBlock}, y::Vector{AbstractBlock}) = length(x) == length(y) ? all(x .≈ y) : false
+
+############ tocodes ---------------------------------------------------------------------------------------------------
 
 tocodes(::NullBlock) = nothing
 

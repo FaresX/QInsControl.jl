@@ -120,6 +120,12 @@ let
                     1.0, 1, 180, "%d",
                     CImGui.ImGuiSliderFlags_AlwaysClamp
                 )
+                @c CImGui.DragInt(
+                    stcstr(mlstr("history blocks"), "##DAQ"),
+                    &CONF.Console.historylen,
+                    1.0, 6, 60, "%d",
+                    CImGui.ImGuiSliderFlags_AlwaysClamp
+                )
                 CImGui.Text(" ")
                 CImGui.Separator()
 

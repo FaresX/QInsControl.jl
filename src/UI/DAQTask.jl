@@ -15,7 +15,7 @@ const CFGBUF = Dict{String,Any}()
 let
     holdsz::Cfloat = 0
     viewmode::Bool = false
-    # global redolist::Dict{Int,LoopVector{Vector{AbstractBlock}}} = Dict()
+    global redolist::Dict{Int,LoopVector{Vector{AbstractBlock}}} = Dict()
     global function edit(daqtask::DAQTask, id, p_open::Ref{Bool})
         CImGui.SetNextWindowSize((600, 800), CImGui.ImGuiCond_Once)
         CImGui.PushStyleColor(CImGui.ImGuiCol_WindowBg, CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_PopupBg))
@@ -30,7 +30,7 @@ let
             CImGui.BeginChild("Blocks")
             CImGui.TextColored(MORESTYLE.Colors.HighlightText, MORESTYLE.Icons.TaskButton)
             CImGui.SameLine()
-            CImGui.Text(stcstr(" ", mlstr("Edit queue: Task")," ", id + OLDI, " ", daqtask.name))
+            CImGui.Text(stcstr(" ", mlstr("Edit queue: Task"), " ", id + OLDI, " ", daqtask.name))
             CImGui.SameLine(CImGui.GetContentRegionAvailWidth() - holdsz)
             @c CImGui.Checkbox(mlstr("HOLD"), &daqtask.hold)
             holdsz = CImGui.GetItemRectSize().x
@@ -60,8 +60,8 @@ let
             CImGui.BeginChild("DAQTask.blocks")
             viewmode ? view(daqtask.blocks) : edit(daqtask.blocks, 1)
             CImGui.EndChild()
-            # haskey(redolist, id) || (push!(redolist, id => LoopVector(fill(AbstractBlock[], 10))); redolist[id][] = deepcopy(daqtask.blocks))
-            # redolist[id][] == daqtask.blocks || (move!(redolist[id]); redolist[id][] = deepcopy(daqtask.blocks))
+            haskey(redolist, id) || (push!(redolist, id => LoopVector(fill(AbstractBlock[], 10))); redolist[id][] = deepcopy(daqtask.blocks))
+            redolist[id][] ≈ daqtask.blocks || (move!(redolist[id]); redolist[id][] = deepcopy(daqtask.blocks))
             all(.!mousein.(daqtask.blocks, true)) && CImGui.OpenPopupOnItemClick("add new Block")
             if CImGui.BeginPopup("add new Block")
                 if CImGui.BeginMenu(stcstr(MORESTYLE.Icons.NewFile, " ", mlstr("Add")))
@@ -75,9 +75,14 @@ let
                     CImGui.MenuItem(stcstr(MORESTYLE.Icons.QueryBlock, " ", mlstr("QueryBlock"))) && push!(daqtask.blocks, QueryBlock())
                     CImGui.MenuItem(stcstr(MORESTYLE.Icons.ReadBlock, " ", mlstr("ReadBlock"))) && push!(daqtask.blocks, ReadBlock())
                     CImGui.MenuItem(stcstr(MORESTYLE.Icons.SaveBlock, " ", mlstr("SaveBlock"))) && push!(daqtask.blocks, SaveBlock())
-                    # CImGui.MenuItem("undo") && (move!(redolist[id], -1); daqtask.blocks = deepcopy(redolist[id][]))
-                    # CImGui.MenuItem("redo") && (move!(redolist[id]); daqtask.blocks = deepcopy(redolist[id][]))
                     CImGui.EndMenu()
+                end
+                CImGui.Separator()
+                if CImGui.MenuItem(stcstr(MORESTYLE.Icons.Undo, " ", mlstr("Undo")))
+                    move!(redolist[id], -1); daqtask.blocks = deepcopy(redolist[id][])
+                end
+                if CImGui.MenuItem(stcstr(MORESTYLE.Icons.Redo, " ", mlstr("Redo")))
+                    move!(redolist[id]); daqtask.blocks = deepcopy(redolist[id][])
                 end
                 if CImGui.MenuItem(stcstr(MORESTYLE.Icons.Convert, " ", mlstr("Interpret")))
                     codes = @trypasse quote
@@ -86,6 +91,15 @@ let
                     isnothing(codes) || @info codes
                 end
                 CImGui.EndPopup()
+            end
+            if unsafe_load(CImGui.GetIO().KeyCtrl) && waittime(stcstr("undo-redo blocks", 1), 0.1)
+                if CImGui.IsKeyDown(igGetKeyIndex(ImGuiKey_Z))
+                    move!(redolist[id], -1)
+                    daqtask.blocks = deepcopy(redolist[id][])
+                elseif CImGui.IsKeyDown(igGetKeyIndex(ImGuiKey_Y))
+                    move!(redolist[id])
+                    daqtask.blocks = deepcopy(redolist[id][])
+                end
             end
             CImGui.EndChild()
             isfocus &= CImGui.IsWindowFocused(CImGui.ImGuiFocusedFlags_ChildWindows)

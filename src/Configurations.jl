@@ -22,6 +22,7 @@ end
     packsize::Cint = 6
     plotshowcol::Cint = 2
     pick_fps::Vector{Cint} = [3, 36]
+    historylen::Cint = 12
 end
 
 @option mutable struct OptInsBuf

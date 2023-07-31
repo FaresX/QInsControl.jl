@@ -52,6 +52,8 @@ Base.@kwdef mutable struct MoreStyleIcon
     Paste::String = ICONS.ICON_PASTE
     Load::String = ICONS.ICON_SCREWDRIVER_WRENCH
     Rename::String = ICONS.ICON_PEN_TO_SQUARE
+    Undo::String = ICONS.ICON_ROTATE_LEFT
+    Redo::String = ICONS.ICON_ROTATE_RIGHT
     Disable::String = ICONS.ICON_RECTANGLE_XMARK
     Restore::String = ICONS.ICON_RECYCLE
     ShowDisable::String = ICONS.ICON_EYE
