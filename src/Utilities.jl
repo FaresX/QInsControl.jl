@@ -260,3 +260,27 @@ function synccall_wait(f, ids, args...)
         remotecall_wait(f, i, args...)
     end
 end
+
+function uniformz!(x, y, z)
+    zyl, zxl = size(z)
+    if length(y) == zyl
+        miny, maxy = extrema(y)
+        if miny != maxy
+            @views for j in axes(z, 2)
+                lineary = range(miny, maxy, length=zyl)
+                interp = LinearInterpolation(z[:, j], y)
+                z[:, j] = interp.(lineary)
+            end
+        end
+    end
+    if length(x) == zxl
+        minx, maxx = extrema(x)
+        if minx != maxx
+            @views for i in axes(z, 1)
+                linearx = range(minx, maxx, length=zxl)
+                interp = LinearInterpolation(z[i, :], x)
+                z[i, :] = interp.(linearx)
+            end
+        end
+    end
+end

@@ -140,7 +140,11 @@ let
                     end
                     CImGui.Separator()
                     CImGui.MenuItem(stcstr(MORESTYLE.Icons.Edit, " ", mlstr("Edit"))) && (show_daq_editors[i] = true)
-                    CImGui.MenuItem(stcstr(MORESTYLE.Icons.Copy, " ", mlstr("Copy"))) && (insert!(daqtasks, i + 1, deepcopy(task)))
+                    if CImGui.MenuItem(stcstr(MORESTYLE.Icons.Copy, " ", mlstr("Copy")))
+                        insert!(daqtasks, i + 1, deepcopy(task))
+                        push!(show_daq_editors, false)
+                        push!(show_daq_dtpickers, false)
+                    end
                     if CImGui.MenuItem(stcstr(MORESTYLE.Icons.SaveButton, " ", mlstr("Save")))
                         confsvpath = save_file(filterlist="cfg")
                         isempty(confsvpath) || jldsave(confsvpath; daqtask=task)

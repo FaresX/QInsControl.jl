@@ -11,7 +11,7 @@ end
 CodeBlock() = CodeBlock("", (0, 0), (0, 0))
 
 mutable struct StrideCodeBlock <: AbstractBlock
-    head::String
+    codes::String
     level::Int
     blocks::Vector{AbstractBlock}
     nohandler::Bool
@@ -181,15 +181,15 @@ function tocodes(bk::StrideCodeBlock)
     end
     ex1 = bk.nohandler ? quote end : quote
         if SYNCSTATES[Int(IsBlocked)]
-            @warn "[$(now())]\n$(mlstr("pause!"))" StrideCodeBlock = $(bk.head)
+            @warn "[$(now())]\n$(mlstr("pause!"))" StrideCodeBlock = $(bk.codes)
             lock(() -> wait(BLOCK), BLOCK)
-            @info "[$(now())]\n$(mlstr("continue!"))" StrideCodeBlock = $(bk.head)
+            @info "[$(now())]\n$(mlstr("continue!"))" StrideCodeBlock = $(bk.codes)
         elseif SYNCSTATES[Int(IsInterrupted)]
-            @warn "[$(now())]\n$(mlstr("interrupt!"))" StrideCodeBlock = $(bk.head)
+            @warn "[$(now())]\n$(mlstr("interrupt!"))" StrideCodeBlock = $(bk.codes)
             return nothing
         end
     end
-    codestr = string(bk.head, "\n ", ex1)
+    codestr = string(bk.codes, "\n ", ex1)
     for i in eachindex(innercodes)
         codestr *= string("\n ", innercodes[i], "\n ", branch_codes[i])
     end
@@ -689,7 +689,7 @@ function edit(bk::StrideCodeBlock)
     CImGui.IsItemClicked(2) && (bk.nohandler ⊻= true)
     CImGui.SameLine()
     CImGui.PushItemWidth(-1)
-    @c InputTextWithHintRSZ("##code header", mlstr("code header"), &bk.head)
+    @c InputTextWithHintRSZ("##code header", mlstr("code header"), &bk.codes)
     CImGui.PopItemWidth()
     CImGui.PopStyleColor()
     isempty(skipnull(bk.blocks)) || edit(bk.blocks, bk.level + 1)
@@ -1156,6 +1156,7 @@ let
     isdragging::Bool = false
     dragblock = AbstractBlock[]
     dropblock = AbstractBlock[]
+    copyblock::AbstractBlock = NullBlock()
     global function edit(blocks::Vector{AbstractBlock}, n::Int)
         for (i, bk) in enumerate(blocks)
             bk isa NullBlock && continue
@@ -1272,9 +1273,13 @@ let
                     CImGui.MenuItem(stcstr(MORESTYLE.Icons.SaveBlock, " ", mlstr("SaveBlock"))) && (bk isa SaveBlock || (blocks[i] = SaveBlock()))
                     CImGui.EndMenu()
                 end
+                CImGui.Separator()
+                CImGui.MenuItem(stcstr(MORESTYLE.Icons.Copy, " ", mlstr("Copy"))) && (copyblock = deepcopy(blocks[i]))
+                CImGui.MenuItem(stcstr(MORESTYLE.Icons.Paste, " ", mlstr("Paste"))) && insert!(blocks, i + 1, deepcopy(copyblock))
                 CImGui.MenuItem(stcstr(MORESTYLE.Icons.CloseFile, " ", mlstr("Delete"))) && (blocks[i] = NullBlock())
-                bk isa CodeBlock && CImGui.MenuItem(stcstr(MORESTYLE.Icons.CloseFile, " ", mlstr("Clear"))) && (bk.codes = "")
-                bk isa StrideCodeBlock && CImGui.MenuItem(stcstr(MORESTYLE.Icons.CloseFile, " ", mlstr("Clear"))) && (bk.head = "")
+                if typeof(bk) in [CodeBlock, StrideCodeBlock]
+                    CImGui.MenuItem(stcstr(MORESTYLE.Icons.CloseFile, " ", mlstr("Clear"))) && (bk.codes = "")
+                end
                 CImGui.EndPopup()
             end
         end
@@ -1296,7 +1301,7 @@ end #let
 function swapblock(blocks::Vector{AbstractBlock}, dragbk::AbstractBlock, dropbk::AbstractBlock)
     (dragbk == dropbk || isininnerblocks(dropbk, dragbk)) && return
     disable_drag(blocks, dragbk)
-    if typeof(dropbk) in [SweepBlock, StrideCodeBlock] && (CImGui.IsKeyDown(341) || CImGui.IsKeyDown(345))
+    if typeof(dropbk) in [SweepBlock, StrideCodeBlock] && unsafe_load(CImGui.GetIO().KeyCtrl)
         push!(dropbk.blocks, dragbk)
         return
     end
@@ -1355,7 +1360,7 @@ function view(bk::StrideCodeBlock)
     )
     CImGui.SameLine()
     CImGui.PushStyleVar(CImGui.ImGuiStyleVar_ButtonTextAlign, (0.0, 0.5))
-    CImGui.Button(bk.head, (-1, 0))
+    CImGui.Button(bk.codes, (-1, 0))
     CImGui.PopStyleVar()
     CImGui.PopStyleColor()
     isempty(skipnull(bk.blocks)) || view(bk.blocks)
@@ -1638,7 +1643,7 @@ function Base.show(io::IO, bk::StrideCodeBlock)
         region min : $(bk.regmin)
         region max : $(bk.regmax)
              level : $(bk.level)
-              head : $(bk.head)
+              head : $(bk.codes)
               body : 
     """
     print(io, str)

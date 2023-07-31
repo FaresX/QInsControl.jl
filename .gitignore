@@ -4,7 +4,6 @@ Assets/Logs
 Assets/IOs
 imgui.ini
 docs/build
-QInsControl.so
 src/*.mem
 src/UI/*.mem
 src/QInsControlCore/*.mem

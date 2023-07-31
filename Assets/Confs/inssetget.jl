@@ -22,6 +22,23 @@ let
     global VirtualInstr_SetTest_get(_) = setval
 end
 
+let 
+    I::Float64 = 0
+    R::Float64 = 0
+    B::Float64 = 0
+    Ic(b) = abs(sinc(b))
+    IR(i) = abs(i) > Ic(B) ? 1 + randn()*0.05 : randn()*0.05
+
+
+    global VirtualInstr_I_set(_, setv) = (I = parse(Float64, setv))
+    global VirtualInstr_I_get(_) = string(I)
+
+    global VirtualInstr_R_get(_) = string(IR(I))
+
+    global VirtualInstr_B_set(_, setv) = (B = parse(Float64, setv))
+    global VirtualInstr_B_get(_) = string(B)
+end
+
 # VirtualInstr_SetTest2_set(, setv) = @info "VirtualInstr set2 : $setv"
 # VirtualInstr_SetTest2_get() = string(rand(Int8))
 

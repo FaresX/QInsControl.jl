@@ -458,6 +458,7 @@ edit(qt::InstrQuantity, instrnm::String, addr::String) = edit(qt, instrnm, addr,
 
 let
     stbtsz::Float32 = 0
+    closepopup::Bool = false
     global function edit(qt::InstrQuantity, instrnm::String, addr::String, ::Val{:sweep})
         CImGui.PushStyleColor(
             CImGui.ImGuiCol_Button,
@@ -491,12 +492,16 @@ let
             @c InputTextWithHintRSZ("##stop", mlstr("stop"), &qt.stop)
             @c CImGui.DragFloat("##delay", &qt.delay, 1.0, 0.05, 60, "%.3f", CImGui.ImGuiSliderFlags_AlwaysClamp)
             if qt.issweeping
-                if CImGui.Button(mlstr(" Stop "), (-1, 0))
+                if CImGui.Button(
+                    mlstr(" Stop "), (-1, 0)
+                ) || CImGui.IsKeyDown(igGetKeyIndex(ImGuiKey_Enter))
                     qt.issweeping = false
-                    CImGui.CloseCurrentPopup()
+                    closepopup = true
                 end
             else
-                if CImGui.Button(mlstr(" Start "), (-1, 0)) || CImGui.IsKeyDown(257) || CImGui.IsKeyDown(335)
+                if CImGui.Button(
+                    mlstr(" Start "), (-1, 0)
+                ) || CImGui.IsKeyDown(igGetKeyIndex(ImGuiKey_Enter))
                     if addr != ""
                         Us = CONF.U[qt.utype]
                         U = isempty(Us) ? "" : Us[qt.uindex]
@@ -571,8 +576,12 @@ let
                             errormonitor(sweeptask)
                         end
                     end
-                    CImGui.CloseCurrentPopup()
+                    closepopup = true
                 end
+            end
+            if closepopup && !CImGui.IsKeyDown(igGetKeyIndex(ImGuiKey_Enter))
+                CImGui.CloseCurrentPopup()
+                closepopup = false
             end
             CImGui.Text(stcstr(mlstr("unit"), " "))
             CImGui.SameLine()
@@ -590,6 +599,9 @@ end #let
 
 let
     triggerset::Bool = false
+    popup_before::Bool = false
+    popup_now::Bool = false
+    closepopup::Bool = false
     global function edit(qt::InstrQuantity, instrnm::String, addr::String, ::Val{:set})
         CImGui.PushStyleColor(
             CImGui.ImGuiCol_Button,
@@ -610,13 +622,14 @@ let
         if CONF.InsBuf.showhelp && CImGui.IsItemHovered() && qt.help != ""
             ItemTooltip(qt.help)
         end
-        if CImGui.BeginPopupContextItem()
+        popup_now = CImGui.BeginPopupContextItem()
+        !popup_now && popup_before && (popup_before = false)
+        if popup_now
             @c InputTextWithHintRSZ("##set", mlstr("set value"), &qt.set)
             if CImGui.Button(
                    stcstr(" ", mlstr("Confirm"), " "),
                    (-Cfloat(0.1), Cfloat(0))
-               ) || triggerset || CImGui.IsKeyDown(257) || CImGui.IsKeyDown(335)
-                triggerset = false
+               ) || triggerset || CImGui.IsKeyDown(igGetKeyIndex(ImGuiKey_Enter))
                 if addr != ""
                     Us = CONF.U[qt.utype]
                     U = isempty(Us) ? "" : Us[qt.uindex]
@@ -645,9 +658,14 @@ let
                     end
                     isnothing(fetchdata) || (qt.read = fetchdata)
                 end
-                CImGui.CloseCurrentPopup()
+                triggerset = false
+                closepopup = true
             end
-            if addr != ""
+            if closepopup && !CImGui.IsKeyDown(igGetKeyIndex(ImGuiKey_Enter))
+                CImGui.CloseCurrentPopup()
+                closepopup = false
+            end
+            if !popup_before && addr != ""
                 fetchdata = refresh_qt(instrnm, addr, qt.name)
                 if !isnothing(fetchdata)
                     fetchdata in qt.optvalues && (qt.optedidx = findfirst(==(fetchdata), qt.optvalues))
@@ -675,6 +693,7 @@ let
             @c CImGui.Checkbox(mlstr("refresh"), &qt.isautorefresh)
             CImGui.EndPopup()
             updatefront!(qt)
+            popup_before = true
         end
         qt.isautorefresh && updatefront!(qt)
     end

@@ -8,6 +8,7 @@ mutable struct DataPicker
     zsize::Vector{Cint}
     vflipz::Bool
     hflipz::Bool
+    nonuniform::Bool
     codes::CodeBlock
     hold::Bool
     isrealtime::Bool
@@ -18,104 +19,114 @@ DataPicker() = DataPicker(
     [""],
     "", [false], "", [false],
     true,
-    [0, 0], false, false,
+    [0, 0], false, false, false,
     CodeBlock(),
     false, false, Cint(1), 0
 )
 
-function edit(dtpk::DataPicker, id, p_open::Ref)
-    CImGui.SetNextWindowSize((400, 600), CImGui.ImGuiCond_Appearing)
-    # dtpk.hold && CImGui.SetNextWindowFocus()
-    CImGui.PushStyleColor(CImGui.ImGuiCol_WindowBg, CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_PopupBg))
-    CImGui.PushStyleVar(CImGui.ImGuiStyleVar_WindowRounding, unsafe_load(IMGUISTYLE.PopupRounding))
-    isupdate = false
-    isfocus = true
-    if CImGui.Begin(
-        stcstr("Data Selecting##", id),
-        p_open,
-        CImGui.ImGuiWindowFlags_NoTitleBar | CImGui.ImGuiWindowFlags_NoDocking
-    )
-        @cstatic holdsz::Float32 = 0 begin
+let
+    holdsz::Cfloat = 0
+    global function edit(dtpk::DataPicker, id, p_open::Ref)
+        CImGui.SetNextWindowSize((400, 600), CImGui.ImGuiCond_Once)
+        # dtpk.hold && CImGui.SetNextWindowFocus()
+        CImGui.PushStyleColor(CImGui.ImGuiCol_WindowBg, CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_PopupBg))
+        CImGui.PushStyleVar(CImGui.ImGuiStyleVar_WindowRounding, unsafe_load(IMGUISTYLE.PopupRounding))
+        isupdate = false
+        isfocus = true
+        if CImGui.Begin(
+            stcstr("Data Selecting##", id),
+            p_open,
+            CImGui.ImGuiWindowFlags_NoTitleBar | CImGui.ImGuiWindowFlags_NoDocking
+        )
             CImGui.TextColored(MORESTYLE.Colors.HighlightText, MORESTYLE.Icons.Plot)
             CImGui.SameLine()
             CImGui.Text(stcstr(" ", mlstr("Data Selecting")))
             CImGui.SameLine(CImGui.GetContentRegionAvailWidth() - holdsz)
             @c CImGui.Checkbox(mlstr("HOLD"), &dtpk.hold)
             holdsz = CImGui.GetItemRectSize().x
-        end
-        CImGui.Separator()
+            CImGui.Separator()
 
-        @cstatic xtypesz::Float32 = 0 begin
-            CImGui.TextColored(MORESTYLE.Colors.HighlightText, stcstr(mlstr("Select"), " X"))
-            CImGui.SameLine(CImGui.GetContentRegionAvailWidth() - xtypesz)
-            @c CImGui.Checkbox(dtpk.xtype ? mlstr("number") : mlstr("text"), &dtpk.xtype)
-            xtypesz = CImGui.GetItemRectSize().x
-        end
-        CImGui.PushItemWidth(-1)
-        @c ComBoS("##select X", &dtpk.x, [dtpk.datalist; ""])
-        CImGui.PopItemWidth()
-
-        CImGui.TextColored(MORESTYLE.Colors.HighlightText, stcstr(mlstr("Select"), " Y"))
-        if isempty(dtpk.datalist)
-            CImGui.Selectable("")
-        else
-            MultiSelectable(() -> false, "select Y", dtpk.datalist, dtpk.y, 1)
-        end
-
-        CImGui.PushItemWidth(-1)
-        CImGui.TextColored(MORESTYLE.Colors.HighlightText, stcstr(mlstr("Select"), " Z"))
-        @c ComBoS("##select Z", &dtpk.z, [dtpk.datalist; ""])
-        CImGui.PopItemWidth()
-        CImGui.DragInt2(mlstr("matrix dimension"), dtpk.zsize, 1, 0, 1000000, "%d", CImGui.ImGuiSliderFlags_AlwaysClamp)
-        @c CImGui.Checkbox(mlstr("flip vertically"), &dtpk.vflipz)
-        CImGui.SameLine(CImGui.GetContentRegionAvailWidth() / 2)
-        @c CImGui.Checkbox(mlstr("flip horizontally"), &dtpk.hflipz)
-
-        CImGui.PushStyleColor(CImGui.ImGuiCol_Text, MORESTYLE.Colors.HighlightText)
-        selectw = CImGui.CollapsingHeader(stcstr(mlstr("Select"), " W"))
-        CImGui.PopStyleColor()
-        if selectw
-            if isempty(dtpk.datalist)
-                CImGui.Selectable("")
-            else
-                MultiSelectable(() -> false, "select W", dtpk.datalist, dtpk.w, 1)
+            CImGui.PushStyleColor(CImGui.ImGuiCol_Text, MORESTYLE.Colors.HighlightText)
+            selectx = CImGui.CollapsingHeader(stcstr(mlstr("Select"), " X"))
+            CImGui.PopStyleColor()
+            if selectx
+                CImGui.PushItemWidth(-1)
+                @c ComBoS("##select X", &dtpk.x, [dtpk.datalist; ""])
+                CImGui.PopItemWidth()
+                @c CImGui.Checkbox(dtpk.xtype ? mlstr("number") : mlstr("text"), &dtpk.xtype)
             end
-        end
 
-        CImGui.TextColored(MORESTYLE.Colors.LogInfo, mlstr("data processing"))
-        CImGui.SameLine(CImGui.GetWindowContentRegionWidth() - dtpk.alsz)
-        if dtpk.isrealtime
-            CImGui.Text(mlstr("sampling rate"))
+            CImGui.PushStyleColor(CImGui.ImGuiCol_Text, MORESTYLE.Colors.HighlightText)
+            selecty = CImGui.CollapsingHeader(stcstr(mlstr("Select"), " Y"))
+            CImGui.PopStyleColor()
+            if selecty
+                if isempty(dtpk.datalist)
+                    CImGui.Selectable("")
+                else
+                    MultiSelectable(() -> false, "select Y", dtpk.datalist, dtpk.y, 1)
+                end
+            end
+
+            CImGui.PushStyleColor(CImGui.ImGuiCol_Text, MORESTYLE.Colors.HighlightText)
+            selectz = CImGui.CollapsingHeader(stcstr(mlstr("Select"), " Z"))
+            CImGui.PopStyleColor()
+            if selectz
+                CImGui.PushItemWidth(-1)
+                @c ComBoS("##select Z", &dtpk.z, [dtpk.datalist; ""])
+                CImGui.PopItemWidth()
+                CImGui.DragInt2(mlstr("matrix dimension"), dtpk.zsize, 1, 0, 1000000, "%d", CImGui.ImGuiSliderFlags_AlwaysClamp)
+                @c CImGui.Checkbox(mlstr("flip vertically"), &dtpk.vflipz)
+                CImGui.SameLine(CImGui.GetContentRegionAvailWidth() / 2)
+                @c CImGui.Checkbox(mlstr("flip horizontally"), &dtpk.hflipz)
+                @c CImGui.Checkbox(mlstr("nonuniform axes"), &dtpk.nonuniform)
+            end
+
+            CImGui.PushStyleColor(CImGui.ImGuiCol_Text, MORESTYLE.Colors.HighlightText)
+            selectw = CImGui.CollapsingHeader(stcstr(mlstr("Select"), " W"))
+            CImGui.PopStyleColor()
+            if selectw
+                if isempty(dtpk.datalist)
+                    CImGui.Selectable("")
+                else
+                    MultiSelectable(() -> false, "select W", dtpk.datalist, dtpk.w, 1)
+                end
+            end
+
+            CImGui.TextColored(MORESTYLE.Colors.LogInfo, mlstr("data processing"))
+            CImGui.SameLine(CImGui.GetWindowContentRegionWidth() - dtpk.alsz)
+            if dtpk.isrealtime
+                CImGui.Text(mlstr("sampling rate"))
+                CImGui.SameLine()
+                dtpk.alsz = CImGui.GetItemRectSize().x
+                CImGui.PushItemWidth(2CImGui.GetFontSize())
+                @c CImGui.DragFloat("s", &dtpk.refreshrate, 0.01, 0.01, 6, "%.2f", CImGui.ImGuiSliderFlags_AlwaysClamp)
+                CImGui.SameLine()
+                CImGui.PopItemWidth()
+                dtpk.alsz += CImGui.GetItemRectSize().x + unsafe_load(IMGUISTYLE.ItemSpacing.x)
+            else
+                CImGui.Button(stcstr(MORESTYLE.Icons.Update, stcstr(" ", mlstr("Update"), " "))) && (isupdate = true)
+                dtpk.alsz = CImGui.GetItemRectSize().x
+            end
             CImGui.SameLine()
-            dtpk.alsz = CImGui.GetItemRectSize().x
-            CImGui.PushItemWidth(2CImGui.GetFontSize())
-            @c CImGui.DragFloat("s", &dtpk.refreshrate, 0.01, 0.01, 6, "%.2f", CImGui.ImGuiSliderFlags_AlwaysClamp)
-            CImGui.SameLine()
-            CImGui.PopItemWidth()
+            @c CImGui.Checkbox("RT", &dtpk.isrealtime)
             dtpk.alsz += CImGui.GetItemRectSize().x + unsafe_load(IMGUISTYLE.ItemSpacing.x)
-        else
-            CImGui.Button(stcstr(MORESTYLE.Icons.Update, stcstr(" ", mlstr("Update"), " "))) && (isupdate = true)
-            dtpk.alsz = CImGui.GetItemRectSize().x
-        end
-        CImGui.SameLine()
-        @c CImGui.Checkbox("RT", &dtpk.isrealtime)
-        dtpk.alsz += CImGui.GetItemRectSize().x + unsafe_load(IMGUISTYLE.ItemSpacing.x)
-        CImGui.IsItemHovered() && CImGui.SetTooltip(mlstr("real-time data update/manual data update"))
+            CImGui.IsItemHovered() && CImGui.SetTooltip(mlstr("real-time data update/manual data update"))
 
-        CImGui.PushID("select XYZ")
-        edit(dtpk.codes)
-        if CImGui.BeginPopupContextItem()
-            CImGui.MenuItem(mlstr("Clear")) && (dtpk.codes = CodeBlock())
-            CImGui.EndPopup()
+            CImGui.PushID("select XYZ")
+            edit(dtpk.codes)
+            if CImGui.BeginPopupContextItem()
+                CImGui.MenuItem(mlstr("Clear")) && (dtpk.codes = CodeBlock())
+                CImGui.EndPopup()
+            end
+            CImGui.PopID()
+            isfocus &= CImGui.IsWindowFocused(CImGui.ImGuiFocusedFlags_ChildWindows)
         end
-        CImGui.PopID()
-        isfocus &= CImGui.IsWindowFocused(CImGui.ImGuiFocusedFlags_ChildWindows)
+        CImGui.End()
+        p_open.x &= (isfocus | dtpk.hold)
+        CImGui.PopStyleVar()
+        CImGui.PopStyleColor()
+        isupdate
     end
-    CImGui.End()
-    p_open.x &= (isfocus | dtpk.hold)
-    CImGui.PopStyleVar()
-    CImGui.PopStyleColor()
-    isupdate
 end
 
 function syncplotdata(uiplot::UIPlot, dtpk::DataPicker, datastr, datafloat)
@@ -188,6 +199,7 @@ function syncplotdata(uiplot::UIPlot, dtpk::DataPicker, datastr, datafloat)
             @views uiplot.z[1:rows, :] = transpose(resize(nz, dtpk.zsize[1], rows))
             dtpk.vflipz && reverse!(uiplot.z, dims=2)
             dtpk.hflipz && reverse!(uiplot.z, dims=1)
+            dtpk.nonuniform && uniformz!(uiplot.x, uiplot.y[1], uiplot.z)
         end
         dtpk.isrealtime || @info "[$(now())]" data_processing = innercodes
     catch e

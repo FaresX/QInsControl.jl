@@ -241,11 +241,11 @@ let
             CImGui.EndMainMenuBar()
         end
         ######快捷键######
-        if isopenfiles || ((CImGui.IsKeyDown(341) || CImGui.IsKeyDown(345)) && CImGui.IsKeyDown(79))
+        if isopenfiles || (unsafe_load(CImGui.GetIO().KeyCtrl) && CImGui.IsKeyDown(79))
             files = pick_multi_file()
             isempty(files) || push!(dtviewers, (DataViewer(), FolderFileTree(files), Dict())) #true -> active
         end
-        if isopenfolder || ((CImGui.IsKeyDown(341) || CImGui.IsKeyDown(345)) && CImGui.IsKeyDown(75))
+        if isopenfolder || (unsafe_load(CImGui.GetIO().KeyCtrl) && CImGui.IsKeyDown(75))
             root = pick_folder()
             isdir(root) && push!(dtviewers, (DataViewer(), FolderFileTree(root), Dict())) #true -> active
         end

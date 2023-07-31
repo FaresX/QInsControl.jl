@@ -10,6 +10,7 @@ using CImGui.ImGuiOpenGLBackend.ModernGL
 using CImGui.LibCImGui
 using ColorTypes
 using Configurations
+using DataInterpolations
 import FileIO
 import ImageMagick
 using ImPlot

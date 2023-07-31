@@ -89,7 +89,8 @@ end
         "" => [""],
         "K" => [u"K", u"mK"],
         "s" => [u"s", u"minute", u"hr", u"d", u"ms", u"μs"],
-        "Hz" => [u"Hz", u"kHz", u"MHz", u"GHz"]
+        "Hz" => [u"Hz", u"kHz", u"MHz", u"GHz"],
+        "Ω" => [u"Ω", u"kΩ", u"MΩ"]
     )
 end
 

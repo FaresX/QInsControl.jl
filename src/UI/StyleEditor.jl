@@ -49,6 +49,7 @@ Base.@kwdef mutable struct MoreStyleIcon
     InterruptTask::String = ICONS.ICON_CIRCLE_STOP
     Edit::String = ICONS.ICON_PEN
     Copy::String = ICONS.ICON_WINDOW_RESTORE
+    Paste::String = ICONS.ICON_PASTE
     Load::String = ICONS.ICON_SCREWDRIVER_WRENCH
     Rename::String = ICONS.ICON_PEN_TO_SQUARE
     Disable::String = ICONS.ICON_RECTANGLE_XMARK

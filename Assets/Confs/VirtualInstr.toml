@@ -8,6 +8,16 @@ optvalues = []
 type = "sweep"
 alias = "扫描测试"
 
+[B]
+cmdheader = ""
+U = "T"
+enable = true
+optkeys = []
+help = "仅作为测试"
+optvalues = []
+type = "sweep"
+alias = "Josephson B"
+
 [SystemTime]
 cmdheader = ""
 U = "s"
@@ -18,13 +28,23 @@ optvalues = []
 type = "read"
 alias = "系统时间"
 
+[I]
+cmdheader = ""
+U = "A"
+enable = true
+optkeys = []
+help = "仅作为测试"
+optvalues = []
+type = "sweep"
+alias = "Josephson I"
+
 [SetTest]
 cmdheader = ""
 U = "V"
 enable = true
 optkeys = ["test1", "test2", "test3", "test4", "test5", "test6"]
 help = "仅作为设置测试"
-optvalues = ["1", "2", "3", "4", "5", "6"]
+optvalues = ["1.0", "2", "3", "4", "5", "6"]
 type = "set"
 alias = "设置测试"
 
@@ -64,3 +84,13 @@ help = "Return a DateTime corresponding to the user's system time including the 
 optvalues = []
 type = "read"
 alias = "日期和时间"
+
+[R]
+cmdheader = ""
+U = "Ω"
+enable = true
+optkeys = []
+help = "仅作为测试"
+optvalues = []
+type = "read"
+alias = "Josephson R"
