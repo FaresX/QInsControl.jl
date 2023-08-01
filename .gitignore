@@ -10,3 +10,4 @@ src/QInsControlCore/*.mem
 Assets/Confs/*.mem
 Assets/Necessity/conf.toml
 Assets/Languages/default.toml
+test/TestQInsControl
