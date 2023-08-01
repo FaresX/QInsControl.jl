@@ -12,6 +12,8 @@ let
     # show_helppad::Bool = false
     show_about::Bool = false
 
+    showapp::Ref{Bool} = true
+
     #main window flags
     no_titlebar::Bool = true
     no_scrollbar::Bool = false
@@ -38,6 +40,8 @@ let
     no_background && (window_flags |= CImGui.ImGuiWindowFlags_NoBackground)
     no_bring_to_front && (window_flags |= CImGui.ImGuiWindowFlags_NoBringToFrontOnFocus)
     no_docking && (window_flags |= CImGui.ImGuiWindowFlags_NoDocking)
+
+    global isshowapp() = showapp
     global function closeallwindow()
         show_preferences = false
         show_instr_register = false
@@ -64,22 +68,25 @@ let
     global function MainWindow()
         ######加载背景######
         # igDockSpaceOverViewport(igGetMainViewport(), ImGuiDockNodeFlags_None, C_NULL)
-        viewport = igGetMainViewport()
-        CImGui.SetNextWindowPos(unsafe_load(viewport.WorkPos))
-        CImGui.SetNextWindowSize(unsafe_load(viewport.WorkSize))
-        CImGui.PushStyleVar(CImGui.ImGuiStyleVar_WindowRounding, 0)
-        CImGui.PushStyleVar(CImGui.ImGuiStyleVar_WindowPadding, (0, 0))
-        CImGui.Begin("Wallpaper", C_NULL, window_flags | CImGui.ImGuiWindowFlags_NoBringToFrontOnFocus)
-        CImGui.Image(Ptr{Cvoid}(BGID), unsafe_load(viewport.WorkSize))
-        CImGui.End()
+        if !CONF.Basic.hidewindow
+            viewport = igGetMainViewport()
+            CImGui.SetNextWindowPos(unsafe_load(viewport.WorkPos))
+            CImGui.SetNextWindowSize(unsafe_load(viewport.WorkSize))
+            CImGui.PushStyleVar(CImGui.ImGuiStyleVar_WindowRounding, 0)
+            CImGui.PushStyleVar(CImGui.ImGuiStyleVar_WindowPadding, (0, 0))
+            CImGui.Begin("Wallpaper", C_NULL, window_flags | CImGui.ImGuiWindowFlags_NoBringToFrontOnFocus)
+            CImGui.Image(Ptr{Cvoid}(BGID), unsafe_load(viewport.WorkSize))
+            CImGui.End()
 
-        CImGui.SetNextWindowPos(unsafe_load(viewport.WorkPos))
-        CImGui.SetNextWindowSize(unsafe_load(viewport.WorkSize))
-        CImGui.Begin("DockSpace", C_NULL, window_flags | CImGui.ImGuiWindowFlags_NoBackground)
-        igDockSpace(CImGui.GetID("MainWindow"), CImGui.ImVec2(0, 0), ImGuiDockNodeFlags_PassthruCentralNode, C_NULL)
-        CImGui.End()
-        CImGui.PopStyleVar(2)
-        # igDockSpaceOverViewport(igGetMainViewport(), ImGuiDockNodeFlags_None, C_NULL)
+            CImGui.SetNextWindowPos(unsafe_load(viewport.WorkPos))
+            CImGui.SetNextWindowSize(unsafe_load(viewport.WorkSize))
+            CImGui.Begin("DockSpace", C_NULL, window_flags | CImGui.ImGuiWindowFlags_NoBackground)
+            igDockSpace(CImGui.GetID("MainWindow"), CImGui.ImVec2(0, 0), ImGuiDockNodeFlags_PassthruCentralNode, C_NULL)
+            CImGui.End()
+            CImGui.PopStyleVar(2)
+            # igDockSpaceOverViewport(igGetMainViewport(), ImGuiDockNodeFlags_None, C_NULL)
+        end
+
         ######Debug######
 
 
@@ -114,7 +121,13 @@ let
         ######主菜单######
         isopenfiles = false
         isopenfolder = false
-        if CImGui.BeginMainMenuBar()
+        if CONF.Basic.hidewindow
+            viewport = igGetMainViewport()
+            CImGui.SetNextWindowPos((unsafe_load(viewport.WorkPos) .+ 6 ...,), CImGui.ImGuiCond_Appearing)
+            CImGui.SetNextWindowSize(unsafe_load(viewport.WorkSize), CImGui.ImGuiCond_Appearing)
+            CImGui.Begin("QInsControl", showapp, CImGui.ImGuiWindowFlags_MenuBar) || (CImGui.End(); return nothing)
+        end
+        if CONF.Basic.hidewindow ? CImGui.BeginMenuBar() : CImGui.BeginMainMenuBar()
             #File Menu
             if CImGui.BeginMenu(stcstr(MORESTYLE.Icons.File, " ", mlstr("File"), " "))
                 if CImGui.BeginMenu(stcstr(MORESTYLE.Icons.OpenFile, " ", mlstr("Open File")))
@@ -238,7 +251,20 @@ let
             if SYNCSTATES[Int(AutoDetecting)]
                 CImGui.TextColored(MORESTYLE.Colors.HighlightText, stcstr(mlstr("searching instruments"), "......"))
             end
-            CImGui.EndMainMenuBar()
+            CONF.Basic.hidewindow ? CImGui.EndMenuBar() : CImGui.EndMainMenuBar()
+        end
+        if CONF.Basic.hidewindow
+            if CImGui.BeginPopupContextWindow()
+                @c CImGui.MenuItem(mlstr("Hide Window"), C_NULL, &CONF.Basic.hidewindow)
+                CImGui.EndPopup()
+            end
+            global glfwwindowx
+            global glfwwindowy
+            global glfwwindoww
+            global glfwwindowh
+            glfwwindowx, glfwwindowy = round.(Cint, CImGui.GetWindowPos() .- 6)
+            glfwwindoww, glfwwindowh = round.(Cint, CImGui.GetWindowSize())
+            CImGui.End()
         end
         ######快捷键######
         if isopenfiles || (unsafe_load(CImGui.GetIO().KeyCtrl) && CImGui.IsKeyDown(79))

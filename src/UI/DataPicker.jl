@@ -1,5 +1,6 @@
 mutable struct DataPicker
     datalist::Vector{String}
+    ptype::String
     x::String
     y::Vector{Bool}
     z::String
@@ -17,6 +18,7 @@ mutable struct DataPicker
 end
 DataPicker() = DataPicker(
     [""],
+    "line",
     "", [false], "", [false],
     true,
     [0, 0], false, false, false,
@@ -26,6 +28,7 @@ DataPicker() = DataPicker(
 
 let
     holdsz::Cfloat = 0
+    ptypelist::Vector{String} = ["line", "scatter", "heatmap"]
     global function edit(dtpk::DataPicker, id, p_open::Ref)
         CImGui.SetNextWindowSize((400, 600), CImGui.ImGuiCond_Once)
         # dtpk.hold && CImGui.SetNextWindowFocus()
@@ -44,6 +47,7 @@ let
             CImGui.SameLine(CImGui.GetContentRegionAvailWidth() - holdsz)
             @c CImGui.Checkbox(mlstr("HOLD"), &dtpk.hold)
             holdsz = CImGui.GetItemRectSize().x
+            @c ComBoS(mlstr("plot type"), &dtpk.ptype, ptypelist)
             CImGui.Separator()
 
             CImGui.PushStyleColor(CImGui.ImGuiCol_Text, MORESTYLE.Colors.HighlightText)
@@ -67,18 +71,20 @@ let
                 end
             end
 
-            CImGui.PushStyleColor(CImGui.ImGuiCol_Text, MORESTYLE.Colors.HighlightText)
-            selectz = CImGui.CollapsingHeader(stcstr(mlstr("Select"), " Z"))
-            CImGui.PopStyleColor()
-            if selectz
-                CImGui.PushItemWidth(-1)
-                @c ComBoS("##select Z", &dtpk.z, [dtpk.datalist; ""])
-                CImGui.PopItemWidth()
-                CImGui.DragInt2(mlstr("matrix dimension"), dtpk.zsize, 1, 0, 1000000, "%d", CImGui.ImGuiSliderFlags_AlwaysClamp)
-                @c CImGui.Checkbox(mlstr("flip vertically"), &dtpk.vflipz)
-                CImGui.SameLine(CImGui.GetContentRegionAvailWidth() / 2)
-                @c CImGui.Checkbox(mlstr("flip horizontally"), &dtpk.hflipz)
-                @c CImGui.Checkbox(mlstr("nonuniform axes"), &dtpk.nonuniform)
+            if dtpk.ptype == "heatmap"
+                CImGui.PushStyleColor(CImGui.ImGuiCol_Text, MORESTYLE.Colors.HighlightText)
+                selectz = CImGui.CollapsingHeader(stcstr(mlstr("Select"), " Z"))
+                CImGui.PopStyleColor()
+                if selectz
+                    CImGui.PushItemWidth(-1)
+                    @c ComBoS("##select Z", &dtpk.z, [dtpk.datalist; ""])
+                    CImGui.PopItemWidth()
+                    CImGui.DragInt2(mlstr("matrix dimension"), dtpk.zsize, 1, 0, 1000000, "%d", CImGui.ImGuiSliderFlags_AlwaysClamp)
+                    @c CImGui.Checkbox(mlstr("flip vertically"), &dtpk.vflipz)
+                    CImGui.SameLine(CImGui.GetContentRegionAvailWidth() / 2)
+                    @c CImGui.Checkbox(mlstr("flip horizontally"), &dtpk.hflipz)
+                    @c CImGui.Checkbox(mlstr("nonuniform axes"), &dtpk.nonuniform)
+                end
             end
 
             CImGui.PushStyleColor(CImGui.ImGuiCol_Text, MORESTYLE.Colors.HighlightText)
@@ -130,7 +136,7 @@ let
 end
 
 function syncplotdata(uiplot::UIPlot, dtpk::DataPicker, datastr, datafloat)
-    # dtpk.isrealtime || (uiplot.xlabel = dtpk.x)
+    uiplot.ptype = dtpk.ptype
     if isempty(datafloat)
         if dtpk.xtype
             uiplot.x = haskey(datastr, dtpk.x) ? replace(tryparse.(Float64, datastr[dtpk.x]), nothing => NaN) : Float64[]

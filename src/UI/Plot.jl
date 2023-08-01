@@ -100,7 +100,7 @@ let
             # annbuf.posx, annbuf.posy = CImGui.GetMousePosOnOpeningCurrentPopup()
             # annbuf.offsetx, annbuf.offsety = CImGui.GetMousePosOnOpeningCurrentPopup()
             @c InputTextRSZ(mlstr("title"), &uip.title)
-            @c ComBoS(mlstr("plot type"), &uip.ptype, ["line", "scatter", "heatmap"])
+            # @c ComBoS(mlstr("plot type"), &uip.ptype, ["line", "scatter", "heatmap"])
             @c CImGui.Checkbox(mlstr("data tip"), &uip.ps.showtooltip)
             if CImGui.CollapsingHeader(mlstr("Annotation"))
                 @c InputTextRSZ(mlstr("content"), &annbuf.label)
@@ -458,8 +458,13 @@ let
             count_fps == 0 && path == "" && (SYNCSTATES[Int(SavingImg)] = false; return 0)
             count_fps += 1
             viewport = igGetMainViewport()
-            CImGui.SetNextWindowPos(unsafe_load(viewport.WorkPos))
-            CImGui.SetNextWindowSize(unsafe_load(viewport.WorkSize))
+            if CONF.Basic.hidewindow
+                CImGui.SetNextWindowPos((0, 0))
+                CImGui.SetNextWindowSize((CONF.Basic.windowsize...,))
+            else
+                CImGui.SetNextWindowPos(unsafe_load(viewport.WorkPos))
+                CImGui.SetNextWindowSize(unsafe_load(viewport.WorkSize))
+            end
             CImGui.SetNextWindowFocus()
             CImGui.SetNextWindowBgAlpha(1)
             CImGui.PushStyleVar(CImGui.ImGuiStyleVar_WindowRounding, 0)
@@ -485,9 +490,10 @@ let
             if count_fps == CONF.DAQ.pick_fps[1]
                 img = ImageMagick.load("screenshot:")
                 vpos, vsize = unsafe_load(viewport.WorkPos), unsafe_load(viewport.WorkSize)
-                CONF.Basic.viewportenable || (vpos = CImGui.ImVec2(vpos.x + glfwwindowx, vpos.y + glfwwindowy))
-                u, d = round(Int, vpos.y + 1), round(Int, vpos.y + vsize.y - 4)
-                l, r = round(Int, vpos.x + 1), round(Int, vpos.x + vsize.x - 1)
+                CONF.Basic.viewportenable || (vpos = CImGui.ImVec2(vpos[1] + glfwwindowx, vpos[2] + glfwwindowy))
+                CONF.Basic.hidewindow && (vpos = (0, 0); vsize = (CONF.Basic.windowsize...,))
+                u, d = round(Int, vpos[2] + 1), round(Int, vpos[2] + vsize[2] - 4)
+                l, r = round(Int, vpos[1] + 1), round(Int, vpos[1] + vsize[1] - 1)
                 if length(size(img)) == 3
                     imgr, imgc, imgh = size(img)
                     img = reshape(img, imgr, imgh * imgc)

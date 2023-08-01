@@ -2,6 +2,7 @@
     isremote::Bool = true
     viewportenable::Bool = true
     scale::Bool = true
+    hidewindow::Bool = false
     windowsize::Vector{Cint} = [1280, 720]
     encoding::String = "GBK"
     editor::String = "notepad"

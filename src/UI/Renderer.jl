@@ -9,11 +9,12 @@ function UI(breakdown=false; precompile=false)
     end
 
     # create window
-    initws::Vector{Cint} = CONF.Basic.windowsize
-    global window = glfwCreateWindow(initws..., "QInsControl", C_NULL, C_NULL)
+    CONF.Basic.viewportenable || (CONF.Basic.hidewindow = false)
+    window = glfwCreateWindow(CONF.Basic.windowsize..., "QInsControl", C_NULL, C_NULL)
     @assert window != C_NULL
     glfwMakeContextCurrent(window)
     glfwSwapInterval(1)  # enable vsync
+    CONF.Basic.hidewindow && glfwHideWindow(window)
 
     # create OpenGL and GLFW context
     window_ctx = ImGuiGLFWBackend.create_context(window)
@@ -130,9 +131,13 @@ function UI(breakdown=false; precompile=false)
         clear_color = Cfloat[0.45, 0.55, 0.60, 1.00]
         global glfwwindowx = Cint(0)
         global glfwwindowy = Cint(0)
+        global glfwwindoww = Cint(0)
+        global glfwwindowh = Cint(0)
         iswindowiconified::Bool = false
         pick_fps_normal = CONF.DAQ.pick_fps[1]
         scale_old::Cfloat = 0
+        isshowapp()[] = true
+        firsthide::Bool = CONF.Basic.hidewindow
         while true
             glfwPollEvents()
             ImGuiOpenGLBackend.new_frame(gl_ctx)
@@ -140,7 +145,7 @@ function UI(breakdown=false; precompile=false)
             CImGui.NewFrame()
             CONF.Basic.scale && @c Update_DpiScale(&scale_old)
 
-            ######检查STATICSTRINGS######
+            ###### 检查 STATICSTRINGS ######
             waittime("Check STATICSTRINGS", 36) && checklifetime()
 
             ######保存图像######
@@ -164,7 +169,6 @@ function UI(breakdown=false; precompile=false)
                     glfwSetWindowAttrib(window, GLFW_FLOATING, GLFW_TRUE)
                 end
             end
-
             MainWindow()
             if CImGui.BeginPopupModal("##windowshouldclose?", C_NULL, CImGui.ImGuiWindowFlags_AlwaysAutoResize)
                 CImGui.TextColored(
@@ -174,13 +178,29 @@ function UI(breakdown=false; precompile=false)
                 CImGui.Button(mlstr("Confirm"), (-1, 0)) && CImGui.CloseCurrentPopup()
                 CImGui.EndPopup()
             end
-            if glfwWindowShouldClose(window) != 0
+            if glfwWindowShouldClose(window) != 0 || !isshowapp()[]
                 if SYNCSTATES[Int(IsDAQTaskRunning)]
                     CImGui.OpenPopup("##windowshouldclose?")
                     glfwSetWindowShouldClose(window, false)
+                    isshowapp()[] = true
                 else
                     break
                 end
+            end
+
+            ###### Hide Window ######
+            if CONF.Basic.hidewindow ⊻ (glfwGetWindowAttrib(window, GLFW_VISIBLE) == GLFW_FALSE) || firsthide
+                firsthide && (firsthide = false)
+                if CONF.Basic.hidewindow
+                    glfwHideWindow(window)
+                    glfwSetWindowSize(window, 1, 1)
+                else
+                    glfwShowWindow(window)
+                    glfwSetWindowSize(window, glfwwindoww, glfwwindowh)
+                end
+            end
+            if glfwGetWindowAttrib(window, GLFW_VISIBLE) == GLFW_FALSE
+                glfwSetWindowPos(window, glfwwindowx, glfwwindowy)
             end
 
             CImGui.Render()

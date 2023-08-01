@@ -36,14 +36,17 @@ let
                     CONF.Basic.isremote ? mlstr("dual core") : mlstr("single core"),
                     &CONF.Basic.isremote
                 )
-                @c CImGui.Checkbox(
+                @c(CImGui.Checkbox(
                     CONF.Basic.viewportenable ? mlstr("multi-viewport mode on") : mlstr("multi-viewport mode off"),
                     &CONF.Basic.viewportenable
-                )
+                )) && (CONF.Basic.viewportenable || (CONF.Basic.hidewindow = false))
                 @c CImGui.Checkbox(
                     CONF.Basic.scale ? mlstr("scale on") : mlstr("scale off"),
                     &CONF.Basic.scale
                 )
+                if unsafe_load(CImGui.GetIO().ConfigFlags) & CImGui.ImGuiConfigFlags_ViewportsEnable == CImGui.ImGuiConfigFlags_ViewportsEnable
+                    @c CImGui.Checkbox(mlstr("hide window"), &CONF.Basic.hidewindow)
+                end
                 # io = CImGui.GetIO()
                 # if conf.Basic.viewportenable
                 #     io.ConfigFlags = unsafe_load(io.ConfigFlags) | CImGui.ImGuiConfigFlags_ViewportsEnable

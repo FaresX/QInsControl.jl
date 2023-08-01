@@ -51,6 +51,17 @@ let
                 end
             end
             CImGui.EndChild()
+            filetree.rootpath_bnm != "" && !CImGui.IsAnyItemHovered() && CImGui.OpenPopupOnItemClick("File Menu")
+            if CImGui.BeginPopup("File Menu")
+                if CImGui.MenuItem(stcstr(MORESTYLE.Icons.InstrumentsAutoRef, " ", mlstr("Refresh")))
+                    filetree.filetrees = FolderFileTree(
+                        filetree.rootpath,
+                        filetree.selectedpath,
+                        filetree.filter
+                    ).filetrees
+                end
+                CImGui.EndPopup()
+            end
             CImGui.NextColumn() #文件列表
 
             CImGui.BeginChild("DataViewer")
@@ -374,8 +385,8 @@ function exportdata(path::AbstractString, data::Dict{String,Vector{String}}, ::V
     data_cols = length(data)
     buf = fill("", maxl + 1, data_cols)
     @views for (i, kv) in enumerate(data)
-        buf[1,i] = kv.first
-        buf[2:length(kv.second)+1,i] = kv.second
+        buf[1, i] = kv.first
+        buf[2:length(kv.second)+1, i] = kv.second
     end
     open(path, "w") do file
         for row in eachrow(buf)
