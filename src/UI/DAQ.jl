@@ -144,6 +144,7 @@ let
                         insert!(daqtasks, i + 1, deepcopy(task))
                         push!(show_daq_editors, false)
                         push!(show_daq_dtpickers, false)
+                        i < running_i && (running_i += 1)
                     end
                     if CImGui.MenuItem(stcstr(MORESTYLE.Icons.SaveButton, " ", mlstr("Save")))
                         confsvpath = save_file(filterlist="cfg")
@@ -365,9 +366,7 @@ let
                     end
                     isupdate = @c edit(daq_dtpk, stcstr("DAQ", i), &isshow_dtpk)
                     show_daq_dtpickers[i] = isshow_dtpk
-                    if !isshow_dtpk || isupdate
-                        syncplotdata(UIPSWEEPS[i], daq_dtpk, DATABUF, DATABUFPARSED)
-                    end
+                    isupdate && syncplotdata(UIPSWEEPS[i], daq_dtpk, DATABUF, DATABUFPARSED)
                 end
             end
 

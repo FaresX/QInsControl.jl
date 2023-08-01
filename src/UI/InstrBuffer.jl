@@ -494,14 +494,14 @@ let
             if qt.issweeping
                 if CImGui.Button(
                     mlstr(" Stop "), (-1, 0)
-                ) || CImGui.IsKeyDown(igGetKeyIndex(ImGuiKey_Enter))
+                ) || (CImGui.IsKeyDown(igGetKeyIndex(ImGuiKey_Enter)) && waittime("sweep", 0.1))
                     qt.issweeping = false
                     closepopup = true
                 end
             else
                 if CImGui.Button(
                     mlstr(" Start "), (-1, 0)
-                ) || CImGui.IsKeyDown(igGetKeyIndex(ImGuiKey_Enter))
+                ) || (CImGui.IsKeyDown(igGetKeyIndex(ImGuiKey_Enter)) && waittime("sweep", 0.1))
                     if addr != ""
                         Us = CONF.U[qt.utype]
                         U = isempty(Us) ? "" : Us[qt.uindex]

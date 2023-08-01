@@ -1,13 +1,3 @@
-[SweepTest]
-cmdheader = ""
-U = "A"
-enable = true
-optkeys = []
-help = "仅作为扫描测试"
-optvalues = []
-type = "sweep"
-alias = "扫描测试"
-
 [B]
 cmdheader = ""
 U = "T"
@@ -16,7 +6,7 @@ optkeys = []
 help = "仅作为测试"
 optvalues = []
 type = "sweep"
-alias = "Josephson B"
+alias = "JJ B"
 
 [SystemTime]
 cmdheader = ""
@@ -36,17 +26,7 @@ optkeys = []
 help = "仅作为测试"
 optvalues = []
 type = "sweep"
-alias = "Josephson I"
-
-[SetTest]
-cmdheader = ""
-U = "V"
-enable = true
-optkeys = ["test1", "test2", "test3", "test4", "test5", "test6"]
-help = "仅作为设置测试"
-optvalues = ["1.0", "2", "3", "4", "5", "6"]
-type = "set"
-alias = "设置测试"
+alias = "JJ I"
 
 [Date]
 cmdheader = ""
@@ -68,12 +48,42 @@ optvalues = []
 type = "read"
 alias = "时间"
 
+[power]
+cmdheader = ""
+U = ""
+enable = true
+optkeys = ["ON", "OFF"]
+help = "仅作为设置测试"
+optvalues = ["1", "0"]
+type = "set"
+alias = "Power"
+
 [conf]
 idn = "VirtualInstr"
 output_labels = []
 icon = ""
 input_labels = []
 cmdtype = ""
+
+[Vac]
+cmdheader = ""
+U = "V"
+enable = true
+optkeys = []
+help = "仅作为测试"
+optvalues = []
+type = "read"
+alias = "JJ Vac"
+
+[Iac]
+cmdheader = ""
+U = "A"
+enable = true
+optkeys = []
+help = "仅作为测试"
+optvalues = []
+type = "sweep"
+alias = "JJ Iac"
 
 [DateTime]
 cmdheader = ""
@@ -84,13 +94,3 @@ help = "Return a DateTime corresponding to the user's system time including the 
 optvalues = []
 type = "read"
 alias = "日期和时间"
-
-[R]
-cmdheader = ""
-U = "Ω"
-enable = true
-optkeys = []
-help = "仅作为测试"
-optvalues = []
-type = "read"
-alias = "Josephson R"

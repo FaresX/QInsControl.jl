@@ -31,7 +31,7 @@ function loadconf()
     haskey(CONF.Basic.languages, CONF.Basic.language) && loadlanguage(CONF.Basic.languages[CONF.Basic.language])
 
     ###### generate insconf ######
-    include(joinpath(ENV["QInsControlAssets"], "Confs/extra_conf.jl"))
+    include(joinpath(ENV["QInsControlAssets"], "ExtraLoad/extraload.jl"))
     for file in readdir(joinpath(ENV["QInsControlAssets"], "Confs"), join=true)
         bnm = basename(file)
         split(bnm, '.')[end] == "toml" && gen_insconf(file)

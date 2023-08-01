@@ -23,9 +23,8 @@ QInsControl.start()
 ```
 
 ## example
+![image](example/demo.png)
 A simple project file [demo.daq](example) is in the example folder, which gives some ideas to write your own scripts.
-One can load it as follows
-![image](example/loadproject.gif)
 
 ## <font color=#FF0000>**Note**</font>
 At present, the GUI may get crashed thanks to some bugs that do not interrupt the running DAQ program. When encountered, 

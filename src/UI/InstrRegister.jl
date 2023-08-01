@@ -9,7 +9,7 @@ let
         width = CImGui.GetItemRectSize().x / 2 - 2CImGui.CalcTextSize(" =>  ").x
         CImGui.SameLine()
         if CImGui.Button("inssetget.jl")
-            inssetget_jl = joinpath(ENV["QInsControlAssets"], "Confs/inssetget.jl") |> abspath
+            inssetget_jl = joinpath(ENV["QInsControlAssets"], "ExtraLoad/inssetget.jl") |> abspath
             @async try
                 Base.run(Cmd([CONF.Basic.editor, inssetget_jl]))
             catch e
@@ -18,7 +18,7 @@ let
         end
         CImGui.SameLine()
         if CImGui.Button(MORESTYLE.Icons.InstrumentsManualRef)
-            @eval include(joinpath(ENV["QInsControlAssets"], "Confs/extra_conf.jl"))
+            @eval include(joinpath(ENV["QInsControlAssets"], "ExtraLoad/extraload.jl"))
         end
         # optkeys = join(qtcf.optkeys, "\n")
         # optvalues = join(qtcf.optvalues, "\n")
