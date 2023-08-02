@@ -10,17 +10,20 @@
 # elseif Sys.islinux()
 # end
 
+using ZipFile
 url = "https://github.com/FaresX/QInsControlAssets/archive/refs/heads/main.zip"
-rootpath = joinpath(Base.@__DIR__, "..")
-zipfilepath = download(url, joinpath(rootpath, "main.zip"))
+zipfilepath = joinpath(Base.@__DIR__, "main.zip")
+download(url, zipfilepath)
 zipfile = ZipFile.Reader(zipfilepath)
 for f in zipfile.files
     if f.method == ZipFile.Store
-        ispath(joinpath(rootpath, f.name)) || mkpath(f.name)
+        ispath(joinpath(Base.@__DIR__, f.name)) || mkpath(f.name)
     elseif f.method == ZipFile.Deflate
-        open(joinpath(rootpath, f.name), "w") do file
+        open(joinpath(Base.@__DIR__, f.name), "w") do file
             write(file, read(f, String))
         end
     end
 end
+close(zipfile)
+Base.Filesystem.mv(joinpath(Base.@__DIR__, "QInsControlAssets-main"), joinpath(Base.@__DIR__, "../Assets"); force=true)
 Base.Filesystem.rm(zipfilepath; force=true)

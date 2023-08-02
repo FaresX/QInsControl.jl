@@ -12,15 +12,17 @@ version = "2.38.0+0"
 
 [[deps.AbstractFFTs]]
 deps = ["LinearAlgebra"]
-git-tree-sha1 = "cad4c758c0038eea30394b1b671526921ca85b21"
+git-tree-sha1 = "d92ad398961a3ed262d8bf04a1a2b8340f915fef"
 uuid = "621f4979-c628-5d54-868e-fcf4e3e8185c"
-version = "1.4.0"
+version = "1.5.0"
 
     [deps.AbstractFFTs.extensions]
     AbstractFFTsChainRulesCoreExt = "ChainRulesCore"
+    AbstractFFTsTestExt = "Test"
 
     [deps.AbstractFFTs.weakdeps]
     ChainRulesCore = "d360d2e6-b24c-11e9-a2a3-2a2ae2dbcce4"
+    Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [[deps.Adapt]]
 deps = ["LinearAlgebra", "Requires"]
@@ -139,9 +141,9 @@ version = "0.12.10"
 
 [[deps.Compat]]
 deps = ["UUIDs"]
-git-tree-sha1 = "5ce999a19f4ca23ea484e92a1774a61b8ca4cf8e"
+git-tree-sha1 = "e460f044ca8b99be31d35fe54fc33a5c33dd8ed7"
 uuid = "34da2185-b29b-5c13-b0c7-acf172513d20"
-version = "4.8.0"
+version = "4.9.0"
 weakdeps = ["Dates", "LinearAlgebra"]
 
     [deps.Compat.extensions]
@@ -424,9 +426,9 @@ uuid = "b77e0a4c-d291-57a0-90e8-8db25a27a240"
 
 [[deps.IntervalSets]]
 deps = ["Dates", "Random"]
-git-tree-sha1 = "19ef25c6befb8076aefbc6f89d9011b415fb25da"
+git-tree-sha1 = "8e59ea773deee525c99a8018409f64f19fb719e6"
 uuid = "8197267c-284f-5f27-9208-e0e47529a953"
-version = "0.7.5"
+version = "0.7.7"
 weakdeps = ["Statistics"]
 
     [deps.IntervalSets.extensions]
@@ -913,9 +915,9 @@ uuid = "4ec0a83e-493e-50e2-b9ac-8f72acf5a8f5"
 
 [[deps.Unitful]]
 deps = ["Dates", "LinearAlgebra", "Random"]
-git-tree-sha1 = "c4d2a349259c8eba66a00a540d550f122a3ab228"
+git-tree-sha1 = "1cd9b6d3f637988ca788007b7466c132feebe263"
 uuid = "1986cc42-f94f-5a68-af5c-568840ba703d"
-version = "1.15.0"
+version = "1.16.1"
 
     [deps.Unitful.extensions]
     ConstructionBaseUnitfulExt = "ConstructionBase"

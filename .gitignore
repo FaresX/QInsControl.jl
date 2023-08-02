@@ -1,7 +1,6 @@
 .VSCodeCounter
 .vscode
-Assets/Logs
-Assets/IOs
+Assets
 imgui.ini
 docs/build
 src/*.mem

@@ -33,3 +33,6 @@ one could run
 QInsControl.UI(true)
 ```
 to restart the GUI and give feedback on github Issues.
+
+## Contributing
+See [here](https://github.com/FaresX/QInsControlAssets) to contribute to this package.
