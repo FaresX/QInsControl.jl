@@ -18,7 +18,7 @@ let
         end
         CImGui.SameLine()
         if CImGui.Button(MORESTYLE.Icons.InstrumentsManualRef)
-            @eval include(joinpath(ENV["QInsControlAssets"], "ExtraLoad/extraload.jl"))
+            remotecall_wait(include, workers()[1], joinpath(ENV["QInsControlAssets"], "ExtraLoad/extraload.jl"))
         end
         # optkeys = join(qtcf.optkeys, "\n")
         # optvalues = join(qtcf.optvalues, "\n")
