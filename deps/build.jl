@@ -25,5 +25,15 @@ for f in zipfile.files
     end
 end
 close(zipfile)
-Base.Filesystem.mv(joinpath(Base.@__DIR__, "QInsControlAssets-main"), joinpath(Base.@__DIR__, "../Assets"); force=true)
+if isdir(joinpath(Base.@__DIR__, "../Assets"))
+    Base.Filesystem.rename(
+        joinpath(Base.@__DIR__, "../Assets"),
+        joinpath(Base.@__DIR__, "../Assets$(basename(tempname()))")
+    )
+end
+Base.Filesystem.mv(
+    joinpath(Base.@__DIR__, "QInsControlAssets-main"),
+    joinpath(Base.@__DIR__, "../Assets");
+    force=true
+)
 Base.Filesystem.rm(zipfilepath; force=true)
