@@ -1,6 +1,6 @@
 let
     edithelp::Bool = false
-    global function edit(qtcf::QuantityConf)
+    global function edit(qtcf::QuantityConf, instrnm)
         @c CImGui.Checkbox(qtcf.enable ? mlstr("enable") : mlstr("disable"), &qtcf.enable)
         # @c InputTextRSZ("变量名", &qtcf.name)
         @c InputTextRSZ(mlstr("alias"), &qtcf.alias)
@@ -8,10 +8,15 @@ let
         @c InputTextRSZ(mlstr("command"), &qtcf.cmdheader)
         width = CImGui.GetItemRectSize().x / 2 - 2CImGui.CalcTextSize(" =>  ").x
         CImGui.SameLine()
-        if CImGui.Button("inssetget.jl")
-            inssetget_jl = joinpath(ENV["QInsControlAssets"], "ExtraLoad/inssetget.jl") |> abspath
+        if CImGui.Button("Driver")
+            driverfile = joinpath(ENV["QInsControlAssets"], "ExtraLoad/$instrnm.jl") |> abspath
+            if !isfile(driverfile)
+                open(joinpath(ENV["QInsControlAssets"], "ExtraLoad/extraload.jl"), "a+") do file
+                    write(file, "\ninclude(\"$instrnm.jl\")")
+                end
+            end
             @async try
-                Base.run(Cmd([CONF.Basic.editor, inssetget_jl]))
+                Base.run(Cmd([CONF.Basic.editor, driverfile]))
             catch e
                 @error "[$(now())]\n$(mlstr("error editing text!!!"))" exception = e
             end
@@ -315,7 +320,7 @@ let
                     end
                 end
                 @c InputTextRSZ(mlstr("variable name"), &qtname)
-                edit(editqt)
+                edit(editqt, selectedins)
             end
             CImGui.EndChild()
         end

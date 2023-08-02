@@ -7,7 +7,7 @@ One can click on **Auto Search** to auto-detect the available instruments in NI 
 
 ## muanully add
 Or manually add an instrument through clicking on **Manual Input** after filling the address and clicking on **Add** in
-the end. For an instrument that supports TCP/IP protocol, address has to be in the form of **TCPIP::$IP::$PORT::SOCKET**.
+the end. For an instrument that supports TCP/IP protocol, address has to be in the form of **TCPIP::\$IP::\$PORT::SOCKET**.
 
 ![image](assets/manually-add.png)
 

@@ -1,6 +1,9 @@
 # Instrument register
 Instrument register provides a convenient mannar to add new instruments and define new quantities to extend the
-functionality.
+functionality. QInsControl provides a gui to realize. You can also directly write a .toml file. See [here](https://github.com/FaresX/QInsControlDrivers) to share your drivers. Saved .toml files can be found in 
+```julia
+joinpath(pathof(QInsControl), "../../Assets/Confs/")
+```
 ![image](assets/Instrument-register.png)
 
 ## Add a new instrument
