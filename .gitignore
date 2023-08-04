@@ -10,3 +10,7 @@ Assets/Confs/*.mem
 Assets/Necessity/conf.toml
 Assets/Languages/default.toml
 test/TestQInsControl
+precompile.jl
+compile.jl
+QInsControl.iss
+RestructConf.jl
