@@ -316,7 +316,6 @@ let
                     end
                     for ibv in values(INSTRBUFFERVIEWERS[selectedins])
                         push!(ibv.insbuf.quantities, qtname => InstrQuantity(qtname, deepcopy(editqt)))
-                        updatefront!(ibv.insbuf.quantities[qtname])
                     end
                 end
                 @c InputTextRSZ(mlstr("variable name"), &qtname)

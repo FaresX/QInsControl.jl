@@ -114,15 +114,17 @@ function wrapmsg(s::AbstractString, n)
     return join(ss, '\n')
 end
 
-lengthpr(c::Char) = ncodeunits(c) == 1 ? 1 : 2
-lengthpr(s::AbstractString) = s == "" ? 0 : sum(lengthpr(c) for c in s)
+# lengthpr(c::Char) = ncodeunits(c) == 1 ? 1 : 2
+# lengthpr(s::AbstractString) = s == "" ? 0 : sum(lengthpr(c) for c in s)
+lengthpr(s::AbstractString) = s == "" ? Cfloat(0) : CImGui.CalcTextSize(s).x / CImGui.GetFontSize()
 
 function centermultiline(s)
-    ss = split(s, '\n')
+    ss = string.(split(s, '\n'))
     ml = max_with_empty(lengthpr.(ss))
+    spacel = CImGui.CalcTextSize(" ").x / CImGui.GetFontSize()
     for (i, line) in enumerate(ss)
         line == "" && continue
-        ss[i] = " "^((ml - lengthpr(line)) ÷ 2) * line
+        ss[i] = " "^Int((ml - lengthpr(line)) ÷ 2spacel) * line
     end
     join(ss, '\n')
 end

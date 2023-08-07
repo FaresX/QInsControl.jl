@@ -133,7 +133,6 @@ function InstrBuffer(instrnm)
                 "", "", true
             )
         )
-        updatefront!(instrqts[qt])
     end
     InstrBuffer(instrnm, instrqts, false, "", false)
 end
@@ -454,12 +453,12 @@ function edit(insbuf::InstrBuffer, addr)
     CImGui.PopID()
 end
 
-edit(qt::InstrQuantity, instrnm::String, addr::String) = edit(qt, instrnm, addr, Val(qt.type))
+edit(qt::InstrQuantity, instrnm, addr) = edit(qt, instrnm, addr, Val(qt.type))
 
 let
     stbtsz::Float32 = 0
     closepopup::Bool = false
-    global function edit(qt::InstrQuantity, instrnm::String, addr::String, ::Val{:sweep})
+    global function edit(qt::InstrQuantity, instrnm, addr, ::Val{:sweep})
         CImGui.PushStyleColor(
             CImGui.ImGuiCol_Button,
             if qt.isautorefresh || qt.issweeping
@@ -476,12 +475,10 @@ let
                 CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_ButtonHovered)
             end
         )
+        qt.show_edit == "" && updatefront!(qt)
         if CImGui.Button(qt.show_edit, (-1, 0))
-            if addr != ""
-                fetchdata = refresh_qt(instrnm, addr, qt.name)
-                isnothing(fetchdata) || (qt.read = fetchdata)
-                updatefront!(qt)
-            end
+            apply!(qt, instrnm, addr, Val(:read))
+            updatefront!(qt)
         end
         CImGui.PopStyleColor(2)
         if CONF.InsBuf.showhelp && CImGui.IsItemHovered() && qt.help != ""
@@ -502,80 +499,7 @@ let
                 if CImGui.Button(
                     mlstr(" Start "), (-1, 0)
                 ) || (CImGui.IsKeyDown(igGetKeyIndex(ImGuiKey_Enter)) && waittime("sweep", 0.1))
-                    if addr != ""
-                        Us = CONF.U[qt.utype]
-                        U = isempty(Us) ? "" : Us[qt.uindex]
-                        U == "" || (Uchange::Float64 = Us[1] isa Unitful.FreeUnits ? ustrip(Us[1], 1U) : 1.0)
-                        start = remotecall_fetch(workers()[1], instrnm, addr) do instrnm, addr
-                            ct = Controller(instrnm, addr)
-                            try
-                                getfunc = Symbol(instrnm, :_, qt.name, :_get) |> eval
-                                login!(CPU, ct)
-                                readstr = ct(getfunc, CPU, Val(:read))
-                                logout!(CPU, ct)
-                                return parse(Float64, readstr)
-                            catch e
-                                @error(
-                                    "[$(now())]\n$(mlstr("error getting start value!!!"))",
-                                    instrument = string(instrnm, "-", addr),
-                                    exception = e
-                                )
-                                logout!(CPU, ct)
-                            end
-                        end
-                        step = @trypasse eval(Meta.parse(qt.step)) * Uchange begin
-                            @error "[$(now())]\n$(mlstr("error parsing step value!!!"))" step = qt.step
-                        end
-                        stop = @trypasse eval(Meta.parse(qt.stop)) * Uchange begin
-                            @error "[$(now())]\n$(mlstr("error parsing stop value!!!"))" stop = qt.stop
-                        end
-                        if !(isnothing(start) || isnothing(step) || isnothing(stop))
-                            if CONF.DAQ.equalstep
-                                sweepsteps = ceil(Int, abs((start - stop) / step))
-                                sweepsteps = sweepsteps == 1 ? 2 : sweepsteps
-                                sweeplist = range(start, stop, length=sweepsteps)
-                            else
-                                step = start < stop ? abs(step) : -abs(step)
-                                sweeplist = collect(start:step:stop)
-                                sweeplist[end] == stop || push!(sweeplist, stop)
-                            end
-                            sweeptask = @async begin
-                                qt.issweeping = true
-                                ct = Controller(instrnm, addr)
-                                try
-                                    remotecall_wait(workers()[1], ct) do ct
-                                        @isdefined(sweepcts) || (global sweepcts = Dict{UUID,Controller}())
-                                        push!(sweepcts, ct.id => ct)
-                                        login!(CPU, ct)
-                                    end
-                                    for i in sweeplist
-                                        qt.issweeping || break
-                                        sleep(qt.delay)
-                                        qt.read = remotecall_fetch(workers()[1], i, ct.id) do i, ctid
-                                            setfunc = Symbol(instrnm, :_, qt.name, :_set) |> eval
-                                            getfunc = Symbol(instrnm, :_, qt.name, :_get) |> eval
-                                            sweepcts[ctid](setfunc, CPU, string(i), Val(:write))
-                                            return sweepcts[ctid](getfunc, CPU, Val(:read))
-                                        end
-                                    end
-                                catch e
-                                    @error(
-                                        "[$(now())]\n$(mlstr("instrument communication failed!!!"))",
-                                        instrument = string(instrnm, ": ", addr),
-                                        quantity = qt.name,
-                                        exception = e
-                                    )
-                                finally
-                                    remotecall_wait(workers()[1], ct.id) do ctid
-                                        logout!(CPU, sweepcts[ctid])
-                                        pop!(sweepcts, ctid)
-                                    end
-                                end
-                                qt.issweeping = false
-                            end
-                            errormonitor(sweeptask)
-                        end
-                    end
+                    apply!(qt, instrnm, addr)
                     closepopup = true
                 end
             end
@@ -602,7 +526,7 @@ let
     popup_before::Bool = false
     popup_now::Bool = false
     closepopup::Bool = false
-    global function edit(qt::InstrQuantity, instrnm::String, addr::String, ::Val{:set})
+    global function edit(qt::InstrQuantity, instrnm, addr, ::Val{:set})
         CImGui.PushStyleColor(
             CImGui.ImGuiCol_Button,
             qt.isautorefresh ? MORESTYLE.Colors.DAQTaskRunning : CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_Button)
@@ -611,12 +535,10 @@ let
             CImGui.ImGuiCol_ButtonHovered,
             qt.isautorefresh ? MORESTYLE.Colors.DAQTaskRunning : CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_ButtonHovered)
         )
+        qt.show_edit == "" && updatefront!(qt)
         if CImGui.Button(qt.show_edit, (-1, 0))
-            if addr != ""
-                fetchdata = refresh_qt(instrnm, addr, qt.name)
-                isnothing(fetchdata) || (qt.read = fetchdata)
-                updatefront!(qt)
-            end
+            apply!(qt, instrnm, addr, Val(:read))
+            updatefront!(qt)
         end
         CImGui.PopStyleColor(2)
         if CONF.InsBuf.showhelp && CImGui.IsItemHovered() && qt.help != ""
@@ -630,34 +552,8 @@ let
                    stcstr(" ", mlstr("Confirm"), " "),
                    (-Cfloat(0.1), Cfloat(0))
                ) || triggerset || CImGui.IsKeyDown(igGetKeyIndex(ImGuiKey_Enter))
-                if addr != ""
-                    Us = CONF.U[qt.utype]
-                    U = isempty(Us) ? "" : Us[qt.uindex]
-                    U == "" || (Uchange::Float64 = Us[1] isa Unitful.FreeUnits ? ustrip(Us[1], 1U) : 1.0)
-                    sv = U == "" ? qt.set : @trypasse string(float(eval(Meta.parse(qt.set)) * Uchange)) qt.set
-                    triggerset && (sv = qt.optvalues[qt.optedidx])
-                    fetchdata = remotecall_fetch(workers()[1], instrnm, addr, sv) do instrnm, addr, sv
-                        ct = Controller(instrnm, addr)
-                        try
-                            setfunc = Symbol(instrnm, :_, qt.name, :_set) |> eval
-                            getfunc = Symbol(instrnm, :_, qt.name, :_get) |> eval
-                            login!(CPU, ct)
-                            ct(setfunc, CPU, sv, Val(:write))
-                            readstr = ct(getfunc, CPU, Val(:read))
-                            logout!(CPU, ct)
-                            return readstr
-                        catch e
-                            @error(
-                                "[$(now())]\n$(mlstr("instrument communication failed!!!"))",
-                                instrument = string(instrnm, ": ", addr),
-                                quantity = qt.name,
-                                exception = e
-                            )
-                            logout!(CPU, ct)
-                        end
-                    end
-                    isnothing(fetchdata) || (qt.read = fetchdata)
-                end
+                triggerset && (qt.set = qt.optvalues[qt.optedidx])
+                apply!(qt, instrnm, addr)
                 triggerset = false
                 closepopup = true
             end
@@ -710,12 +606,10 @@ let
             CImGui.ImGuiCol_ButtonHovered,
             qt.isautorefresh ? MORESTYLE.Colors.DAQTaskRunning : CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_ButtonHovered)
         )
+        qt.show_edit == "" && updatefront!(qt)
         if CImGui.Button(qt.show_edit, (-1, 0))
-            if addr != ""
-                fetchdata = refresh_qt(instrnm, addr, qt.name)
-                isnothing(fetchdata) || (qt.read = fetchdata)
-                updatefront!(qt)
-            end
+            apply!(qt, instrnm, addr, Val(:read))
+            updatefront!(qt)
         end
         CImGui.PopStyleColor(2)
         if CONF.InsBuf.showhelp && CImGui.IsItemHovered() && qt.help != ""
@@ -772,6 +666,122 @@ function view(qt::InstrQuantity)
         qt.uindex == 0 && (qt.uindex = length(Us))
         updatefront!(qt; show_edit=false)
     end
+end
+
+apply!(qt::InstrQuantity, instrnm, addr) = apply!(qt, instrnm, addr, Val(qt.type))
+
+function apply!(qt::InstrQuantity, instrnm, addr, ::Val{:sweep})
+    addr == "" && return nothing
+    Us = CONF.U[qt.utype]
+    U = isempty(Us) ? "" : Us[qt.uindex]
+    U == "" || (Uchange::Float64 = Us[1] isa Unitful.FreeUnits ? ustrip(Us[1], 1U) : 1.0)
+    start = remotecall_fetch(workers()[1], instrnm, addr) do instrnm, addr
+        ct = Controller(instrnm, addr)
+        try
+            getfunc = Symbol(instrnm, :_, qt.name, :_get) |> eval
+            login!(CPU, ct)
+            readstr = ct(getfunc, CPU, Val(:read))
+            logout!(CPU, ct)
+            return parse(Float64, readstr)
+        catch e
+            @error(
+                "[$(now())]\n$(mlstr("error getting start value!!!"))",
+                instrument = string(instrnm, "-", addr),
+                exception = e
+            )
+            logout!(CPU, ct)
+        end
+    end
+    step = @trypasse eval(Meta.parse(qt.step)) * Uchange begin
+        @error "[$(now())]\n$(mlstr("error parsing step value!!!"))" step = qt.step
+    end
+    stop = @trypasse eval(Meta.parse(qt.stop)) * Uchange begin
+        @error "[$(now())]\n$(mlstr("error parsing stop value!!!"))" stop = qt.stop
+    end
+    if !(isnothing(start) || isnothing(step) || isnothing(stop))
+        if CONF.DAQ.equalstep
+            sweepsteps = ceil(Int, abs((start - stop) / step))
+            sweepsteps = sweepsteps == 1 ? 2 : sweepsteps
+            sweeplist = range(start, stop, length=sweepsteps)
+        else
+            step = start < stop ? abs(step) : -abs(step)
+            sweeplist = collect(start:step:stop)
+            sweeplist[end] == stop || push!(sweeplist, stop)
+        end
+        sweeptask = @async begin
+            qt.issweeping = true
+            ct = Controller(instrnm, addr)
+            try
+                remotecall_wait(workers()[1], ct) do ct
+                    @isdefined(sweepcts) || (global sweepcts = Dict{UUID,Controller}())
+                    push!(sweepcts, ct.id => ct)
+                    login!(CPU, ct)
+                end
+                for i in sweeplist
+                    qt.issweeping || break
+                    sleep(qt.delay)
+                    qt.read = remotecall_fetch(workers()[1], i, ct.id) do i, ctid
+                        setfunc = Symbol(instrnm, :_, qt.name, :_set) |> eval
+                        getfunc = Symbol(instrnm, :_, qt.name, :_get) |> eval
+                        sweepcts[ctid](setfunc, CPU, string(i), Val(:write))
+                        return sweepcts[ctid](getfunc, CPU, Val(:read))
+                    end
+                end
+            catch e
+                @error(
+                    "[$(now())]\n$(mlstr("instrument communication failed!!!"))",
+                    instrument = string(instrnm, ": ", addr),
+                    quantity = qt.name,
+                    exception = e
+                )
+            finally
+                remotecall_wait(workers()[1], ct.id) do ctid
+                    logout!(CPU, sweepcts[ctid])
+                    pop!(sweepcts, ctid)
+                end
+            end
+            qt.issweeping = false
+        end
+        errormonitor(sweeptask)
+    end
+    return nothing
+end
+
+function apply!(qt::InstrQuantity, instrnm, addr, ::Val{:set})
+    addr == "" && return nothing
+    Us = CONF.U[qt.utype]
+    U = isempty(Us) ? "" : Us[qt.uindex]
+    U == "" || (Uchange::Float64 = Us[1] isa Unitful.FreeUnits ? ustrip(Us[1], 1U) : 1.0)
+    sv = U == "" ? qt.set : @trypasse string(float(eval(Meta.parse(qt.set)) * Uchange)) qt.set
+    fetchdata = remotecall_fetch(workers()[1], instrnm, addr, sv) do instrnm, addr, sv
+        ct = Controller(instrnm, addr)
+        try
+            setfunc = Symbol(instrnm, :_, qt.name, :_set) |> eval
+            getfunc = Symbol(instrnm, :_, qt.name, :_get) |> eval
+            login!(CPU, ct)
+            ct(setfunc, CPU, sv, Val(:write))
+            readstr = ct(getfunc, CPU, Val(:read))
+            logout!(CPU, ct)
+            return readstr
+        catch e
+            @error(
+                "[$(now())]\n$(mlstr("instrument communication failed!!!"))",
+                instrument = string(instrnm, ": ", addr),
+                quantity = qt.name,
+                exception = e
+            )
+            logout!(CPU, ct)
+        end
+    end
+    isnothing(fetchdata) || (qt.read = fetchdata)
+    return nothing
+end
+
+function apply!(qt::InstrQuantity, instrnm, addr, ::Val{:read})
+    addr == "" && return nothing
+    fetchdata = refresh_qt(instrnm, addr, qt.name)
+    isnothing(fetchdata) || (qt.read = fetchdata)
+    return nothing
 end
 
 function refresh_qt(instrnm, addr, qtnm)
