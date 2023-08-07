@@ -50,7 +50,7 @@ let
                 newmsg && (newmsg_updated = true; newmsg = false)
             end
             lineheigth = (1 + length(findall('\n', buffer))) * CImGui.GetTextLineHeight() +
-                2unsafe_load(IMGUISTYLE.FramePadding.y)
+                         2unsafe_load(IMGUISTYLE.FramePadding.y)
             CImGui.BeginChild("STD OUT", (Float32(0), -lineheigth - unsafe_load(IMGUISTYLE.ItemSpacing.y)))
             for (col, msg) in iomsgshow
                 CImGui.PushStyleColor(CImGui.ImGuiCol_Text, col)
@@ -77,28 +77,8 @@ let
             if CImGui.Button(stcstr(MORESTYLE.Icons.SendMsg, " ", mlstr("Send"))) ||
                ((CImGui.IsKeyDown(341) || CImGui.IsKeyDown(345)) && (CImGui.IsKeyDown(257) || CImGui.IsKeyDown(335)))
                 if buffer != ""
-                    iofile_open = open(iofile, "a+")
-                    try
-                        write(iofile_open, "\n[IN Begin]$(now())\n")
-                        write(iofile_open, buffer)
-                        write(iofile_open, "\n[End]\n")
-                        write(iofile_open, "\n[OUT Begin]\n")
-                        try
-                            redirect_stdout(iofile_open) do
-                                codes = Meta.parseall(buffer)
-                                @eval Main print($codes)
-                            end
-                        catch e
-                            @error exception = e
-                        end
-                        write(iofile_open, "\n[End]\n")
-                    catch e
-                        @error exception = e
-                    finally
-                        flush(iofile_open)
-                        close(iofile_open)
-                    end
-                    historycmd[1 + historycmd_max] = buffer
+                    writetoiofile(iofile, buffer)
+                    historycmd[1+historycmd_max] = buffer
                     move!(historycmd, 1 + historycmd_max)
                     historycmd_max = 0
                     buffer = ""
@@ -119,5 +99,29 @@ let
             end
         end
         CImGui.End()
+    end
+end
+
+function writetoiofile(iofile, buffer)
+    iofile_open = open(iofile, "a+")
+    try
+        write(iofile_open, "\n[IN Begin]$(now())\n")
+        write(iofile_open, buffer)
+        write(iofile_open, "\n[End]\n")
+        write(iofile_open, "\n[OUT Begin]\n")
+        try
+            redirect_stdout(iofile_open) do
+                codes = Meta.parseall(buffer)
+                @eval Main print($codes)
+            end
+        catch e
+            @error exception = e
+        end
+        write(iofile_open, "\n[End]\n")
+    catch e
+        @error exception = e
+    finally
+        flush(iofile_open)
+        close(iofile_open)
     end
 end
