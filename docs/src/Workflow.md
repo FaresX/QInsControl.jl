@@ -79,6 +79,7 @@ so on. It is used to combine block codes in julia with other blocks in QInsContr
 
 ### BranchBlock
 ![image](assets/BranchBlock.png)
+
 It is only used inside a StrideCodeBlock to be complete. For example, it can be filled with *else*, *catch* and so on.
 
 ### SweepBlock
@@ -150,7 +151,7 @@ This script includes two loop structures. The outter one is constructed by a Str
 @progress for i in 1:2
 ```
 on it. The macro @progress is used to show a progressbar. The inner one is constructed by a SweepBlock. It relates to
-the instrument VirtualInstr with address VirtualAddress, variable "扫描测试", step 1 μA, destination 200 μA and delay 
+the instrument VirtualInstr with address VirtualAddress, variable **JJ I**, step 1 μA, destination 200 μA and delay 
 0.1s for each loop.
 
 In general, it is unnecessary to write such a complicated script. Most of them are used to support special demands and ensure universality.
@@ -178,3 +179,4 @@ and plots. One example file [demo.daq](../../example) can be found in example fo
 Click on **File** -> **Open File** (**Open Folder**) to open saved files. Here One can review the content stored in the file
 includes the states of instruments, the script, the circuit, the data and the plots. Right click on the tabbar **Plots**
 can modify the plots.
+![image](assets/data-review.png)
