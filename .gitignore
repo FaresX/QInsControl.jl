@@ -14,5 +14,4 @@ precompile.jl
 compile.jl
 QInsControl.iss
 RestructConf.jl
-Manifest.toml
 docs/Manifest.toml
