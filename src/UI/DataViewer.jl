@@ -242,8 +242,9 @@ let
                         m = ceil(Int, l / n)
                         n = m == 1 ? l : n
                         height = (CImGui.GetContentRegionAvail().y - (m - 1) * unsafe_load(IMGUISTYLE.ItemSpacing.y)) / m
-                        CImGui.Columns(n)
                         for i in 1:m
+                            CImGui.BeginChild(stcstr("plotrow", i), (Cfloat(0), height))
+                            CImGui.Columns(n)
                             for j in 1:n
                                 idx = (i - 1) * n + j
                                 if idx <= l
@@ -256,6 +257,7 @@ let
                                     CImGui.NextColumn()
                                 end
                             end
+                            CImGui.EndChild()
                         end
                     end
                     CImGui.EndChild()
