@@ -395,7 +395,11 @@ function xysetting(uip::UIPlot)
                 Int,
                 2CImGui.GetContentRegionAvailWidth() / max_with_empty(lengthpr.(uip.x)) / 3CImGui.GetFontSize()
             )
-            xticks = uip.x[round.(Int, range(1, xl, length=2xticksnum + 1))[2:2:end-1]]
+            xticks = if xticksnum == 0
+                uip.x[[1]]
+            else
+                uip.x[round.(Int, range(1, xl, length=2xticksnum + 1))[2:2:end-1]]
+            end
             ImPlot.SetNextPlotTicksX(1 + xl / 2xticksnum, xl - xl / 2xticksnum, xticksnum, xticks)
             x = collect(eltype(uip.y[1]), 1:ylm)
         end
