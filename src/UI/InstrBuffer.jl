@@ -1,4 +1,5 @@
-mutable struct InstrQuantity
+abstract type AbstractQuantity end
+mutable struct SweepQuantity <: AbstractQuantity
     # back end
     enable::Bool
     name::String
@@ -6,14 +7,9 @@ mutable struct InstrQuantity
     step::String
     stop::String
     delay::Cfloat
-    set::String
-    optkeys::Vector{String}
-    optvalues::Vector{String}
-    optedidx::Cint
     read::String
     utype::String
     uindex::Int
-    type::Symbol
     help::String
     isautorefresh::Bool
     issweeping::Bool
@@ -22,24 +18,89 @@ mutable struct InstrQuantity
     show_view::String
     passfilter::Bool
 end
-InstrQuantity() = InstrQuantity(
-    true, "", "", "", "", Cfloat(0.1), "", [], [], 1, "", "", 1, :set, "", false, false,
-    "", "", true
-)
-InstrQuantity(name, qtcf::QuantityConf) = InstrQuantity(
-    qtcf.enable, name, qtcf.alias,
-    "", "", Cfloat(0.1),
-    "", qtcf.optkeys, qtcf.optvalues, 1,
-    "",
-    qtcf.U, 1,
-    Symbol(qtcf.type),
-    qtcf.help,
-    false,
-    false,
+SweepQuantity() = SweepQuantity(
+    true, "", "", "", "", Cfloat(0.1), "", "", 1, "", false, false,
     "", "", true
 )
 
-function getvalU(qt::InstrQuantity)
+mutable struct SetQuantity <: AbstractQuantity
+    # back end
+    enable::Bool
+    name::String
+    alias::String
+    set::String
+    optkeys::Vector{String}
+    optvalues::Vector{String}
+    optedidx::Cint
+    read::String
+    utype::String
+    uindex::Int
+    help::String
+    isautorefresh::Bool
+    # front end
+    show_edit::String
+    show_view::String
+    passfilter::Bool
+end
+SetQuantity() = SetQuantity(
+    true, "", "", "", [], [], 1, "", "", 1, "", false,
+    "", "", true
+)
+mutable struct ReadQuantity <: AbstractQuantity
+    # back end
+    enable::Bool
+    name::String
+    alias::String
+    read::String
+    utype::String
+    uindex::Int
+    help::String
+    isautorefresh::Bool
+    # front end
+    show_edit::String
+    show_view::String
+    passfilter::Bool
+end
+ReadQuantity() = ReadQuantity(
+    true, "", "", "", "", 1, "", false,
+    "", "", true
+)
+
+function quantity(name, qtcf::QuantityConf)
+    return if qtcf.type == "sweep"
+        SweepQuantity(
+            qtcf.enable, name, qtcf.alias,
+            "", "", Cfloat(0.1),
+            "",
+            qtcf.U, 1,
+            qtcf.help,
+            false,
+            false,
+            "", "", true
+        )
+    elseif qtcf.type == "set"
+        SetQuantity(
+            qtcf.enable, name, qtcf.alias,
+            "", qtcf.optkeys, qtcf.optvalues, 1,
+            "",
+            qtcf.U, 1,
+            qtcf.help,
+            false,
+            "", "", true
+        )
+    elseif qtcf.type == "read"
+        ReadQuantity(
+            qtcf.enable, name, qtcf.alias,
+            "",
+            qtcf.U, 1,
+            qtcf.help,
+            false,
+            "", "", true
+        )
+    end
+end
+
+function getvalU(qt::AbstractQuantity)
     Us = CONF.U[qt.utype]
     U = isempty(Us) ? "" : Us[qt.uindex]
     U == "" || (Uchange::Float64 = Us[1] isa Unitful.FreeUnits ? ustrip(Us[1], 1U) : 1.0)
@@ -47,7 +108,7 @@ function getvalU(qt::InstrQuantity)
     return val, U
 end
 
-function updatefront!(qt::InstrQuantity, ::Val{:sweep})
+function updatefront!(qt::SweepQuantity)
     val, U = getvalU(qt)
     content = string(
         qt.alias,
@@ -59,7 +120,7 @@ function updatefront!(qt::InstrQuantity, ::Val{:sweep})
     qt.show_edit = string(content, "###for refresh")
 end
 
-function updatefront!(qt::InstrQuantity, ::Val{:set})
+function updatefront!(qt::SetQuantity)
     val, U = getvalU(qt)
     if val in qt.optvalues
         validx = findfirst(==(val), qt.optvalues)
@@ -75,18 +136,18 @@ function updatefront!(qt::InstrQuantity, ::Val{:set})
     qt.show_edit = string(content, "###for refresh")
 end
 
-function updatefront!(qt::InstrQuantity, ::Val{:read})
+function updatefront!(qt::ReadQuantity)
     val, U = getvalU(qt)
     content = string(qt.alias, "\n \n \n", val, " ", U, "\n ") |> centermultiline
     qt.show_edit = string(content, "###for refresh")
 end
 
-function updatefront!(qt::InstrQuantity; show_edit=true)
+function updatefront!(qt::AbstractQuantity; show_edit=true)
     if show_edit
-        updatefront!(qt, Val(qt.type))
+        updatefront!(qt)
     else
         val, U = getvalU(qt)
-        if qt.type == :set && val in qt.optvalues
+        if qt isa SetQuantity && val in qt.optvalues
             validx = findfirst(==(val), qt.optvalues)
             val = string(qt.optkeys[validx], " => ", qt.optvalues[validx])
         end
@@ -96,7 +157,7 @@ end
 
 mutable struct InstrBuffer
     instrnm::String
-    quantities::OrderedDict{String,InstrQuantity}
+    quantities::OrderedDict{String,AbstractQuantity}
     isautorefresh::Bool
     filter::String
     filtervarname::Bool
@@ -116,22 +177,11 @@ function InstrBuffer(instrnm)
         optkeys = insconf[instrnm].quantities[qt].optkeys
         optvalues = insconf[instrnm].quantities[qt].optvalues
         utype = insconf[instrnm].quantities[qt].U
-        type = Symbol(insconf[instrnm].quantities[qt].type)
+        type = insconf[instrnm].quantities[qt].type
         help = replace(insconf[instrnm].quantities[qt].help, "\\\n" => "")
         push!(
             instrqts,
-            qt => InstrQuantity(
-                enable, qt, alias,
-                "", "", Cfloat(0.1),
-                "", optkeys, optvalues, 1,
-                "",
-                utype, 1,
-                type,
-                help,
-                false,
-                false,
-                "", "", true
-            )
+            qt => quantity(qt, QuantityConf(enable, alias, utype, "", optkeys, optvalues, type, help))
         )
     end
     InstrBuffer(instrnm, instrqts, false, "", false)
@@ -453,12 +503,10 @@ function edit(insbuf::InstrBuffer, addr)
     CImGui.PopID()
 end
 
-edit(qt::InstrQuantity, instrnm, addr) = edit(qt, instrnm, addr, Val(qt.type))
-
 let
     stbtsz::Float32 = 0
     closepopup::Bool = false
-    global function edit(qt::InstrQuantity, instrnm, addr, ::Val{:sweep})
+    global function edit(qt::SweepQuantity, instrnm, addr)
         CImGui.PushStyleColor(
             CImGui.ImGuiCol_Button,
             if qt.isautorefresh || qt.issweeping
@@ -477,8 +525,11 @@ let
         )
         qt.show_edit == "" && updatefront!(qt)
         if CImGui.Button(qt.show_edit, (-1, 0))
-            apply!(qt, instrnm, addr, Val(:read))
-            updatefront!(qt)
+            if addr != ""
+                fetchdata = refresh_qt(instrnm, addr, qt.name)
+                isnothing(fetchdata) || (qt.read = fetchdata)
+                updatefront!(qt)
+            end
         end
         CImGui.PopStyleColor(2)
         if CONF.InsBuf.showhelp && CImGui.IsItemHovered() && qt.help != ""
@@ -526,7 +577,7 @@ let
     popup_before::Bool = false
     popup_now::Bool = false
     closepopup::Bool = false
-    global function edit(qt::InstrQuantity, instrnm, addr, ::Val{:set})
+    global function edit(qt::SetQuantity, instrnm, addr)
         CImGui.PushStyleColor(
             CImGui.ImGuiCol_Button,
             qt.isautorefresh ? MORESTYLE.Colors.DAQTaskRunning : CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_Button)
@@ -537,8 +588,11 @@ let
         )
         qt.show_edit == "" && updatefront!(qt)
         if CImGui.Button(qt.show_edit, (-1, 0))
-            apply!(qt, instrnm, addr, Val(:read))
-            updatefront!(qt)
+            if addr != ""
+                fetchdata = refresh_qt(instrnm, addr, qt.name)
+                isnothing(fetchdata) || (qt.read = fetchdata)
+                updatefront!(qt)
+            end
         end
         CImGui.PopStyleColor(2)
         if CONF.InsBuf.showhelp && CImGui.IsItemHovered() && qt.help != ""
@@ -597,7 +651,7 @@ end
 
 let
     refbtsz::Float32 = 0
-    global function edit(qt::InstrQuantity, instrnm, addr, ::Val{:read})
+    global function edit(qt::ReadQuantity, instrnm, addr)
         CImGui.PushStyleColor(
             CImGui.ImGuiCol_Button,
             qt.isautorefresh ? MORESTYLE.Colors.DAQTaskRunning : CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_Button)
@@ -608,8 +662,11 @@ let
         )
         qt.show_edit == "" && updatefront!(qt)
         if CImGui.Button(qt.show_edit, (-1, 0))
-            apply!(qt, instrnm, addr, Val(:read))
-            updatefront!(qt)
+            if addr != ""
+                fetchdata = refresh_qt(instrnm, addr, qt.name)
+                isnothing(fetchdata) || (qt.read = fetchdata)
+                updatefront!(qt)
+            end
         end
         CImGui.PopStyleColor(2)
         if CONF.InsBuf.showhelp && CImGui.IsItemHovered() && qt.help != ""
@@ -658,7 +715,7 @@ function view(insbuf::InstrBuffer)
     CImGui.EndChild()
 end
 
-function view(qt::InstrQuantity)
+function view(qt::AbstractQuantity)
     qt.show_view == "" && updatefront!(qt; show_edit=false)
     if CImGui.Button(qt.show_view, (-1, 0))
         Us = CONF.U[qt.utype]
@@ -668,9 +725,7 @@ function view(qt::InstrQuantity)
     end
 end
 
-apply!(qt::InstrQuantity, instrnm, addr) = apply!(qt, instrnm, addr, Val(qt.type))
-
-function apply!(qt::InstrQuantity, instrnm, addr, ::Val{:sweep})
+function apply!(qt::SweepQuantity, instrnm, addr)
     addr == "" && return nothing
     Us = CONF.U[qt.utype]
     U = isempty(Us) ? "" : Us[qt.uindex]
@@ -747,7 +802,7 @@ function apply!(qt::InstrQuantity, instrnm, addr, ::Val{:sweep})
     return nothing
 end
 
-function apply!(qt::InstrQuantity, instrnm, addr, ::Val{:set})
+function apply!(qt::SetQuantity, instrnm, addr)
     addr == "" && return nothing
     Us = CONF.U[qt.utype]
     U = isempty(Us) ? "" : Us[qt.uindex]
@@ -773,13 +828,6 @@ function apply!(qt::InstrQuantity, instrnm, addr, ::Val{:set})
             logout!(CPU, ct)
         end
     end
-    isnothing(fetchdata) || (qt.read = fetchdata)
-    return nothing
-end
-
-function apply!(qt::InstrQuantity, instrnm, addr, ::Val{:read})
-    addr == "" && return nothing
-    fetchdata = refresh_qt(instrnm, addr, qt.name)
     isnothing(fetchdata) || (qt.read = fetchdata)
     return nothing
 end

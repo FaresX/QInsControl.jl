@@ -1,5 +1,5 @@
 types = [
-    :InstrQuantity, :InstrBuffer, :InstrBufferViewer, :DAQTask,
+    :SweepQuantity, :SetQuantity, :ReadQuantity, :InstrBuffer, :InstrBufferViewer, :DAQTask,
     :NodeEditor, :Node, :ResizeGrip, :ImagePin, :ImageRegion, :SampleBaseNode,
     :UIPlot, :Layout, :Annotation, :DataPicker,
     :MoreStyle, :MoreStyleColor, :MoreStyleIcon, :UnionStyle,
