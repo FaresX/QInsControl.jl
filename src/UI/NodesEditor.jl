@@ -800,31 +800,3 @@ let
         # isanylinkhovered_list[id] = @c imnodes_IsLinkHovered(&nodeeditor.hoveredlink_id)
     end
 end
-
-# function auxid(nodeeditor::NodeEditor, auxid)
-#     auxnodeeditor = deepcopy(nodeeditor)
-#     nodebuf = OrderedDict()
-#     for (_, node) in auxnodeeditor.nodes
-#         node.id += auxid * 1000
-#         if node isa Node
-#             node.input_ids .+= auxid * 1000000
-#             node.output_ids .+= auxid * 1000000
-#         elseif node isa ImageNode
-#             node.attr_ids .+= auxid * 1000000
-#         end
-#         node.connected_ids = Set(@. node.connected_ids + auxid * 1000000)
-#         push!(nodebuf, node.id => node)
-#     end
-#     empty!(auxnodeeditor.nodes)
-#     for idnode in nodebuf
-#         push!(auxnodeeditor.nodes, idnode)
-#     end
-#     for i in eachindex(auxnodeeditor.links)
-#         auxnodeeditor.links[i] = auxnodeeditor.links[i] .+ auxid * 1000000
-#     end
-#     return auxnodeeditor
-# end
-
-### Patch ###-----------------------------------------------------------------------------------------------------------
-Base.convert(::Type{OrderedDict{Cint,AbstractNode}}, nodes::Vector{Node}) = OrderedDict(node.id => node for node in nodes)
-Base.convert(::Type{OrderedDict{Cint,AbstractNode}}, nodes::Type{OrderedDict{Cint,Node}}) = OrderedDict{Cint,AbstractNode}(node.id => node for node in nodes)

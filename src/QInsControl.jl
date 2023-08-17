@@ -89,6 +89,7 @@ include("UI/Renderer.jl")
 
 include("JLD2Struct.jl")
 include("Conf.jl")
+include("Compatible.jl")
 
 function julia_main()::Cint
     try

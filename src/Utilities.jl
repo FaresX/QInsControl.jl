@@ -217,9 +217,6 @@ function Base.getindex(v::Union{ImVec2,ImPlot.ImPlotPoint}, i)
 end
 Base.length(::Union{ImVec2,ImPlot.ImPlotPoint}) = 2
 
-###Patch###
-Base.convert(::Type{OrderedDict{String,T}}, vec::Vector{T}) where {T} = OrderedDict(string(i) => v for (i, v) in enumerate(vec))
-
 function Base.getproperty(x::Ptr{LibCImGui.Style}, f::Symbol)
     f === :grid_spacing && return Ptr{Cfloat}(x + 0)
     f === :node_corner_rounding && return Ptr{Cfloat}(x + 4)
