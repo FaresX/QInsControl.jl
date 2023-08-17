@@ -393,7 +393,7 @@ function xysetting(uip::UIPlot)
             xl = length(uip.x)
             xticksnum = round(
                 Int,
-                3CImGui.GetContentRegionAvailWidth() / max_with_empty(lengthpr.(uip.x)) / 2CImGui.GetFontSize()
+                2CImGui.GetContentRegionAvailWidth() / max_with_empty(lengthpr.(uip.x)) / 3CImGui.GetFontSize()
             )
             xticks = uip.x[round.(Int, range(1, xl, length=2xticksnum + 1))[2:2:end-1]]
             ImPlot.SetNextPlotTicksX(1 + xl / 2xticksnum, xl - xl / 2xticksnum, xticksnum, xticks)
@@ -425,7 +425,7 @@ function xyzsetting(uip::UIPlot)
             xlims = (1, sz2)
             xticksnum = round(
                 Int,
-                3CImGui.GetContentRegionAvailWidth() / max_with_empty(lengthpr.(uip.x)) / 2CImGui.GetFontSize()
+                2CImGui.GetContentRegionAvailWidth() / max_with_empty(lengthpr.(uip.x)) / 3CImGui.GetFontSize()
             )
             xticks = if length(uip.x) < xticksnum
                 uip.x
