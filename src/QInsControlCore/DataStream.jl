@@ -144,9 +144,9 @@ function logout!(cpu::Processor, ct::Controller)
             catch e
                 @error "an error occurs during logging out" exception=e
             end
-            pop!(cpu.taskhandlers, popinstr.addr)
-            pop!(cpu.tasks, popinstr.addr)
-            pop!(cpu.exechannels, popinstr.addr)
+            delete!(cpu.taskhandlers, popinstr.addr)
+            delete!(cpu.tasks, popinstr.addr)
+            delete!(cpu.exechannels, popinstr.addr)
             disconnect!(popinstr)
         end
     end
