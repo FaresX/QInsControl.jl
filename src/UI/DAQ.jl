@@ -162,7 +162,12 @@ let
                     CImGui.Separator()
                     CImGui.MenuItem(stcstr(MORESTYLE.Icons.Rename, " ", mlstr("Rename"))) && (isrename = true)
                     if task.enable
-                        CImGui.MenuItem(stcstr(MORESTYLE.Icons.Disable, " ", mlstr("Disable"))) && (task.enable = false)
+                        CImGui.MenuItem(
+                            stcstr(MORESTYLE.Icons.Disable, " ", mlstr("Disable")),
+                            C_NULL,
+                            false,
+                            !isrunning_i
+                        ) && (task.enable = false)
                     else
                         CImGui.MenuItem(stcstr(MORESTYLE.Icons.Restore, " ", mlstr("Enable"))) && (task.enable = true)
                         CImGui.MenuItem(stcstr(MORESTYLE.Icons.CloseFile, " ", mlstr("Delete"))) && (isdeldaqtask = true)
