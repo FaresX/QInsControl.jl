@@ -214,6 +214,16 @@ InstrBufferViewer() = InstrBufferViewer("", "", "*IDN?", "", false, InstrBuffer(
 
 const INSTRBUFFERVIEWERS::Dict{String,Dict{String,InstrBufferViewer}} = Dict()
 
+function updatefrontall!()
+    for ins in keys(INSTRBUFFERVIEWERS)
+        for (_, ibv) in INSTRBUFFERVIEWERS[ins]
+            for (_, qt) in ibv.insbuf.quantities
+                updatefront!(qt)
+            end
+        end
+    end
+end
+
 function edit(ibv::InstrBufferViewer)
     CImGui.SetNextWindowSize((800, 600), CImGui.ImGuiCond_Once)
     ins, addr = ibv.instrnm, ibv.addr
@@ -227,13 +237,7 @@ function edit(ibv::InstrBufferViewer)
             if CImGui.MenuItem(stcstr(MORESTYLE.Icons.InstrumentsManualRef, " ", mlstr("manual refresh")), "F5")
                 ibv.insbuf.isautorefresh = true
                 manualrefresh()
-                for ins in keys(INSTRBUFFERVIEWERS)
-                    for (_, ibv) in INSTRBUFFERVIEWERS[ins]
-                        for (_, qt) in ibv.insbuf.quantities
-                            updatefront!(qt)
-                        end
-                    end
-                end
+                updatefrontall!()
             end
             CImGui.Text(stcstr(MORESTYLE.Icons.InstrumentsAutoRef, " ", mlstr("auto refresh")))
             CImGui.SameLine()
@@ -265,7 +269,7 @@ function edit(ibv::InstrBufferViewer)
             CImGui.PopItemWidth()
             CImGui.EndPopup()
         end
-        CImGui.IsKeyReleased(294) && manualrefresh()
+        CImGui.IsKeyPressed(294, false) && (manualrefresh(); updatefrontall!())
     end
     CImGui.End()
 end
@@ -299,13 +303,7 @@ let
             if CImGui.BeginPopupContextItem()
                 if CImGui.MenuItem(stcstr(MORESTYLE.Icons.InstrumentsManualRef, " ", mlstr("manual refresh")), "F5")
                     manualrefresh()
-                    for ins in keys(INSTRBUFFERVIEWERS)
-                        for (_, ibv) in INSTRBUFFERVIEWERS[ins]
-                            for (_, qt) in ibv.insbuf.quantities
-                                updatefront!(qt)
-                            end
-                        end
-                    end
+                    updatefrontall!()
                 end
                 CImGui.Text(stcstr(MORESTYLE.Icons.InstrumentsAutoRef, " ", mlstr("auto refresh")))
                 CImGui.SameLine()
@@ -337,7 +335,7 @@ let
                 CImGui.PopItemWidth()
                 CImGui.EndPopup()
             end
-            CImGui.IsKeyReleased(294) && manualrefresh()
+            CImGui.IsKeyPressed(294, false) && (manualrefresh(); updatefrontall!())
             CImGui.NextColumn()
             CImGui.BeginChild("setings")
             haskey(INSTRBUFFERVIEWERS, selectedins) || (selectedins = "")
@@ -542,14 +540,13 @@ let
             if qt.issweeping
                 if CImGui.Button(
                     mlstr(" Stop "), (-1, 0)
-                ) || (CImGui.IsKeyDown(igGetKeyIndex(ImGuiKey_Enter)) && waittime("sweep", 0.1))
+                ) || CImGui.IsKeyPressed(igGetKeyIndex(ImGuiKey_Enter), false)
                     qt.issweeping = false
-                    closepopup = true
                 end
             else
                 if CImGui.Button(
                     mlstr(" Start "), (-1, 0)
-                ) || (CImGui.IsKeyDown(igGetKeyIndex(ImGuiKey_Enter)) && waittime("sweep", 0.1))
+                ) || CImGui.IsKeyPressed(igGetKeyIndex(ImGuiKey_Enter), false)
                     apply!(qt, instrnm, addr)
                     closepopup = true
                 end
@@ -605,7 +602,7 @@ let
             if CImGui.Button(
                    stcstr(" ", mlstr("Confirm"), " "),
                    (-Cfloat(0.1), Cfloat(0))
-               ) || triggerset || CImGui.IsKeyDown(igGetKeyIndex(ImGuiKey_Enter))
+               ) || triggerset || CImGui.IsKeyPressed(igGetKeyIndex(ImGuiKey_Enter), false)
                 triggerset && (qt.set = qt.optvalues[qt.optedidx])
                 apply!(qt, instrnm, addr)
                 triggerset = false

@@ -92,11 +92,11 @@ let
                 end
                 CImGui.EndPopup()
             end
-            if unsafe_load(CImGui.GetIO().KeyCtrl) && waittime(stcstr("undo-redo blocks", 1), 0.1)
-                if CImGui.IsKeyDown(igGetKeyIndex(ImGuiKey_Z))
+            if unsafe_load(CImGui.GetIO().KeyCtrl)
+                if CImGui.IsKeyPressed(igGetKeyIndex(ImGuiKey_Z), false)
                     move!(redolist[id], -1)
                     daqtask.blocks = deepcopy(redolist[id][])
-                elseif CImGui.IsKeyDown(igGetKeyIndex(ImGuiKey_Y))
+                elseif CImGui.IsKeyPressed(igGetKeyIndex(ImGuiKey_Y), false)
                     move!(redolist[id])
                     daqtask.blocks = deepcopy(redolist[id][])
                 end
