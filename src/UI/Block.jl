@@ -730,7 +730,7 @@ function edit(bk::SweepBlock)
     )
     CImGui.IsItemClicked(2) && (bk.istrycatch ⊻= true)
     CImGui.SameLine()
-    width = (CImGui.GetContentRegionAvailWidth() - 2CImGui.GetFontSize()) / 5
+    width = (CImGui.GetContentRegionAvailWidth() - 3CImGui.GetFontSize()) / 5
     CImGui.PushItemWidth(width)
     @c ComBoS("##SweepBlock instrument", &bk.instrnm, keys(insconf), CImGui.ImGuiComboFlags_NoArrowButton)
     CImGui.PopItemWidth()
@@ -808,7 +808,7 @@ function edit(bk::SettingBlock)
     )
     CImGui.IsItemClicked(2) && (bk.istrycatch ⊻= true)
     CImGui.SameLine()
-    width = (CImGui.GetContentRegionAvailWidth() - 2CImGui.GetFontSize()) / 5
+    width = (CImGui.GetContentRegionAvailWidth() - 3CImGui.GetFontSize()) / 5
     CImGui.PushItemWidth(width)
     @c ComBoS("##SettingBlock instrument", &bk.instrnm, keys(insconf), CImGui.ImGuiComboFlags_NoArrowButton)
     CImGui.PopItemWidth()
