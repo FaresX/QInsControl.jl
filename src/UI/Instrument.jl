@@ -86,11 +86,13 @@ function poll_autodetect()
     )
 end
 
-function fetch_ibvs(addinstr)
-    remotecall_wait(workers()[1], addinstr) do addinstr
+function fetch_ibvs(addinstr; manual=false)
+    if !manual
+        remotecall_wait(workers()[1], addinstr) do addinstr
+            delete!(INSTRBUFFERVIEWERS["Others"], addinstr)
+        end
         delete!(INSTRBUFFERVIEWERS["Others"], addinstr)
     end
-    delete!(INSTRBUFFERVIEWERS["Others"], addinstr)
     instrbufferviewers_remote = remotecall_fetch(() -> INSTRBUFFERVIEWERS, workers()[1])
     for ins in keys(instrbufferviewers_remote)
         ins == "VirtualInstr" && continue
@@ -146,7 +148,7 @@ let
             end
             if CImGui.Button(stcstr(MORESTYLE.Icons.NewFile, " ", mlstr("Add"), "##manual input addr"))
                 st = remotecall_fetch(manualadd, workers()[1], newinsaddr)
-                st && (fetch_ibvs(newinsaddr); newinsaddr = "")
+                st && (fetch_ibvs(newinsaddr; manual=true); newinsaddr = "")
                 time_old = time()
             end
             if time() - time_old < 2
