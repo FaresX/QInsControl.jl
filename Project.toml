@@ -34,8 +34,9 @@ Unitful = "1986cc42-f94f-5a68-af5c-568840ba703d"
 
 [compat]
 CImGui = "=1.82.0"
-LibCImGui = "=1.82.2"
 CImGuiPack_jll = "=0.1.2"
+ImPlot = "0.2"
+LibCImGui = "=1.82.2"
 julia = "1.6"
 
 [extras]
