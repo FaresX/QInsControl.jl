@@ -122,7 +122,7 @@ function run(daqtask::DAQTask)
     cfgsvdir = joinpath(WORKPATH, string(year(date)), string(year(date), "-", month(date)), string(date))
     ispath(cfgsvdir) || mkpath(cfgsvdir)
     SAVEPATH = joinpath(cfgsvdir, replace("[$(now())] $(mlstr("Task")) $(1+OLDI) $(daqtask.name).qdt", ':' => '.'))
-    push!(CFGBUF, "daqtask" => daqtask)
+    push!(CFGBUF, "daqtask" => deepcopy(daqtask))
     try
         log_instrbufferviewers()
     catch e
