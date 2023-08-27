@@ -164,11 +164,11 @@ function (ct::Controller)(f::Function, cpu::Processor, val::String, ::Val{:write
     cmdid = uuid4()
     push!(cpu.cmdchannel, (ct.id, cmdid, f, val, Val(:write)))
     t1 = time()
-    while !haskey(ct.databuf, cmdid) && time() - t1 < 6
+    while time() - t1 < 6
+        haskey(ct.databuf, cmdid) && return pop!(ct.databuf, cmdid)
         yield()
     end
-    @assert haskey(ct.databuf, cmdid) "timeout"
-    pop!(ct.databuf, cmdid)
+    error("timeout")
 end
 function (ct::Controller)(f::Function, cpu::Processor, ::Val{:read})
     @assert haskey(cpu.controllers, ct.id) "Controller is not logged in"
@@ -176,11 +176,11 @@ function (ct::Controller)(f::Function, cpu::Processor, ::Val{:read})
     cmdid = uuid4()
     push!(cpu.cmdchannel, (ct.id, cmdid, f, "", Val(:read)))
     t1 = time()
-    while !haskey(ct.databuf, cmdid) && time() - t1 < 6
+    while time() - t1 < 6
+        haskey(ct.databuf, cmdid) && return pop!(ct.databuf, cmdid)
         yield()
     end
-    @assert haskey(ct.databuf, cmdid) "timeout"
-    pop!(ct.databuf, cmdid)
+    error("timeout")
 end
 function (ct::Controller)(f::Function, cpu::Processor, val::String, ::Val{:query})
     @assert haskey(cpu.controllers, ct.id) "Controller is not logged in"
@@ -188,11 +188,11 @@ function (ct::Controller)(f::Function, cpu::Processor, val::String, ::Val{:query
     cmdid = uuid4()
     push!(cpu.cmdchannel, (ct.id, cmdid, f, val, Val(:query)))
     t1 = time()
-    while !haskey(ct.databuf, cmdid) && time() - t1 < 6
+    while time() - t1 < 6
+        haskey(ct.databuf, cmdid) && return pop!(ct.databuf, cmdid)
         yield()
     end
-    @assert haskey(ct.databuf, cmdid) "timeout"
-    pop!(ct.databuf, cmdid)
+    error("timeout")
 end
 
 function runcmd(cpu::Processor, ctid::UUID, cmdid::UUID, f::Function, val::String, ::Val{:write})

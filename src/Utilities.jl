@@ -301,3 +301,13 @@ Base.getindex(lv::LoopVector, i=1) = lv.data[__find_index(lv, i)]
 Base.setindex!(lv::LoopVector, x, i=1) = (lv.data[__find_index(lv, i)] = x)
 
 move!(lv::LoopVector, i=1) = (lv.index += i)
+
+function waittofetch(f, δ=6; sleeptime=0.001)
+    t1 = time()
+    while time() - t1 < δ
+        isready(f) && return fetch(f)
+        sleep(sleeptime)
+        yield()
+    end
+    return nothing
+end
