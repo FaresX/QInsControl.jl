@@ -535,7 +535,7 @@ let
         if CImGui.Button(qt.show_edit, (-1, 0))
             if addr != ""
                 fetchdata = refresh_qt(instrnm, addr, qt.name)
-                isempty(fetchdata) || (qt.read = fetchdata)
+                isnothing(fetchdata) || (qt.read = fetchdata)
                 updatefront!(qt)
             end
         end
@@ -597,7 +597,7 @@ let
         if CImGui.Button(qt.show_edit, (-1, 0))
             if addr != ""
                 fetchdata = refresh_qt(instrnm, addr, qt.name)
-                isempty(fetchdata) || (qt.read = fetchdata)
+                isnothing(fetchdata) || (qt.read = fetchdata)
                 updatefront!(qt)
             end
         end
@@ -624,7 +624,7 @@ let
             end
             if !popup_before && addr != ""
                 fetchdata = refresh_qt(instrnm, addr, qt.name)
-                if !isempty(fetchdata)
+                if !isnothing(fetchdata)
                     fetchdata in qt.optvalues && (qt.optedidx = findfirst(==(fetchdata), qt.optvalues))
                 end
             end
@@ -671,7 +671,7 @@ let
         if CImGui.Button(qt.show_edit, (-1, 0))
             if addr != ""
                 fetchdata = refresh_qt(instrnm, addr, qt.name)
-                isempty(fetchdata) || (qt.read = fetchdata)
+                isnothing(fetchdata) || (qt.read = fetchdata)
                 updatefront!(qt)
             end
         end
@@ -848,32 +848,25 @@ function apply!(qt::SetQuantity, instrnm, addr)
 end
 
 function refresh_qt(instrnm, addr, qtnm)
-    returnval = Ref("")
-    errormonitor(
-        @async begin
-            fetchdata_call = remotecall(workers()[1], instrnm, addr) do instrnm, addr
-                ct = Controller(instrnm, addr)
-                try
-                    getfunc = Symbol(instrnm, :_, qtnm, :_get) |> eval
-                    login!(CPU, ct)
-                    readstr = ct(getfunc, CPU, Val(:read))
-                    logout!(CPU, ct)
-                    return readstr
-                catch e
-                    @error(
-                        "[$(now())]\n$(mlstr("instrument communication failed!!!"))",
-                        instrument = string(instrnm, ": ", addr),
-                        quantity = qtnm,
-                        exception = e
-                    )
-                    logout!(CPU, ct)
-                end
-            end
-            fetchdata = waittofetch(fetchdata_call)
-            isnothing(fetchdata) || (returnval[] = fetchdata)
+    fetchdata_call = remotecall(workers()[1], instrnm, addr) do instrnm, addr
+        ct = Controller(instrnm, addr)
+        try
+            getfunc = Symbol(instrnm, :_, qtnm, :_get) |> eval
+            login!(CPU, ct)
+            readstr = ct(getfunc, CPU, Val(:read))
+            logout!(CPU, ct)
+            return readstr
+        catch e
+            @error(
+                "[$(now())]\n$(mlstr("instrument communication failed!!!"))",
+                instrument = string(instrnm, ": ", addr),
+                quantity = qtnm,
+                exception = e
+            )
+            logout!(CPU, ct)
         end
-    ) |> wait
-    return returnval[]
+    end
+    waittofetch(fetchdata_call)
 end
 
 function log_instrbufferviewers()
