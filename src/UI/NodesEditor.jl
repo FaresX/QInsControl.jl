@@ -260,7 +260,7 @@ function draw(pin::ImagePin)
         drawlist,
         CImGui.GetFont(),
         ftsz,
-        pin.pos .- (l * ftsz / 4, ftsz / 2),
+        pin.pos .- (l * ftsz / 2, ftsz / 2),
         CImGui.ColorConvertFloat4ToU32(MORESTYLE.Colors.ImagePinLinkId),
         stcstr(pin.link_idx)
     )
