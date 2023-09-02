@@ -30,6 +30,7 @@ end
     showhelp::Bool = false
     showcol::Cint = 3
     refreshrate::Cfloat = 60
+    disablelist::Dict{String,Dict{String,Vector{String}}} = Dict()
 end
 
 @option mutable struct OptFonts
@@ -116,7 +117,6 @@ BasicConf(conf::Dict) = BasicConf(
 )
 
 mutable struct QuantityConf <: InsConf
-    enable::Bool
     alias::String
     U::String
     cmdheader::String
@@ -126,7 +126,6 @@ mutable struct QuantityConf <: InsConf
     help::String
 end
 QuantityConf(qt::Dict) = QuantityConf(
-    qt["enable"],
     qt["alias"],
     qt["U"],
     qt["cmdheader"],
@@ -150,7 +149,6 @@ todict(cf::BasicConf) = Dict(
     "output_labels" => cf.output_labels
 )
 todict(qtcf::QuantityConf) = Dict(
-    "enable" => qtcf.enable,
     "alias" => qtcf.alias,
     "U" => qtcf.U,
     "cmdheader" => qtcf.cmdheader,

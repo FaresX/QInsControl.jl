@@ -1,8 +1,6 @@
 let
     edithelp::Bool = false
     global function edit(qtcf::QuantityConf, instrnm)
-        @c CImGui.Checkbox(qtcf.enable ? mlstr("enable") : mlstr("disable"), &qtcf.enable)
-        # @c InputTextRSZ("变量名", &qtcf.name)
         @c InputTextRSZ(mlstr("alias"), &qtcf.alias)
         @c ComBoS(mlstr("unit type"), &qtcf.U, keys(CONF.U))
         @c InputTextRSZ(mlstr("command"), &qtcf.cmdheader)
@@ -96,7 +94,7 @@ let
     deldialog::Bool = false
     isrename::Dict{String,Bool} = Dict()
     qtname::String = ""
-    editqt::QuantityConf = QuantityConf(true, "", "", "", [], [], "set", "")
+    editqt::QuantityConf = QuantityConf("", "", "", [], [], "set", "")
     global function InstrRegister(p_open::Ref)
         CImGui.SetNextWindowSize((800, 600), CImGui.ImGuiCond_Once)
 
@@ -195,7 +193,6 @@ let
                     OrderedDict(
                         "quantity" => QuantityConf(
                             Dict(
-                                "enable" => true,
                                 "alias" => "quantity",
                                 "U" => "",
                                 "cmdheader" => "",
