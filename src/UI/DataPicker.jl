@@ -199,10 +199,14 @@ function syncplotdata(uiplot::UIPlot, dtpk::DataPicker, datastr, datafloat)
     try
         uiplot.x, uiplot.y, nz = eval(ex)
         if uiplot.ptype == "heatmap"
-            lmin = min(length(uiplot.z), length(nz))
-            rows = ceil(Int, lmin / dtpk.zsize[1])
-            fill!(uiplot.z, zero(eltype(uiplot.z)))
-            @views uiplot.z[1:rows, :] = transpose(resize(nz, dtpk.zsize[1], rows))
+            if nz isa Matrix
+                uiplot.z = nz
+            else
+                lmin = min(length(uiplot.z), length(nz))
+                rows = ceil(Int, lmin / dtpk.zsize[1])
+                fill!(uiplot.z, zero(eltype(uiplot.z)))
+                @views uiplot.z[1:rows, :] = transpose(resize(nz, dtpk.zsize[1], rows))
+            end
             dtpk.nonuniform && uniformz!(uiplot.y[1], uiplot.x, uiplot.z)
             dtpk.vflipz && reverse!(uiplot.z, dims=2)
             dtpk.hflipz && reverse!(uiplot.z, dims=1)
