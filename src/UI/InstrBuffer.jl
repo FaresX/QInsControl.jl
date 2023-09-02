@@ -622,7 +622,7 @@ let
                 CImGui.CloseCurrentPopup()
                 closepopup = false
             end
-            if !popup_before && addr != ""
+            if !isempty(qt.optkeys) && !popup_before && addr != ""
                 fetchdata = refresh_qt(instrnm, addr, qt.name)
                 if !isnothing(fetchdata)
                     fetchdata in qt.optvalues && (qt.optedidx = findfirst(==(fetchdata), qt.optvalues))
