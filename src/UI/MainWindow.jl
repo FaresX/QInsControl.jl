@@ -213,7 +213,9 @@ let
                                             false,
                                             ins != "VirtualInstr"
                                         )
-                                            delete!(INSTRBUFFERVIEWERS[ins], addr)
+                                            synccall_wait(workers()[1], ins, addr) do ins, addr
+                                                delete!(INSTRBUFFERVIEWERS[ins], addr)
+                                            end
                                         end
                                         CImGui.EndPopup()
                                     end

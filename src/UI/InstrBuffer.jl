@@ -444,12 +444,12 @@ function edit(insbuf::InstrBuffer, addr)
         CImGui.OpenPopupOnItemClick(stcstr("rightclick", insbuf.instrnm, addr))
     end
     if CImGui.BeginPopup(stcstr("rightclick", insbuf.instrnm, addr))
-        if CImGui.MenuItem(stcstr(MORESTYLE.Icons.InstrumentsManualRef, " ", mlstr("manual refresh")), "F5")
+        if CImGui.MenuItem(stcstr(MORESTYLE.Icons.InstrumentsManualRef, " ", mlstr("Manual Refresh")), "F5")
             insbuf.isautorefresh = true
             manualrefresh()
             updatefrontall!()
         end
-        CImGui.Text(stcstr(MORESTYLE.Icons.InstrumentsAutoRef, " ", mlstr("auto refresh")))
+        CImGui.Text(stcstr(MORESTYLE.Icons.InstrumentsAutoRef, " ", mlstr("Auto Refresh")))
         CImGui.SameLine()
         isautoref = SYNCSTATES[Int(IsAutoRefreshing)]
         @c CImGui.Checkbox("##auto refresh", &isautoref)
@@ -477,7 +477,9 @@ function edit(insbuf::InstrBuffer, addr)
             CImGui.ImGuiSliderFlags_AlwaysClamp
         )
         CImGui.PopItemWidth()
-        @c CImGui.Checkbox("Show Disabled", &insbuf.showdisable)
+        CImGui.Text(stcstr(MORESTYLE.Icons.ShowDisable, " ", mlstr("Show Disabled")))
+        CImGui.SameLine()
+        @c CImGui.Checkbox("##show disabled", &insbuf.showdisable)
         CImGui.EndPopup()
     end
     CImGui.IsKeyPressed(294, false) && (manualrefresh(); updatefrontall!())
