@@ -756,7 +756,7 @@ function edit(bk::SweepBlock)
             [
                 qt
                 for qt in qtlist
-                if insconf[bk.instrnm].quantities[qt].type == "sweep" && insconf[bk.instrnm].quantities[qt].enable
+                if insconf[bk.instrnm].quantities[qt].type == "sweep"
             ]
         else
             String[]
@@ -833,7 +833,7 @@ function edit(bk::SettingBlock)
         sts = if haskey(insconf, bk.instrnm)
             [
                 qt for qt in qtlist
-                if insconf[bk.instrnm].quantities[qt].type in ["set", "sweep"] && insconf[bk.instrnm].quantities[qt].enable
+                if insconf[bk.instrnm].quantities[qt].type in ["set", "sweep"]
             ]
         else
             String[]
@@ -916,7 +916,7 @@ function edit(bk::ReadingBlock)
     CImGui.PushItemWidth(width)
     if CImGui.BeginCombo("##ReadingBlock read", showqt, CImGui.ImGuiComboFlags_NoArrowButton)
         qtlist = haskey(insconf, bk.instrnm) ? keys(insconf[bk.instrnm].quantities) : Set{String}()
-        qts = @trypass [qt for qt in qtlist if insconf[bk.instrnm].quantities[qt].enable] String[]
+        qts = collect(qtlist)
         for qt in qts
             selected = bk.quantity == qt
             showqt = insconf[bk.instrnm].quantities[qt].alias
