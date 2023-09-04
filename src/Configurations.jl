@@ -23,7 +23,7 @@ end
     packsize::Cint = 6
     plotshowcol::Cint = 2
     pick_fps::Vector{Cint} = [3, 36]
-    historylen::Cint = 12
+    historylen::Cint = 120
 end
 
 @option mutable struct OptInsBuf
@@ -48,7 +48,7 @@ end
     dir::String = ""
     refreshrate::Cfloat = 60
     showioline::Cint = 100
-    historylen::Cint = 100
+    historylen::Cint = 120
 end
 
 @option mutable struct OptLogs

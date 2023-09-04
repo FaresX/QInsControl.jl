@@ -146,7 +146,8 @@ SaveBlock() = SaveBlock("", "", (0, 0), (0, 0))
 ############ isapprox --------------------------------------------------------------------------------------------------
 
 Base.isapprox(::T1, ::T2) where T1 <: AbstractBlock where T2 <: AbstractBlock = T1 == T2
-Base.isapprox(x::StrideCodeBlock, y::StrideCodeBlock) = x.blocks ≈ y.blocks
+Base.isapprox(x::CodeBlock, y::CodeBlock) = x.codes == y.codes
+Base.isapprox(x::StrideCodeBlock, y::StrideCodeBlock) = x.codes == y.codes && x.blocks ≈ y.blocks
 Base.isapprox(x::SweepBlock, y::SweepBlock) = x.blocks ≈ y.blocks
 Base.isapprox(x::Vector{AbstractBlock}, y::Vector{AbstractBlock}) = length(x) == length(y) ? all(x .≈ y) : false
 
