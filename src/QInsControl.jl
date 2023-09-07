@@ -87,6 +87,7 @@ include("UI/ShowAbout.jl")
 include("UI/MainWindow.jl")
 include("UI/Renderer.jl")
 
+include("AuxFunc.jl")
 include("JLD2Struct.jl")
 include("Conf.jl")
 include("Compatible.jl")
