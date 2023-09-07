@@ -397,7 +397,7 @@ function tocodes(bk::ReadingBlock)
             getcmd
         end
         if bk.isobserve
-            observable = length(index) == 1 ? Expr(:tuple, Symbol(bk.mark)) : Symbol(bk.mark)
+            observable = length(index) == 1 ? Symbol(bk.mark) : Expr(:tuple, Symbol.(lstrip.(split(bk.mark, ',')))...)
             return bk.isreading ? quote
                 $observable = $getdata
                 for data in zip($keyall, $observable)
@@ -520,7 +520,7 @@ function tocodes(bk::QueryBlock)
             getcmd
         end
         if bk.isobserve
-            observable = length(index) == 1 ? Expr(:tuple, Symbol(bk.mark)) : Symbol(bk.mark)
+            observable = length(index) == 1 ? Symbol(bk.mark) : Expr(:tuple, Symbol.(lstrip.(split(bk.mark, ',')))...)
             bk.isreading ? quote
                 $observable = $getdata
                 for data in zip($keyall, $observable)
@@ -613,7 +613,7 @@ function tocodes(bk::ReadBlock)
             getcmd
         end
         if bk.isobserve
-            observable = length(index) == 1 ? Expr(:tuple, Symbol(bk.mark)) : Symbol(bk.mark)
+            observable = length(index) == 1 ? Symbol(bk.mark) : Expr(:tuple, Symbol.(lstrip.(split(bk.mark, ',')))...)
             bk.isreading ? quote
                 $observable = $getdata
                 for data in zip($keyall, $observable)
