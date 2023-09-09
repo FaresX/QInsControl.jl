@@ -237,7 +237,16 @@ function update_data()
             jldopen(SAVEPATH, "w") do file
                 file["data"] = DATABUF
                 file["circuit"] = CIRCUIT
-                file["uiplots"] = UIPSWEEPS[isempty(DAQPLOTLAYOUT.selectedidx) ? 1 : DAQPLOTLAYOUT.selectedidx]
+                UIPSWEEPS_copy = [deepcopy(p) for p in UIPSWEEPS]
+                saveplotsidx = isempty(DAQPLOTLAYOUT.selectedidx) ? [1] : DAQPLOTLAYOUT.selectedidx
+                for (i, p) in enumerate(UIPSWEEPS_copy)
+                    if i ∉ saveplotsidx
+                        p.x = eltype(p.x)[]
+                        p.y = [Float64[]]
+                        p.z = Matrix{Float64}(undef, 0, 0)
+                    end
+                end
+                file["uiplots"] = UIPSWEEPS_copy
                 file["datapickers"] = DAQDTPKS
                 file["plotlayout"] = DAQPLOTLAYOUT
                 for (key, val) in CFGBUF
@@ -254,7 +263,16 @@ function update_all()
             jldopen(SAVEPATH, "w") do file
                 file["data"] = DATABUF
                 file["circuit"] = CIRCUIT
-                file["uiplots"] = UIPSWEEPS[isempty(DAQPLOTLAYOUT.selectedidx) ? 1 : DAQPLOTLAYOUT.selectedidx]
+                UIPSWEEPS_copy = [deepcopy(p) for p in UIPSWEEPS]
+                saveplotsidx = isempty(DAQPLOTLAYOUT.selectedidx) ? [1] : DAQPLOTLAYOUT.selectedidx
+                for (i, p) in enumerate(UIPSWEEPS_copy)
+                    if i ∉ saveplotsidx
+                        p.x = eltype(p.x)[]
+                        p.y = [Float64[]]
+                        p.z = Matrix{Float64}(undef, 0, 0)
+                    end
+                end
+                file["uiplots"] = UIPSWEEPS_copy
                 file["datapickers"] = DAQDTPKS
                 file["plotlayout"] = DAQPLOTLAYOUT
                 for (key, val) in CFGBUF
