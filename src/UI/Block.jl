@@ -15,10 +15,11 @@ mutable struct StrideCodeBlock <: AbstractBlock
     level::Int
     blocks::Vector{AbstractBlock}
     nohandler::Bool
+    hideblocks::Bool
     regmin::ImVec2
     regmax::ImVec2
 end
-StrideCodeBlock(level) = StrideCodeBlock("", level, Vector{AbstractBlock}(), false, (0, 0), (0, 0))
+StrideCodeBlock(level) = StrideCodeBlock("", level, Vector{AbstractBlock}(), false, false, (0, 0), (0, 0))
 StrideCodeBlock() = StrideCodeBlock(1)
 
 mutable struct BranchBlock <: AbstractBlock
@@ -39,6 +40,7 @@ mutable struct SweepBlock <: AbstractBlock
     level::Int
     blocks::Vector{AbstractBlock}
     istrycatch::Bool
+    hideblocks::Bool
     regmin::ImVec2
     regmax::ImVec2
 end
@@ -47,6 +49,7 @@ SweepBlock(level) = SweepBlock(
     "", "", 0.1, 1,
     level,
     Vector{AbstractBlock}(),
+    false,
     false,
     (0, 0), (0, 0)
 )
@@ -657,12 +660,14 @@ function bkheight(bk::CodeBlock)
     2unsafe_load(IMGUISTYLE.WindowPadding.y) + 1
 end
 function bkheight(bk::StrideCodeBlock)
+    return bk.hideblocks ? 2unsafe_load(IMGUISTYLE.WindowPadding.y) + CImGui.GetFrameHeight() :
     2unsafe_load(IMGUISTYLE.WindowPadding.y) +
     CImGui.GetFrameHeight() +
     length(skipnull(bk.blocks)) * unsafe_load(IMGUISTYLE.ItemSpacing.y) +
     sum(bkheight.(bk.blocks))
 end
 function bkheight(bk::SweepBlock)
+    return bk.hideblocks ? 2unsafe_load(IMGUISTYLE.WindowPadding.y) + CImGui.GetFrameHeight() :
     2unsafe_load(IMGUISTYLE.WindowPadding.y) +
     CImGui.GetFrameHeight() +
     length(skipnull(bk.blocks)) * unsafe_load(IMGUISTYLE.ItemSpacing.y) +
@@ -695,12 +700,13 @@ function edit(bk::StrideCodeBlock)
         MORESTYLE.Icons.StrideCodeBlock
     )
     CImGui.IsItemClicked(2) && (bk.nohandler ⊻= true)
+    CImGui.IsItemHovered() && CImGui.IsMouseDoubleClicked(0) && (bk.hideblocks ⊻= true)
     CImGui.SameLine()
     CImGui.PushItemWidth(-1)
     @c InputTextWithHintRSZ("##code header", mlstr("code header"), &bk.codes)
     CImGui.PopItemWidth()
     CImGui.PopStyleColor()
-    isempty(skipnull(bk.blocks)) || edit(bk.blocks, bk.level + 1)
+    bk.hideblocks || isempty(skipnull(bk.blocks)) || edit(bk.blocks, bk.level + 1)
     CImGui.EndChild()
 end
 
@@ -730,6 +736,7 @@ function edit(bk::SweepBlock)
         MORESTYLE.Icons.SweepBlock
     )
     CImGui.IsItemClicked(2) && (bk.istrycatch ⊻= true)
+    CImGui.IsItemHovered() && CImGui.IsMouseDoubleClicked(0) && (bk.hideblocks ⊻= true)
     CImGui.SameLine()
     width = (CImGui.GetContentRegionAvailWidth() - 3CImGui.GetFontSize()) / 5
     CImGui.PushItemWidth(width)
@@ -795,7 +802,7 @@ function edit(bk::SweepBlock)
     @c ShowUnit("##SweepBlock", Ut, &bk.ui)
     CImGui.PopItemWidth()
     CImGui.PopStyleColor()
-    isempty(skipnull(bk.blocks)) || edit(bk.blocks, bk.level + 1)
+    bk.hideblocks || isempty(skipnull(bk.blocks)) || edit(bk.blocks, bk.level + 1)
     CImGui.EndChild()
     CImGui.PopStyleVar()
 end
@@ -1651,6 +1658,7 @@ function Base.show(io::IO, bk::StrideCodeBlock)
         region min : $(bk.regmin)
         region max : $(bk.regmax)
              level : $(bk.level)
+        hideblocks : $(bk.hideblocks)
               head : $(bk.codes)
               body : 
     """
@@ -1690,6 +1698,7 @@ function Base.show(io::IO, bk::SweepBlock)
               unit : $u
              delay : $(bk.delay)
           trycatch : $(bk.istrycatch)
+        hideblocks : $(bk.hideblocks)
               body :
     """
     print(io, str)

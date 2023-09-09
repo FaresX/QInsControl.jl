@@ -237,7 +237,7 @@ function update_data()
             jldopen(SAVEPATH, "w") do file
                 file["data"] = DATABUF
                 file["circuit"] = CIRCUIT
-                file["uiplots"] = UIPSWEEPS
+                file["uiplots"] = UIPSWEEPS[isempty(DAQPLOTLAYOUT.selectedidx) ? 1 : DAQPLOTLAYOUT.selectedidx]
                 file["datapickers"] = DAQDTPKS
                 file["plotlayout"] = DAQPLOTLAYOUT
                 for (key, val) in CFGBUF
@@ -254,7 +254,7 @@ function update_all()
             jldopen(SAVEPATH, "w") do file
                 file["data"] = DATABUF
                 file["circuit"] = CIRCUIT
-                file["uiplots"] = UIPSWEEPS
+                file["uiplots"] = UIPSWEEPS[isempty(DAQPLOTLAYOUT.selectedidx) ? 1 : DAQPLOTLAYOUT.selectedidx]
                 file["datapickers"] = DAQDTPKS
                 file["plotlayout"] = DAQPLOTLAYOUT
                 for (key, val) in CFGBUF
