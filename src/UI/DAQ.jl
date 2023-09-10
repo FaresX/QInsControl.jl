@@ -21,6 +21,8 @@ let
     ccbtsz::Cfloat = 0
     bottombtsz::Cfloat = 0
 
+    projpath::String = ""
+
     global function DAQ(p_open::Ref)
         # CImGui.SetNextWindowPos((100, 100), CImGui.ImGuiCond_Once)
         CImGui.SetNextWindowSize((800, 600), CImGui.ImGuiCond_Once)
@@ -128,6 +130,7 @@ let
                         !SYNCSTATES[Int(IsDAQTaskRunning)] && task.enable
                     )
                         if ispath(WORKPATH)
+                            saveproject(projpath)
                             running_i = i
                             errormonitor(@async begin
                                 run(task)
@@ -227,61 +230,8 @@ let
                         stcstr(MORESTYLE.Icons.ShowDisable, " ", mlstr("Show Disabled"))
                     ) && (showdisabled = true)
                 end
-                if CImGui.MenuItem(stcstr(MORESTYLE.Icons.SaveButton, " ", mlstr("Save Project")))
-                    daqsvpath = save_file(filterlist="daq")
-                    if daqsvpath != ""
-                        jldsave(daqsvpath;
-                            daqtasks=daqtasks,
-                            circuit=CIRCUIT,
-                            uiplots=UIPSWEEPS,
-                            datapickers=DAQDTPKS,
-                            plotlayout=DAQPLOTLAYOUT
-                        )
-                    end
-                end
-                if CImGui.MenuItem(stcstr(MORESTYLE.Icons.Load, " ", mlstr("Load Project")))
-                    daqloadpath = pick_file(filterlist="daq;qdt")
-                    if isfile(daqloadpath)
-                        loaddaqproj = @trypasse load(daqloadpath) begin
-                            @error mlstr("unsupported file!!!") filepath = daqloadpath
-                        end
-                        if !isnothing(loaddaqproj)
-                            if haskey(loaddaqproj, "daqtasks")
-                                empty!(daqtasks)
-                                for task in loaddaqproj["daqtasks"]
-                                    push!(daqtasks, task)
-                                end
-                            end
-                            if haskey(loaddaqproj, "circuit")
-                                CIRCUIT = loaddaqproj["circuit"]
-                                for (_, node) in CIRCUIT.nodes
-                                    if node isa SampleBaseNode
-                                        try
-                                            imgsize = size(node.imgr.image)
-                                            node.imgr.id = ImGui_ImplOpenGL3_CreateImageTexture(imgsize...)
-                                            ImGui_ImplOpenGL3_UpdateImageTexture(node.imgr.id, node.imgr.image, imgsize...)
-                                        catch e
-                                            @error "[$(now())]\n$(mlstr("loading image failed!!!"))" exception = e
-                                        end
-                                    end
-                                end
-                            end
-                            if haskey(loaddaqproj, "uiplots")
-                                empty!(UIPSWEEPS)
-                                for uip in loaddaqproj["uiplots"]
-                                    push!(UIPSWEEPS, uip)
-                                end
-                            end
-                            if haskey(loaddaqproj, "datapickers")
-                                empty!(DAQDTPKS)
-                                for dtpk in loaddaqproj["datapickers"]
-                                    push!(DAQDTPKS, dtpk)
-                                end
-                            end
-                            haskey(loaddaqproj, "plotlayout") && (DAQPLOTLAYOUT = loaddaqproj["plotlayout"])
-                        end
-                    end
-                end
+                CImGui.MenuItem(stcstr(MORESTYLE.Icons.SaveButton, " ", mlstr("Save Project"))) && saveproject()
+                CImGui.MenuItem(stcstr(MORESTYLE.Icons.Load, " ", mlstr("Load Project"))) && loadproject()
                 CImGui.Separator()
                 if CImGui.BeginMenu(stcstr(MORESTYLE.Icons.Plot, " ", mlstr("Plot")))
                     CImGui.Text(mlstr("plot columns"))
@@ -402,6 +352,7 @@ let
             if CImGui.Button(stcstr(MORESTYLE.Icons.RunTask, " ", mlstr("Run All")))
                 if !SYNCSTATES[Int(IsDAQTaskRunning)]
                     if ispath(WORKPATH)
+                        saveproject(projpath)
                         runalltask = @async begin
                             isrunall = true
                             for (i, task) in enumerate(daqtasks)
@@ -485,6 +436,65 @@ let
         end
         CImGui.End()
     end
+
+    function saveproject(daqsvpath="")
+        daqsvpath == "" && (daqsvpath = save_file(filterlist="daq"))
+        if daqsvpath != ""
+            projpath = daqsvpath
+            jldsave(daqsvpath;
+                daqtasks=daqtasks,
+                circuit=CIRCUIT,
+                uiplots=UIPSWEEPS,
+                datapickers=DAQDTPKS,
+                plotlayout=DAQPLOTLAYOUT
+            )
+        end
+    end
+    
+    function loadproject()
+        daqloadpath = pick_file(filterlist="daq;qdt")
+        if isfile(daqloadpath)
+            loaddaqproj = @trypasse load(daqloadpath) begin
+                @error mlstr("unsupported file!!!") filepath = daqloadpath
+            end
+            if !isnothing(loaddaqproj)
+                projpath = daqloadpath
+                if haskey(loaddaqproj, "daqtasks")
+                    empty!(daqtasks)
+                    for task in loaddaqproj["daqtasks"]
+                        push!(daqtasks, task)
+                    end
+                end
+                if haskey(loaddaqproj, "circuit")
+                    CIRCUIT = loaddaqproj["circuit"]
+                    for (_, node) in CIRCUIT.nodes
+                        if node isa SampleBaseNode
+                            try
+                                imgsize = size(node.imgr.image)
+                                node.imgr.id = ImGui_ImplOpenGL3_CreateImageTexture(imgsize...)
+                                ImGui_ImplOpenGL3_UpdateImageTexture(node.imgr.id, node.imgr.image, imgsize...)
+                            catch e
+                                @error "[$(now())]\n$(mlstr("loading image failed!!!"))" exception = e
+                            end
+                        end
+                    end
+                end
+                if haskey(loaddaqproj, "uiplots")
+                    empty!(UIPSWEEPS)
+                    for uip in loaddaqproj["uiplots"]
+                        push!(UIPSWEEPS, uip)
+                    end
+                end
+                if haskey(loaddaqproj, "datapickers")
+                    empty!(DAQDTPKS)
+                    for dtpk in loaddaqproj["datapickers"]
+                        push!(DAQDTPKS, dtpk)
+                    end
+                end
+                haskey(loaddaqproj, "plotlayout") && (DAQPLOTLAYOUT = loaddaqproj["plotlayout"])
+            end
+        end
+    end
 end #let
 
 function find_old_i(dir)
@@ -503,3 +513,4 @@ function find_old_i(dir)
         OLDI = 0
     end
 end
+
