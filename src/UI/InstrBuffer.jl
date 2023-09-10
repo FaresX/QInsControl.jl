@@ -213,6 +213,10 @@ function InstrBufferViewer(instrnm, addr)
         if haskey(CONF.InsBuf.disablelist, instrnm) && haskey(CONF.InsBuf.disablelist[instrnm], addr)
             qt.enable = qtnm ∉ CONF.InsBuf.disablelist[instrnm][addr]
         end
+        if haskey(CONF.InsBuf.unitlist, instrnm) && haskey(CONF.InsBuf.unitlist[instrnm], addr) &&
+            haskey(CONF.InsBuf.unitlist[instrnm][addr], qtnm)
+            qt.uindex = CONF.InsBuf.unitlist[instrnm][addr][qtnm]
+        end
     end
     InstrBufferViewer(instrnm, addr, "*IDN?", "", false, insbuf)
 end
@@ -548,7 +552,7 @@ let
             CImGui.Text(stcstr(mlstr("unit"), " "))
             CImGui.SameLine()
             CImGui.PushItemWidth(6CImGui.GetFontSize())
-            @c ShowUnit("##insbuf", qt.utype, &qt.uindex)
+            @c(ShowUnit("##insbuf", qt.utype, &qt.uindex)) && resolveunitlist(qt, instrnm, addr)
             CImGui.PopItemWidth()
             CImGui.SameLine()
             @c CImGui.Checkbox(mlstr("refresh"), &qt.isautorefresh)
@@ -634,7 +638,7 @@ let
             CImGui.Text(stcstr(mlstr("unit"), " "))
             CImGui.SameLine()
             CImGui.PushItemWidth(6CImGui.GetFontSize())
-            @c ShowUnit("##insbuf", qt.utype, &qt.uindex)
+            @c(ShowUnit("##insbuf", qt.utype, &qt.uindex)) && resolveunitlist(qt, instrnm, addr)
             CImGui.PopItemWidth()
             CImGui.SameLine()
             @c CImGui.Checkbox(mlstr("refresh"), &qt.isautorefresh)
@@ -681,7 +685,7 @@ let
             CImGui.Text(stcstr(mlstr("unit"), " "))
             CImGui.SameLine()
             CImGui.PushItemWidth(6CImGui.GetFontSize())
-            @c ShowUnit("##insbuf", qt.utype, &qt.uindex)
+            @c(ShowUnit("##insbuf", qt.utype, &qt.uindex)) && resolveunitlist(qt, instrnm, addr)
             CImGui.PopItemWidth()
             CImGui.SameLine()
             @c CImGui.Checkbox(mlstr("refresh"), &qt.isautorefresh)
@@ -865,6 +869,19 @@ function resolvedisablelist(qt::AbstractQuantity, instrnm, addr)
     svconf = deepcopy(CONF)
     svconf.U = Dict(up.first => string.(up.second) for up in CONF.U)
     to_toml(joinpath(ENV["QInsControlAssets"], "Necessity/conf.toml"), svconf)
+end
+
+function resolveunitlist(qt::AbstractQuantity, instrnm, addr)
+    haskey(CONF.InsBuf.unitlist, instrnm) || push!(CONF.InsBuf.unitlist, instrnm => Dict())
+    haskey(CONF.InsBuf.unitlist[instrnm], addr) || push!(CONF.InsBuf.unitlist[instrnm], addr => Dict())
+    unitlist = CONF.InsBuf.unitlist[instrnm][addr]
+    haskey(unitlist, qt.name) || push!(unitlist, qt.name => qt.uindex)
+    if unitlist[qt.name] != qt.uindex
+        push!(unitlist, qt.name => qt.uindex)
+        svconf = deepcopy(CONF)
+        svconf.U = Dict(up.first => string.(up.second) for up in CONF.U)
+        to_toml(joinpath(ENV["QInsControlAssets"], "Necessity/conf.toml"), svconf)
+    end
 end
 
 function refresh_qt(instrnm, addr, qtnm)

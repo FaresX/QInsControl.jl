@@ -90,15 +90,18 @@ end
 
 function ShowUnit(id, utype, ui::Ref, flags=CImGui.ImGuiComboFlags_NoArrowButton)
     units = string.(CONF.U[utype])
-    showu = @trypass units[ui.x] ""
-    if CImGui.BeginCombo(stcstr("##unit", id), showu, flags)
+    (ui[] > length(units) || ui[] < 1) && (ui[] = 1)
+    showu = units[ui[]]
+    begincombo = CImGui.BeginCombo(stcstr("##unit", id), showu, flags)
+    if begincombo
         for u in eachindex(units)
-            local selected = ui.x == u
-            CImGui.Selectable(units[u], selected) && (ui.x = u)
+            local selected = ui[] == u
+            CImGui.Selectable(units[u], selected) && (ui[] = u)
             selected && CImGui.SetItemDefaultFocus()
         end
         CImGui.EndCombo()
     end
+    return begincombo
 end
 
 function MultiSelectable(

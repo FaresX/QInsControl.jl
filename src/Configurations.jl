@@ -31,6 +31,7 @@ end
     showcol::Cint = 3
     refreshrate::Cfloat = 60
     disablelist::Dict{String,Dict{String,Vector{String}}} = Dict()
+    unitlist::Dict{String,Dict{String,Dict{String,Int}}} = Dict()
 end
 
 @option mutable struct OptFonts
