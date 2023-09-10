@@ -1373,12 +1373,13 @@ function view(bk::StrideCodeBlock)
         bk.nohandler ? MORESTYLE.Colors.StrideCodeBlockBorder : MORESTYLE.Colors.BlockIcons,
         MORESTYLE.Icons.StrideCodeBlock
     )
+    CImGui.IsItemHovered() && CImGui.IsMouseDoubleClicked(0) && (bk.hideblocks ⊻= true)
     CImGui.SameLine()
     CImGui.PushStyleVar(CImGui.ImGuiStyleVar_ButtonTextAlign, (0.0, 0.5))
     CImGui.Button(bk.codes, (-1, 0))
     CImGui.PopStyleVar()
     CImGui.PopStyleColor()
-    isempty(skipnull(bk.blocks)) || view(bk.blocks)
+    bk.hideblocks || isempty(skipnull(bk.blocks)) || view(bk.blocks)
     CImGui.EndChild()
 end
 
@@ -1416,6 +1417,7 @@ function view(bk::SweepBlock)
         bk.istrycatch ? MORESTYLE.Colors.BlockTrycatch : MORESTYLE.Colors.BlockIcons,
         MORESTYLE.Icons.SweepBlock
     )
+    CImGui.IsItemHovered() && CImGui.IsMouseDoubleClicked(0) && (bk.hideblocks ⊻= true)
     CImGui.SameLine()
     CImGui.PushStyleVar(CImGui.ImGuiStyleVar_ButtonTextAlign, (0.0, 0.5))
     CImGui.Button(
@@ -1431,7 +1433,7 @@ function view(bk::SweepBlock)
     )
     CImGui.PopStyleVar()
     CImGui.PopStyleColor()
-    isempty(skipnull(bk.blocks)) || view(bk.blocks)
+    bk.hideblocks || isempty(skipnull(bk.blocks)) || view(bk.blocks)
     CImGui.EndChild()
 end
 
