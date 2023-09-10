@@ -49,6 +49,13 @@ function loadconf()
         split(bnm, '.')[end] == "sty" && merge!(STYLES, load(file))
     end
 
+    ##### save conf.toml ######
+    if myid() == 1
+        svconf = deepcopy(CONF)
+        svconf.U = Dict(up.first => string.(up.second) for up in CONF.U)
+        to_toml(joinpath(ENV["QInsControlAssets"], "Necessity/conf.toml"), svconf)
+    end
+
     return nothing
 end
 
