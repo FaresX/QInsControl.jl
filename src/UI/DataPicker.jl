@@ -200,6 +200,8 @@ function syncplotdata(uiplot::UIPlot, dtpk::DataPicker, datastr, datafloat)
         uiplot.x, uiplot.y, nz = eval(ex)
         if uiplot.ptype == "heatmap"
             true in isnan.(nz) && replace!(nz, NaN => 0)
+            Inf in nz && (replace!(nz, Inf => 0))
+            -Inf in nz && (replace!(nz, -Inf => 0))
             if nz isa Matrix
                 uiplot.z = nz
             else
