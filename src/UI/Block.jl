@@ -393,7 +393,7 @@ function tocodes(bk::ReadingBlock)
                         instrument = $(string(bk.instrnm, ": ", bk.addr)),
                         exception = e
                     )
-                    fill("", length(index))
+                    fill("", length($index))
                 end
             end
         else
@@ -516,7 +516,7 @@ function tocodes(bk::QueryBlock)
                         instrument = $(string(bk.instrnm, ": ", bk.addr)),
                         exception = e
                     )
-                    fill("", length(index))
+                    fill("", length($index))
                 end
             end
         else
@@ -609,7 +609,7 @@ function tocodes(bk::ReadBlock)
                         instrument = $(string(bk.instrnm, ": ", bk.addr)),
                         exception = e
                     )
-                    fill("", length(index))
+                    fill("", length($index))
                 end
             end
         else
