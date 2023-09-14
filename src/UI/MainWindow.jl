@@ -231,7 +231,10 @@ let
                     C_NULL,
                     &show_daq
                 )
-                if CImGui.BeginMenu(stcstr(MORESTYLE.Icons.InstrumentsSeach, " ", mlstr("Search Instruments")))
+                if CImGui.BeginMenu(
+                    stcstr(MORESTYLE.Icons.InstrumentsSeach, " ", mlstr("Search Instruments")),
+                    !SYNCSTATES[Int(IsDAQTaskRunning)]
+                )
                     CImGui.MenuItem(
                         stcstr(MORESTYLE.Icons.InstrumentsAutoDetect, " ", mlstr("Auto Search"))
                     ) && refresh_instrlist()
