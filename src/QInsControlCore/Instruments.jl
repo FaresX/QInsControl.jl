@@ -38,15 +38,29 @@ function instrument(name, addr)
         return SerialInstr(name, addr, GenericInstrument())
     elseif occursin("TCPIP", addr) && occursin("SOCKET", addr)
         try
-            _, ip, portstr, _ = split(addr, "::")
+            _, ipstr, portstr, _ = split(addr, "::")
             port = parse(Int, portstr)
-            return TCPIPInstr(name, addr, IPv4(ip), port, Ref(TCPSocket()), Ref(false))
+            ip = try
+                IPv4(ipstr)
+            catch
+            end
+            isnothing(ip) && (ip = try
+                IPv6(ipstr)
+            catch
+            end)
+            return if isnothing(ip)
+                GPIBInstr(name, addr, GenericInstrument())
+            else
+                TCPIPInstr(name, addr, ip, port, TCPSocket(), false)
+            end
         catch e
             @error "address is not valid" execption = e
             return GPIBInstr(name, addr, GenericInstrument())
         end
     elseif name == "VirtualInstr"
         return VirtualInstr()
+    elseif occursin("VIRTUAL", split(addr, "::")[1])
+        return VirtualInstr(split(addr, "::")[end], addr)
     else
         return GPIBInstr(name, addr, GenericInstrument())
     end
