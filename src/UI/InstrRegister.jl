@@ -219,7 +219,9 @@ let
                 ###conf###
                 CImGui.TextColored(MORESTYLE.Colors.HighlightText, mlstr("Basic"))
                 @c IconSelector(mlstr("icon"), &selectedinscf.conf.icon)
-                @c InputTextRSZ(mlstr("identification string"), &selectedinscf.conf.idn)
+                if @c InputTextRSZ(mlstr("identification string"), &selectedinscf.conf.idn)
+                    lstrip(selectedinscf.conf.idn) == "" && (selectedinscf.conf.idn = selectedins)
+                end
                 @c ComBoS(mlstr("command type"), &selectedinscf.conf.cmdtype, ["scpi", "tsp", ""])
                 width = CImGui.GetItemRectSize().x / 3
                 CImGui.TextColored(MORESTYLE.Colors.LogInfo, mlstr("interface"))
