@@ -10,9 +10,13 @@ function manualadd(addr)
     st = true
     ct = Controller("", addr)
     try
-        login!(CPU, ct)
-        idn = ct(query, CPU, "*IDN?", Val(:query))
-        logout!(CPU, ct)
+        if occursin("VIRTUAL", addr)
+            idn = split(addr, "::")[end]
+        else
+            login!(CPU, ct)
+            idn = ct(query, CPU, "*IDN?", Val(:query))
+            logout!(CPU, ct)
+        end
     catch e
         @error "[$(now())]\n$(mlstr("instrument communication failed!!!"))" instrument_address = addr exception = e
         logout!(CPU, addr)
