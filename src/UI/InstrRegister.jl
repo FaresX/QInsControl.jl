@@ -161,21 +161,7 @@ let
             end
 
             CImGui.EndChild()
-            if CImGui.Button(stcstr(MORESTYLE.Icons.SaveButton, " ", mlstr("Save"), "##qtcf to toml"))
-                conffiles = readdir(joinpath(ENV["QInsControlAssets"], "Confs"))
-                allins = keys(insconf)
-                for cf in conffiles
-                    filename, filetype = split(cf, '.')
-                    filetype != "toml" && continue
-                    filename == "conf" && continue
-                    filename ∉ allins && Base.Filesystem.rm(joinpath(ENV["QInsControlAssets"], "Confs/$cf"))
-                end
-                for (ins, inscf) in insconf
-                    open(joinpath(ENV["QInsControlAssets"], "Confs/$ins.toml"), "w") do file
-                        TOML.print(file, todict(inscf))
-                    end
-                end
-            end
+            CImGui.Button(stcstr(MORESTYLE.Icons.SaveButton, " ", mlstr("Save"), "##qtcf to toml")) && saveinsconfs()
 
             CImGui.SameLine(CImGui.GetColumnOffset(1) - CImGui.GetItemRectSize().x - unsafe_load(IMGUISTYLE.WindowPadding.x))
 
@@ -325,3 +311,28 @@ let
         CImGui.End()
     end
 end #let
+
+function saveinsconfs()
+    conffiles = readdir(joinpath(ENV["QInsControlAssets"], "Confs"))
+    allins = keys(insconf)
+    for cf in conffiles
+        filename, filetype = split(cf, '.')
+        filetype != "toml" && continue
+        filename == "conf" && continue
+        filename ∉ allins && Base.Filesystem.rm(joinpath(ENV["QInsControlAssets"], "Confs/$cf"))
+    end
+    for (ins, inscf) in insconf
+        cfpath = joinpath(ENV["QInsControlAssets"], "Confs/$ins.toml")
+        readedcf = @trypasse TOML.parsefile(cfpath) nothing
+        savingcf = todict(inscf)
+        if readedcf != savingcf
+            try
+                open(cfpath, "w") do file
+                    TOML.print(file, savingcf)
+                end
+            catch e
+                @error "saving insconf failed" exception = e
+            end
+        end
+    end
+end
