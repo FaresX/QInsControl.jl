@@ -6,7 +6,8 @@
 [![Coverage](https://codecov.io/gh/FaresX/QInsControl.jl/branch/master/graph/badge.svg)](https://codecov.io/gh/FaresX/QInsControl.jl)
 
 QInsControl is designed for controling instruments and data acquiring, which is based on the NI VISA and provides a 
-friendly GUI and a flexible script written mannar to keep both the convenience and universality.
+friendly GUI and a flexible script written mannar to keep both the convenience and universality. 
+See [docs](https://FaresX.github.io/QInsControl.jl/dev/) here.
 
 ## install
 Before installation, make sure you have NI VISA installed!
