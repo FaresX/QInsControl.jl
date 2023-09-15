@@ -217,6 +217,21 @@ let
                                                 delete!(INSTRBUFFERVIEWERS[ins], addr)
                                             end
                                         end
+                                        if CImGui.BeginMenu(
+                                            stcstr(MORESTYLE.Icons.NewFile, " ", mlstr("Add to")),
+                                            ins == "Others"
+                                        )
+                                            for (cfins, cf) in insconf
+                                                cfins in ["Others", "VirtualInstr"] && continue
+                                                if CImGui.MenuItem(stcstr(cf.conf.icon, " ", cfins))
+                                                    synccall_wait(workers()[1], ins, addr, cfins) do ins, addr, cfins
+                                                        delete!(INSTRBUFFERVIEWERS[ins], addr)
+                                                        get!(INSTRBUFFERVIEWERS[cfins], addr, InstrBufferViewer(cfins, addr))
+                                                    end
+                                                end
+                                            end
+                                            CImGui.EndMenu()
+                                        end
                                         CImGui.EndPopup()
                                     end
                                 end
