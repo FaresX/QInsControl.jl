@@ -2,21 +2,25 @@ function loadconf()
     ###### gennerate conf ######
     conf_file = joinpath(ENV["QInsControlAssets"], "Necessity/conf.toml")
     global CONF = if isfile(conf_file)
-        conf_dict = TOML.parsefile(conf_file)
-        unitslist = Dict("" => [])
-        for Ut::String in keys(conf_dict["U"])
-            if Ut != ""
-                Us = []
-                for U in conf_dict["U"][Ut]
-                    ustr = occursin(" ", U) ? replace(U, " " => "*") : U
-                    push!(Us, eval(:(@u_str($ustr))))
+        conf_dict = @trypasse TOML.parsefile(conf_file) nothing
+        if isnothing(conf_dict)
+            Conf()
+        else
+            unitslist = Dict("" => [])
+            for Ut::String in keys(conf_dict["U"])
+                if Ut != ""
+                    Us = []
+                    for U in conf_dict["U"][Ut]
+                        ustr = occursin(" ", U) ? replace(U, " " => "*") : U
+                        push!(Us, eval(:(@u_str($ustr))))
+                    end
+                    push!(unitslist, Ut => Us)
                 end
-                push!(unitslist, Ut => Us)
             end
+            push!(unitslist, "" => [""])
+            push!(conf_dict, "U" => unitslist)
+            from_dict(Conf, conf_dict)
         end
-        push!(unitslist, "" => [""])
-        push!(conf_dict, "U" => unitslist)
-        from_dict(Conf, conf_dict)
     else
         Conf()
     end
