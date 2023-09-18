@@ -105,7 +105,12 @@ recorded data. When data format includes delimiter, one can use "," to seperate 
 ![image](assets/LogBlock.png)
 
 When it is executed, all the available instruments will be logged. (before and after script runing, a logging action 
-will happen, so it is not necessary to add this block in the first and last line of a script)
+will happen, so it is not necessary to add this block in the first and last line of a script)  
+(this block has been removed in recent versions, please just use
+```julia
+@logblock
+```
+in a CodeBlock instead.)
 
 ### WriteBlock
 ![image](assets/WriteBlock.png)
@@ -126,7 +131,12 @@ Read the specified instrument.
 ![image](assets/SaveBlock.png)
 
 It is used to save a variable defined in the context. *mark* is an optional input to specify the name to be stored. When
-it is blank, the name will be the same as the variable.
+it is blank, the name will be the same as the variable.  
+(this block has been removed in recent versions, please just use 
+```julia
+@saveblock key var # or @saveblock var
+```
+in a CodeBlock instead.)
 
 ## note
 All the blocks that bind to a specified instrument can be middle clicked to enter catch mode. In this mode, the icon is 
