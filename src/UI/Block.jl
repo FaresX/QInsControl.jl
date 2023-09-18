@@ -214,7 +214,7 @@ function tocodes(bk::SweepBlock)
     quantity = bk.quantity
     setfunc = Symbol(bk.instrnm, :_, bk.quantity, :_set)
     getfunc = Symbol(bk.instrnm, :_, bk.quantity, :_get)
-    Ut = insconf[bk.instrnm].quantities[quantity].U
+    Ut = INSCONF[bk.instrnm].quantities[quantity].U
     Us = CONF.U[Ut]
     U = Us[bk.ui]
     U == "" && (@error "[$(now())]\n$(mlstr("input data error!!!"))" bk = bk;
@@ -296,7 +296,7 @@ end
 function tocodes(bk::SettingBlock)
     instr = string(bk.instrnm, "_", bk.addr)
     quantity = bk.quantity
-    Ut = insconf[bk.instrnm].quantities[quantity].U
+    Ut = INSCONF[bk.instrnm].quantities[quantity].U
     Us = CONF.U[Ut]
     U = Us[bk.ui]
     if U == ""
@@ -740,7 +740,7 @@ function edit(bk::SweepBlock)
     CImGui.SameLine()
     width = (CImGui.GetContentRegionAvailWidth() - 3CImGui.GetFontSize()) / 5
     CImGui.PushItemWidth(width)
-    @c ComBoS("##SweepBlock instrument", &bk.instrnm, keys(insconf), CImGui.ImGuiComboFlags_NoArrowButton)
+    @c ComBoS("##SweepBlock instrument", &bk.instrnm, keys(INSCONF), CImGui.ImGuiComboFlags_NoArrowButton)
     CImGui.PopItemWidth()
     CImGui.SameLine()
 
@@ -752,26 +752,26 @@ function edit(bk::SweepBlock)
     CImGui.PopItemWidth()
     CImGui.SameLine()
 
-    showqt = if haskey(insconf, bk.instrnm) && haskey(insconf[bk.instrnm].quantities, bk.quantity)
-        insconf[bk.instrnm].quantities[bk.quantity].alias
+    showqt = if haskey(INSCONF, bk.instrnm) && haskey(INSCONF[bk.instrnm].quantities, bk.quantity)
+        INSCONF[bk.instrnm].quantities[bk.quantity].alias
     else
         mlstr("sweep")
     end
     CImGui.PushItemWidth(width)
     if CImGui.BeginCombo("##SweepBlock sweep", showqt, CImGui.ImGuiComboFlags_NoArrowButton)
-        qtlist = haskey(insconf, bk.instrnm) ? keys(insconf[bk.instrnm].quantities) : Set{String}()
-        qts = if haskey(insconf, bk.instrnm)
+        qtlist = haskey(INSCONF, bk.instrnm) ? keys(INSCONF[bk.instrnm].quantities) : Set{String}()
+        qts = if haskey(INSCONF, bk.instrnm)
             [
                 qt
                 for qt in qtlist
-                if insconf[bk.instrnm].quantities[qt].type == "sweep"
+                if INSCONF[bk.instrnm].quantities[qt].type == "sweep"
             ]
         else
             String[]
         end
         for qt in qts
             selected = bk.quantity == qt
-            showqt = insconf[bk.instrnm].quantities[qt].alias
+            showqt = INSCONF[bk.instrnm].quantities[qt].alias
             CImGui.Selectable(showqt, selected, 0) && (bk.quantity = qt)
             selected && CImGui.SetItemDefaultFocus()
         end
@@ -793,8 +793,8 @@ function edit(bk::SweepBlock)
     CImGui.PopItemWidth()
     CImGui.SameLine()
 
-    Ut = if haskey(insconf, bk.instrnm) && haskey(insconf[bk.instrnm].quantities, bk.quantity)
-        insconf[bk.instrnm].quantities[bk.quantity].U
+    Ut = if haskey(INSCONF, bk.instrnm) && haskey(INSCONF[bk.instrnm].quantities, bk.quantity)
+        INSCONF[bk.instrnm].quantities[bk.quantity].U
     else
         ""
     end
@@ -818,7 +818,7 @@ function edit(bk::SettingBlock)
     CImGui.SameLine()
     width = (CImGui.GetContentRegionAvailWidth() - 3CImGui.GetFontSize()) / 5
     CImGui.PushItemWidth(width)
-    @c ComBoS("##SettingBlock instrument", &bk.instrnm, keys(insconf), CImGui.ImGuiComboFlags_NoArrowButton)
+    @c ComBoS("##SettingBlock instrument", &bk.instrnm, keys(INSCONF), CImGui.ImGuiComboFlags_NoArrowButton)
     CImGui.PopItemWidth()
     CImGui.SameLine()
 
@@ -830,25 +830,25 @@ function edit(bk::SettingBlock)
     CImGui.PopItemWidth()
     CImGui.SameLine()
 
-    showqt = if haskey(insconf, bk.instrnm) && haskey(insconf[bk.instrnm].quantities, bk.quantity)
-        insconf[bk.instrnm].quantities[bk.quantity].alias
+    showqt = if haskey(INSCONF, bk.instrnm) && haskey(INSCONF[bk.instrnm].quantities, bk.quantity)
+        INSCONF[bk.instrnm].quantities[bk.quantity].alias
     else
         mlstr("set")
     end
     CImGui.PushItemWidth(width)
     if CImGui.BeginCombo("##SettingBlock set", showqt, CImGui.ImGuiComboFlags_NoArrowButton)
-        qtlist = haskey(insconf, bk.instrnm) ? keys(insconf[bk.instrnm].quantities) : Set{String}()
-        sts = if haskey(insconf, bk.instrnm)
+        qtlist = haskey(INSCONF, bk.instrnm) ? keys(INSCONF[bk.instrnm].quantities) : Set{String}()
+        sts = if haskey(INSCONF, bk.instrnm)
             [
                 qt for qt in qtlist
-                if insconf[bk.instrnm].quantities[qt].type in ["set", "sweep"]
+                if INSCONF[bk.instrnm].quantities[qt].type in ["set", "sweep"]
             ]
         else
             String[]
         end
         for st in sts
             selected = bk.quantity == st
-            showst = insconf[bk.instrnm].quantities[st].alias
+            showst = INSCONF[bk.instrnm].quantities[st].alias
             CImGui.Selectable(showst, selected, 0) && (bk.quantity = st)
             selected && CImGui.SetItemDefaultFocus()
         end
@@ -861,8 +861,8 @@ function edit(bk::SettingBlock)
     @c InputTextWithHintRSZ("##SettingBlock set value", mlstr("set value"), &bk.setvalue)
     CImGui.PopItemWidth()
     if CImGui.BeginPopup("select set value")
-        optklist = @trypass insconf[bk.instrnm].quantities[bk.quantity].optkeys []
-        optvlist = @trypass insconf[bk.instrnm].quantities[bk.quantity].optvalues []
+        optklist = @trypass INSCONF[bk.instrnm].quantities[bk.quantity].optkeys []
+        optvlist = @trypass INSCONF[bk.instrnm].quantities[bk.quantity].optvalues []
         isempty(optklist) && CImGui.TextColored(MORESTYLE.Colors.HighlightText, mlstr("unavailable options!"))
         for (i, optv) in enumerate(optvlist)
             optv == "" && continue
@@ -873,8 +873,8 @@ function edit(bk::SettingBlock)
     CImGui.OpenPopupOnItemClick("select set value", 2)
 
     CImGui.SameLine()
-    Ut = if haskey(insconf, bk.instrnm) && haskey(insconf[bk.instrnm].quantities, bk.quantity)
-        insconf[bk.instrnm].quantities[bk.quantity].U
+    Ut = if haskey(INSCONF, bk.instrnm) && haskey(INSCONF[bk.instrnm].quantities, bk.quantity)
+        INSCONF[bk.instrnm].quantities[bk.quantity].U
     else
         ""
     end
@@ -904,7 +904,7 @@ function edit(bk::ReadingBlock)
     CImGui.SameLine()
     width = (CImGui.GetContentRegionAvailWidth() - 2CImGui.GetFontSize()) / 5
     CImGui.PushItemWidth(width)
-    @c ComBoS("##ReadingBlock instrument", &bk.instrnm, keys(insconf), CImGui.ImGuiComboFlags_NoArrowButton)
+    @c ComBoS("##ReadingBlock instrument", &bk.instrnm, keys(INSCONF), CImGui.ImGuiComboFlags_NoArrowButton)
     CImGui.PopItemWidth()
     CImGui.SameLine()
 
@@ -916,18 +916,18 @@ function edit(bk::ReadingBlock)
     CImGui.PopItemWidth()
     CImGui.SameLine()
 
-    showqt = if haskey(insconf, bk.instrnm) && haskey(insconf[bk.instrnm].quantities, bk.quantity)
-        insconf[bk.instrnm].quantities[bk.quantity].alias
+    showqt = if haskey(INSCONF, bk.instrnm) && haskey(INSCONF[bk.instrnm].quantities, bk.quantity)
+        INSCONF[bk.instrnm].quantities[bk.quantity].alias
     else
         mlstr("read")
     end
     CImGui.PushItemWidth(width)
     if CImGui.BeginCombo("##ReadingBlock read", showqt, CImGui.ImGuiComboFlags_NoArrowButton)
-        qtlist = haskey(insconf, bk.instrnm) ? keys(insconf[bk.instrnm].quantities) : Set{String}()
+        qtlist = haskey(INSCONF, bk.instrnm) ? keys(INSCONF[bk.instrnm].quantities) : Set{String}()
         qts = collect(qtlist)
         for qt in qts
             selected = bk.quantity == qt
-            showqt = insconf[bk.instrnm].quantities[qt].alias
+            showqt = INSCONF[bk.instrnm].quantities[qt].alias
             CImGui.Selectable(showqt, selected, 0) && (bk.quantity = qt)
             selected && CImGui.SetItemDefaultFocus()
         end
@@ -993,7 +993,7 @@ function edit(bk::WriteBlock)
     CImGui.SameLine()
     width = (CImGui.GetContentRegionAvailWidth() - 2CImGui.GetFontSize()) / 5
     CImGui.PushItemWidth(width)
-    @c ComBoS("##WriteBlock instrument", &bk.instrnm, keys(insconf), CImGui.ImGuiComboFlags_NoArrowButton)
+    @c ComBoS("##WriteBlock instrument", &bk.instrnm, keys(INSCONF), CImGui.ImGuiComboFlags_NoArrowButton)
     CImGui.PopItemWidth()
     CImGui.SameLine() #选仪器
 
@@ -1034,7 +1034,7 @@ function edit(bk::QueryBlock)
     CImGui.SameLine()
     width = (CImGui.GetContentRegionAvailWidth() - 2CImGui.GetFontSize()) / 5
     CImGui.PushItemWidth(width)
-    @c ComBoS("##QueryBlock instrument", &bk.instrnm, keys(insconf), CImGui.ImGuiComboFlags_NoArrowButton)
+    @c ComBoS("##QueryBlock instrument", &bk.instrnm, keys(INSCONF), CImGui.ImGuiComboFlags_NoArrowButton)
     CImGui.PopItemWidth()
     CImGui.SameLine() #选仪器
 
@@ -1100,7 +1100,7 @@ function edit(bk::ReadBlock)
     CImGui.SameLine()
     width = (CImGui.GetContentRegionAvailWidth() - 2CImGui.GetFontSize()) / 5
     CImGui.PushItemWidth(width)
-    @c ComBoS("##ReadBlock instrument", &bk.instrnm, keys(insconf), CImGui.ImGuiComboFlags_NoArrowButton)
+    @c ComBoS("##ReadBlock instrument", &bk.instrnm, keys(INSCONF), CImGui.ImGuiComboFlags_NoArrowButton)
     CImGui.PopItemWidth()
     CImGui.SameLine() #选仪器
 
@@ -1405,9 +1405,9 @@ function view(bk::SweepBlock)
     CImGui.BeginChild("##SweepBlockViewer", (Float32(0), bkheight(bk)), true)
     instrnm = bk.instrnm
     addr = bk.addr
-    quantity = @trypass insconf[bk.instrnm].quantities[bk.quantity].alias ""
-    Ut = if haskey(insconf, bk.instrnm) && haskey(insconf[bk.instrnm].quantities, bk.quantity)
-        insconf[bk.instrnm].quantities[bk.quantity].U
+    quantity = @trypass INSCONF[bk.instrnm].quantities[bk.quantity].alias ""
+    Ut = if haskey(INSCONF, bk.instrnm) && haskey(INSCONF[bk.instrnm].quantities, bk.quantity)
+        INSCONF[bk.instrnm].quantities[bk.quantity].U
     else
         ""
     end
@@ -1441,9 +1441,9 @@ function view(bk::SettingBlock)
     CImGui.BeginChild("##SettingBlockViewer", (Float32(0), bkheight(bk)), true)
     instrnm = bk.instrnm
     addr = bk.addr
-    quantity = @trypass insconf[bk.instrnm].quantities[bk.quantity].alias ""
-    Ut = if haskey(insconf, bk.instrnm) && haskey(insconf[bk.instrnm].quantities, bk.quantity)
-        insconf[bk.instrnm].quantities[bk.quantity].U
+    quantity = @trypass INSCONF[bk.instrnm].quantities[bk.quantity].alias ""
+    Ut = if haskey(INSCONF, bk.instrnm) && haskey(INSCONF[bk.instrnm].quantities, bk.quantity)
+        INSCONF[bk.instrnm].quantities[bk.quantity].U
     else
         ""
     end
@@ -1478,7 +1478,7 @@ function view(bk::ReadingBlock)
         end
     )
     CImGui.BeginChild("##ReadingBlockViewer", (Float32(0), bkheight(bk)), true)
-    quantity = @trypass insconf[bk.instrnm].quantities[bk.quantity].alias ""
+    quantity = @trypass INSCONF[bk.instrnm].quantities[bk.quantity].alias ""
     markc = if bk.isobserve
         ImVec4(MORESTYLE.Colors.BlockObserveBG...)
     else
@@ -1681,8 +1681,8 @@ function Base.show(io::IO, bk::BranchBlock)
     bk.codes == "" || print(io, string(bk.codes, "\n"))
 end
 function Base.show(io::IO, bk::SweepBlock)
-    ut = if haskey(insconf, bk.instrnm) && haskey(insconf[bk.instrnm].quantities, bk.quantity)
-        insconf[bk.instrnm].quantities[bk.quantity].U
+    ut = if haskey(INSCONF, bk.instrnm) && haskey(INSCONF[bk.instrnm].quantities, bk.quantity)
+        INSCONF[bk.instrnm].quantities[bk.quantity].U
     else
         ""
     end
@@ -1710,8 +1710,8 @@ function Base.show(io::IO, bk::SweepBlock)
     end
 end
 function Base.show(io::IO, bk::SettingBlock)
-    ut = if haskey(insconf, bk.instrnm) && haskey(insconf[bk.instrnm].quantities, bk.quantity)
-        insconf[bk.instrnm].quantities[bk.quantity].U
+    ut = if haskey(INSCONF, bk.instrnm) && haskey(INSCONF[bk.instrnm].quantities, bk.quantity)
+        INSCONF[bk.instrnm].quantities[bk.quantity].U
     else
         ""
     end

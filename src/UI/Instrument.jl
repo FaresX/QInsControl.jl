@@ -27,7 +27,7 @@ function manualadd(addr)
         st = false
     end
     if st
-        for (ins, cf) in insconf
+        for (ins, cf) in INSCONF
             if true in occursin.(split(cf.conf.idn, ';'), idn)
                 get!(INSTRBUFFERVIEWERS[ins], addr, InstrBufferViewer(ins, addr))
                 return true

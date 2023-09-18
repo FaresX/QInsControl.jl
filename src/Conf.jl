@@ -34,7 +34,7 @@ function loadconf()
     CONF.Basic.languages = languageinfo()
     haskey(CONF.Basic.languages, CONF.Basic.language) && loadlanguage(CONF.Basic.languages[CONF.Basic.language])
 
-    ###### generate insconf ######
+    ###### generate INSCONF ######
     include(joinpath(ENV["QInsControlAssets"], "ExtraLoad/extraload.jl"))
     for file in readdir(joinpath(ENV["QInsControlAssets"], "Confs"), join=true)
         bnm = basename(file)
@@ -42,7 +42,7 @@ function loadconf()
     end
 
     ###### generate INSTRBUFFERVIEWERS ######
-    for key in keys(insconf)
+    for key in keys(INSCONF)
         push!(INSTRBUFFERVIEWERS, key => Dict{String,InstrBufferViewer}())
     end
     push!(INSTRBUFFERVIEWERS, "VirtualInstr" => Dict("VirtualAddress" => InstrBufferViewer("VirtualInstr", "VirtualAddress")))
@@ -134,5 +134,5 @@ function gen_insconf(conf_file)
             push!(oneinsconf.quantities, cf.first => QuantityConf(cf.second))
         end
     end
-    push!(insconf, string(instrnm) => oneinsconf)
+    push!(INSCONF, string(instrnm) => oneinsconf)
 end

@@ -166,4 +166,4 @@ function todict(oneinscf::OneInsConf)
     dict
 end
 
-const insconf = OrderedDict{String,OneInsConf}() #仪器注册表
+const INSCONF = OrderedDict{String,OneInsConf}() #仪器注册表

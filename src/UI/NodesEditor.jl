@@ -72,12 +72,12 @@ Node(id, ::Val{:trilink12}) = Node(
 function Node(id, instrnm, ::Val{:instrument})
     node = Node(
         id,
-        insconf[instrnm].conf.icon * " " * instrnm,
+        INSCONF[instrnm].conf.icon * " " * instrnm,
         "",
         [],
-        insconf[instrnm].conf.input_labels,
+        INSCONF[instrnm].conf.input_labels,
         [],
-        insconf[instrnm].conf.output_labels,
+        INSCONF[instrnm].conf.output_labels,
         Set(),
         (0, 0)
     )
@@ -490,9 +490,9 @@ let
                 imnodes_SetNodeScreenSpacePos(nodeeditor.maxid, CImGui.GetMousePosOnOpeningCurrentPopup())
                 newnode = true
             end
-            for ins in keys(insconf)
+            for ins in keys(INSCONF)
                 ins == "Others" && continue
-                if CImGui.MenuItem(stcstr(insconf[ins].conf.icon, " ", ins))
+                if CImGui.MenuItem(stcstr(INSCONF[ins].conf.icon, " ", ins))
                     nodeeditor.maxid += 1
                     push!(nodeeditor.nodes, nodeeditor.maxid => Node(nodeeditor.maxid, ins, Val(:instrument)))
                     imnodes_SetNodeScreenSpacePos(nodeeditor.maxid, CImGui.GetMousePosOnOpeningCurrentPopup())

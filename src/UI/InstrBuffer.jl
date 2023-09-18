@@ -166,19 +166,19 @@ end
 InstrBuffer() = InstrBuffer("", OrderedDict(), false, "", false, false)
 
 function InstrBuffer(instrnm)
-    haskey(insconf, instrnm) || @error "[$(now())]\n$(mlstr("unsupported instrument!!!"))" instrument = instrnm
-    sweepqts = [qt for qt in keys(insconf[instrnm].quantities) if insconf[instrnm].quantities[qt].type == "sweep"]
-    setqts = [qt for qt in keys(insconf[instrnm].quantities) if insconf[instrnm].quantities[qt].type == "set"]
-    readqts = [qt for qt in keys(insconf[instrnm].quantities) if insconf[instrnm].quantities[qt].type == "read"]
+    haskey(INSCONF, instrnm) || @error "[$(now())]\n$(mlstr("unsupported instrument!!!"))" instrument = instrnm
+    sweepqts = [qt for qt in keys(INSCONF[instrnm].quantities) if INSCONF[instrnm].quantities[qt].type == "sweep"]
+    setqts = [qt for qt in keys(INSCONF[instrnm].quantities) if INSCONF[instrnm].quantities[qt].type == "set"]
+    readqts = [qt for qt in keys(INSCONF[instrnm].quantities) if INSCONF[instrnm].quantities[qt].type == "read"]
     quantities = [sweepqts; setqts; readqts]
     instrqts = OrderedDict()
     for qt in quantities
-        alias = insconf[instrnm].quantities[qt].alias
-        optkeys = insconf[instrnm].quantities[qt].optkeys
-        optvalues = insconf[instrnm].quantities[qt].optvalues
-        utype = insconf[instrnm].quantities[qt].U
-        type = insconf[instrnm].quantities[qt].type
-        help = replace(insconf[instrnm].quantities[qt].help, "\\\n" => "")
+        alias = INSCONF[instrnm].quantities[qt].alias
+        optkeys = INSCONF[instrnm].quantities[qt].optkeys
+        optvalues = INSCONF[instrnm].quantities[qt].optvalues
+        utype = INSCONF[instrnm].quantities[qt].U
+        type = INSCONF[instrnm].quantities[qt].type
+        help = replace(INSCONF[instrnm].quantities[qt].help, "\\\n" => "")
         newqt = quantity(qt, QuantityConf(alias, utype, "", optkeys, optvalues, type, help))
         push!(instrqts, qt => newqt)
     end
@@ -237,7 +237,7 @@ end
 function edit(ibv::InstrBufferViewer)
     CImGui.SetNextWindowSize((800, 600), CImGui.ImGuiCond_Once)
     ins, addr = ibv.instrnm, ibv.addr
-    if @c CImGui.Begin(stcstr(insconf[ins].conf.icon, "  ", ins, " --- ", addr), &ibv.p_open)
+    if @c CImGui.Begin(stcstr(INSCONF[ins].conf.icon, "  ", ins, " --- ", addr), &ibv.p_open)
         @c testcmd(ins, addr, &ibv.inputcmd, &ibv.readstr)
         edit(ibv.insbuf, addr)
         CImGui.IsKeyPressed(294, false) && (manualrefresh(); updatefrontall!())
@@ -266,7 +266,7 @@ let
                 selectedins == ""
             ) && (selectedins = "")
             for ins in keys(INSTRBUFFERVIEWERS)
-                CImGui.Selectable(stcstr(insconf[ins].conf.icon, " ", ins), selectedins == ins) && (selectedins = ins)
+                CImGui.Selectable(stcstr(INSCONF[ins].conf.icon, " ", ins), selectedins == ins) && (selectedins = ins)
                 CImGui.SameLine()
                 CImGui.TextDisabled(stcstr("(", length(INSTRBUFFERVIEWERS[ins]), ")"))
             end

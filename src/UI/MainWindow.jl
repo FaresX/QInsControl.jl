@@ -200,7 +200,7 @@ let
                     CImGui.Separator()
                     for ins in keys(INSTRBUFFERVIEWERS)
                         if !isempty(INSTRBUFFERVIEWERS[ins])
-                            if CImGui.BeginMenu(stcstr(insconf[ins].conf.icon, " ", ins))
+                            if CImGui.BeginMenu(stcstr(INSCONF[ins].conf.icon, " ", ins))
                                 for addr in keys(INSTRBUFFERVIEWERS[ins])
                                     ibv = INSTRBUFFERVIEWERS[ins][addr]
                                     @c CImGui.Checkbox(stcstr("##", ins, addr), &ibv.insbuf.isautorefresh)
@@ -221,7 +221,7 @@ let
                                             stcstr(MORESTYLE.Icons.NewFile, " ", mlstr("Add to")),
                                             ins == "Others"
                                         )
-                                            for (cfins, cf) in insconf
+                                            for (cfins, cf) in INSCONF
                                                 cfins in ["Others", "VirtualInstr"] && continue
                                                 if CImGui.MenuItem(stcstr(cf.conf.icon, " ", cfins))
                                                     synccall_wait(workers()[1], ins, addr, cfins) do ins, addr, cfins
