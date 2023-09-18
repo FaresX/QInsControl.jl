@@ -87,12 +87,6 @@ ReadingBlock() = ReadingBlock(
     (0, 0), (0, 0)
 )
 
-mutable struct LogBlock <: AbstractBlock
-    regmin::ImVec2
-    regmax::ImVec2
-end
-LogBlock() = LogBlock((0, 0), (0, 0))
-
 mutable struct WriteBlock <: AbstractBlock
     instrnm::String
     addr::String
@@ -137,14 +131,6 @@ mutable struct ReadBlock <: AbstractBlock
     regmax::ImVec2
 end
 ReadBlock() = ReadBlock(mlstr("instrument"), mlstr("address"), "", "", false, false, false, false, (0, 0), (0, 0))
-
-mutable struct SaveBlock <: AbstractBlock
-    varname::String
-    mark::String
-    regmin::ImVec2
-    regmax::ImVec2
-end
-SaveBlock() = SaveBlock("", "", (0, 0), (0, 0))
 
 ############ isapprox --------------------------------------------------------------------------------------------------
 
@@ -426,8 +412,6 @@ function tocodes(bk::ReadingBlock)
     end
 end
 
-tocodes(::LogBlock) = :(remotecall_wait(eval, 1, :(log_instrbufferviewers())))
-
 function tocodes(bk::WriteBlock)
     instr = string(bk.instrnm, "_", bk.addr)
     cmd = parsedollar(bk.cmd)
@@ -642,13 +626,23 @@ function tocodes(bk::ReadBlock)
     end
 end
 
-function tocodes(bk::SaveBlock)
-    var = Symbol(bk.varname)
-    return if rstrip(bk.mark, ' ') == ""
-        :(put!(databuf_lc, ($(bk.varname), string($var))))
-    else
-        :(put!(databuf_lc, ($(bk.mark), string($var))))
-    end
+############functionality-----------------------------------------------------------------------------------------------
+macro logblock()
+    esc(
+        :(remotecall_wait(eval, 1, :(log_instrbufferviewers())))
+    )
+end
+
+macro saveblock(key, var)
+    esc(
+        :(put!(databuf_lc, (string($(Meta.quot(key))), string($var))))
+    )
+end
+
+macro saveblock(var)
+    esc(
+        :(put!(databuf_lc, (string($(Meta.quot(var))), string($var))))
+    )
 end
 
 ############bkheight----------------------------------------------------------------------------------------------------
@@ -966,14 +960,6 @@ function edit(bk::ReadingBlock)
     CImGui.PopStyleVar()
 end
 
-function edit(bk::LogBlock)
-    CImGui.BeginChild("##LogBlock", (Float32(0), bkheight(bk)), true)
-    CImGui.TextColored(MORESTYLE.Colors.BlockIcons, MORESTYLE.Icons.LogBlock)
-    CImGui.SameLine()
-    CImGui.Button("LogBlock##", (-1, 0))
-    CImGui.EndChild()
-end
-
 function edit(bk::WriteBlock)
     CImGui.PushStyleColor(
         CImGui.ImGuiCol_Border,
@@ -1142,22 +1128,6 @@ function edit(bk::ReadBlock)
     CImGui.PopStyleColor()
 end
 
-function edit(bk::SaveBlock)
-    CImGui.PushStyleVar(CImGui.ImGuiStyleVar_ItemSpacing, (Float32(2), unsafe_load(IMGUISTYLE.ItemSpacing.y)))
-    CImGui.BeginChild("##SaveBlock", (Float32(0), bkheight(bk)), true)
-    CImGui.TextColored(MORESTYLE.Colors.BlockIcons, MORESTYLE.Icons.SaveBlock)
-    CImGui.SameLine()
-    CImGui.PushItemWidth(CImGui.GetContentRegionAvailWidth() / 2)
-    @c InputTextWithHintRSZ("##SaveBlock mark", mlstr("mark"), &bk.mark)
-    CImGui.PopItemWidth()
-    CImGui.SameLine()
-    CImGui.PushItemWidth(-1)
-    @c InputTextWithHintRSZ("##SaveBlock var", mlstr("variable"), &bk.varname)
-    CImGui.PopItemWidth()
-    CImGui.EndChild()
-    CImGui.PopStyleVar()
-end
-
 function mousein(bk::AbstractBlock, total=false)::Bool
     if total
         mousein(bk.regmin, bk.regmax) || (typeof(bk) in [SweepBlock, StrideCodeBlock] && true in mousein.(bk.blocks, true))
@@ -1219,11 +1189,11 @@ let
                     CImGui.MenuItem(stcstr(MORESTYLE.Icons.SweepBlock, " ", mlstr("SweepBlock"))) && insert!(blocks, i, SweepBlock(n))
                     CImGui.MenuItem(stcstr(MORESTYLE.Icons.SettingBlock, " ", mlstr("SettingBlock"))) && insert!(blocks, i, SettingBlock())
                     CImGui.MenuItem(stcstr(MORESTYLE.Icons.ReadingBlock, " ", mlstr("ReadingBlock"))) && insert!(blocks, i, ReadingBlock())
-                    CImGui.MenuItem(stcstr(MORESTYLE.Icons.LogBlock, " ", mlstr("LogBlock"))) && insert!(blocks, i, LogBlock())
+                    # CImGui.MenuItem(stcstr(MORESTYLE.Icons.LogBlock, " ", mlstr("LogBlock"))) && insert!(blocks, i, LogBlock())
                     CImGui.MenuItem(stcstr(MORESTYLE.Icons.WriteBlock, " ", mlstr("WriteBlock"))) && insert!(blocks, i, WriteBlock())
                     CImGui.MenuItem(stcstr(MORESTYLE.Icons.QueryBlock, " ", mlstr("QueryBlock"))) && insert!(blocks, i, QueryBlock())
                     CImGui.MenuItem(stcstr(MORESTYLE.Icons.ReadBlock, " ", mlstr("ReadBlock"))) && insert!(blocks, i, ReadBlock())
-                    CImGui.MenuItem(stcstr(MORESTYLE.Icons.SaveBlock, " ", mlstr("SaveBlock"))) && insert!(blocks, i, SaveBlock())
+                    # CImGui.MenuItem(stcstr(MORESTYLE.Icons.SaveBlock, " ", mlstr("SaveBlock"))) && insert!(blocks, i, SaveBlock())
                     CImGui.EndMenu()
                 end
                 if (bk isa StrideCodeBlock || bk isa SweepBlock) && isempty(skipnull(bk.blocks))
@@ -1234,11 +1204,11 @@ let
                         CImGui.MenuItem(stcstr(MORESTYLE.Icons.SweepBlock, " ", mlstr("SweepBlock"))) && push!(bk.blocks, SweepBlock(n + 1))
                         CImGui.MenuItem(stcstr(MORESTYLE.Icons.SettingBlock, " ", mlstr("SettingBlock"))) && push!(bk.blocks, SettingBlock())
                         CImGui.MenuItem(stcstr(MORESTYLE.Icons.ReadingBlock, " ", mlstr("ReadingBlock"))) && push!(bk.blocks, ReadingBlock())
-                        CImGui.MenuItem(stcstr(MORESTYLE.Icons.LogBlock, " ", mlstr("LogBlock"))) && push!(bk.blocks, LogBlock())
+                        # CImGui.MenuItem(stcstr(MORESTYLE.Icons.LogBlock, " ", mlstr("LogBlock"))) && push!(bk.blocks, LogBlock())
                         CImGui.MenuItem(stcstr(MORESTYLE.Icons.WriteBlock, " ", mlstr("WriteBlock"))) && push!(bk.blocks, WriteBlock())
                         CImGui.MenuItem(stcstr(MORESTYLE.Icons.QueryBlock, " ", mlstr("QueryBlock"))) && push!(bk.blocks, QueryBlock())
                         CImGui.MenuItem(stcstr(MORESTYLE.Icons.ReadBlock, " ", mlstr("ReadBlock"))) && push!(bk.blocks, ReadBlock())
-                        CImGui.MenuItem(stcstr(MORESTYLE.Icons.SaveBlock, " ", mlstr("SaveBlock"))) && push!(bk.blocks, SaveBlock())
+                        # CImGui.MenuItem(stcstr(MORESTYLE.Icons.SaveBlock, " ", mlstr("SaveBlock"))) && push!(bk.blocks, SaveBlock())
                         CImGui.EndMenu()
                     end
                 end
@@ -1249,11 +1219,11 @@ let
                     CImGui.MenuItem(stcstr(MORESTYLE.Icons.SweepBlock, " ", mlstr("SweepBlock"))) && insert!(blocks, i + 1, SweepBlock(n))
                     CImGui.MenuItem(stcstr(MORESTYLE.Icons.SettingBlock, " ", mlstr("SettingBlock"))) && insert!(blocks, i + 1, SettingBlock())
                     CImGui.MenuItem(stcstr(MORESTYLE.Icons.ReadingBlock, " ", mlstr("ReadingBlock"))) && insert!(blocks, i + 1, ReadingBlock())
-                    CImGui.MenuItem(stcstr(MORESTYLE.Icons.LogBlock, " ", mlstr("LogBlock"))) && insert!(blocks, i + 1, LogBlock())
+                    # CImGui.MenuItem(stcstr(MORESTYLE.Icons.LogBlock, " ", mlstr("LogBlock"))) && insert!(blocks, i + 1, LogBlock())
                     CImGui.MenuItem(stcstr(MORESTYLE.Icons.WriteBlock, " ", mlstr("WriteBlock"))) && insert!(blocks, i + 1, WriteBlock())
                     CImGui.MenuItem(stcstr(MORESTYLE.Icons.QueryBlock, " ", mlstr("QueryBlock"))) && insert!(blocks, i + 1, QueryBlock())
                     CImGui.MenuItem(stcstr(MORESTYLE.Icons.ReadBlock, " ", mlstr("ReadBlock"))) && insert!(blocks, i + 1, ReadBlock())
-                    CImGui.MenuItem(stcstr(MORESTYLE.Icons.SaveBlock, " ", mlstr("SaveBlock"))) && insert!(blocks, i + 1, SaveBlock())
+                    # CImGui.MenuItem(stcstr(MORESTYLE.Icons.SaveBlock, " ", mlstr("SaveBlock"))) && insert!(blocks, i + 1, SaveBlock())
                     CImGui.EndMenu()
                 end
                 if CImGui.BeginMenu(stcstr(MORESTYLE.Icons.Convert, " ", mlstr("Convert to")))
@@ -1281,11 +1251,11 @@ let
                     end
                     CImGui.MenuItem(stcstr(MORESTYLE.Icons.SettingBlock, " ", mlstr("SettingBlock"))) && (bk isa SettingBlock || (blocks[i] = SettingBlock()))
                     CImGui.MenuItem(stcstr(MORESTYLE.Icons.ReadingBlock, " ", mlstr("ReadingBlock"))) && (bk isa ReadingBlock || (blocks[i] = ReadingBlock()))
-                    CImGui.MenuItem(stcstr(MORESTYLE.Icons.LogBlock, " ", mlstr("LogBlock"))) && (bk isa LogBlock || (blocks[i] = LogBlock()))
+                    # CImGui.MenuItem(stcstr(MORESTYLE.Icons.LogBlock, " ", mlstr("LogBlock"))) && (bk isa LogBlock || (blocks[i] = LogBlock()))
                     CImGui.MenuItem(stcstr(MORESTYLE.Icons.WriteBlock, " ", mlstr("WriteBlock"))) && (bk isa WriteBlock || (blocks[i] = WriteBlock()))
                     CImGui.MenuItem(stcstr(MORESTYLE.Icons.QueryBlock, " ", mlstr("QueryBlock"))) && (bk isa QueryBlock || (blocks[i] = QueryBlock()))
                     CImGui.MenuItem(stcstr(MORESTYLE.Icons.ReadBlock, " ", mlstr("ReadBlock"))) && (bk isa ReadBlock || (blocks[i] = ReadBlock()))
-                    CImGui.MenuItem(stcstr(MORESTYLE.Icons.SaveBlock, " ", mlstr("SaveBlock"))) && (bk isa SaveBlock || (blocks[i] = SaveBlock()))
+                    # CImGui.MenuItem(stcstr(MORESTYLE.Icons.SaveBlock, " ", mlstr("SaveBlock"))) && (bk isa SaveBlock || (blocks[i] = SaveBlock()))
                     CImGui.EndMenu()
                 end
                 CImGui.Separator()
@@ -1508,14 +1478,6 @@ function view(bk::ReadingBlock)
     CImGui.PopStyleColor()
 end
 
-function view(logbk::LogBlock)
-    CImGui.BeginChild("##LogBlock", (Float32(0), bkheight(logbk)), true)
-    CImGui.TextColored(MORESTYLE.Colors.BlockIcons, MORESTYLE.Icons.LogBlock)
-    CImGui.SameLine()
-    CImGui.Button("LogBlock", (-1, 0))
-    CImGui.EndChild()
-end
-
 function view(bk::WriteBlock)
     CImGui.PushStyleColor(
         CImGui.ImGuiCol_Border,
@@ -1620,16 +1582,6 @@ function view(bk::ReadBlock)
     CImGui.PopStyleColor()
     CImGui.EndChild()
     CImGui.PopStyleColor()
-end
-
-function view(bk::SaveBlock)
-    CImGui.BeginChild("##SaveBlock", (Float32(0), bkheight(bk)), true)
-    CImGui.TextColored(MORESTYLE.Colors.BlockIcons, MORESTYLE.Icons.SaveBlock)
-    CImGui.SameLine()
-    CImGui.PushStyleVar(CImGui.ImGuiStyleVar_ButtonTextAlign, (0.0, 0.5))
-    CImGui.Button(stcstr(mlstr("mark"), ": ", bk.mark, "\t", mlstr("variable"), ": ", bk.varname), (-1, 0))
-    CImGui.PopStyleVar()
-    CImGui.EndChild()
 end
 
 function view(blocks::Vector{AbstractBlock})
@@ -1746,14 +1698,6 @@ function Base.show(io::IO, bk::ReadingBlock)
     """
     print(io, str)
 end
-function Base.show(io::IO, bk::LogBlock)
-    str = """
-    LogBlock :
-        region min : $(bk.regmin)
-        region max : $(bk.regmax)
-    """
-    print(io, str)
-end
 function Base.show(io::IO, bk::WriteBlock)
     str = """
     WriteBlock :
@@ -1797,16 +1741,6 @@ function Base.show(io::IO, bk::ReadBlock)
            observe : $(bk.isobserve)
            reading : $(bk.isreading)
           trycatch : $(bk.istrycatch)
-    """
-    print(io, str)
-end
-function Base.show(io::IO, bk::SaveBlock)
-    str = """
-    SaveBlock :
-        region min : $(bk.regmin)
-        region max : $(bk.regmax)
-              mark : $(bk.mark)
-               var : $(bk.varname)
     """
     print(io, str)
 end

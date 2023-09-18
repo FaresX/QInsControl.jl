@@ -70,11 +70,11 @@ let
                     CImGui.MenuItem(stcstr(MORESTYLE.Icons.SweepBlock, " ", mlstr("SweepBlock"))) && push!(daqtask.blocks, SweepBlock(1))
                     CImGui.MenuItem(stcstr(MORESTYLE.Icons.SettingBlock, " ", mlstr("SettingBlock"))) && push!(daqtask.blocks, SettingBlock())
                     CImGui.MenuItem(stcstr(MORESTYLE.Icons.ReadingBlock, " ", mlstr("ReadingBlock"))) && push!(daqtask.blocks, ReadingBlock())
-                    CImGui.MenuItem(stcstr(MORESTYLE.Icons.LogBlock, " ", mlstr("LogBlock"))) && push!(daqtask.blocks, LogBlock())
+                    # CImGui.MenuItem(stcstr(MORESTYLE.Icons.LogBlock, " ", mlstr("LogBlock"))) && push!(daqtask.blocks, LogBlock())
                     CImGui.MenuItem(stcstr(MORESTYLE.Icons.WriteBlock, " ", mlstr("WriteBlock"))) && push!(daqtask.blocks, WriteBlock())
                     CImGui.MenuItem(stcstr(MORESTYLE.Icons.QueryBlock, " ", mlstr("QueryBlock"))) && push!(daqtask.blocks, QueryBlock())
                     CImGui.MenuItem(stcstr(MORESTYLE.Icons.ReadBlock, " ", mlstr("ReadBlock"))) && push!(daqtask.blocks, ReadBlock())
-                    CImGui.MenuItem(stcstr(MORESTYLE.Icons.SaveBlock, " ", mlstr("SaveBlock"))) && push!(daqtask.blocks, SaveBlock())
+                    # CImGui.MenuItem(stcstr(MORESTYLE.Icons.SaveBlock, " ", mlstr("SaveBlock"))) && push!(daqtask.blocks, SaveBlock())
                     CImGui.EndMenu()
                 end
                 CImGui.Separator()

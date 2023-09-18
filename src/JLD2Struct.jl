@@ -4,7 +4,7 @@ types = [
     :UIPlot, :Layout, :Annotation, :DataPicker,
     :MoreStyle, :MoreStyleColor, :MoreStyleIcon, :UnionStyle,
     :CodeBlock, :StrideCodeBlock, :SweepBlock, :SettingBlock, :ReadingBlock,
-    :LogBlock, :WriteBlock, :QueryBlock, :ReadBlock, :SaveBlock
+    :WriteBlock, :QueryBlock, :ReadBlock
 ]
 
 for T in types

@@ -32,7 +32,94 @@ InstrQuantity() = InstrQuantity(
     "", "", true
 )
 
-compattypes = [:InstrQuantity]
+mutable struct LogBlock <: AbstractBlock
+    regmin::ImVec2
+    regmax::ImVec2
+end
+LogBlock() = LogBlock((0, 0), (0, 0))
+
+mutable struct SaveBlock <: AbstractBlock
+    varname::String
+    mark::String
+    regmin::ImVec2
+    regmax::ImVec2
+end
+SaveBlock() = SaveBlock("", "", (0, 0), (0, 0))
+
+tocodes(::LogBlock) = :(remotecall_wait(eval, 1, :(log_instrbufferviewers())))
+
+function tocodes(bk::SaveBlock)
+    var = Symbol(bk.varname)
+    return if rstrip(bk.mark, ' ') == ""
+        :(put!(databuf_lc, ($(bk.varname), string($var))))
+    else
+        :(put!(databuf_lc, ($(bk.mark), string($var))))
+    end
+end
+
+function edit(bk::LogBlock)
+    CImGui.BeginChild("##LogBlock", (Float32(0), bkheight(bk)), true)
+    CImGui.TextColored(MORESTYLE.Colors.BlockIcons, MORESTYLE.Icons.LogBlock)
+    CImGui.SameLine()
+    CImGui.Button("LogBlock##", (-1, 0))
+    CImGui.EndChild()
+end
+
+function edit(bk::SaveBlock)
+    CImGui.PushStyleVar(CImGui.ImGuiStyleVar_ItemSpacing, (Float32(2), unsafe_load(IMGUISTYLE.ItemSpacing.y)))
+    CImGui.BeginChild("##SaveBlock", (Float32(0), bkheight(bk)), true)
+    CImGui.TextColored(MORESTYLE.Colors.BlockIcons, MORESTYLE.Icons.SaveBlock)
+    CImGui.SameLine()
+    CImGui.PushItemWidth(CImGui.GetContentRegionAvailWidth() / 2)
+    @c InputTextWithHintRSZ("##SaveBlock mark", mlstr("mark"), &bk.mark)
+    CImGui.PopItemWidth()
+    CImGui.SameLine()
+    CImGui.PushItemWidth(-1)
+    @c InputTextWithHintRSZ("##SaveBlock var", mlstr("variable"), &bk.varname)
+    CImGui.PopItemWidth()
+    CImGui.EndChild()
+    CImGui.PopStyleVar()
+end
+
+function view(logbk::LogBlock)
+    CImGui.BeginChild("##LogBlock", (Float32(0), bkheight(logbk)), true)
+    CImGui.TextColored(MORESTYLE.Colors.BlockIcons, MORESTYLE.Icons.LogBlock)
+    CImGui.SameLine()
+    CImGui.Button("LogBlock", (-1, 0))
+    CImGui.EndChild()
+end
+
+function view(bk::SaveBlock)
+    CImGui.BeginChild("##SaveBlock", (Float32(0), bkheight(bk)), true)
+    CImGui.TextColored(MORESTYLE.Colors.BlockIcons, MORESTYLE.Icons.SaveBlock)
+    CImGui.SameLine()
+    CImGui.PushStyleVar(CImGui.ImGuiStyleVar_ButtonTextAlign, (0.0, 0.5))
+    CImGui.Button(stcstr(mlstr("mark"), ": ", bk.mark, "\t", mlstr("variable"), ": ", bk.varname), (-1, 0))
+    CImGui.PopStyleVar()
+    CImGui.EndChild()
+end
+
+function Base.show(io::IO, bk::LogBlock)
+    str = """
+    LogBlock :
+        region min : $(bk.regmin)
+        region max : $(bk.regmax)
+    """
+    print(io, str)
+end
+
+function Base.show(io::IO, bk::SaveBlock)
+    str = """
+    SaveBlock :
+        region min : $(bk.regmin)
+        region max : $(bk.regmax)
+              mark : $(bk.mark)
+               var : $(bk.varname)
+    """
+    print(io, str)
+end
+
+compattypes = [:InstrQuantity, :LogBlock, :SaveBlock]
 
 for T in compattypes
     JLD2T = Symbol(:JLD2, T)
