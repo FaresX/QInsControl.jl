@@ -569,8 +569,8 @@ end #let
 
 let
     triggerset::Bool = false
-    popup_before::Bool = false
-    popup_now::Bool = false
+    popup_before_list::Dict{String,Dict{String,Dict{String,Bool}}} = Dict()
+    popup_now_list::Dict{String,Dict{String,Dict{String,Bool}}} = Dict()
     closepopup::Bool = false
     global function edit(qt::SetQuantity, instrnm, addr)
         CImGui.PushStyleColor(
@@ -597,8 +597,16 @@ let
         if CONF.InsBuf.showhelp && CImGui.IsItemHovered() && qt.help != ""
             ItemTooltip(qt.help)
         end
-        popup_now = CImGui.BeginPopupContextItem()
-        !popup_now && popup_before && (popup_before = false)
+        haskey(popup_before_list, instrnm) || push!(popup_before_list, instrnm => Dict())
+        haskey(popup_before_list[instrnm], addr) || push!(popup_before_list[instrnm], addr => Dict())
+        haskey(popup_before_list[instrnm][addr], qt.name) || push!(popup_before_list[instrnm][addr], qt.name => false)
+        haskey(popup_now_list, instrnm) || push!(popup_now_list, instrnm => Dict())
+        haskey(popup_now_list[instrnm], addr) || push!(popup_now_list[instrnm], addr => Dict())
+        haskey(popup_now_list[instrnm][addr], qt.name) || push!(popup_now_list[instrnm][addr], qt.name => false)
+        popup_now_list[instrnm][addr][qt.name] = CImGui.BeginPopupContextItem()
+        popup_now = popup_now_list[instrnm][addr][qt.name]
+        popup_before = popup_before_list[instrnm][addr][qt.name]
+        !popup_now && popup_before && (popup_before_list[instrnm][addr][qt.name] = false)
         if popup_now
             if qt.enable
                 @c InputTextWithHintRSZ("##set", mlstr("set value"), &qt.set)
@@ -648,7 +656,7 @@ let
             end
             CImGui.EndPopup()
             updatefront!(qt)
-            popup_before = true
+            popup_before_list[instrnm][addr][qt.name] = true
         end
         qt.isautorefresh && updatefront!(qt)
     end
