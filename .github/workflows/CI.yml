@@ -52,7 +52,7 @@ jobs:
         run: |
           julia --project=docs/ -e '
             using Pkg
-            Pkg.add(name="ImPlot", rev="main")
+            Pkg.add(name="ImPlot", version="0.3")
             Pkg.develop(PackageSpec(path=pwd()))
             Pkg.instantiate()'
       - uses: julia-actions/julia-buildpkg@v1
