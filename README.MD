@@ -13,7 +13,6 @@ See [docs](https://FaresX.github.io/QInsControl.jl/dev/) here.
 Before installation, make sure you have NI VISA installed!
 ```
 julia> ]
-(@v1.9) pkg> add ImPlot@v0.3
 (@v1.9) pkg> add https://github.com/FaresX/QInsControl.jl.git
 ```
 

@@ -11,7 +11,6 @@ friendly GUI and a flexible script written mannar to keep both the convenience a
 Before installation, make sure you have NI VISA installed!
 ```
 julia> ]
-(@v1.9) pkg> add ImPlot#main
 (@v1.9) pkg> add https://github.com/FaresX/QInsControl.jl.git
 ```
 
