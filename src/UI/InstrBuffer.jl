@@ -777,7 +777,9 @@ function apply!(qt::SweepQuantity, instrnm, addr)
     end
     if !(isnothing(start) || isnothing(step) || isnothing(stop))
         if CONF.DAQ.equalstep
-            sweepsteps = ceil(Int, abs((start - stop) / step))
+            rawsteps = abs((start - stop) / step)
+            ceilsteps = ceil(Int, rawsteps)
+            sweepsteps = rawsteps ≈ ceilsteps ? ceilsteps + 1 : ceilsteps
             sweepsteps = sweepsteps == 1 ? 2 : sweepsteps
             sweeplist = range(start, stop, length=sweepsteps)
         else

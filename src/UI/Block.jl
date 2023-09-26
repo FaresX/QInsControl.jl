@@ -234,7 +234,11 @@ function tocodes(bk::SweepBlock)
     @gensym sweepsteps
     ex1 = if CONF.DAQ.equalstep
         quote
-            $sweepsteps = ceil(Int, abs(($start - $stop) / $step))
+            $sweepsteps = let 
+                rawsteps = abs(($start - $stop) / $step)
+                ceilsteps = ceil(Int, rawsteps)
+                rawsteps ≈ ceilsteps ? ceilsteps + 1 : ceilsteps
+            end
             $sweepsteps = $sweepsteps == 1 ? 2 : $sweepsteps
             $sweeplist = range($start, $stop, length=$sweepsteps)
         end
