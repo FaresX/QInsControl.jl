@@ -4,7 +4,7 @@ functionality. QInsControl provides a gui to realize. You can also directly writ
 ```julia
 joinpath(pathof(QInsControl), "../../Assets/Confs/")
 ```
-![image](assets/Instrument-register.png)
+![image](assetsup/Instrument-register.png)
 
 ## Add a new instrument
 It is very easy to add a new instrument by clicking on the button **New**. A well-defined instrument includes an icon, 
