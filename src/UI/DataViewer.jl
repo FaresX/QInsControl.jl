@@ -30,24 +30,28 @@ let
             oldfile = filetree.selectedpath[]
             InputTextRSZ(stcstr(mlstr("Filter"), "##", id), filetree.filter)
             edit(filetree, isrename)
-            if filetree.selectedpath[] != oldfile && split(basename(filetree.selectedpath[]), '.')[end] in ["qdt", "cfg"]
-                dtviewer.data = @trypasse load(filetree.selectedpath[]) Dict()
-                datakeys = keys(dtviewer.data)
-                "uiplots" in datakeys && (dtviewer.uiplots = @trypasse dtviewer.data["uiplots"] dtviewer.uiplot)
-                "datapickers" in datakeys && (dtviewer.dtpickers = @trypasse dtviewer.data["datapickers"] dtviewer.dtpicker)
-                "plotlayout" in datakeys && (dtviewer.layout = @trypasse dtviewer.data["plotlayout"] dtviewer.layout)
-                if !isempty(dtviewer.data) && haskey(dtviewer.data, "circuit")
-                    for (_, node) in dtviewer.data["circuit"].nodes
-                        if node isa SampleBaseNode
-                            try
-                                imgsize = size(node.imgr.image)
-                                node.imgr.id = ImGui_ImplOpenGL3_CreateImageTexture(imgsize...)
-                                ImGui_ImplOpenGL3_UpdateImageTexture(node.imgr.id, node.imgr.image, imgsize...)
-                            catch e
-                                @error "[$(now())]\n$(mlstr("loading image failed!!!"))" exception = e
+            if filetree.selectedpath[] != oldfile
+                if split(basename(filetree.selectedpath[]), '.')[end] in ["qdt", "cfg"]
+                    dtviewer.data = @trypasse load(filetree.selectedpath[]) Dict()
+                    datakeys = keys(dtviewer.data)
+                    "uiplots" in datakeys && (dtviewer.uiplots = @trypasse dtviewer.data["uiplots"] dtviewer.uiplot)
+                    "datapickers" in datakeys && (dtviewer.dtpickers = @trypasse dtviewer.data["datapickers"] dtviewer.dtpicker)
+                    "plotlayout" in datakeys && (dtviewer.layout = @trypasse dtviewer.data["plotlayout"] dtviewer.layout)
+                    if !isempty(dtviewer.data) && haskey(dtviewer.data, "circuit")
+                        for (_, node) in dtviewer.data["circuit"].nodes
+                            if node isa SampleBaseNode
+                                try
+                                    imgsize = size(node.imgr.image)
+                                    node.imgr.id = ImGui_ImplOpenGL3_CreateImageTexture(imgsize...)
+                                    ImGui_ImplOpenGL3_UpdateImageTexture(node.imgr.id, node.imgr.image, imgsize...)
+                                catch e
+                                    @error "[$(now())]\n$(mlstr("loading image failed!!!"))" exception = e
+                                end
                             end
                         end
                     end
+                else
+                    dtviewer.data = Dict()
                 end
             end
             CImGui.EndChild()
@@ -67,7 +71,7 @@ let
             CImGui.BeginChild("DataViewer")
             if CImGui.BeginTabBar("Data Viewer")
                 if CImGui.BeginTabItem(mlstr("Instrument Status"))
-                    if !isempty(dtviewer.data) && true in occursin.(r"instrbufferviewers/.*", keys(dtviewer.data))
+                    if true in occursin.(r"instrbufferviewers/.*", keys(dtviewer.data))
                         if CImGui.BeginPopupContextItem()
                             CImGui.Text(mlstr("display columns"))
                             CImGui.SameLine()
@@ -102,7 +106,7 @@ let
                     CImGui.EndTabItem()
                 end
                 if CImGui.BeginTabItem(mlstr("Script"))
-                    if !isempty(dtviewer.data) && haskey(dtviewer.data, "daqtask")
+                    if haskey(dtviewer.data, "daqtask")
                         CImGui.PushID(id)
                         view(dtviewer.data["daqtask"])
                         CImGui.PopID()
@@ -112,7 +116,7 @@ let
                     CImGui.EndTabItem()
                 end
                 if CImGui.BeginTabItem(mlstr("Circuit"))
-                    if !isempty(dtviewer.data) && haskey(dtviewer.data, "circuit")
+                    if haskey(dtviewer.data, "circuit")
                         CImGui.PushID(id)
                         view(dtviewer.data["circuit"], stcstr("Nodes Editor", id))
                         CImGui.PopID()
@@ -122,7 +126,7 @@ let
                     CImGui.EndTabItem()
                 end
                 if CImGui.BeginTabItem(mlstr("Data"))
-                    if !isempty(dtviewer.data) && haskey(dtviewer.data, "data")
+                    if haskey(dtviewer.data, "data")
                         if CImGui.BeginPopupContextItem()
                             if CImGui.MenuItem(stcstr(MORESTYLE.Icons.SaveButton, " ", mlstr("Export")))
                                 exportpath = save_file(; filterlist="csv")
@@ -230,40 +234,88 @@ let
                             end
                             CImGui.EndPopup()
                         end
-                    end
 
-                    CImGui.BeginChild("plot")
-                    if isempty(dtviewer.layout.selectedidx)
-                        Plot(dtviewer.uiplots[1], stcstr("plot file", filetree.selectedpath[], "-", 1))
-                    else
-                        totalsz = CImGui.GetContentRegionAvail()
-                        l = length(dtviewer.layout.selectedidx)
-                        n = CONF.DAQ.plotshowcol
-                        m = ceil(Int, l / n)
-                        n = m == 1 ? l : n
-                        height = (CImGui.GetContentRegionAvail().y - (m - 1) * unsafe_load(IMGUISTYLE.ItemSpacing.y)) / m
-                        for i in 1:m
-                            CImGui.BeginChild(stcstr("plotrow", i), (Cfloat(0), height))
-                            CImGui.Columns(n)
-                            for j in 1:n
-                                idx = (i - 1) * n + j
-                                if idx <= l
-                                    index = dtviewer.layout.selectedidx[idx]
-                                    Plot(
-                                        dtviewer.uiplots[index],
-                                        stcstr("plot file", filetree.selectedpath[], "-", index),
-                                        (Cfloat(0), height)
-                                    )
-                                    CImGui.NextColumn()
+                        CImGui.BeginChild("plot")
+                        if isempty(dtviewer.layout.selectedidx)
+                            Plot(dtviewer.uiplots[1], stcstr("plot file", filetree.selectedpath[], "-", 1))
+                        else
+                            totalsz = CImGui.GetContentRegionAvail()
+                            l = length(dtviewer.layout.selectedidx)
+                            n = CONF.DAQ.plotshowcol
+                            m = ceil(Int, l / n)
+                            n = m == 1 ? l : n
+                            height = (CImGui.GetContentRegionAvail().y - (m - 1) * unsafe_load(IMGUISTYLE.ItemSpacing.y)) / m
+                            for i in 1:m
+                                CImGui.BeginChild(stcstr("plotrow", i), (Cfloat(0), height))
+                                CImGui.Columns(n)
+                                for j in 1:n
+                                    idx = (i - 1) * n + j
+                                    if idx <= l
+                                        index = dtviewer.layout.selectedidx[idx]
+                                        Plot(
+                                            dtviewer.uiplots[index],
+                                            stcstr("plot file", filetree.selectedpath[], "-", index),
+                                            (Cfloat(0), height)
+                                        )
+                                        CImGui.NextColumn()
+                                    end
                                 end
+                                CImGui.EndChild()
                             end
-                            CImGui.EndChild()
                         end
+                        CImGui.EndChild()
+                    else
+                        CImGui.Text(mlstr("data not loaded or data format not supported!"))
                     end
-                    CImGui.EndChild()
-                    # Plot(dtviewer.uiplot, "DataViewer绘图$id")
                     CImGui.EndTabItem()
                 end
+                CImGui.PushStyleColor(
+                    CImGui.ImGuiCol_Tab,
+                    if haskey(dtviewer.data, "revision")
+                        MORESTYLE.Colors.HighlightText
+                    else
+                        CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_Tab)
+                    end
+                )
+                if CImGui.BeginTabItem(mlstr("Revision"))
+                    if haskey(dtviewer.data, "daqtask") | haskey(dtviewer.data, "circuit")
+                        if haskey(dtviewer.data, "revision")
+                            if CImGui.BeginPopupContextItem()
+                                if CImGui.MenuItem(stcstr(MORESTYLE.Icons.SaveButton, " ", mlstr("Save")))
+                                    if !isempty(dtviewer.data)
+                                        jldopen(filetree.selectedpath[], "w") do file
+                                            for key in keys(dtviewer.data)
+                                                file[key] = dtviewer.data[key]
+                                            end
+                                        end
+                                    end
+                                end
+                                CImGui.EndPopup()
+                            end
+                            CImGui.TextColored(MORESTYLE.Colors.HighlightText, mlstr("Description"))
+                            desp = dtviewer.data["revision"]["description"]
+                            y = (1 + length(findall("\n", desp))) * CImGui.GetTextLineHeight() +
+                                2unsafe_load(IMGUISTYLE.FramePadding.y)
+                            @c InputTextMultilineRSZ("##Description", &desp, (Cfloat(-1), y))
+                            dtviewer.data["revision"]["description"] = desp
+                            edit(dtviewer.data["revision"]["circuit"])
+                        else
+                            if CImGui.Button(stcstr(MORESTYLE.Icons.NewFile, "##new revision"), (-1, -1))
+                                push!(
+                                    dtviewer.data,
+                                    "revision" => Dict(
+                                        "description" => "",
+                                        "circuit" => deepcopy(dtviewer.data["circuit"])
+                                    )
+                                )
+                            end
+                        end
+                    else
+                        CImGui.Text(mlstr("data not loaded or data format not supported!"))
+                    end
+                    CImGui.EndTabItem()
+                end
+                CImGui.PopStyleColor()
                 CImGui.EndTabBar()
             end
             CImGui.EndChild()
