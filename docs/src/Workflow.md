@@ -182,7 +182,7 @@ One can middle click or right click at plot region to find more options.
 
 ## project
 All elements above together make up one project. One can save and load a project to conveniently reuse scripts, circuit,
-and plots. One example file [demo.daq](../../example) can be found in example folder.
+and plots. One example file [demo.daq](https://github.com/FaresX/QInsControl.jl/tree/master/example) can be found in example folder.
 
 # Data Reviewing
 
