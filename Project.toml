@@ -35,6 +35,7 @@ CImGui = "1.82.0"
 ImPlot = "0.3"
 ImageMagick = "1"
 JLD2 = "0.4"
+NativeFileDialog = "0.2"
 julia = "1.6"
 
 [extras]
