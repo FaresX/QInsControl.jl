@@ -32,6 +32,7 @@ Unitful = "1986cc42-f94f-5a68-af5c-568840ba703d"
 
 [compat]
 CImGui = "1.82.0"
+ColorTypes = "0.11"
 ImPlot = "0.3"
 ImageMagick = "1"
 JLD2 = "0.4"
