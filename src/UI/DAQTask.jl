@@ -88,7 +88,7 @@ let
                     codes = @trypasse quote
                         $(tocodes.(daqtask.blocks)...)
                     end |> prettify @error "[$(now())]\n$(mlstr("interpreting blocks failed!!!"))"
-                    isnothing(codes) || @info codes
+                    isnothing(codes) || @info macroexpand(Base.@__MODULE__, codes; recursive=true) |> prettify
                 end
                 CImGui.EndPopup()
             end
