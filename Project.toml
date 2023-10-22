@@ -40,6 +40,7 @@ ImageMagick = "1"
 Instruments = "0.2"
 JLD2 = "0.4"
 NativeFileDialog = "0.2"
+OrderedCollections = "1"
 StringEncodings = "0.3"
 julia = "1.6"
 
