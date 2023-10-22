@@ -18,6 +18,8 @@ end
     saveimg::Bool = false
     logall::Bool = false
     equalstep::Bool = true
+    showeditplotlayout::Bool = true
+    freelayout::Bool = true
     savetime::Cint = 60
     channel_size::Cint = 512
     packsize::Cint = 6

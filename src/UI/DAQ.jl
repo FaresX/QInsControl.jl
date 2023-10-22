@@ -51,8 +51,10 @@ let
                 end
             end
             CImGui.Separator()
-            CImGui.Columns(2)
-            firsttime && (CImGui.SetColumnOffset(1, CImGui.GetWindowWidth() * 0.25); firsttime = false)
+            if !CONF.DAQ.freelayout
+                CImGui.Columns(2)
+                firsttime && (CImGui.SetColumnOffset(1, CImGui.GetWindowWidth() * 0.25); firsttime = false)
+            end
             column1pos = CImGui.GetColumnOffset(1)
             CImGui.BeginChild("queue", (Float32(0), -CImGui.GetFrameHeightWithSpacing()))
             CImGui.BulletText(mlstr("Task Queue"))
@@ -204,7 +206,9 @@ let
                 end
                 CImGui.PopID()
             end
+            CONF.DAQ.showeditplotlayout && CImGui.CollapsingHeader(mlstr("Plot")) && editplotlayout()
             CImGui.EndChild()
+
 
             if CImGui.BeginPopup("add task")
                 CImGui.MenuItem(stcstr(MORESTYLE.Icons.NewFile, " ", mlstr("Add"))) && push!(daqtasks, DAQTask())
@@ -232,69 +236,12 @@ let
                 end
                 CImGui.MenuItem(stcstr(MORESTYLE.Icons.SaveButton, " ", mlstr("Save Project"))) && saveproject()
                 CImGui.MenuItem(stcstr(MORESTYLE.Icons.Load, " ", mlstr("Load Project"))) && loadproject()
-                CImGui.Separator()
-                if CImGui.BeginMenu(stcstr(MORESTYLE.Icons.Plot, " ", mlstr("Plot")))
-                    CImGui.Text(mlstr("plot columns"))
-                    CImGui.SameLine()
-                    CImGui.PushItemWidth(2CImGui.GetFontSize())
-                    @c CImGui.DragInt(
-                        "##plot columns",
-                        &CONF.DAQ.plotshowcol,
-                        1, 1, 6, "%d",
-                        CImGui.ImGuiSliderFlags_AlwaysClamp
-                    )
-                    CImGui.PopItemWidth()
-                    CImGui.SameLine()
-                    CImGui.PushID("add new plot")
-                    if CImGui.Button(MORESTYLE.Icons.NewFile)
-                        push!(DAQPLOTLAYOUT.labels, string(length(DAQPLOTLAYOUT.labels) + 1))
-                        push!(DAQPLOTLAYOUT.marks, "")
-                        push!(DAQPLOTLAYOUT.states, false)
-                        push!(UIPSWEEPS, UIPlot())
-                        push!(DAQDTPKS, DataPicker())
+                if !CONF.DAQ.showeditplotlayout
+                    CImGui.Separator()
+                    if CImGui.BeginMenu(stcstr(MORESTYLE.Icons.Plot, " ", mlstr("Plot")))
+                        editplotlayout()
+                        CImGui.EndMenu()
                     end
-                    CImGui.PopID()
-
-                    ### edit show plots ###
-                    DAQPLOTLAYOUT.showcol = CONF.DAQ.plotshowcol
-                    DAQPLOTLAYOUT.labels = MORESTYLE.Icons.Plot * " " .* string.(collect(eachindex(DAQPLOTLAYOUT.labels)))
-                    maxplotmarkidx = argmax(lengthpr.(DAQPLOTLAYOUT.marks))
-                    maxploticonwidth = DAQPLOTLAYOUT.showcol * CImGui.CalcTextSize(
-                        stcstr(
-                            MORESTYLE.Icons.Plot,
-                            " ",
-                            DAQPLOTLAYOUT.labels[maxplotmarkidx],
-                            DAQPLOTLAYOUT.marks[maxplotmarkidx]
-                        )
-                    ).x
-                    edit(
-                        DAQPLOTLAYOUT,
-                        (
-                            maxploticonwidth,
-                            CImGui.GetFrameHeight() * ceil(Int, length(DAQPLOTLAYOUT.labels) / DAQPLOTLAYOUT.showcol)
-                        )
-                    ) do
-                        openright = CImGui.BeginPopupContextItem()
-                        if openright
-                            if CImGui.MenuItem(stcstr(MORESTYLE.Icons.Plot, " ", mlstr("Select Data")))
-                                if DAQPLOTLAYOUT.states[DAQPLOTLAYOUT.idxing]
-                                    show_daq_dtpickers[DAQPLOTLAYOUT.idxing] = true
-                                end
-                            end
-                            if CImGui.MenuItem(stcstr(MORESTYLE.Icons.CloseFile, " ", mlstr("Delete")))
-                                isdelplot = true
-                                delplot_i = DAQPLOTLAYOUT.idxing
-                            end
-                            markbuf = DAQPLOTLAYOUT.marks[DAQPLOTLAYOUT.idxing]
-                            CImGui.PushItemWidth(6CImGui.GetFontSize())
-                            @c InputTextRSZ(DAQPLOTLAYOUT.labels[DAQPLOTLAYOUT.idxing], &markbuf)
-                            CImGui.PopItemWidth()
-                            DAQPLOTLAYOUT.marks[DAQPLOTLAYOUT.idxing] = markbuf
-                            CImGui.EndPopup()
-                        end
-                        return openright
-                    end
-                    CImGui.EndMenu()
                 end
                 CImGui.EndPopup()
             end
@@ -371,7 +318,13 @@ let
             end
             CImGui.PopStyleColor()
 
-            CImGui.SameLine(CImGui.GetColumnOffset(1) - bottombtsz - unsafe_load(IMGUISTYLE.WindowPadding.x))
+            CImGui.SameLine(
+                if CONF.DAQ.freelayout
+                    CImGui.GetContentRegionAvailWidth() - bottombtsz
+                else
+                    CImGui.GetColumnOffset(1) - bottombtsz - unsafe_load(IMGUISTYLE.WindowPadding.x)
+                end
+            )
             if SYNCSTATES[Int(IsBlocked)]
                 if CImGui.Button(stcstr(MORESTYLE.Icons.RunTask, " ", mlstr("Continue")))
                     SYNCSTATES[Int(IsBlocked)] = false
@@ -405,8 +358,29 @@ let
                 end
             end
 
-            CImGui.NextColumn()
+            renderplots()
+        end
+        CImGui.End()
+    end
 
+    function renderplots()
+        if CONF.DAQ.freelayout
+            for (i, idx) in enumerate(DAQPLOTLAYOUT.selectedidx)
+                CImGui.SetNextWindowSize((600, 600), CImGui.ImGuiCond_Once)
+                isopenplot = DAQPLOTLAYOUT.states[idx]
+                @c CImGui.Begin(
+                    stcstr(
+                        MORESTYLE.Icons.Plot, " ", mlstr("Plot"), " ", idx, " ", DAQPLOTLAYOUT.marks[idx], "###", idx
+                    ),
+                    &isopenplot
+                )
+                Plot(UIPSWEEPS[idx], stcstr("sweeping realtime plot", idx))
+                CImGui.End()
+                DAQPLOTLAYOUT.states[idx] = isopenplot
+                isopenplot || (deleteat!(DAQPLOTLAYOUT.selectedidx, i); deleteat!(DAQPLOTLAYOUT.selectedlabels, i))
+            end
+        else
+            CImGui.NextColumn()
             CImGui.BeginChild("plotlayout")
             if isempty(DAQPLOTLAYOUT.selectedidx)
                 Plot(UIPSWEEPS[1], stcstr("sweeping realtime plot", 1))
@@ -430,11 +404,81 @@ let
                     CImGui.EndChild()
                 end
             end
-
             CImGui.EndChild()
             CImGui.NextColumn()
         end
-        CImGui.End()
+    end
+
+    function editplotlayout()
+        if !CONF.DAQ.showeditplotlayout
+            CImGui.Text(mlstr("plot columns"))
+            CImGui.SameLine()
+            CImGui.PushItemWidth(2CImGui.GetFontSize())
+            @c CImGui.DragInt(
+                "##plot columns",
+                &CONF.DAQ.plotshowcol,
+                1, 1, 6, "%d",
+                CImGui.ImGuiSliderFlags_AlwaysClamp
+            )
+            CImGui.PopItemWidth()
+            CImGui.SameLine()
+        end
+        CImGui.PushID("add new plot")
+        if CImGui.Button(
+            if CONF.DAQ.showeditplotlayout
+                stcstr(mlstr("new plot"), " ", MORESTYLE.Icons.NewFile)
+            else
+                MORESTYLE.Icons.NewFile
+            end
+        )
+            push!(DAQPLOTLAYOUT.labels, string(length(DAQPLOTLAYOUT.labels) + 1))
+            push!(DAQPLOTLAYOUT.marks, "")
+            push!(DAQPLOTLAYOUT.states, false)
+            push!(UIPSWEEPS, UIPlot())
+            push!(DAQDTPKS, DataPicker())
+        end
+        CImGui.PopID()
+
+        ### edit show plots ###
+        DAQPLOTLAYOUT.showcol = CONF.DAQ.freelayout ? 1 : CONF.DAQ.plotshowcol
+        DAQPLOTLAYOUT.labels = MORESTYLE.Icons.Plot * " " .* string.(collect(eachindex(DAQPLOTLAYOUT.labels)))
+        maxplotmarkidx = argmax(lengthpr.(DAQPLOTLAYOUT.marks))
+        maxploticonwidth = CONF.DAQ.showeditplotlayout ? Cfloat(0) : DAQPLOTLAYOUT.showcol * CImGui.CalcTextSize(
+            stcstr(
+                MORESTYLE.Icons.Plot,
+                " ",
+                DAQPLOTLAYOUT.labels[maxplotmarkidx],
+                DAQPLOTLAYOUT.marks[maxplotmarkidx]
+            )
+        ).x
+        edit(
+            DAQPLOTLAYOUT,
+            (
+                maxploticonwidth,
+                CImGui.GetFrameHeight() * ceil(Int, length(DAQPLOTLAYOUT.labels) / DAQPLOTLAYOUT.showcol)
+            );
+            showlayout=!CONF.DAQ.freelayout
+        ) do
+            openright = CImGui.BeginPopupContextItem()
+            if openright
+                if CImGui.MenuItem(stcstr(MORESTYLE.Icons.Plot, " ", mlstr("Select Data")))
+                    if DAQPLOTLAYOUT.states[DAQPLOTLAYOUT.idxing]
+                        show_daq_dtpickers[DAQPLOTLAYOUT.idxing] = true
+                    end
+                end
+                if CImGui.MenuItem(stcstr(MORESTYLE.Icons.CloseFile, " ", mlstr("Delete")))
+                    isdelplot = true
+                    delplot_i = DAQPLOTLAYOUT.idxing
+                end
+                markbuf = DAQPLOTLAYOUT.marks[DAQPLOTLAYOUT.idxing]
+                CImGui.PushItemWidth(6CImGui.GetFontSize())
+                @c InputTextRSZ(DAQPLOTLAYOUT.labels[DAQPLOTLAYOUT.idxing], &markbuf)
+                CImGui.PopItemWidth()
+                DAQPLOTLAYOUT.marks[DAQPLOTLAYOUT.idxing] = markbuf
+                CImGui.EndPopup()
+            end
+            return openright
+        end
     end
 
     function saveproject(daqsvpath="")

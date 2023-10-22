@@ -243,28 +243,32 @@ labeltoidx!(lo::Layout) = lo.selectedidx = [lo.labeltoidx[lb] for lb in lo.selec
 function edit(
     rightclickmenu,
     lo::Layout,
-    size=(Cfloat(0), CImGui.GetFrameHeight() * ceil(Int, length(lo.labels) / lo.showcol))
+    size=(Cfloat(0), CImGui.GetFrameHeight() * ceil(Int, length(lo.labels) / lo.showcol));
+    showlayout=true
 )
     states_old = copy(lo.states)
     marks_old = copy(lo.marks)
     editlabels = @. lo.labels * " " * lo.marks * "###for rename" * lo.labels
     @c MultiSelectable(rightclickmenu, lo.id, editlabels, lo.states, lo.showcol, &lo.idxing, size)
-    CImGui.Separator()
-    CImGui.Text(mlstr("layout"))
-    selectedlabels_old = copy(lo.selectedlabels)
     if lo.states != states_old || lo.marks != marks_old
         editlabels = @. lo.labels * " " * lo.marks
         lo.selectedlabels = editlabels[lo.states]
         lo.labeltoidx = Dict(zip(editlabels, collect(eachindex(editlabels))))
+        labeltoidx!(lo)
     end
-    DragMultiSelectable(
-        () -> false,
-        lo.id,
-        lo.selectedlabels,
-        trues(length(lo.selectedlabels)),
-        lo.showcol
-    )
-    lo.selectedlabels == selectedlabels_old || labeltoidx!(lo)
+    if showlayout
+        CImGui.Separator()
+        CImGui.Text(mlstr("layout"))
+        selectedlabels_old = copy(lo.selectedlabels)
+        DragMultiSelectable(
+            () -> false,
+            lo.id,
+            lo.selectedlabels,
+            trues(length(lo.selectedlabels)),
+            lo.showcol
+        )
+        lo.selectedlabels == selectedlabels_old || labeltoidx!(lo)
+    end
 end
 
 function update!(lo::Layout)

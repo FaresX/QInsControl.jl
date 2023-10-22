@@ -93,6 +93,11 @@ let
                     CONF.DAQ.equalstep ? mlstr("equal step sampling") : mlstr("fixed step sampling"),
                     &CONF.DAQ.equalstep
                 )
+                @c CImGui.Checkbox(
+                    CONF.DAQ.showeditplotlayout ? mlstr("show plot toolbar") : mlstr("hide plot toolbar"),
+                    &CONF.DAQ.showeditplotlayout
+                )
+                @c CImGui.Checkbox(mlstr("Free layout"), &CONF.DAQ.freelayout)
                 @c CImGui.DragInt(
                     mlstr("saving time"),
                     &CONF.DAQ.savetime,
