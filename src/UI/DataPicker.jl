@@ -135,88 +135,99 @@ let
     end
 end
 
-function syncplotdata(uiplot::UIPlot, dtpk::DataPicker, datastr, datafloat)
-    uiplot.ptype = dtpk.ptype
-    if isempty(datafloat)
-        if dtpk.xtype
-            uiplot.x = haskey(datastr, dtpk.x) ? replace(tryparse.(Float64, datastr[dtpk.x]), nothing => NaN) : Float64[]
+let
+    synctasks::Dict{String,Task} = Dict()
+    global function syncplotdata(uiplot::UIPlot, dtpk::DataPicker, datastr, datafloat)
+        if haskey(synctasks, uiplot.ps.id)
+            istaskdone(synctasks[uiplot.ps.id]) ? delete!(synctasks, uiplot.ps.id) : return nothing
+        end
+        uiplot.ptype = dtpk.ptype
+        if isempty(datafloat)
+            if dtpk.xtype
+                uiplot.x = haskey(datastr, dtpk.x) ? replace(tryparse.(Float64, datastr[dtpk.x]), nothing => NaN) : Float64[]
+            else
+                uiplot.x = haskey(datastr, dtpk.x) ? copy(datastr[dtpk.x]) : String[]
+            end
+            uiplot.y = @trypass(
+                [replace(tryparse.(Float64, datastr[key]), nothing => NaN) for key in dtpk.datalist[dtpk.y]],
+                [Float64[]]
+            )
+            uiplot.legends = @trypass dtpk.datalist[dtpk.y] uiplot.legends
+            zbuf = uiplot.z
+            if uiplot.ptype == "heatmap"
+                zbuf = if haskey(datastr, dtpk.z)
+                    replace(tryparse.(Float64, datastr[dtpk.z]), nothing => 0)
+                else
+                    Matrix{Float64}(undef, 0, 0)
+                end
+                all(size(uiplot.z) .== reverse(dtpk.zsize)) || (uiplot.z = zeros(Float64, reverse(dtpk.zsize)...))
+            end
+            wbuf = @trypass(
+                [replace(tryparse.(Float64, datastr[key]), nothing => NaN) for key in dtpk.datalist[dtpk.w]],
+                [Float64[]]
+            )
         else
-            uiplot.x = haskey(datastr, dtpk.x) ? copy(datastr[dtpk.x]) : String[]
-        end
-        uiplot.y = @trypass(
-            [replace(tryparse.(Float64, datastr[key]), nothing => NaN) for key in dtpk.datalist[dtpk.y]],
-            [Float64[]]
-        )
-        uiplot.legends = @trypass dtpk.datalist[dtpk.y] uiplot.legends
-        zbuf = uiplot.z
-        if uiplot.ptype == "heatmap"
-            zbuf = if haskey(datastr, dtpk.z)
-                replace(tryparse.(Float64, datastr[dtpk.z]), nothing => 0)
+            if dtpk.xtype
+                uiplot.x = haskey(datafloat, dtpk.x) ? copy(datafloat[dtpk.x]) : Float64[]
             else
-                Matrix{Float64}(undef, 0, 0)
+                uiplot.x = haskey(datastr, dtpk.x) ? copy(datastr[dtpk.x]) : String[]
             end
-            all(size(uiplot.z) .== reverse(dtpk.zsize)) || (uiplot.z = zeros(Float64, reverse(dtpk.zsize)...))
-        end
-        wbuf = @trypass(
-            [replace(tryparse.(Float64, datastr[key]), nothing => NaN) for key in dtpk.datalist[dtpk.w]],
-            [Float64[]]
-        )
-    else
-        if dtpk.xtype
-            uiplot.x = haskey(datafloat, dtpk.x) ? copy(datafloat[dtpk.x]) : Float64[]
-        else
-            uiplot.x = haskey(datastr, dtpk.x) ? copy(datastr[dtpk.x]) : String[]
-        end
-        uiplot.y = @trypass [copy(datafloat[key]) for key in dtpk.datalist[dtpk.y]] [Float64[]]
-        uiplot.legends = @trypass dtpk.datalist[dtpk.y] uiplot.legends
-        zbuf = uiplot.z
-        if uiplot.ptype == "heatmap"
-            zbuf = if haskey(datafloat, dtpk.z)
-                all(!isnan, datafloat[dtpk.z]) ? copy(datafloat[dtpk.z]) : replace(datafloat[dtpk.z], NaN => 0)
-            else
-                Matrix{Float64}(undef, 0, 0)
+            uiplot.y = @trypass [copy(datafloat[key]) for key in dtpk.datalist[dtpk.y]] [Float64[]]
+            uiplot.legends = @trypass dtpk.datalist[dtpk.y] uiplot.legends
+            zbuf = uiplot.z
+            if uiplot.ptype == "heatmap"
+                zbuf = if haskey(datafloat, dtpk.z)
+                    all(!isnan, datafloat[dtpk.z]) ? copy(datafloat[dtpk.z]) : replace(datafloat[dtpk.z], NaN => 0)
+                else
+                    Matrix{Float64}(undef, 0, 0)
+                end
+                all(size(uiplot.z) .== reverse(dtpk.zsize)) || (uiplot.z = zeros(Float64, reverse(dtpk.zsize)...))
             end
-            all(size(uiplot.z) .== reverse(dtpk.zsize)) || (uiplot.z = zeros(Float64, reverse(dtpk.zsize)...))
+            wbuf = @trypass [copy(datafloat[key]) for key in dtpk.datalist[dtpk.w]] [Float64[]]
         end
-        wbuf = @trypass [copy(datafloat[key]) for key in dtpk.datalist[dtpk.w]] [Float64[]]
+        innercodes = tocodes(dtpk.codes)
+        ex::Expr = quote
+            let
+                x = $uiplot.x
+                ys = $uiplot.y
+                isempty(ys) && (ys = [Float64[]])
+                y = ys[1]
+                z = $zbuf
+                ws = $wbuf
+                isempty(ws) && (ws = [Float64[]])
+                w = ws[1]
+                $innercodes
+                ys[1] = y
+                x, ys, z
+            end
+        end |> prettify
+        pdtask = @async processdata(uiplot, dtpk, ex)
+        push!(synctasks, uiplot.ps.id => pdtask)
+        return nothing
     end
-    innercodes = tocodes(dtpk.codes)
-    ex::Expr = quote
-        let
-            x = $uiplot.x
-            ys = $uiplot.y
-            isempty(ys) && (ys = [Float64[]])
-            y = ys[1]
-            z = $zbuf
-            ws = $wbuf
-            isempty(ws) && (ws = [Float64[]])
-            w = ws[1]
-            $innercodes
-            ys[1] = y
-            x, ys, z
-        end
-    end |> prettify
-    try
-        uiplot.x, uiplot.y, nz = eval(ex)
-        if uiplot.ptype == "heatmap"
-            true in isnan.(nz) && replace!(nz, NaN => 0)
-            Inf in nz && (replace!(nz, Inf => 0))
-            -Inf in nz && (replace!(nz, -Inf => 0))
-            if nz isa Matrix
-                uiplot.z = nz
-            else
-                lmin = min(length(uiplot.z), length(nz))
-                rows = ceil(Int, lmin / dtpk.zsize[1])
-                fill!(uiplot.z, zero(eltype(uiplot.z)))
-                @views uiplot.z[1:rows, :] = transpose(resize(nz, dtpk.zsize[1], rows))
+
+    function processdata(uiplot::UIPlot, dtpk::DataPicker, ex)
+        try
+            uiplot.x, uiplot.y, nz = eval(ex)
+            if uiplot.ptype == "heatmap"
+                true in isnan.(nz) && replace!(nz, NaN => 0)
+                Inf in nz && (replace!(nz, Inf => 0))
+                -Inf in nz && (replace!(nz, -Inf => 0))
+                if nz isa Matrix
+                    uiplot.z = nz
+                else
+                    lmin = min(length(uiplot.z), length(nz))
+                    rows = ceil(Int, lmin / dtpk.zsize[1])
+                    fill!(uiplot.z, zero(eltype(uiplot.z)))
+                    @views uiplot.z[1:rows, :] = transpose(resize(nz, dtpk.zsize[1], rows))
+                end
+                dtpk.nonuniform && uniformz!(uiplot.y[1], uiplot.x, uiplot.z)
+                dtpk.vflipz && reverse!(uiplot.z, dims=2)
+                dtpk.hflipz && reverse!(uiplot.z, dims=1)
             end
-            dtpk.nonuniform && uniformz!(uiplot.y[1], uiplot.x, uiplot.z)
-            dtpk.vflipz && reverse!(uiplot.z, dims=2)
-            dtpk.hflipz && reverse!(uiplot.z, dims=1)
+            dtpk.isrealtime || @info "[$(now())]" data_processing = innercodes
+        catch e
+            dtpk.isrealtime || @error "[$(now())]\n$(mlstr("processing data failed!!!"))" exception = e codes = ex
         end
-        dtpk.isrealtime || @info "[$(now())]" data_processing = innercodes
-    catch e
-        dtpk.isrealtime || @error "[$(now())]\n$(mlstr("processing data failed!!!"))" exception = e codes = ex
     end
-    nothing
 end
