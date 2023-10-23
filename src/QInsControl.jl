@@ -128,6 +128,7 @@ function julia_main()::Cint
                     update_log(syncstates=syncstates)
                 end)
             end
+            CONF.Basic.remoteprocessdata && nprocs() == 2 && addprocs(1)
         end
         remotecall_wait(() -> start!(CPU), workers()[1])
         autorefresh()

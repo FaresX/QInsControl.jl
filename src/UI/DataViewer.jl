@@ -344,7 +344,7 @@ let
                                dtpk.refreshrate
                            )
                            )
-                            syncplotdata(dtviewer.uiplots[i], dtpk, dtviewer.data["data"], [])
+                            syncplotdata(dtviewer.uiplots[i], dtpk, dtviewer.data["data"])
                         end
                     else
                         CImGui.OpenPopup("no data in file")

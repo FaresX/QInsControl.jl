@@ -137,18 +137,24 @@ end
 
 let
     synctasks::Dict{String,Task} = Dict()
-    global function syncplotdata(uiplot::UIPlot, dtpk::DataPicker, datastr, datafloat)
+    global function syncplotdata(uiplot::UIPlot, dtpk::DataPicker, datastr, datafloat=[])
         if haskey(synctasks, uiplot.ps.id)
             istaskdone(synctasks[uiplot.ps.id]) ? delete!(synctasks, uiplot.ps.id) : return nothing
         end
+        pdtask = @async processdata(uiplot, dtpk, datastr, datafloat)
+        push!(synctasks, uiplot.ps.id => pdtask)
+        return nothing
+    end
+
+    function processdata(uiplot::UIPlot, dtpk::DataPicker, datastr, datafloat)
         uiplot.ptype = dtpk.ptype
         if isempty(datafloat)
             if dtpk.xtype
-                uiplot.x = haskey(datastr, dtpk.x) ? replace(tryparse.(Float64, datastr[dtpk.x]), nothing => NaN) : Float64[]
+                xbuf = haskey(datastr, dtpk.x) ? replace(tryparse.(Float64, datastr[dtpk.x]), nothing => NaN) : Float64[]
             else
-                uiplot.x = haskey(datastr, dtpk.x) ? copy(datastr[dtpk.x]) : String[]
+                xbuf = haskey(datastr, dtpk.x) ? copy(datastr[dtpk.x]) : String[]
             end
-            uiplot.y = @trypass(
+            ybuf = @trypass(
                 [replace(tryparse.(Float64, datastr[key]), nothing => NaN) for key in dtpk.datalist[dtpk.y]],
                 [Float64[]]
             )
@@ -168,11 +174,11 @@ let
             )
         else
             if dtpk.xtype
-                uiplot.x = haskey(datafloat, dtpk.x) ? copy(datafloat[dtpk.x]) : Float64[]
+                xbuf = haskey(datafloat, dtpk.x) ? copy(datafloat[dtpk.x]) : Float64[]
             else
-                uiplot.x = haskey(datastr, dtpk.x) ? copy(datastr[dtpk.x]) : String[]
+                xbuf = haskey(datastr, dtpk.x) ? copy(datastr[dtpk.x]) : String[]
             end
-            uiplot.y = @trypass [copy(datafloat[key]) for key in dtpk.datalist[dtpk.y]] [Float64[]]
+            ybuf = @trypass [copy(datafloat[key]) for key in dtpk.datalist[dtpk.y]] [Float64[]]
             uiplot.legends = @trypass dtpk.datalist[dtpk.y] uiplot.legends
             zbuf = uiplot.z
             if uiplot.ptype == "heatmap"
@@ -188,8 +194,8 @@ let
         innercodes = tocodes(dtpk.codes)
         ex::Expr = quote
             let
-                x = $uiplot.x
-                ys = $uiplot.y
+                x = $xbuf
+                ys = $ybuf
                 isempty(ys) && (ys = [Float64[]])
                 y = ys[1]
                 z = $zbuf
@@ -200,15 +206,13 @@ let
                 ys[1] = y
                 x, ys, z
             end
-        end |> prettify
-        pdtask = @async processdata(uiplot, dtpk, ex)
-        push!(synctasks, uiplot.ps.id => pdtask)
-        return nothing
-    end
-
-    function processdata(uiplot::UIPlot, dtpk::DataPicker, ex)
+        end
         try
-            uiplot.x, uiplot.y, nz = eval(ex)
+            uiplot.x, uiplot.y, nz = if nprocs() > 2
+                @eval Main QInsControl.remotecall_fetch(eval, QInsControl.workers()[2], $ex)
+            else
+                eval(ex)
+            end
             if uiplot.ptype == "heatmap"
                 true in isnan.(nz) && replace!(nz, NaN => 0)
                 Inf in nz && (replace!(nz, Inf => 0))
@@ -225,9 +229,9 @@ let
                 dtpk.vflipz && reverse!(uiplot.z, dims=2)
                 dtpk.hflipz && reverse!(uiplot.z, dims=1)
             end
-            dtpk.isrealtime || @info "[$(now())]" data_processing = innercodes
+            dtpk.isrealtime || @info "[$(now())]" data_processing = prettify(innercodes)
         catch e
-            dtpk.isrealtime || @error "[$(now())]\n$(mlstr("processing data failed!!!"))" exception = e codes = ex
+            dtpk.isrealtime || @error "[$(now())]\n$(mlstr("processing data failed!!!"))" exception = e codes = prettify(ex)
         end
     end
 end
