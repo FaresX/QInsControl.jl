@@ -25,7 +25,7 @@ let
 
     global function DAQ(p_open::Ref)
         # CImGui.SetNextWindowPos((100, 100), CImGui.ImGuiCond_Once)
-        CImGui.SetNextWindowSize((800, 600), CImGui.ImGuiCond_Once)
+        CImGui.SetNextWindowSize((400, 600), CImGui.ImGuiCond_Once)
         if CImGui.Begin(stcstr(MORESTYLE.Icons.InstrumentsDAQ, "  ", mlstr("Data Acquiring"), "###DAQ"), p_open)
             global WORKPATH
             global OLDI
