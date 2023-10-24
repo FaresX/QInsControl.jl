@@ -161,7 +161,7 @@ let
             @async begin
                 t1 = time()
                 while dtpk.isrunning
-                    dtpk.runtime = round(time() - t1; digits=3)
+                    dtpk.runtime = round(time() - t1; digits=1)
                     sleep(0.001)
                     yield()
                 end
