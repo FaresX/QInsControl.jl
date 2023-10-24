@@ -175,13 +175,14 @@ let
                                 end
                                 CImGui.EndPopup()
                             end
+                            renderplots(dtviewer, id)
                         end
-                        renderplots(dtviewer, id)
                     else
                         CImGui.Text(mlstr("data not loaded or data format not supported!"))
                     end
                     CImGui.EndTabItem()
                 end
+                haskey(dtviewer.data, "data") && CONF.DAQ.freelayout && renderplots(dtviewer, id)
                 CImGui.PushStyleColor(
                     CImGui.ImGuiCol_Tab,
                     if haskey(dtviewer.data, "revision")

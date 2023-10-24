@@ -126,6 +126,13 @@ function UI(breakdown=false; precompile=false)
     # fontcfg = ImFontConfig_ImFontConfig()
     # fontcfg.MergeMode = true
     CImGui.AddFontFromFileTTF(fonts, joinpath(CONF.Fonts.dir, CONF.Fonts.second), CONF.Fonts.plotfontsize, fontcfg, r[1].Data)
+    CImGui.AddFontFromFileTTF(
+        fonts,
+        joinpath(CONF.Fonts.dir, CONF.Fonts.first),
+        CONF.Fonts.plotfontsize,
+        fontcfg,
+        ImFontAtlas_GetGlyphRangesChineseFull(fonts)
+    )
 
     # setup Platform/Renderer bindings
     ImGuiGLFWBackend.init(window_ctx)
