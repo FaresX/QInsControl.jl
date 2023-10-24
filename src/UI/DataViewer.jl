@@ -4,11 +4,12 @@ mutable struct DataViewer
     show_dtpickers::Vector{Bool}
     firsttime::Bool
     dtpickers::Vector{DataPicker}
+    linkidx::Vector{Cint}
     uiplots::Vector{UIPlot}
     layout::Layout
     data::Dict
 end
-DataViewer() = DataViewer(true, true, [false], true, [DataPicker()], [UIPlot()], Layout(), Dict())
+DataViewer() = DataViewer(true, true, [false], true, [DataPicker()], [0], [UIPlot()], Layout(), Dict())
 
 let
     isdelplot::Bool = false
@@ -156,6 +157,10 @@ let
                     if length(dtviewer.show_dtpickers) != length(dtviewer.dtpickers)
                         resize!(dtviewer.show_dtpickers, length(dtviewer.dtpickers))
                     end
+                    if length(dtviewer.linkidx) != length(dtviewer.dtpickers)
+                        resize!(dtviewer.linkidx, length(dtviewer.dtpickers))
+                        fill!(dtviewer.linkidx, 0)
+                    end
                     if haskey(dtviewer.data, "data")
                         if CONF.DAQ.freelayout
                             if CImGui.Button(stcstr(MORESTYLE.Icons.SaveButton, " ", mlstr("Save")))
@@ -196,7 +201,7 @@ let
                         if haskey(dtviewer.data, "revision")
                             if CImGui.BeginPopupContextItem()
                                 if CImGui.MenuItem(stcstr(MORESTYLE.Icons.SaveButton, " ", mlstr("Save")))
-                                    saveqdt(dtviewer, filetree) 
+                                    saveqdt(dtviewer, filetree)
                                 end
                                 CImGui.EndPopup()
                             end
@@ -237,21 +242,52 @@ let
             for (i, isshow_dtpk) in enumerate(dtviewer.show_dtpickers)
                 if isshow_dtpk
                     if haskey(dtviewer.data, "data")
-                        dtpk = dtviewer.dtpickers[i]
-                        datakeys::Set{String} = keys(dtviewer.data["data"])
-                        if datakeys != Set(dtpk.datalist)
-                            dtpk.datalist = collect(datakeys)
-                            dtpk.y = falses(length(datakeys))
-                            dtpk.w = falses(length(datakeys))
-                        end
-                        isupdate = @c edit(dtpk, stcstr(id, "-", i), &isshow_dtpk)
-                        dtviewer.show_dtpickers[i] = isshow_dtpk
-                        if isupdate || (dtpk.isrealtime && waittime(
-                            stcstr("DataViewer", stcstr(id, "-", i), "-DataPicker", i),
-                            dtpk.refreshrate
-                        )
-                        )
-                            syncplotdata(dtviewer.uiplots[i], dtpk, dtviewer.data["data"])
+                        if dtviewer.linkidx[i] == 0
+                            dtpk = dtviewer.dtpickers[i]
+                            datakeys::Set{String} = keys(dtviewer.data["data"])
+                            if datakeys != Set(dtpk.datalist)
+                                dtpk.datalist = collect(datakeys)
+                                dtpk.y = falses(length(datakeys))
+                                dtpk.w = falses(length(datakeys))
+                            end
+                            isupdate = @c edit(dtpk, stcstr(id, "-", i), &isshow_dtpk)
+                            dtviewer.show_dtpickers[i] = isshow_dtpk
+                            if isupdate || (dtpk.isrealtime && waittime(
+                                stcstr("DataViewer", stcstr(id, "-", i), "-DataPicker", i),
+                                dtpk.refreshrate
+                            )
+                            )
+                                syncplotdata(dtviewer.uiplots[i], dtpk, dtviewer.data["data"])
+                            end
+                        else
+                            dtpk = dtviewer.dtpickers[i]
+                            uip = dtviewer.uiplots[dtviewer.linkidx[i]]
+                            dtpklink = dtviewer.dtpickers[dtviewer.linkidx[i]]
+                            yl = length(uip.y)
+                            ykeys = "y" .* string.(1:yl)
+                            datakeys = Set(["x", ykeys..., "z"])
+                            if datakeys != Set(dtpk.datalist)
+                                dtpk.datalist = collect(datakeys)
+                                dtpk.y = falses(length(datakeys))
+                                dtpk.w = falses(length(datakeys))
+                            end
+                            isupdate = @c edit(dtpk, stcstr(id, "-", i), &isshow_dtpk)
+                            dtviewer.show_dtpickers[i] = isshow_dtpk
+                            if isupdate || (dtpk.isrealtime && waittime(
+                                stcstr("DataViewer", stcstr(id, "-", i), "-DataPicker", i),
+                                dtpk.refreshrate
+                            )
+                            )
+                                linkeddata = Dict(
+                                    "x" => uip.x,
+                                    Dict("y$yi" => uip.y[yi] for yi in 1:yl)...,
+                                    "z" => copy(uip.z)
+                                )
+                                dtpklink.hflipz && reverse!(linkeddata["z"], dims=1)
+                                dtpklink.vflipz && reverse!(linkeddata["z"], dims=2)
+                                linkeddata["z"] = collect(transpose(linkeddata["z"]))
+                                syncplotdata(dtviewer.uiplots[i], dtpk, [], linkeddata)
+                            end
                         end
                     else
                         CImGui.OpenPopup("no data in file")
@@ -272,6 +308,7 @@ let
                     deleteat!(dtviewer.uiplots, delplot_i)
                     deleteat!(dtviewer.dtpickers, delplot_i)
                     deleteat!(dtviewer.show_dtpickers, delplot_i)
+                    deleteat!(dtviewer.linkidx, delplot_i)
                 end
             end
         end
@@ -363,6 +400,7 @@ let
             push!(dtviewer.layout.states, false)
             push!(dtviewer.uiplots, UIPlot())
             push!(dtviewer.dtpickers, DataPicker())
+            push!(dtviewer.linkidx, 0)
         end
         CImGui.PopID()
 
@@ -403,11 +441,40 @@ let
                 @c InputTextRSZ(dtviewer.layout.labels[dtviewer.layout.idxing], &markbuf)
                 CImGui.PopItemWidth()
                 dtviewer.layout.marks[dtviewer.layout.idxing] = markbuf
+                CImGui.Text("Link to")
+                CImGui.SameLine()
+                linkedidx = dtviewer.linkidx[dtviewer.layout.idxing]
+                CImGui.PushItemWidth(4CImGui.GetFontSize())
+                @c CImGui.DragInt(
+                    "##Link to", &linkedidx, 1, 0, length(dtviewer.dtpickers), "%d",
+                    CImGui.ImGuiSliderFlags_AlwaysClamp
+                )
+                CImGui.PopItemWidth()
+                dtviewer.linkidx[dtviewer.layout.idxing] = linkedidx
                 CImGui.EndPopup()
             end
+            # dealwithlinkidx(dtviewer)
             return openright
         end
     end
+
+    # function dealwithlinkidx(dtviewer::DataViewer)
+    #     for (i, idx) in enumerate(dtviewer.linkidx)
+    #         if idx == 0
+    #             if occursin("------>", dtviewer.layout.marks[i])
+    #                 dtviewer.layout.marks[i] = replace(dtviewer.layout.marks[i], r" ------> \w" => "")
+    #             end
+    #         else
+    #             if occursin(" ------> $idx", dtviewer.layout.marks[i])
+    #                 continue
+    #             elseif occursin(" ------> ", dtviewer.layout.marks[i])
+    #                 dtviewer.layout.marks[i] = replace(dtviewer.layout.marks[i], r" ------> \w" => " ------> $idx")
+    #             else
+    #                 dtviewer.layout.marks[i] *= " ------> $idx"
+    #             end
+    #         end
+    #     end
+    # end
 end
 
 let
