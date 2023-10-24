@@ -80,6 +80,7 @@ function UI(breakdown=false; precompile=false)
     ImFontGlyphRangesBuilder_AddRanges(builder, ImFontAtlas_GetGlyphRangesDefault(fonts))
     ImFontGlyphRangesBuilder_BuildRanges(builder, ranges)
     r = unsafe_wrap(Vector{ImVector_ImWchar}, ranges, 1)
+    # 加载全局字体
     CImGui.AddFontFromFileTTF(
         fonts,
         joinpath(CONF.Fonts.dir, CONF.Fonts.first),
@@ -113,7 +114,19 @@ function UI(breakdown=false; precompile=false)
         fontcfg,
         icon_r[1].Data
     )
-    
+
+    # 加载绘图字体
+    global PLOTFONT = CImGui.AddFontFromFileTTF(
+        fonts,
+        joinpath(CONF.Fonts.dir, CONF.Fonts.plotfont),
+        CONF.Fonts.plotfontsize,
+        C_NULL,
+        ImFontAtlas_GetGlyphRangesChineseFull(fonts)
+    )
+    # fontcfg = ImFontConfig_ImFontConfig()
+    # fontcfg.MergeMode = true
+    CImGui.AddFontFromFileTTF(fonts, joinpath(CONF.Fonts.dir, CONF.Fonts.second), CONF.Fonts.plotfontsize, fontcfg, r[1].Data)
+
     # setup Platform/Renderer bindings
     ImGuiGLFWBackend.init(window_ctx)
     ImGuiOpenGLBackend.init(gl_ctx)

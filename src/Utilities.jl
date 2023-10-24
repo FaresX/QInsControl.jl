@@ -267,7 +267,7 @@ function uniformz!(x, y, z)
         if miny != maxy
             @views for j in axes(z, 2)
                 lineary = range(miny, maxy, length=zyl)
-                interp = LinearInterpolation(z[:, j], y)
+                interp = LinearInterpolation(z[:, j], y; extrapolate=true)
                 z[:, j] = interp.(lineary)
             end
         end
@@ -277,7 +277,7 @@ function uniformz!(x, y, z)
         if minx != maxx
             @views for i in axes(z, 1)
                 linearx = range(minx, maxx, length=zxl)
-                interp = LinearInterpolation(z[i, :], x)
+                interp = LinearInterpolation(z[i, :], x; extrapolate=true)
                 z[i, :] = interp.(linearx)
             end
         end

@@ -53,6 +53,7 @@ let
         uip.ps.id = id
         CImGui.PushID(id)
         CImGui.BeginChild("Plot", size)
+        CImGui.PushFont(PLOTFONT)
         if uip.ptype == "heatmap"
             if isempty(uip.z)
                 PlotHolder(uip.ps, CImGui.ImVec2(-1, -1))
@@ -88,6 +89,7 @@ let
                 )
             end
         end
+        CImGui.PopFont()
         uip.ps.phv && CImGui.IsMouseClicked(2) && CImGui.OpenPopup(stcstr("title", id))
         haskey(openpopup_mspos_list, id) || push!(openpopup_mspos_list, id => Cfloat[0, 0])
         openpopup_mspos = openpopup_mspos_list[id]
@@ -101,6 +103,13 @@ let
             # annbuf.offsetx, annbuf.offsety = CImGui.GetMousePosOnOpeningCurrentPopup()
             @c InputTextRSZ(mlstr("title"), &uip.title)
             # @c ComBoS(mlstr("plot type"), &uip.ptype, ["line", "scatter", "heatmap"])
+            if uip.ptype == "heatmap" && ImPlot.ColormapButton(
+                unsafe_string(ImPlot.GetColormapName(uip.cmap)),
+                ImVec2(Cfloat(-0.1), Cfloat(0)),
+                uip.cmap
+            )
+                uip.cmap = (uip.cmap + 1) % Cint(ImPlot.GetColormapCount())
+            end
             @c CImGui.Checkbox(mlstr("data tip"), &uip.ps.showtooltip)
             if CImGui.CollapsingHeader(mlstr("Annotation"))
                 @c InputTextRSZ(mlstr("content"), &annbuf.label)
@@ -232,13 +241,6 @@ let
     )
         CImGui.BeginChild("Heatmap", psize)
         CImGui.PushStyleVar(CImGui.ImGuiStyleVar_ItemSpacing, (0, 2))
-        if ImPlot.ColormapButton(
-            unsafe_string(ImPlot.GetColormapName(cmap[])),
-            ImVec2(Cfloat(-0.1), Cfloat(0)),
-            cmap[]
-        )
-            cmap[] = (cmap[] + 1) % Cint(ImPlot.GetColormapCount())
-        end
         ImPlot.PushColormap(cmap[])
         lb = ImPlot.ImPlotPoint(CImGui.ImVec2(xlims[1], ylims[1]))
         rt = ImPlot.ImPlotPoint(CImGui.ImVec2(xlims[2], ylims[2]))
@@ -259,7 +261,7 @@ let
             ps.phv = ImPlot.IsPlotHovered()
             ps.mspos = ImPlot.GetPlotMousePos()
             if ps.showtooltip && ps.phv &&
-                inregion(ps.mspos, (xlims[1], ylims[1]), (xlims[2], ylims[2])) && !SYNCSTATES[Int(SavingImg)]
+               inregion(ps.mspos, (xlims[1], ylims[1]), (xlims[2], ylims[2])) && !SYNCSTATES[Int(SavingImg)]
                 zsz = reverse(size(z))
                 xr = range(xlims[1], xlims[2], length=zsz[2])
                 yr = range(ylims[2], ylims[1], length=zsz[1])

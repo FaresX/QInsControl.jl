@@ -185,9 +185,20 @@ let
                 selectft2 = CImGui.Button(stcstr(MORESTYLE.Icons.SelectPath, "##Fonts-second"))
                 selectft2 && (ft2 = basename(pick_file(joinpath(abspath(fontdir), ft2); filterlist="ttf,ttc,otf")))
                 (inputft2 || selectft2) && isvalidpath(joinpath(fontdir, ft2)) && (CONF.Fonts.second = ft2)
+                ftp = CONF.Fonts.plotfont
+                inputftp = @c InputTextRSZ(stcstr(mlstr("plot font"), ""), &ftp)
+                CImGui.SameLine()
+                selectftp = CImGui.Button(stcstr(MORESTYLE.Icons.SelectPath, "##Fonts-second"))
+                selectftp && (ftp = basename(pick_file(joinpath(abspath(fontdir), ftp); filterlist="ttf,ttc,otf")))
+                (inputftp || selectftp) && isvalidpath(joinpath(fontdir, ftp)) && (CONF.Fonts.plotfont = ftp)
                 @c CImGui.DragInt(
                     mlstr("font size"),
                     &CONF.Fonts.size, 1.0, 6, 60, "%d",
+                    CImGui.ImGuiSliderFlags_AlwaysClamp
+                )
+                @c CImGui.DragInt(
+                    mlstr("plot font size"),
+                    &CONF.Fonts.plotfontsize, 1.0, 6, 60, "%d",
                     CImGui.ImGuiSliderFlags_AlwaysClamp
                 )
                 CImGui.Text(" ")

@@ -370,7 +370,10 @@ let
                 isopenplot = DAQPLOTLAYOUT.states[idx]
                 @c CImGui.Begin(
                     stcstr(
-                        MORESTYLE.Icons.Plot, " ", mlstr("Plot"), " ", idx, " ", DAQPLOTLAYOUT.marks[idx], "###", idx
+                        MORESTYLE.Icons.Plot, " ",
+                        mlstr("Plot"), " ",
+                        idx, " ", DAQPLOTLAYOUT.marks[idx],
+                        "###", idx, "daq"
                     ),
                     &isopenplot
                 )

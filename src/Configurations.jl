@@ -41,8 +41,10 @@ end
 @option mutable struct OptFonts
     dir::String = ""
     size::Cint = 18
+    plotfontsize::Cint = 30
     first::String = "ZaoZiGongFangShangHeiG0v1ChangGuiTi-1.otf"
     second::String = "arial.ttf"
+    plotfont::String = "arial.ttf"
 end
 
 @option mutable struct OptIcons

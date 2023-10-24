@@ -157,113 +157,26 @@ let
                         resize!(dtviewer.show_dtpickers, length(dtviewer.dtpickers))
                     end
                     if haskey(dtviewer.data, "data")
-                        if CImGui.BeginPopupContextItem("select data to plot")
-                            if CImGui.BeginMenu(stcstr(MORESTYLE.Icons.Plot, " ", mlstr("Plot")))
-                                CImGui.Text(mlstr("plot columns"))
-                                CImGui.SameLine()
-                                CImGui.PushItemWidth(2CImGui.GetFontSize())
-                                @c CImGui.DragInt(
-                                    "##plot columns",
-                                    &CONF.DAQ.plotshowcol,
-                                    1, 1, 6, "%d",
-                                    CImGui.ImGuiSliderFlags_AlwaysClamp
-                                )
-                                CImGui.PopItemWidth()
-                                CImGui.SameLine()
-                                CImGui.PushID("add new plot")
-                                if CImGui.Button(MORESTYLE.Icons.NewFile)
-                                    push!(dtviewer.layout.labels, string(length(dtviewer.layout.labels) + 1))
-                                    push!(dtviewer.layout.marks, "")
-                                    push!(dtviewer.layout.states, false)
-                                    push!(dtviewer.uiplots, UIPlot())
-                                    push!(dtviewer.dtpickers, DataPicker())
-                                end
-                                CImGui.PopID()
-
-                                dtviewer.layout.showcol = CONF.DAQ.plotshowcol
-                                dtviewer.layout.labels = MORESTYLE.Icons.Plot * " " .*
-                                                         string.(collect(eachindex(dtviewer.layout.labels)))
-                                maxplotmarkidx = argmax(lengthpr.(dtviewer.layout.marks))
-                                maxploticonwidth = dtviewer.layout.showcol * CImGui.CalcTextSize(
-                                    stcstr(
-                                        MORESTYLE.Icons.Plot,
-                                        " ",
-                                        dtviewer.layout.labels[maxplotmarkidx],
-                                        dtviewer.layout.marks[maxplotmarkidx]
-                                    )
-                                ).x
-                                edit(
-                                    dtviewer.layout,
-                                    (
-                                        maxploticonwidth,
-                                        CImGui.GetFrameHeight() * ceil(Int, length(dtviewer.layout.labels) /
-                                                                            dtviewer.layout.showcol)
-                                    )
-                                ) do
-                                    openright = CImGui.BeginPopupContextItem()
-                                    if openright
-                                        if CImGui.MenuItem(
-                                            stcstr(MORESTYLE.Icons.Plot, " ", mlstr("Select Data"))
-                                        ) && dtviewer.layout.states[dtviewer.layout.idxing]
-                                            dtviewer.show_dtpickers[dtviewer.layout.idxing] = true
-                                        end
-                                        if CImGui.MenuItem(stcstr(MORESTYLE.Icons.CloseFile, " ", mlstr("Delete")))
-                                            isdelplot = true
-                                            delplot_i = dtviewer.layout.idxing
-                                        end
-                                        markbuf = dtviewer.layout.marks[dtviewer.layout.idxing]
-                                        CImGui.PushItemWidth(6CImGui.GetFontSize())
-                                        @c InputTextRSZ(dtviewer.layout.labels[dtviewer.layout.idxing], &markbuf)
-                                        CImGui.PopItemWidth()
-                                        dtviewer.layout.marks[dtviewer.layout.idxing] = markbuf
-                                        CImGui.EndPopup()
-                                    end
-                                    return openright
-                                end
-                                CImGui.EndMenu()
+                        if CONF.DAQ.freelayout
+                            if CImGui.Button(stcstr(MORESTYLE.Icons.SaveButton, " ", mlstr("Save")))
+                                saveqdt(dtviewer, filetree)
                             end
-                            CImGui.Separator()
-                            if CImGui.MenuItem(stcstr(MORESTYLE.Icons.SaveButton, " ", mlstr("Save")))
-                                if !isempty(dtviewer.data)
-                                    jldopen(filetree.selectedpath[], "w") do file
-                                        for key in keys(dtviewer.data)
-                                            file[key] = dtviewer.data[key]
-                                        end
-                                    end
-                                end
-                            end
-                            CImGui.EndPopup()
-                        end
-
-                        CImGui.BeginChild("plot")
-                        if isempty(dtviewer.layout.selectedidx)
-                            Plot(dtviewer.uiplots[1], stcstr("plot file", filetree.selectedpath[], "-", 1))
+                            CImGui.SameLine()
+                            editplotlayout(dtviewer)
                         else
-                            totalsz = CImGui.GetContentRegionAvail()
-                            l = length(dtviewer.layout.selectedidx)
-                            n = CONF.DAQ.plotshowcol
-                            m = ceil(Int, l / n)
-                            n = m == 1 ? l : n
-                            height = (CImGui.GetContentRegionAvail().y - (m - 1) * unsafe_load(IMGUISTYLE.ItemSpacing.y)) / m
-                            for i in 1:m
-                                CImGui.BeginChild(stcstr("plotrow", i), (Cfloat(0), height))
-                                CImGui.Columns(n)
-                                for j in 1:n
-                                    idx = (i - 1) * n + j
-                                    if idx <= l
-                                        index = dtviewer.layout.selectedidx[idx]
-                                        Plot(
-                                            dtviewer.uiplots[index],
-                                            stcstr("plot file", filetree.selectedpath[], "-", index),
-                                            (Cfloat(0), height)
-                                        )
-                                        CImGui.NextColumn()
-                                    end
+                            if CImGui.BeginPopupContextItem("select data to plot")
+                                if CImGui.BeginMenu(stcstr(MORESTYLE.Icons.Plot, " ", mlstr("Plot")))
+                                    editplotlayout(dtviewer)
+                                    CImGui.EndMenu()
                                 end
-                                CImGui.EndChild()
+                                CImGui.Separator()
+                                if CImGui.MenuItem(stcstr(MORESTYLE.Icons.SaveButton, " ", mlstr("Save")))
+                                    saveqdt(dtviewer, filetree)
+                                end
+                                CImGui.EndPopup()
                             end
                         end
-                        CImGui.EndChild()
+                        renderplots(dtviewer, id)
                     else
                         CImGui.Text(mlstr("data not loaded or data format not supported!"))
                     end
@@ -282,13 +195,7 @@ let
                         if haskey(dtviewer.data, "revision")
                             if CImGui.BeginPopupContextItem()
                                 if CImGui.MenuItem(stcstr(MORESTYLE.Icons.SaveButton, " ", mlstr("Save")))
-                                    if !isempty(dtviewer.data)
-                                        jldopen(filetree.selectedpath[], "w") do file
-                                            for key in keys(dtviewer.data)
-                                                file[key] = dtviewer.data[key]
-                                            end
-                                        end
-                                    end
+                                    saveqdt(dtviewer, filetree) 
                                 end
                                 CImGui.EndPopup()
                             end
@@ -368,6 +275,137 @@ let
             end
         end
         CImGui.End()
+    end
+
+    function saveqdt(dtviewer::DataViewer, filetree::FileTree)
+        if !isempty(dtviewer.data)
+            jldopen(filetree.selectedpath[], "w") do file
+                for key in keys(dtviewer.data)
+                    file[key] = dtviewer.data[key]
+                end
+            end
+        end
+    end
+
+    function renderplots(dtviewer::DataViewer, id)
+        if CONF.DAQ.freelayout
+            for (i, idx) in enumerate(dtviewer.layout.selectedidx)
+                CImGui.SetNextWindowSize((600, 600), CImGui.ImGuiCond_Once)
+                isopenplot = dtviewer.layout.states[idx]
+                @c CImGui.Begin(
+                    stcstr(
+                        MORESTYLE.Icons.Plot, " ",
+                        mlstr("Plot"), " ",
+                        idx, " ", dtviewer.layout.marks[idx],
+                        "###", id, "-", idx, "dtv"
+                    ),
+                    &isopenplot
+                )
+                Plot(dtviewer.uiplots[idx], stcstr("plot file", id, "-", idx))
+                CImGui.End()
+                dtviewer.layout.states[idx] = isopenplot
+                isopenplot || (deleteat!(dtviewer.layout.selectedidx, i); deleteat!(dtviewer.layout.selectedlabels, i))
+            end
+        else
+            CImGui.BeginChild("plot")
+            if isempty(dtviewer.layout.selectedidx)
+                Plot(dtviewer.uiplots[1], stcstr("plot file", id, "-", 1))
+            else
+                totalsz = CImGui.GetContentRegionAvail()
+                l = length(dtviewer.layout.selectedidx)
+                n = CONF.DAQ.plotshowcol
+                m = ceil(Int, l / n)
+                n = m == 1 ? l : n
+                height = (CImGui.GetContentRegionAvail().y - (m - 1) * unsafe_load(IMGUISTYLE.ItemSpacing.y)) / m
+                for i in 1:m
+                    CImGui.BeginChild(stcstr("plotrow", i), (Cfloat(0), height))
+                    CImGui.Columns(n)
+                    for j in 1:n
+                        idx = (i - 1) * n + j
+                        if idx <= l
+                            index = dtviewer.layout.selectedidx[idx]
+                            Plot(dtviewer.uiplots[index], stcstr("plot file", id, "-", index), (Cfloat(0), height))
+                            CImGui.NextColumn()
+                        end
+                    end
+                    CImGui.EndChild()
+                end
+            end
+            CImGui.EndChild()
+        end
+    end
+
+    function editplotlayout(dtviewer::DataViewer)
+        if !CONF.DAQ.freelayout
+            CImGui.Text(mlstr("plot columns"))
+            CImGui.SameLine()
+            CImGui.PushItemWidth(2CImGui.GetFontSize())
+            @c CImGui.DragInt(
+                "##plot columns",
+                &CONF.DAQ.plotshowcol,
+                1, 1, 6, "%d",
+                CImGui.ImGuiSliderFlags_AlwaysClamp
+            )
+            CImGui.PopItemWidth()
+            CImGui.SameLine()
+        end
+        CImGui.PushID("add new plot")
+        if CImGui.Button(
+            if CONF.DAQ.freelayout
+                stcstr(mlstr("new plot"), " ", MORESTYLE.Icons.NewFile)
+            else
+                MORESTYLE.Icons.NewFile
+            end
+        )
+            push!(dtviewer.layout.labels, string(length(dtviewer.layout.labels) + 1))
+            push!(dtviewer.layout.marks, "")
+            push!(dtviewer.layout.states, false)
+            push!(dtviewer.uiplots, UIPlot())
+            push!(dtviewer.dtpickers, DataPicker())
+        end
+        CImGui.PopID()
+
+        dtviewer.layout.showcol = CONF.DAQ.freelayout ? 1 : CONF.DAQ.plotshowcol
+        dtviewer.layout.labels = MORESTYLE.Icons.Plot * " " .*
+                                 string.(collect(eachindex(dtviewer.layout.labels)))
+        maxplotmarkidx = argmax(lengthpr.(dtviewer.layout.marks))
+        maxploticonwidth = CONF.DAQ.freelayout ? Cfloat(0) : dtviewer.layout.showcol * CImGui.CalcTextSize(
+            stcstr(
+                MORESTYLE.Icons.Plot,
+                " ",
+                dtviewer.layout.labels[maxplotmarkidx],
+                dtviewer.layout.marks[maxplotmarkidx]
+            )
+        ).x
+        edit(
+            dtviewer.layout,
+            (
+                maxploticonwidth,
+                CImGui.GetFrameHeight() * ceil(Int, length(dtviewer.layout.labels) /
+                                                    dtviewer.layout.showcol)
+            );
+            showlayout=!CONF.DAQ.freelayout
+        ) do
+            openright = CImGui.BeginPopupContextItem()
+            if openright
+                if CImGui.MenuItem(
+                    stcstr(MORESTYLE.Icons.Plot, " ", mlstr("Select Data"))
+                ) && dtviewer.layout.states[dtviewer.layout.idxing]
+                    dtviewer.show_dtpickers[dtviewer.layout.idxing] = true
+                end
+                if CImGui.MenuItem(stcstr(MORESTYLE.Icons.CloseFile, " ", mlstr("Delete")))
+                    isdelplot = true
+                    delplot_i = dtviewer.layout.idxing
+                end
+                markbuf = dtviewer.layout.marks[dtviewer.layout.idxing]
+                CImGui.PushItemWidth(6CImGui.GetFontSize())
+                @c InputTextRSZ(dtviewer.layout.labels[dtviewer.layout.idxing], &markbuf)
+                CImGui.PopItemWidth()
+                dtviewer.layout.marks[dtviewer.layout.idxing] = markbuf
+                CImGui.EndPopup()
+            end
+            return openright
+        end
     end
 end
 
