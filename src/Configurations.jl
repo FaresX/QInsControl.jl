@@ -4,6 +4,7 @@
     viewportenable::Bool = true
     scale::Bool = true
     hidewindow::Bool = false
+    nthreads::Cint = 1
     windowsize::Vector{Cint} = [1280, 720]
     encoding::String = "GBK"
     editor::String = "notepad"

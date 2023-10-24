@@ -73,7 +73,7 @@ function UI(breakdown=false; precompile=false)
     ranges = ImVector_ImWchar_create()
     ImVector_ImWchar_Init(ranges)
     builder = ImFontGlyphRangesBuilder_ImFontGlyphRangesBuilder()
-    addchar = ['α', 'β', 'γ', 'μ', 'Ω', '┌', '│', '└']
+    addchar = ['α', 'β', 'γ', 'μ', 'Ω', 'Φ', '┌', '│', '└']
     for c in addchar
         ImFontGlyphRangesBuilder_AddChar(builder, c)
     end

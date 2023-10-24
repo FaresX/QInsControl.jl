@@ -338,12 +338,11 @@ let
                         end
                         isupdate = @c edit(dtpk, stcstr(id, "-", i), &isshow_dtpk)
                         dtviewer.show_dtpickers[i] = isshow_dtpk
-                        if !isshow_dtpk || isupdate ||
-                           (dtpk.isrealtime && waittime(
-                               stcstr("DataViewer", stcstr(id, "-", i), "-DataPicker", i),
-                               dtpk.refreshrate
-                           )
-                           )
+                        if isupdate || (dtpk.isrealtime && waittime(
+                            stcstr("DataViewer", stcstr(id, "-", i), "-DataPicker", i),
+                            dtpk.refreshrate
+                        )
+                        )
                             syncplotdata(dtviewer.uiplots[i], dtpk, dtviewer.data["data"])
                         end
                     else

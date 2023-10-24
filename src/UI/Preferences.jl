@@ -51,6 +51,12 @@ let
                 if unsafe_load(CImGui.GetIO().ConfigFlags) & CImGui.ImGuiConfigFlags_ViewportsEnable == CImGui.ImGuiConfigFlags_ViewportsEnable
                     @c CImGui.Checkbox(mlstr("hide window"), &CONF.Basic.hidewindow)
                 end
+                @c CImGui.DragInt(
+                    mlstr("threads"),
+                    &CONF.Basic.nthreads,
+                    1, 1, 1000, "%d",
+                    CImGui.ImGuiSliderFlags_AlwaysClamp
+                )
                 # io = CImGui.GetIO()
                 # if conf.Basic.viewportenable
                 #     io.ConfigFlags = unsafe_load(io.ConfigFlags) | CImGui.ImGuiConfigFlags_ViewportsEnable

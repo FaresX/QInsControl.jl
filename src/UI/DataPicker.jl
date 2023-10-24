@@ -13,6 +13,7 @@ mutable struct DataPicker
     codes::CodeBlock
     hold::Bool
     isrealtime::Bool
+    isrunning::Bool
     refreshrate::Cfloat
     alsz::Float32
 end
@@ -23,7 +24,7 @@ DataPicker() = DataPicker(
     true,
     [0, 0], false, false, false,
     CodeBlock(),
-    false, false, Cint(1), 0
+    false, false, false, Cint(1), 0
 )
 
 let
@@ -110,7 +111,12 @@ let
                 CImGui.PopItemWidth()
                 dtpk.alsz += CImGui.GetItemRectSize().x + unsafe_load(IMGUISTYLE.ItemSpacing.x)
             else
-                CImGui.Button(stcstr(MORESTYLE.Icons.Update, stcstr(" ", mlstr("Update"), " "))) && (isupdate = true)
+                CImGui.Button(
+                    stcstr(
+                        MORESTYLE.Icons.Update, " ",
+                        dtpk.isrunning ? mlstr("Updating...") : mlstr("Update"), " "
+                    )
+                ) && (isupdate = true)
                 dtpk.alsz = CImGui.GetItemRectSize().x
             end
             CImGui.SameLine()
@@ -147,6 +153,7 @@ let
     end
 
     function processdata(uiplot::UIPlot, dtpk::DataPicker, datastr, datafloat)
+        dtpk.isrunning = true
         uiplot.ptype = dtpk.ptype
         if isempty(datafloat)
             if dtpk.xtype
@@ -209,16 +216,20 @@ let
         end
         try
             uiplot.x, uiplot.y, nz = if nprocs() > 2
-                @eval Main QInsControl.remotecall_fetch(eval, QInsControl.workers()[2], $ex)
+                f = @eval Main QInsControl.remotecall(() -> eval($ex), QInsControl.workers()[2])
+                waittask = errormonitor(@async fetch(f))
+                wait(waittask)
+                fetch(waittask)
             else
                 eval(ex)
             end
             if uiplot.ptype == "heatmap"
+                true in ismissing.(nz) && (replace!(nz, missing => 0); nz = float.(nz))
                 true in isnan.(nz) && replace!(nz, NaN => 0)
                 Inf in nz && (replace!(nz, Inf => 0))
                 -Inf in nz && (replace!(nz, -Inf => 0))
                 if nz isa Matrix
-                    uiplot.z = nz
+                    uiplot.z = collect(transpose(nz))
                 else
                     lmin = min(length(uiplot.z), length(nz))
                     rows = ceil(Int, lmin / dtpk.zsize[1])
@@ -232,6 +243,8 @@ let
             dtpk.isrealtime || @info "[$(now())]" data_processing = prettify(innercodes)
         catch e
             dtpk.isrealtime || @error "[$(now())]\n$(mlstr("processing data failed!!!"))" exception = e codes = prettify(ex)
+        finally
+            dtpk.isrunning = false
         end
     end
 end
