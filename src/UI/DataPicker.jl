@@ -14,6 +14,7 @@ mutable struct DataPicker
     hold::Bool
     isrealtime::Bool
     isrunning::Bool
+    runtime::Float64
     refreshrate::Cfloat
     alsz::Float32
 end
@@ -24,7 +25,8 @@ DataPicker() = DataPicker(
     true,
     [0, 0], false, false, false,
     CodeBlock(),
-    false, false, false, Cint(1), 0
+    false, false, false,
+    0, Cint(1), 0
 )
 
 let
@@ -114,7 +116,7 @@ let
                 CImGui.Button(
                     stcstr(
                         MORESTYLE.Icons.Update, " ",
-                        dtpk.isrunning ? mlstr("Updating...") : mlstr("Update"), " "
+                        dtpk.isrunning ? stcstr(mlstr("Updating..."), " ", dtpk.runtime, "s") : mlstr("Update"), " "
                     )
                 ) && (isupdate = true)
                 dtpk.alsz = CImGui.GetItemRectSize().x
@@ -154,6 +156,17 @@ let
 
     function processdata(uiplot::UIPlot, dtpk::DataPicker, datastr, datafloat)
         dtpk.isrunning = true
+        dtpk.runtime = 0
+        errormonitor(
+            @async begin
+                t1 = time()
+                while dtpk.isrunning
+                    dtpk.runtime = round(time() - t1; digits=3)
+                    sleep(0.001)
+                    yield()
+                end
+            end
+        )
         uiplot.ptype = dtpk.ptype
         if isempty(datafloat)
             if dtpk.xtype
