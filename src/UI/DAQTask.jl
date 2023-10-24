@@ -279,14 +279,14 @@ function update_all()
                     file[key] = val
                 end
             end
-            if CONF.DAQ.saveimg
-                if isempty(DAQPLOTLAYOUT.selectedidx)
-                    saveimg_seting("$SAVEPATH.png", UIPSWEEPS[[1]])
-                else
-                    saveimg_seting("$SAVEPATH.png", UIPSWEEPS[DAQPLOTLAYOUT.selectedidx])
-                end
-                SYNCSTATES[Int(SavingImg)] = true
-            end
+            # if CONF.DAQ.saveimg
+            #     if isempty(DAQPLOTLAYOUT.selectedidx)
+            #         saveimg_seting("$SAVEPATH.png", UIPSWEEPS[[1]])
+            #     else
+            #         saveimg_seting("$SAVEPATH.png", UIPSWEEPS[DAQPLOTLAYOUT.selectedidx])
+            #     end
+            #     SYNCSTATES[Int(SavingImg)] = true
+            # end
             global OLDI += 1
         end
         empty!(PROGRESSLIST)

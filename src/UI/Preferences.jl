@@ -48,9 +48,9 @@ let
                     CONF.Basic.scale ? mlstr("scale on") : mlstr("scale off"),
                     &CONF.Basic.scale
                 )
-                if unsafe_load(CImGui.GetIO().ConfigFlags) & CImGui.ImGuiConfigFlags_ViewportsEnable == CImGui.ImGuiConfigFlags_ViewportsEnable
-                    @c CImGui.Checkbox(mlstr("hide window"), &CONF.Basic.hidewindow)
-                end
+                # if unsafe_load(CImGui.GetIO().ConfigFlags) & CImGui.ImGuiConfigFlags_ViewportsEnable == CImGui.ImGuiConfigFlags_ViewportsEnable
+                #     @c CImGui.Checkbox(mlstr("hide window"), &CONF.Basic.hidewindow)
+                # end
                 @c CImGui.DragInt(
                     mlstr("threads"),
                     &CONF.Basic.nthreads,
@@ -94,7 +94,7 @@ let
 
                 ###DAQ###
                 CImGui.TextColored(MORESTYLE.Colors.HighlightText, "DAQ")
-                @c CImGui.Checkbox(mlstr("screenshot save"), &CONF.DAQ.saveimg)
+                # @c CImGui.Checkbox(mlstr("screenshot save"), &CONF.DAQ.saveimg)
                 @c CImGui.Checkbox(
                     CONF.DAQ.logall ? mlstr("log all quantities") : mlstr("log enabled quantities"),
                     &CONF.DAQ.logall
@@ -132,12 +132,12 @@ let
                     1.0, 1, 6, "%d",
                     CImGui.ImGuiSliderFlags_AlwaysClamp
                 )
-                CImGui.DragInt2(
-                    mlstr("pickup frame counts"),
-                    CONF.DAQ.pick_fps,
-                    1.0, 1, 180, "%d",
-                    CImGui.ImGuiSliderFlags_AlwaysClamp
-                )
+                # CImGui.DragInt2(
+                #     mlstr("pickup frame counts"),
+                #     CONF.DAQ.pick_fps,
+                #     1.0, 1, 180, "%d",
+                #     CImGui.ImGuiSliderFlags_AlwaysClamp
+                # )
                 @c CImGui.DragInt(
                     stcstr(mlstr("history blocks"), "##DAQ"),
                     &CONF.Console.historylen,

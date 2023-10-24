@@ -121,12 +121,12 @@ let
         ######主菜单######
         isopenfiles = false
         isopenfolder = false
-        if CONF.Basic.hidewindow
-            viewport = igGetMainViewport()
-            CImGui.SetNextWindowPos((unsafe_load(viewport.WorkPos) .+ 6 ...,), CImGui.ImGuiCond_Appearing)
-            CImGui.SetNextWindowSize(unsafe_load(viewport.WorkSize), CImGui.ImGuiCond_Appearing)
-            CImGui.Begin("QInsControl", showapp, CImGui.ImGuiWindowFlags_MenuBar) || (CImGui.End(); return nothing)
-        end
+        # if CONF.Basic.hidewindow
+        #     viewport = igGetMainViewport()
+        #     CImGui.SetNextWindowPos((unsafe_load(viewport.WorkPos) .+ 6 ...,), CImGui.ImGuiCond_Appearing)
+        #     CImGui.SetNextWindowSize(unsafe_load(viewport.WorkSize), CImGui.ImGuiCond_Appearing)
+        #     CImGui.Begin("QInsControl", showapp, CImGui.ImGuiWindowFlags_MenuBar) || (CImGui.End(); return nothing)
+        # end
         if CONF.Basic.hidewindow ? CImGui.BeginMenuBar() : CImGui.BeginMainMenuBar()
             #File Menu
             if CImGui.BeginMenu(stcstr(MORESTYLE.Icons.File, " ", mlstr("File"), " "))
@@ -273,19 +273,19 @@ let
             end
             CONF.Basic.hidewindow ? CImGui.EndMenuBar() : CImGui.EndMainMenuBar()
         end
-        if CONF.Basic.hidewindow
-            if CImGui.BeginPopupContextWindow()
-                @c CImGui.MenuItem(mlstr("Hide Window"), C_NULL, &CONF.Basic.hidewindow)
-                CImGui.EndPopup()
-            end
-            global glfwwindowx
-            global glfwwindowy
-            global glfwwindoww
-            global glfwwindowh
-            glfwwindowx, glfwwindowy = round.(Cint, CImGui.GetWindowPos() .- 6)
-            glfwwindoww, glfwwindowh = round.(Cint, CImGui.GetWindowSize())
-            CImGui.End()
-        end
+        # if CONF.Basic.hidewindow
+        #     if CImGui.BeginPopupContextWindow()
+        #         @c CImGui.MenuItem(mlstr("Hide Window"), C_NULL, &CONF.Basic.hidewindow)
+        #         CImGui.EndPopup()
+        #     end
+        #     global glfwwindowx
+        #     global glfwwindowy
+        #     global glfwwindoww
+        #     global glfwwindowh
+        #     glfwwindowx, glfwwindowy = round.(Cint, CImGui.GetWindowPos() .- 6)
+        #     glfwwindoww, glfwwindowh = round.(Cint, CImGui.GetWindowSize())
+        #     CImGui.End()
+        # end
         ######快捷键######
         if isopenfiles || (unsafe_load(CImGui.GetIO().KeyCtrl) && CImGui.IsKeyDown(79))
             files = pick_multi_file()

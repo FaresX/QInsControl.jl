@@ -162,26 +162,26 @@ function UI(breakdown=false; precompile=false)
             waittime("Check STATICSTRINGS", 36) && checklifetime()
 
             ######保存图像######
-            if SYNCSTATES[Int(SavingImg)]
-                @c glfwGetWindowPos(window, &glfwwindowx, &glfwwindowy)
-                count_fps = saveimg()
-                if count_fps == 1
-                    iswindowiconified = glfwGetWindowAttrib(window, GLFW_ICONIFIED) != 0
-                    if iswindowiconified
-                        pick_fps_normal = CONF.DAQ.pick_fps[1]
-                        CONF.DAQ.pick_fps[1] = CONF.DAQ.pick_fps[2]
-                    end
-                elseif count_fps == 0
-                    glfwSetWindowAttrib(window, GLFW_FLOATING, GLFW_FALSE)
-                    if iswindowiconified
-                        glfwIconifyWindow(window)
-                        CONF.DAQ.pick_fps[1] = pick_fps_normal
-                    end
-                else
-                    iswindowiconified && glfwRestoreWindow(window)
-                    glfwSetWindowAttrib(window, GLFW_FLOATING, GLFW_TRUE)
-                end
-            end
+            # if SYNCSTATES[Int(SavingImg)]
+            #     @c glfwGetWindowPos(window, &glfwwindowx, &glfwwindowy)
+            #     count_fps = saveimg()
+            #     if count_fps == 1
+            #         iswindowiconified = glfwGetWindowAttrib(window, GLFW_ICONIFIED) != 0
+            #         if iswindowiconified
+            #             pick_fps_normal = CONF.DAQ.pick_fps[1]
+            #             CONF.DAQ.pick_fps[1] = CONF.DAQ.pick_fps[2]
+            #         end
+            #     elseif count_fps == 0
+            #         glfwSetWindowAttrib(window, GLFW_FLOATING, GLFW_FALSE)
+            #         if iswindowiconified
+            #             glfwIconifyWindow(window)
+            #             CONF.DAQ.pick_fps[1] = pick_fps_normal
+            #         end
+            #     else
+            #         iswindowiconified && glfwRestoreWindow(window)
+            #         glfwSetWindowAttrib(window, GLFW_FLOATING, GLFW_TRUE)
+            #     end
+            # end
             MainWindow()
             if CImGui.BeginPopupModal("##windowshouldclose?", C_NULL, CImGui.ImGuiWindowFlags_AlwaysAutoResize)
                 CImGui.TextColored(
@@ -202,19 +202,19 @@ function UI(breakdown=false; precompile=false)
             end
 
             ###### Hide Window ######
-            if CONF.Basic.hidewindow ⊻ (glfwGetWindowAttrib(window, GLFW_VISIBLE) == GLFW_FALSE) || firsthide
-                firsthide && (firsthide = false)
-                if CONF.Basic.hidewindow
-                    glfwHideWindow(window)
-                    glfwSetWindowSize(window, 1, 1)
-                else
-                    glfwShowWindow(window)
-                    glfwSetWindowSize(window, glfwwindoww, glfwwindowh)
-                end
-            end
-            if glfwGetWindowAttrib(window, GLFW_VISIBLE) == GLFW_FALSE
-                glfwSetWindowPos(window, glfwwindowx, glfwwindowy)
-            end
+            # if CONF.Basic.hidewindow ⊻ (glfwGetWindowAttrib(window, GLFW_VISIBLE) == GLFW_FALSE) || firsthide
+            #     firsthide && (firsthide = false)
+            #     if CONF.Basic.hidewindow
+            #         glfwHideWindow(window)
+            #         glfwSetWindowSize(window, 1, 1)
+            #     else
+            #         glfwShowWindow(window)
+            #         glfwSetWindowSize(window, glfwwindoww, glfwwindowh)
+            #     end
+            # end
+            # if glfwGetWindowAttrib(window, GLFW_VISIBLE) == GLFW_FALSE
+            #     glfwSetWindowPos(window, glfwwindowx, glfwwindowy)
+            # end
 
             CImGui.Render()
             glfwMakeContextCurrent(window)

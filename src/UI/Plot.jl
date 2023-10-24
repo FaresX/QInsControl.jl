@@ -126,11 +126,11 @@ let
                     push!(uip.anns, deepcopy(annbuf))
                 end
             end
-            if CImGui.Button(stcstr(MORESTYLE.Icons.SaveButton, " ", mlstr("Save Image")))
-                CImGui.CloseCurrentPopup()
-                saveimg_seting(save_file(; filterlist="png;jpg;jpeg;bmp;eps;tif"), [uip])
-                SYNCSTATES[Int(SavingImg)] = true
-            end
+            # if CImGui.Button(stcstr(MORESTYLE.Icons.SaveButton, " ", mlstr("Save Image")))
+            #     CImGui.CloseCurrentPopup()
+            #     saveimg_seting(save_file(; filterlist="png;jpg;jpeg;bmp;eps;tif"), [uip])
+            #     SYNCSTATES[Int(SavingImg)] = true
+            # end
             CImGui.EndPopup()
         end
         igIsPopupOpenStr(stcstr("title", id), 0) || openpopup_mspos == Cfloat[0, 0] || fill!(openpopup_mspos, 0)
@@ -455,69 +455,69 @@ function xyzsetting(uip::UIPlot)
     xlims, ylims, zlims, xlabel, ylabel
 end
 
-let
-    count_fps::Int = 0
-    path::String = ""
-    uips::Vector{UIPlot} = []
-    global function saveimg()
-        if SYNCSTATES[Int(SavingImg)]
-            count_fps == 0 && path == "" && (SYNCSTATES[Int(SavingImg)] = false; return 0)
-            count_fps += 1
-            viewport = igGetMainViewport()
-            if CONF.Basic.hidewindow
-                CImGui.SetNextWindowPos((0, 0))
-                CImGui.SetNextWindowSize((CONF.Basic.windowsize...,))
-            else
-                CImGui.SetNextWindowPos(unsafe_load(viewport.WorkPos))
-                CImGui.SetNextWindowSize(unsafe_load(viewport.WorkSize))
-            end
-            CImGui.SetNextWindowFocus()
-            CImGui.SetNextWindowBgAlpha(1)
-            CImGui.PushStyleVar(CImGui.ImGuiStyleVar_WindowRounding, 0)
-            CImGui.PushStyleVar(CImGui.ImGuiStyleVar_WindowPadding, (0, 0))
-            CImGui.Begin("Save Plot", C_NULL, CImGui.ImGuiWindowFlags_NoTitleBar)
-            l = length(uips)
-            n = CONF.DAQ.plotshowcol
-            m = ceil(Int, l / n)
-            n = m == 1 ? l : n
-            height = (CImGui.GetWindowHeight() - (m - 1) * unsafe_load(IMGUISTYLE.ItemSpacing.y)) / m
-            CImGui.Columns(n, C_NULL, false)
-            for i in 1:m
-                for j in 1:n
-                    idx = (i - 1) * n + j
-                    if idx <= l
-                        Plot(uips[idx], stcstr("Save Plot", idx), (Cfloat(0), height))
-                        CImGui.NextColumn()
-                    end
-                end
-            end
-            CImGui.End()
-            CImGui.PopStyleVar(2)
-            if count_fps == CONF.DAQ.pick_fps[1]
-                img = ImageMagick.load("screenshot:")
-                vpos, vsize = unsafe_load(viewport.WorkPos), unsafe_load(viewport.WorkSize)
-                CONF.Basic.viewportenable || (vpos = CImGui.ImVec2(vpos[1] + glfwwindowx, vpos[2] + glfwwindowy))
-                CONF.Basic.hidewindow && (vpos = (0, 0); vsize = (CONF.Basic.windowsize...,))
-                u, d = round(Int, vpos[2] + 1), round(Int, vpos[2] + vsize[2] - 4)
-                l, r = round(Int, vpos[1] + 1), round(Int, vpos[1] + vsize[1] - 1)
-                if length(size(img)) == 3
-                    imgr, imgc, imgh = size(img)
-                    img = reshape(img, imgr, imgh * imgc)
-                end
-                @trypass FileIO.save(path, img[u:d, l:r]) @error "[$(now())]\n$(mlstr("error saving image!!!"))"
-                SYNCSTATES[Int(SavingImg)] = false
-                count_fps = 0
-                return 0
-            end
-        end
-        return count_fps
-    end
+# let
+#     count_fps::Int = 0
+#     path::String = ""
+#     uips::Vector{UIPlot} = []
+#     global function saveimg()
+#         if SYNCSTATES[Int(SavingImg)]
+#             count_fps == 0 && path == "" && (SYNCSTATES[Int(SavingImg)] = false; return 0)
+#             count_fps += 1
+#             viewport = igGetMainViewport()
+#             if CONF.Basic.hidewindow
+#                 CImGui.SetNextWindowPos((0, 0))
+#                 CImGui.SetNextWindowSize((CONF.Basic.windowsize...,))
+#             else
+#                 CImGui.SetNextWindowPos(unsafe_load(viewport.WorkPos))
+#                 CImGui.SetNextWindowSize(unsafe_load(viewport.WorkSize))
+#             end
+#             CImGui.SetNextWindowFocus()
+#             CImGui.SetNextWindowBgAlpha(1)
+#             CImGui.PushStyleVar(CImGui.ImGuiStyleVar_WindowRounding, 0)
+#             CImGui.PushStyleVar(CImGui.ImGuiStyleVar_WindowPadding, (0, 0))
+#             CImGui.Begin("Save Plot", C_NULL, CImGui.ImGuiWindowFlags_NoTitleBar)
+#             l = length(uips)
+#             n = CONF.DAQ.plotshowcol
+#             m = ceil(Int, l / n)
+#             n = m == 1 ? l : n
+#             height = (CImGui.GetWindowHeight() - (m - 1) * unsafe_load(IMGUISTYLE.ItemSpacing.y)) / m
+#             CImGui.Columns(n, C_NULL, false)
+#             for i in 1:m
+#                 for j in 1:n
+#                     idx = (i - 1) * n + j
+#                     if idx <= l
+#                         Plot(uips[idx], stcstr("Save Plot", idx), (Cfloat(0), height))
+#                         CImGui.NextColumn()
+#                     end
+#                 end
+#             end
+#             CImGui.End()
+#             CImGui.PopStyleVar(2)
+#             if count_fps == CONF.DAQ.pick_fps[1]
+#                 img = ImageMagick.load("screenshot:")
+#                 vpos, vsize = unsafe_load(viewport.WorkPos), unsafe_load(viewport.WorkSize)
+#                 CONF.Basic.viewportenable || (vpos = CImGui.ImVec2(vpos[1] + glfwwindowx, vpos[2] + glfwwindowy))
+#                 CONF.Basic.hidewindow && (vpos = (0, 0); vsize = (CONF.Basic.windowsize...,))
+#                 u, d = round(Int, vpos[2] + 1), round(Int, vpos[2] + vsize[2] - 4)
+#                 l, r = round(Int, vpos[1] + 1), round(Int, vpos[1] + vsize[1] - 1)
+#                 if length(size(img)) == 3
+#                     imgr, imgc, imgh = size(img)
+#                     img = reshape(img, imgr, imgh * imgc)
+#                 end
+#                 @trypass FileIO.save(path, img[u:d, l:r]) @error "[$(now())]\n$(mlstr("error saving image!!!"))"
+#                 SYNCSTATES[Int(SavingImg)] = false
+#                 count_fps = 0
+#                 return 0
+#             end
+#         end
+#         return count_fps
+#     end
 
-    global function saveimg_seting(setpath, setuips)
-        empty!(uips)
-        path = setpath
-        for p in setuips
-            push!(uips, deepcopy(p))
-        end
-    end
-end
+#     global function saveimg_seting(setpath, setuips)
+#         empty!(uips)
+#         path = setpath
+#         for p in setuips
+#             push!(uips, deepcopy(p))
+#         end
+#     end
+# end
