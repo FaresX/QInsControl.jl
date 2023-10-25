@@ -145,7 +145,7 @@ end
 
 let
     synctasks::Dict{String,Task} = Dict()
-    global function syncplotdata(uiplot::UIPlot, dtpk::DataPicker, datastr, datafloat=[])
+    global function syncplotdata(uiplot::UIPlot, dtpk::DataPicker, datastr::Dict, datafloat::Dict=Dict())
         if haskey(synctasks, uiplot.ps.id)
             istaskdone(synctasks[uiplot.ps.id]) ? delete!(synctasks, uiplot.ps.id) : return nothing
         end
@@ -154,7 +154,7 @@ let
         return nothing
     end
 
-    function processdata(uiplot::UIPlot, dtpk::DataPicker, datastr, datafloat)
+    function processdata(uiplot::UIPlot, dtpk::DataPicker, datastr::Dict, datafloat::Dict)
         dtpk.isrunning = true
         dtpk.runtime = 0
         errormonitor(

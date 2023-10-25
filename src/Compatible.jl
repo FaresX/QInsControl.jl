@@ -119,6 +119,16 @@ function Base.show(io::IO, bk::SaveBlock)
     print(io, str)
 end
 
+function combotodataplot(dtviewer::DataViewer)
+    datakeys = keys(dtviewer.data)
+    if "uiplots" in datakeys
+        dtviewer.dtp.uiplots = @trypasse dtviewer.data["uiplots"] dtviewer.dtp.uiplots
+        "datapickers" in datakeys && (dtviewer.dtp.dtpks = @trypasse dtviewer.data["datapickers"] dtviewer.dtp.dtpks)
+        "plotlayout" in datakeys && (dtviewer.dtp.layout = @trypasse dtviewer.data["plotlayout"] dtviewer.dtp.layout)
+    end
+    return nothing
+end
+
 compattypes = [:InstrQuantity, :LogBlock, :SaveBlock]
 
 for T in compattypes

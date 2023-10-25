@@ -72,6 +72,7 @@ include("UI/Instrument.jl")
 include("UI/Plot.jl")
 include("UI/Progress.jl")
 include("UI/DataPicker.jl")
+include("UI/DataPlot.jl")
 include("UI/UtilitiesForRenderer.jl")
 
 include("UI/DataViewer.jl")
@@ -127,8 +128,10 @@ function julia_main()::Cint
                     update_log(syncstates=syncstates)
                 end)
             end
-            ENV["JULIA_NUM_THREADS"] = CONF.Basic.nthreads
-            CONF.Basic.remoteprocessdata && nprocs() == 2 && addprocs(1)
+            if CONF.Basic.remoteprocessdata && nprocs() == 2
+                ENV["JULIA_NUM_THREADS"] = CONF.Basic.nthreads
+                addprocs(1)
+            end
         end
         remotecall_wait(() -> start!(CPU), workers()[1])
         autorefresh()
