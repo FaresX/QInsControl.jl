@@ -125,6 +125,8 @@ function combotodataplot(dtviewer::DataViewer)
         dtviewer.dtp.uiplots = @trypasse dtviewer.data["uiplots"] dtviewer.dtp.uiplots
         "datapickers" in datakeys && (dtviewer.dtp.dtpks = @trypasse dtviewer.data["datapickers"] dtviewer.dtp.dtpks)
         "plotlayout" in datakeys && (dtviewer.dtp.layout = @trypasse dtviewer.data["plotlayout"] dtviewer.dtp.layout)
+    else
+        dtviewer.dtp = DataPlot()
     end
     return nothing
 end
