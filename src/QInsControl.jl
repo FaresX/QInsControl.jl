@@ -101,12 +101,12 @@ function julia_main()::Cint
         global SYNCSTATES = SharedVector{Bool}(9)
         global DATABUFRC = RemoteChannel(() -> databuf_c)
         global PROGRESSRC = RemoteChannel(() -> progress_c)
-        # global LOGIO = IOBuffer()
-        # global_logger(SimpleLogger(LOGIO))
-        # errormonitor(@async while true
-        #     sleep(1)
-        #     update_log()
-        # end)
+        global LOGIO = IOBuffer()
+        global_logger(SimpleLogger(LOGIO))
+        errormonitor(@async while true
+            sleep(1)
+            update_log()
+        end)
         @info ARGS
         isempty(ARGS) || @info reencoding.(ARGS, CONF.Basic.encoding)
         uitask = UI()
