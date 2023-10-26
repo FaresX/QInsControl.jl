@@ -95,7 +95,7 @@ function editmenu(dtp::DataPlot)
     CImGui.PushID("add new plot")
     if CImGui.Button(
         if CONF.DAQ.freelayout
-            stcstr(mlstr("new plot"), " ", MORESTYLE.Icons.NewFile)
+            stcstr(MORESTYLE.Icons.NewFile, " ", mlstr("new plot"))
         else
             MORESTYLE.Icons.NewFile
         end
@@ -132,9 +132,8 @@ function editmenu(dtp::DataPlot)
     ) do
         openright = CImGui.BeginPopupContextItem()
         if openright
-            if CImGui.MenuItem(
-                stcstr(MORESTYLE.Icons.Plot, " ", mlstr("Select Data"))
-            ) && dtp.layout.states[dtp.layout.idxing]
+            if CImGui.MenuItem(stcstr(MORESTYLE.Icons.Plot, " ", mlstr("Select Data")))
+                dtp.layout.states[dtp.layout.idxing] || (dtp.dtpks[dtp.layout.idxing].isrealtime = false)
                 dtp.showdtpks[dtp.layout.idxing] = true
             end
             if CImGui.MenuItem(stcstr(MORESTYLE.Icons.CloseFile, " ", mlstr("Delete")))
@@ -146,7 +145,7 @@ function editmenu(dtp::DataPlot)
             @c InputTextRSZ(dtp.layout.labels[dtp.layout.idxing], &markbuf)
             CImGui.PopItemWidth()
             dtp.layout.marks[dtp.layout.idxing] = markbuf
-            CImGui.Text("Link to")
+            CImGui.Text(mlstr("Link to"))
             CImGui.SameLine()
             linkedidx = dtp.linkidx[dtp.layout.idxing]
             CImGui.PushItemWidth(4CImGui.GetFontSize())
@@ -178,8 +177,8 @@ function showdtpks(dtp::DataPlot, id, datastr::Dict, datafloat::Dict=Dict())
             end
             if dtp.linkidx[i] == 0
                 dtpk = dtp.dtpks[i]
-                datakeys::Set{String} = keys(isempty(datastr) ? datafloat : datastr)
-                if datakeys != Set(dtpk.datalist)
+                datakeys = sort(collect(keys(isempty(datastr) ? datafloat : datastr)))
+                if datakeys != dtpk.datalist
                     dtpk.datalist = collect(datakeys)
                     dtpk.y = falses(length(datakeys))
                     dtpk.w = falses(length(datakeys))
@@ -195,8 +194,8 @@ function showdtpks(dtp::DataPlot, id, datastr::Dict, datafloat::Dict=Dict())
                 dtpklink = dtp.dtpks[dtp.linkidx[i]]
                 yl = length(uip.y)
                 ykeys = "y" .* string.(1:yl)
-                datakeys = Set(["x", ykeys..., "z"])
-                if datakeys != Set(dtpk.datalist)
+                datakeys = ["x", ykeys..., "z"]
+                if datakeys != dtpk.datalist
                     dtpk.datalist = collect(datakeys)
                     dtpk.y = falses(length(datakeys))
                     dtpk.w = falses(length(datakeys))
