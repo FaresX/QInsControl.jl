@@ -5,6 +5,7 @@ mutable struct DataPicker
     y::Vector{Bool}
     z::String
     w::Vector{Bool}
+    aux::Vector{Vector{Bool}}
     xtype::Bool # true = > Number false = > String
     zsize::Vector{Cint}
     vflipz::Bool
@@ -21,7 +22,7 @@ end
 DataPicker() = DataPicker(
     [""],
     "line",
-    "", [false], "", [false],
+    "", [false], "", [false], Vector{Bool}[],
     true,
     [0, 0], false, false, false,
     CodeBlock(),
@@ -50,7 +51,15 @@ let
             CImGui.SameLine(CImGui.GetContentRegionAvailWidth() - holdsz)
             @c CImGui.Checkbox(mlstr("HOLD"), &dtpk.hold)
             holdsz = CImGui.GetItemRectSize().x
+            CImGui.PushItemWidth(CImGui.GetContentRegionAvailWidth() / 2)
             @c ComBoS(mlstr("plot type"), &dtpk.ptype, ptypelist)
+            CImGui.PopItemWidth()
+            CImGui.SameLine()
+            CImGui.Button(stcstr(MORESTYLE.Icons.NewFile)) && push!(dtpk.aux, [false])
+            CImGui.SameLine()
+            CImGui.Button(stcstr(MORESTYLE.Icons.CloseFile)) && (isempty(dtpk.aux) || pop!(dtpk.aux))
+            CImGui.SameLine()
+            CImGui.Text(mlstr("Aux Dims"))
             CImGui.Separator()
 
             CImGui.PushStyleColor(CImGui.ImGuiCol_Text, MORESTYLE.Colors.HighlightText)
@@ -98,6 +107,19 @@ let
                     CImGui.Selectable("")
                 else
                     MultiSelectable(() -> false, "select W", dtpk.datalist, dtpk.w, 1)
+                end
+            end
+
+            for i in eachindex(dtpk.aux)
+                CImGui.PushStyleColor(CImGui.ImGuiCol_Text, MORESTYLE.Colors.HighlightText)
+                selectaux = CImGui.CollapsingHeader(stcstr(mlstr("Select"), " AUX ", i))
+                CImGui.PopStyleColor()
+                if selectaux
+                    if isempty(dtpk.datalist)
+                        CImGui.Selectable("")
+                    else
+                        MultiSelectable(() -> false, stcstr("select AUX", i), dtpk.datalist, dtpk.aux[i], 1)
+                    end
                 end
             end
 
@@ -192,6 +214,13 @@ let
                 [replace(tryparse.(Float64, datastr[key]), nothing => NaN) for key in dtpk.datalist[dtpk.w]],
                 [Float64[]]
             )
+            auxbuf = [
+                @trypass(
+                    [replace(tryparse.(Float64, datastr[key]), nothing => NaN) for key in dtpk.datalist[aux]],
+                    [Float64[]]
+                )
+                for aux in dtpk.aux
+            ]
         else
             if dtpk.xtype
                 xbuf = haskey(datafloat, dtpk.x) ? copy(datafloat[dtpk.x]) : Float64[]
@@ -210,6 +239,10 @@ let
                 all(size(uiplot.z) .== reverse(dtpk.zsize)) || (uiplot.z = zeros(Float64, reverse(dtpk.zsize)...))
             end
             wbuf = @trypass [copy(datafloat[key]) for key in dtpk.datalist[dtpk.w]] [Float64[]]
+            auxbuf = [
+                @trypass([copy(datafloat[key]) for key in dtpk.datalist[aux]], [Float64[]])
+                for aux in dtpk.aux
+            ]
         end
         innercodes = tocodes(dtpk.codes)
         ex::Expr = quote
@@ -222,6 +255,17 @@ let
                 ws = $wbuf
                 isempty(ws) && (ws = [Float64[]])
                 w = ws[1]
+                $(
+                    [
+                        Expr(
+                            :block,
+                            Expr(:(=), Symbol(:aux, i, :s), auxbuf[i]),
+                            Expr(:&&, Expr(:call, :isempty, Symbol(:aux, i, :s)), Expr(:(=), Symbol(:aux, i, :s), [Float64[]])),
+                            Expr(:(=), Symbol(:aux, i), Expr(:ref, Symbol(:aux, i, :s), 1))
+                        )
+                        for i in eachindex(dtpk.aux)
+                    ]...
+                )
                 $innercodes
                 ys[1] = y
                 x, ys, z
