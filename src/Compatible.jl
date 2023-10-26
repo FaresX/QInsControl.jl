@@ -131,6 +131,27 @@ function combotodataplot(dtviewer::DataViewer)
     return nothing
 end
 
+Base.@kwdef mutable struct PlotState
+    id::String = ""
+    xhv::Bool = false
+    yhv::Bool = false
+    phv::Bool = false
+    annhv::Bool = false
+    annhv_i::Cint = 1
+    showtooltip::Bool = true
+    mspos::ImPlot.ImPlotPoint = ImPlot.ImPlotPoint(0, 0)
+    plotpos::CImGui.ImVec2 = (0, 0)
+    plotsize::CImGui.ImVec2 = (0, 0)
+end
+
+function Base.convert(::Type{PlotStates}, x::PlotState)
+    ps = PlotStates()
+    for fnm in fieldnames(PlotState)
+        setproperty!(ps, fnm, getproperty(x, fnm))
+    end
+    return ps
+end
+
 compattypes = [:InstrQuantity, :LogBlock, :SaveBlock]
 
 for T in compattypes

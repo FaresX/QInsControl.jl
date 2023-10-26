@@ -1,7 +1,7 @@
 types = [
     :SweepQuantity, :SetQuantity, :ReadQuantity, :InstrBuffer, :InstrBufferViewer, :DAQTask,
     :NodeEditor, :Node, :ResizeGrip, :ImagePin, :ImageRegion, :SampleBaseNode,
-    :UIPlot, :Layout, :Annotation, :DataPicker, :DataPlot,
+    :UIPlot, :PlotStates, :Layout, :Annotation, :DataPicker, :DataPlot,
     :MoreStyle, :MoreStyleColor, :MoreStyleIcon, :UnionStyle,
     :CodeBlock, :StrideCodeBlock, :SweepBlock, :SettingBlock, :ReadingBlock,
     :WriteBlock, :QueryBlock, :ReadBlock

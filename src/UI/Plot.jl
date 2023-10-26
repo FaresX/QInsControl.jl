@@ -1,7 +1,8 @@
-Base.@kwdef mutable struct PlotState
+Base.@kwdef mutable struct PlotStates
     id::String = ""
     xhv::Bool = false
     yhv::Bool = false
+    chv::Bool = false
     phv::Bool = false
     annhv::Bool = false
     annhv_i::Cint = 1
@@ -35,14 +36,14 @@ mutable struct UIPlot
     legends::Vector{String}
     cmap::Cint
     anns::Vector{Annotation}
-    ps::PlotState
+    ps::PlotStates
 end
 UIPlot(x, y, z) = UIPlot(
     x, y, z,
     "line",
     "title", "x", "y", "z", [string("y", i) for i in eachindex(y)], 4,
     Annotation[],
-    PlotState()
+    PlotStates()
 )
 UIPlot() = UIPlot(Union{Real,String}[], [Real[]], Matrix{Float64}(undef, 0, 0))
 
@@ -60,11 +61,12 @@ let
             else
                 xlims, ylims, zlims, xlabel, ylabel = xyzsetting(uip)
                 @c Plot(
-                    uip.z, &uip.zlabel, &uip.cmap, uip.ps;
+                    uip.z, &uip.cmap, uip.ps;
                     psize=CImGui.ImVec2(-1, -1),
                     title=uip.title,
                     xlabel=xlabel,
                     ylabel=ylabel,
+                    zlabel=uip.zlabel,
                     xlims=xlims,
                     ylims=ylims,
                     zlims=zlims,
@@ -167,12 +169,19 @@ let
             @c InputTextRSZ(stcstr("Y ", mlstr("label")), &uip.ylabel)
             CImGui.EndPopup()
         end
+        if CImGui.IsWindowHovered(CImGui.ImGuiHoveredFlags_RootAndChildWindows)
+            uip.ps.chv && CImGui.IsMouseDoubleClicked(0) && CImGui.OpenPopup(stcstr("zlabel", id))
+        end
+        if CImGui.BeginPopup(stcstr("zlabel", id))
+            @c InputTextRSZ(stcstr("Z ", mlstr("label")), &uip.zlabel)
+            CImGui.EndPopup()
+        end
         CImGui.EndChild()
         CImGui.PopID()
     end
 end
 
-function Plot(x::Vector{T1}, ys::Vector{Vector{T2}}, ps::PlotState;
+function Plot(x::Vector{T1}, ys::Vector{Vector{T2}}, ps::PlotStates;
     psize=CImGui.ImVec2(0, 0),
     ptype="line",
     title="title",
@@ -228,12 +237,13 @@ end
 
 let
     width_list::Dict{String,Cfloat} = Dict()
-    global function Plot(z::Matrix{Float64}, zlabel::Ref{String}, cmap::Ref{Cint}, ps::PlotState;
+    global function Plot(z::Matrix{Float64}, cmap::Ref{Cint}, ps::PlotStates;
         psize=CImGui.ImVec2(0, 0),
         ptype="heatmap",
         title="title",
         xlabel="x",
         ylabel="y",
+        zlabel="z",
         xlims=(0, 1),
         ylims=(0, 1),
         zlims=(0, 1),
@@ -281,24 +291,18 @@ let
         ps.plotpos = CImGui.GetItemRectMin()
         ps.plotsize = CImGui.GetItemRectSize()
         CImGui.SameLine()
-        ImPlot.ColormapScale(stcstr(zlabel[], "###$(ps.id)"), zlims..., CImGui.ImVec2(0, -1))
+        ImPlot.ColormapScale(stcstr(zlabel, "###$(ps.id)"), zlims..., CImGui.ImVec2(0, -1))
         cmssize = CImGui.GetItemRectSize()
         ps.plotsize = (ps.plotsize.x + cmssize.x, ps.plotsize.y)
         width_list[ps.id] = cmssize.x
-        if CImGui.IsWindowHovered(CImGui.ImGuiHoveredFlags_RootAndChildWindows)
-            CImGui.IsItemHovered() && CImGui.IsMouseDoubleClicked(0) && CImGui.OpenPopup(stcstr("zlabel", ps.id))
-        end
-        if CImGui.BeginPopup(stcstr("zlabel", ps.id))
-            InputTextRSZ(stcstr("Z ", mlstr("label"), "##", ps.id), zlabel)
-            CImGui.EndPopup()
-        end
+        ps.chv = CImGui.IsItemHovered()
         ImPlot.PopColormap()
         CImGui.PopStyleVar()
         CImGui.EndChild()
     end
 end
 
-function PlotHolder(ps::PlotState, psize=CImGui.ImVec2(0, 0))
+function PlotHolder(ps::PlotStates, psize=CImGui.ImVec2(0, 0))
     if ImPlot.BeginPlot(mlstr("No data input or incorrect input data!!!"), "X", "Y", psize)
         ps.xhv = ImPlot.IsPlotXAxisHovered()
         ps.yhv = ImPlot.IsPlotYAxisHovered()
@@ -308,7 +312,7 @@ function PlotHolder(ps::PlotState, psize=CImGui.ImVec2(0, 0))
     end
 end
 
-function PlotAnns(anns::Vector{Annotation}, ps::PlotState)
+function PlotAnns(anns::Vector{Annotation}, ps::PlotStates)
     ps.annhv = false
     for (i, ann) in enumerate(anns)
         offset = ImPlot.PlotToPixels(ann.offsetx, ann.offsety) .- ImPlot.PlotToPixels(ann.posx, ann.posy)
