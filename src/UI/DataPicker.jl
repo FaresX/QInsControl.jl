@@ -208,7 +208,6 @@ let
                 else
                     Matrix{Float64}(undef, 0, 0)
                 end
-                all(size(uiplot.z) .== reverse(dtpk.zsize)) || (uiplot.z = zeros(Float64, reverse(dtpk.zsize)...))
             end
             wbuf = @trypass(
                 [replace(tryparse.(Float64, datastr[key]), nothing => NaN) for key in dtpk.datalist[dtpk.w]],
@@ -236,7 +235,6 @@ let
                 else
                     Matrix{Float64}(undef, 0, 0)
                 end
-                all(size(uiplot.z) .== reverse(dtpk.zsize)) || (uiplot.z = zeros(Float64, reverse(dtpk.zsize)...))
             end
             wbuf = @trypass [copy(datafloat[key]) for key in dtpk.datalist[dtpk.w]] [Float64[]]
             auxbuf = [
@@ -288,6 +286,7 @@ let
                 if nz isa Matrix
                     uiplot.z = collect(transpose(nz))
                 else
+                    all(size(uiplot.z) .== reverse(dtpk.zsize)) || (uiplot.z = zeros(Float64, reverse(dtpk.zsize)...))
                     lmin = min(length(uiplot.z), length(nz))
                     rows = ceil(Int, lmin / dtpk.zsize[1])
                     fill!(uiplot.z, zero(eltype(uiplot.z)))
