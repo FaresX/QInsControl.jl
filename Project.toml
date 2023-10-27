@@ -42,6 +42,7 @@ JLD2 = "0.4"
 MacroTools = "0.5"
 NativeFileDialog = "0.2"
 OrderedCollections = "1"
+PrecompileTools = "1"
 StringEncodings = "0.3"
 julia = "1.6"
 
