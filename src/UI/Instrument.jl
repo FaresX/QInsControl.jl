@@ -1,5 +1,5 @@
 function autodetect()
-    addrs = find_resources(CPU)
+    addrs = remotecall_fetch(()->find_resources(CPU), workers()[1])
     for addr in addrs
         manualadd(addr)
     end
@@ -20,7 +20,7 @@ function manualadd(addr)
                 return retstr
             catch e
                 logout!(CPU, ct)
-                @error "[$(now())]\n$(mlstr("instrument communication failed!!!"))" instrument_address = addr exception=e
+                @error "[$(now())]\n$(mlstr("instrument communication failed!!!"))" instrument_address = addr exception = e
             end
         end
         if isnothing(idnr)
@@ -48,21 +48,19 @@ end
 function refresh_instrlist()
     if !SYNCSTATES[Int(AutoDetecting)] && !SYNCSTATES[Int(AutoDetectDone)]
         SYNCSTATES[Int(AutoDetecting)] = true
-        remote_do(workers()[1], SYNCSTATES) do SYNCSTATES
-            errormonitor(@async begin
-                try
-                    for ins in keys(INSTRBUFFERVIEWERS)
-                        ins == "VirtualInstr" && continue
-                        empty!(INSTRBUFFERVIEWERS[ins])
-                    end
-                    autodetect()
-                    SYNCSTATES[Int(AutoDetecting)] && (SYNCSTATES[Int(AutoDetectDone)] = true)
-                catch e
-                    SYNCSTATES[Int(AutoDetecting)] && (SYNCSTATES[Int(AutoDetectDone)] = true)
-                    @error mlstr("auto searching failed!!!") exception = e
+        errormonitor(@async begin
+            try
+                for ins in keys(INSTRBUFFERVIEWERS)
+                    ins == "VirtualInstr" && continue
+                    empty!(INSTRBUFFERVIEWERS[ins])
                 end
-            end)
-        end
+                autodetect()
+                SYNCSTATES[Int(AutoDetecting)] && (SYNCSTATES[Int(AutoDetectDone)] = true)
+            catch e
+                SYNCSTATES[Int(AutoDetecting)] && (SYNCSTATES[Int(AutoDetectDone)] = true)
+                @error mlstr("auto searching failed!!!") exception = e
+            end
+        end)
         poll_autodetect()
     end
 end
