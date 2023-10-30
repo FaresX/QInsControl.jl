@@ -79,42 +79,10 @@ function poll_autodetect()
                 end
                 sleep(0.001)
                 yield()
-                # if SYNCSTATES[Int(AutoDetectDone)]
-                #     # instrbufferviewers_remote = remotecall_fetch(() -> INSTRBUFFERVIEWERS, workers()[1])
-                #     # for ins in keys(instrbufferviewers_remote)
-                #     #     ins == "VirtualInstr" && continue
-                #     #     empty!(INSTRBUFFERVIEWERS[ins])
-                #     #     for addr in keys(instrbufferviewers_remote[ins])
-                #     #         push!(INSTRBUFFERVIEWERS[ins], addr => InstrBufferViewer(ins, addr))
-                #     #     end
-                #     # end
-                #     SYNCSTATES[Int(AutoDetecting)] = false
-                #     SYNCSTATES[Int(AutoDetectDone)] = false
-                #     break
-                # else
-                #     yield()
-                # end
             end
         end
     )
 end
-
-# function fetch_ibvs(addinstr; manual=false)
-#     if !manual
-#         remotecall_wait(workers()[1], addinstr) do addinstr
-#             delete!(INSTRBUFFERVIEWERS["Others"], addinstr)
-#         end
-#         delete!(INSTRBUFFERVIEWERS["Others"], addinstr)
-#     end
-#     instrbufferviewers_remote = remotecall_fetch(() -> INSTRBUFFERVIEWERS, workers()[1])
-#     for ins in keys(instrbufferviewers_remote)
-#         ins == "VirtualInstr" && continue
-#         for addr in keys(instrbufferviewers_remote[ins])
-#             haskey(INSTRBUFFERVIEWERS[ins], addr) && continue
-#             push!(INSTRBUFFERVIEWERS[ins], addr => InstrBufferViewer(ins, addr))
-#         end
-#     end
-# end
 
 let
     addinstr::String = ""

@@ -346,7 +346,7 @@ function testcmd(ins, addr, inputcmd::Ref{String}, readstr::Ref{String})
             if addr != ""
                 errormonitor(
                     @async begin
-                        fetchdata_call = remotecall(workers()[1], ins, addr, inputcmd[]) do ins, addr, inputcmd
+                        fetchdata = wait_remotecall_fetch(workers()[1], ins, addr, inputcmd[]) do ins, addr, inputcmd
                             ct = Controller(ins, addr)
                             try
                                 login!(CPU, ct)
@@ -362,7 +362,6 @@ function testcmd(ins, addr, inputcmd::Ref{String}, readstr::Ref{String})
                                 logout!(CPU, ct)
                             end
                         end
-                        fetchdata = waittofetch(fetchdata_call)
                         isnothing(fetchdata) || (readstr[] = fetchdata)
                     end
                 ) |> wait
@@ -373,7 +372,7 @@ function testcmd(ins, addr, inputcmd::Ref{String}, readstr::Ref{String})
             if addr != ""
                 errormonitor(
                     @async begin
-                        fetchdata_call = remotecall(workers()[1], ins, addr) do ins, addr
+                        fetchdata = wait_remotecall_fetch(workers()[1], ins, addr) do ins, addr
                             ct = Controller(ins, addr)
                             try
                                 login!(CPU, ct)
@@ -389,7 +388,6 @@ function testcmd(ins, addr, inputcmd::Ref{String}, readstr::Ref{String})
                                 logout!(CPU, ct)
                             end
                         end
-                        fetchdata = waittofetch(fetchdata_call)
                         isnothing(fetchdata) || (readstr[] = fetchdata)
                     end
                 ) |> wait
@@ -751,7 +749,7 @@ function apply!(qt::SweepQuantity, instrnm, addr)
     Us = CONF.U[qt.utype]
     U = isempty(Us) ? "" : Us[qt.uindex]
     U == "" || (Uchange::Float64 = Us[1] isa Unitful.FreeUnits ? ustrip(Us[1], 1U) : 1.0)
-    start_call = remotecall(workers()[1], instrnm, addr) do instrnm, addr
+    start = wait_remotecall_fetch(workers()[1], instrnm, addr) do instrnm, addr
         ct = Controller(instrnm, addr)
         try
             getfunc = Symbol(instrnm, :_, qt.name, :_get) |> eval
@@ -768,7 +766,6 @@ function apply!(qt::SweepQuantity, instrnm, addr)
             logout!(CPU, ct)
         end
     end
-    start = waittofetch(start_call)
     step = @trypasse eval(Meta.parse(qt.step)) * Uchange begin
         @error "[$(now())]\n$(mlstr("error parsing step value!!!"))" step = qt.step
     end
@@ -799,7 +796,7 @@ function apply!(qt::SweepQuantity, instrnm, addr)
                 for sv in sweeplist
                     qt.issweeping || break
                     sleep(qt.delay)
-                    fetchdata_call = remotecall(workers()[1], sv, ct.id) do sv, ctid
+                    fetchdata = wait_remotecall_fetch(workers()[1], sv, ct.id) do sv, ctid
                         try
                             setfunc = Symbol(instrnm, :_, qt.name, :_set) |> eval
                             getfunc = Symbol(instrnm, :_, qt.name, :_get) |> eval
@@ -814,7 +811,6 @@ function apply!(qt::SweepQuantity, instrnm, addr)
                             )
                         end
                     end
-                    fetchdata = waittofetch(fetchdata_call)
                     isnothing(fetchdata) ? break : qt.read = fetchdata
                 end
                 remotecall_wait(workers()[1], ct.id) do ctid
@@ -836,7 +832,7 @@ function apply!(qt::SetQuantity, instrnm, addr)
     sv = U == "" ? qt.set : @trypasse string(float(eval(Meta.parse(qt.set)) * Uchange)) qt.set
     errormonitor(
         @async begin
-            fetchdata_call = remotecall(workers()[1], instrnm, addr, sv) do instrnm, addr, sv
+            fetchdata = wait_remotecall_fetch(workers()[1], instrnm, addr, sv) do instrnm, addr, sv
                 ct = Controller(instrnm, addr)
                 try
                     setfunc = Symbol(instrnm, :_, qt.name, :_set) |> eval
@@ -856,7 +852,6 @@ function apply!(qt::SetQuantity, instrnm, addr)
                     logout!(CPU, ct)
                 end
             end
-            fetchdata = waittofetch(fetchdata_call)
             isnothing(fetchdata) || (qt.read = fetchdata)
         end
     ) |> wait
@@ -891,7 +886,7 @@ function resolveunitlist(qt::AbstractQuantity, instrnm, addr)
 end
 
 function refresh_qt(instrnm, addr, qtnm)
-    fetchdata_call = remotecall(workers()[1], instrnm, addr) do instrnm, addr
+    wait_remotecall_fetch(workers()[1], instrnm, addr) do instrnm, addr
         ct = Controller(instrnm, addr)
         try
             getfunc = Symbol(instrnm, :_, qtnm, :_get) |> eval
@@ -909,7 +904,6 @@ function refresh_qt(instrnm, addr, qtnm)
             logout!(CPU, ct)
         end
     end
-    waittofetch(fetchdata_call)
 end
 
 function log_instrbufferviewers()
