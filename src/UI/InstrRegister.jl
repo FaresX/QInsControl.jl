@@ -283,7 +283,7 @@ let
                         push!(INSCONF[selectedins].quantities, qtname => editqt)
                     end
                     cmdtype = Symbol("@", INSCONF[selectedins].conf.cmdtype)
-                    synccall_wait(workers(), selectedins, cmdtype, qtname, editqt.cmdheader) do instrnm, cmdtype, qtname, cmd
+                    synccall_wait([workers()[1]], selectedins, cmdtype, qtname, editqt.cmdheader) do instrnm, cmdtype, qtname, cmd
                         try
                             if cmd != ""
                                 Expr(
