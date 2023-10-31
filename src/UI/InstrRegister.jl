@@ -318,8 +318,14 @@ function saveinsconfs()
     for cf in conffiles
         filename, filetype = split(cf, '.')
         filetype != "toml" && continue
-        filename == "conf" && continue
         filename ∉ allins && Base.Filesystem.rm(joinpath(ENV["QInsControlAssets"], "Confs/$cf"))
+    end
+    extrafiles = readdir(joinpath(ENV["QInsControlAssets"], "ExtraLoad"))
+    for ef in extrafiles
+        filename, filetype = split(ef, '.')
+        filetype != "jl" && continue
+        filename == "extraload" && continue
+        filename ∉ allins && Base.Filesystem.rm(joinpath(ENV["QInsControlAssets"], "ExtraLoad/$ef"))
     end
     for (ins, inscf) in INSCONF
         cfpath = joinpath(ENV["QInsControlAssets"], "Confs/$ins.toml")
