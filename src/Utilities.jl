@@ -312,3 +312,15 @@ function waittofetch(f, δ=2; sleeptime=0.001)
     end
     return nothing
 end
+
+function wait_remotecall_fetch(f, id::Integer, args...; δ=2, sleeptime=0.001, kwargs...)
+    future = remotecall_fetch(f, id, args...; kwargs...)
+    waittask = errormonitor(@async fetch(future))
+    t1 = time()
+    while time() - t1 < δ
+        istaskdone(waittask) && return istaskfailed(waittask) ? nothing : fetch(waittask)
+        sleep(sleeptime)
+        yield()
+    end
+    return nothing
+end

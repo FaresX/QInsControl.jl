@@ -1,5 +1,5 @@
 function autodetect()
-    addrs = find_resources(CPU)
+    addrs = remotecall_fetch(()->find_resources(CPU), workers()[1])
     for addr in addrs
         manualadd(addr)
     end
@@ -8,23 +8,30 @@ end
 function manualadd(addr)
     idn = "IDN"
     st = true
-    ct = Controller("", addr)
-    try
-        if occursin("VIRTUAL", addr)
-            idn = split(addr, "::")[end]
+    if occursin("VIRTUAL", addr)
+        idn = split(addr, "::")[end]
+    else
+        idnr = wait_remotecall_fetch(workers()[1], addr) do addr
+            ct = Controller("", addr)
+            try
+                login!(CPU, ct)
+                retstr = ct(query, CPU, "*IDN?", Val(:query))
+                logout!(CPU, ct)
+                return retstr
+            catch e
+                logout!(CPU, ct)
+                @error "[$(now())]\n$(mlstr("instrument communication failed!!!"))" instrument_address = addr exception = e
+            end
+        end
+        if isnothing(idnr)
+            for ins in keys(INSTRBUFFERVIEWERS)
+                ins == "Others" && continue
+                delete!(INSTRBUFFERVIEWERS[ins], addr)
+            end
+            st = false
         else
-            login!(CPU, ct)
-            idn = ct(query, CPU, "*IDN?", Val(:query))
-            logout!(CPU, ct)
+            idn = idnr
         end
-    catch e
-        @error "[$(now())]\n$(mlstr("instrument communication failed!!!"))" instrument_address = addr exception = e
-        logout!(CPU, addr)
-        for ins in keys(INSTRBUFFERVIEWERS)
-            ins == "Others" && continue
-            delete!(INSTRBUFFERVIEWERS[ins], addr)
-        end
-        st = false
     end
     if st
         for (ins, cf) in INSCONF
@@ -41,21 +48,19 @@ end
 function refresh_instrlist()
     if !SYNCSTATES[Int(AutoDetecting)] && !SYNCSTATES[Int(AutoDetectDone)]
         SYNCSTATES[Int(AutoDetecting)] = true
-        remote_do(workers()[1], SYNCSTATES) do SYNCSTATES
-            errormonitor(@async begin
-                try
-                    for ins in keys(INSTRBUFFERVIEWERS)
-                        ins == "VirtualInstr" && continue
-                        empty!(INSTRBUFFERVIEWERS[ins])
-                    end
-                    autodetect()
-                    SYNCSTATES[Int(AutoDetecting)] && (SYNCSTATES[Int(AutoDetectDone)] = true)
-                catch e
-                    SYNCSTATES[Int(AutoDetecting)] && (SYNCSTATES[Int(AutoDetectDone)] = true)
-                    @error mlstr("auto searching failed!!!") exception = e
+        errormonitor(@async begin
+            try
+                for ins in keys(INSTRBUFFERVIEWERS)
+                    ins == "VirtualInstr" && continue
+                    empty!(INSTRBUFFERVIEWERS[ins])
                 end
-            end)
-        end
+                autodetect()
+                SYNCSTATES[Int(AutoDetecting)] && (SYNCSTATES[Int(AutoDetectDone)] = true)
+            catch e
+                SYNCSTATES[Int(AutoDetecting)] && (SYNCSTATES[Int(AutoDetectDone)] = true)
+                @error mlstr("auto searching failed!!!") exception = e
+            end
+        end)
         poll_autodetect()
     end
 end
@@ -65,46 +70,16 @@ function poll_autodetect()
         @async begin
             starttime = time()
             while true
-                if time() - starttime > 180
+                if SYNCSTATES[Int(AutoDetectDone)] || time() - starttime > 180
                     SYNCSTATES[Int(AutoDetecting)] = false
                     SYNCSTATES[Int(AutoDetectDone)] = false
                     break
                 end
-                if SYNCSTATES[Int(AutoDetectDone)]
-                    instrbufferviewers_remote = remotecall_fetch(() -> INSTRBUFFERVIEWERS, workers()[1])
-                    for ins in keys(instrbufferviewers_remote)
-                        ins == "VirtualInstr" && continue
-                        empty!(INSTRBUFFERVIEWERS[ins])
-                        for addr in keys(instrbufferviewers_remote[ins])
-                            push!(INSTRBUFFERVIEWERS[ins], addr => InstrBufferViewer(ins, addr))
-                        end
-                    end
-                    SYNCSTATES[Int(AutoDetecting)] = false
-                    SYNCSTATES[Int(AutoDetectDone)] = false
-                    break
-                else
-                    yield()
-                end
+                sleep(0.001)
+                yield()
             end
         end
     )
-end
-
-function fetch_ibvs(addinstr; manual=false)
-    if !manual
-        remotecall_wait(workers()[1], addinstr) do addinstr
-            delete!(INSTRBUFFERVIEWERS["Others"], addinstr)
-        end
-        delete!(INSTRBUFFERVIEWERS["Others"], addinstr)
-    end
-    instrbufferviewers_remote = remotecall_fetch(() -> INSTRBUFFERVIEWERS, workers()[1])
-    for ins in keys(instrbufferviewers_remote)
-        ins == "VirtualInstr" && continue
-        for addr in keys(instrbufferviewers_remote[ins])
-            haskey(INSTRBUFFERVIEWERS[ins], addr) && continue
-            push!(INSTRBUFFERVIEWERS[ins], addr => InstrBufferViewer(ins, addr))
-        end
-    end
 end
 
 let
@@ -114,8 +89,7 @@ let
     global function manualadd_from_others()
         @c ComBoS("##OthersIns", &addinstr, keys(INSTRBUFFERVIEWERS["Others"]))
         if CImGui.Button(stcstr(MORESTYLE.Icons.NewFile, " ", mlstr("Add"), " "))
-            st = remotecall_fetch(manualadd, workers()[1], addinstr)
-            st && (fetch_ibvs(addinstr); addinstr = "")
+            manualadd(addinstr) && (addinstr = "")
             time_old = time()
         end
         if time() - time_old < 2
@@ -151,8 +125,7 @@ let
                 CImGui.EndPopup()
             end
             if CImGui.Button(stcstr(MORESTYLE.Icons.NewFile, " ", mlstr("Add"), "##manual input addr"))
-                st = remotecall_fetch(manualadd, workers()[1], newinsaddr)
-                st && (fetch_ibvs(newinsaddr; manual=true); newinsaddr = "")
+                manualadd(newinsaddr) && (newinsaddr = "")
                 time_old = time()
             end
             if time() - time_old < 2

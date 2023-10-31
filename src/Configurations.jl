@@ -33,7 +33,7 @@ end
 @option mutable struct OptInsBuf
     showhelp::Bool = false
     showcol::Cint = 3
-    refreshrate::Cfloat = 60
+    refreshrate::Cfloat = 6
     disablelist::Dict{String,Dict{String,Vector{String}}} = Dict()
     unitlist::Dict{String,Dict{String,Dict{String,Int}}} = Dict()
 end

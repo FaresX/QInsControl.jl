@@ -61,7 +61,7 @@ let
             end
             newmsg_updated && (CImGui.SetScrollHereY(1); newmsg_updated = false)
             CImGui.EndChild()
-            @c InputTextMultilineRSZ(mlstr("input"), &buffer, (Cfloat(0), lineheigth))
+            @c InputTextMultilineRSZ("##input cmd", &buffer, (Cfloat(0), lineheigth))
             if CImGui.IsItemHovered() && !CImGui.IsItemActive()
                 if CImGui.IsKeyReleased(igGetKeyIndex(ImGuiKey_UpArrow))
                     move!(historycmd, -1)

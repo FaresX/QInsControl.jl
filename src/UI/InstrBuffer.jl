@@ -214,7 +214,7 @@ function InstrBufferViewer(instrnm, addr)
             qt.enable = qtnm ∉ CONF.InsBuf.disablelist[instrnm][addr]
         end
         if haskey(CONF.InsBuf.unitlist, instrnm) && haskey(CONF.InsBuf.unitlist[instrnm], addr) &&
-            haskey(CONF.InsBuf.unitlist[instrnm][addr], qtnm)
+           haskey(CONF.InsBuf.unitlist[instrnm][addr], qtnm)
             qt.uindex = CONF.InsBuf.unitlist[instrnm][addr][qtnm]
         end
     end
@@ -240,7 +240,7 @@ function edit(ibv::InstrBufferViewer)
     if @c CImGui.Begin(stcstr(INSCONF[ins].conf.icon, "  ", ins, " --- ", addr), &ibv.p_open)
         @c testcmd(ins, addr, &ibv.inputcmd, &ibv.readstr)
         edit(ibv.insbuf, addr)
-        CImGui.IsKeyPressed(294, false) && (manualrefresh(); updatefrontall!())
+        CImGui.IsKeyPressed(294, false) && (refresh1(true); updatefrontall!())
     end
     CImGui.End()
 end
@@ -346,7 +346,7 @@ function testcmd(ins, addr, inputcmd::Ref{String}, readstr::Ref{String})
             if addr != ""
                 errormonitor(
                     @async begin
-                        fetchdata_call = remotecall(workers()[1], ins, addr, inputcmd[]) do ins, addr, inputcmd
+                        fetchdata = wait_remotecall_fetch(workers()[1], ins, addr, inputcmd[]) do ins, addr, inputcmd
                             ct = Controller(ins, addr)
                             try
                                 login!(CPU, ct)
@@ -362,7 +362,6 @@ function testcmd(ins, addr, inputcmd::Ref{String}, readstr::Ref{String})
                                 logout!(CPU, ct)
                             end
                         end
-                        fetchdata = waittofetch(fetchdata_call)
                         isnothing(fetchdata) || (readstr[] = fetchdata)
                     end
                 ) |> wait
@@ -373,7 +372,7 @@ function testcmd(ins, addr, inputcmd::Ref{String}, readstr::Ref{String})
             if addr != ""
                 errormonitor(
                     @async begin
-                        fetchdata_call = remotecall(workers()[1], ins, addr) do ins, addr
+                        fetchdata = wait_remotecall_fetch(workers()[1], ins, addr) do ins, addr
                             ct = Controller(ins, addr)
                             try
                                 login!(CPU, ct)
@@ -389,7 +388,6 @@ function testcmd(ins, addr, inputcmd::Ref{String}, readstr::Ref{String})
                                 logout!(CPU, ct)
                             end
                         end
-                        fetchdata = waittofetch(fetchdata_call)
                         isnothing(fetchdata) || (readstr[] = fetchdata)
                     end
                 ) |> wait
@@ -450,7 +448,7 @@ function edit(insbuf::InstrBuffer, addr)
     if CImGui.BeginPopup(stcstr("rightclick", insbuf.instrnm, addr))
         if CImGui.MenuItem(stcstr(MORESTYLE.Icons.InstrumentsManualRef, " ", mlstr("Manual Refresh")), "F5")
             insbuf.isautorefresh = true
-            manualrefresh()
+            refresh1(true)
             updatefrontall!()
         end
         CImGui.Text(stcstr(MORESTYLE.Icons.InstrumentsAutoRef, " ", mlstr("Auto Refresh")))
@@ -467,7 +465,7 @@ function edit(insbuf::InstrBuffer, addr)
             @c CImGui.DragFloat(
                 "##auto refresh",
                 &CONF.InsBuf.refreshrate,
-                0.1, 0.1, 60, "%.1f",
+                0.01, 0.01, 60, "%.2f",
                 CImGui.ImGuiSliderFlags_AlwaysClamp
             )
             CImGui.PopItemWidth()
@@ -486,7 +484,7 @@ function edit(insbuf::InstrBuffer, addr)
         @c CImGui.Checkbox("##show disabled", &insbuf.showdisable)
         CImGui.EndPopup()
     end
-    CImGui.IsKeyPressed(294, false) && (manualrefresh(); updatefrontall!())
+    CImGui.IsKeyPressed(294, false) && (refresh1(true); updatefrontall!())
 end
 
 let
@@ -751,7 +749,7 @@ function apply!(qt::SweepQuantity, instrnm, addr)
     Us = CONF.U[qt.utype]
     U = isempty(Us) ? "" : Us[qt.uindex]
     U == "" || (Uchange::Float64 = Us[1] isa Unitful.FreeUnits ? ustrip(Us[1], 1U) : 1.0)
-    start_call = remotecall(workers()[1], instrnm, addr) do instrnm, addr
+    start = wait_remotecall_fetch(workers()[1], instrnm, addr) do instrnm, addr
         ct = Controller(instrnm, addr)
         try
             getfunc = Symbol(instrnm, :_, qt.name, :_get) |> eval
@@ -768,7 +766,6 @@ function apply!(qt::SweepQuantity, instrnm, addr)
             logout!(CPU, ct)
         end
     end
-    start = waittofetch(start_call)
     step = @trypasse eval(Meta.parse(qt.step)) * Uchange begin
         @error "[$(now())]\n$(mlstr("error parsing step value!!!"))" step = qt.step
     end
@@ -799,7 +796,7 @@ function apply!(qt::SweepQuantity, instrnm, addr)
                 for sv in sweeplist
                     qt.issweeping || break
                     sleep(qt.delay)
-                    fetchdata_call = remotecall(workers()[1], sv, ct.id) do sv, ctid
+                    fetchdata = wait_remotecall_fetch(workers()[1], sv, ct.id) do sv, ctid
                         try
                             setfunc = Symbol(instrnm, :_, qt.name, :_set) |> eval
                             getfunc = Symbol(instrnm, :_, qt.name, :_get) |> eval
@@ -814,7 +811,6 @@ function apply!(qt::SweepQuantity, instrnm, addr)
                             )
                         end
                     end
-                    fetchdata = waittofetch(fetchdata_call)
                     isnothing(fetchdata) ? break : qt.read = fetchdata
                 end
                 remotecall_wait(workers()[1], ct.id) do ctid
@@ -836,7 +832,7 @@ function apply!(qt::SetQuantity, instrnm, addr)
     sv = U == "" ? qt.set : @trypasse string(float(eval(Meta.parse(qt.set)) * Uchange)) qt.set
     errormonitor(
         @async begin
-            fetchdata_call = remotecall(workers()[1], instrnm, addr, sv) do instrnm, addr, sv
+            fetchdata = wait_remotecall_fetch(workers()[1], instrnm, addr, sv) do instrnm, addr, sv
                 ct = Controller(instrnm, addr)
                 try
                     setfunc = Symbol(instrnm, :_, qt.name, :_set) |> eval
@@ -856,7 +852,6 @@ function apply!(qt::SetQuantity, instrnm, addr)
                     logout!(CPU, ct)
                 end
             end
-            fetchdata = waittofetch(fetchdata_call)
             isnothing(fetchdata) || (qt.read = fetchdata)
         end
     ) |> wait
@@ -891,7 +886,7 @@ function resolveunitlist(qt::AbstractQuantity, instrnm, addr)
 end
 
 function refresh_qt(instrnm, addr, qtnm)
-    fetchdata_call = remotecall(workers()[1], instrnm, addr) do instrnm, addr
+    wait_remotecall_fetch(workers()[1], instrnm, addr) do instrnm, addr
         ct = Controller(instrnm, addr)
         try
             getfunc = Symbol(instrnm, :_, qtnm, :_get) |> eval
@@ -909,70 +904,50 @@ function refresh_qt(instrnm, addr, qtnm)
             logout!(CPU, ct)
         end
     end
-    waittofetch(fetchdata_call)
 end
 
 function log_instrbufferviewers()
-    manualrefresh()
+    refresh1(true)
     push!(CFGBUF, "instrbufferviewers/[$(now())]" => deepcopy(INSTRBUFFERVIEWERS))
 end
 
-function refresh_fetch_ibvs(ibvs_local; log=false)
-    refreshcall_list = []
-    remotecall_wait(workers()[1], ibvs_local) do ibvs_local
+function refresh1(log=false)
+    remotecall_wait(workers()[1]) do
         @isdefined(refreshcts) || (global refreshcts = Dict())
-        empty!(INSTRBUFFERVIEWERS)
-        merge!(INSTRBUFFERVIEWERS, ibvs_local)
     end
-    for ins in keys(ibvs_local)
+    @sync for ins in keys(INSTRBUFFERVIEWERS)
         ins == "Others" && continue
         remotecall_wait(workers()[1], ins) do ins
             haskey(refreshcts, ins) || push!(refreshcts, ins => Dict())
         end
-        for (addr, ibv) in ibvs_local[ins]
-            if ibv.insbuf.isautorefresh || log
-                refresh_call = remotecall(workers()[1], ins, addr, log, CONF.DAQ.logall) do ins, addr, log, logall
+        for (addr, ibv) in INSTRBUFFERVIEWERS[ins]
+            @async if ibv.insbuf.isautorefresh || log
+                remotecall_wait(workers()[1]) do
                     haskey(refreshcts[ins], addr) || push!(refreshcts[ins], addr => Controller(ins, addr))
-                    try
-                        login!(CPU, refreshcts[ins][addr])
-                        for (qtnm, qt) in INSTRBUFFERVIEWERS[ins][addr].insbuf.quantities
-                            if (qt.isautorefresh && qt.enable) || (log && (logall || qt.enable))
+                    login!(CPU, refreshcts[ins][addr])
+                end
+                for (qtnm, qt) in INSTRBUFFERVIEWERS[ins][addr].insbuf.quantities
+                    if (qt.isautorefresh && qt.enable) || (log && (CONF.DAQ.logall || qt.enable))
+                        fetchdata = wait_remotecall_fetch(workers()[1], ins, addr, qtnm) do ins, addr, qtnm
+                            try
                                 getfunc = Symbol(ins, :_, qtnm, :_get) |> eval
-                                qt.read = refreshcts[ins][addr](getfunc, CPU, Val(:read))
-                            elseif !qt.enable
-                                qt.read = ""
+                                refreshcts[ins][addr](getfunc, CPU, Val(:read))
+                            catch e
+                                @error(
+                                    "[$(now())]\n$(mlstr("instrument communication failed!!!"))",
+                                    instrument = string(ins, ": ", addr),
+                                    exception = e
+                                )
                             end
                         end
-                        logout!(CPU, refreshcts[ins][addr])
-                    catch e
-                        @error(
-                            "[$(now())]\n$(mlstr("instrument communication failed!!!"))",
-                            instrument = string(ins, ": ", addr),
-                            exception = e
-                        )
-                        logout!(CPU, refreshcts[ins][addr])
-                        for (_, qt) in INSTRBUFFERVIEWERS[ins][addr].insbuf.quantities
-                            qt.read = ""
-                        end
+                        isnothing(fetchdata) ? (qt.read = ""; break) : qt.read = fetchdata
+                    elseif !qt.enable
+                        qt.read = ""
                     end
                 end
-                push!(refreshcall_list, refresh_call)
-            end
-        end
-    end
-    @sync for rcall in refreshcall_list
-        errormonitor(@async waittofetch(rcall, 36))
-    end
-    remotecall_fetch(() -> INSTRBUFFERVIEWERS, workers()[1])
-end
-
-function manualrefresh()
-    ibvs_remote = refresh_fetch_ibvs(INSTRBUFFERVIEWERS; log=true)
-    for ins in keys(INSTRBUFFERVIEWERS)
-        ins == "Others" && continue
-        for (addr, ibv) in INSTRBUFFERVIEWERS[ins]
-            for (qtnm, qt) in ibv.insbuf.quantities
-                qt.read = ibvs_remote[ins][addr].insbuf.quantities[qtnm].read
+                remotecall_wait(workers()[1]) do 
+                    logout!(CPU, refreshcts[ins][addr])
+                end
             end
         end
     end
@@ -983,24 +958,10 @@ function autorefresh()
         @async while true
             i_sleep = 0
             while i_sleep < CONF.InsBuf.refreshrate
-                sleep(0.1)
-                i_sleep += 0.1
+                sleep(0.01)
+                i_sleep += 0.01
             end
-            if SYNCSTATES[Int(IsAutoRefreshing)]
-                ibvs_remote = refresh_fetch_ibvs(INSTRBUFFERVIEWERS)
-                for ins in keys(INSTRBUFFERVIEWERS)
-                    ins == "Others" && continue
-                    for (addr, ibv) in INSTRBUFFERVIEWERS[ins]
-                        if ibv.insbuf.isautorefresh
-                            for (qtnm, qt) in ibv.insbuf.quantities
-                                if qt.isautorefresh
-                                    qt.read = ibvs_remote[ins][addr].insbuf.quantities[qtnm].read
-                                end
-                            end
-                        end
-                    end
-                end
-            end
+            SYNCSTATES[Int(IsAutoRefreshing)] && refresh1()
         end
     )
 end

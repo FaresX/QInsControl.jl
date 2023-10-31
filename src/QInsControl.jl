@@ -98,43 +98,41 @@ function julia_main()::Cint
         loadconf()
         databuf_c::Channel{Vector{Tuple{String,String}}} = Channel{Vector{NTuple{2,String}}}(CONF.DAQ.channel_size)
         progress_c::Channel{Vector{Tuple{UUID,Int,Int,Float64}}} = Channel{Vector{Tuple{UUID,Int,Int,Float64}}}(CONF.DAQ.channel_size)
-        global SYNCSTATES = SharedVector{Bool}(9)
-        global DATABUFRC = RemoteChannel(() -> databuf_c)
-        global PROGRESSRC = RemoteChannel(() -> progress_c)
-        global LOGIO = IOBuffer()
-        global_logger(SimpleLogger(LOGIO))
-        errormonitor(@async while true
-            sleep(1)
-            update_log()
-        end)
+        # global SYNCSTATES = SharedVector{Bool}(9)
+        # global DATABUFRC = RemoteChannel(() -> databuf_c)
+        # global PROGRESSRC = RemoteChannel(() -> progress_c)
+        # global LOGIO = IOBuffer()
+        # global_logger(SimpleLogger(LOGIO))
+        # errormonitor(@async while true
+        #     sleep(1)
+        #     update_log()
+        # end)
         @info ARGS
         isempty(ARGS) || @info reencoding.(ARGS, CONF.Basic.encoding)
-        uitask = UI()
         jlverinfobuf = IOBuffer()
         versioninfo(jlverinfobuf)
         global JLVERINFO = wrapmultiline(String(take!(jlverinfobuf)), 48)
-        if CONF.Basic.isremote
-            nprocs() == 1 && addprocs(1)
-            @eval @everywhere using QInsControl
-            SYNCSTATES = SharedVector{Bool}(9)
-            DATABUFRC = RemoteChannel(() -> databuf_c)
-            PROGRESSRC = RemoteChannel(() -> progress_c)
-            remotecall_wait(workers()[1], SYNCSTATES) do syncstates
-                loadconf()
-                global LOGIO = IOBuffer()
-                global_logger(SimpleLogger(LOGIO))
-                errormonitor(@async while true
-                    sleep(1)
-                    update_log(syncstates=syncstates)
-                end)
-            end
-            if CONF.Basic.remoteprocessdata && nprocs() == 2
-                ENV["JULIA_NUM_THREADS"] = CONF.Basic.nthreads
-                addprocs(1)
-            end
+        CONF.Basic.isremote && nprocs() == 1 && addprocs(1)
+        @eval @everywhere using QInsControl
+        global SYNCSTATES = SharedVector{Bool}(9)
+        global DATABUFRC = RemoteChannel(() -> databuf_c)
+        global PROGRESSRC = RemoteChannel(() -> progress_c)
+        synccall_wait(workers()[1], SYNCSTATES) do syncstates
+            myid() == 1 || loadconf()
+            # global LOGIO = IOBuffer()
+            # global_logger(SimpleLogger(LOGIO))
+            # errormonitor(@async while true
+            #     sleep(1)
+            #     myid() == 1 ? update_log() : update_log(syncstates=syncstates)
+            # end)
         end
+        uitask = UI()
         remotecall_wait(() -> start!(CPU), workers()[1])
         autorefresh()
+        if CONF.Basic.remoteprocessdata && nprocs() == 2
+            ENV["JULIA_NUM_THREADS"] = CONF.Basic.nthreads
+            addprocs(1)
+        end
         @info "[$(now())]\n$(mlstr("successfully started!"))"
         if !isinteractive()
             wait(uitask)
