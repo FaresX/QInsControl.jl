@@ -40,21 +40,21 @@ function loadconf()
         bnm = basename(file)
         split(bnm, '.')[end] == "toml" && gen_insconf(file)
     end
-
-    ###### generate INSTRBUFFERVIEWERS ######
-    for key in keys(INSCONF)
-        push!(INSTRBUFFERVIEWERS, key => Dict{String,InstrBufferViewer}())
-    end
-    push!(INSTRBUFFERVIEWERS, "VirtualInstr" => Dict("VirtualAddress" => InstrBufferViewer("VirtualInstr", "VirtualAddress")))
-
-    ###### load style_conf ######
-    for file in readdir(CONF.Style.dir, join=true)
-        bnm = basename(file)
-        split(bnm, '.')[end] == "sty" && merge!(STYLES, load(file))
-    end
-
-    ##### save conf.toml ######
+    
     if myid() == 1
+        ###### generate INSTRBUFFERVIEWERS ######
+        for key in keys(INSCONF)
+            push!(INSTRBUFFERVIEWERS, key => Dict{String,InstrBufferViewer}())
+        end
+        push!(INSTRBUFFERVIEWERS, "VirtualInstr" => Dict("VirtualAddress" => InstrBufferViewer("VirtualInstr", "VirtualAddress")))
+
+        ###### load style_conf ######
+        for file in readdir(CONF.Style.dir, join=true)
+            bnm = basename(file)
+            split(bnm, '.')[end] == "sty" && merge!(STYLES, load(file))
+        end
+
+        ##### save conf.toml ######
         svconf = deepcopy(CONF)
         svconf.U = Dict(up.first => string.(up.second) for up in CONF.U)
         to_toml(joinpath(ENV["QInsControlAssets"], "Necessity/conf.toml"), svconf)

@@ -53,7 +53,7 @@ let
     end
 end
 
-function update_log(; syncstates=SYNCSTATES)
+function update_log(syncstates=SYNCSTATES)
     date = today()
     logdir = joinpath(CONF.Logs.dir, string(year(date)), string(year(date), "-", month(date)))
     isdir(logdir) || mkpath(logdir)
