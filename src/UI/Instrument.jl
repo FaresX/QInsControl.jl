@@ -89,7 +89,8 @@ let
     global function manualadd_from_others()
         @c ComBoS("##OthersIns", &addinstr, keys(INSTRBUFFERVIEWERS["Others"]))
         if CImGui.Button(stcstr(MORESTYLE.Icons.NewFile, " ", mlstr("Add"), " "))
-            manualadd(addinstr) && (addinstr = "")
+            st = manualadd(addinstr)
+            st && (addinstr = "")
             time_old = time()
         end
         if time() - time_old < 2
@@ -125,7 +126,8 @@ let
                 CImGui.EndPopup()
             end
             if CImGui.Button(stcstr(MORESTYLE.Icons.NewFile, " ", mlstr("Add"), "##manual input addr"))
-                manualadd(newinsaddr) && (newinsaddr = "")
+                st = manualadd(newinsaddr)
+                st && (newinsaddr = "")
                 time_old = time()
             end
             if time() - time_old < 2
