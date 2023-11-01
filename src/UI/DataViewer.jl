@@ -29,15 +29,30 @@ function edit(dtviewer::DataViewer, filetree::FileTree, isrename::Dict{String,Bo
                 dtviewer.data = @trypasse load(filetree.selectedpath[]) Dict()
                 datakeys = keys(dtviewer.data)
                 "dataplot" in datakeys ? (dtviewer.dtp = @trypasse dtviewer.data["dataplot"] dtviewer.dtp) : combotodataplot(dtviewer)
-                if !isempty(dtviewer.data) && haskey(dtviewer.data, "circuit")
-                    for (_, node) in dtviewer.data["circuit"].nodes
-                        if node isa SampleBaseNode
-                            try
-                                imgsize = size(node.imgr.image)
-                                node.imgr.id = ImGui_ImplOpenGL3_CreateImageTexture(imgsize...)
-                                ImGui_ImplOpenGL3_UpdateImageTexture(node.imgr.id, node.imgr.image, imgsize...)
-                            catch e
-                                @error "[$(now())]\n$(mlstr("loading image failed!!!"))" exception = e
+                if !isempty(dtviewer.data)
+                    if haskey(dtviewer.data, "circuit")
+                        for (_, node) in dtviewer.data["circuit"].nodes
+                            if node isa SampleBaseNode
+                                try
+                                    imgsize = size(node.imgr.image)
+                                    node.imgr.id = ImGui_ImplOpenGL3_CreateImageTexture(imgsize...)
+                                    ImGui_ImplOpenGL3_UpdateImageTexture(node.imgr.id, node.imgr.image, imgsize...)
+                                catch e
+                                    @error "[$(now())]\n$(mlstr("loading image failed!!!"))" exception = e
+                                end
+                            end
+                        end
+                    end
+                    if haskey(dtviewer.data, "revision")
+                        for (_, node) in dtviewer.data["revision"]["circuit"].nodes
+                            if node isa SampleBaseNode
+                                try
+                                    imgsize = size(node.imgr.image)
+                                    node.imgr.id = ImGui_ImplOpenGL3_CreateImageTexture(imgsize...)
+                                    ImGui_ImplOpenGL3_UpdateImageTexture(node.imgr.id, node.imgr.image, imgsize...)
+                                catch e
+                                    @error "[$(now())]\n$(mlstr("loading image failed!!!"))" exception = e
+                                end
                             end
                         end
                     end
