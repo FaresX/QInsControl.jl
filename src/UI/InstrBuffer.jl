@@ -110,13 +110,14 @@ end
 
 function updatefront!(qt::SweepQuantity)
     val, U = getvalU(qt)
-    content = string(
-        qt.alias,
-        "\n", mlstr("step"), ": ", qt.step, " ", U,
-        "\n", mlstr("stop"), ": ", qt.stop, " ", U,
-        "\n", mlstr("delay"), ": ", qt.delay, " s\n",
-        val, " ", U
-    ) |> centermultiline
+    # content = string(
+    #     qt.alias,
+    #     "\n", mlstr("step"), ": ", qt.step, " ", U,
+    #     "\n", mlstr("stop"), ": ", qt.stop, " ", U,
+    #     "\n", mlstr("delay"), ": ", qt.delay, " s\n",
+    #     val, " ", U
+    # ) |> centermultiline
+    content = string("\n", qt.alias, "\n \n", val, " ", U, "\n ") |> centermultiline
     qt.show_edit = string(content, "###for refresh")
 end
 
@@ -126,19 +127,20 @@ function updatefront!(qt::SetQuantity)
         validx = findfirst(==(val), qt.optvalues)
         val = string(qt.optkeys[validx], " => ", qt.optvalues[validx])
     end
-    content = string(
-        qt.alias,
-        "\n \n",
-        mlstr("set value"), ": ", qt.set, " ", U,
-        "\n \n",
-        val, " ", U
-    ) |> centermultiline
+    # content = string(
+    #     qt.alias,
+    #     "\n \n",
+    #     mlstr("set value"), ": ", qt.set, " ", U,
+    #     "\n \n",
+    #     val, " ", U
+    # ) |> centermultiline
+    content = string("\n", qt.alias, "\n \n", val, " ", U, "\n ") |> centermultiline
     qt.show_edit = string(content, "###for refresh")
 end
 
 function updatefront!(qt::ReadQuantity)
     val, U = getvalU(qt)
-    content = string(qt.alias, "\n \n \n", val, " ", U, "\n ") |> centermultiline
+    content = string("\n", qt.alias, "\n \n", val, " ", U, "\n ") |> centermultiline
     qt.show_edit = string(content, "###for refresh")
 end
 
@@ -170,7 +172,7 @@ function InstrBuffer(instrnm)
     sweepqts = [qt for qt in keys(INSCONF[instrnm].quantities) if INSCONF[instrnm].quantities[qt].type == "sweep"]
     setqts = [qt for qt in keys(INSCONF[instrnm].quantities) if INSCONF[instrnm].quantities[qt].type == "set"]
     readqts = [qt for qt in keys(INSCONF[instrnm].quantities) if INSCONF[instrnm].quantities[qt].type == "read"]
-    quantities = [sweepqts; setqts; readqts]
+    quantities = [readqts; sweepqts; setqts]
     instrqts = OrderedDict()
     for qt in quantities
         alias = INSCONF[instrnm].quantities[qt].alias
@@ -497,12 +499,13 @@ let
                 if qt.isautorefresh || qt.issweeping
                     MORESTYLE.Colors.DAQTaskRunning
                 else
-                    CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_Button)
+                    MORESTYLE.Colors.SweepQuantityBt
                 end
             else
                 MORESTYLE.Colors.LogError
             end
         )
+        CImGui.PushStyleColor(CImGui.ImGuiCol_Text, MORESTYLE.Colors.SweepQuantityTxt)
         CImGui.PushStyleColor(
             CImGui.ImGuiCol_ButtonHovered,
             if qt.isautorefresh || qt.issweeping
@@ -512,6 +515,7 @@ let
             end
         )
         qt.show_edit == "" && updatefront!(qt)
+        CImGui.PushFont(PLOTFONT)
         if CImGui.Button(qt.show_edit, (-1, 0))
             if qt.enable && addr != ""
                 fetchdata = refresh_qt(instrnm, addr, qt.name)
@@ -519,7 +523,8 @@ let
                 updatefront!(qt)
             end
         end
-        CImGui.PopStyleColor(2)
+        CImGui.PopFont()
+        CImGui.PopStyleColor(3)
         if CONF.InsBuf.showhelp && CImGui.IsItemHovered() && qt.help != ""
             ItemTooltip(qt.help)
         end
@@ -574,16 +579,18 @@ let
         CImGui.PushStyleColor(
             CImGui.ImGuiCol_Button,
             if qt.enable
-                qt.isautorefresh ? MORESTYLE.Colors.DAQTaskRunning : CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_Button)
+                qt.isautorefresh ? MORESTYLE.Colors.DAQTaskRunning : MORESTYLE.Colors.SetQuantityBt
             else
                 MORESTYLE.Colors.LogError
             end
         )
+        CImGui.PushStyleColor(CImGui.ImGuiCol_Text, MORESTYLE.Colors.SetQuantityTxt)
         CImGui.PushStyleColor(
             CImGui.ImGuiCol_ButtonHovered,
             qt.isautorefresh ? MORESTYLE.Colors.DAQTaskRunning : CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_ButtonHovered)
         )
         qt.show_edit == "" && updatefront!(qt)
+        CImGui.PushFont(PLOTFONT)
         if CImGui.Button(qt.show_edit, (-1, 0))
             if qt.enable && addr != ""
                 fetchdata = refresh_qt(instrnm, addr, qt.name)
@@ -591,7 +598,8 @@ let
                 updatefront!(qt)
             end
         end
-        CImGui.PopStyleColor(2)
+        CImGui.PopFont()
+        CImGui.PopStyleColor(3)
         if CONF.InsBuf.showhelp && CImGui.IsItemHovered() && qt.help != ""
             ItemTooltip(qt.help)
         end
@@ -662,16 +670,18 @@ let
         CImGui.PushStyleColor(
             CImGui.ImGuiCol_Button,
             if qt.enable
-                qt.isautorefresh ? MORESTYLE.Colors.DAQTaskRunning : CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_Button)
+                qt.isautorefresh ? MORESTYLE.Colors.DAQTaskRunning : MORESTYLE.Colors.ReadQuantityBt
             else
                 MORESTYLE.Colors.LogError
             end
         )
+        CImGui.PushStyleColor(CImGui.ImGuiCol_Text, MORESTYLE.Colors.ReadQuantityTxt)
         CImGui.PushStyleColor(
             CImGui.ImGuiCol_ButtonHovered,
             qt.isautorefresh ? MORESTYLE.Colors.DAQTaskRunning : CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_ButtonHovered)
         )
         qt.show_edit == "" && updatefront!(qt)
+        CImGui.PushFont(PLOTFONT)
         if CImGui.Button(qt.show_edit, (-1, 0))
             if qt.enable && addr != ""
                 fetchdata = refresh_qt(instrnm, addr, qt.name)
@@ -679,7 +689,8 @@ let
                 updatefront!(qt)
             end
         end
-        CImGui.PopStyleColor(2)
+        CImGui.PopFont()
+        CImGui.PopStyleColor(3)
         if CONF.InsBuf.showhelp && CImGui.IsItemHovered() && qt.help != ""
             ItemTooltip(qt.help)
         end

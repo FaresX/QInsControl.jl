@@ -3,6 +3,12 @@ Base.@kwdef mutable struct MoreStyleColor
     LogInfo::Vector{Cfloat} = [0.000, 0.855, 1.000, 1.000]
     LogError::Vector{Cfloat} = [1.000, 0.000, 0.000, 1.000]
     LogWarn::Vector{Cfloat} = [1.000, 1.000, 0.000, 1.000]
+    SweepQuantityBt::Vector{Cfloat} = [0.000, 1.000, 1.000, 0.400]
+    SetQuantityBt::Vector{Cfloat} = [0.000, 1.000, 1.000, 0.400]
+    ReadQuantityBt::Vector{Cfloat} = [0.000, 1.000, 1.000, 0.400]
+    SweepQuantityTxt::Vector{Cfloat} = [1.000, 0.000, 0.000, 1.000]
+    SetQuantityTxt::Vector{Cfloat} = [0.000, 1.000, 0.000, 1.000]
+    ReadQuantityTxt::Vector{Cfloat} = [0.000, 0.000, 1.000, 1.000]
     StrideCodeBlockBorder::Vector{Cfloat} = [1.000, 0.000, 0.680, 1.000]
     SweepBlockBorder::Vector{Cfloat} = [1.000, 0.750, 0.000, 1.000]
     BlockAsyncBorder::Vector{Cfloat} = [0.000, 1.000, 0.000, 0.600]
@@ -303,16 +309,16 @@ let
     icons_filter::String = ""
     icon_to_clipboard::String = ""
     global function ShowStyleEditor(style_ref::MoreStyle)
-        global morestyle
+        global MORESTYLE
         if CImGui.Button("Save Ref")
             for var in fieldnames(MoreStyle)
-                setproperty!(style_ref, var, deepcopy(getproperty(morestyle, var)))
+                setproperty!(style_ref, var, deepcopy(getproperty(MORESTYLE, var)))
             end
         end
         CImGui.SameLine()
         if CImGui.Button("Revert Ref")
             for var in fieldnames(MoreStyle)
-                setproperty!(morestyle, var, deepcopy(getproperty(style_ref, var)))
+                setproperty!(MORESTYLE, var, deepcopy(getproperty(style_ref, var)))
             end
         end
         CImGui.SameLine()
