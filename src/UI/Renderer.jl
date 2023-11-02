@@ -89,6 +89,7 @@ function UI(breakdown=false; precompile=false)
         ImFontAtlas_GetGlyphRangesChineseFull(fonts)
     )
     fontcfg = ImFontConfig_ImFontConfig()
+    fontcfg.OversampleH = fontcfg.OversampleV = 1
     fontcfg.MergeMode = true
     CImGui.AddFontFromFileTTF(fonts, joinpath(CONF.Fonts.dir, CONF.Fonts.second), CONF.Fonts.size, fontcfg, r[1].Data)
 
