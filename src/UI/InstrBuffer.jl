@@ -515,7 +515,7 @@ let
             end
         )
         qt.show_edit == "" && updatefront!(qt)
-        CImGui.PushFont(PLOTFONT)
+        # CImGui.PushFont(PLOTFONT)
         if CImGui.Button(qt.show_edit, (-1, 0))
             if qt.enable && addr != ""
                 fetchdata = refresh_qt(instrnm, addr, qt.name)
@@ -523,7 +523,7 @@ let
                 updatefront!(qt)
             end
         end
-        CImGui.PopFont()
+        # CImGui.PopFont()
         CImGui.PopStyleColor(3)
         if CONF.InsBuf.showhelp && CImGui.IsItemHovered() && qt.help != ""
             ItemTooltip(qt.help)
@@ -590,7 +590,7 @@ let
             qt.isautorefresh ? MORESTYLE.Colors.DAQTaskRunning : CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_ButtonHovered)
         )
         qt.show_edit == "" && updatefront!(qt)
-        CImGui.PushFont(PLOTFONT)
+        # CImGui.PushFont(PLOTFONT)
         if CImGui.Button(qt.show_edit, (-1, 0))
             if qt.enable && addr != ""
                 fetchdata = refresh_qt(instrnm, addr, qt.name)
@@ -598,7 +598,7 @@ let
                 updatefront!(qt)
             end
         end
-        CImGui.PopFont()
+        # CImGui.PopFont()
         CImGui.PopStyleColor(3)
         if CONF.InsBuf.showhelp && CImGui.IsItemHovered() && qt.help != ""
             ItemTooltip(qt.help)
@@ -681,7 +681,7 @@ let
             qt.isautorefresh ? MORESTYLE.Colors.DAQTaskRunning : CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_ButtonHovered)
         )
         qt.show_edit == "" && updatefront!(qt)
-        CImGui.PushFont(PLOTFONT)
+        # CImGui.PushFont(PLOTFONT)
         if CImGui.Button(qt.show_edit, (-1, 0))
             if qt.enable && addr != ""
                 fetchdata = refresh_qt(instrnm, addr, qt.name)
@@ -689,7 +689,7 @@ let
                 updatefront!(qt)
             end
         end
-        CImGui.PopFont()
+        # CImGui.PopFont()
         CImGui.PopStyleColor(3)
         if CONF.InsBuf.showhelp && CImGui.IsItemHovered() && qt.help != ""
             ItemTooltip(qt.help)
