@@ -223,3 +223,5 @@ function RenameSelectable(str_id, isrename::Ref{Bool}, label::Ref, selected::Boo
     end
     trig
 end
+
+# function ColoredButton(label::AbstractString, colbt, coltxt=)

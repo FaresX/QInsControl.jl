@@ -62,7 +62,7 @@ include("StaticString.jl")
 include("Utilities.jl")
 
 include("UI/Block.jl")
-include("UI/CombinedWidgets.jl")
+include("UI/CustomWidgets.jl")
 include("UI/DAQTask.jl")
 include("UI/FileTree.jl")
 include("UI/IconsFontAwesome6.jl")
