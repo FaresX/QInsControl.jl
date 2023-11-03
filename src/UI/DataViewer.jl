@@ -186,7 +186,6 @@ function edit(dtviewer::DataViewer, filetree::FileTree, isrename::Dict{String,Bo
                 end
                 CImGui.EndTabItem()
             end
-            haskey(dtviewer.data, "data") && CONF.DAQ.freelayout && renderplots(dtviewer.dtp, stcstr("plot file", id))
             CImGui.PushStyleColor(
                 CImGui.ImGuiCol_Tab,
                 if haskey(dtviewer.data, "revision")
@@ -235,6 +234,9 @@ function edit(dtviewer::DataViewer, filetree::FileTree, isrename::Dict{String,Bo
         haskey(dtviewer.data, "data") && showdtpks(dtviewer.dtp, stcstr("DataViewer", id), dtviewer.data["data"])
     end
     CImGui.End()
+    if dtviewer.p_open[] && haskey(dtviewer.data, "data")
+        CONF.DAQ.freelayout && renderplots(dtviewer.dtp, stcstr("plot file", id))
+    end
 end
 
 function saveqdt(dtviewer::DataViewer, filetree::FileTree)

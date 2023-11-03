@@ -344,9 +344,9 @@ let
             end
 
             CONF.DAQ.freelayout || CImGui.NextColumn()
-            renderplots(DAQDATAPLOT, "DAQ")
         end
         CImGui.End()
+        p_open[] && renderplots(DAQDATAPLOT, "DAQ")
     end
 
     function saveproject(daqsvpath="")
