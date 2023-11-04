@@ -323,6 +323,10 @@ let
             end
             bottombtsz += CImGui.GetItemRectSize().x
 
+            CONF.DAQ.freelayout || CImGui.NextColumn()
+        end
+        CImGui.End()
+        if p_open[]
             for i in DAQDATAPLOT.layout.selectedidx
                 if DAQDATAPLOT.dtpks[i].isrealtime && waittime(stcstr("DAQ", i), DAQDATAPLOT.dtpks[i].refreshrate)
                     if DAQDATAPLOT.linkidx[i] == 0
@@ -342,11 +346,8 @@ let
                     end
                 end
             end
-
-            CONF.DAQ.freelayout || CImGui.NextColumn()
+            renderplots(DAQDATAPLOT, "DAQ")
         end
-        CImGui.End()
-        p_open[] && renderplots(DAQDATAPLOT, "DAQ")
     end
 
     function saveproject(daqsvpath="")

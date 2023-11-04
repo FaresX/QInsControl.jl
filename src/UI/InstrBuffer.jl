@@ -493,18 +493,6 @@ let
     stbtsz::Float32 = 0
     closepopup::Bool = false
     global function edit(qt::SweepQuantity, instrnm, addr)
-        CImGui.PushStyleColor(
-            CImGui.ImGuiCol_Button,
-            if qt.enable
-                if qt.isautorefresh || qt.issweeping
-                    MORESTYLE.Colors.DAQTaskRunning
-                else
-                    MORESTYLE.Colors.SweepQuantityBt
-                end
-            else
-                MORESTYLE.Colors.LogError
-            end
-        )
         CImGui.PushStyleColor(CImGui.ImGuiCol_Text, MORESTYLE.Colors.SweepQuantityTxt)
         CImGui.PushStyleColor(
             CImGui.ImGuiCol_ButtonHovered,
@@ -516,7 +504,19 @@ let
         )
         qt.show_edit == "" && updatefront!(qt)
         # CImGui.PushFont(PLOTFONT)
-        if CImGui.Button(qt.show_edit, (-1, 0))
+        if ColoredButton(
+            qt.show_edit,
+            (-1, 0),
+            if qt.enable
+                if qt.isautorefresh || qt.issweeping
+                    MORESTYLE.Colors.DAQTaskRunning
+                else
+                    MORESTYLE.Colors.SweepQuantityBt
+                end
+            else
+                MORESTYLE.Colors.LogError
+            end
+        )
             if qt.enable && addr != ""
                 fetchdata = refresh_qt(instrnm, addr, qt.name)
                 isnothing(fetchdata) || (qt.read = fetchdata)
@@ -524,7 +524,7 @@ let
             end
         end
         # CImGui.PopFont()
-        CImGui.PopStyleColor(3)
+        CImGui.PopStyleColor(2)
         if CONF.InsBuf.showhelp && CImGui.IsItemHovered() && qt.help != ""
             ItemTooltip(qt.help)
         end
@@ -576,14 +576,6 @@ let
     popup_now::Bool = false
     closepopup::Bool = false
     global function edit(qt::SetQuantity, instrnm, addr)
-        CImGui.PushStyleColor(
-            CImGui.ImGuiCol_Button,
-            if qt.enable
-                qt.isautorefresh ? MORESTYLE.Colors.DAQTaskRunning : MORESTYLE.Colors.SetQuantityBt
-            else
-                MORESTYLE.Colors.LogError
-            end
-        )
         CImGui.PushStyleColor(CImGui.ImGuiCol_Text, MORESTYLE.Colors.SetQuantityTxt)
         CImGui.PushStyleColor(
             CImGui.ImGuiCol_ButtonHovered,
@@ -591,7 +583,15 @@ let
         )
         qt.show_edit == "" && updatefront!(qt)
         # CImGui.PushFont(PLOTFONT)
-        if CImGui.Button(qt.show_edit, (-1, 0))
+        if ColoredButton(
+            qt.show_edit,
+            (-1, 0),
+            if qt.enable
+                qt.isautorefresh ? MORESTYLE.Colors.DAQTaskRunning : MORESTYLE.Colors.SetQuantityBt
+            else
+                MORESTYLE.Colors.LogError
+            end
+        )
             if qt.enable && addr != ""
                 fetchdata = refresh_qt(instrnm, addr, qt.name)
                 isnothing(fetchdata) || (qt.read = fetchdata)
@@ -599,7 +599,7 @@ let
             end
         end
         # CImGui.PopFont()
-        CImGui.PopStyleColor(3)
+        CImGui.PopStyleColor(2)
         if CONF.InsBuf.showhelp && CImGui.IsItemHovered() && qt.help != ""
             ItemTooltip(qt.help)
         end
@@ -667,14 +667,6 @@ end
 let
     refbtsz::Float32 = 0
     global function edit(qt::ReadQuantity, instrnm, addr)
-        CImGui.PushStyleColor(
-            CImGui.ImGuiCol_Button,
-            if qt.enable
-                qt.isautorefresh ? MORESTYLE.Colors.DAQTaskRunning : MORESTYLE.Colors.ReadQuantityBt
-            else
-                MORESTYLE.Colors.LogError
-            end
-        )
         CImGui.PushStyleColor(CImGui.ImGuiCol_Text, MORESTYLE.Colors.ReadQuantityTxt)
         CImGui.PushStyleColor(
             CImGui.ImGuiCol_ButtonHovered,
@@ -682,7 +674,15 @@ let
         )
         qt.show_edit == "" && updatefront!(qt)
         # CImGui.PushFont(PLOTFONT)
-        if CImGui.Button(qt.show_edit, (-1, 0))
+        if ColoredButton(
+            qt.show_edit,
+            (-1, 0),
+            if qt.enable
+                qt.isautorefresh ? MORESTYLE.Colors.DAQTaskRunning : MORESTYLE.Colors.ReadQuantityBt
+            else
+                MORESTYLE.Colors.LogError
+            end
+        )
             if qt.enable && addr != ""
                 fetchdata = refresh_qt(instrnm, addr, qt.name)
                 isnothing(fetchdata) || (qt.read = fetchdata)
@@ -690,7 +690,7 @@ let
             end
         end
         # CImGui.PopFont()
-        CImGui.PopStyleColor(3)
+        CImGui.PopStyleColor(2)
         if CONF.InsBuf.showhelp && CImGui.IsItemHovered() && qt.help != ""
             ItemTooltip(qt.help)
         end

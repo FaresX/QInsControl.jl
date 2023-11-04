@@ -24,6 +24,8 @@ Base.@kwdef mutable struct MoreStyleColor
     ImagePinHoveredout::Vector{Cfloat} = [0.000, 0.000, 1.000, 1.000]
     ImagePinDragging::Vector{Cfloat} = [1.000, 0.000, 0.000, 1.000]
     ImagePinLinkId::Vector{Cfloat} = [1.000, 1.000, 1.000, 1.000]
+    ToggleButtonOn::Vector{Cfloat} = [0.000, 1.000, 0.000, 1.000]
+    ToggleButtonOff::Vector{Cfloat} = [0.600, 0.600, 0.600, 1.000]
 end
 
 Base.@kwdef mutable struct MoreStyleIcon

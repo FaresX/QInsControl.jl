@@ -224,4 +224,34 @@ function RenameSelectable(str_id, isrename::Ref{Bool}, label::Ref, selected::Boo
     trig
 end
 
-# function ColoredButton(label::AbstractString, colbt, coltxt=)
+function ColoredButton(label::AbstractString, size=(0, 0), colbt=CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_Button))
+    CImGui.PushStyleColor(CImGui.ImGuiCol_Button, colbt)
+    clicked = CImGui.Button(label, size)
+    CImGui.PopStyleColor()
+    return clicked
+end
+
+function SquareButton(label::AbstractString, size=0, colbt=CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_Button))
+end
+
+function CircleButton(label::AbstractString, size=0, colbt=CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_Button))
+end
+
+function ToggleButton(
+    label::AbstractString,
+    v::Ref{Bool},
+    size=(0, 0),
+    colon=MORESTYLE.Colors.ToggleButtonOn,
+    coloff=MORESTYLE.Colors.ToggleButtonOff;
+    shape=:rectangle
+)
+    toggled = if shape == :square
+        SquareButton(label, size, v[] ? colon : coloff)
+    elseif shape == :circle
+        CircleButton(label, size, v[] ? colon : coloff)
+    else
+        ColoredButton(label, v[] ? colon : coloff, size)
+    end
+    toggled && (v[] ⊻= true)
+    return toggled
+end
