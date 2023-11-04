@@ -1,23 +1,36 @@
 @option mutable struct QuantityControlOption
+    uitype::String
     textcolor::Vector{Cfloat} = [1.000, 1.000, 1.000, 1.000]
 end
 
-@option mutable struct QuantityControl
-    qtname::String = ""
-    type::String = ""
+abstract type AbstractQuantityControl end
+
+@option struct NullQuantityControl <: AbstractQuantityControl end
+
+@option mutable struct SweepQuantityControl <: AbstractQuantityControl
+    name::String = ""
+    options::QuantityControlOption = QuantityControlOption()
+end
+
+@option mutable struct SetQuantityControl <: AbstractQuantityControl
+    name::String = ""
+    options::QuantityControlOption = QuantityControlOption()
+end
+
+@option mutable struct ReadQuantityControl <: AbstractQuantityControl
+    name::String = ""
     options::QuantityControlOption = QuantityControlOption()
 end
 
 @option mutable struct InstrControl
-    qtctls::Vector{QuantityControl} = []
+    instrnm::String
+    cols::Cint = 1
+    qtctls::Vector{AbstractQuantityControl} = []
 end
 
-renderqt(qt::AbstractQuantity, instrnm, addr, type=:button) = renderqt(qt, instrnm, addr, Val(type))
+edit(::NullQuantityControl, _, _) = CImGui.Text("")
 
-function renderqt(
-    qt::SweepQuantity, instrnm, addr, ::Val{:button};
-    option=Dict()
-)
+function edit(qt::SweepQuantityControl, instrnm, addr)
     CImGui.TextColored(options["textcolor"], qt.read)
     @c InputTextWithHintRSZ("##step", mlstr("step"), &qt.step)
     @c InputTextWithHintRSZ("##stop", mlstr("stop"), &qt.stop)
@@ -29,61 +42,55 @@ function renderqt(
     end
 end
 
-function renderqt(
-    qt::SetQuantity, instrnm, addr ::Val{:combo};
-    option=Dict()
-)
-    presentv = qt.optkeys[qt.optedidx]
-    if @c ComBoS(qt.alias, &presentv, qt.optkeys)
-        qt.optedidx = findfirst(==(presentv), qt.optkeys)
-        qt.set = qt.optvalues[qt.optedidx]
-        apply!(qt, instrnm, addr)
+function edit(qt::SetQuantityControl, instrnm, addr)
+    if qt.options.uitype == "combo"
+        presentv = qt.optkeys[qt.optedidx]
+        if @c ComBoS(qt.alias, &presentv, qt.optkeys)
+            qt.optedidx = findfirst(==(presentv), qt.optkeys)
+            qt.set = qt.optvalues[qt.optedidx]
+            apply!(qt, instrnm, addr)
+        end
+    elseif qt.options.uitype == "toggle"
+        ison = qt.read == qt.optvalues[1]
+        if @c ToggleButton(ison ? qt.optkeys[1] : qt.optkeys[2], &ison)
+            qt.optedidx = ison ? 1 : 2
+            qt.set = qt.optvalues[qt.optedidx]
+            apply!(qt, instrnm, addr)
+        end
     end
 end
 
-function renderqt(
-    qt::SetQuantity, instrnm, addr ::Val{:togglebutton};
-    option=Dict()
-)
-    ison = qt.read == qt.optvalues[1]
-    if @c ToggleButton(ison ? qt.optkeys[1] : qt.optkeys[2], &ison)
-        qt.optedidx = ison ? 1 : 2
-        qt.set = qt.optvalues[qt.optedidx]
-        apply!(qt, instrnm, addr)
-    end
+function edit(qt::ReadQuantityControl, _, _)
+    CImGui.TextColored(qt.options.textcolor, qt.read)
 end
 
-function renderqt(
-    qt::ReadQuantity, ::Val{:text};
-    option=Dict("textcolor" => CImGui.c_get!(IMGUISTYLE.Colors, CImGui.ImGuiCol_Text))
-)
-    CImGui.TextColored(option["textcolor"], qt.read)
-end
-
-function renderquantities(qts::Matrix{AbstractQuantity}, types::Matrix{Symbol}, options, instrnm, addr; editmode=false)
-    isequalsize = size(qts) == size(types)
-    if !isequalsize
-        resizets = similar(types, size(qts)...)
-        trow, tcol = size(types)
-        @views resizets[1:trow,1:tcol] = types
-    end
-    CImGui.Columns(size(qts, 2))
-    for (i, qt) in enumerate(qts)
-        renderqt(qt, instrnm, addr, isequalsize ? types[i] : resizets[i])
+function edit(insctl::InstrControl, addr)
+    CImGui.Columns(insctl.cols)
+    for qt in insctl.qtctls
+        edit(qt, insctl.instrnm, addr)
         CImGui.NextColumn()
     end
 end
 
-function renderquantities(qts::Matrix{AbstractString}, types::Matrix{AbstractString}, options, instrnm, addr; editmode=false)
-    toqts = (qt -> get!(INSCONF[instrnm].quantities, qt.name, "null")).(qts)
-    totypes = Symbol.(types)
-    renderquantities(toqts, totypes, options, instrnm, addr; editmode=editmode)
+function modify(qt::AbstractQuantityControl)
+    CImGui.Button(qt.name)
+    if CImGui.BeginPopupContextItem()
+        CImGui.EndPopup()
+    end
 end
 
-function ShowInstrWidget(
-    p_open, qts::Matrix{AbstractQuantity}, types::Matrix{Symbol}, options, instrnm, addr, widgetnm="widget";
-    editmode=false)
-    if CImGui.Begin(widgetnm, p_open)
+mutable struct InstrControlViewer
+    instrnm::String
+    addr::String
+    p_open::Bool
+    insctl::InstrControl
+end
+
+function ShowInstrWidget(icv::InstrControlViewer)
+    CImGui.SetNextWindowSize((800, 600), CImGui.ImGuiCond_Once)
+    ins, addr = icv.instrnm, icv.addr
+    if @c CImGui.Begin(stcstr(INSCONF[ins].conf.icon, "  ", ins, " --- ", addr), &icv.p_open)
+        edit(icv.insctl, addr)
     end
     CImGui.End()
 end
