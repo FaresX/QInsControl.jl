@@ -62,6 +62,7 @@ end
     dir::String = ""
     refreshrate::Cfloat = 60
     showlogline::Cint = 600
+    showloglength::Cint = 1000
 end
 
 @option mutable struct OptBGImage
