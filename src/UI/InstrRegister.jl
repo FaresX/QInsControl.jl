@@ -21,7 +21,11 @@ let
         end
         CImGui.SameLine()
         if CImGui.Button(MORESTYLE.Icons.InstrumentsManualRef)
-            remotecall_wait(include, workers()[1], joinpath(ENV["QInsControlAssets"], "ExtraLoad/extraload.jl"))
+            try
+                remotecall_wait(include, workers()[1], joinpath(ENV["QInsControlAssets"], "ExtraLoad/extraload.jl"))
+            catch e
+                @error "reloading failed" exception=e
+            end
         end
         # optkeys = join(qtcf.optkeys, "\n")
         # optvalues = join(qtcf.optvalues, "\n")
