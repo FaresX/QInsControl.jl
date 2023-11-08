@@ -1,11 +1,10 @@
-mutable struct DataViewer
-    dtp::DataPlot
-    data::Dict
-    noclose::Bool
-    p_open::Bool
-    firsttime::Bool
+@kwdef mutable struct DataViewer
+    dtp::DataPlot = DataPlot()
+    data::Dict = Dict()
+    noclose::Bool = true
+    p_open::Bool = true
+    firsttime::Bool = true
 end
-DataViewer() = DataViewer(DataPlot(), Dict(), true, true, true)
 
 function edit(dtviewer::DataViewer, filetree::FileTree, isrename::Dict{String,Bool}, id)
     CImGui.SetNextWindowSize((800, 600), CImGui.ImGuiCond_Once)

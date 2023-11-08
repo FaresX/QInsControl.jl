@@ -1,4 +1,4 @@
-Base.@kwdef mutable struct PlotStates
+@kwdef mutable struct PlotStates
     id::String = ""
     xhv::Bool = false
     yhv::Bool = false
@@ -12,31 +12,30 @@ Base.@kwdef mutable struct PlotStates
     plotsize::CImGui.ImVec2 = (0, 0)
 end
 
-mutable struct Annotation
-    label::String
-    posx::Cdouble
-    posy::Cdouble
-    offsetx::Cdouble
-    offsety::Cdouble
-    color::Vector{Cfloat}
-    possz::Cfloat
+@kwdef mutable struct Annotation
+    label::String = "Ann"
+    posx::Cdouble = 0
+    posy::Cdouble = 0
+    offsetx::Cdouble = 0
+    offsety::Cdouble = 0
+    color::Vector{Cfloat} = [1.000, 1.000, 1.000, 1.000]
+    possz::Cfloat = 4
 end
 Annotation(label, posx, posy) = Annotation(label, posx, posy, posx, posy, [1.000, 1.000, 1.000, 1.000], 4)
-Annotation() = Annotation("Ann", 0, 0)
 
-mutable struct UIPlot
-    x::Vector{Tx} where {Tx<:Union{Real,String}}
-    y::Vector{Vector{Ty}} where {Ty<:Real}
-    z::Matrix{Tz} where {Tz<:Float64}
-    ptype::String
-    title::String
-    xlabel::String
-    ylabel::String
-    zlabel::String
-    legends::Vector{String}
-    cmap::Cint
-    anns::Vector{Annotation}
-    ps::PlotStates
+@kwdef mutable struct UIPlot
+    x::Vector{Tx} where {Tx<:Union{Real,String}} = Union{Real,String}[]
+    y::Vector{Vector{Ty}} where {Ty<:Real} = [Real[]]
+    z::Matrix{Tz} where {Tz<:Float64} = Matrix{Float64}(undef, 0, 0)
+    ptype::String = "line"
+    title::String = "title"
+    xlabel::String = "x"
+    ylabel::String = "y"
+    zlabel::String = "z"
+    legends::Vector{String} = [string("y", i) for i in eachindex(y)]
+    cmap::Cint = 4
+    anns::Vector{Annotation} = Annotation[]
+    ps::PlotStates = PlotStates()
 end
 UIPlot(x, y, z) = UIPlot(
     x, y, z,
@@ -45,7 +44,6 @@ UIPlot(x, y, z) = UIPlot(
     Annotation[],
     PlotStates()
 )
-UIPlot() = UIPlot(Union{Real,String}[], [Real[]], Matrix{Float64}(undef, 0, 0))
 
 let
     annbuf::Annotation = Annotation()

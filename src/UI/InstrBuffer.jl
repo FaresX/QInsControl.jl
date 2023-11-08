@@ -1,70 +1,59 @@
 abstract type AbstractQuantity end
-mutable struct SweepQuantity <: AbstractQuantity
+@kwdef mutable struct SweepQuantity <: AbstractQuantity
     # back end
-    enable::Bool
-    name::String
-    alias::String
-    step::String
-    stop::String
-    delay::Cfloat
-    read::String
-    utype::String
-    uindex::Int
-    help::String
-    isautorefresh::Bool
-    issweeping::Bool
+    enable::Bool = true
+    name::String = ""
+    alias::String = ""
+    step::String = ""
+    stop::String = ""
+    delay::Cfloat = 0.1
+    read::String = ""
+    utype::String = ""
+    uindex::Int = 1
+    help::String = ""
+    isautorefresh::Bool = false
+    issweeping::Bool = false
     # front end
-    show_edit::String
-    show_view::String
-    passfilter::Bool
+    show_edit::String = ""
+    show_view::String = ""
+    passfilter::Bool = true
 end
-SweepQuantity() = SweepQuantity(
-    true, "", "", "", "", Cfloat(0.1), "", "", 1, "", false, false,
-    "", "", true
-)
 
-mutable struct SetQuantity <: AbstractQuantity
+@kwdef mutable struct SetQuantity <: AbstractQuantity
     # back end
-    enable::Bool
-    name::String
-    alias::String
-    set::String
-    optkeys::Vector{String}
-    optvalues::Vector{String}
-    optedidx::Cint
-    read::String
-    utype::String
-    uindex::Int
-    help::String
-    isautorefresh::Bool
+    enable::Bool = true
+    name::String = ""
+    alias::String = ""
+    set::String = ""
+    optkeys::Vector{String} = []
+    optvalues::Vector{String} = []
+    optedidx::Cint = 1
+    read::String = ""
+    utype::String = ""
+    uindex::Int = 1
+    help::String = ""
+    isautorefresh::Bool = false
     # front end
-    show_edit::String
-    show_view::String
-    passfilter::Bool
+    show_edit::String = ""
+    show_view::String = ""
+    passfilter::Bool = true
 end
-SetQuantity() = SetQuantity(
-    true, "", "", "", [], [], 1, "", "", 1, "", false,
-    "", "", true
-)
-mutable struct ReadQuantity <: AbstractQuantity
+
+@kwdef mutable struct ReadQuantity <: AbstractQuantity
     # back end
-    enable::Bool
-    name::String
-    alias::String
-    read::String
-    utype::String
-    uindex::Int
-    help::String
-    isautorefresh::Bool
+    enable::Bool = true
+    name::String = ""
+    alias::String = ""
+    read::String = ""
+    utype::String = ""
+    uindex::Int = 1
+    help::String = ""
+    isautorefresh::Bool = false
     # front end
-    show_edit::String
-    show_view::String
-    passfilter::Bool
+    show_edit::String = ""
+    show_view::String = ""
+    passfilter::Bool = true
 end
-ReadQuantity() = ReadQuantity(
-    true, "", "", "", "", 1, "", false,
-    "", "", true
-)
 
 function quantity(name, qtcf::QuantityConf)
     return if qtcf.type == "sweep"
@@ -157,15 +146,14 @@ function updatefront!(qt::AbstractQuantity; show_edit=true)
     end
 end
 
-mutable struct InstrBuffer
-    instrnm::String
-    quantities::OrderedDict{String,AbstractQuantity}
-    isautorefresh::Bool
-    filter::String
-    filtervarname::Bool
-    showdisable::Bool
+@kwdef mutable struct InstrBuffer
+    instrnm::String = ""
+    quantities::OrderedDict{String,AbstractQuantity} = OrderedDict()
+    isautorefresh::Bool = false
+    filter::String = ""
+    filtervarname::Bool = false
+    showdisable::Bool = false
 end
-InstrBuffer() = InstrBuffer("", OrderedDict(), false, "", false, false)
 
 function InstrBuffer(instrnm)
     haskey(INSCONF, instrnm) || @error "[$(now())]\n$(mlstr("unsupported instrument!!!"))" instrument = instrnm
@@ -201,13 +189,13 @@ function update_passfilter!(insbuf::InstrBuffer)
     end
 end
 
-mutable struct InstrBufferViewer
-    instrnm::String
-    addr::String
-    inputcmd::String
-    readstr::String
-    p_open::Bool
-    insbuf::InstrBuffer
+@kwdef mutable struct InstrBufferViewer
+    instrnm::String = ""
+    addr::String = ""
+    inputcmd::String = "*IDN?"
+    readstr::String = ""
+    p_open::Bool = false
+    insbuf::InstrBuffer = InstrBuffer()
 end
 function InstrBufferViewer(instrnm, addr)
     insbuf = InstrBuffer(instrnm)
@@ -222,7 +210,6 @@ function InstrBufferViewer(instrnm, addr)
     end
     InstrBufferViewer(instrnm, addr, "*IDN?", "", false, insbuf)
 end
-InstrBufferViewer() = InstrBufferViewer("", "", "*IDN?", "", false, InstrBuffer())
 
 const INSTRBUFFERVIEWERS::Dict{String,Dict{String,InstrBufferViewer}} = Dict()
 

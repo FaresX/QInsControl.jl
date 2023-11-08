@@ -1,16 +1,14 @@
-mutable struct Layout
-    id::String
-    showcol::Cint
-    idxing::Cint
-    labels::Vector{String}
-    marks::Vector{String}
-    states::Vector{Bool}
-    selectedlabels::Vector{String}
-    labeltoidx::Dict{String,Int}
-    selectedidx::Vector{Int}
+@kwdef mutable struct Layout
+    id::String = "Layout"
+    showcol::Cint = 3
+    idxing::Cint = 1
+    labels::Vector{String} = ["default"]
+    marks::Vector{String} = [""]
+    states::Vector{Bool} = [false]
+    selectedlabels::Vector{String} = []
+    labeltoidx::Dict{String,Int} = Dict()
+    selectedidx::Vector{Int} = []
 end
-Layout(id) = Layout(id, 3, 1, ["default"], [""], [false], [], Dict(), [])
-Layout() = Layout("Layout")
 
 labeltoidx!(lo::Layout) = lo.selectedidx = [lo.labeltoidx[lb] for lb in lo.selectedlabels]
 
@@ -60,16 +58,15 @@ function Base.deleteat!(lo::Layout, i)
     update!(lo)
 end
 
-mutable struct DataPlot
-    dtpks::Vector{DataPicker}
-    showdtpks::Vector{Bool}
-    linkidx::Vector{Cint}
-    uiplots::Vector{UIPlot}
-    layout::Layout
-    isdelplot::Bool
-    delplot_i::Int
+@kwdef mutable struct DataPlot
+    dtpks::Vector{DataPicker} = [DataPicker()]
+    showdtpks::Vector{Bool} = [false]
+    linkidx::Vector{Cint} = [0]
+    uiplots::Vector{UIPlot} = [UIPlot()]
+    layout::Layout = Layout()
+    isdelplot::Bool = false
+    delplot_i::Int = 0
 end
-DataPlot() = DataPlot([DataPicker()], [false], [0], [UIPlot()], Layout(), false, 0)
 
 function editmenu(dtp::DataPlot)
     if length(dtp.showdtpks) != length(dtp.dtpks)
@@ -283,19 +280,19 @@ function renderplots(dtp::DataPlot, id)
 end
 
 # function dealwithlinkidx(dtviewer::DataViewer)
-    #     for (i, idx) in enumerate(dtviewer.linkidx)
-    #         if idx == 0
-    #             if occursin("------>", dtviewer.layout.marks[i])
-    #                 dtviewer.layout.marks[i] = replace(dtviewer.layout.marks[i], r" ------> \w" => "")
-    #             end
-    #         else
-    #             if occursin(" ------> $idx", dtviewer.layout.marks[i])
-    #                 continue
-    #             elseif occursin(" ------> ", dtviewer.layout.marks[i])
-    #                 dtviewer.layout.marks[i] = replace(dtviewer.layout.marks[i], r" ------> \w" => " ------> $idx")
-    #             else
-    #                 dtviewer.layout.marks[i] *= " ------> $idx"
-    #             end
-    #         end
-    #     end
-    # end
+#     for (i, idx) in enumerate(dtviewer.linkidx)
+#         if idx == 0
+#             if occursin("------>", dtviewer.layout.marks[i])
+#                 dtviewer.layout.marks[i] = replace(dtviewer.layout.marks[i], r" ------> \w" => "")
+#             end
+#         else
+#             if occursin(" ------> $idx", dtviewer.layout.marks[i])
+#                 continue
+#             elseif occursin(" ------> ", dtviewer.layout.marks[i])
+#                 dtviewer.layout.marks[i] = replace(dtviewer.layout.marks[i], r" ------> \w" => " ------> $idx")
+#             else
+#                 dtviewer.layout.marks[i] *= " ------> $idx"
+#             end
+#         end
+#     end
+# end

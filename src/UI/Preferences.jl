@@ -263,6 +263,12 @@ let
                     1.0, 100, 6000, "%d",
                     CImGui.ImGuiSliderFlags_AlwaysClamp
                 )
+                @c CImGui.DragInt(
+                    stcstr(mlstr("display length"), "##Logs"),
+                    &CONF.Logs.showloglength,
+                    1.0, 100, 100000, "%d",
+                    CImGui.ImGuiSliderFlags_AlwaysClamp
+                )
                 CImGui.Text(" ")
                 CImGui.Separator()
 

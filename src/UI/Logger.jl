@@ -25,6 +25,7 @@ let
                     occursin(markerlist[1], s) && (textc = ImVec4(MORESTYLE.Colors.LogInfo...))
                     occursin(markerlist[2], s) && (textc = ImVec4(MORESTYLE.Colors.LogWarn...))
                     occursin(markerlist[3], s) && (textc = ImVec4(MORESTYLE.Colors.LogError...))
+                    length(s) > CONF.Logs.showloglength && (s = s[1:CONF.Logs.showloglength])
                     if occursin("└", s)
                         logmsg *= @sprintf "%-8d%s\n\n" i s
                         push!(logmsgshow, (textc, logmsg))

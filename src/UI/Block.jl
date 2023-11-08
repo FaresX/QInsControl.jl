@@ -3,138 +3,109 @@ abstract type AbstractBlock end
 struct NullBlock <: AbstractBlock end
 skipnull(bkch::Vector{AbstractBlock}) = findall(bk -> !isa(bk, NullBlock), bkch)
 
-mutable struct CodeBlock <: AbstractBlock
-    codes::String
-    regmin::ImVec2
-    regmax::ImVec2
+@kwdef mutable struct CodeBlock <: AbstractBlock
+    codes::String = ""
+    regmin::ImVec2 = (0, 0)
+    regmax::ImVec2 = (0, 0)
 end
-CodeBlock() = CodeBlock("", (0, 0), (0, 0))
 
-mutable struct StrideCodeBlock <: AbstractBlock
-    codes::String
-    level::Int
-    blocks::Vector{AbstractBlock}
-    nohandler::Bool
-    hideblocks::Bool
-    regmin::ImVec2
-    regmax::ImVec2
+@kwdef mutable struct StrideCodeBlock <: AbstractBlock
+    codes::String = ""
+    level::Int = 1
+    blocks::Vector{AbstractBlock} = AbstractBlock[]
+    nohandler::Bool = false
+    hideblocks::Bool = false
+    regmin::ImVec2 = (0, 0)
+    regmax::ImVec2 = (0, 0)
 end
-StrideCodeBlock(level) = StrideCodeBlock("", level, Vector{AbstractBlock}(), false, false, (0, 0), (0, 0))
-StrideCodeBlock() = StrideCodeBlock(1)
 
-mutable struct BranchBlock <: AbstractBlock
-    codes::String
-    regmin::ImVec2
-    regmax::ImVec2
+@kwdef mutable struct BranchBlock <: AbstractBlock
+    codes::String = ""
+    regmin::ImVec2 = (0, 0)
+    regmax::ImVec2 = (0, 0)
 end
-BranchBlock() = BranchBlock("", (0, 0), (0, 0))
 
-mutable struct SweepBlock <: AbstractBlock
-    instrnm::String
-    addr::String
-    quantity::String
-    step::String
-    stop::String
-    delay::Cfloat
-    ui::Int
-    level::Int
-    blocks::Vector{AbstractBlock}
-    istrycatch::Bool
-    hideblocks::Bool
-    regmin::ImVec2
-    regmax::ImVec2
+@kwdef mutable struct SweepBlock <: AbstractBlock
+    instrnm::String = mlstr("instrument")
+    addr::String = mlstr("address")
+    quantity::String = mlstr("sweep")
+    step::String = ""
+    stop::String = ""
+    delay::Cfloat = 0.1
+    ui::Int = 1
+    level::Int = 1
+    blocks::Vector{AbstractBlock} = AbstractBlock[]
+    istrycatch::Bool = false
+    hideblocks::Bool = false
+    regmin::ImVec2 = (0, 0)
+    regmax::ImVec2 = (0, 0)
 end
-SweepBlock(level) = SweepBlock(
-    mlstr("instrument"), mlstr("address"), mlstr("sweep"),
-    "", "", 0.1, 1,
-    level,
-    Vector{AbstractBlock}(),
-    false,
-    false,
-    (0, 0), (0, 0)
-)
-SweepBlock() = SweepBlock(1)
 
-mutable struct SettingBlock <: AbstractBlock
-    instrnm::String
-    addr::String
-    quantity::String
-    setvalue::String
-    ui::Int
-    istrycatch::Bool
-    regmin::ImVec2
-    regmax::ImVec2
+@kwdef mutable struct SettingBlock <: AbstractBlock
+    instrnm::String = mlstr("instrument")
+    addr::String = mlstr("address")
+    quantity::String = mlstr("set")
+    setvalue::String = ""
+    ui::Int = 1
+    istrycatch::Bool = false
+    regmin::ImVec2 = (0, 0)
+    regmax::ImVec2 = (0, 0)
 end
-SettingBlock() = SettingBlock(mlstr("instrument"), mlstr("address"), mlstr("set"), "", 1, false, (0, 0), (0, 0))
 
-mutable struct ReadingBlock <: AbstractBlock
-    instrnm::String
-    addr::String
-    quantity::String
-    index::String
-    mark::String
-    isasync::Bool
-    isobserve::Bool
-    isreading::Bool
-    istrycatch::Bool
-    regmin::ImVec2
-    regmax::ImVec2
+@kwdef mutable struct ReadingBlock <: AbstractBlock
+    instrnm::String = mlstr("instrument")
+    addr::String = mlstr("address")
+    quantity::String = mlstr("read")
+    index::String = ""
+    mark::String = ""
+    isasync::Bool = false
+    isobserve::Bool = false
+    isreading::Bool = false
+    istrycatch::Bool = false
+    regmin::ImVec2 = (0, 0)
+    regmax::ImVec2 = (0, 0)
 end
-ReadingBlock() = ReadingBlock(
-    mlstr("instrument"), mlstr("address"), mlstr("read"),
-    "", "",
-    false, false, false, false,
-    (0, 0), (0, 0)
-)
 
-mutable struct WriteBlock <: AbstractBlock
-    instrnm::String
-    addr::String
-    cmd::String
-    isasync::Bool
-    istrycatch::Bool
-    regmin::ImVec2
-    regmax::ImVec2
+@kwdef mutable struct WriteBlock <: AbstractBlock
+    instrnm::String = mlstr("instrument")
+    addr::String = mlstr("address")
+    cmd::String = ""
+    isasync::Bool = false
+    istrycatch::Bool = false
+    regmin::ImVec2 = (0, 0)
+    regmax::ImVec2 = (0, 0)
 end
-WriteBlock() = WriteBlock(mlstr("instrument"), mlstr("address"), "", false, false, (0, 0), (0, 0))
 
-mutable struct QueryBlock <: AbstractBlock
-    instrnm::String
-    addr::String
-    cmd::String
-    index::String
-    mark::String
-    isasync::Bool
-    isobserve::Bool
-    isreading::Bool
-    istrycatch::Bool
-    regmin::ImVec2
-    regmax::ImVec2
+@kwdef mutable struct QueryBlock <: AbstractBlock
+    instrnm::String = mlstr("instrument")
+    addr::String = mlstr("address")
+    cmd::String = ""
+    index::String = ""
+    mark::String = ""
+    isasync::Bool = false
+    isobserve::Bool = false
+    isreading::Bool = false
+    istrycatch::Bool = false
+    regmin::ImVec2 = (0, 0)
+    regmax::ImVec2 = (0, 0)
 end
-QueryBlock() = QueryBlock(
-    mlstr("instrument"), mlstr("address"),
-    "", "", "",
-    false, false, false, false,
-    (0, 0), (0, 0)
-)
 
-mutable struct ReadBlock <: AbstractBlock
-    instrnm::String
-    addr::String
-    index::String
-    mark::String
-    isasync::Bool
-    isobserve::Bool
-    isreading::Bool
-    istrycatch::Bool
-    regmin::ImVec2
-    regmax::ImVec2
+@kwdef mutable struct ReadBlock <: AbstractBlock
+    instrnm::String = mlstr("instrument")
+    addr::String = mlstr("address")
+    index::String = ""
+    mark::String = ""
+    isasync::Bool = false
+    isobserve::Bool = false
+    isreading::Bool = false
+    istrycatch::Bool = false
+    regmin::ImVec2 = (0, 0)
+    regmax::ImVec2 = (0, 0)
 end
-ReadBlock() = ReadBlock(mlstr("instrument"), mlstr("address"), "", "", false, false, false, false, (0, 0), (0, 0))
 
 ############ isapprox --------------------------------------------------------------------------------------------------
 
-Base.isapprox(::T1, ::T2) where T1 <: AbstractBlock where T2 <: AbstractBlock = T1 == T2
+Base.isapprox(::T1, ::T2) where {T1<:AbstractBlock} where {T2<:AbstractBlock} = T1 == T2
 Base.isapprox(x::CodeBlock, y::CodeBlock) = x.codes == y.codes
 Base.isapprox(x::StrideCodeBlock, y::StrideCodeBlock) = x.codes == y.codes && x.blocks ≈ y.blocks
 Base.isapprox(x::SweepBlock, y::SweepBlock) = x.blocks ≈ y.blocks
@@ -234,7 +205,7 @@ function tocodes(bk::SweepBlock)
     @gensym sweepsteps
     ex1 = if CONF.DAQ.equalstep
         quote
-            $sweepsteps = let 
+            $sweepsteps = let
                 rawsteps = abs(($start - $stop) / $step)
                 ceilsteps = ceil(Int, rawsteps)
                 rawsteps ≈ ceilsteps ? ceilsteps + 1 : ceilsteps
@@ -659,17 +630,17 @@ function bkheight(bk::CodeBlock)
 end
 function bkheight(bk::StrideCodeBlock)
     return bk.hideblocks ? 2unsafe_load(IMGUISTYLE.WindowPadding.y) + CImGui.GetFrameHeight() :
-    2unsafe_load(IMGUISTYLE.WindowPadding.y) +
-    CImGui.GetFrameHeight() +
-    length(skipnull(bk.blocks)) * unsafe_load(IMGUISTYLE.ItemSpacing.y) +
-    sum(bkheight.(bk.blocks))
+           2unsafe_load(IMGUISTYLE.WindowPadding.y) +
+           CImGui.GetFrameHeight() +
+           length(skipnull(bk.blocks)) * unsafe_load(IMGUISTYLE.ItemSpacing.y) +
+           sum(bkheight.(bk.blocks))
 end
 function bkheight(bk::SweepBlock)
     return bk.hideblocks ? 2unsafe_load(IMGUISTYLE.WindowPadding.y) + CImGui.GetFrameHeight() :
-    2unsafe_load(IMGUISTYLE.WindowPadding.y) +
-    CImGui.GetFrameHeight() +
-    length(skipnull(bk.blocks)) * unsafe_load(IMGUISTYLE.ItemSpacing.y) +
-    sum(bkheight.(bk.blocks))
+           2unsafe_load(IMGUISTYLE.WindowPadding.y) +
+           CImGui.GetFrameHeight() +
+           length(skipnull(bk.blocks)) * unsafe_load(IMGUISTYLE.ItemSpacing.y) +
+           sum(bkheight.(bk.blocks))
 end
 bkheight(_) = 2unsafe_load(IMGUISTYLE.WindowPadding.y) + CImGui.GetFrameHeight()
 
@@ -1188,9 +1159,9 @@ let
             if CImGui.BeginPopup(id)
                 if CImGui.BeginMenu(stcstr(MORESTYLE.Icons.InsertUp, " ", mlstr("Insert Above")))
                     CImGui.MenuItem(stcstr(MORESTYLE.Icons.CodeBlock, " ", mlstr("CodeBlock"))) && insert!(blocks, i, CodeBlock())
-                    CImGui.MenuItem(stcstr(MORESTYLE.Icons.StrideCodeBlock, " ", mlstr("StrideCodeBlock"))) && insert!(blocks, i, StrideCodeBlock(n))
+                    CImGui.MenuItem(stcstr(MORESTYLE.Icons.StrideCodeBlock, " ", mlstr("StrideCodeBlock"))) && insert!(blocks, i, StrideCodeBlock(level=n))
                     CImGui.MenuItem(stcstr(MORESTYLE.Icons.BranchBlock, " ", mlstr("BranchBlock"))) && insert!(blocks, i, BranchBlock())
-                    CImGui.MenuItem(stcstr(MORESTYLE.Icons.SweepBlock, " ", mlstr("SweepBlock"))) && insert!(blocks, i, SweepBlock(n))
+                    CImGui.MenuItem(stcstr(MORESTYLE.Icons.SweepBlock, " ", mlstr("SweepBlock"))) && insert!(blocks, i, SweepBlock(level=n))
                     CImGui.MenuItem(stcstr(MORESTYLE.Icons.SettingBlock, " ", mlstr("SettingBlock"))) && insert!(blocks, i, SettingBlock())
                     CImGui.MenuItem(stcstr(MORESTYLE.Icons.ReadingBlock, " ", mlstr("ReadingBlock"))) && insert!(blocks, i, ReadingBlock())
                     # CImGui.MenuItem(stcstr(MORESTYLE.Icons.LogBlock, " ", mlstr("LogBlock"))) && insert!(blocks, i, LogBlock())
@@ -1203,9 +1174,9 @@ let
                 if (bk isa StrideCodeBlock || bk isa SweepBlock) && isempty(skipnull(bk.blocks))
                     if CImGui.BeginMenu(stcstr(MORESTYLE.Icons.InsertInside, " ", mlstr("Insert Inside")), bk.level < 6)
                         CImGui.MenuItem(stcstr(MORESTYLE.Icons.CodeBlock, " ", mlstr("CodeBlock"))) && push!(bk.blocks, CodeBlock())
-                        CImGui.MenuItem(stcstr(MORESTYLE.Icons.StrideCodeBlock, " ", mlstr("StrideCodeBlock"))) && push!(bk.blocks, StrideCodeBlock(n + 1))
+                        CImGui.MenuItem(stcstr(MORESTYLE.Icons.StrideCodeBlock, " ", mlstr("StrideCodeBlock"))) && push!(bk.blocks, StrideCodeBlock(level=n + 1))
                         CImGui.MenuItem(stcstr(MORESTYLE.Icons.BranchBlock, " ", mlstr("BranchBlock"))) && push!(bk.blocks, BranchBlock())
-                        CImGui.MenuItem(stcstr(MORESTYLE.Icons.SweepBlock, " ", mlstr("SweepBlock"))) && push!(bk.blocks, SweepBlock(n + 1))
+                        CImGui.MenuItem(stcstr(MORESTYLE.Icons.SweepBlock, " ", mlstr("SweepBlock"))) && push!(bk.blocks, SweepBlock(level=n + 1))
                         CImGui.MenuItem(stcstr(MORESTYLE.Icons.SettingBlock, " ", mlstr("SettingBlock"))) && push!(bk.blocks, SettingBlock())
                         CImGui.MenuItem(stcstr(MORESTYLE.Icons.ReadingBlock, " ", mlstr("ReadingBlock"))) && push!(bk.blocks, ReadingBlock())
                         # CImGui.MenuItem(stcstr(MORESTYLE.Icons.LogBlock, " ", mlstr("LogBlock"))) && push!(bk.blocks, LogBlock())
@@ -1218,9 +1189,9 @@ let
                 end
                 if CImGui.BeginMenu(stcstr(MORESTYLE.Icons.InsertDown, " ", mlstr("Insert Below")))
                     CImGui.MenuItem(stcstr(MORESTYLE.Icons.CodeBlock, " ", mlstr("CodeBlock"))) && insert!(blocks, i + 1, CodeBlock())
-                    CImGui.MenuItem(stcstr(MORESTYLE.Icons.StrideCodeBlock, " ", mlstr("StrideCodeBlock"))) && insert!(blocks, i + 1, StrideCodeBlock(n))
+                    CImGui.MenuItem(stcstr(MORESTYLE.Icons.StrideCodeBlock, " ", mlstr("StrideCodeBlock"))) && insert!(blocks, i + 1, StrideCodeBlock(level=n))
                     CImGui.MenuItem(stcstr(MORESTYLE.Icons.BranchBlock, " ", mlstr("BranchBlock"))) && insert!(blocks, i + 1, BranchBlock())
-                    CImGui.MenuItem(stcstr(MORESTYLE.Icons.SweepBlock, " ", mlstr("SweepBlock"))) && insert!(blocks, i + 1, SweepBlock(n))
+                    CImGui.MenuItem(stcstr(MORESTYLE.Icons.SweepBlock, " ", mlstr("SweepBlock"))) && insert!(blocks, i + 1, SweepBlock(level=n))
                     CImGui.MenuItem(stcstr(MORESTYLE.Icons.SettingBlock, " ", mlstr("SettingBlock"))) && insert!(blocks, i + 1, SettingBlock())
                     CImGui.MenuItem(stcstr(MORESTYLE.Icons.ReadingBlock, " ", mlstr("ReadingBlock"))) && insert!(blocks, i + 1, ReadingBlock())
                     # CImGui.MenuItem(stcstr(MORESTYLE.Icons.LogBlock, " ", mlstr("LogBlock"))) && insert!(blocks, i + 1, LogBlock())
@@ -1235,10 +1206,10 @@ let
                     if CImGui.MenuItem(stcstr(MORESTYLE.Icons.StrideCodeBlock, " ", mlstr("StrideCodeBlock")))
                         if !(bk isa StrideCodeBlock)
                             if bk isa SweepBlock
-                                blocks[i] = StrideCodeBlock(n)
+                                blocks[i] = StrideCodeBlock(level=n)
                                 blocks[i].blocks = bk.blocks
                             else
-                                blocks[i] = StrideCodeBlock(n)
+                                blocks[i] = StrideCodeBlock(level=n)
                             end
                         end
                     end
@@ -1246,10 +1217,10 @@ let
                     if CImGui.MenuItem(stcstr(MORESTYLE.Icons.SweepBlock, " ", mlstr("SweepBlock")))
                         if !(bk isa SweepBlock)
                             if bk isa StrideCodeBlock
-                                blocks[i] = SweepBlock(n)
+                                blocks[i] = SweepBlock(level=n)
                                 blocks[i].blocks = bk.blocks
                             else
-                                blocks[i] = SweepBlock(n)
+                                blocks[i] = SweepBlock(level=n)
                             end
                         end
                     end

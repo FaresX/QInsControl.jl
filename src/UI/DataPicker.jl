@@ -1,34 +1,24 @@
-mutable struct DataPicker
-    datalist::Vector{String}
-    ptype::String
-    x::String
-    y::Vector{Bool}
-    z::String
-    w::Vector{Bool}
-    aux::Vector{Vector{Bool}}
-    xtype::Bool # true = > Number false = > String
-    zsize::Vector{Cint}
-    vflipz::Bool
-    hflipz::Bool
-    nonuniform::Bool
-    codes::CodeBlock
-    hold::Bool
-    isrealtime::Bool
-    isrunning::Bool
-    runtime::Float64
-    refreshrate::Cfloat
-    alsz::Float32
+@kwdef mutable struct DataPicker
+    datalist::Vector{String} = [""]
+    ptype::String = "line"
+    x::String = ""
+    y::Vector{Bool} = [false]
+    z::String = ""
+    w::Vector{Bool} = [false]
+    aux::Vector{Vector{Bool}} = Vector{Bool}[]
+    xtype::Bool = true # true = > Number false = > String
+    zsize::Vector{Cint} = [0, 0]
+    vflipz::Bool = false
+    hflipz::Bool = false
+    nonuniform::Bool = false
+    codes::CodeBlock = CodeBlock()
+    hold::Bool = false
+    isrealtime::Bool = false
+    isrunning::Bool = false
+    runtime::Float64 = 0
+    refreshrate::Cfloat = 1
+    alsz::Cfloat = 0
 end
-DataPicker() = DataPicker(
-    [""],
-    "line",
-    "", [false], "", [false], Vector{Bool}[],
-    true,
-    [0, 0], false, false, false,
-    CodeBlock(),
-    false, false, false,
-    0, Cint(1), 0
-)
 
 let
     holdsz::Cfloat = 0

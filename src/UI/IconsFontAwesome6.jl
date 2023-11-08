@@ -8,7 +8,7 @@ ICON_MIN = 0xe005
 ICON_MAX_16 = 0xf8ff
 ICON_MAX = 0xf8ff
 
-Base.@kwdef struct Icon
+@kwdef struct Icon
     ICON_0 = "\u0030"
     ICON_1 = "\u0031"
     ICON_2 = "\u0032"

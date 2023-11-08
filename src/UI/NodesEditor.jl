@@ -1,19 +1,18 @@
 abstract type AbstractNode end
 
-mutable struct Node <: AbstractNode
-    id::Cint
-    title::String
-    content::String
-    input_ids::Vector{Cint}
-    input_labels::Vector{String}
-    output_ids::Vector{Cint}
-    output_labels::Vector{String}
-    connected_ids::Set{Cint}
-    position::CImGui.ImVec2
+@kwdef mutable struct Node <: AbstractNode
+    id::Cint = 1
+    title::String = "Node 1"
+    content::String = ""
+    input_ids::Vector{Cint} = [1001]
+    input_labels::Vector{String} = ["Input 1"]
+    output_ids::Vector{Cint} = [1101]
+    output_labels::Vector{String} = ["Output 1"]
+    connected_ids::Set{Cint} = Set()
+    position::CImGui.ImVec2 = (0, 0)
 end
 # input id: x0xx nodeid 0 inputid output id: x1xx nodeid 1 outputid
 
-Node() = Node(1, "Node 1", "", [1001], ["Input 1"], [1101], ["Output 1"], Set(), (0, 0))
 Node(id) = Node(
     id,
     string(MORESTYLE.Icons.CommonNode, " ", mlstr("Universal Node"), id),
@@ -90,58 +89,53 @@ function Node(id, instrnm, ::Val{:instrument})
     node
 end
 
-mutable struct ResizeGrip
-    pos::ImVec2
-    size::ImVec2
-    limmin::ImVec2
-    limmax::ImVec2
-    hovered::Bool
-    dragging::Bool
+@kwdef mutable struct ResizeGrip
+    pos::ImVec2 = (0, 0)
+    size::ImVec2 = (24, 24)
+    limmin::ImVec2 = (0, 0)
+    limmax::ImVec2 = (Inf, Inf)
+    hovered::Bool = false
+    dragging::Bool = false
 end
-ResizeGrip() = ResizeGrip((0, 0), (24, 24), (0, 0), (Inf, Inf), false, false)
 
-mutable struct ImagePin
-    pos::ImVec2
-    radius::Cfloat
-    num_segments::Cint
-    thickness::Cint
-    limmin::ImVec2
-    limmax::ImVec2
-    link_idx::Cint
-    linked::Bool
-    hovered_in::Bool
-    hovered_out::Bool
-    dragging_in::Bool
-    dragging_out::Bool
+@kwdef mutable struct ImagePin
+    pos::ImVec2 = (0, 0)
+    radius::Cfloat = 24
+    num_segments::Cint = 12
+    thickness::Cint = 4
+    limmin::ImVec2 = (0, 0)
+    limmax::ImVec2 = (Inf, Inf)
+    link_idx::Cint = 1
+    linked::Bool = false
+    hovered_in::Bool = false
+    hovered_out::Bool = false
+    dragging_in::Bool = false
+    dragging_out::Bool = false
 end
-ImagePin() = ImagePin((0, 0), 24, 12, 4, (0, 0), (Inf, Inf), 1, false, false, false, false, false)
 
-mutable struct ImageRegion
-    id::Int
-    posmin::ImVec2
-    posmax::ImVec2
-    image::Matrix{T} where {T}
-    rszgrip::ResizeGrip
-    pins::Vector{ImagePin}
-    pin_relds::Vector{ImVec2}
-    hovered::Bool
+@kwdef mutable struct ImageRegion
+    id::Int = 0
+    posmin::ImVec2 = (0, 0)
+    posmax::ImVec2 = (400, 400)
+    image::Matrix{T} where {T} = Matrix{RGBA}(undef, 0, 0)
+    rszgrip::ResizeGrip = ResizeGrip()
+    pins::Vector{ImagePin} = []
+    pin_relds::Vector{ImVec2} = []
+    hovered::Bool = false
 end
-ImageRegion() = ImageRegion(0, (0, 0), (400, 400), Matrix{RGBA}(undef, 0, 0), ResizeGrip(), [], [], false)
 
-mutable struct SampleBaseNode <: AbstractNode
-    id::Cint
-    title::String
-    content::String
-    attr_ids::Vector{Cint}
-    attr_labels::Vector{String}
-    attr_types::Vector{Bool} # true for input 
-    connected_ids::Set{Cint}
-    position::CImGui.ImVec2
-    imgr::ImageRegion
+@kwdef mutable struct SampleBaseNode <: AbstractNode
+    id::Cint = 1
+    title::String = MORESTYLE.Icons.SampleBaseNode * " " * mlstr("Samplebase")
+    content::String = ""
+    attr_ids::Vector{Cint} = []
+    attr_labels::Vector{String} = []
+    attr_types::Vector{Bool} = [] # true for input 
+    connected_ids::Set{Cint} = Set()
+    position::CImGui.ImVec2 = (0, 0)
+    imgr::ImageRegion = ImageRegion()
 end
-SampleBaseNode() = SampleBaseNode(
-    1, MORESTYLE.Icons.SampleBaseNode * " " * mlstr("Samplebase"), "", [], [], [], Set(), (0, 0), ImageRegion()
-)
+
 function SampleBaseNode(id)
     node = SampleBaseNode()
     node.id = id
@@ -153,17 +147,16 @@ function SampleBaseNode(id)
     node
 end
 
-mutable struct NodeEditor
-    nodes::OrderedDict{Cint,AbstractNode}
-    links::Vector{Tuple{Cint,Cint}}
-    link_start::Cint
-    link_stop::Cint
-    created_from_snap::Bool
-    hoverednode_id::Cint
-    hoveredlink_id::Cint
-    maxid::Cint
+@kwdef mutable struct NodeEditor
+    nodes::OrderedDict{Cint,AbstractNode} = OrderedDict()
+    links::Vector{Tuple{Cint,Cint}} = Tuple{Cint,Cint}[]
+    link_start::Cint = 0
+    link_stop::Cint = 0
+    created_from_snap::Bool = false
+    hoverednode_id::Cint = 0
+    hoveredlink_id::Cint = 0
+    maxid::Cint = 0
 end
-NodeEditor() = NodeEditor(OrderedDict(), Tuple{Cint,Cint}[], 0, 0, false, 0, 0, 0)
 
 ### update_state ###----------------------------------------------------------------------------------------------------
 function update_state!(rszgrip::ResizeGrip)

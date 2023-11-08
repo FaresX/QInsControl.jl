@@ -1,11 +1,10 @@
-mutable struct DAQTask
-    name::String
-    explog::String
-    blocks::Vector{AbstractBlock}
-    enable::Bool
-    hold::Bool
+@kwdef mutable struct DAQTask
+    name::String = ""
+    explog::String = ""
+    blocks::Vector{AbstractBlock} = [SweepBlock()]
+    enable::Bool = true
+    hold::Bool = false
 end
-DAQTask() = DAQTask("", "", [SweepBlock(1)], true, false)
 
 global OLDI::Int = 0
 global WORKPATH::String = ""
