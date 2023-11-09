@@ -620,6 +620,29 @@ macro saveblock(var)
     )
 end
 
+macro psleep(seconds)
+    s1 = floor(seconds)
+    s2 = floor(seconds - s1; digits=3) * 1000
+    esc(
+        quote
+            @progress for _ in 1:$s1
+                if SYNCSTATES[Int(IsBlocked)]
+                    @warn "[$(now())]\n$(mlstr("pause!"))"
+                    lock(() -> wait(BLOCK), BLOCK)
+                    @info "[$(now())]\n$(mlstr("continue!"))"
+                elseif SYNCSTATES[Int(IsInterrupted)]
+                    @warn "[$(now())]\n$(mlstr("interrupt!"))"
+                    return nothing
+                end
+                sleep(1)
+            end
+            for _ in 1:$s2
+                sleep(0.001)
+            end
+        end
+    )
+end
+
 ############bkheight----------------------------------------------------------------------------------------------------
 
 bkheight(::NullBlock) = zero(Float32)
