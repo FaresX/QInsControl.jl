@@ -128,7 +128,13 @@ query the instrument with some message string.
 """
 query(instr::GPIBInstr, msg::AbstractString; delay=0) = Instruments.query(instr.geninstr, msg; delay=delay)
 query(instr::SerialInstr, msg::AbstractString; delay=0) = Instruments.query(instr.geninstr, string(msg, "\n"); delay=delay)
-query(instr::TCPIPInstr, msg::AbstractString; delay=0.01) = (println(instr.sock[], msg); sleep(delay); readline(instr.sock[]))
+function query(instr::TCPIPInstr, msg::AbstractString; delay=0, timeout=6)
+    println(instr.sock[], msg)
+    sleep(delay)
+    t = @async readline(instr.sock[])
+    isok = timedwait(()->istaskdone(t), timeout; pollint=0.001)
+    return isok == :ok ? fetch(t) : error("$(instr.addr) time out")
+end
 query(::VirtualInstr, ::AbstractString; delay=0) = "query"
 
 """

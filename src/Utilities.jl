@@ -302,25 +302,17 @@ Base.setindex!(lv::LoopVector, x, i=1) = (lv.data[__find_index(lv, i)] = x)
 
 move!(lv::LoopVector, i=1) = (lv.index += i)
 
-function waittofetch(f, δ=2; sleeptime=0.001)
+function waittofetch(f, timeout=2; pollint=0.001)
     waittask = errormonitor(@async fetch(f))
-    t1 = time()
-    while time() - t1 < δ
-        istaskdone(waittask) && return istaskfailed(waittask) ? nothing : fetch(waittask)
-        sleep(sleeptime)
-        yield()
-    end
+    isok = timedwait(()->istaskdone(waittask), timeout; pollint=pollint)
+    isok == :ok && return fetch(waittask)
     return nothing
 end
 
-function wait_remotecall_fetch(f, id::Integer, args...; δ=2, sleeptime=0.001, kwargs...)
+function wait_remotecall_fetch(f, id::Integer, args...; timeout=2, pollint=0.001, kwargs...)
     future = remotecall_fetch(f, id, args...; kwargs...)
     waittask = errormonitor(@async fetch(future))
-    t1 = time()
-    while time() - t1 < δ
-        istaskdone(waittask) && return istaskfailed(waittask) ? nothing : fetch(waittask)
-        sleep(sleeptime)
-        yield()
-    end
+    isok = timedwait(()->istaskdone(waittask), timeout; pollint=pollint)
+    isok == :ok && return fetch(waittask)
     return nothing
 end

@@ -158,41 +158,30 @@ function logout!(cpu::Processor, addr::String)
     end
 end
 
-function (ct::Controller)(f::Function, cpu::Processor, val::String, ::Val{:write})
+function (ct::Controller)(f::Function, cpu::Processor, val::String, ::Val{:write}; timeout=6, pollint=0.001)
     @assert haskey(cpu.controllers, ct.id) "Controller is not logged in"
     @assert cpu.running[] "Processor is not running"
     cmdid = uuid4()
     push!(cpu.cmdchannel, (ct.id, cmdid, f, val, Val(:write)))
-    t1 = time()
-    while time() - t1 < 6
-        haskey(ct.databuf, cmdid) && return pop!(ct.databuf, cmdid)
-        yield()
-    end
-    error("timeout")
+    isok = timedwait(()->haskey(ct.databuf, cmdid), timeout; pollint=pollint)
+    return isok == :ok ? pop!(ct.databuf, cmdid) : error("timeout")
 end
-function (ct::Controller)(f::Function, cpu::Processor, ::Val{:read})
+
+function (ct::Controller)(f::Function, cpu::Processor, ::Val{:read}; timeout=6, pollint=0.001)
     @assert haskey(cpu.controllers, ct.id) "Controller is not logged in"
     @assert cpu.running[] "Processor is not running"
     cmdid = uuid4()
     push!(cpu.cmdchannel, (ct.id, cmdid, f, "", Val(:read)))
-    t1 = time()
-    while time() - t1 < 6
-        haskey(ct.databuf, cmdid) && return pop!(ct.databuf, cmdid)
-        yield()
-    end
-    error("timeout")
+    isok = timedwait(()->haskey(ct.databuf, cmdid), timeout; pollint=pollint)
+    return isok == :ok ? pop!(ct.databuf, cmdid) : error("timeout")
 end
-function (ct::Controller)(f::Function, cpu::Processor, val::String, ::Val{:query})
+function (ct::Controller)(f::Function, cpu::Processor, val::String, ::Val{:query}; timeout=6, pollint=0.001)
     @assert haskey(cpu.controllers, ct.id) "Controller is not logged in"
     @assert cpu.running[] "Processor is not running"
     cmdid = uuid4()
     push!(cpu.cmdchannel, (ct.id, cmdid, f, val, Val(:query)))
-    t1 = time()
-    while time() - t1 < 6
-        haskey(ct.databuf, cmdid) && return pop!(ct.databuf, cmdid)
-        yield()
-    end
-    error("timeout")
+    isok = timedwait(()->haskey(ct.databuf, cmdid), timeout; pollint=pollint)
+    return isok == :ok ? pop!(ct.databuf, cmdid) : error("timeout")
 end
 
 function runcmd(cpu::Processor, ctid::UUID, cmdid::UUID, f::Function, val::String, ::Val{:write})
