@@ -128,7 +128,7 @@ query the instrument with some message string.
 """
 query(instr::GPIBInstr, msg::AbstractString; delay=0) = Instruments.query(instr.geninstr, msg; delay=delay)
 query(instr::SerialInstr, msg::AbstractString; delay=0) = Instruments.query(instr.geninstr, string(msg, "\n"); delay=delay)
-query(instr::TCPIPInstr, msg::AbstractString; delay=0) = (println(instr.sock[], msg); sleep(delay); readline(instr.sock[]))
+query(instr::TCPIPInstr, msg::AbstractString; delay=0.01) = (println(instr.sock[], msg); sleep(delay); readline(instr.sock[]))
 query(::VirtualInstr, ::AbstractString; delay=0) = "query"
 
 """
