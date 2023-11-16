@@ -771,17 +771,18 @@ function apply!(qt::SweepQuantity, instrnm, addr)
         @error "[$(now())]\n$(mlstr("error parsing stop value!!!"))" stop = qt.stop
     end
     if !(isnothing(start) || isnothing(step) || isnothing(stop))
-        if CONF.DAQ.equalstep
-            rawsteps = abs((start - stop) / step)
-            ceilsteps = ceil(Int, rawsteps)
-            sweepsteps = rawsteps ≈ ceilsteps ? ceilsteps + 1 : ceilsteps
-            sweepsteps = sweepsteps == 1 ? 2 : sweepsteps
-            sweeplist = range(start, stop, length=sweepsteps)
-        else
-            step = start < stop ? abs(step) : -abs(step)
-            sweeplist = collect(start:step:stop)
-            sweeplist[end] == stop || push!(sweeplist, stop)
-        end
+        # if CONF.DAQ.equalstep
+        #     rawsteps = abs((start - stop) / step)
+        #     ceilsteps = ceil(Int, rawsteps)
+        #     sweepsteps = rawsteps ≈ ceilsteps ? ceilsteps + 1 : ceilsteps
+        #     sweepsteps = sweepsteps == 1 ? 2 : sweepsteps
+        #     sweeplist = range(start, stop, length=sweepsteps)
+        # else
+        #     step = start < stop ? abs(step) : -abs(step)
+        #     sweeplist = collect(start:step:stop)
+        #     sweeplist[end] == stop || push!(sweeplist, stop)
+        # end
+        sweeplist = gensweeplist(start, step, stop)
         errormonitor(
             @async begin
                 qt.issweeping = true

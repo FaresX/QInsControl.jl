@@ -316,3 +316,26 @@ function wait_remotecall_fetch(f, id::Integer, args...; timeout=2, pollint=0.001
     isok == :ok && return fetch(waittask)
     return nothing
 end
+
+function counter(f, times::Integer=3)
+    for t in 1:times
+        state, val = f(t)
+        state && return true, val
+    end
+    return false, ""
+end
+
+function gensweeplist(start, step, stop)
+    if CONF.DAQ.equalstep
+        rawsteps = abs((start - stop) / step)
+        ceilsteps = ceil(Int, rawsteps)
+        sweepsteps = rawsteps ≈ ceilsteps ? ceilsteps + 1 : ceilsteps
+        sweepsteps = sweepsteps == 1 ? 2 : sweepsteps
+        sweeplist = range(start, stop, length=sweepsteps)
+    else
+        step = start < stop ? abs(step) : -abs(step)
+        sweeplist = collect(start:step:stop)
+        sweeplist[end] == stop || push!(sweeplist, stop)
+    end
+    return sweeplist
+end

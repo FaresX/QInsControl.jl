@@ -65,8 +65,8 @@ let
             if CImGui.BeginPopup("add new Block")
                 if CImGui.BeginMenu(stcstr(MORESTYLE.Icons.NewFile, " ", mlstr("Add")))
                     CImGui.MenuItem(stcstr(MORESTYLE.Icons.CodeBlock, " ", mlstr("CodeBlock"))) && push!(daqtask.blocks, CodeBlock())
-                    CImGui.MenuItem(stcstr(MORESTYLE.Icons.StrideCodeBlock, " ", mlstr("StrideCodeBlock"))) && push!(daqtask.blocks, StrideCodeBlock(1))
-                    CImGui.MenuItem(stcstr(MORESTYLE.Icons.SweepBlock, " ", mlstr("SweepBlock"))) && push!(daqtask.blocks, SweepBlock(1))
+                    CImGui.MenuItem(stcstr(MORESTYLE.Icons.StrideCodeBlock, " ", mlstr("StrideCodeBlock"))) && push!(daqtask.blocks, StrideCodeBlock(level=1))
+                    CImGui.MenuItem(stcstr(MORESTYLE.Icons.SweepBlock, " ", mlstr("SweepBlock"))) && push!(daqtask.blocks, SweepBlock(level=1))
                     CImGui.MenuItem(stcstr(MORESTYLE.Icons.SettingBlock, " ", mlstr("SettingBlock"))) && push!(daqtask.blocks, SettingBlock())
                     CImGui.MenuItem(stcstr(MORESTYLE.Icons.ReadingBlock, " ", mlstr("ReadingBlock"))) && push!(daqtask.blocks, ReadingBlock())
                     # CImGui.MenuItem(stcstr(MORESTYLE.Icons.LogBlock, " ", mlstr("LogBlock"))) && push!(daqtask.blocks, LogBlock())
@@ -152,10 +152,13 @@ function run_remote(daqtask::DAQTask)
         SYNCSTATES[Int(IsDAQTaskDone)] = true
         return
     end
-    ex = quote
+    ex1 = quote
         function remote_sweep_block(controllers, databuf_lc, progress_lc, SYNCSTATES)
             $(blockcodes...)
         end
+    end
+    ex = quote
+        $ex1
         function remote_do_block(databuf_rc, progress_rc, SYNCSTATES, rn)
             controllers = $controllers
             try
@@ -190,10 +193,10 @@ function run_remote(daqtask::DAQTask)
                 slow!(CPU)
             end
         end
-    end |> prettify
-    remotecall_wait(workers()[1], ex, SYNCSTATES) do ex, SYNCSTATES
+    end
+    remotecall_wait(workers()[1], ex1, ex, SYNCSTATES) do ex1, ex, SYNCSTATES
         try
-            @info "[$(now())]\n" task = ex
+            @info "[$(now())]\n" task = prettify(ex1)
             eval(ex)
         catch e
             SYNCSTATES[Int(IsDAQTaskDone)] = true

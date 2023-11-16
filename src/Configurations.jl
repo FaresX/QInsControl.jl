@@ -28,6 +28,8 @@ end
     plotshowcol::Cint = 2
     pick_fps::Vector{Cint} = [3, 36]
     historylen::Cint = 120
+    retrysendtimes::Cint = 3
+    retryconnecttimes::Cint = 3
 end
 
 @option mutable struct OptInsBuf

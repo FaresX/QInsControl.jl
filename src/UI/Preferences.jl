@@ -140,10 +140,22 @@ let
                 # )
                 @c CImGui.DragInt(
                     stcstr(mlstr("history blocks"), "##DAQ"),
-                    &CONF.Console.historylen,
+                    &CONF.DAQ.historylen,
                     1.0, 6, 60, "%d",
                     CImGui.ImGuiSliderFlags_AlwaysClamp
                 )
+                @c(CImGui.DragInt(
+                    stcstr(mlstr("times of retrying sending commands"), "##DAQ"),
+                    &CONF.DAQ.retrysendtimes,
+                    1.0, 1, 60, "%d",
+                    CImGui.ImGuiSliderFlags_AlwaysClamp
+                )) && remotecall_wait(x->(CONF.DAQ.retrysendtimes = x), workers()[1], CONF.DAQ.retrysendtimes)
+                @c(CImGui.DragInt(
+                    stcstr(mlstr("times of retrying connecting"), "##DAQ"),
+                    &CONF.DAQ.retryconnecttimes,
+                    1.0, 1, 60, "%d",
+                    CImGui.ImGuiSliderFlags_AlwaysClamp
+                )) && remotecall_wait(x->(CONF.DAQ.retryconnecttimes = x), workers()[1], CONF.DAQ.retryconnecttimes)
                 CImGui.Text(" ")
                 CImGui.Separator()
 

@@ -148,14 +148,7 @@ function tocodes(bk::StrideCodeBlock)
         )
     end
     ex1 = bk.nohandler ? quote end : quote
-        if SYNCSTATES[Int(IsBlocked)]
-            @warn "[$(now())]\n$(mlstr("pause!"))" StrideCodeBlock = $(bk.codes)
-            lock(() -> wait(BLOCK), BLOCK)
-            @info "[$(now())]\n$(mlstr("continue!"))" StrideCodeBlock = $(bk.codes)
-        elseif SYNCSTATES[Int(IsInterrupted)]
-            @warn "[$(now())]\n$(mlstr("interrupt!"))" StrideCodeBlock = $(bk.codes)
-            return nothing
-        end
+        @gencontroller StrideCodeBlock $(bk.codes)
     end
     codestr = string(bk.codes, "\n ", ex1)
     for i in eachindex(innercodes)
@@ -202,51 +195,12 @@ function tocodes(bk::SweepBlock)
     end
     @gensym ijk
     @gensym sweeplist
-    @gensym sweepsteps
-    ex1 = if CONF.DAQ.equalstep
-        quote
-            $sweepsteps = let
-                rawsteps = abs(($start - $stop) / $step)
-                ceilsteps = ceil(Int, rawsteps)
-                rawsteps ≈ ceilsteps ? ceilsteps + 1 : ceilsteps
-            end
-            $sweepsteps = $sweepsteps == 1 ? 2 : $sweepsteps
-            $sweeplist = range($start, $stop, length=$sweepsteps)
-        end
-    else
-        quote
-            $sweeplist = collect($start:($start < $stop ? abs($step) : -abs($step)):$stop)
-            $sweeplist[end] == $stop || push!($sweeplist, $stop)
-        end
-    end
-    writecmd = :(controllers[$instr]($setfunc, CPU, string($ijk), Val(:write)))
-    ex2 = if bk.istrycatch
-        quote
-            try
-                $writecmd
-            catch e
-                @error(
-                    "[$(now)]\n$(mlstr("instrument communication failed!!!"))",
-                    instrument = $(string(bk.instrnm, ": ", bk.addr)),
-                    exception = e
-                )
-                nothing
-            end
-        end
-    else
-        writecmd
-    end
+    setcmd = :(controllers[$instr]($setfunc, CPU, string($ijk), Val(:write)))
+    ex2 = bk.istrycatch ? :(@gentrycatch $(bk.instrnm) $(bk.addr) $setcmd) : setcmd
     return quote
-        $ex1
+        $sweeplist = gensweeplist($start, $step, $stop)
         @progress for $ijk in $sweeplist
-            if SYNCSTATES[Int(IsBlocked)]
-                @warn "[$(now())]\n$(mlstr("pause!"))" SweepBlock = $instr
-                lock(() -> wait(BLOCK), BLOCK)
-                @info "[$(now())]\n$(mlstr("continue!"))" SweepBlock = $instr
-            elseif SYNCSTATES[Int(IsInterrupted)]
-                @warn "[$(now())]\n$(mlstr("interrupt!"))" SweepBlock = $instr
-                return nothing
-            end
+            @gencontroller SweepBlock $instr
             $ex2
             sleep($(bk.delay))
             $interpcodes
@@ -271,142 +225,18 @@ function tocodes(bk::SettingBlock)
         setvalue = Expr(:call, float, Expr(:call, :*, setvaluec, Uchange))
     end
     setfunc = Symbol(bk.instrnm, :_, bk.quantity, :_set)
-    settingcmd = :(controllers[$instr]($setfunc, CPU, string($setvalue), Val(:write)))
-    return if bk.istrycatch
-        quote
-            try
-                $settingcmd
-            catch e
-                @error(
-                    "[$(now)]\n$(mlstr("instrument communication failed!!!"))",
-                    instrument = $(string(bk.instrnm, ": ", bk.addr)),
-                    exception = e
-                )
-                nothing
-            end
-        end
-    else
-        settingcmd
-    end
+    setcmd = :(controllers[$instr]($setfunc, CPU, string($setvalue), Val(:write)))
+    return bk.istrycatch ? :(@gentrycatch $(bk.instrnm) $(bk.addr) $setcmd) : setcmd
 end
 
-function tocodes(bk::ReadingBlock)
-    instr = string(bk.instrnm, "_", bk.addr)
-    getfunc = Symbol(bk.instrnm, :_, bk.quantity, :_get)
-    index = @trypasse eval(Meta.parse(bk.index)) begin
-        @error "[$(now())]\n$(mlstr("codes are wrong in parsing time (ReadingBlock)!!!"))" bk = bk
-        return
-    end
-    index isa Integer && (index = [index])
-    if isnothing(index)
-        key = string(bk.mark, "_", bk.instrnm, "_", bk.quantity, "_", bk.addr)
-        getcmd = :(controllers[$instr]($getfunc, CPU, Val(:read)))
-        getdata = if bk.istrycatch
-            quote
-                try
-                    $getcmd
-                catch e
-                    @error(
-                        "[$(now)]\n$(mlstr("instrument communication failed!!!"))",
-                        instrument = $(string(bk.instrnm, ": ", bk.addr)),
-                        exception = e
-                    )
-                    ""
-                end
-            end
-        else
-            getcmd
-        end
-        if bk.isobserve
-            observable = Symbol(bk.mark)
-            return bk.isreading ? quote
-                $observable = $getdata
-                put!(databuf_lc, ($key, $observable))
-            end : :($observable = $getdata)
-        else
-            ex = :(put!(databuf_lc, ($key, $getdata)))
-            return bk.isasync ? quote
-                @async begin
-                    $ex
-                end
-            end : ex
-        end
-    else
-        marks = fill("", length(index))
-        for (i, v) in enumerate(split(bk.mark, ","))
-            marks[i] = v
-        end
-        for i in index
-            marks[i] == "" && (marks[i] = "mark$i")
-        end
-        keyall = [
-            string(mark, "_", bk.instrnm, "_", bk.quantity, "[", ind, "]", "_", bk.addr)
-            for (mark, ind) in zip(marks, index)
-        ]
-        getcmd = :(string.(split(controllers[$instr]($getfunc, CPU, Val(:read)), ",")[collect($index)]))
-        getdata = if bk.istrycatch
-            quote
-                try
-                    $getcmd
-                catch e
-                    @error(
-                        "[$(now)]\n$(mlstr("instrument communication failed!!!"))",
-                        instrument = $(string(bk.instrnm, ": ", bk.addr)),
-                        exception = e
-                    )
-                    fill("", length($index))
-                end
-            end
-        else
-            getcmd
-        end
-        if bk.isobserve
-            observable = length(index) == 1 ? Symbol(bk.mark) : Expr(:tuple, Symbol.(lstrip.(split(bk.mark, ',')))...)
-            return bk.isreading ? quote
-                $observable = $getdata
-                for data in zip($keyall, $observable)
-                    put!(databuf_lc, data)
-                end
-            end : :($observable = $getdata)
-        else
-            if bk.isasync
-                return quote
-                    @async for data in zip($keyall, $getdata)
-                        put!(databuf_lc, data)
-                        yield()
-                    end
-                end
-            else
-                return quote
-                    for data in zip($keyall, $getdata)
-                        put!(databuf_lc, data)
-                    end
-                end
-            end
-        end
-    end
-end
+
+tocodes(bk::ReadingBlock) = gencodes_read(bk)
 
 function tocodes(bk::WriteBlock)
     instr = string(bk.instrnm, "_", bk.addr)
     cmd = parsedollar(bk.cmd)
-    writecmd = :(controllers[$instr](write, CPU, string($cmd), Val(:write)))
-    ex = if bk.istrycatch
-        quote
-            try
-                $writecmd
-            catch e
-                @error(
-                    "[$(now)]\n$(mlstr("instrument communication failed!!!"))",
-                    instrument = $(string(bk.instrnm, ": ", bk.addr)),
-                    exception = e
-                )
-                nothing
-            end
-        end
-    else
-        writecmd
-    end
+    setcmd = :(controllers[$instr](write, CPU, string($cmd), Val(:write)))
+    ex = bk.istrycatch ? :(@gentrycatch $(bk.instrnm) $(bk.addr) $setcmd) : setcmd
     return bk.isasync ? quote
         @async begin
             $ex
@@ -414,33 +244,33 @@ function tocodes(bk::WriteBlock)
     end : ex
 end
 
-function tocodes(bk::QueryBlock)
+tocodes(bk::QueryBlock) = gencodes_read(bk)
+
+tocodes(bk::ReadBlock) = gencodes_read(bk)
+
+function gencodes_read(bk::Union{ReadingBlock,QueryBlock,ReadBlock})
     instr = string(bk.instrnm, "_", bk.addr)
     index = @trypasse eval(Meta.parse(bk.index)) begin
-        @error "[$(now())]\n$(mlstr("codes are wrong in parsing time (QueryBlock)!!!"))" bk = bk
+        @error "[$(now())]\n$(mlstr("codes are wrong in parsing time (ReadingBlock)!!!"))" bk = bk
         return
     end
     index isa Integer && (index = [index])
-    cmd = parsedollar(bk.cmd)
+    bk isa ReadingBlock && (getfunc = Symbol(bk.instrnm, :_, bk.quantity, :_get))
+    bk isa QueryBlock && (cmd = parsedollar(bk.cmd))
     if isnothing(index)
-        key = string(bk.mark, "_", bk.instrnm, "_", bk.addr)
-        getcmd = :(controllers[$instr](query, CPU, string($cmd), Val(:query)))
-        getdata = if bk.istrycatch
-            quote
-                try
-                    $getcmd
-                catch e
-                    @error(
-                        "[$(now)]\n$(mlstr("instrument communication failed!!!"))",
-                        instrument = $(string(bk.instrnm, ": ", bk.addr)),
-                        exception = e
-                    )
-                    ""
-                end
-            end
+        key = if bk isa ReadingBlock
+            string(bk.mark, "_", bk.instrnm, "_", bk.quantity, "_", bk.addr)
         else
-            getcmd
+            string(bk.mark, "_", bk.instrnm, "_", bk.addr)
         end
+        getcmd = if bk isa ReadingBlock
+            :(controllers[$instr]($getfunc, CPU, Val(:read)))
+        elseif bk isa QueryBlock
+            :(controllers[$instr](query, CPU, string($cmd), Val(:query)))
+        elseif bk isa ReadBlock
+            :(controllers[$instr](read, CPU, Val(:read)))
+        end
+        getdata = bk.istrycatch ? :(@gentrycatch $(bk.instrnm) $(bk.addr) $getcmd) : getcmd
         if bk.isobserve
             observable = Symbol(bk.mark)
             return bk.isreading ? quote
@@ -463,27 +293,25 @@ function tocodes(bk::QueryBlock)
         for i in index
             marks[i] == "" && (marks[i] = "mark$i")
         end
-        keyall = [string(mark, "_", bk.instrnm, "[", ind, "]", "_", bk.addr) for (mark, ind) in zip(marks, index)]
-        getcmd = :(string.(split(controllers[$instr](query, CPU, $cmd, Val(:query)), ",")[collect($index)]))
-        getdata = if bk.istrycatch
-            quote
-                try
-                    $getcmd
-                catch e
-                    @error(
-                        "[$(now)]\n$(mlstr("instrument communication failed!!!"))",
-                        instrument = $(string(bk.instrnm, ": ", bk.addr)),
-                        exception = e
-                    )
-                    fill("", length($index))
-                end
-            end
+        keyall = if bk isa ReadingBlock
+            [
+                string(mark, "_", bk.instrnm, "_", bk.quantity, "[", ind, "]", "_", bk.addr)
+                for (mark, ind) in zip(marks, index)
+            ]
         else
-            getcmd
+            [string(mark, "_", bk.instrnm, "[", ind, "]", "_", bk.addr) for (mark, ind) in zip(marks, index)]
         end
+        getcmd = if bk isa ReadingBlock
+            :(string.(split(controllers[$instr]($getfunc, CPU, Val(:read)), ",")[collect($index)]))
+        elseif bk isa QueryBlock
+            :(string.(split(controllers[$instr](query, CPU, $cmd, Val(:query)), ",")[collect($index)]))
+        elseif bk isa ReadBlock
+            :(string.(split(controllers[$instr](read, CPU, Val(:read)), ",")[collect($index)]))
+        end
+        getdata = bk.istrycatch ? :(@gentrycatch $(bk.instrnm) $(bk.addr) $getcmd $(length(index))) : getcmd
         if bk.isobserve
             observable = length(index) == 1 ? Symbol(bk.mark) : Expr(:tuple, Symbol.(lstrip.(split(bk.mark, ',')))...)
-            bk.isreading ? quote
+            return bk.isreading ? quote
                 $observable = $getdata
                 for data in zip($keyall, $observable)
                     put!(databuf_lc, data)
@@ -508,97 +336,56 @@ function tocodes(bk::QueryBlock)
     end
 end
 
-function tocodes(bk::ReadBlock)
-    instr = string(bk.instrnm, "_", bk.addr)
-    index = @trypasse eval(Meta.parse(bk.index)) begin
-        @error "[$(now())]\n$(mlstr("codes are wrong in parsing time (ReadBlock)!!!"))" bk = bk
-        return
-    end
-    index isa Integer && (index = [index])
-    if isnothing(index)
-        key = string(bk.mark, "_", bk.instrnm, "_", bk.addr)
-        getcmd = :(controllers[$instr](read, CPU, Val(:read)))
-        getdata = if bk.istrycatch
-            quote
-                try
-                    $getcmd
-                catch e
-                    @error(
-                        "[$(now)]\n$(mlstr("instrument communication failed!!!"))",
-                        instrument = $(string(bk.instrnm, ": ", bk.addr)),
-                        exception = e
-                    )
-                    ""
-                end
-            end
-        else
-            getcmd
-        end
-        if bk.isobserve
-            observable = Symbol(bk.mark)
-            return bk.isreading ? quote
-                $observable = $getdata
-                put!(databuf_lc, ($key, $observable))
-            end : :($observable = $getdata)
-        else
-            ex = :(put!(databuf_lc, ($key, $getdata)))
-            return bk.isasync ? quote
-                @async begin
-                    $ex
-                end
-            end : ex
-        end
-    else
-        marks = fill("", length(index))
-        for (i, v) in enumerate(split(bk.mark, ","))
-            marks[i] = v
-        end
-        for i in index
-            marks[i] == "" && (marks[i] = "mark$i")
-        end
-        keyall = [string(mark, "_", bk.instrnm, "[", ind, "]", "_", bk.addr) for (mark, ind) in zip(marks, index)]
-        getcmd = :(string.(split(controllers[$instr](read, CPU, Val(:read)), ",")[collect($index)]))
-        getdata = if bk.istrycatch
-            quote
-                try
-                    $getcmd
-                catch e
-                    @error(
-                        "[$(now)]\n$(mlstr("instrument communication failed!!!"))",
-                        instrument = $(string(bk.instrnm, ": ", bk.addr)),
-                        exception = e
-                    )
-                    fill("", length($index))
-                end
-            end
-        else
-            getcmd
-        end
-        if bk.isobserve
-            observable = length(index) == 1 ? Symbol(bk.mark) : Expr(:tuple, Symbol.(lstrip.(split(bk.mark, ',')))...)
-            bk.isreading ? quote
-                $observable = $getdata
-                for data in zip($keyall, $observable)
-                    put!(databuf_lc, data)
-                end
-            end : :($observable = $getdata)
-        else
-            if bk.isasync
-                return quote
-                    @async for data in zip($keyall, $getdata)
-                        put!(databuf_lc, data)
-                        yield()
+macro gentrycatch(instrnm, addr, cmd, len=0)
+    esc(
+        quote
+            let
+                state, getval = counter(CONF.DAQ.retryconnecttimes) do tout
+                    state, getval = counter(CONF.DAQ.retrysendtimes) do tin
+                        try
+                            getval = $cmd
+                            return true, getval
+                        catch e
+                            @error(
+                                "[$(now)]\n$(mlstr("instrument communication failed!!!"))",
+                                instrument = $(string(instrnm, ": ", addr)),
+                                exception = e
+                            )
+                            @info stcstr(mlstr("retry sending command"), " ", tin)
+                            return false, $(len == 0 ? "" : fill("", len))
+                        end
+                    end
+                    if state
+                        return true, getval
+                    else
+                        try
+                            disconnect!(CPU.instrs[$addr])
+                            connect!(CPU.resourcemanager, CPU.instrs[$addr])
+                        catch
+                        end
+                        @info stcstr(mlstr("retry reconnecting instrument"), " ", tout)
+                        return false, $(len == 0 ? "" : fill("", len))
                     end
                 end
-            else
-                return quote
-                    for data in zip($keyall, $getdata)
-                        put!(databuf_lc, data)
-                    end
-                end
+                getval
             end
         end
-    end
+    )
+end
+
+macro gencontroller(key, val)
+    esc(
+        quote
+            if SYNCSTATES[Int(IsBlocked)]
+                @warn "[$(now())]\n$(mlstr("pause!"))" $key = $val
+                lock(() -> wait(BLOCK), BLOCK)
+                @info "[$(now())]\n$(mlstr("continue!"))" $key = $val
+            elseif SYNCSTATES[Int(IsInterrupted)]
+                @warn "[$(now())]\n$(mlstr("interrupt!"))" $key = $val
+                return nothing
+            end
+        end
+    )
 end
 
 ############functionality-----------------------------------------------------------------------------------------------
