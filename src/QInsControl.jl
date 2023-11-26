@@ -78,9 +78,9 @@ include("UI/UtilitiesForRenderer.jl")
 include("UI/DataViewer.jl")
 include("UI/StyleEditor.jl")
 include("UI/Preferences.jl")
-include("UI/InstrRegister.jl")
 include("UI/CPUMonitor.jl")
 include("UI/InstrBuffer.jl")
+include("UI/InstrRegister.jl")
 include("UI/InstrWidget.jl")
 include("UI/DAQ.jl")
 include("UI/Console.jl")
@@ -106,12 +106,12 @@ function julia_main()::Cint
         global PROGRESSRC = RemoteChannel(() -> progress_c)
         synccall_wait(workers()[1], SYNCSTATES) do syncstates
             myid() == 1 || loadconf()
-            global LOGIO = IOBuffer()
-            global_logger(SimpleLogger(LOGIO))
-            errormonitor(@async while true
-                sleep(1)
-                update_log(syncstates)
-            end)
+            # global LOGIO = IOBuffer()
+            # global_logger(SimpleLogger(LOGIO))
+            # errormonitor(@async while true
+            #     sleep(1)
+            #     update_log(syncstates)
+            # end)
         end
         jlverinfobuf = IOBuffer()
         versioninfo(jlverinfobuf)
@@ -120,7 +120,7 @@ function julia_main()::Cint
         isempty(ARGS) || @info reencoding.(ARGS, CONF.Basic.encoding)
         uitask = UI()
         remotecall_wait(() -> start!(CPU), workers()[1])
-        autorefresh()
+        global AUTOREFRESHTASK = autorefresh()
         if CONF.Basic.remoteprocessdata && nprocs() == 2
             ENV["JULIA_NUM_THREADS"] = CONF.Basic.nthreads
             addprocs(1)

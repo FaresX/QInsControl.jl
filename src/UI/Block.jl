@@ -413,14 +413,7 @@ macro psleep(seconds)
     esc(
         quote
             @progress for _ in 1:$s1
-                if SYNCSTATES[Int(IsBlocked)]
-                    @warn "[$(now())]\n$(mlstr("pause!"))"
-                    lock(() -> wait(BLOCK), BLOCK)
-                    @info "[$(now())]\n$(mlstr("continue!"))"
-                elseif SYNCSTATES[Int(IsInterrupted)]
-                    @warn "[$(now())]\n$(mlstr("interrupt!"))"
-                    return nothing
-                end
+                @gencontroller psleep $seconds
                 sleep(1)
             end
             for _ in 1:$s2

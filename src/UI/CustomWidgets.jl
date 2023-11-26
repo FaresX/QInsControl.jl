@@ -11,6 +11,33 @@ function ComBoS(label, preview_value::Ref, item_list, flags=0)
     iscombo
 end
 
+function ColoredCombo(
+    label, preview_value::Ref{String}, item_list, flags=0;
+    width=0,
+    rounding=0,
+    bdrounding=0,
+    thickness=0,
+    colfrm=CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_FrameBg),
+    colfrmh=CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_FrameBgHovered),
+    colfrma=CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_FrameBgActive),
+    coltxt=CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_Text),
+    colrect=MORESTYLE.Colors.ShowTextRect
+)
+    CImGui.PushStyleColor(CImGui.ImGuiCol_FrameBg, colfrm)
+    CImGui.PushStyleColor(CImGui.ImGuiCol_FrameBgHovered, colfrmh)
+    CImGui.PushStyleColor(CImGui.ImGuiCol_FrameBgActive, colfrma)
+    CImGui.PushStyleColor(CImGui.ImGuiCol_Text, coltxt)
+    CImGui.PushStyleVar(CImGui.ImGuiStyleVar_FrameRounding, rounding)
+    CImGui.PushItemWidth(width)
+    iscombo = ComBoS(label, preview_value, item_list, flags)
+    CImGui.PopItemWidth()
+    CImGui.PopStyleVar()
+    CImGui.PopStyleColor(4)
+    rmin, rmax = CImGui.GetItemRectMin(), CImGui.GetItemRectMax()
+    draw_list = CImGui.GetWindowDrawList()
+    CImGui.AddRect(draw_list, rmin, rmax, CImGui.ColorConvertFloat4ToU32(colrect), bdrounding, 0, thickness)
+    return iscombo
+end
 # toint8(s) = [Int8(c) for c in s]
 
 let
@@ -54,6 +81,63 @@ let
     end
 end
 
+function ColoredInputTextWithHintRSZ(
+    label,
+    hint,
+    str::Ref{String},
+    flags=0;
+    width=0,
+    rounding=0,
+    bdrounding=0,
+    thickness=0,
+    colfrm=CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_FrameBg),
+    coltxt=CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_Text),
+    colhint=CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_TextDisabled),
+    colrect=MORESTYLE.Colors.ShowTextRect
+)
+    CImGui.PushStyleColor(CImGui.ImGuiCol_FrameBg, colfrm)
+    CImGui.PushStyleColor(CImGui.ImGuiCol_Text, coltxt)
+    CImGui.PushStyleColor(CImGui.ImGuiCol_TextDisabled, colhint)
+    CImGui.PushStyleVar(CImGui.ImGuiStyleVar_FrameRounding, rounding)
+    CImGui.PushItemWidth(width)
+    input = InputTextWithHintRSZ(label, hint, str, flags)
+    CImGui.PopItemWidth()
+    CImGui.PopStyleVar()
+    CImGui.PopStyleColor(3)
+    rmin, rmax = CImGui.GetItemRectMin(), CImGui.GetItemRectMax()
+    draw_list = CImGui.GetWindowDrawList()
+    CImGui.AddRect(draw_list, rmin, rmax, CImGui.ColorConvertFloat4ToU32(colrect), bdrounding, 0, thickness)
+    return input
+end
+
+function ColoredDragWidget(
+    dragfunc,
+    label, v::Ref, v_speed=1.0, v_min=0, v_max=0.0, format="%.3f", flag=0;
+    width=0,
+    rounding=0,
+    bdrounding=0,
+    thickness=0,
+    colfrm=CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_FrameBg),
+    colfrmh=CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_FrameBgHovered),
+    colfrma=CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_FrameBgActive),
+    coltxt=CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_Text),
+    colrect=MORESTYLE.Colors.ShowTextRect
+)
+    CImGui.PushStyleColor(CImGui.ImGuiCol_FrameBg, colfrm)
+    CImGui.PushStyleColor(CImGui.ImGuiCol_FrameBgHovered, colfrmh)
+    CImGui.PushStyleColor(CImGui.ImGuiCol_FrameBgActive, colfrma)
+    CImGui.PushStyleColor(CImGui.ImGuiCol_Text, coltxt)
+    CImGui.PushStyleVar(CImGui.ImGuiStyleVar_FrameRounding, rounding)
+    CImGui.PushItemWidth(width)
+    dragged = dragfunc(label, v, v_speed, v_min, v_max, format, flag)
+    CImGui.PopItemWidth()
+    CImGui.PopStyleVar()
+    CImGui.PopStyleColor(4)
+    rmin, rmax = CImGui.GetItemRectMin(), CImGui.GetItemRectMax()
+    draw_list = CImGui.GetWindowDrawList()
+    CImGui.AddRect(draw_list, rmin, rmax, CImGui.ColorConvertFloat4ToU32(colrect), bdrounding, 0, thickness)
+    return dragged
+end
 # ResizeCallback_c = @cfunction ResizeCallback Cint (CImGui.ImGuiInputTextCallbackData,)
 
 # function InputTextRSZ(label, str::Ref)
@@ -194,7 +278,8 @@ function TextRect(str)
         CImGui.ImVec2(pos.x + width, rmax.y),
         CImGui.ColorConvertFloat4ToU32(MORESTYLE.Colors.ShowTextRect),
         0.0,
-        0
+        0,
+        2
     )
     CImGui.PopTextWrapPos()
     rmin, (pos.x + width, rmax.y)
@@ -224,34 +309,166 @@ function RenameSelectable(str_id, isrename::Ref{Bool}, label::Ref, selected::Boo
     trig
 end
 
-function ColoredButton(label::AbstractString, size=(0, 0), colbt=CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_Button))
+function ColoredButton(
+    label::AbstractString;
+    size=(0, 0),
+    colbt=CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_Button),
+    colbth=CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_ButtonHovered),
+    colbta=CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_ButtonActive),
+    coltxt=CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_Text)
+)
     CImGui.PushStyleColor(CImGui.ImGuiCol_Button, colbt)
+    CImGui.PushStyleColor(CImGui.ImGuiCol_ButtonHovered, colbth)
+    CImGui.PushStyleColor(CImGui.ImGuiCol_ButtonActive, colbta)
+    CImGui.PushStyleColor(CImGui.ImGuiCol_Text, coltxt)
     clicked = CImGui.Button(label, size)
-    CImGui.PopStyleColor()
+    CImGui.PopStyleColor(4)
     return clicked
 end
 
-function SquareButton(label::AbstractString, size=0, colbt=CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_Button))
-end
-
-function CircleButton(label::AbstractString, size=0, colbt=CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_Button))
+function ColoredButtonRect(
+    label;
+    size=(0, 0),
+    rounding=0.0,
+    bdrounding=0.0,
+    thickness=0,
+    colbt=CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_Button),
+    colbth=CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_ButtonHovered),
+    colbta=CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_ButtonActive),
+    coltxt=CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_Text),
+    colrect=MORESTYLE.Colors.ShowTextRect
+)
+    CImGui.PushStyleVar(CImGui.ImGuiStyleVar_FrameRounding, rounding)
+    clicked = ColoredButton(label; size=size, colbt=colbt, colbth=colbth, colbta=colbta, coltxt=coltxt)
+    CImGui.PopStyleVar()
+    rmin, rmax = CImGui.GetItemRectMin(), CImGui.GetItemRectMax()
+    draw_list = CImGui.GetWindowDrawList()
+    CImGui.AddRect(draw_list, rmin, rmax, CImGui.ColorConvertFloat4ToU32(colrect), bdrounding, 0, thickness)
+    return clicked
 end
 
 function ToggleButton(
     label::AbstractString,
-    v::Ref{Bool},
+    v::Ref{Bool};
     size=(0, 0),
     colon=MORESTYLE.Colors.ToggleButtonOn,
-    coloff=MORESTYLE.Colors.ToggleButtonOff;
-    shape=:rectangle
+    coloff=MORESTYLE.Colors.ToggleButtonOff,
+    colbth=CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_ButtonHovered),
+    colbta=CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_ButtonActive),
+    coltxt=CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_Text)
 )
-    toggled = if shape == :square
-        SquareButton(label, size, v[] ? colon : coloff)
-    elseif shape == :circle
-        CircleButton(label, size, v[] ? colon : coloff)
-    else
-        ColoredButton(label, v[] ? colon : coloff, size)
-    end
+    toggled = ColoredButton(label; size=size, colbt=v[] ? colon : coloff, colbth=colbth, colbta=colbta, coltxt=coltxt)
     toggled && (v[] ⊻= true)
     return toggled
+end
+
+function ToggleButtonRect(
+    label,
+    v::Ref{Bool};
+    size=(0, 0),
+    rounding=0.0,
+    bdrounding=0.0,
+    thickness=1.0,
+    colon=MORESTYLE.Colors.ToggleButtonOn,
+    coloff=MORESTYLE.Colors.ToggleButtonOff,
+    colbth=CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_ButtonHovered),
+    colbta=CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_ButtonActive),
+    coltxt=CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_Text),
+    colrect=MORESTYLE.Colors.ShowTextRect
+)
+    CImGui.PushStyleVar(CImGui.ImGuiStyleVar_FrameRounding, rounding)
+    toggled = ToggleButton(label, v; size=size, colon=colon, coloff=coloff, colbth=colbth, colbta=colbta, coltxt=coltxt)
+    CImGui.PopStyleVar()
+    rmin, rmax = CImGui.GetItemRectMin(), CImGui.GetItemRectMax()
+    draw_list = CImGui.GetWindowDrawList()
+    CImGui.AddRect(draw_list, rmin, rmax, CImGui.ColorConvertFloat4ToU32(colrect), bdrounding, 0, thickness)
+    return toggled
+end
+
+function ColoredRadioButton(
+    label, v::Ref, v_button::Integer;
+    bdrounding=0,
+    thickness=0,
+    colckm=CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_CheckMark),
+    colfrm=CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_FrameBg),
+    colfrmh=CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_FrameBgHovered),
+    colfrma=CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_FrameBgActive),
+    coltxt=CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_Text),
+    colrect=MORESTYLE.Colors.ShowTextRect
+)
+    CImGui.PushStyleColor(CImGui.ImGuiCol_CheckMark, colckm)
+    CImGui.PushStyleColor(CImGui.ImGuiCol_FrameBg, colfrm)
+    CImGui.PushStyleColor(CImGui.ImGuiCol_FrameBgHovered, colfrmh)
+    CImGui.PushStyleColor(CImGui.ImGuiCol_FrameBgActive, colfrma)
+    CImGui.PushStyleColor(CImGui.ImGuiCol_Text, coltxt)
+    clicked = CImGui.RadioButton(label, v, v_button)
+    CImGui.PopStyleColor(5)
+    rmin, rmax = CImGui.GetItemRectMin(), CImGui.GetItemRectMax()
+    draw_list = CImGui.GetWindowDrawList()
+    CImGui.AddRect(draw_list, rmin, rmax, CImGui.ColorConvertFloat4ToU32(colrect), bdrounding, 0, thickness)
+    return clicked
+end
+
+function ColoredSlider(
+    sliderfunc,
+    label, v::Ref, v_min, v_max, format="%d", flags=0;
+    width=0,
+    rounding=0,
+    grabrounding=0.0,
+    bdrounding=0,
+    thickness=0,
+    colgrab=CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_SliderGrab),
+    colfrm=CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_FrameBg),
+    colfrmh=CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_FrameBgHovered),
+    colfrma=CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_FrameBgActive),
+    coltxt=CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_Text),
+    colrect=MORESTYLE.Colors.ShowTextRect
+)
+    CImGui.PushStyleColor(CImGui.ImGuiCol_SliderGrab, colgrab)
+    CImGui.PushStyleColor(CImGui.ImGuiCol_FrameBg, colfrm)
+    CImGui.PushStyleColor(CImGui.ImGuiCol_FrameBgHovered, colfrmh)
+    CImGui.PushStyleColor(CImGui.ImGuiCol_FrameBgActive, colfrma)
+    CImGui.PushStyleColor(CImGui.ImGuiCol_Text, coltxt)
+    CImGui.PushStyleVar(CImGui.ImGuiStyleVar_FrameRounding, rounding)
+    CImGui.PushStyleVar(CImGui.ImGuiStyleVar_GrabRounding, grabrounding)
+    CImGui.PushItemWidth(width)
+    dragged = sliderfunc(label, v, v_min, v_max, format, flags)
+    CImGui.PopItemWidth()
+    CImGui.PopStyleVar(2)
+    CImGui.PopStyleColor(5)
+    rmin, rmax = CImGui.GetItemRectMin(), CImGui.GetItemRectMax()
+    draw_list = CImGui.GetWindowDrawList()
+    CImGui.AddRect(draw_list, rmin, rmax, CImGui.ColorConvertFloat4ToU32(colrect), bdrounding, 0, thickness)
+    return dragged
+end
+
+function ColoredVSlider(
+    vsliderfunc,
+    label, v::Ref, v_min, v_max, format="%d", flags=0;
+    size=(0, 0),
+    rounding=0,
+    grabrounding=0.0,
+    bdrounding=0,
+    thickness=0,
+    colgrab=CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_SliderGrab),
+    colfrm=CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_FrameBg),
+    colfrmh=CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_FrameBgHovered),
+    colfrma=CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_FrameBgActive),
+    coltxt=CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_Text),
+    colrect=MORESTYLE.Colors.ShowTextRect
+)
+    CImGui.PushStyleColor(CImGui.ImGuiCol_SliderGrab, colgrab)
+    CImGui.PushStyleColor(CImGui.ImGuiCol_FrameBg, colfrm)
+    CImGui.PushStyleColor(CImGui.ImGuiCol_FrameBgHovered, colfrmh)
+    CImGui.PushStyleColor(CImGui.ImGuiCol_FrameBgActive, colfrma)
+    CImGui.PushStyleColor(CImGui.ImGuiCol_Text, coltxt)
+    CImGui.PushStyleVar(CImGui.ImGuiStyleVar_FrameRounding, rounding)
+    CImGui.PushStyleVar(CImGui.ImGuiStyleVar_GrabRounding, grabrounding)
+    dragged = vsliderfunc(label, size, v, v_min, v_max, format, flags)
+    CImGui.PopStyleVar(2)
+    CImGui.PopStyleColor(5)
+    rmin, rmax = CImGui.GetItemRectMin(), CImGui.GetItemRectMax()
+    draw_list = CImGui.GetWindowDrawList()
+    CImGui.AddRect(draw_list, rmin, rmax, CImGui.ColorConvertFloat4ToU32(colrect), bdrounding, 0, thickness)
+    return dragged
 end

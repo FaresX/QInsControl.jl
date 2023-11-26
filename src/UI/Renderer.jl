@@ -254,6 +254,7 @@ function UI(breakdown=false; precompile=false)
         Base.show_backtrace(stderr, catch_backtrace())
     finally
         SYNCSTATES[Int(IsDAQTaskRunning)] || remotecall_wait(() -> stop!(CPU), workers()[1])
+        schedule(AUTOREFRESHTASK, mlstr("Stop"); error=true)
         CImGui.SaveIniSettingsToDisk(imguiinifile)
         ImGuiOpenGLBackend.shutdown(gl_ctx)
         ImGuiGLFWBackend.shutdown(window_ctx)

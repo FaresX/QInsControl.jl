@@ -94,7 +94,7 @@ let
                     end
                 )
                 if CImGui.Button(
-                    stcstr(MORESTYLE.Icons.TaskButton, " ", mlstr("Task"), " ", i + OLDI, " ", task.name, "###rename"),
+                    stcstr(MORESTYLE.Icons.TaskButton, " ", mlstr("Task"), " ", i + OLDI, " ", task.name, "###task", i),
                     (-1, 0)
                 )
                     show_daq_editors[i] = true
@@ -116,7 +116,7 @@ let
                             payload_i = unsafe_load(Ptr{Cint}(unsafe_load(payload).Data))
                             if i != payload_i
                                 insert!(daqtasks, i, daqtasks[payload_i])
-                                payload_i < i ? deleteat!(daqtasks, payload_i) : deleteat!(daqtasks, payload_i + 1)
+                                deleteat!(daqtasks, payload_i < i ? payload_i : payload_i + 1)
                             end
                         end
                         CImGui.EndDragDropTarget()

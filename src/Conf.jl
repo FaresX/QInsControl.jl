@@ -40,7 +40,20 @@ function loadconf()
         bnm = basename(file)
         split(bnm, '.')[end] == "toml" && gen_insconf(file)
     end
-    
+
+    ###### generate INSWCONF ######
+    for file in readdir(joinpath(ENV["QInsControlAssets"], "Widgets"), join=true)
+        bnm = basename(file)
+        instrnm, filetype = split(bnm, '.')
+        if filetype == "toml"
+            widgets = TOML.parsefile(file)
+            push!(INSWCONF, instrnm => [])
+            for (_, widget) in widgets
+                push!(INSWCONF[instrnm], from_dict(InstrWidget, widget))
+            end
+        end
+    end
+
     if myid() == 1
         ###### generate INSTRBUFFERVIEWERS ######
         for key in keys(INSCONF)
@@ -109,8 +122,8 @@ macro tsp(instrnm, quantity, tspstr)
 end
 
 function gen_insconf(conf_file)
-    local conf = TOML.parsefile(conf_file)
-    instrnm = Symbol(split(basename(conf_file), ".")[1])
+    conf = TOML.parsefile(conf_file)
+    instrnm = Symbol(split(basename(conf_file), '.')[1])
     if !isempty(conf["conf"]["cmdtype"])
         cmdtype = Symbol("@", conf["conf"]["cmdtype"])
         for pair in conf

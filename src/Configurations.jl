@@ -111,12 +111,12 @@ global CONF::Conf
 
 abstract type InsConf end
 
-mutable struct BasicConf <: InsConf
-    icon::String
-    idn::String
-    cmdtype::String
-    input_labels::Vector{String}
-    output_labels::Vector{String}
+@kwdef mutable struct BasicConf <: InsConf
+    icon::String = ICONS.ICON_MICROCHIP
+    idn::String = "New Ins"
+    cmdtype::String = "scpi"
+    input_labels::Vector{String} = []
+    output_labels::Vector{String} = []
 end
 BasicConf(conf::Dict) = BasicConf(
     conf["icon"],
@@ -126,14 +126,14 @@ BasicConf(conf::Dict) = BasicConf(
     conf["output_labels"]
 )
 
-mutable struct QuantityConf <: InsConf
-    alias::String
-    U::String
-    cmdheader::String
-    optkeys::Vector{String}
-    optvalues::Vector{String}
-    type::String
-    help::String
+@kwdef mutable struct QuantityConf <: InsConf
+    alias::String = "quantity"
+    U::String = ""
+    cmdheader::String = ""
+    optkeys::Vector{String} = []
+    optvalues::Vector{String} = []
+    type::String = "set"
+    help::String = ""
 end
 QuantityConf(qt::Dict) = QuantityConf(
     qt["alias"],
@@ -145,11 +145,10 @@ QuantityConf(qt::Dict) = QuantityConf(
     qt["help"]
 )
 
-mutable struct OneInsConf
-    conf::BasicConf
-    quantities::OrderedDict{String,QuantityConf}
+@kwdef mutable struct OneInsConf
+    conf::BasicConf = BasicConf()
+    quantities::OrderedDict{String,QuantityConf} = Dict()
 end
-OneInsConf() = OneInsConf(BasicConf("", "", "", [], []), OrderedDict())
 
 todict(cf::BasicConf) = Dict(
     "icon" => cf.icon,

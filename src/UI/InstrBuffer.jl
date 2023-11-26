@@ -57,35 +57,13 @@ end
 
 function quantity(name, qtcf::QuantityConf)
     return if qtcf.type == "sweep"
-        SweepQuantity(
-            true, name, qtcf.alias,
-            "", "", Cfloat(0.1),
-            "",
-            qtcf.U, 1,
-            qtcf.help,
-            false,
-            false,
-            "", "", true
-        )
+        SweepQuantity(name=name, alias=qtcf.alias, utype=qtcf.U, help=qtcf.help)
     elseif qtcf.type == "set"
         SetQuantity(
-            true, name, qtcf.alias,
-            "", qtcf.optkeys, qtcf.optvalues, 1,
-            "",
-            qtcf.U, 1,
-            qtcf.help,
-            false,
-            "", "", true
+            name=name, alias=qtcf.alias, optkeys=qtcf.optkeys, optvalues=qtcf.optvalues, utype=qtcf.U, help=qtcf.help
         )
     elseif qtcf.type == "read"
-        ReadQuantity(
-            true, name, qtcf.alias,
-            "",
-            qtcf.U, 1,
-            qtcf.help,
-            false,
-            "", "", true
-        )
+        ReadQuantity(name=name, alias=qtcf.alias, utype=qtcf.U, help=qtcf.help)
     end
 end
 
@@ -99,13 +77,6 @@ end
 
 function updatefront!(qt::SweepQuantity)
     val, U = getvalU(qt)
-    # content = string(
-    #     qt.alias,
-    #     "\n", mlstr("step"), ": ", qt.step, " ", U,
-    #     "\n", mlstr("stop"), ": ", qt.stop, " ", U,
-    #     "\n", mlstr("delay"), ": ", qt.delay, " s\n",
-    #     val, " ", U
-    # ) |> centermultiline
     content = string("\n", qt.alias, "\n \n", val, " ", U, "\n ") |> centermultiline
     qt.show_edit = string(content, "###for refresh")
 end
@@ -116,13 +87,6 @@ function updatefront!(qt::SetQuantity)
         validx = findfirst(==(val), qt.optvalues)
         val = string(qt.optkeys[validx], " => ", qt.optvalues[validx])
     end
-    # content = string(
-    #     qt.alias,
-    #     "\n \n",
-    #     mlstr("set value"), ": ", qt.set, " ", U,
-    #     "\n \n",
-    #     val, " ", U
-    # ) |> centermultiline
     content = string("\n", qt.alias, "\n \n", val, " ", U, "\n ") |> centermultiline
     qt.show_edit = string(content, "###for refresh")
 end
@@ -172,7 +136,7 @@ function InstrBuffer(instrnm)
         newqt = quantity(qt, QuantityConf(alias, utype, "", optkeys, optvalues, type, help))
         push!(instrqts, qt => newqt)
     end
-    InstrBuffer(instrnm, instrqts, false, "", false, false)
+    InstrBuffer(instrnm=instrnm, quantities=instrqts)
 end
 
 function update_passfilter!(insbuf::InstrBuffer)
@@ -226,7 +190,7 @@ end
 function edit(ibv::InstrBufferViewer)
     CImGui.SetNextWindowSize((800, 600), CImGui.ImGuiCond_Once)
     ins, addr = ibv.instrnm, ibv.addr
-    if @c CImGui.Begin(stcstr(INSCONF[ins].conf.icon, "  ", ins, " --- ", addr), &ibv.p_open)
+    if @c CImGui.Begin(stcstr(INSCONF[ins].conf.icon, "  ", ins, "  ", addr), &ibv.p_open)
         @c testcmd(ins, addr, &ibv.inputcmd, &ibv.readstr)
         edit(ibv.insbuf, addr)
         CImGui.IsKeyPressed(294, false) && (refresh1(true); updatefrontall!())
@@ -492,9 +456,9 @@ let
         qt.show_edit == "" && updatefront!(qt)
         # CImGui.PushFont(PLOTFONT)
         if ColoredButton(
-            qt.show_edit,
-            (-1, 0),
-            if qt.enable
+            qt.show_edit;
+            size=(-1, 0),
+            colbt=if qt.enable
                 if qt.isautorefresh || qt.issweeping
                     MORESTYLE.Colors.DAQTaskRunning
                 else
@@ -571,9 +535,9 @@ let
         qt.show_edit == "" && updatefront!(qt)
         # CImGui.PushFont(PLOTFONT)
         if ColoredButton(
-            qt.show_edit,
-            (-1, 0),
-            if qt.enable
+            qt.show_edit;
+            size=(-1, 0),
+            colbt=if qt.enable
                 qt.isautorefresh ? MORESTYLE.Colors.DAQTaskRunning : MORESTYLE.Colors.SetQuantityBt
             else
                 MORESTYLE.Colors.LogError
@@ -662,9 +626,9 @@ let
         qt.show_edit == "" && updatefront!(qt)
         # CImGui.PushFont(PLOTFONT)
         if ColoredButton(
-            qt.show_edit,
-            (-1, 0),
-            if qt.enable
+            qt.show_edit;
+            size=(-1, 0),
+            colbt=if qt.enable
                 qt.isautorefresh ? MORESTYLE.Colors.DAQTaskRunning : MORESTYLE.Colors.ReadQuantityBt
             else
                 MORESTYLE.Colors.LogError
@@ -771,17 +735,6 @@ function apply!(qt::SweepQuantity, instrnm, addr)
         @error "[$(now())]\n$(mlstr("error parsing stop value!!!"))" stop = qt.stop
     end
     if !(isnothing(start) || isnothing(step) || isnothing(stop))
-        # if CONF.DAQ.equalstep
-        #     rawsteps = abs((start - stop) / step)
-        #     ceilsteps = ceil(Int, rawsteps)
-        #     sweepsteps = rawsteps ≈ ceilsteps ? ceilsteps + 1 : ceilsteps
-        #     sweepsteps = sweepsteps == 1 ? 2 : sweepsteps
-        #     sweeplist = range(start, stop, length=sweepsteps)
-        # else
-        #     step = start < stop ? abs(step) : -abs(step)
-        #     sweeplist = collect(start:step:stop)
-        #     sweeplist[end] == stop || push!(sweeplist, stop)
-        # end
         sweeplist = gensweeplist(start, step, stop)
         errormonitor(
             @async begin

@@ -28,6 +28,7 @@ let
     no_docking::Bool = true
 
     dtviewers = Tuple{DataViewer,FolderFileTree,Dict{String,Bool}}[]
+    instrwidgets = Dict{String,Dict{String,Tuple{Ref{Bool},InstrWidget}}}()
 
     window_flags::Cint = 0
     no_titlebar && (window_flags |= CImGui.ImGuiWindowFlags_NoTitleBar)
@@ -63,6 +64,7 @@ let
                 ibv.p_open = false
             end
         end
+        empty!(instrwidgets)
     end
 
     global function MainWindow()
@@ -103,8 +105,13 @@ let
         show_cpu_monitor && @c CPUMonitor(&show_cpu_monitor)
         show_instr_buffer && @c ShowInstrBuffer(&show_instr_buffer)
         for ins in keys(INSTRBUFFERVIEWERS)
-            for (_, ibv) in INSTRBUFFERVIEWERS[ins]
+            for (addr, ibv) in INSTRBUFFERVIEWERS[ins]
                 ibv.p_open && edit(ibv)
+                if haskey(instrwidgets, addr)
+                    for (wnm, insw) in instrwidgets[addr]
+                        insw[1][] ? edit(insw[2], ibv.insbuf, addr, insw[1]) : delete!(instrwidgets[addr], wnm)
+                    end
+                end
             end
         end
         show_daq && @c DAQ(&show_daq)
@@ -201,38 +208,50 @@ let
                     for ins in keys(INSTRBUFFERVIEWERS)
                         if !isempty(INSTRBUFFERVIEWERS[ins])
                             if CImGui.BeginMenu(stcstr(INSCONF[ins].conf.icon, " ", ins))
-                                for addr in keys(INSTRBUFFERVIEWERS[ins])
-                                    ibv = INSTRBUFFERVIEWERS[ins][addr]
+                                for (addr, ibv) in INSTRBUFFERVIEWERS[ins]
                                     @c CImGui.Checkbox(stcstr("##", ins, addr), &ibv.insbuf.isautorefresh)
                                     CImGui.SameLine()
-                                    @c CImGui.MenuItem(addr, C_NULL, &ibv.p_open)
-                                    if CImGui.BeginPopupContextItem()
-                                        if CImGui.MenuItem(
-                                            stcstr(MORESTYLE.Icons.CloseFile, " ", mlstr("Delete")),
-                                            C_NULL,
-                                            false,
-                                            ins != "VirtualInstr"
-                                        )
-                                            synccall_wait(workers()[1], ins, addr) do ins, addr
-                                                delete!(INSTRBUFFERVIEWERS[ins], addr)
-                                            end
-                                        end
-                                        if CImGui.BeginMenu(
-                                            stcstr(MORESTYLE.Icons.NewFile, " ", mlstr("Add to")),
-                                            ins == "Others"
-                                        )
-                                            for (cfins, cf) in INSCONF
-                                                cfins in ["Others", "VirtualInstr"] && continue
-                                                if CImGui.MenuItem(stcstr(cf.conf.icon, " ", cfins))
-                                                    synccall_wait(workers()[1], ins, addr, cfins) do ins, addr, cfins
-                                                        delete!(INSTRBUFFERVIEWERS[ins], addr)
-                                                        get!(INSTRBUFFERVIEWERS[cfins], addr, InstrBufferViewer(cfins, addr))
-                                                    end
+                                    if @c CImGui.BeginMenu(addr)
+                                        @c CImGui.MenuItem(mlstr("Common"), C_NULL, &ibv.p_open)
+                                        if CImGui.BeginPopupContextItem()
+                                            if CImGui.MenuItem(
+                                                stcstr(MORESTYLE.Icons.CloseFile, " ", mlstr("Delete")),
+                                                C_NULL,
+                                                false,
+                                                ins != "VirtualInstr"
+                                            )
+                                                synccall_wait(workers()[1], ins, addr) do ins, addr
+                                                    delete!(INSTRBUFFERVIEWERS[ins], addr)
                                                 end
                                             end
-                                            CImGui.EndMenu()
+                                            if CImGui.BeginMenu(
+                                                stcstr(MORESTYLE.Icons.NewFile, " ", mlstr("Add to")),
+                                                ins == "Others"
+                                            )
+                                                for (cfins, cf) in INSCONF
+                                                    cfins in ["Others", "VirtualInstr"] && continue
+                                                    if CImGui.MenuItem(stcstr(cf.conf.icon, " ", cfins))
+                                                        synccall_wait(workers()[1], ins, addr, cfins) do ins, addr, cfins
+                                                            delete!(INSTRBUFFERVIEWERS[ins], addr)
+                                                            get!(INSTRBUFFERVIEWERS[cfins], addr, InstrBufferViewer(cfins, addr))
+                                                        end
+                                                    end
+                                                end
+                                                CImGui.EndMenu()
+                                            end
+                                            CImGui.EndPopup()
                                         end
-                                        CImGui.EndPopup()
+                                        if haskey(INSWCONF, ins)
+                                            haskey(instrwidgets, addr) || push!(instrwidgets, addr => Dict())
+                                            for w in INSWCONF[ins]
+                                                if !haskey(instrwidgets[addr], w.name)
+                                                    push!(instrwidgets[addr], w.name => (Ref(false), deepcopy(w)))
+                                                    instrwidgets[addr][w.name][2].showcolbd = false
+                                                end
+                                                CImGui.MenuItem(w.name, C_NULL, instrwidgets[addr][w.name][1])
+                                            end
+                                        end
+                                        CImGui.EndMenu()
                                     end
                                 end
                                 CImGui.EndMenu()

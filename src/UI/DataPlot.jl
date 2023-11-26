@@ -69,13 +69,10 @@ end
 end
 
 function editmenu(dtp::DataPlot)
-    if length(dtp.showdtpks) != length(dtp.dtpks)
-        resize!(dtp.showdtpks, length(dtp.dtpks))
-    end
-    if length(dtp.linkidx) != length(dtp.dtpks)
-        resize!(dtp.linkidx, length(dtp.dtpks))
-        fill!(dtp.linkidx, 0)
-    end
+    ldtpks = length(dtp.dtpks)
+    length(dtp.showdtpks) == ldtpks || resize!(dtp.showdtpks, ldtpks)
+    llink = length(dtp.linkidx)
+    llink == ldtpks || (resize!(dtp.linkidx, ldtpks); llink < ldtpks && (dtp.linkidx[llink+1:end] .= 0))
     if !CONF.DAQ.freelayout
         CImGui.Text(mlstr("plot columns"))
         CImGui.SameLine()
