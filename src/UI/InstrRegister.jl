@@ -294,37 +294,20 @@ let
                                 if CImGui.BeginPopupContextItem()
                                     if CImGui.MenuItem(stcstr(MORESTYLE.Icons.Copy, " ", mlstr("Copy")))
                                         wcopy = deepcopy(widget)
-                                        wcopy.name *= " "*mlstr("Copy")
+                                        wcopy.name *= " " * mlstr("Copy")
                                         push!(INSWCONF[selectedins], wcopy)
                                     end
                                     CImGui.EndPopup()
                                 end
-                                if CImGui.CollapsingHeader(stcstr(widget.name, "###widget", i))
-                                    @c InputTextRSZ(mlstr("rename"), &widget.name)
-                                    @c CImGui.Checkbox(mlstr("show column border"), &widget.showcolbd)
-                                    width = CImGui.GetContentRegionAvailWidth()
-                                    CImGui.BeginGroup()
-                                    for (r, col) in enumerate(widget.cols)
-                                        CImGui.PushItemWidth(2width/5)
-                                        @c(CImGui.DragInt(
-                                            stcstr("##columns", r), 
-                                            &col,
-                                            1.0, 1, 24, "%d",
-                                            CImGui.ImGuiSliderFlags_AlwaysClamp
-                                        )) && (widget.cols[r] = col)
-                                        CImGui.PopItemWidth()
-                                    end
-                                    CImGui.EndGroup()
-                                    CImGui.SameLine()
-                                    CImGui.BeginGroup()
-                                    for (r, rh) in enumerate(widget.rowh)
-                                        CImGui.PushItemWidth(2width/5)
-                                        @c(CImGui.DragFloat(stcstr(mlstr("Row"), " ", r), &rh)) && (widget.rowh[r] = rh)
-                                        CImGui.PopItemWidth()
-                                    end
-                                    CImGui.EndGroup()
+                                if CImGui.CollapsingHeader(mlstr("Global Options"))
+                                    @c InputTextRSZ(mlstr("Rename"), &widget.name)
+                                    CImGui.ColorEdit4(
+                                        stcstr(mlstr("Window Color")),
+                                        widget.windowbgcolor,
+                                        CImGui.ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_AlphaPreviewHalf
+                                    )
+                                    widgetcolormenu(widget.options)
                                 end
-                                widgetcolormenu(widget.options)
                                 modify(widget)
                                 if !haskey(default_insbufs, selectedins)
                                     push!(default_insbufs, selectedins => InstrBuffer(selectedins))

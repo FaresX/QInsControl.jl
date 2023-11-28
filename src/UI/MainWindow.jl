@@ -247,7 +247,6 @@ let
                                                 if !haskey(instrwidgets[addr], w.name)
                                                     insw = deepcopy(w)
                                                     push!(instrwidgets[addr], w.name => (Ref(false), insw))
-                                                    insw.showcolbd = false
                                                     for qtwg in insw.qtws
                                                         for qtw in qtwg
                                                             qtw.options.globaloptions && copycolors!(qtw.options, insw.options)
