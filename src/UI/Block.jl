@@ -453,7 +453,7 @@ function edit(bk::CodeBlock)
     CImGui.BeginChild("##CodeBlock", (Float32(0), bkheight(bk)), true)
     CImGui.TextColored(MORESTYLE.Colors.BlockIcons, MORESTYLE.Icons.CodeBlock)
     CImGui.SameLine()
-    @c InputTextMultilineRSZ("##CodeBlock", &bk.codes, (-1, -1))
+    @c InputTextMultilineRSZ("##CodeBlock", &bk.codes, (-1, -1), ImGuiInputTextFlags_AllowTabInput)
     CImGui.EndChild()
 end
 

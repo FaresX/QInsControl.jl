@@ -14,6 +14,8 @@ abstract type AbstractQuantity end
     isautorefresh::Bool = false
     issweeping::Bool = false
     # front end
+    showval::String = ""
+    showU::String = ""
     show_edit::String = ""
     show_view::String = ""
     passfilter::Bool = true
@@ -34,6 +36,8 @@ end
     help::String = ""
     isautorefresh::Bool = false
     # front end
+    showval::String = ""
+    showU::String = ""
     show_edit::String = ""
     show_view::String = ""
     passfilter::Bool = true
@@ -50,6 +54,8 @@ end
     help::String = ""
     isautorefresh::Bool = false
     # front end
+    showval::String = ""
+    showU::String = ""
     show_edit::String = ""
     show_view::String = ""
     passfilter::Bool = true
@@ -67,33 +73,36 @@ function quantity(name, qtcf::QuantityConf)
     end
 end
 
-function getvalU(qt::AbstractQuantity)
+function getvalU!(qt::AbstractQuantity)
     Us = CONF.U[qt.utype]
     U = isempty(Us) ? "" : Us[qt.uindex]
     U == "" || (Uchange::Float64 = Us[1] isa Unitful.FreeUnits ? ustrip(Us[1], 1U) : 1.0)
-    val = U == "" ? qt.read : @trypass string(parse(Float64, qt.read) / Uchange) qt.read
-    return val, U
+    qt.showval = U == "" ? qt.read : @trypass string(parse(Float64, qt.read) / Uchange) qt.read
+    qt.showU = string(U)
 end
 
 function updatefront!(qt::SweepQuantity)
-    val, U = getvalU(qt)
-    content = string("\n", qt.alias, "\n \n", val, " ", U, "\n ") |> centermultiline
+    getvalU!(qt)
+    content = string("\n", qt.alias, "\n \n", qt.showval, " ", qt.showU, "\n ") |> centermultiline
     qt.show_edit = string(content, "###for refresh")
 end
 
 function updatefront!(qt::SetQuantity)
-    val, U = getvalU(qt)
-    if val in qt.optvalues
-        validx = findfirst(==(val), qt.optvalues)
-        val = string(qt.optkeys[validx], " => ", qt.optvalues[validx])
+    getvalU!(qt)
+    if qt.showval in qt.optvalues
+        validx = findfirst(==(qt.showval), qt.optvalues)
+        if !isnothing(validx)
+            qt.optedidx = validx
+            qt.showval = string(qt.optkeys[validx], " => ", qt.optvalues[validx])
+        end
     end
-    content = string("\n", qt.alias, "\n \n", val, " ", U, "\n ") |> centermultiline
+    content = string("\n", qt.alias, "\n \n", qt.showval, " ", qt.showU, "\n ") |> centermultiline
     qt.show_edit = string(content, "###for refresh")
 end
 
 function updatefront!(qt::ReadQuantity)
-    val, U = getvalU(qt)
-    content = string("\n", qt.alias, "\n \n", val, " ", U, "\n ") |> centermultiline
+    getvalU!(qt)
+    content = string("\n", qt.alias, "\n \n", qt.showval, " ", qt.showU, "\n ") |> centermultiline
     qt.show_edit = string(content, "###for refresh")
 end
 
@@ -101,12 +110,12 @@ function updatefront!(qt::AbstractQuantity; show_edit=true)
     if show_edit
         updatefront!(qt)
     else
-        val, U = getvalU(qt)
-        if qt isa SetQuantity && val in qt.optvalues
-            validx = findfirst(==(val), qt.optvalues)
-            val = string(qt.optkeys[validx], " => ", qt.optvalues[validx])
+        getvalU!(qt)
+        if qt isa SetQuantity && qt.showval in qt.optvalues
+            validx = findfirst(==(qt.showval), qt.optvalues)
+            qt.showval = string(qt.optkeys[validx], " => ", qt.optvalues[validx])
         end
-        qt.show_view = string(qt.alias, "\n", val, " ", U) |> centermultiline
+        qt.show_view = string(qt.alias, "\n", qt.showval, " ", qt.showU) |> centermultiline
     end
 end
 
@@ -297,53 +306,45 @@ function testcmd(ins, addr, inputcmd::Ref{String}, readstr::Ref{String})
         CImGui.NextColumn()
         if CImGui.Button(stcstr(MORESTYLE.Icons.QueryBlock, "  ", mlstr("Query")), (-1, 0))
             if addr != ""
-                errormonitor(
-                    @async begin
-                        fetchdata = wait_remotecall_fetch(workers()[1], ins, addr, inputcmd[]) do ins, addr, inputcmd
-                            ct = Controller(ins, addr)
-                            try
-                                login!(CPU, ct)
-                                readstr = ct(query, CPU, inputcmd, Val(:query))
-                                logout!(CPU, ct)
-                                return readstr
-                            catch e
-                                @error(
-                                    "[$(now())]\n$(mlstr("instrument communication failed!!!"))",
-                                    instrument = string(ins, ": ", addr),
-                                    exception = e
-                                )
-                                logout!(CPU, ct)
-                            end
-                        end
-                        isnothing(fetchdata) || (readstr[] = fetchdata)
+                fetchdata = wait_remotecall_fetch(workers()[1], ins, addr, inputcmd[]) do ins, addr, inputcmd
+                    ct = Controller(ins, addr)
+                    try
+                        login!(CPU, ct)
+                        readstr = ct(query, CPU, inputcmd, Val(:query))
+                        logout!(CPU, ct)
+                        return readstr
+                    catch e
+                        @error(
+                            "[$(now())]\n$(mlstr("instrument communication failed!!!"))",
+                            instrument = string(ins, ": ", addr),
+                            exception = e
+                        )
+                        logout!(CPU, ct)
                     end
-                ) |> wait
+                end
+                isnothing(fetchdata) || (readstr[] = fetchdata)
             end
         end
         CImGui.NextColumn()
         if CImGui.Button(stcstr(MORESTYLE.Icons.ReadBlock, "  ", mlstr("Read")), (-1, 0))
             if addr != ""
-                errormonitor(
-                    @async begin
-                        fetchdata = wait_remotecall_fetch(workers()[1], ins, addr) do ins, addr
-                            ct = Controller(ins, addr)
-                            try
-                                login!(CPU, ct)
-                                readstr = ct(read, CPU, Val(:read))
-                                logout!(CPU, ct)
-                                return readstr
-                            catch e
-                                @error(
-                                    "[$(now())]\n$(mlstr("instrument communication failed!!!"))",
-                                    instrument = string(ins, ": ", addr),
-                                    exception = e
-                                )
-                                logout!(CPU, ct)
-                            end
-                        end
-                        isnothing(fetchdata) || (readstr[] = fetchdata)
+                fetchdata = wait_remotecall_fetch(workers()[1], ins, addr) do ins, addr
+                    ct = Controller(ins, addr)
+                    try
+                        login!(CPU, ct)
+                        readstr = ct(read, CPU, Val(:read))
+                        logout!(CPU, ct)
+                        return readstr
+                    catch e
+                        @error(
+                            "[$(now())]\n$(mlstr("instrument communication failed!!!"))",
+                            instrument = string(ins, ": ", addr),
+                            exception = e
+                        )
+                        logout!(CPU, ct)
                     end
-                ) |> wait
+                end
+                isnothing(fetchdata) || (readstr[] = fetchdata)
             end
         end
         CImGui.NextColumn()
@@ -418,7 +419,7 @@ function edit(insbuf::InstrBuffer, addr)
             @c CImGui.DragFloat(
                 "##auto refresh",
                 &CONF.InsBuf.refreshrate,
-                0.01, 0.01, 60, "%.2f",
+                0.1, 0.1, 60, "%.1f",
                 CImGui.ImGuiSliderFlags_AlwaysClamp
             )
             CImGui.PopItemWidth()
@@ -564,7 +565,7 @@ let
             if qt.enable
                 @c InputTextWithHintRSZ("##set", mlstr("set value"), &qt.set)
                 if CImGui.Button(
-                       stcstr(" ", mlstr("Confirm"), " "),
+                       mlstr(" Confirm "),
                        (-Cfloat(0.1), Cfloat(0))
                    ) || triggerset || CImGui.IsKeyPressed(igGetKeyIndex(ImGuiKey_Enter), false)
                     triggerset && (qt.set = qt.optvalues[qt.optedidx])
@@ -737,7 +738,7 @@ function apply!(qt::SweepQuantity, instrnm, addr)
     if !(isnothing(start) || isnothing(step) || isnothing(stop))
         sweeplist = gensweeplist(start, step, stop)
         errormonitor(
-            @async begin
+            Threads.@spawn begin
                 qt.issweeping = true
                 ct = Controller(instrnm, addr)
                 remotecall_wait(workers()[1], ct) do ct
@@ -748,7 +749,7 @@ function apply!(qt::SweepQuantity, instrnm, addr)
                 for sv in sweeplist
                     qt.issweeping || break
                     sleep(qt.delay)
-                    fetchdata = wait_remotecall_fetch(workers()[1], sv, ct.id) do sv, ctid
+                    fetchdata = remotecall_fetch(workers()[1], sv, ct.id) do sv, ctid
                         try
                             setfunc = Symbol(instrnm, :_, qt.name, :_set) |> eval
                             getfunc = Symbol(instrnm, :_, qt.name, :_get) |> eval
@@ -782,31 +783,27 @@ function apply!(qt::SetQuantity, instrnm, addr)
     U = isempty(Us) ? "" : Us[qt.uindex]
     U == "" || (Uchange::Float64 = Us[1] isa Unitful.FreeUnits ? ustrip(Us[1], 1U) : 1.0)
     sv = U == "" ? qt.set : @trypasse string(float(eval(Meta.parse(qt.set)) * Uchange)) qt.set
-    errormonitor(
-        @async begin
-            fetchdata = wait_remotecall_fetch(workers()[1], instrnm, addr, sv) do instrnm, addr, sv
-                ct = Controller(instrnm, addr)
-                try
-                    setfunc = Symbol(instrnm, :_, qt.name, :_set) |> eval
-                    getfunc = Symbol(instrnm, :_, qt.name, :_get) |> eval
-                    login!(CPU, ct)
-                    ct(setfunc, CPU, sv, Val(:write))
-                    readstr = ct(getfunc, CPU, Val(:read))
-                    logout!(CPU, ct)
-                    return readstr
-                catch e
-                    @error(
-                        "[$(now())]\n$(mlstr("instrument communication failed!!!"))",
-                        instrument = string(instrnm, ": ", addr),
-                        quantity = qt.name,
-                        exception = e
-                    )
-                    logout!(CPU, ct)
-                end
-            end
-            isnothing(fetchdata) || (qt.read = fetchdata)
+    fetchdata = wait_remotecall_fetch(workers()[1], instrnm, addr, sv) do instrnm, addr, sv
+        ct = Controller(instrnm, addr)
+        try
+            setfunc = Symbol(instrnm, :_, qt.name, :_set) |> eval
+            getfunc = Symbol(instrnm, :_, qt.name, :_get) |> eval
+            login!(CPU, ct)
+            ct(setfunc, CPU, sv, Val(:write))
+            readstr = ct(getfunc, CPU, Val(:read))
+            logout!(CPU, ct)
+            return readstr
+        catch e
+            @error(
+                "[$(now())]\n$(mlstr("instrument communication failed!!!"))",
+                instrument = string(instrnm, ": ", addr),
+                quantity = qt.name,
+                exception = e
+            )
+            logout!(CPU, ct)
         end
-    ) |> wait
+    end
+    isnothing(fetchdata) || (qt.read = fetchdata)
     return nothing
 end
 
@@ -863,56 +860,92 @@ function log_instrbufferviewers()
     push!(CFGBUF, "instrbufferviewers/[$(now())]" => deepcopy(INSTRBUFFERVIEWERS))
 end
 
+# function refresh1(log=false)
+#     remotecall_wait(workers()[1]) do
+#         @isdefined(refreshcts) || (global refreshcts = Dict())
+#     end
+#     @sync for ins in keys(INSTRBUFFERVIEWERS)
+#         ins == "Others" && continue
+#         remotecall_wait(workers()[1], ins) do ins
+#             haskey(refreshcts, ins) || push!(refreshcts, ins => Dict())
+#         end
+#         for (addr, ibv) in INSTRBUFFERVIEWERS[ins]
+#             @async if ibv.insbuf.isautorefresh || log
+#                 remotecall_wait(workers()[1]) do
+#                     haskey(refreshcts[ins], addr) || push!(refreshcts[ins], addr => Controller(ins, addr))
+#                     login!(CPU, refreshcts[ins][addr])
+#                 end
+#                 for (qtnm, qt) in INSTRBUFFERVIEWERS[ins][addr].insbuf.quantities
+#                     if (qt.isautorefresh && qt.enable) || (log && (CONF.DAQ.logall || qt.enable))
+#                         fetchdata = wait_remotecall_fetch(workers()[1], ins, addr, qtnm) do ins, addr, qtnm
+#                             try
+#                                 getfunc = Symbol(ins, :_, qtnm, :_get) |> eval
+#                                 refreshcts[ins][addr](getfunc, CPU, Val(:read))
+#                             catch e
+#                                 @error(
+#                                     "[$(now())]\n$(mlstr("instrument communication failed!!!"))",
+#                                     instrument = string(ins, ": ", addr),
+#                                     exception = e
+#                                 )
+#                             end
+#                         end
+#                         isnothing(fetchdata) ? (qt.read = ""; break) : qt.read = fetchdata
+#                     elseif !qt.enable
+#                         qt.read = ""
+#                     end
+#                 end
+#                 remotecall_wait(workers()[1]) do
+#                     logout!(CPU, refreshcts[ins][addr])
+#                 end
+#             end
+#         end
+#     end
+# end
+
 function refresh1(log=false)
-    remotecall_wait(workers()[1]) do
+    fetchibvs = wait_remotecall_fetch(workers()[1], INSTRBUFFERVIEWERS; timeout=120) do ibvs
         @isdefined(refreshcts) || (global refreshcts = Dict())
-    end
-    @sync for ins in keys(INSTRBUFFERVIEWERS)
-        ins == "Others" && continue
-        remotecall_wait(workers()[1], ins) do ins
+        empty!(INSTRBUFFERVIEWERS)
+        merge!(INSTRBUFFERVIEWERS, ibvs)
+        @sync for ins in keys(INSTRBUFFERVIEWERS)
+            ins == "Others" && continue
             haskey(refreshcts, ins) || push!(refreshcts, ins => Dict())
-        end
-        for (addr, ibv) in INSTRBUFFERVIEWERS[ins]
-            @async if ibv.insbuf.isautorefresh || log
-                remotecall_wait(workers()[1]) do
+            for (addr, ibv) in INSTRBUFFERVIEWERS[ins]
+                @async if ibv.insbuf.isautorefresh || log
                     haskey(refreshcts[ins], addr) || push!(refreshcts[ins], addr => Controller(ins, addr))
-                    login!(CPU, refreshcts[ins][addr])
-                end
-                for (qtnm, qt) in INSTRBUFFERVIEWERS[ins][addr].insbuf.quantities
-                    if (qt.isautorefresh && qt.enable) || (log && (CONF.DAQ.logall || qt.enable))
-                        fetchdata = wait_remotecall_fetch(workers()[1], ins, addr, qtnm) do ins, addr, qtnm
-                            try
+                    ct = refreshcts[ins][addr]
+                    try
+                        login!(CPU, ct)
+                        for (qtnm, qt) in INSTRBUFFERVIEWERS[ins][addr].insbuf.quantities
+                            if (qt.isautorefresh && qt.enable) || (log && (CONF.DAQ.logall || qt.enable))
                                 getfunc = Symbol(ins, :_, qtnm, :_get) |> eval
-                                refreshcts[ins][addr](getfunc, CPU, Val(:read))
-                            catch e
-                                @error(
-                                    "[$(now())]\n$(mlstr("instrument communication failed!!!"))",
-                                    instrument = string(ins, ": ", addr),
-                                    exception = e
-                                )
+                                qt.read = ct(getfunc, CPU, Val(:read))
+                            elseif !qt.enable
+                                qt.read = ""
                             end
                         end
-                        isnothing(fetchdata) ? (qt.read = ""; break) : qt.read = fetchdata
-                    elseif !qt.enable
-                        qt.read = ""
+                    catch e
+                        @error(
+                            "[$(now())]\n$(mlstr("instrument communication failed!!!"))",
+                            instrument = string(ins, ": ", addr),
+                            exception = e
+                        )
+                    finally
+                        logout!(CPU, ct)
                     end
-                end
-                remotecall_wait(workers()[1]) do 
-                    logout!(CPU, refreshcts[ins][addr])
                 end
             end
         end
+        return INSTRBUFFERVIEWERS
     end
+    isnothing(fetchibvs) || merge!(INSTRBUFFERVIEWERS, fetchibvs)
 end
 
 function autorefresh()
     errormonitor(
-        @async while true
-            i_sleep = 0
-            while i_sleep < CONF.InsBuf.refreshrate
-                sleep(0.01)
-                i_sleep += 0.01
-            end
+        Threads.@spawn while true
+            t1 = time()
+            timedwait(() -> time() - t1 > CONF.InsBuf.refreshrate, 60; pollint=0.05)
             SYNCSTATES[Int(IsAutoRefreshing)] && refresh1()
         end
     )

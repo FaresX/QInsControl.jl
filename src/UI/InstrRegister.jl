@@ -291,28 +291,49 @@ let
                         for (i, widget) in enumerate(INSWCONF[selectedins])
                             ispreserve = true
                             if @c CImGui.BeginTabItem(stcstr(mlstr("Widget"), " ", i), &ispreserve)
+                                if CImGui.BeginPopupContextItem()
+                                    if CImGui.MenuItem(stcstr(MORESTYLE.Icons.Copy, " ", mlstr("Copy")))
+                                        wcopy = deepcopy(widget)
+                                        wcopy.name *= " "*mlstr("Copy")
+                                        push!(INSWCONF[selectedins], wcopy)
+                                    end
+                                    CImGui.EndPopup()
+                                end
                                 if CImGui.CollapsingHeader(stcstr(widget.name, "###widget", i))
                                     @c InputTextRSZ(mlstr("rename"), &widget.name)
-                                    @c CImGui.DragInt(
-                                        mlstr("display columns"),
-                                        &widget.cols,
-                                        1.0, 1, 24, "%d",
-                                        CImGui.ImGuiSliderFlags_AlwaysClamp
-                                    )
                                     @c CImGui.Checkbox(mlstr("show column border"), &widget.showcolbd)
-                                    for (r, rh) in enumerate(widget.rowh)
-                                        @c(CImGui.DragFloat(stcstr(mlstr("row"), " ", r), &rh)) && (widget.rowh[r] = rh)
+                                    width = CImGui.GetContentRegionAvailWidth()
+                                    CImGui.BeginGroup()
+                                    for (r, col) in enumerate(widget.cols)
+                                        CImGui.PushItemWidth(2width/5)
+                                        @c(CImGui.DragInt(
+                                            stcstr("##columns", r), 
+                                            &col,
+                                            1.0, 1, 24, "%d",
+                                            CImGui.ImGuiSliderFlags_AlwaysClamp
+                                        )) && (widget.cols[r] = col)
+                                        CImGui.PopItemWidth()
                                     end
-                                    CImGui.Separator()
+                                    CImGui.EndGroup()
+                                    CImGui.SameLine()
+                                    CImGui.BeginGroup()
+                                    for (r, rh) in enumerate(widget.rowh)
+                                        CImGui.PushItemWidth(2width/5)
+                                        @c(CImGui.DragFloat(stcstr(mlstr("Row"), " ", r), &rh)) && (widget.rowh[r] = rh)
+                                        CImGui.PopItemWidth()
+                                    end
+                                    CImGui.EndGroup()
                                 end
+                                widgetcolormenu(widget.options)
                                 modify(widget)
                                 if !haskey(default_insbufs, selectedins)
                                     push!(default_insbufs, selectedins => InstrBuffer(selectedins))
                                     for (_, qt) in default_insbufs[selectedins].quantities
-                                        qt.read = "test"
+                                        qt.read = "123456.7890"
+                                        updatefront!(qt)
                                     end
                                 end
-                                edit(widget, default_insbufs[selectedins], "", C_NULL)
+                                edit(widget, default_insbufs[selectedins], "", C_NULL, i)
                                 CImGui.EndTabItem()
                             end
                             ispreserve || CImGui.OpenPopup(stcstr("delete widget ", i))

@@ -17,12 +17,14 @@ function ColoredCombo(
     rounding=0,
     bdrounding=0,
     thickness=0,
+    colbt=CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_Button),
     colfrm=CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_FrameBg),
     colfrmh=CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_FrameBgHovered),
     colfrma=CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_FrameBgActive),
     coltxt=CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_Text),
     colrect=MORESTYLE.Colors.ShowTextRect
 )
+    CImGui.PushStyleColor(CImGui.ImGuiCol_Button, colbt)
     CImGui.PushStyleColor(CImGui.ImGuiCol_FrameBg, colfrm)
     CImGui.PushStyleColor(CImGui.ImGuiCol_FrameBgHovered, colfrmh)
     CImGui.PushStyleColor(CImGui.ImGuiCol_FrameBgActive, colfrma)
@@ -32,7 +34,7 @@ function ColoredCombo(
     iscombo = ComBoS(label, preview_value, item_list, flags)
     CImGui.PopItemWidth()
     CImGui.PopStyleVar()
-    CImGui.PopStyleColor(4)
+    CImGui.PopStyleColor(5)
     rmin, rmax = CImGui.GetItemRectMin(), CImGui.GetItemRectMax()
     draw_list = CImGui.GetWindowDrawList()
     CImGui.AddRect(draw_list, rmin, rmax, CImGui.ColorConvertFloat4ToU32(colrect), bdrounding, 0, thickness)
@@ -61,9 +63,9 @@ let
     #     end
     #     return 0
     # end
-    global function InputTextRSZ(label, str::Ref{String})
+    global function InputTextRSZ(label, str::Ref{String}, flags=0)
         buf = string(str[], strbuf)
-        input = CImGui.InputText(label, buf, length(buf))
+        input = CImGui.InputText(label, buf, length(buf), flags)
         input && (str[] = replace(buf, r"\0.*" => ""))
         input
     end
@@ -418,6 +420,7 @@ function ColoredSlider(
     bdrounding=0,
     thickness=0,
     colgrab=CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_SliderGrab),
+    colgraba=CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_SliderGrabActive),
     colfrm=CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_FrameBg),
     colfrmh=CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_FrameBgHovered),
     colfrma=CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_FrameBgActive),
@@ -425,6 +428,7 @@ function ColoredSlider(
     colrect=MORESTYLE.Colors.ShowTextRect
 )
     CImGui.PushStyleColor(CImGui.ImGuiCol_SliderGrab, colgrab)
+    CImGui.PushStyleColor(CImGui.ImGuiCol_SliderGrabActive, colgraba)
     CImGui.PushStyleColor(CImGui.ImGuiCol_FrameBg, colfrm)
     CImGui.PushStyleColor(CImGui.ImGuiCol_FrameBgHovered, colfrmh)
     CImGui.PushStyleColor(CImGui.ImGuiCol_FrameBgActive, colfrma)
@@ -435,7 +439,7 @@ function ColoredSlider(
     dragged = sliderfunc(label, v, v_min, v_max, format, flags)
     CImGui.PopItemWidth()
     CImGui.PopStyleVar(2)
-    CImGui.PopStyleColor(5)
+    CImGui.PopStyleColor(6)
     rmin, rmax = CImGui.GetItemRectMin(), CImGui.GetItemRectMax()
     draw_list = CImGui.GetWindowDrawList()
     CImGui.AddRect(draw_list, rmin, rmax, CImGui.ColorConvertFloat4ToU32(colrect), bdrounding, 0, thickness)
@@ -451,6 +455,7 @@ function ColoredVSlider(
     bdrounding=0,
     thickness=0,
     colgrab=CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_SliderGrab),
+    colgraba=CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_SliderGrabActive),
     colfrm=CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_FrameBg),
     colfrmh=CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_FrameBgHovered),
     colfrma=CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_FrameBgActive),
@@ -458,6 +463,7 @@ function ColoredVSlider(
     colrect=MORESTYLE.Colors.ShowTextRect
 )
     CImGui.PushStyleColor(CImGui.ImGuiCol_SliderGrab, colgrab)
+    CImGui.PushStyleColor(CImGui.ImGuiCol_SliderGrabActive, colgraba)
     CImGui.PushStyleColor(CImGui.ImGuiCol_FrameBg, colfrm)
     CImGui.PushStyleColor(CImGui.ImGuiCol_FrameBgHovered, colfrmh)
     CImGui.PushStyleColor(CImGui.ImGuiCol_FrameBgActive, colfrma)
@@ -466,7 +472,7 @@ function ColoredVSlider(
     CImGui.PushStyleVar(CImGui.ImGuiStyleVar_GrabRounding, grabrounding)
     dragged = vsliderfunc(label, size, v, v_min, v_max, format, flags)
     CImGui.PopStyleVar(2)
-    CImGui.PopStyleColor(5)
+    CImGui.PopStyleColor(6)
     rmin, rmax = CImGui.GetItemRectMin(), CImGui.GetItemRectMax()
     draw_list = CImGui.GetWindowDrawList()
     CImGui.AddRect(draw_list, rmin, rmax, CImGui.ColorConvertFloat4ToU32(colrect), bdrounding, 0, thickness)

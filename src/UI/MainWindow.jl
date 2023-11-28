@@ -109,7 +109,7 @@ let
                 ibv.p_open && edit(ibv)
                 if haskey(instrwidgets, addr)
                     for (wnm, insw) in instrwidgets[addr]
-                        insw[1][] ? edit(insw[2], ibv.insbuf, addr, insw[1]) : delete!(instrwidgets[addr], wnm)
+                        insw[1][] ? edit(insw[2], ibv.insbuf, addr, insw[1], wnm) : delete!(instrwidgets[addr], wnm)
                     end
                 end
             end
@@ -245,8 +245,15 @@ let
                                             haskey(instrwidgets, addr) || push!(instrwidgets, addr => Dict())
                                             for w in INSWCONF[ins]
                                                 if !haskey(instrwidgets[addr], w.name)
-                                                    push!(instrwidgets[addr], w.name => (Ref(false), deepcopy(w)))
-                                                    instrwidgets[addr][w.name][2].showcolbd = false
+                                                    insw = deepcopy(w)
+                                                    push!(instrwidgets[addr], w.name => (Ref(false), insw))
+                                                    insw.showcolbd = false
+                                                    for qtwg in insw.qtws
+                                                        for qtw in qtwg
+                                                            qtw.options.globaloptions && copycolors!(qtw.options, insw.options)
+                                                            qtw.options.globaloptions = false
+                                                        end
+                                                    end
                                                 end
                                                 CImGui.MenuItem(w.name, C_NULL, instrwidgets[addr][w.name][1])
                                             end

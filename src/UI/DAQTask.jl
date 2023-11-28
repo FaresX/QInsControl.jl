@@ -131,7 +131,7 @@ function run(daqtask::DAQTask)
     end
     run_remote(daqtask)
     wait(
-        @async while update_all()
+        Threads.@spawn while update_all()
             yield()
         end
     )

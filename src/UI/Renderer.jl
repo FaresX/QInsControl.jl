@@ -190,6 +190,9 @@ function UI(breakdown=false; precompile=false)
             #         glfwSetWindowAttrib(window, GLFW_FLOATING, GLFW_TRUE)
             #     end
             # end
+            ###### 加速核心通讯 ######
+            # SYNCSTATES[Int(IsAutoRefreshing)] && remotecall_fetch(()->CPU.running, workers()[1])
+
             MainWindow()
             if CImGui.BeginPopupModal("##windowshouldclose?", C_NULL, CImGui.ImGuiWindowFlags_AlwaysAutoResize)
                 CImGui.TextColored(
