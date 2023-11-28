@@ -90,11 +90,8 @@ end
 function updatefront!(qt::SetQuantity)
     getvalU!(qt)
     if qt.showval in qt.optvalues
-        validx = findfirst(==(qt.showval), qt.optvalues)
-        if !isnothing(validx)
-            qt.optedidx = validx
-            qt.showval = string(qt.optkeys[validx], " => ", qt.optvalues[validx])
-        end
+        qt.optedidx = findfirst(==(qt.showval), qt.optvalues)
+        qt.showval = string(qt.optkeys[qt.optedidx], " => ", qt.optvalues[qt.optedidx])
     end
     content = string("\n", qt.alias, "\n \n", qt.showval, " ", qt.showU, "\n ") |> centermultiline
     qt.show_edit = string(content, "###for refresh")
@@ -112,8 +109,8 @@ function updatefront!(qt::AbstractQuantity; show_edit=true)
     else
         getvalU!(qt)
         if qt isa SetQuantity && qt.showval in qt.optvalues
-            validx = findfirst(==(qt.showval), qt.optvalues)
-            qt.showval = string(qt.optkeys[validx], " => ", qt.optvalues[validx])
+            qt.optedidx = findfirst(==(qt.showval), qt.optvalues)
+            qt.showval = string(qt.optkeys[qt.optedidx], " => ", qt.optvalues[qt.optedidx])
         end
         qt.show_view = string(qt.alias, "\n", qt.showval, " ", qt.showU) |> centermultiline
     end
@@ -570,6 +567,7 @@ let
                    ) || triggerset || CImGui.IsKeyPressed(igGetKeyIndex(ImGuiKey_Enter), false)
                     triggerset && (qt.set = qt.optvalues[qt.optedidx])
                     apply!(qt, instrnm, addr)
+                    updatefront!(qt)
                     triggerset = false
                     closepopup = true
                 end
@@ -586,14 +584,14 @@ let
                 CImGui.BeginGroup()
                 for (i, optv) in enumerate(qt.optvalues)
                     (iseven(i) || optv == "") && continue
-                    @c(CImGui.RadioButton(qt.optkeys[i], &qt.optedidx, i)) && (qt.set = optv; triggerset = true)
+                    @c(CImGui.RadioButton(qt.optkeys[i], &qt.optedidx, i)) && (triggerset = true)
                 end
                 CImGui.EndGroup()
                 CImGui.SameLine(0, 2CImGui.GetFontSize())
                 CImGui.BeginGroup()
                 for (i, optv) in enumerate(qt.optvalues)
                     (isodd(i) || optv == "") && continue
-                    @c(CImGui.RadioButton(qt.optkeys[i], &qt.optedidx, i)) && (qt.set = optv; triggerset = true)
+                    @c(CImGui.RadioButton(qt.optkeys[i], &qt.optedidx, i)) && (triggerset = true)
                 end
                 CImGui.EndGroup()
             end
@@ -609,7 +607,6 @@ let
                 resolvedisablelist(qt, instrnm, addr)
             end
             CImGui.EndPopup()
-            updatefront!(qt)
             popup_before_list[instrnm][addr][qt.name] = true
         end
         qt.isautorefresh && updatefront!(qt)

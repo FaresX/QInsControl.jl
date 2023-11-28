@@ -66,7 +66,6 @@ function edit(qtw::QuantityWidget, insbuf::InstrBuffer, instrnm, addr, gopts::Qu
     opts = qtw.options.globaloptions ? gopts : qtw.options
     qtw.options.globaloptions && copyvars!(opts, qtw.options)
     opts.cursorscreenpos == [0, 0] || CImGui.SetCursorScreenPos(CImGui.GetCursorScreenPos() .+ opts.cursorscreenpos)
-    opts.allowoverlap && CImGui.SetItemAllowOverlap()
     if haskey(insbuf.quantities, qtw.name)
         qt = insbuf.quantities[qtw.name]
         edit(opts, qt, instrnm, addr, Val(Symbol(qtw.options.uitype)))
@@ -91,6 +90,7 @@ function edit(qtw::QuantityWidget, insbuf::InstrBuffer, instrnm, addr, gopts::Qu
     elseif qtw.name == "_SameLine_"
         CImGui.SameLine(opts.localposx, opts.spacingw)
     end
+    opts.allowoverlap && CImGui.SetItemAllowOverlap()
 end
 
 function edit(opts::QuantityWidgetOption, qt::AbstractQuantity, instrnm, addr, ::Val{:read})
@@ -250,7 +250,7 @@ function edit(opts::QuantityWidgetOption, qt::SweepQuantity, instrnm, addr, ::Va
         colbta=opts.activecolor,
         coltxt=opts.textcolor,
         colrect=opts.rectcolor,
-    )) && (qt.issweeping ? qt.issweeping = false : apply!(qt, instrnm, addr))
+    )) && qt.issweeping && apply!(qt, instrnm, addr)
     opts.textsize == "big" && CImGui.PopFont()
     CImGui.SetWindowFontScale(originscale)
     qt.issweeping && updatefront!(qt)
