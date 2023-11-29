@@ -765,7 +765,7 @@ function apply!(qt::SweepQuantity, instrnm, addr)
                 end
                 remotecall_wait(workers()[1], ct.id) do ctid
                     logout!(CPU, sweepcts[ctid])
-                    pop!(sweepcts, ctid)
+                    delete!(sweepcts, ctid)
                 end
                 qt.issweeping = false
             end
