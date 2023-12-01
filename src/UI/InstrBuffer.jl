@@ -119,7 +119,7 @@ end
 @kwdef mutable struct InstrBuffer
     instrnm::String = ""
     quantities::OrderedDict{String,AbstractQuantity} = OrderedDict()
-    isautorefresh::Bool = false
+    isautorefresh::Bool = true
     filter::String = ""
     filtervarname::Bool = false
     showdisable::Bool = false
@@ -184,8 +184,8 @@ end
 const INSTRBUFFERVIEWERS::Dict{String,Dict{String,InstrBufferViewer}} = Dict()
 
 function updatefrontall!()
-    for ins in keys(INSTRBUFFERVIEWERS)
-        for (_, ibv) in INSTRBUFFERVIEWERS[ins]
+    for (ins, inses) in filter(x -> !isempty(x.second), INSTRBUFFERVIEWERS)
+        for (_, ibv) in inses
             for (_, qt) in ibv.insbuf.quantities
                 updatefront!(qt)
             end
@@ -224,19 +224,19 @@ let
                 stcstr(MORESTYLE.Icons.InstrumentsOverview, " ", mlstr("Overview")),
                 selectedins == ""
             ) && (selectedins = "")
-            for ins in keys(INSTRBUFFERVIEWERS)
+            for (ins, inses) in INSTRBUFFERVIEWERS
                 CImGui.Selectable(stcstr(INSCONF[ins].conf.icon, " ", ins), selectedins == ins) && (selectedins = ins)
                 CImGui.SameLine()
-                CImGui.TextDisabled(stcstr("(", length(INSTRBUFFERVIEWERS[ins]), ")"))
+                CImGui.TextDisabled(stcstr("(", length(inses), ")"))
             end
             CImGui.EndChild()
             CImGui.NextColumn()
             CImGui.BeginChild("setings")
             haskey(INSTRBUFFERVIEWERS, selectedins) || (selectedins = "")
             if selectedins == ""
-                for ins in keys(INSTRBUFFERVIEWERS)
+                for (ins, inses) in filter(x -> !isempty(x.second), INSTRBUFFERVIEWERS)
                     CImGui.TextColored(MORESTYLE.Colors.HighlightText, stcstr(ins, ": "))
-                    for (addr, ibv) in INSTRBUFFERVIEWERS[ins]
+                    for (addr, ibv) in inses
                         CImGui.Text(stcstr("\t\t", addr, "\t\t"))
                         CImGui.SameLine()
                         @c CImGui.Checkbox(stcstr("##if auto refresh", addr), &ibv.insbuf.isautorefresh)
@@ -244,7 +244,7 @@ let
                             CImGui.SameLine()
                             CImGui.Button(
                                 stcstr(MORESTYLE.Icons.CloseFile, "##delete ", addr)
-                            ) && delete!(INSTRBUFFERVIEWERS[ins], addr)
+                            ) && delete!(inses, addr)
                         end
                     end
                     CImGui.Separator()
@@ -481,7 +481,7 @@ let
             if qt.enable
                 @c InputTextWithHintRSZ("##step", mlstr("step"), &qt.step)
                 @c InputTextWithHintRSZ("##stop", mlstr("stop"), &qt.stop)
-                @c CImGui.DragFloat("##delay", &qt.delay, 1.0, 0.05, 60, "%.3f", CImGui.ImGuiSliderFlags_AlwaysClamp)
+                @c CImGui.DragFloat("##delay", &qt.delay, 1.0, 0.01, 60, "%.3f", CImGui.ImGuiSliderFlags_AlwaysClamp)
                 if qt.issweeping
                     if CImGui.Button(
                         mlstr(" Stop "), (-0.1, 0.0)
@@ -513,9 +513,7 @@ let
                 resolvedisablelist(qt, instrnm, addr)
             end
             CImGui.EndPopup()
-            updatefront!(qt)
         end
-        (qt.issweeping || qt.isautorefresh) && updatefront!(qt)
     end
 end #let
 
@@ -567,7 +565,6 @@ let
                    ) || triggerset || CImGui.IsKeyPressed(igGetKeyIndex(ImGuiKey_Enter), false)
                     triggerset && (qt.set = qt.optvalues[qt.optedidx])
                     apply!(qt, instrnm, addr)
-                    updatefront!(qt)
                     triggerset = false
                     closepopup = true
                 end
@@ -609,7 +606,6 @@ let
             CImGui.EndPopup()
             popup_before_list[instrnm][addr][qt.name] = true
         end
-        qt.isautorefresh && updatefront!(qt)
     end
 end
 
@@ -656,16 +652,14 @@ let
                 resolvedisablelist(qt, instrnm, addr)
             end
             CImGui.EndPopup()
-            updatefront!(qt)
         end
-        qt.isautorefresh && updatefront!(qt)
     end
 end
 
 function view(instrbufferviewers_local)
-    for ins in keys(instrbufferviewers_local)
+    for (ins, inses) in filter(x -> !isempty(x.second), instrbufferviewers_local)
         ins == "Others" && continue
-        for (addr, ibv) in instrbufferviewers_local[ins]
+        for (addr, ibv) in inses
             CImGui.TextColored(MORESTYLE.Colors.HighlightText, stcstr(ins, "：", addr))
             CImGui.PushID(addr)
             view(ibv.insbuf)
@@ -704,6 +698,76 @@ function view(qt::AbstractQuantity)
     CImGui.PopStyleColor()
 end
 
+# function apply!(qt::SweepQuantity, instrnm, addr)
+#     addr == "" && return nothing
+#     Us = CONF.U[qt.utype]
+#     U = isempty(Us) ? "" : Us[qt.uindex]
+#     U == "" || (Uchange::Float64 = Us[1] isa Unitful.FreeUnits ? ustrip(Us[1], 1U) : 1.0)
+#     start = wait_remotecall_fetch(workers()[1], instrnm, addr) do instrnm, addr
+#         ct = Controller(instrnm, addr)
+#         try
+#             getfunc = Symbol(instrnm, :_, qt.name, :_get) |> eval
+#             login!(CPU, ct)
+#             readstr = ct(getfunc, CPU, Val(:read))
+#             logout!(CPU, ct)
+#             return parse(Float64, readstr)
+#         catch e
+#             @error(
+#                 "[$(now())]\n$(mlstr("error getting start value!!!"))",
+#                 instrument = string(instrnm, "-", addr),
+#                 exception = e
+#             )
+#             logout!(CPU, ct)
+#         end
+#     end
+#     step = @trypasse eval(Meta.parse(qt.step)) * Uchange begin
+#         @error "[$(now())]\n$(mlstr("error parsing step value!!!"))" step = qt.step
+#     end
+#     stop = @trypasse eval(Meta.parse(qt.stop)) * Uchange begin
+#         @error "[$(now())]\n$(mlstr("error parsing stop value!!!"))" stop = qt.stop
+#     end
+#     if !(isnothing(start) || isnothing(step) || isnothing(stop))
+#         sweeplist = gensweeplist(start, step, stop)
+#         errormonitor(
+#             Threads.@spawn begin
+#                 qt.issweeping = true
+#                 ct = Controller(instrnm, addr)
+#                 remotecall_wait(workers()[1], ct) do ct
+#                     @isdefined(sweepcts) || (global sweepcts = Dict{UUID,Controller}())
+#                     push!(sweepcts, ct.id => ct)
+#                     login!(CPU, ct)
+#                 end
+#                 for sv in sweeplist
+#                     qt.issweeping || break
+#                     sleep(qt.delay)
+#                     fetchdata = remotecall_fetch(workers()[1], sv, ct.id) do sv, ctid
+#                         try
+#                             setfunc = Symbol(instrnm, :_, qt.name, :_set) |> eval
+#                             getfunc = Symbol(instrnm, :_, qt.name, :_get) |> eval
+#                             sweepcts[ctid](setfunc, CPU, string(sv), Val(:write))
+#                             returnval = sweepcts[ctid](getfunc, CPU, Val(:read))
+#                         catch e
+#                             @error(
+#                                 "[$(now())]\n$(mlstr("instrument communication failed!!!"))",
+#                                 instrument = string(instrnm, ": ", addr),
+#                                 quantity = qt.name,
+#                                 exception = e
+#                             )
+#                         end
+#                     end
+#                     isnothing(fetchdata) ? break : qt.read = fetchdata
+#                 end
+#                 remotecall_wait(workers()[1], ct.id) do ctid
+#                     logout!(CPU, sweepcts[ctid])
+#                     delete!(sweepcts, ctid)
+#                 end
+#                 qt.issweeping = false
+#             end
+#         )
+#     end
+#     return nothing
+# end
+
 function apply!(qt::SweepQuantity, instrnm, addr)
     addr == "" && return nothing
     Us = CONF.U[qt.utype]
@@ -738,36 +802,60 @@ function apply!(qt::SweepQuantity, instrnm, addr)
             Threads.@spawn begin
                 qt.issweeping = true
                 ct = Controller(instrnm, addr)
-                remotecall_wait(workers()[1], ct) do ct
-                    @isdefined(sweepcts) || (global sweepcts = Dict{UUID,Controller}())
-                    push!(sweepcts, ct.id => ct)
+                sweep_c = Channel{Vector{String}}(CONF.DAQ.channel_size)
+                sweep_rc = RemoteChannel(() -> sweep_c)
+                sweepcalltask = @async remotecall_wait(
+                    workers()[1], ct, sweeplist, sweep_rc, qt.name, qt.delay
+                ) do ct, sweeplist, sweep_rc, qtnm, delay
+                    @isdefined(sweepcts) || (global sweepcts = Dict{UUID,Tuple{Ref{Bool},Controller}}())
+                    push!(sweepcts, ct.id => (Ref(true), ct))
+                    sweep_lc = Channel{String}(CONF.DAQ.channel_size)
                     login!(CPU, ct)
-                end
-                for sv in sweeplist
-                    qt.issweeping || break
-                    sleep(qt.delay)
-                    fetchdata = remotecall_fetch(workers()[1], sv, ct.id) do sv, ctid
-                        try
-                            setfunc = Symbol(instrnm, :_, qt.name, :_set) |> eval
-                            getfunc = Symbol(instrnm, :_, qt.name, :_get) |> eval
-                            sweepcts[ctid](setfunc, CPU, string(sv), Val(:write))
-                            returnval = sweepcts[ctid](getfunc, CPU, Val(:read))
-                        catch e
-                            @error(
-                                "[$(now())]\n$(mlstr("instrument communication failed!!!"))",
-                                instrument = string(instrnm, ": ", addr),
-                                quantity = qt.name,
-                                exception = e
+                    try
+                        setfunc = Symbol(ct.instrnm, :_, qtnm, :_set) |> eval
+                        getfunc = Symbol(ct.instrnm, :_, qtnm, :_get) |> eval
+                        @sync begin
+                            sweeptask = errormonitor(
+                                @async begin
+                                    for sv in sweeplist
+                                        sweepcts[ct.id][1][] || break
+                                        sleep(delay)
+                                        sweepcts[ct.id][2](setfunc, CPU, string(sv), Val(:write))
+                                        put!(sweep_lc, sweepcts[ct.id][2](getfunc, CPU, Val(:read)))
+                                    end
+                                end
+                            )
+                            errormonitor(
+                                @async while !istaskdone(sweeptask) || isready(sweep_lc)
+                                    isready(sweep_lc) && put!(sweep_rc, packtake!(sweep_lc, CONF.DAQ.packsize))
+                                    sleep(delay / 10)
+                                    yield()
+                                end
                             )
                         end
+                    catch e
+                        @error(
+                            "[$(now())]\n$(mlstr("instrument communication failed!!!"))",
+                            instrument = string(ct.instrnm, ": ", ct.addr),
+                            quantity = qtnm,
+                            exception = e
+                        )
+                    finally
+                        logout!(CPU, sweepcts[ct.id][2])
+                        sweepcts[ct.id][1][] = false
                     end
-                    isnothing(fetchdata) ? break : qt.read = fetchdata
                 end
-                remotecall_wait(workers()[1], ct.id) do ctid
-                    logout!(CPU, sweepcts[ctid])
-                    delete!(sweepcts, ctid)
+                while !istaskdone(sweepcalltask) || isready(sweep_rc)
+                    qt.issweeping || remotecall_wait(ctid -> sweepcts[ctid][1][] = false, workers()[1], ct.id)
+                    isready(sweep_rc) && for val in take!(sweep_rc)
+                        qt.read = val
+                        updatefront!(qt)
+                    end
+                    sleep(qt.delay / 10)
+                    yield()
                 end
                 qt.issweeping = false
+                remotecall_wait(ctid -> delete!(sweepcts, ctid), workers()[1], ct.id)
             end
         )
     end
@@ -800,7 +888,7 @@ function apply!(qt::SetQuantity, instrnm, addr)
             logout!(CPU, ct)
         end
     end
-    isnothing(fetchdata) || (qt.read = fetchdata)
+    isnothing(fetchdata) || (qt.read = fetchdata; updatefront!(qt))
     return nothing
 end
 
@@ -904,16 +992,16 @@ function refresh1(log=false)
         @isdefined(refreshcts) || (global refreshcts = Dict())
         empty!(INSTRBUFFERVIEWERS)
         merge!(INSTRBUFFERVIEWERS, ibvs)
-        @sync for ins in keys(INSTRBUFFERVIEWERS)
+        @sync for (ins, inses) in filter(x -> !isempty(x.second), INSTRBUFFERVIEWERS)
             ins == "Others" && continue
             haskey(refreshcts, ins) || push!(refreshcts, ins => Dict())
-            for (addr, ibv) in INSTRBUFFERVIEWERS[ins]
+            for (addr, ibv) in inses
                 @async if ibv.insbuf.isautorefresh || log
                     haskey(refreshcts[ins], addr) || push!(refreshcts[ins], addr => Controller(ins, addr))
                     ct = refreshcts[ins][addr]
                     try
                         login!(CPU, ct)
-                        for (qtnm, qt) in INSTRBUFFERVIEWERS[ins][addr].insbuf.quantities
+                        for (qtnm, qt) in ibv.insbuf.quantities
                             if (qt.isautorefresh && qt.enable) || (log && (CONF.DAQ.logall || qt.enable))
                                 getfunc = Symbol(ins, :_, qtnm, :_get) |> eval
                                 qt.read = ct(getfunc, CPU, Val(:read))
@@ -935,7 +1023,16 @@ function refresh1(log=false)
         end
         return INSTRBUFFERVIEWERS
     end
-    isnothing(fetchibvs) || merge!(INSTRBUFFERVIEWERS, fetchibvs)
+    Threads.@spawn if !isnothing(fetchibvs)
+        for (ins, inses) in filter(x -> !isempty(x.second), INSTRBUFFERVIEWERS)
+            for (addr, ibv) in filter(x -> x.second.insbuf.isautorefresh || log, inses)
+                for (qtnm, qt) in filter(x -> x.second.isautorefresh || log, ibv.insbuf.quantities)
+                    qt.read = fetchibvs[ins][addr].insbuf.quantities[qtnm].read
+                    updatefront!(qt)
+                end
+            end
+        end
+    end
 end
 
 function autorefresh()
@@ -944,6 +1041,7 @@ function autorefresh()
             t1 = time()
             timedwait(() -> time() - t1 > CONF.InsBuf.refreshrate, 60; pollint=0.05)
             SYNCSTATES[Int(IsAutoRefreshing)] && refresh1()
+            yield()
         end
     )
 end
