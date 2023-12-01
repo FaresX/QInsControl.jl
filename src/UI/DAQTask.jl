@@ -116,6 +116,7 @@ function run(daqtask::DAQTask)
     global OLDI
     daqtask.enable || return
     SYNCSTATES[Int(IsDAQTaskRunning)] = true
+    SYNCSTATES[Int(IsAutoRefreshing)] = false
     date = today()
     find_old_i(joinpath(WORKPATH, string(year(date)), string(year(date), "-", month(date)), string(date)))
     cfgsvdir = joinpath(WORKPATH, string(year(date)), string(year(date), "-", month(date)), string(date))
