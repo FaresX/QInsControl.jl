@@ -219,7 +219,7 @@ function edit(opts::QuantityWidgetOption, qt::SweepQuantity, _, _, ::Val{:dragde
     CImGui.SetWindowFontScale(opts.textscale)
     @c ColoredDragWidget(
         CImGui.DragFloat,
-        "##delay", &qt.delay, 0.01, 0, 60, "%.3f", CImGui.ImGuiSliderFlags_AlwaysClamp;
+        "##delay", &qt.delay, 0.01, 0.01, 60, "%.3f", CImGui.ImGuiSliderFlags_AlwaysClamp;
         width=opts.itemsize[1],
         rounding=opts.rounding,
         bdrounding=opts.bdrounding,
@@ -239,18 +239,18 @@ function edit(opts::QuantityWidgetOption, qt::SweepQuantity, instrnm, addr, ::Va
     originscale = unsafe_load(CImGui.GetIO().FontGlobalScale)
     CImGui.SetWindowFontScale(opts.textscale)
     @c(ToggleButtonRect(
-        mlstr(qt.issweeping ? " Stop " : " Start "), &qt.issweeping;
-        size=opts.itemsize,
-        rounding=opts.rounding,
-        bdrounding=opts.bdrounding,
-        thickness=opts.bdthickness,
-        colon=opts.oncolor,
-        coloff=opts.offcolor,
-        colbth=opts.hoveredcolor,
-        colbta=opts.activecolor,
-        coltxt=opts.textcolor,
-        colrect=opts.rectcolor,
-    )) && qt.issweeping && apply!(qt, instrnm, addr)
+            mlstr(qt.issweeping ? " Stop " : " Start "), &qt.issweeping;
+            size=opts.itemsize,
+            rounding=opts.rounding,
+            bdrounding=opts.bdrounding,
+            thickness=opts.bdthickness,
+            colon=opts.oncolor,
+            coloff=opts.offcolor,
+            colbth=opts.hoveredcolor,
+            colbta=opts.activecolor,
+            coltxt=opts.textcolor,
+            colrect=opts.rectcolor,
+        )) && qt.issweeping && apply!(qt, instrnm, addr)
     opts.textsize == "big" && CImGui.PopFont()
     CImGui.SetWindowFontScale(originscale)
     qt.issweeping && updatefront!(qt)
@@ -477,7 +477,7 @@ end
 let
     copiedopts::Ref{QuantityWidgetOption} = QuantityWidgetOption()
     global function modify(insw::InstrWidget)
-        insert_ij = ((0, 0), QuantityWidget())
+        insert_ij = ((0, 0), (:before, QuantityWidget()))
         delete_ij = (0, 0)
         split_ij = (0, 0)
         swap_idx12 = (0, 0)
@@ -506,9 +506,15 @@ let
                     if CImGui.MenuItem(stcstr(MORESTYLE.Icons.Paste, " ", mlstr("Paste Options")))
                         qtw.options = deepcopy(copiedopts[])
                     end
-                    newqtw = addmenu(insw, true)
+                    newqtw = addmenu(insw, true; mode=:before)
+                    isnothing(newqtw) || isnothing(newqtw[2]) || (insert_ij = ((i, j), newqtw))
+                    newqtw = addmenu(insw, true; mode=:after)
+                    isnothing(newqtw) || isnothing(newqtw[2]) || (insert_ij = ((i, j), newqtw))
+                    newqtw = addmenu(insw, true; mode=:beforeg)
+                    isnothing(newqtw) || isnothing(newqtw[2]) || (insert_ij = ((i, j), newqtw))
+                    newqtw = addmenu(insw, true; mode=:afterg)
+                    isnothing(newqtw) || isnothing(newqtw[2]) || (insert_ij = ((i, j), newqtw))
                     convertmenu(insw, i, j)
-                    isnothing(newqtw) || (insert_ij = ((i, j), newqtw))
                     if CImGui.MenuItem(
                         stcstr(MORESTYLE.Icons.InsertDown, " ", mlstr("Split Group")),
                         C_NULL,
@@ -562,7 +568,15 @@ let
         CImGui.EndChild()
 
         if insert_ij[1] != (0, 0)
-            insert!(insw.qtws[insert_ij[1][1]], insert_ij[1][2], insert_ij[2])
+            if insert_ij[2][1] == :before
+                insert!(insw.qtws[insert_ij[1][1]], insert_ij[1][2], insert_ij[2][2])
+            elseif insert_ij[2][1] == :after
+                insert!(insw.qtws[insert_ij[1][1]], insert_ij[1][2] + 1, insert_ij[2][2])
+            elseif insert_ij[2][1] == :beforeg
+                insert!(insw.qtws, insert_ij[1][1], [insert_ij[2][2]])
+            elseif insert_ij[2][1] == :afterg
+                insert!(insw.qtws, insert_ij[1][1] + 1, [insert_ij[2][2]])
+            end
         end
         if delete_ij != (0, 0)
             deleteat!(insw.qtws[delete_ij[1]], delete_ij[2])
@@ -600,8 +614,25 @@ let
     end
 end
 
-function addmenu(insw::InstrWidget, onqtw=false)
-    if CImGui.BeginMenu(stcstr(MORESTYLE.Icons.NewFile, " ", mlstr("Add")))
+function addmenu(insw::InstrWidget, onqtw=false; mode=:addlastg)
+    if CImGui.BeginMenu(
+        stcstr(
+            MORESTYLE.Icons.NewFile, " ",
+            mlstr(
+                if mode == :addlastg
+                    "Add"
+                elseif mode == :before
+                    "Add Before"
+                elseif mode == :after
+                    "Add After"
+                elseif mode == :beforeg
+                    "Add Group Before"
+                elseif mode == :afterg
+                    "Add Group After"
+                end
+            )
+        )
+    )
         newqtw = nothing
         if CImGui.MenuItem(mlstr("Text"))
             newqtw = QuantityWidget(name="_Text_", alias="")
@@ -648,7 +679,7 @@ function addmenu(insw::InstrWidget, onqtw=false)
             CImGui.EndMenu()
         end
         CImGui.EndMenu()
-        return newqtw
+        return mode, newqtw
     end
 end
 
