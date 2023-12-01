@@ -744,7 +744,7 @@ let
     readuitypes = ["text"]
     textsizes = ["normal", "big"]
     global function optionsmenu(qtw::QuantityWidget)
-        if CImGui.CollapsingHeader(mlstr("Variable Options"))
+        if qtw.name != "_SameLine_" && CImGui.CollapsingHeader(mlstr("Variable Options"))
             @c ComBoS(
                 mlstr("UI type"),
                 &qtw.options.uitype,
@@ -800,15 +800,15 @@ let
                 CImGui.ImGuiSliderFlags_AlwaysClamp
             )
         end
-        if CImGui.CollapsingHeader("Binding Options")
+        if qtw.qtype == "set" && CImGui.CollapsingHeader(mlstr("Binding Options"))
             @c CImGui.SliderInt("Binding Index to RadioButton", &qtw.options.bindingidx, 1, qtw.numoptvs)
             CImGui.SliderInt2("Bingding Index to ON/OFF", qtw.options.bindingonoff, 1, qtw.numoptvs)
         end
-        if CImGui.CollapsingHeader(mlstr("SameLine Options"))
+        if qtw.name == "_SameLine_" && CImGui.CollapsingHeader(mlstr("SameLine Options"))
             @c CImGui.DragFloat(mlstr("Local Position X"), &qtw.options.localposx)
             @c CImGui.DragFloat(mlstr("Spacing Width"), &qtw.options.spacingw)
         end
-        if CImGui.CollapsingHeader(mlstr("Color Options"))
+        if qtw.name != "_SameLine_" && CImGui.CollapsingHeader(mlstr("Color Options"))
             widgetcolormenu(qtw.options)
         end
     end
