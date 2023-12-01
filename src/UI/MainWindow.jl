@@ -59,8 +59,8 @@ let
         for dtv in dtviewers
             dtv[1].p_open = false
         end
-        for ins in keys(INSTRBUFFERVIEWERS)
-            for (_, ibv) in INSTRBUFFERVIEWERS[ins]
+        for (_, inses) in filter(x->!isempty(x.second), INSTRBUFFERVIEWERS)
+            for (_, ibv) in inses
                 ibv.p_open = false
             end
         end
@@ -104,8 +104,8 @@ let
         show_instr_register && @c InstrRegister(&show_instr_register)
         show_cpu_monitor && @c CPUMonitor(&show_cpu_monitor)
         show_instr_buffer && @c ShowInstrBuffer(&show_instr_buffer)
-        for ins in keys(INSTRBUFFERVIEWERS)
-            for (addr, ibv) in INSTRBUFFERVIEWERS[ins]
+        for (_, inses) in filter(x->!isempty(x.second), INSTRBUFFERVIEWERS)
+            for (addr, ibv) in inses
                 ibv.p_open && edit(ibv)
                 if haskey(instrwidgets, addr)
                     for (wnm, insw) in instrwidgets[addr]
@@ -205,63 +205,61 @@ let
                         &show_instr_buffer
                     )
                     CImGui.Separator()
-                    for ins in keys(INSTRBUFFERVIEWERS)
-                        if !isempty(INSTRBUFFERVIEWERS[ins])
-                            if CImGui.BeginMenu(stcstr(INSCONF[ins].conf.icon, " ", ins))
-                                for (addr, ibv) in INSTRBUFFERVIEWERS[ins]
-                                    @c CImGui.Checkbox(stcstr("##", ins, addr), &ibv.insbuf.isautorefresh)
-                                    CImGui.SameLine()
-                                    if @c CImGui.BeginMenu(addr)
-                                        @c CImGui.MenuItem(mlstr("Common"), C_NULL, &ibv.p_open)
-                                        if CImGui.BeginPopupContextItem()
-                                            if CImGui.MenuItem(
-                                                stcstr(MORESTYLE.Icons.CloseFile, " ", mlstr("Delete")),
-                                                C_NULL,
-                                                false,
-                                                ins != "VirtualInstr"
-                                            )
-                                                synccall_wait(workers()[1], ins, addr) do ins, addr
-                                                    delete!(INSTRBUFFERVIEWERS[ins], addr)
-                                                end
-                                            end
-                                            if CImGui.BeginMenu(
-                                                stcstr(MORESTYLE.Icons.NewFile, " ", mlstr("Add to")),
-                                                ins == "Others"
-                                            )
-                                                for (cfins, cf) in INSCONF
-                                                    cfins in ["Others", "VirtualInstr"] && continue
-                                                    if CImGui.MenuItem(stcstr(cf.conf.icon, " ", cfins))
-                                                        synccall_wait(workers()[1], ins, addr, cfins) do ins, addr, cfins
-                                                            delete!(INSTRBUFFERVIEWERS[ins], addr)
-                                                            get!(INSTRBUFFERVIEWERS[cfins], addr, InstrBufferViewer(cfins, addr))
-                                                        end
-                                                    end
-                                                end
-                                                CImGui.EndMenu()
-                                            end
-                                            CImGui.EndPopup()
-                                        end
-                                        if haskey(INSWCONF, ins)
-                                            haskey(instrwidgets, addr) || push!(instrwidgets, addr => Dict())
-                                            for w in INSWCONF[ins]
-                                                if !haskey(instrwidgets[addr], w.name)
-                                                    insw = deepcopy(w)
-                                                    push!(instrwidgets[addr], w.name => (Ref(false), insw))
-                                                    for qtwg in insw.qtws
-                                                        for qtw in qtwg
-                                                            qtw.options.globaloptions && copycolors!(qtw.options, insw.options)
-                                                            qtw.options.globaloptions = false
-                                                        end
-                                                    end
-                                                end
-                                                CImGui.MenuItem(w.name, C_NULL, instrwidgets[addr][w.name][1])
+                    for (ins, inses) in filter(x -> !isempty(x.second), INSTRBUFFERVIEWERS)
+                        if CImGui.BeginMenu(stcstr(INSCONF[ins].conf.icon, " ", ins))
+                            for (addr, ibv) in inses
+                                @c CImGui.Checkbox(stcstr("##", ins, addr), &ibv.insbuf.isautorefresh)
+                                CImGui.SameLine()
+                                if @c CImGui.BeginMenu(addr)
+                                    @c CImGui.MenuItem(mlstr("Common"), C_NULL, &ibv.p_open)
+                                    if CImGui.BeginPopupContextItem()
+                                        if CImGui.MenuItem(
+                                            stcstr(MORESTYLE.Icons.CloseFile, " ", mlstr("Delete")),
+                                            C_NULL,
+                                            false,
+                                            ins != "VirtualInstr"
+                                        )
+                                            synccall_wait(workers()[1], ins, addr) do ins, addr
+                                                delete!(INSTRBUFFERVIEWERS[ins], addr)
                                             end
                                         end
-                                        CImGui.EndMenu()
+                                        if CImGui.BeginMenu(
+                                            stcstr(MORESTYLE.Icons.NewFile, " ", mlstr("Add to")),
+                                            ins == "Others"
+                                        )
+                                            for (cfins, cf) in INSCONF
+                                                cfins in ["Others", "VirtualInstr"] && continue
+                                                if CImGui.MenuItem(stcstr(cf.conf.icon, " ", cfins))
+                                                    synccall_wait(workers()[1], ins, addr, cfins) do ins, addr, cfins
+                                                        delete!(INSTRBUFFERVIEWERS[ins], addr)
+                                                        get!(INSTRBUFFERVIEWERS[cfins], addr, InstrBufferViewer(cfins, addr))
+                                                    end
+                                                end
+                                            end
+                                            CImGui.EndMenu()
+                                        end
+                                        CImGui.EndPopup()
                                     end
+                                    if haskey(INSWCONF, ins)
+                                        haskey(instrwidgets, addr) || push!(instrwidgets, addr => Dict())
+                                        for w in INSWCONF[ins]
+                                            if !haskey(instrwidgets[addr], w.name)
+                                                insw = deepcopy(w)
+                                                push!(instrwidgets[addr], w.name => (Ref(false), insw))
+                                                for qtwg in insw.qtws
+                                                    for qtw in qtwg
+                                                        qtw.options.globaloptions && copycolors!(qtw.options, insw.options)
+                                                        qtw.options.globaloptions = false
+                                                    end
+                                                end
+                                            end
+                                            CImGui.MenuItem(w.name, C_NULL, instrwidgets[addr][w.name][1])
+                                        end
+                                    end
+                                    CImGui.EndMenu()
                                 end
-                                CImGui.EndMenu()
                             end
+                            CImGui.EndMenu()
                         end
                     end
                     CImGui.EndMenu()
