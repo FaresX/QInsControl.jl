@@ -25,6 +25,9 @@ QInsControl.start()
 ## example
 ![image](example/demo.png)
 A simple project file [demo.daq](example) is in the example folder, which gives some ideas to write your own scripts.
+## custom widgets
+now it comes a new feture that anyone could create your own widgets to control the instruments.
+![image](example/test%20widget.png) ![image](example/widgetli5640.png)
 
 ## <font color=#FF0000>**Note**</font>
 At present, the GUI may get crashed thanks to some bugs that do not interrupt the running DAQ program. When encountered, 
