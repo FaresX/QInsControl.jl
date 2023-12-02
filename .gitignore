@@ -16,3 +16,4 @@ compile.jl
 QInsControl.iss
 RestructConf.jl
 Manifest.toml
+HelpPad.jl
