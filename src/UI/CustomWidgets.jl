@@ -21,6 +21,7 @@ function ColoredCombo(
     colfrm=CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_FrameBg),
     colfrmh=CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_FrameBgHovered),
     colfrma=CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_FrameBgActive),
+    colpopup=CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_PopupBg),
     coltxt=CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_Text),
     colrect=MORESTYLE.Colors.ShowTextRect
 )
@@ -28,13 +29,14 @@ function ColoredCombo(
     CImGui.PushStyleColor(CImGui.ImGuiCol_FrameBg, colfrm)
     CImGui.PushStyleColor(CImGui.ImGuiCol_FrameBgHovered, colfrmh)
     CImGui.PushStyleColor(CImGui.ImGuiCol_FrameBgActive, colfrma)
+    CImGui.PushStyleColor(CImGui.ImGuiCol_PopupBg, colpopup)
     CImGui.PushStyleColor(CImGui.ImGuiCol_Text, coltxt)
     CImGui.PushStyleVar(CImGui.ImGuiStyleVar_FrameRounding, rounding)
     CImGui.PushItemWidth(width)
     iscombo = ComBoS(label, preview_value, item_list, flags)
     CImGui.PopItemWidth()
     CImGui.PopStyleVar()
-    CImGui.PopStyleColor(5)
+    CImGui.PopStyleColor(6)
     rmin, rmax = CImGui.GetItemRectMin(), CImGui.GetItemRectMax()
     draw_list = CImGui.GetWindowDrawList()
     CImGui.AddRect(draw_list, rmin, rmax, CImGui.ColorConvertFloat4ToU32(colrect), bdrounding, 0, thickness)

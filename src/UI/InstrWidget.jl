@@ -23,6 +23,7 @@
     hintcolor::Vector{Cfloat} = [0.600, 0.600, 0.600, 1.000]
     checkedcolor::Vector{Cfloat} = [0.260, 0.590, 0.980, 1.000]
     bgcolor::Vector{Cfloat} = [0.951, 0.951, 0.951, 1.000]
+    popupcolor::Vector{Cfloat} = [1.000, 1.000, 1.000, 0.600]
     imgbgcolor::Vector{Cfloat} = [0.000, 0.000, 0.000, 0.000]
     imgtintcolor::Vector{Cfloat} = [1.000, 1.000, 1.000, 1.000]
     combobtcolor::Vector{Cfloat} = [0.260, 0.590, 0.980, 0.400]
@@ -333,6 +334,7 @@ function edit(opts::QuantityWidgetOption, qt::SetQuantity, instrnm, addr, ::Val{
         colfrm=opts.bgcolor,
         colfrmh=opts.hoveredcolor,
         colfrma=opts.activecolor,
+        colpopup=opts.popupcolor,
         coltxt=opts.textcolor,
         colrect=opts.rectcolor
     )
@@ -514,7 +516,7 @@ let
         swap_idx12 = (0, 0)
         group_idx12 = (0, 0)
         openmodw = false
-        CImGui.BeginChild(stcstr(insw.instrnm, insw.name))
+        CImGui.BeginChild(stcstr(insw.instrnm, insw.name), (0, 0), false, CImGui.ImGuiWindowFlags_HorizontalScrollbar)
         for (i, qtwg) in enumerate(insw.qtws)
             CImGui.PushID(i)
             lqtwg = length(qtwg)
@@ -887,6 +889,11 @@ function widgetcolormenu(opts::QuantityWidgetOption)
     CImGui.ColorEdit4(
         stcstr(mlstr("Background Color")),
         opts.bgcolor,
+        CImGui.ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_AlphaPreviewHalf
+    )
+    CImGui.ColorEdit4(
+        stcstr(mlstr("Popup Background Color")),
+        opts.popupcolor,
         CImGui.ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_AlphaPreviewHalf
     )
     CImGui.ColorEdit4(
