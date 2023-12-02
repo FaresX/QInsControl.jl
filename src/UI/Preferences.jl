@@ -6,6 +6,7 @@ let
         CImGui.SetNextWindowSize((800, 600), CImGui.ImGuiCond_Once)
 
         if CImGui.Begin(stcstr(MORESTYLE.Icons.Preferences, "  ", mlstr("Preferences"), "###pref"), p_open)
+            SetWindowBgImage()
             CImGui.Columns(2)
             @cstatic firsttime::Bool = true begin
                 firsttime && (CImGui.SetColumnOffset(1, CImGui.GetWindowWidth() * 0.2); firsttime = false)
@@ -149,13 +150,13 @@ let
                     &CONF.DAQ.retrysendtimes,
                     1.0, 1, 60, "%d",
                     CImGui.ImGuiSliderFlags_AlwaysClamp
-                )) && remotecall_wait(x->(CONF.DAQ.retrysendtimes = x), workers()[1], CONF.DAQ.retrysendtimes)
+                )) && remotecall_wait(x -> (CONF.DAQ.retrysendtimes = x), workers()[1], CONF.DAQ.retrysendtimes)
                 @c(CImGui.DragInt(
                     stcstr(mlstr("times of retrying connecting"), "##DAQ"),
                     &CONF.DAQ.retryconnecttimes,
                     1.0, 1, 60, "%d",
                     CImGui.ImGuiSliderFlags_AlwaysClamp
-                )) && remotecall_wait(x->(CONF.DAQ.retryconnecttimes = x), workers()[1], CONF.DAQ.retryconnecttimes)
+                )) && remotecall_wait(x -> (CONF.DAQ.retryconnecttimes = x), workers()[1], CONF.DAQ.retryconnecttimes)
                 CImGui.Text(" ")
                 CImGui.Separator()
 

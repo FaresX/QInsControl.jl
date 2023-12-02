@@ -197,6 +197,7 @@ function edit(ibv::InstrBufferViewer)
     CImGui.SetNextWindowSize((800, 600), CImGui.ImGuiCond_Once)
     ins, addr = ibv.instrnm, ibv.addr
     if @c CImGui.Begin(stcstr(INSCONF[ins].conf.icon, "  ", ins, "  ", addr), &ibv.p_open)
+        SetWindowBgImage()
         @c testcmd(ins, addr, &ibv.inputcmd, &ibv.readstr)
         edit(ibv.insbuf, addr)
         CImGui.IsKeyPressed(294, false) && (refresh1(true); updatefrontall!())
@@ -217,6 +218,7 @@ let
             stcstr(MORESTYLE.Icons.InstrumentsOverview, "  ", mlstr("Instrument Settings and Status"), "###insbuf"),
             p_open
         )
+            SetWindowBgImage()
             CImGui.Columns(2)
             firsttime && (CImGui.SetColumnOffset(1, CImGui.GetWindowWidth() * 0.25); firsttime = false)
             CImGui.BeginChild("instrument list")

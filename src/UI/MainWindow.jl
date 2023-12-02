@@ -77,7 +77,7 @@ let
             CImGui.PushStyleVar(CImGui.ImGuiStyleVar_WindowRounding, 0)
             CImGui.PushStyleVar(CImGui.ImGuiStyleVar_WindowPadding, (0, 0))
             CImGui.Begin("Wallpaper", C_NULL, window_flags | CImGui.ImGuiWindowFlags_NoBringToFrontOnFocus)
-            CImGui.Image(Ptr{Cvoid}(BGID), unsafe_load(viewport.WorkSize))
+            Image(CONF.BGImage.path; size=unsafe_load(viewport.WorkSize), tint_col=MORESTYLE.Colors.BgImageTint)
             CImGui.End()
 
             CImGui.SetNextWindowPos(unsafe_load(viewport.WorkPos))

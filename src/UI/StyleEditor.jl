@@ -1,4 +1,5 @@
 Base.@kwdef mutable struct MoreStyleColor
+    BgImageTint::Vector{Cfloat} = [1.000, 1.000, 1.000, 0.600]
     HighlightText::Vector{Cfloat} = [1.000, 1.000, 0.000, 1.000]
     LogInfo::Vector{Cfloat} = [0.000, 0.855, 1.000, 1.000]
     LogError::Vector{Cfloat} = [1.000, 0.000, 0.000, 1.000]
@@ -549,18 +550,13 @@ let
         selectbgpath = CImGui.Button(stcstr(MORESTYLE.Icons.SelectPath, "##BGImage-path"))
         selectbgpath && (bgpath = pick_file(abspath(bgpath); filterlist="png,jpg,jpeg,tif,bmp"))
         CImGui.SameLine()
+        @c CImGui.Checkbox("##useall", &CONF.BGImage.useall)
+        ItemTooltip("apply to all the windows ?")
+        CImGui.SameLine()
         CImGui.Text("Wallpaper")
         if inputbgpath || selectbgpath
             if isfile(bgpath)
-                try
-                    bgimg = RGB.(collect(transpose(FileIO.load(bgpath))))
-                    CONF.BGImage.path = bgpath
-                    bgsize = size(bgimg)
-                    global BGID = ImGui_ImplOpenGL3_CreateImageTexture(bgsize...; format=GL_RGB)
-                    ImGui_ImplOpenGL3_UpdateImageTexture(BGID, bgimg, bgsize...; format=GL_RGB)
-                catch e
-                    @error "[$(now())]\n$(mlstr("loading wallpaper failed!!!"))" exception = e
-                end
+                CONF.BGImage.path = bgpath
             else
                 CImGui.SameLine()
                 CImGui.TextColored(MORESTYLE.Colors.LogError, mlstr("path does not exist!!!"))

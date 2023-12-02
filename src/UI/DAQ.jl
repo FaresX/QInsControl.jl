@@ -22,6 +22,7 @@ let
         # CImGui.SetNextWindowPos((100, 100), CImGui.ImGuiCond_Once)
         CImGui.SetNextWindowSize((400, 600), CImGui.ImGuiCond_Once)
         if CImGui.Begin(stcstr(MORESTYLE.Icons.InstrumentsDAQ, "  ", mlstr("Data Acquiring"), "###DAQ"), p_open)
+            SetWindowBgImage()
             global WORKPATH
             global OLDI
             CImGui.Button(stcstr(MORESTYLE.Icons.SelectPath, " ", mlstr("Workplace"), " ")) && (WORKPATH = pick_folder())

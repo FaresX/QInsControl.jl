@@ -1,6 +1,7 @@
 function CPUMonitor(p_open::Ref)
     CImGui.SetNextWindowSize((600, 300), CImGui.ImGuiCond_Once)
     if CImGui.Begin(stcstr(MORESTYLE.Icons.CPUMonitor, " ", mlstr("Instrument CPU Monitor"), "###CPU"), p_open)
+        SetWindowBgImage()
         CImGui.TextColored(MORESTYLE.Colors.HighlightText, "ID: ")
         CImGui.SameLine()
         CImGui.Text(stcstr(remotecall_fetch(() -> CPU.id, workers()[1])))

@@ -9,6 +9,7 @@ let
             p_open,
             CImGui.ImGuiWindowFlags_HorizontalScrollbar
         )
+            SetWindowBgImage()
             if SYNCSTATES[Int(NewLogging)] || waittime("Logger", CONF.Logs.refreshrate)
                 empty!(logmsgshow)
                 textc = CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_Text)

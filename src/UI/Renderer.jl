@@ -29,19 +29,7 @@ function UI(breakdown=false; precompile=false)
     global ICONID = ImGui_ImplOpenGL3_CreateImageTexture(iconsize...)
     ImGui_ImplOpenGL3_UpdateImageTexture(ICONID, transpose(icons[1]), iconsize...)
     # 加载背景
-    if isfile(CONF.BGImage.path)
-        try
-            bgimg = RGB.(collect(transpose(FileIO.load(CONF.BGImage.path))))
-            bgsize = size(bgimg)
-            global BGID = ImGui_ImplOpenGL3_CreateImageTexture(bgsize...; format=GL_RGB)
-            ImGui_ImplOpenGL3_UpdateImageTexture(BGID, bgimg, bgsize...; format=GL_RGB)
-        catch e
-            @error "[$now()]\n$(mlstr("loading wallpaper failed!!!"))" exception = e
-            global BGID = ImGui_ImplOpenGL3_CreateImageTexture(CONF.Basic.windowsize...; format=GL_RGB)
-        end
-    else
-        global BGID = ImGui_ImplOpenGL3_CreateImageTexture(CONF.Basic.windowsize...)
-    end
+    createimage(CONF.BGImage.path)
 
 
     # setup Dear ImGui context
@@ -258,6 +246,9 @@ function UI(breakdown=false; precompile=false)
     finally
         SYNCSTATES[Int(IsDAQTaskRunning)] || remotecall_wait(() -> stop!(CPU), workers()[1])
         schedule(AUTOREFRESHTASK, mlstr("Stop"); error=true)
+        empty!(STATICSTRINGS)
+        empty!(MLSTRINGS)
+        empty!(IMAGES)
         CImGui.SaveIniSettingsToDisk(imguiinifile)
         ImGuiOpenGLBackend.shutdown(gl_ctx)
         ImGuiGLFWBackend.shutdown(window_ctx)

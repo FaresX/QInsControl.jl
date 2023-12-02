@@ -16,6 +16,7 @@ function edit(dtviewer::DataViewer, filetree::FileTree, isrename::Dict{String,Bo
         end,
         &dtviewer.p_open
     )
+        SetWindowBgImage()
         CImGui.Columns(2)
         dtviewer.firsttime && (CImGui.SetColumnOffset(1, CImGui.GetWindowWidth() * 0.3); dtviewer.firsttime = false)
 

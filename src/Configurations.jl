@@ -69,6 +69,7 @@ end
 
 @option mutable struct OptBGImage
     path::String = ""
+    useall::Bool = true
 end
 
 @option mutable struct OptComAddr
