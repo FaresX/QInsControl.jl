@@ -107,6 +107,7 @@ let
             stcstr(MORESTYLE.Icons.InstrumentsRegister, "  ", mlstr("Instrument Registration"), "###ins reg"),
             p_open
         )
+            SetWindowBgImage()
             CImGui.Columns(2)
             firsttime && (CImGui.SetColumnOffset(1, CImGui.GetWindowWidth() * 0.25); firsttime = false)
             CImGui.BeginChild("InstrumentsOverview", (Float32(0), -CImGui.GetFrameHeightWithSpacing()))
@@ -301,6 +302,29 @@ let
                                 end
                                 if CImGui.CollapsingHeader(mlstr("Global Options"))
                                     @c InputTextRSZ(mlstr("Rename"), &widget.name)
+                                    @c CImGui.Checkbox(mlstr("Use Wallpaper"), &widget.usewallpaper)
+                                    if widget.usewallpaper
+                                        bgpath = widget.wallpaperpath
+                                        inputbgpath = @c InputTextRSZ("##wallpaper", &bgpath)
+                                        CImGui.SameLine()
+                                        selectbgpath = CImGui.Button(stcstr(MORESTYLE.Icons.SelectPath, "##wallpaper"))
+                                        selectbgpath && (bgpath = pick_file(abspath(bgpath); filterlist="png,jpg,jpeg,tif,bmp"))
+                                        CImGui.SameLine()
+                                        CImGui.Text(mlstr("Wallpaper"))
+                                        if inputbgpath || selectbgpath
+                                            if isfile(bgpath)
+                                                widget.wallpaperpath = bgpath
+                                            else
+                                                CImGui.SameLine()
+                                                CImGui.TextColored(MORESTYLE.Colors.LogError, mlstr("path does not exist!!!"))
+                                            end
+                                        end
+                                        CImGui.ColorEdit4(
+                                            stcstr(mlstr("Background Tint Color")),
+                                            widget.bgtintcolor,
+                                            CImGui.ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_AlphaPreviewHalf
+                                        )
+                                    end
                                     CImGui.ColorEdit4(
                                         stcstr(mlstr("Window Color")),
                                         widget.windowbgcolor,

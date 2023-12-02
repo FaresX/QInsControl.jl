@@ -2,6 +2,7 @@
     uitype::String = "read"
     globaloptions::Bool = true
     allowoverlap::Bool = false
+    useimage::Bool = false
     textsize::String = "normal"
     textscale::Cfloat = 1
     textinside::Bool = true
@@ -13,12 +14,17 @@
     localposx::Cfloat = 0
     spacingw::Cfloat = -1
     cursorscreenpos::Vector{Cfloat} = [0, 0]
+    uv0::Vector{Cfloat} = [0, 0]
+    uv1::Vector{Cfloat} = [1, 1]
+    framepadding::Cfloat = -1
     bindingidx::Cint = 1
     bindingonoff::Vector{Cint} = [1, 2]
     textcolor::Vector{Cfloat} = [0.000, 0.000, 0.000, 1.000]
     hintcolor::Vector{Cfloat} = [0.600, 0.600, 0.600, 1.000]
     checkedcolor::Vector{Cfloat} = [0.260, 0.590, 0.980, 1.000]
     bgcolor::Vector{Cfloat} = [0.951, 0.951, 0.951, 1.000]
+    imgbgcolor::Vector{Cfloat} = [0.000, 0.000, 0.000, 0.000]
+    imgtintcolor::Vector{Cfloat} = [1.000, 1.000, 1.000, 1.000]
     combobtcolor::Vector{Cfloat} = [0.260, 0.590, 0.980, 0.400]
     oncolor::Vector{Cfloat} = [0.000, 1.000, 0.000, 1.000]
     offcolor::Vector{Cfloat} = [0.000, 0.000, 0.000, 0.400]
@@ -42,7 +48,10 @@ end
     name::String = "widget 1"
     qtws::Vector{Vector{QuantityWidget}} = []
     windowsize::Vector{Cfloat} = [600, 600]
+    usewallpaper::Bool = false
+    wallpaperpath::String = ""
     windowbgcolor::Vector{Cfloat} = [1.000, 1.000, 1.000, 1.000]
+    bgtintcolor::Vector{Cfloat} = [1.000, 1.000, 1.000, 1.000]
     options::QuantityWidgetOption = QuantityWidgetOption()
 end
 
@@ -50,14 +59,14 @@ const INSWCONF = OrderedDict{String,Vector{InstrWidget}}() #仪器注册表
 
 function copyvars!(opts1, opts2)
     fnms = fieldnames(QuantityWidgetOption)
-    for fnm in fnms[1:15]
+    for fnm in fnms[1:20]
         setproperty!(opts1, fnm, getproperty(opts2, fnm))
     end
 end
 
 function copycolors!(opts1, opts2)
     fnms = fieldnames(QuantityWidgetOption)
-    for fnm in fnms[16:end]
+    for fnm in fnms[21:end]
         setproperty!(opts1, fnm, getproperty(opts2, fnm))
     end
 end
@@ -69,24 +78,39 @@ function edit(qtw::QuantityWidget, insbuf::InstrBuffer, instrnm, addr, gopts::Qu
     if haskey(insbuf.quantities, qtw.name)
         qt = insbuf.quantities[qtw.name]
         edit(opts, qt, instrnm, addr, Val(Symbol(qtw.options.uitype)))
-    elseif qtw.name == "_Text_"
+    elseif qtw.name == "_Panel_"
         opts.textsize == "big" && CImGui.PushFont(PLOTFONT)
         originscale = unsafe_load(CImGui.GetIO().FontGlobalScale)
         CImGui.SetWindowFontScale(opts.textscale)
-        ColoredButtonRect(
-            qtw.alias;
+        ImageColoredButtonRect(
+            qtw.alias, qtw.alias, opts.useimage;
             size=opts.itemsize,
+            uv0=opts.uv0,
+            uv1=opts.uv1,
+            frame_padding=opts.framepadding,
+            rounding=opts.rounding,
+            bdrounding=opts.bdrounding,
+            thickness=opts.bdthickness,
+            bg_col=opts.imgbgcolor,
+            tint_col=opts.imgtintcolor,
             colbt=opts.bgcolor,
             colbth=opts.hoveredcolor,
             colbta=opts.activecolor,
             coltxt=opts.textcolor,
             colrect=opts.rectcolor,
-            rounding=opts.rounding,
-            bdrounding=opts.bdrounding,
-            thickness=opts.bdthickness
+            
         )
         opts.textsize == "big" && CImGui.PopFont()
         CImGui.SetWindowFontScale(originscale)
+    elseif qtw.name == "_Image_"
+        Image(
+            qtw.alias;
+            size=opts.itemsize,
+            uv0=opts.uv0,
+            uv1=opts.uv1,
+            tint_col=opts.imgtintcolor,
+            border_col=opts.rectcolor
+        )
     elseif qtw.name == "_SameLine_"
         CImGui.SameLine(opts.localposx, opts.spacingw)
     end
@@ -441,6 +465,7 @@ function edit(insw::InstrWidget, insbuf::InstrBuffer, addr, p_open, id)
         p_open,
         addr == "" ? CImGui.ImGuiWindowFlags_NoDocking : 0
     )
+        insw.usewallpaper && SetWindowBgImage(insw.wallpaperpath; tint_col=insw.bgtintcolor)
         CImGui.BeginChild(stcstr(insw.instrnm, " ", insw.name, " ", addr))
         for (i, qtwg) in enumerate(insw.qtws)
             CImGui.PushID(i)
@@ -467,8 +492,14 @@ function modify(qtw::QuantityWidget, id)
     if qtw.name == "_SameLine_"
         CImGui.SameLine()
         CImGui.Button("Same\nLine")
-    elseif qtw.name == "_Text_"
-        CImGui.Button(stcstr(" Text", " \n ", qtw.alias, "###", id))
+    elseif qtw.name == "_Panel_"
+        if qtw.options.useimage
+            CImGui.Button(stcstr("Image\nButton"))
+        else
+            CImGui.Button(stcstr(" Text", " \n ", qtw.alias, "###", id))
+        end
+    elseif qtw.name == "_Image_"
+        CImGui.Button(stcstr(" Image", " \n "))
     else
         CImGui.Button(stcstr(qtw.alias, "\n", qtw.options.uitype))
     end
@@ -506,13 +537,13 @@ let
                     if CImGui.MenuItem(stcstr(MORESTYLE.Icons.Paste, " ", mlstr("Paste Options")))
                         qtw.options = deepcopy(copiedopts[])
                     end
-                    newqtw = addmenu(insw, true; mode=:before)
+                    newqtw = addmenu(insw; mode=:before)
                     isnothing(newqtw) || isnothing(newqtw[2]) || (insert_ij = ((i, j), newqtw))
-                    newqtw = addmenu(insw, true; mode=:after)
+                    newqtw = addmenu(insw; mode=:after)
                     isnothing(newqtw) || isnothing(newqtw[2]) || (insert_ij = ((i, j), newqtw))
-                    newqtw = addmenu(insw, true; mode=:beforeg)
+                    newqtw = addmenu(insw; mode=:beforeg)
                     isnothing(newqtw) || isnothing(newqtw[2]) || (insert_ij = ((i, j), newqtw))
-                    newqtw = addmenu(insw, true; mode=:afterg)
+                    newqtw = addmenu(insw; mode=:afterg)
                     isnothing(newqtw) || isnothing(newqtw[2]) || (insert_ij = ((i, j), newqtw))
                     convertmenu(insw, i, j)
                     if CImGui.MenuItem(
@@ -614,7 +645,7 @@ let
     end
 end
 
-function addmenu(insw::InstrWidget, onqtw=false; mode=:addlastg)
+function addmenu(insw::InstrWidget; mode=:addlastg)
     if CImGui.BeginMenu(
         stcstr(
             MORESTYLE.Icons.NewFile, " ",
@@ -634,13 +665,17 @@ function addmenu(insw::InstrWidget, onqtw=false; mode=:addlastg)
         )
     )
         newqtw = nothing
-        if CImGui.MenuItem(mlstr("Text"))
-            newqtw = QuantityWidget(name="_Text_", alias="")
-            onqtw || push!(insw.qtws, [newqtw])
+        if CImGui.MenuItem(mlstr("Panel"))
+            newqtw = QuantityWidget(name="_Panel_", alias="")
+            mode == :addlastg && push!(insw.qtws, [newqtw])
+        end
+        if CImGui.MenuItem(mlstr("Image"))
+            newqtw = QuantityWidget(name="_Image_", alias="")
+            mode == :addlastg && push!(insw.qtws, [newqtw])
         end
         if CImGui.MenuItem(mlstr("SameLine"))
             newqtw = QuantityWidget(name="_SameLine_", alias=mlstr("SameLine"))
-            onqtw || push!(insw.qtws, [newqtw])
+            mode == :addlastg && push!(insw.qtws, [newqtw])
         end
         if CImGui.BeginMenu(mlstr("Sweep Quantity"))
             if haskey(INSCONF, insw.instrnm)
@@ -648,7 +683,7 @@ function addmenu(insw::InstrWidget, onqtw=false; mode=:addlastg)
                     qt.type == "sweep" || continue
                     if CImGui.MenuItem(qtnm)
                         newqtw = QuantityWidget(name=qtnm, alias=qt.alias, qtype="sweep")
-                        onqtw || push!(insw.qtws, [newqtw])
+                        mode == :addlastg && push!(insw.qtws, [newqtw])
                     end
                 end
             end
@@ -660,7 +695,7 @@ function addmenu(insw::InstrWidget, onqtw=false; mode=:addlastg)
                     qt.type == "set" || continue
                     if CImGui.MenuItem(qtnm)
                         newqtw = QuantityWidget(name=qtnm, alias=qt.alias, qtype="set", numoptvs=length(qt.optvalues))
-                        onqtw || push!(insw.qtws, [newqtw])
+                        mode == :addlastg && push!(insw.qtws, [newqtw])
                     end
                 end
             end
@@ -672,7 +707,7 @@ function addmenu(insw::InstrWidget, onqtw=false; mode=:addlastg)
                     qt.type == "read" || continue
                     if CImGui.MenuItem(qtnm)
                         newqtw = QuantityWidget(name=qtnm, alias=qt.alias)
-                        onqtw || push!(insw.qtws, [newqtw])
+                        mode == :addlastg && push!(insw.qtws, [newqtw])
                     end
                 end
             end
@@ -686,7 +721,7 @@ end
 function convertmenu(insw::InstrWidget, i, j)
     if CImGui.BeginMenu(
         stcstr(MORESTYLE.Icons.Convert, " ", mlstr("Convert to")),
-        insw.qtws[i][j].name ∉ ["_Text_", "_SameLine_"]
+        insw.qtws[i][j].name ∉ ["_Panel_", "_SameLine_"]
     )
         if CImGui.BeginMenu(mlstr("Sweep Quantity"))
             if haskey(INSCONF, insw.instrnm)
@@ -764,7 +799,10 @@ let
             )
             @c CImGui.Checkbox(mlstr("Global Options"), &qtw.options.globaloptions)
             @c CImGui.Checkbox(mlstr("Allow Overlap"), &qtw.options.allowoverlap)
-            qtw.name == "_Text_" && @c InputTextRSZ(mlstr("Text"), &qtw.alias)
+            if qtw.name == "_Panel_"
+                @c CImGui.Checkbox(mlstr("Use ImageButton"), &qtw.options.useimage)
+                @c InputTextRSZ(mlstr("Text"), &qtw.alias)
+            end
             @c ComBoS(mlstr("Text Size"), &qtw.options.textsize, textsizes)
             @c CImGui.DragFloat(
                 mlstr("Text Scale"),
@@ -772,8 +810,8 @@ let
                 0.1, 0.1, 2, "%.1f",
                 CImGui.ImGuiSliderFlags_AlwaysClamp
             )
-            @c CImGui.Checkbox("Text Inside", &qtw.options.textinside)
-            CImGui.DragFloat2(mlstr("Btton Size"), qtw.options.itemsize)
+            qtw.options.uitype in ["slider", "vslider"] && @c CImGui.Checkbox("Text Inside", &qtw.options.textinside)
+            CImGui.DragFloat2(mlstr("Item Size"), qtw.options.itemsize)
             CImGui.DragFloat2(mlstr("CursorScreenPos"), qtw.options.cursorscreenpos)
             @c CImGui.DragFloat(
                 mlstr("Frame Rounding"),
@@ -800,13 +838,34 @@ let
                 CImGui.ImGuiSliderFlags_AlwaysClamp
             )
         end
-        if qtw.qtype == "set" && CImGui.CollapsingHeader(mlstr("Binding Options"))
-            @c CImGui.SliderInt("Binding Index to RadioButton", &qtw.options.bindingidx, 1, qtw.numoptvs)
-            CImGui.SliderInt2("Bingding Index to ON/OFF", qtw.options.bindingonoff, 1, qtw.numoptvs)
+        if (qtw.name == "_Image_" || (qtw.name == "_Panel_" && qtw.options.useimage)) && CImGui.CollapsingHeader(mlstr("Image Options"))
+            imgpath = qtw.alias
+            inputimgpath = @c InputTextRSZ("##ImagePath", &imgpath)
+            CImGui.SameLine()
+            selectimgpath = CImGui.Button(stcstr(MORESTYLE.Icons.SelectPath, "##ImagePath"))
+            selectimgpath && (imgpath = pick_file(abspath(imgpath); filterlist="png,jpg,jpeg,tif,bmp"))
+            CImGui.SameLine()
+            CImGui.Text(mlstr("Image Path"))
+            if inputimgpath || selectimgpath
+                if isfile(imgpath)
+                    qtw.alias = imgpath
+                else
+                    CImGui.SameLine()
+                    CImGui.TextColored(MORESTYLE.Colors.LogError, mlstr("path does not exist!!!"))
+                end
+            end
+            # CImGui.DragFloat2(mlstr("Image Size"), qtw.options.itemsize)
+            @c CImGui.DragFloat(mlstr("Frame Padding"), &qtw.options.framepadding)
+            CImGui.DragFloat2(mlstr("uv0"), qtw.options.uv0)
+            CImGui.DragFloat2(mlstr("uv1"), qtw.options.uv1)
         end
         if qtw.name == "_SameLine_" && CImGui.CollapsingHeader(mlstr("SameLine Options"))
             @c CImGui.DragFloat(mlstr("Local Position X"), &qtw.options.localposx)
             @c CImGui.DragFloat(mlstr("Spacing Width"), &qtw.options.spacingw)
+        end
+        if qtw.qtype == "set" && CImGui.CollapsingHeader(mlstr("Binding Options"))
+            @c CImGui.SliderInt("Binding Index to RadioButton", &qtw.options.bindingidx, 1, qtw.numoptvs)
+            CImGui.SliderInt2("Bingding Index to ON/OFF", qtw.options.bindingonoff, 1, qtw.numoptvs)
         end
         if qtw.name != "_SameLine_" && CImGui.CollapsingHeader(mlstr("Color Options"))
             widgetcolormenu(qtw.options)
@@ -828,6 +887,16 @@ function widgetcolormenu(opts::QuantityWidgetOption)
     CImGui.ColorEdit4(
         stcstr(mlstr("Background Color")),
         opts.bgcolor,
+        CImGui.ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_AlphaPreviewHalf
+    )
+    CImGui.ColorEdit4(
+        stcstr(mlstr("Image Background Color")),
+        opts.imgbgcolor,
+        CImGui.ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_AlphaPreviewHalf
+    )
+    CImGui.ColorEdit4(
+        stcstr(mlstr("Image Tint Color")),
+        opts.imgtintcolor,
         CImGui.ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_AlphaPreviewHalf
     )
     CImGui.ColorEdit4(

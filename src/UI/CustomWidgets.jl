@@ -311,6 +311,33 @@ function RenameSelectable(str_id, isrename::Ref{Bool}, label::Ref, selected::Boo
     trig
 end
 
+const IMAGES::Dict{String,Int} = Dict()
+function Image(path; size=(100, 100), uv0=(0, 0), uv1=(1, 1), tint_col=[1, 1, 1, 1], border_col=[0, 0, 0, 0])
+    haskey(IMAGES, path) || createimage(path; showsize=size)
+    CImGui.Image(Ptr{Cvoid}(IMAGES[path]), size, uv0, uv1, tint_col, border_col)
+end
+
+function createimage(path; showsize=(100, 100))
+    if isfile(path)
+        try
+            img = RGBA.(collect(transpose(FileIO.load(path))))
+            imgsize = size(img)
+            push!(IMAGES, path => ImGui_ImplOpenGL3_CreateImageTexture(imgsize...))
+            ImGui_ImplOpenGL3_UpdateImageTexture(IMAGES[path], img, imgsize...)
+        catch e
+            @error "[$(now())]\n$(mlstr("loading image failed!!!"))" exception = e
+            push!(IMAGES, path => ImGui_ImplOpenGL3_CreateImageTexture(showsize...))
+        end
+    else
+        push!(IMAGES, path => ImGui_ImplOpenGL3_CreateImageTexture(showsize...))
+    end
+end
+
+function ImageButton(path; size=(40, 40), uv0=(0, 0), uv1=(1, 1), frame_padding=-1, bg_col=[0, 0, 0, 0], tint_col=[1, 1, 1, 1])
+    haskey(IMAGES, path) || createimage(path; showsize=size)
+    CImGui.ImageButton(Ptr{Cvoid}(IMAGES[path]), size, uv0, uv1, frame_padding, bg_col, tint_col)
+end
+
 function ColoredButton(
     label::AbstractString;
     size=(0, 0),
@@ -347,6 +374,68 @@ function ColoredButtonRect(
     draw_list = CImGui.GetWindowDrawList()
     CImGui.AddRect(draw_list, rmin, rmax, CImGui.ColorConvertFloat4ToU32(colrect), bdrounding, 0, thickness)
     return clicked
+end
+
+function ImageButtonRect(
+    path;
+    size=(40, 40),
+    uv0=(0, 0),
+    uv1=(1, 1),
+    frame_padding=-1,
+    bg_col=[0, 0, 0, 0],
+    tint_col=[1, 1, 1, 1],
+    rounding=0.0,
+    bdrounding=0.0,
+    thickness=0,
+    colbt=CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_Button),
+    colbth=CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_ButtonHovered),
+    colbta=CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_ButtonActive),
+    colrect=MORESTYLE.Colors.ShowTextRect
+)
+    CImGui.PushStyleColor(CImGui.ImGuiCol_Button, colbt)
+    CImGui.PushStyleColor(CImGui.ImGuiCol_ButtonHovered, colbth)
+    CImGui.PushStyleColor(CImGui.ImGuiCol_ButtonActive, colbta)
+    CImGui.PushStyleVar(CImGui.ImGuiStyleVar_FrameRounding, rounding)
+    clicked = ImageButton(path; size=size, uv0=uv0, uv1=uv1, frame_padding=frame_padding, bg_col=bg_col, tint_col=tint_col)
+    CImGui.PopStyleVar()
+    CImGui.PopStyleColor(3)
+    rmin, rmax = CImGui.GetItemRectMin(), CImGui.GetItemRectMax()
+    draw_list = CImGui.GetWindowDrawList()
+    CImGui.AddRect(draw_list, rmin, rmax, CImGui.ColorConvertFloat4ToU32(colrect), bdrounding, 0, thickness)
+    return clicked
+end
+
+function ImageColoredButtonRect(
+    label, path, useimage=false;
+    size=(40, 40),
+    uv0=(0, 0),
+    uv1=(1, 1),
+    frame_padding=-1,
+    rounding=0.0,
+    bdrounding=0.0,
+    thickness=0,
+    bg_col=[0, 0, 0, 0],
+    tint_col=[1, 1, 1, 1],
+    colbt=CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_Button),
+    colbth=CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_ButtonHovered),
+    colbta=CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_ButtonActive),
+    coltxt=CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_Text),
+    colrect=MORESTYLE.Colors.ShowTextRect
+)
+    return if useimage
+        ImageButtonRect(
+            path;
+            size=size, uv0=uv0, uv1=uv1, frame_padding=frame_padding, bg_col=bg_col, tint_col=tint_col,
+            rounding=rounding, bdrounding=bdrounding, thickness=thickness,
+            colbt=colbt, colbth=colbth, colbta=colbta, colrect=colrect
+        )
+    else
+        ColoredButtonRect(
+            label;
+            size=size, rounding=rounding, bdrounding=bdrounding, thickness=thickness,
+            colbt=colbt, colbth=colbth, colbta=colbta, coltxt=coltxt, colrect=colrect
+        )
+    end
 end
 
 function ToggleButton(
@@ -477,4 +566,12 @@ function ColoredVSlider(
     draw_list = CImGui.GetWindowDrawList()
     CImGui.AddRect(draw_list, rmin, rmax, CImGui.ColorConvertFloat4ToU32(colrect), bdrounding, 0, thickness)
     return dragged
+end
+
+function SetWindowBgImage(path=CONF.BGImage.path; tint_col=MORESTYLE.Colors.BgImageTint)
+    if CONF.BGImage.useall
+        co = CImGui.GetCursorScreenPos()
+        Image(path; size=CImGui.GetContentRegionAvail(), tint_col=tint_col)
+        CImGui.SetCursorScreenPos(co)
+    end
 end
