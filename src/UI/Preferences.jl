@@ -11,17 +11,24 @@ let
             @cstatic firsttime::Bool = true begin
                 firsttime && (CImGui.SetColumnOffset(1, CImGui.GetWindowWidth() * 0.2); firsttime = false)
             end
-            CImGui.BeginChild("options", (Float32(0), -CImGui.GetFrameHeightWithSpacing()))
+            CImGui.BeginChild("options", (Float32(0), -2CImGui.GetFrameHeightWithSpacing()))
             CImGui.Selectable(
                 stcstr(MORESTYLE.Icons.CommonSetting, " ", mlstr("General")),
-                selectedpref == "General"
+                selectedpref == "General",
+                0,
+                (Cfloat(0), 4CImGui.GetFrameHeight())
             ) && (selectedpref = "General")
             CImGui.Selectable(
                 stcstr(MORESTYLE.Icons.StyleSetting, " ", mlstr("Style")),
-                selectedpref == "Style"
+                selectedpref == "Style",
+                0,
+                (Cfloat(0), 4CImGui.GetFrameHeight())
             ) && (selectedpref = "Style")
             CImGui.EndChild()
-            if CImGui.Button(stcstr(MORESTYLE.Icons.SaveButton, " ", mlstr("Save")), (-1, 0))
+            if CImGui.Button(
+                stcstr(MORESTYLE.Icons.SaveButton, " ", mlstr("Save")),
+                (Cfloat(-1), 2CImGui.GetFrameHeight())
+            )
                 svconf = deepcopy(CONF)
                 svconf.U = Dict(up.first => string.(up.second) for up in CONF.U)
                 to_toml(joinpath(ENV["QInsControlAssets"], "Necessity/conf.toml"), svconf)

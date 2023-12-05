@@ -116,15 +116,15 @@ let
                 haskey(isrename, oldinsnm) || push!(isrename, oldinsnm => false)
                 renamei = isrename[oldinsnm]
                 CImGui.PushID(oldinsnm)
-                CImGui.Text(inscf.conf.icon)
-                CImGui.SameLine(0, CImGui.GetFontSize() / 2)
-                CImGui.PushItemWidth(-1)
                 newinsnm = oldinsnm
-                if @c RenameSelectable("##RenameInsConf", &renamei, &newinsnm, selectedins == oldinsnm)
+                if @c RenameSelectable(
+                    "##RenameInsConf", &renamei, &newinsnm, selectedins == oldinsnm,
+                    0, (Cfloat(0), 3CImGui.GetFrameHeight()/2);
+                    fixedlabel=stcstr(inscf.conf.icon, " ")
+                )
                     selectedins = oldinsnm
                     selectedqt = ""
                 end
-                CImGui.PopItemWidth()
                 if !(newinsnm == "" || haskey(INSCONF, newinsnm))
                     if isrename[oldinsnm] && !renamei
                         setvalue!(INSCONF, oldinsnm, newinsnm => inscf)

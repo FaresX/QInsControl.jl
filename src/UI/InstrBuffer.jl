@@ -224,12 +224,20 @@ let
             CImGui.BeginChild("instrument list")
             CImGui.Selectable(
                 stcstr(MORESTYLE.Icons.InstrumentsOverview, " ", mlstr("Overview")),
-                selectedins == ""
+                selectedins == "", 0, (Cfloat(0), 2CImGui.GetFrameHeight())
             ) && (selectedins = "")
             for (ins, inses) in INSTRBUFFERVIEWERS
-                CImGui.Selectable(stcstr(INSCONF[ins].conf.icon, " ", ins), selectedins == ins) && (selectedins = ins)
+                CImGui.Selectable(
+                    stcstr(INSCONF[ins].conf.icon, " ", ins), selectedins == ins,
+                    0, (Cfloat(0), 3CImGui.GetFrameHeight()/2)
+                ) && (selectedins = ins)
                 CImGui.SameLine()
-                CImGui.TextDisabled(stcstr("(", length(inses), ")"))
+                # CImGui.TextDisabled(stcstr("(", length(inses), ")"))
+                CImGui.PushStyleColor(CImGui.ImGuiCol_Text, CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_TextDisabled))
+                CImGui.Selectable(
+                    stcstr("(", length(inses), ")"), false, 0, (Cfloat(0), 3CImGui.GetFrameHeight()/2)
+                )
+                CImGui.PopStyleColor()
             end
             CImGui.EndChild()
             CImGui.NextColumn()

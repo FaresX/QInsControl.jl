@@ -299,7 +299,7 @@ function ItemTooltip(tipstr, wrappos=CImGui.GetFontSize() * 36.0)
     end
 end
 
-function RenameSelectable(str_id, isrename::Ref{Bool}, label::Ref, selected::Bool, flags=0, size=(0, 0))
+function RenameSelectable(str_id, isrename::Ref{Bool}, label::Ref, selected::Bool, flags=0, size=(0, 0); fixedlabel="")
     trig = false
     if isrename[]
         InputTextRSZ(str_id, label)
@@ -307,7 +307,7 @@ function RenameSelectable(str_id, isrename::Ref{Bool}, label::Ref, selected::Boo
             isrename[] = false
         end
     else
-        trig = CImGui.Selectable(label[], selected, flags, size)
+        trig = CImGui.Selectable(stcstr(fixedlabel, label[]), selected, flags, size)
         CImGui.IsItemHovered() && CImGui.IsMouseDoubleClicked(0) && (isrename[] = true)
     end
     trig
