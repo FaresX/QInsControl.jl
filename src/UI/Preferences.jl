@@ -29,7 +29,7 @@ let
             CImGui.EndChild()
             if CImGui.Button(
                 stcstr(MORESTYLE.Icons.SaveButton, " ", mlstr("Save")),
-                (Cfloat(-1), 2CImGui.GetFrameHeight())
+                (CImGui.GetColumnOffset(1) - 2unsafe_load(IMGUISTYLE.WindowPadding.x), 2CImGui.GetFrameHeight())
             )
                 svconf = deepcopy(CONF)
                 svconf.U = Dict(up.first => string.(up.second) for up in CONF.U)

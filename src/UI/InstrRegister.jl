@@ -196,6 +196,7 @@ let
             if selectedins != ""
                 if CImGui.BeginTabBar("edit confs and widgets")
                     if CImGui.BeginTabItem(mlstr("Configurations"))
+                        CImGui.BeginChild("Configurations")
                         selectedinscf = INSCONF[selectedins]
                         ###conf###
                         CImGui.TextColored(MORESTYLE.Colors.HighlightText, mlstr("Basic"))
@@ -300,12 +301,14 @@ let
                         end
                         @c InputTextRSZ(mlstr("variable name"), &qtname)
                         edit(editqt, selectedins)
+                        CImGui.EndChild()
                         CImGui.EndTabItem()
                     end
                     if haskey(INSWCONF, selectedins)
                         for (i, widget) in enumerate(INSWCONF[selectedins])
                             ispreserve = true
                             if @c CImGui.BeginTabItem(stcstr(mlstr("Widget"), " ", i), &ispreserve)
+                                CImGui.BeginChild(stcstr("Widget", i))
                                 if CImGui.BeginPopupContextItem()
                                     if CImGui.MenuItem(stcstr(MORESTYLE.Icons.Copy, " ", mlstr("Copy")))
                                         wcopy = deepcopy(widget)
@@ -355,6 +358,7 @@ let
                                     end
                                 end
                                 edit(widget, default_insbufs[selectedins], "", C_NULL, i)
+                                CImGui.EndChild()
                                 CImGui.EndTabItem()
                             end
                             ispreserve || CImGui.OpenPopup(stcstr("delete widget ", i))
