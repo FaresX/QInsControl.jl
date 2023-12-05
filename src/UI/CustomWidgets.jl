@@ -1,14 +1,15 @@
 function ComBoS(label, preview_value::Ref, item_list, flags=0)
     iscombo = CImGui.BeginCombo(label, preview_value.x, flags)
+    isselect = false
     if iscombo
         for item in item_list
             selected = preview_value.x == item
-            CImGui.Selectable(item, selected) && (preview_value.x = item)
+            CImGui.Selectable(item, selected) && (preview_value.x = item; isselect = true)
             selected && CImGui.SetItemDefaultFocus()
         end
         CImGui.EndCombo()
     end
-    iscombo
+    iscombo && isselect
 end
 
 function ColoredCombo(
