@@ -110,7 +110,7 @@ let
             SetWindowBgImage()
             CImGui.Columns(2)
             firsttime && (CImGui.SetColumnOffset(1, CImGui.GetWindowWidth() * 0.25); firsttime = false)
-            CImGui.BeginChild("InstrumentsOverview", (Float32(0), -CImGui.GetFrameHeightWithSpacing()))
+            CImGui.BeginChild("InstrumentsOverview", (Float32(0), -2CImGui.GetFrameHeightWithSpacing()))
             for (oldinsnm, inscf) in INSCONF
                 oldinsnm == "Others" && continue
                 haskey(isrename, oldinsnm) || push!(isrename, oldinsnm => false)
@@ -119,7 +119,7 @@ let
                 newinsnm = oldinsnm
                 if @c RenameSelectable(
                     "##RenameInsConf", &renamei, &newinsnm, selectedins == oldinsnm,
-                    0, (Cfloat(0), 3CImGui.GetFrameHeight()/2);
+                    0, (Cfloat(0), 3CImGui.GetFrameHeight() / 2);
                     fixedlabel=stcstr(inscf.conf.icon, " ")
                 )
                     selectedins = oldinsnm
@@ -166,11 +166,20 @@ let
                 CImGui.PopID()
             end
             CImGui.EndChild()
-            CImGui.Button(stcstr(MORESTYLE.Icons.SaveButton, " ", mlstr("Save"), "##qtcf to toml")) && saveinsconf()
+            wpad = unsafe_load(IMGUISTYLE.WindowPadding.x)
+            coloffset = CImGui.GetColumnOffset(1) -2wpad - unsafe_load(IMGUISTYLE.ItemSpacing.x)
+            CImGui.Button(
+                stcstr(MORESTYLE.Icons.SaveButton, " ", mlstr("Save"), "##qtcf to toml"),
+                (coloffset / 2, 2CImGui.GetFrameHeight())
+            ) && saveinsconf()
 
-            CImGui.SameLine(CImGui.GetColumnOffset(1) - CImGui.GetItemRectSize().x - unsafe_load(IMGUISTYLE.WindowPadding.x))
+            # CImGui.SameLine( - CImGui.GetItemRectSize().x - unsafe_load(IMGUISTYLE.WindowPadding.x))
+            CImGui.SameLine()
 
-            if CImGui.Button(stcstr(MORESTYLE.Icons.NewFile, " ", mlstr("New")))
+            if CImGui.Button(
+                stcstr(MORESTYLE.Icons.NewFile, " ", mlstr("New")),
+                (-wpad, 2CImGui.GetFrameHeight())
+            )
                 synccall_wait([workers()[1]]) do
                     push!(INSCONF, "New Ins" => OneInsConf())
                 end
