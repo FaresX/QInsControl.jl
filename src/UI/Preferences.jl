@@ -11,7 +11,7 @@ let
             @cstatic firsttime::Bool = true begin
                 firsttime && (CImGui.SetColumnOffset(1, CImGui.GetWindowWidth() * 0.2); firsttime = false)
             end
-            CImGui.BeginChild("options", (Float32(0), -2CImGui.GetFrameHeightWithSpacing()))
+            CImGui.BeginChild("options", (Float32(0), -2CImGui.GetFrameHeight() - unsafe_load(IMGUISTYLE.ItemSpacing.y)))
             CImGui.PushStyleVar(CImGui.ImGuiStyleVar_SelectableTextAlign, (0.5, 0.5))
             CImGui.Selectable(
                 stcstr(MORESTYLE.Icons.CommonSetting, " ", mlstr("General")),

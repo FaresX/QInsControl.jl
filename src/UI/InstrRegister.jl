@@ -110,7 +110,10 @@ let
             SetWindowBgImage()
             CImGui.Columns(2)
             firsttime && (CImGui.SetColumnOffset(1, CImGui.GetWindowWidth() * 0.25); firsttime = false)
-            CImGui.BeginChild("InstrumentsOverview", (Float32(0), -2CImGui.GetFrameHeightWithSpacing()))
+            CImGui.BeginChild(
+                "InstrumentsOverview",
+                (Float32(0), -2CImGui.GetFrameHeight() - unsafe_load(IMGUISTYLE.ItemSpacing.y))
+            )
             CImGui.PushStyleVar(CImGui.ImGuiStyleVar_SelectableTextAlign, (0.5, 0.5))
             for (oldinsnm, inscf) in INSCONF
                 oldinsnm == "Others" && continue
