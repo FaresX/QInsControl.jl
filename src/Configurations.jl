@@ -1,6 +1,6 @@
 @option mutable struct OptBasic
     isremote::Bool = true
-    remoteprocessdata::Bool = true
+    remoteprocessdata::Bool = false
     viewportenable::Bool = true
     scale::Bool = true
     hidewindow::Bool = false

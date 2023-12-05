@@ -12,6 +12,7 @@ let
                 firsttime && (CImGui.SetColumnOffset(1, CImGui.GetWindowWidth() * 0.2); firsttime = false)
             end
             CImGui.BeginChild("options", (Float32(0), -2CImGui.GetFrameHeightWithSpacing()))
+            CImGui.PushStyleVar(CImGui.ImGuiStyleVar_SelectableTextAlign, (0.5, 0.5))
             CImGui.Selectable(
                 stcstr(MORESTYLE.Icons.CommonSetting, " ", mlstr("General")),
                 selectedpref == "General",
@@ -24,6 +25,7 @@ let
                 0,
                 (Cfloat(0), 4CImGui.GetFrameHeight())
             ) && (selectedpref = "Style")
+            CImGui.PopStyleVar()
             CImGui.EndChild()
             if CImGui.Button(
                 stcstr(MORESTYLE.Icons.SaveButton, " ", mlstr("Save")),

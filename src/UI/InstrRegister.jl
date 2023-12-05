@@ -111,6 +111,7 @@ let
             CImGui.Columns(2)
             firsttime && (CImGui.SetColumnOffset(1, CImGui.GetWindowWidth() * 0.25); firsttime = false)
             CImGui.BeginChild("InstrumentsOverview", (Float32(0), -2CImGui.GetFrameHeightWithSpacing()))
+            CImGui.PushStyleVar(CImGui.ImGuiStyleVar_SelectableTextAlign, (0.5, 0.5))
             for (oldinsnm, inscf) in INSCONF
                 oldinsnm == "Others" && continue
                 haskey(isrename, oldinsnm) || push!(isrename, oldinsnm => false)
@@ -165,9 +166,10 @@ let
                 deldialog = false)
                 CImGui.PopID()
             end
+            CImGui.PopStyleVar()
             CImGui.EndChild()
             wpad = unsafe_load(IMGUISTYLE.WindowPadding.x)
-            coloffset = CImGui.GetColumnOffset(1) -2wpad - unsafe_load(IMGUISTYLE.ItemSpacing.x)
+            coloffset = CImGui.GetColumnOffset(1) - 2wpad - unsafe_load(IMGUISTYLE.ItemSpacing.x)
             CImGui.Button(
                 stcstr(MORESTYLE.Icons.SaveButton, " ", mlstr("Save"), "##qtcf to toml"),
                 (coloffset / 2, 2CImGui.GetFrameHeight())
@@ -178,7 +180,7 @@ let
 
             if CImGui.Button(
                 stcstr(MORESTYLE.Icons.NewFile, " ", mlstr("New")),
-                (-wpad, 2CImGui.GetFrameHeight())
+                (coloffset / 2, 2CImGui.GetFrameHeight())
             )
                 synccall_wait([workers()[1]]) do
                     push!(INSCONF, "New Ins" => OneInsConf())
