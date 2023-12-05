@@ -136,7 +136,7 @@ let
         # end
         if CONF.Basic.hidewindow ? CImGui.BeginMenuBar() : CImGui.BeginMainMenuBar()
             #File Menu
-            if CImGui.BeginMenu(stcstr(MORESTYLE.Icons.File, " ", mlstr("File"), " "))
+            if CImGui.BeginMenu(stcstr(MORESTYLE.Icons.OpenFile, " ", mlstr("File"), " "))
                 if CImGui.BeginMenu(stcstr(MORESTYLE.Icons.OpenFile, " ", mlstr("Open File")))
                     isopenfiles = CImGui.MenuItem(stcstr(MORESTYLE.Icons.NewFile, " ", mlstr("New")), "Ctrl+O")
                     if true in [dtv[2].rootpath_bnm == "" for dtv in dtviewers]

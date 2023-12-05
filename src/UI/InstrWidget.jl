@@ -119,7 +119,7 @@ function edit(qtw::QuantityWidget, insbuf::InstrBuffer, instrnm, addr, gopts::Qu
 end
 
 function edit(opts::QuantityWidgetOption, qt::AbstractQuantity, instrnm, addr, ::Val{:read})
-    opts.textsize == "big" && CImGui.PushFont(PLOTFONT)
+    # opts.textsize == "big" && CImGui.PushFont(PLOTFONT)
     originscale = unsafe_load(CImGui.GetIO().FontGlobalScale)
     CImGui.SetWindowFontScale(opts.textscale)
     if ColoredButtonRect(
@@ -140,12 +140,12 @@ function edit(opts::QuantityWidgetOption, qt::AbstractQuantity, instrnm, addr, :
             updatefront!(qt)
         end
     end
-    opts.textsize == "big" && CImGui.PopFont()
+    # opts.textsize == "big" && CImGui.PopFont()
     CImGui.SetWindowFontScale(originscale)
 end
 
 function edit(opts::QuantityWidgetOption, qt::AbstractQuantity, _, _, ::Val{:unit})
-    opts.textsize == "big" && CImGui.PushFont(PLOTFONT)
+    # opts.textsize == "big" && CImGui.PushFont(PLOTFONT)
     originscale = unsafe_load(CImGui.GetIO().FontGlobalScale)
     CImGui.SetWindowFontScale(opts.textscale)
     if ColoredButtonRect(
@@ -165,12 +165,12 @@ function edit(opts::QuantityWidgetOption, qt::AbstractQuantity, _, _, ::Val{:uni
         qt.uindex == 0 && (qt.uindex = length(Us))
         getvalU!(qt)
     end
-    opts.textsize == "big" && CImGui.PopFont()
+    # opts.textsize == "big" && CImGui.PopFont()
     CImGui.SetWindowFontScale(originscale)
 end
 
 function edit(opts::QuantityWidgetOption, qt::AbstractQuantity, instrnm, addr, ::Val{:readunit})
-    opts.textsize == "big" && CImGui.PushFont(PLOTFONT)
+    # opts.textsize == "big" && CImGui.PushFont(PLOTFONT)
     originscale = unsafe_load(CImGui.GetIO().FontGlobalScale)
     CImGui.SetWindowFontScale(opts.textscale)
     if ColoredButtonRect(
@@ -197,12 +197,12 @@ function edit(opts::QuantityWidgetOption, qt::AbstractQuantity, instrnm, addr, :
         qt.uindex == 0 && (qt.uindex = length(Us))
         getvalU!(qt)
     end
-    opts.textsize == "big" && CImGui.PopFont()
+    # opts.textsize == "big" && CImGui.PopFont()
     CImGui.SetWindowFontScale(originscale)
 end
 
 function edit(opts::QuantityWidgetOption, qt::SweepQuantity, _, _, ::Val{:inputstep})
-    opts.textsize == "big" && CImGui.PushFont(PLOTFONT)
+    # opts.textsize == "big" && CImGui.PushFont(PLOTFONT)
     originscale = unsafe_load(CImGui.GetIO().FontGlobalScale)
     CImGui.SetWindowFontScale(opts.textscale)
     @c ColoredInputTextWithHintRSZ(
@@ -216,12 +216,12 @@ function edit(opts::QuantityWidgetOption, qt::SweepQuantity, _, _, ::Val{:inputs
         colhint=opts.hintcolor,
         colrect=opts.rectcolor
     )
-    opts.textsize == "big" && CImGui.PopFont()
+    # opts.textsize == "big" && CImGui.PopFont()
     CImGui.SetWindowFontScale(originscale)
 end
 
 function edit(opts::QuantityWidgetOption, qt::SweepQuantity, _, _, ::Val{:inputstop})
-    opts.textsize == "big" && CImGui.PushFont(PLOTFONT)
+    # opts.textsize == "big" && CImGui.PushFont(PLOTFONT)
     originscale = unsafe_load(CImGui.GetIO().FontGlobalScale)
     CImGui.SetWindowFontScale(opts.textscale)
     @c ColoredInputTextWithHintRSZ("##stop", mlstr("stop"), &qt.stop;
@@ -234,12 +234,12 @@ function edit(opts::QuantityWidgetOption, qt::SweepQuantity, _, _, ::Val{:inputs
         colhint=opts.hintcolor,
         colrect=opts.rectcolor
     )
-    opts.textsize == "big" && CImGui.PopFont()
+    # opts.textsize == "big" && CImGui.PopFont()
     CImGui.SetWindowFontScale(originscale)
 end
 
 function edit(opts::QuantityWidgetOption, qt::SweepQuantity, _, _, ::Val{:dragdelay})
-    opts.textsize == "big" && CImGui.PushFont(PLOTFONT)
+    # opts.textsize == "big" && CImGui.PushFont(PLOTFONT)
     originscale = unsafe_load(CImGui.GetIO().FontGlobalScale)
     CImGui.SetWindowFontScale(opts.textscale)
     @c ColoredDragWidget(
@@ -255,12 +255,12 @@ function edit(opts::QuantityWidgetOption, qt::SweepQuantity, _, _, ::Val{:dragde
         coltxt=opts.textcolor,
         colrect=opts.rectcolor
     )
-    opts.textsize == "big" && CImGui.PopFont()
+    # opts.textsize == "big" && CImGui.PopFont()
     CImGui.SetWindowFontScale(originscale)
 end
 
 function edit(opts::QuantityWidgetOption, qt::SweepQuantity, instrnm, addr, ::Val{:ctrlsweep})
-    opts.textsize == "big" && CImGui.PushFont(PLOTFONT)
+    # opts.textsize == "big" && CImGui.PushFont(PLOTFONT)
     originscale = unsafe_load(CImGui.GetIO().FontGlobalScale)
     CImGui.SetWindowFontScale(opts.textscale)
     @c(ToggleButtonRect(
@@ -276,13 +276,13 @@ function edit(opts::QuantityWidgetOption, qt::SweepQuantity, instrnm, addr, ::Va
             coltxt=opts.textcolor,
             colrect=opts.rectcolor,
         )) && qt.issweeping && apply!(qt, instrnm, addr)
-    opts.textsize == "big" && CImGui.PopFont()
+    # opts.textsize == "big" && CImGui.PopFont()
     CImGui.SetWindowFontScale(originscale)
     qt.issweeping && updatefront!(qt)
 end
 
 function edit(opts::QuantityWidgetOption, qt::SetQuantity, _, _, ::Val{:inputset})
-    opts.textsize == "big" && CImGui.PushFont(PLOTFONT)
+    # opts.textsize == "big" && CImGui.PushFont(PLOTFONT)
     originscale = unsafe_load(CImGui.GetIO().FontGlobalScale)
     CImGui.SetWindowFontScale(opts.textscale)
     @c ColoredInputTextWithHintRSZ("##set", mlstr("set"), &qt.set;
@@ -295,12 +295,12 @@ function edit(opts::QuantityWidgetOption, qt::SetQuantity, _, _, ::Val{:inputset
         colhint=opts.hintcolor,
         colrect=opts.rectcolor
     )
-    opts.textsize == "big" && CImGui.PopFont()
+    # opts.textsize == "big" && CImGui.PopFont()
     CImGui.SetWindowFontScale(originscale)
 end
 
 function edit(opts::QuantityWidgetOption, qt::SetQuantity, instrnm, addr, ::Val{:ctrlset})
-    opts.textsize == "big" && CImGui.PushFont(PLOTFONT)
+    # opts.textsize == "big" && CImGui.PushFont(PLOTFONT)
     originscale = unsafe_load(CImGui.GetIO().FontGlobalScale)
     CImGui.SetWindowFontScale(opts.textscale)
     ColoredButtonRect(
@@ -315,13 +315,13 @@ function edit(opts::QuantityWidgetOption, qt::SetQuantity, instrnm, addr, ::Val{
         bdrounding=opts.bdrounding,
         thickness=opts.bdthickness
     ) && (apply!(qt, instrnm, addr); updatefront!(qt))
-    opts.textsize == "big" && CImGui.PopFont()
+    # opts.textsize == "big" && CImGui.PopFont()
     CImGui.SetWindowFontScale(originscale)
 end
 
 function edit(opts::QuantityWidgetOption, qt::SetQuantity, instrnm, addr, ::Val{:combo})
     presentv = qt.optkeys[qt.optedidx]
-    opts.textsize == "big" && CImGui.PushFont(PLOTFONT)
+    # opts.textsize == "big" && CImGui.PushFont(PLOTFONT)
     originscale = unsafe_load(CImGui.GetIO().FontGlobalScale)
     CImGui.SetWindowFontScale(opts.textscale)
     if @c ColoredCombo(
@@ -343,12 +343,12 @@ function edit(opts::QuantityWidgetOption, qt::SetQuantity, instrnm, addr, ::Val{
         apply!(qt, instrnm, addr)
         updatefront!(qt)
     end
-    opts.textsize == "big" && CImGui.PopFont()
+    # opts.textsize == "big" && CImGui.PopFont()
     CImGui.SetWindowFontScale(originscale)
 end
 
 function edit(opts::QuantityWidgetOption, qt::SetQuantity, instrnm, addr, ::Val{:radio})
-    opts.textsize == "big" && CImGui.PushFont(PLOTFONT)
+    # opts.textsize == "big" && CImGui.PushFont(PLOTFONT)
     originscale = unsafe_load(CImGui.GetIO().FontGlobalScale)
     CImGui.SetWindowFontScale(opts.textscale)
     if @c ColoredRadioButton(
@@ -367,12 +367,12 @@ function edit(opts::QuantityWidgetOption, qt::SetQuantity, instrnm, addr, ::Val{
         apply!(qt, instrnm, addr)
         updatefront!(qt)
     end
-    opts.textsize == "big" && CImGui.PopFont()
+    # opts.textsize == "big" && CImGui.PopFont()
     CImGui.SetWindowFontScale(originscale)
 end
 
 function edit(opts::QuantityWidgetOption, qt::SetQuantity, instrnm, addr, ::Val{:slider})
-    opts.textsize == "big" && CImGui.PushFont(PLOTFONT)
+    # opts.textsize == "big" && CImGui.PushFont(PLOTFONT)
     originscale = unsafe_load(CImGui.GetIO().FontGlobalScale)
     CImGui.SetWindowFontScale(opts.textscale)
     if @c ColoredSlider(
@@ -396,12 +396,12 @@ function edit(opts::QuantityWidgetOption, qt::SetQuantity, instrnm, addr, ::Val{
         apply!(qt, instrnm, addr)
         updatefront!(qt)
     end
-    opts.textsize == "big" && CImGui.PopFont()
+    # opts.textsize == "big" && CImGui.PopFont()
     CImGui.SetWindowFontScale(originscale)
 end
 
 function edit(opts::QuantityWidgetOption, qt::SetQuantity, instrnm, addr, ::Val{:vslider})
-    opts.textsize == "big" && CImGui.PushFont(PLOTFONT)
+    # opts.textsize == "big" && CImGui.PushFont(PLOTFONT)
     originscale = unsafe_load(CImGui.GetIO().FontGlobalScale)
     CImGui.SetWindowFontScale(opts.textscale)
     if @c ColoredVSlider(
@@ -425,13 +425,13 @@ function edit(opts::QuantityWidgetOption, qt::SetQuantity, instrnm, addr, ::Val{
         apply!(qt, instrnm, addr)
         updatefront!(qt)
     end
-    opts.textsize == "big" && CImGui.PopFont()
+    # opts.textsize == "big" && CImGui.PopFont()
     CImGui.SetWindowFontScale(originscale)
 end
 
 function edit(opts::QuantityWidgetOption, qt::SetQuantity, instrnm, addr, ::Val{:toggle})
     ison = qt.optedidx == opts.bindingonoff[1]
-    opts.textsize == "big" && CImGui.PushFont(PLOTFONT)
+    # opts.textsize == "big" && CImGui.PushFont(PLOTFONT)
     originscale = unsafe_load(CImGui.GetIO().FontGlobalScale)
     CImGui.SetWindowFontScale(opts.textscale)
     if @c ToggleButtonRect(
@@ -452,7 +452,7 @@ function edit(opts::QuantityWidgetOption, qt::SetQuantity, instrnm, addr, ::Val{
         apply!(qt, instrnm, addr)
         updatefront!(qt)
     end
-    opts.textsize == "big" && CImGui.PopFont()
+    # opts.textsize == "big" && CImGui.PopFont()
     CImGui.SetWindowFontScale(originscale)
 end
 

@@ -17,6 +17,7 @@ function ColoredCombo(
     rounding=0,
     bdrounding=0,
     thickness=0,
+    fontscale=MORESTYLE.FontScale.NormalText,
     colbt=CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_Button),
     colfrm=CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_FrameBg),
     colfrmh=CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_FrameBgHovered),
@@ -32,9 +33,11 @@ function ColoredCombo(
     CImGui.PushStyleColor(CImGui.ImGuiCol_PopupBg, colpopup)
     CImGui.PushStyleColor(CImGui.ImGuiCol_Text, coltxt)
     CImGui.PushStyleVar(CImGui.ImGuiStyleVar_FrameRounding, rounding)
+    CImGui.SetWindowFontScale(fontscale)
     CImGui.PushItemWidth(width)
     iscombo = ComBoS(label, preview_value, item_list, flags)
     CImGui.PopItemWidth()
+    CImGui.SetWindowFontScale(MORESTYLE.FontScale.NormalText)
     CImGui.PopStyleVar()
     CImGui.PopStyleColor(6)
     rmin, rmax = CImGui.GetItemRectMin(), CImGui.GetItemRectMax()
@@ -94,6 +97,7 @@ function ColoredInputTextWithHintRSZ(
     rounding=0,
     bdrounding=0,
     thickness=0,
+    fontscale=MORESTYLE.FontScale.NormalText,
     colfrm=CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_FrameBg),
     coltxt=CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_Text),
     colhint=CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_TextDisabled),
@@ -103,9 +107,11 @@ function ColoredInputTextWithHintRSZ(
     CImGui.PushStyleColor(CImGui.ImGuiCol_Text, coltxt)
     CImGui.PushStyleColor(CImGui.ImGuiCol_TextDisabled, colhint)
     CImGui.PushStyleVar(CImGui.ImGuiStyleVar_FrameRounding, rounding)
+    CImGui.SetWindowFontScale(fontscale)
     CImGui.PushItemWidth(width)
     input = InputTextWithHintRSZ(label, hint, str, flags)
     CImGui.PopItemWidth()
+    CImGui.SetWindowFontScale(MORESTYLE.FontScale.NormalText)
     CImGui.PopStyleVar()
     CImGui.PopStyleColor(3)
     rmin, rmax = CImGui.GetItemRectMin(), CImGui.GetItemRectMax()
@@ -121,6 +127,7 @@ function ColoredDragWidget(
     rounding=0,
     bdrounding=0,
     thickness=0,
+    fontscale=MORESTYLE.FontScale.NormalText,
     colfrm=CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_FrameBg),
     colfrmh=CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_FrameBgHovered),
     colfrma=CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_FrameBgActive),
@@ -132,9 +139,11 @@ function ColoredDragWidget(
     CImGui.PushStyleColor(CImGui.ImGuiCol_FrameBgActive, colfrma)
     CImGui.PushStyleColor(CImGui.ImGuiCol_Text, coltxt)
     CImGui.PushStyleVar(CImGui.ImGuiStyleVar_FrameRounding, rounding)
+    CImGui.SetWindowFontScale(fontscale)
     CImGui.PushItemWidth(width)
     dragged = dragfunc(label, v, v_speed, v_min, v_max, format, flag)
     CImGui.PopItemWidth()
+    CImGui.SetWindowFontScale(MORESTYLE.FontScale.NormalText)
     CImGui.PopStyleVar()
     CImGui.PopStyleColor(4)
     rmin, rmax = CImGui.GetItemRectMin(), CImGui.GetItemRectMax()
@@ -343,6 +352,7 @@ end
 function ColoredButton(
     label::AbstractString;
     size=(0, 0),
+    fontscale=MORESTYLE.FontScale.NormalText,
     colbt=CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_Button),
     colbth=CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_ButtonHovered),
     colbta=CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_ButtonActive),
@@ -352,7 +362,9 @@ function ColoredButton(
     CImGui.PushStyleColor(CImGui.ImGuiCol_ButtonHovered, colbth)
     CImGui.PushStyleColor(CImGui.ImGuiCol_ButtonActive, colbta)
     CImGui.PushStyleColor(CImGui.ImGuiCol_Text, coltxt)
+    CImGui.SetWindowFontScale(fontscale)
     clicked = CImGui.Button(label, size)
+    CImGui.SetWindowFontScale(MORESTYLE.FontScale.NormalText)
     CImGui.PopStyleColor(4)
     return clicked
 end
@@ -363,6 +375,7 @@ function ColoredButtonRect(
     rounding=0.0,
     bdrounding=0.0,
     thickness=0,
+    fontscale=MORESTYLE.FontScale.NormalText,
     colbt=CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_Button),
     colbth=CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_ButtonHovered),
     colbta=CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_ButtonActive),
@@ -370,7 +383,10 @@ function ColoredButtonRect(
     colrect=MORESTYLE.Colors.ShowTextRect
 )
     CImGui.PushStyleVar(CImGui.ImGuiStyleVar_FrameRounding, rounding)
-    clicked = ColoredButton(label; size=size, colbt=colbt, colbth=colbth, colbta=colbta, coltxt=coltxt)
+    clicked = ColoredButton(
+        label;
+        size=size, fontscale=fontscale, colbt=colbt, colbth=colbth, colbta=colbta, coltxt=coltxt
+    )
     CImGui.PopStyleVar()
     rmin, rmax = CImGui.GetItemRectMin(), CImGui.GetItemRectMax()
     draw_list = CImGui.GetWindowDrawList()
@@ -389,6 +405,7 @@ function ImageButtonRect(
     rounding=0.0,
     bdrounding=0.0,
     thickness=0,
+    fontscale=MORESTYLE.FontScale.NormalText,
     colbt=CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_Button),
     colbth=CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_ButtonHovered),
     colbta=CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_ButtonActive),
@@ -398,7 +415,12 @@ function ImageButtonRect(
     CImGui.PushStyleColor(CImGui.ImGuiCol_ButtonHovered, colbth)
     CImGui.PushStyleColor(CImGui.ImGuiCol_ButtonActive, colbta)
     CImGui.PushStyleVar(CImGui.ImGuiStyleVar_FrameRounding, rounding)
-    clicked = ImageButton(path; size=size, uv0=uv0, uv1=uv1, frame_padding=frame_padding, bg_col=bg_col, tint_col=tint_col)
+    CImGui.SetWindowFontScale(fontscale)
+    clicked = ImageButton(
+        path;
+        size=size, uv0=uv0, uv1=uv1, frame_padding=frame_padding, bg_col=bg_col, tint_col=tint_col
+    )
+    CImGui.SetWindowFontScale(MORESTYLE.FontScale.NormalText)
     CImGui.PopStyleVar()
     CImGui.PopStyleColor(3)
     rmin, rmax = CImGui.GetItemRectMin(), CImGui.GetItemRectMax()
@@ -416,6 +438,7 @@ function ImageColoredButtonRect(
     rounding=0.0,
     bdrounding=0.0,
     thickness=0,
+    fontscale=MORESTYLE.FontScale.NormalText,
     bg_col=[0, 0, 0, 0],
     tint_col=[1, 1, 1, 1],
     colbt=CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_Button),
@@ -428,13 +451,13 @@ function ImageColoredButtonRect(
         ImageButtonRect(
             path;
             size=size, uv0=uv0, uv1=uv1, frame_padding=frame_padding, bg_col=bg_col, tint_col=tint_col,
-            rounding=rounding, bdrounding=bdrounding, thickness=thickness,
+            rounding=rounding, bdrounding=bdrounding, thickness=thickness, fontscale=fontscale,
             colbt=colbt, colbth=colbth, colbta=colbta, colrect=colrect
         )
     else
         ColoredButtonRect(
             label;
-            size=size, rounding=rounding, bdrounding=bdrounding, thickness=thickness,
+            size=size, rounding=rounding, bdrounding=bdrounding, thickness=thickness, fontscale=fontscale,
             colbt=colbt, colbth=colbth, colbta=colbta, coltxt=coltxt, colrect=colrect
         )
     end
@@ -444,13 +467,16 @@ function ToggleButton(
     label::AbstractString,
     v::Ref{Bool};
     size=(0, 0),
+    fontscale=MORESTYLE.FontScale.NormalText,
     colon=MORESTYLE.Colors.ToggleButtonOn,
     coloff=MORESTYLE.Colors.ToggleButtonOff,
     colbth=CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_ButtonHovered),
     colbta=CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_ButtonActive),
     coltxt=CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_Text)
 )
+    CImGui.SetWindowFontScale(fontscale)
     toggled = ColoredButton(label; size=size, colbt=v[] ? colon : coloff, colbth=colbth, colbta=colbta, coltxt=coltxt)
+    CImGui.SetWindowFontScale(MORESTYLE.FontScale.NormalText)
     toggled && (v[] ⊻= true)
     return toggled
 end
@@ -462,6 +488,7 @@ function ToggleButtonRect(
     rounding=0.0,
     bdrounding=0.0,
     thickness=1.0,
+    fontscale=MORESTYLE.FontScale.NormalText,
     colon=MORESTYLE.Colors.ToggleButtonOn,
     coloff=MORESTYLE.Colors.ToggleButtonOff,
     colbth=CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_ButtonHovered),
@@ -470,7 +497,10 @@ function ToggleButtonRect(
     colrect=MORESTYLE.Colors.ShowTextRect
 )
     CImGui.PushStyleVar(CImGui.ImGuiStyleVar_FrameRounding, rounding)
-    toggled = ToggleButton(label, v; size=size, colon=colon, coloff=coloff, colbth=colbth, colbta=colbta, coltxt=coltxt)
+    toggled = ToggleButton(
+        label, v;
+        size=size, fontscale=fontscale, colon=colon, coloff=coloff, colbth=colbth, colbta=colbta, coltxt=coltxt
+    )
     CImGui.PopStyleVar()
     rmin, rmax = CImGui.GetItemRectMin(), CImGui.GetItemRectMax()
     draw_list = CImGui.GetWindowDrawList()
@@ -482,6 +512,7 @@ function ColoredRadioButton(
     label, v::Ref, v_button::Integer;
     bdrounding=0,
     thickness=0,
+    fontscale=MORESTYLE.FontScale.NormalText,
     colckm=CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_CheckMark),
     colfrm=CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_FrameBg),
     colfrmh=CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_FrameBgHovered),
@@ -494,7 +525,9 @@ function ColoredRadioButton(
     CImGui.PushStyleColor(CImGui.ImGuiCol_FrameBgHovered, colfrmh)
     CImGui.PushStyleColor(CImGui.ImGuiCol_FrameBgActive, colfrma)
     CImGui.PushStyleColor(CImGui.ImGuiCol_Text, coltxt)
+    CImGui.SetWindowFontScale(fontscale)
     clicked = CImGui.RadioButton(label, v, v_button)
+    CImGui.SetWindowFontScale(MORESTYLE.FontScale.NormalText)
     CImGui.PopStyleColor(5)
     rmin, rmax = CImGui.GetItemRectMin(), CImGui.GetItemRectMax()
     draw_list = CImGui.GetWindowDrawList()
@@ -510,6 +543,7 @@ function ColoredSlider(
     grabrounding=0.0,
     bdrounding=0,
     thickness=0,
+    fontscale=MORESTYLE.FontScale.NormalText,
     colgrab=CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_SliderGrab),
     colgraba=CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_SliderGrabActive),
     colfrm=CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_FrameBg),
@@ -526,9 +560,11 @@ function ColoredSlider(
     CImGui.PushStyleColor(CImGui.ImGuiCol_Text, coltxt)
     CImGui.PushStyleVar(CImGui.ImGuiStyleVar_FrameRounding, rounding)
     CImGui.PushStyleVar(CImGui.ImGuiStyleVar_GrabRounding, grabrounding)
+    CImGui.SetWindowFontScale(fontscale)
     CImGui.PushItemWidth(width)
     dragged = sliderfunc(label, v, v_min, v_max, format, flags)
     CImGui.PopItemWidth()
+    CImGui.SetWindowFontScale(MORESTYLE.FontScale.NormalText)
     CImGui.PopStyleVar(2)
     CImGui.PopStyleColor(6)
     rmin, rmax = CImGui.GetItemRectMin(), CImGui.GetItemRectMax()
@@ -545,6 +581,7 @@ function ColoredVSlider(
     grabrounding=0.0,
     bdrounding=0,
     thickness=0,
+    fontscale=MORESTYLE.FontScale.NormalText,
     colgrab=CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_SliderGrab),
     colgraba=CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_SliderGrabActive),
     colfrm=CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_FrameBg),
@@ -561,7 +598,9 @@ function ColoredVSlider(
     CImGui.PushStyleColor(CImGui.ImGuiCol_Text, coltxt)
     CImGui.PushStyleVar(CImGui.ImGuiStyleVar_FrameRounding, rounding)
     CImGui.PushStyleVar(CImGui.ImGuiStyleVar_GrabRounding, grabrounding)
+    CImGui.SetWindowFontScale(fontscale)
     dragged = vsliderfunc(label, size, v, v_min, v_max, format, flags)
+    CImGui.SetWindowFontScale(MORESTYLE.FontScale.NormalText)
     CImGui.PopStyleVar(2)
     CImGui.PopStyleColor(6)
     rmin, rmax = CImGui.GetItemRectMin(), CImGui.GetItemRectMax()
@@ -576,4 +615,16 @@ function SetWindowBgImage(path=CONF.BGImage.path; tint_col=MORESTYLE.Colors.BgIm
         Image(path; size=CImGui.GetContentRegionAvail(), tint_col=tint_col)
         CImGui.SetCursorScreenPos(co)
     end
+end
+
+function ScaleText(formatted_text, scale)
+    CImGui.SetWindowFontScale(scale)
+    CImGui.Text(formatted_text)
+    CImGui.SetWindowFontScale(MORESTYLE.FontScale.NormalText)
+end
+
+function ScaleColoredText(col, formatted_text, scale)
+    CImGui.SetWindowFontScale(scale)
+    CImGui.TextColored(col, formatted_text)
+    CImGui.SetWindowFontScale(MORESTYLE.FontScale.NormalText)
 end

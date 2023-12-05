@@ -69,17 +69,29 @@ function UI(breakdown=false; precompile=false)
     ImFontGlyphRangesBuilder_BuildRanges(builder, ranges)
     r = unsafe_wrap(Vector{ImVector_ImWchar}, ranges, 1)
     # 加载全局字体
+    # CImGui.AddFontFromFileTTF(
+    #     fonts,
+    #     joinpath(CONF.Fonts.dir, CONF.Fonts.first),
+    #     CONF.Fonts.size,
+    #     C_NULL,
+    #     ImFontAtlas_GetGlyphRangesChineseFull(fonts)
+    # )
+    # fontcfg = ImFontConfig_ImFontConfig()
+    # fontcfg.OversampleH = fontcfg.OversampleV = 1
+    # fontcfg.MergeMode = true
+    # CImGui.AddFontFromFileTTF(fonts, joinpath(CONF.Fonts.dir, CONF.Fonts.second), CONF.Fonts.size, fontcfg, r[1].Data)
     CImGui.AddFontFromFileTTF(
         fonts,
         joinpath(CONF.Fonts.dir, CONF.Fonts.first),
-        CONF.Fonts.size,
+        CONF.Fonts.maxsize,
         C_NULL,
         ImFontAtlas_GetGlyphRangesChineseFull(fonts)
     )
     fontcfg = ImFontConfig_ImFontConfig()
     fontcfg.OversampleH = fontcfg.OversampleV = 1
     fontcfg.MergeMode = true
-    CImGui.AddFontFromFileTTF(fonts, joinpath(CONF.Fonts.dir, CONF.Fonts.second), CONF.Fonts.size, fontcfg, r[1].Data)
+    CImGui.AddFontFromFileTTF(fonts, joinpath(CONF.Fonts.dir, CONF.Fonts.second), CONF.Fonts.maxsize, fontcfg, r[1].Data)
+
 
     # 加载图标字体
     icon_ranges = ImVector_ImWchar_create()
@@ -89,39 +101,53 @@ function UI(breakdown=false; precompile=false)
     ImFontGlyphRangesBuilder_AddRanges(icon_builder, icon_ranges_ptr)
     ImFontGlyphRangesBuilder_BuildRanges(icon_builder, icon_ranges)
     icon_r = unsafe_wrap(Vector{ImVector_ImWchar}, icon_ranges, 1)
+    # CImGui.AddFontFromFileTTF(
+    #     fonts,
+    #     joinpath(ENV["QInsControlAssets"], "Necessity/fa-regular-400.ttf"),
+    #     CONF.Icons.size,
+    #     fontcfg,
+    #     icon_r[1].Data
+    # )
+    # CImGui.AddFontFromFileTTF(
+    #     fonts,
+    #     joinpath(ENV["QInsControlAssets"], "Necessity/fa-solid-900.ttf"),
+    #     CONF.Icons.size,
+    #     fontcfg,
+    #     icon_r[1].Data
+    # )
     CImGui.AddFontFromFileTTF(
         fonts,
         joinpath(ENV["QInsControlAssets"], "Necessity/fa-regular-400.ttf"),
-        CONF.Icons.size,
+        CONF.Fonts.maxsize,
         fontcfg,
         icon_r[1].Data
     )
     CImGui.AddFontFromFileTTF(
         fonts,
         joinpath(ENV["QInsControlAssets"], "Necessity/fa-solid-900.ttf"),
-        CONF.Icons.size,
+        CONF.Fonts.maxsize,
         fontcfg,
         icon_r[1].Data
     )
 
     # 加载绘图字体
-    global PLOTFONT = CImGui.AddFontFromFileTTF(
-        fonts,
-        joinpath(CONF.Fonts.dir, CONF.Fonts.plotfont),
-        CONF.Fonts.plotfontsize,
-        C_NULL,
-        ImFontAtlas_GetGlyphRangesChineseFull(fonts)
-    )
+    # global PLOTFONT = CImGui.AddFontFromFileTTF(
+    #     fonts,
+    #     joinpath(CONF.Fonts.dir, CONF.Fonts.plotfont),
+    #     CONF.Fonts.plotfontsize,
+    #     C_NULL,
+    #     ImFontAtlas_GetGlyphRangesChineseFull(fonts)
+    # )
     # fontcfg = ImFontConfig_ImFontConfig()
     # fontcfg.MergeMode = true
-    CImGui.AddFontFromFileTTF(fonts, joinpath(CONF.Fonts.dir, CONF.Fonts.second), CONF.Fonts.plotfontsize, fontcfg, r[1].Data)
-    CImGui.AddFontFromFileTTF(
-        fonts,
-        joinpath(CONF.Fonts.dir, CONF.Fonts.first),
-        CONF.Fonts.plotfontsize,
-        fontcfg,
-        ImFontAtlas_GetGlyphRangesChineseFull(fonts)
-    )
+    # CImGui.AddFontFromFileTTF(fonts, joinpath(CONF.Fonts.dir, CONF.Fonts.second), CONF.Fonts.plotfontsize, fontcfg, r[1].Data)
+    # CImGui.AddFontFromFileTTF(
+    #     fonts,
+    #     joinpath(CONF.Fonts.dir, CONF.Fonts.first),
+    #     CONF.Fonts.plotfontsize,
+    #     fontcfg,
+    #     ImFontAtlas_GetGlyphRangesChineseFull(fonts)
+    # )
 
     # setup Platform/Renderer bindings
     ImGuiGLFWBackend.init(window_ctx)
@@ -133,6 +159,7 @@ function UI(breakdown=false; precompile=false)
     global IMNODESSTYLE = imnodes_GetStyle()
     global MORESTYLE = MoreStyle()
     haskey(STYLES, CONF.Style.default) && loadstyle(STYLES[CONF.Style.default])
+    io.FontGlobalScale = MORESTYLE.FontScale.NormalText
 
     breakdown && closeallwindow()
 

@@ -134,7 +134,7 @@ function Update_DpiScale(x_scale_old::Ref{Cfloat})
     @c glfwGetMonitorContentScale(glfw_monitors[1], &x_scale, &y_scale)
     if x_scale != x_scale_old[]
         ImGuiStyle_ScaleAllSizes(IMGUISTYLE, x_scale)
-        CImGui.GetIO().FontGlobalScale = x_scale
+        CImGui.GetIO().FontGlobalScale = x_scale * MORESTYLE.FontScale.NormalText
         x_scale_old[] = x_scale
     end
 end

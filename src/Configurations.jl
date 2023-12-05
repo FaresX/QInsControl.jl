@@ -42,16 +42,17 @@ end
 
 @option mutable struct OptFonts
     dir::String = ""
-    size::Cint = 18
-    plotfontsize::Cint = 30
+    maxsize::Cint = 100
+    # size::Cint = 18
+    # plotfontsize::Cint = 30
     first::String = "ZaoZiGongFangShangHeiG0v1ChangGuiTi-1.otf"
     second::String = "arial.ttf"
-    plotfont::String = "arial.ttf"
+    # plotfont::String = "arial.ttf"
 end
 
-@option mutable struct OptIcons
-    size::Cint = 18
-end
+# @option mutable struct OptIcons
+#     size::Cint = 18
+# end
 
 @option mutable struct OptConsole
     dir::String = ""
@@ -87,7 +88,7 @@ end
     DAQ::OptDAQ = OptDAQ()
     InsBuf::OptInsBuf = OptInsBuf()
     Fonts::OptFonts = OptFonts()
-    Icons::OptIcons = OptIcons()
+    # Icons::OptIcons = OptIcons()
     Console::OptConsole = OptConsole()
     Logs::OptLogs = OptLogs()
     BGImage::OptBGImage = OptBGImage()

@@ -52,7 +52,7 @@ let
         uip.ps.id = id
         CImGui.PushID(id)
         CImGui.BeginChild("Plot", size)
-        CImGui.PushFont(PLOTFONT)
+        # CImGui.PushFont(PLOTFONT)
         if uip.ptype == "heatmap"
             if isempty(uip.z)
                 PlotHolder(uip.ps, CImGui.ImVec2(-1, -1))
@@ -89,7 +89,7 @@ let
                 )
             end
         end
-        CImGui.PopFont()
+        # CImGui.PopFont()
         uip.ps.phv && CImGui.IsMouseClicked(2) && CImGui.OpenPopup(stcstr("title", id))
         haskey(openpopup_mspos_list, id) || push!(openpopup_mspos_list, id => Cfloat[0, 0])
         openpopup_mspos = openpopup_mspos_list[id]

@@ -1,4 +1,4 @@
-Base.@kwdef mutable struct MoreStyleColor
+@kwdef mutable struct MoreStyleColor
     BgImageTint::Vector{Cfloat} = [1.000, 1.000, 1.000, 0.600]
     HighlightText::Vector{Cfloat} = [1.000, 1.000, 0.000, 1.000]
     LogInfo::Vector{Cfloat} = [0.000, 0.855, 1.000, 1.000]
@@ -29,8 +29,7 @@ Base.@kwdef mutable struct MoreStyleColor
     ToggleButtonOff::Vector{Cfloat} = [0.600, 0.600, 0.600, 1.000]
 end
 
-Base.@kwdef mutable struct MoreStyleIcon
-    File::String = ICONS.ICON_FILE
+@kwdef mutable struct MoreStyleIcon
     OpenFile::String = ICONS.ICON_FILE
     OpenFolder::String = ICONS.ICON_FOLDER
     NewFile::String = ICONS.ICON_CIRCLE_PLUS
@@ -136,17 +135,24 @@ mutable struct ImNodesStyle
     end
 end
 
-Base.@kwdef mutable struct MoreStylePinShape
+@kwdef mutable struct MoreStylePinShape
     input::LibCImGui.PinShape = LibCImGui.PinShape_Circle
     output::LibCImGui.PinShape = LibCImGui.PinShape_Triangle
 end
 
-mutable struct MoreStyle
-    Colors::MoreStyleColor
-    Icons::MoreStyleIcon
-    PinShapes::MoreStylePinShape
-    ImPlotMarker::Cint
-    MoreStyle() = new(MoreStyleColor(), MoreStyleIcon(), MoreStylePinShape(), 0)
+@kwdef mutable struct MoreStyleFontScale
+    NormalText::Cfloat = 0.36
+    WindowTitle::Cfloat = 0.6
+    ItemTitle::Cfloat = 0.48
+    MainMenu::Cfloat = 0.36
+end
+
+@kwdef mutable struct MoreStyle
+    Colors::MoreStyleColor = MoreStyleColor()
+    Icons::MoreStyleIcon = MoreStyleIcon()
+    FontScale::MoreStyleFontScale = MoreStyleFontScale()
+    PinShapes::MoreStylePinShape = MoreStylePinShape()
+    ImPlotMarker::Cint = 0
 end
 
 mutable struct UnionStyle
@@ -441,6 +447,17 @@ let
                 if @c ComBoS("ImPlotMarker", &selectedmarker, implotmarkerlist)
                     MORESTYLE.ImPlotMarker = findfirst(==(selectedmarker), implotmarkerlist) - 1
                     IMPLOTSTYLE.Marker = MORESTYLE.ImPlotMarker
+                end
+                CImGui.EndTabItem()
+            end
+            if CImGui.BeginTabItem("FontScale")
+                fontscales = fieldnames(MoreStyleFontScale)
+                for fs in fontscales
+                    editfs = getproperty(MORESTYLE.FontScale, fs)
+                    if @c CImGui.DragFloat(stcstr(fs), &editfs, 0.01, 0.1, 2, "%.2f", CImGui.ImGuiSliderFlags_AlwaysClamp)
+                        setproperty!(MORESTYLE.FontScale, fs, editfs)
+                        CImGui.GetIO().FontGlobalScale = editfs
+                    end
                 end
                 CImGui.EndTabItem()
             end
