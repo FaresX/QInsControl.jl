@@ -20,6 +20,7 @@ Base.@kwdef mutable struct MoreStyleColor
     BlockDragdrop::Vector{Cfloat} = [0.000, 0.000, 1.000, 0.400]
     ShowTextRect::Vector{Cfloat} = [1.000, 1.000, 0.000, 1.000]
     DAQTaskRunning::Vector{Cfloat} = [0.000, 1.000, 0.000, 1.000]
+    DAQTaskToRun::Vector{Cfloat} = [0.000, 0.000, 0.000, 0.400]
     NodeConnected::Vector{Cfloat} = [0.000, 1.000, 0.000, 1.000]
     ImagePin::Vector{Cfloat} = [1.000, 1.000, 0.000, 1.000]
     ImagePinHoveredout::Vector{Cfloat} = [0.000, 0.000, 1.000, 1.000]

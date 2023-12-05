@@ -8,7 +8,7 @@ let
     isdelall::Bool = false
     oldworkpath::String = ""
     running_i::Int = 0
-    isrunall::Bool = false
+    torunstates::Vector{Bool} = [false]
     daqtasks::Vector{DAQTask} = [DAQTask()] #任务列表
     global CIRCUIT::NodeEditor = NodeEditor()
     global DAQDATAPLOT::DataPlot = DataPlot()
@@ -53,58 +53,93 @@ let
             end
             CONF.DAQ.freelayout || (column1pos = CImGui.GetColumnOffset(1))
             CImGui.BeginChild("queue", (Float32(0), -CImGui.GetFrameHeightWithSpacing()))
-            CImGui.BulletText(mlstr("Task Queue"))
-            CImGui.SameLine(
-                if CONF.DAQ.freelayout
-                    CImGui.GetContentRegionAvailWidth() - ccbtsz - 3
+            # CImGui.BulletText(mlstr("Task Queue"))
+            if CImGui.CollapsingHeader(mlstr("Task Queue"))
+                ftsz = CImGui.GetFontSize()
+                CImGui.PushStyleVar(CImGui.ImGuiStyleVar_FrameRounding, 60)
+                if SYNCSTATES[Int(IsBlocked)]
+                    if CImGui.Button(stcstr(MORESTYLE.Icons.RunTask, "##", mlstr("Continue")), (2ftsz, 2ftsz))
+                        SYNCSTATES[Int(IsBlocked)] = false
+                        remote_do(workers()[1]) do
+                            lock(() -> notify(BLOCK), BLOCK)
+                        end
+                    end
                 else
-                    column1pos - ccbtsz - unsafe_load(IMGUISTYLE.WindowPadding.x) - 3
+                    if CImGui.Button(stcstr(MORESTYLE.Icons.BlockTask, "##", mlstr("Pause")), (2ftsz, 2ftsz))
+                        SYNCSTATES[Int(IsDAQTaskRunning)] && (SYNCSTATES[Int(IsBlocked)] = true)
+                    end
                 end
-            )
-            CImGui.Button(stcstr(MORESTYLE.Icons.Circuit, "##circuit")) && (show_circuit_editor ⊻= true)
-            show_circuit_editor && @c edit(CIRCUIT, "Circuit Editor", &show_circuit_editor)
-            ccbtsz = CImGui.GetItemRectSize().x
-
-            length(show_daq_editors) == length(daqtasks) || resize!(show_daq_editors, length(daqtasks))
-            for (i, task) in enumerate(daqtasks)
-                task.enable || showdisabled || continue
-                CImGui.PushID(i)
-                isrunning_i = SYNCSTATES[Int(IsDAQTaskRunning)] && i == running_i
-                CImGui.PushStyleColor(
-                    CImGui.ImGuiCol_Button,
-                    if task.enable
-                        if isrunning_i
-                            MORESTYLE.Colors.DAQTaskRunning
-                        else
-                            CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_Button)
+                CImGui.SameLine()
+                if CImGui.Button(stcstr(MORESTYLE.Icons.InterruptTask, "##", mlstr("Interrupt")), (2ftsz, 2ftsz))
+                    if SYNCSTATES[Int(IsDAQTaskRunning)]
+                        SYNCSTATES[Int(IsInterrupted)] = true
+                        if SYNCSTATES[Int(IsBlocked)]
+                            SYNCSTATES[Int(IsBlocked)] = false
+                            remote_do(workers()[1]) do
+                                lock(() -> notify(BLOCK), BLOCK)
+                            end
                         end
+                    end
+                end
+                CImGui.SameLine(
+                    if CONF.DAQ.freelayout
+                        CImGui.GetContentRegionAvailWidth() - ccbtsz - 3
                     else
-                        MORESTYLE.Colors.LogError
+                        column1pos - ccbtsz - unsafe_load(IMGUISTYLE.WindowPadding.x) - 3
                     end
                 )
-                CImGui.PushStyleColor(
-                    CImGui.ImGuiCol_ButtonHovered,
-                    if task.enable
-                        if isrunning_i
-                            MORESTYLE.Colors.DAQTaskRunning
-                        else
-                            CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_ButtonHovered)
-                        end
-                    else
-                        MORESTYLE.Colors.LogError
-                    end
-                )
-                if CImGui.Button(
-                    stcstr(MORESTYLE.Icons.TaskButton, " ", mlstr("Task"), " ", i + OLDI, " ", task.name, "###task", i),
-                    (-1, 0)
-                )
-                    show_daq_editors[i] = true
-                end
-                CImGui.PopStyleColor(2)
+                CImGui.Button(
+                    stcstr(MORESTYLE.Icons.Circuit, "##circuit"),
+                    (2ftsz, 2ftsz)
+                ) && (show_circuit_editor ⊻= true)
+                CImGui.PopStyleVar()
+                CImGui.Spacing()
+                show_circuit_editor && @c edit(CIRCUIT, "Circuit Editor", &show_circuit_editor)
+                ccbtsz = CImGui.GetItemRectSize().x
 
-                CImGui.OpenPopupOnItemClick(stcstr("edit queue menu", i))
-                isrunning_i && ShowProgressBar()
-                if !SYNCSTATES[Int(IsDAQTaskRunning)]
+                length(show_daq_editors) == length(daqtasks) || resize!(show_daq_editors, length(daqtasks))
+                length(torunstates) == length(daqtasks) || resize!(torunstates, length(daqtasks))
+                for (i, task) in enumerate(daqtasks)
+                    task.enable || showdisabled || continue
+                    CImGui.PushID(i)
+                    isrunning_i = SYNCSTATES[Int(IsDAQTaskRunning)] && i == running_i
+                    CImGui.PushStyleColor(
+                        CImGui.ImGuiCol_Button,
+                        if task.enable
+                            if isrunning_i
+                                MORESTYLE.Colors.DAQTaskRunning
+                            elseif torunstates[i]
+                                MORESTYLE.Colors.DAQTaskToRun
+                            else
+                                CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_Button)
+                            end
+                        else
+                            MORESTYLE.Colors.LogError
+                        end
+                    )
+                    CImGui.PushStyleColor(
+                        CImGui.ImGuiCol_ButtonHovered,
+                        if task.enable
+                            if isrunning_i
+                                MORESTYLE.Colors.DAQTaskRunning
+                            else
+                                CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_ButtonHovered)
+                            end
+                        else
+                            MORESTYLE.Colors.LogError
+                        end
+                    )
+                    if CImGui.Button(
+                        stcstr(MORESTYLE.Icons.TaskButton, " ", mlstr("Task"), " ", i + OLDI, " ", task.name, "###task", i),
+                        (-1, 0)
+                    )
+                        show_daq_editors[i] = true
+                    end
+                    CImGui.PopStyleColor(2)
+
+                    CImGui.OpenPopupOnItemClick(stcstr("edit queue menu", i))
+                    isrunning_i && ShowProgressBar()
+                    # if !SYNCSTATES[Int(IsDAQTaskRunning)]
                     CImGui.Indent()
                     if CImGui.BeginDragDropSource(0)
                         @c CImGui.SetDragDropPayload("Swap DAQTask", &i, sizeof(Cint))
@@ -117,94 +152,112 @@ let
                             payload_i = unsafe_load(Ptr{Cint}(unsafe_load(payload).Data))
                             if i != payload_i
                                 insert!(daqtasks, i, daqtasks[payload_i])
+                                insert!(torunstates, i, torunstates[payload_i])
                                 deleteat!(daqtasks, payload_i < i ? payload_i : payload_i + 1)
+                                deleteat!(torunstates, payload_i < i ? payload_i : payload_i + 1)
+                                if running_i == payload_i
+                                    running_i = i
+                                    isrunning_i = SYNCSTATES[Int(IsDAQTaskRunning)] && i == running_i
+                                elseif payload_i < running_i < i
+                                    running_i -= 1
+                                    isrunning_i = SYNCSTATES[Int(IsDAQTaskRunning)] && i == running_i
+                                elseif payload_i > running_i >= i
+                                    running_i += 1
+                                    isrunning_i = SYNCSTATES[Int(IsDAQTaskRunning)] && i == running_i
+                                end
                             end
                         end
                         CImGui.EndDragDropTarget()
                     end
                     CImGui.Unindent()
-                end
+                    # end
 
-                if CImGui.BeginPopup(stcstr("edit queue menu", i))
-                    if CImGui.MenuItem(
-                        stcstr(MORESTYLE.Icons.RunTask, " ", mlstr("Run")),
-                        C_NULL,
-                        false,
-                        !SYNCSTATES[Int(IsDAQTaskRunning)] && task.enable
-                    )
-                        if ispath(WORKPATH)
-                            saveproject(projpath)
-                            running_i = i
-                            errormonitor(@async begin
-                                run(task)
-                                SYNCSTATES[Int(IsInterrupted)] && (SYNCSTATES[Int(IsInterrupted)] = false)
-                            end)
-                            DAQDATAPLOT.showdtpks .= false
-                        else
-                            WORKPATH = mlstr("no workplace selected!!!")
-                        end
-                    end
-                    CImGui.Separator()
-                    CImGui.MenuItem(stcstr(MORESTYLE.Icons.Edit, " ", mlstr("Edit"))) && (show_daq_editors[i] = true)
-                    if CImGui.MenuItem(stcstr(MORESTYLE.Icons.Copy, " ", mlstr("Copy")))
-                        insert!(daqtasks, i + 1, deepcopy(task))
-                        push!(show_daq_editors, false)
-                        i < running_i && (running_i += 1)
-                    end
-                    if CImGui.MenuItem(stcstr(MORESTYLE.Icons.SaveButton, " ", mlstr("Save")))
-                        confsvpath = save_file(filterlist="cfg")
-                        isempty(confsvpath) || jldsave(confsvpath; daqtask=task)
-                    end
-                    if CImGui.MenuItem(stcstr(MORESTYLE.Icons.Load, " ", mlstr("Load")))
-                        confldpath = pick_file(filterlist="cfg,qdt")
-                        if isfile(confldpath)
-                            loadcfg = @trypass load(confldpath, "daqtask") begin
-                                @error mlstr("unsupported file!!!") filepath = confldpath
-                            end
-                            daqtasks[i] = isnothing(loadcfg) ? task : loadcfg
-                        end
-                    end
-                    CImGui.Separator()
-                    CImGui.MenuItem(stcstr(MORESTYLE.Icons.Rename, " ", mlstr("Rename"))) && (isrename = true)
-                    if task.enable
-                        CImGui.MenuItem(
-                            stcstr(MORESTYLE.Icons.Disable, " ", mlstr("Disable")),
+                    if CImGui.BeginPopup(stcstr("edit queue menu", i))
+                        if CImGui.MenuItem(
+                            stcstr(MORESTYLE.Icons.RunTask, " ", mlstr(torunstates[i] ? "Cancel" : "Run")),
                             C_NULL,
                             false,
-                            !isrunning_i
-                        ) && (task.enable = false)
-                    else
-                        CImGui.MenuItem(stcstr(MORESTYLE.Icons.Restore, " ", mlstr("Enable"))) && (task.enable = true)
-                        CImGui.MenuItem(stcstr(MORESTYLE.Icons.CloseFile, " ", mlstr("Delete"))) && (isdeldaqtask = true)
+                            task.enable && !isrunning_i
+                            # !SYNCSTATES[Int(IsDAQTaskRunning)] && task.enable
+                        )
+                            torunstates[i] ⊻= true
+                            torunstates[i] && (SYNCSTATES[Int(IsDAQTaskRunning)] || rundaqtasks())
+                            # if ispath(WORKPATH)
+                            #     saveproject(projpath)
+                            #     running_i = i
+                            #     errormonitor(@async begin
+                            #         run(task)
+                            #         SYNCSTATES[Int(IsInterrupted)] && (SYNCSTATES[Int(IsInterrupted)] = false)
+                            #     end)
+                            #     DAQDATAPLOT.showdtpks .= false
+                            # else
+                            #     WORKPATH = mlstr("no workplace selected!!!")
+                            # end
+                        end
+                        CImGui.Separator()
+                        CImGui.MenuItem(stcstr(MORESTYLE.Icons.Edit, " ", mlstr("Edit"))) && (show_daq_editors[i] = true)
+                        if CImGui.MenuItem(stcstr(MORESTYLE.Icons.Copy, " ", mlstr("Copy")))
+                            insert!(daqtasks, i + 1, deepcopy(task))
+                            insert!(torunstates, i + 1, false)
+                            insert!(show_daq_editors, i + 1, false)
+                            i < running_i && (running_i += 1)
+                        end
+                        if CImGui.MenuItem(stcstr(MORESTYLE.Icons.SaveButton, " ", mlstr("Save")))
+                            confsvpath = save_file(filterlist="cfg")
+                            isempty(confsvpath) || jldsave(confsvpath; daqtask=task)
+                        end
+                        if CImGui.MenuItem(stcstr(MORESTYLE.Icons.Load, " ", mlstr("Load")))
+                            confldpath = pick_file(filterlist="cfg,qdt")
+                            if isfile(confldpath)
+                                loadcfg = @trypass load(confldpath, "daqtask") begin
+                                    @error mlstr("unsupported file!!!") filepath = confldpath
+                                end
+                                daqtasks[i] = isnothing(loadcfg) ? task : loadcfg
+                            end
+                        end
+                        CImGui.Separator()
+                        CImGui.MenuItem(stcstr(MORESTYLE.Icons.Rename, " ", mlstr("Rename"))) && (isrename = true)
+                        if task.enable
+                            CImGui.MenuItem(
+                                stcstr(MORESTYLE.Icons.Disable, " ", mlstr("Disable")),
+                                C_NULL,
+                                false,
+                                !isrunning_i
+                            ) && (task.enable = false)
+                        else
+                            CImGui.MenuItem(stcstr(MORESTYLE.Icons.Restore, " ", mlstr("Enable"))) && (task.enable = true)
+                            CImGui.MenuItem(stcstr(MORESTYLE.Icons.CloseFile, " ", mlstr("Delete"))) && (isdeldaqtask = true)
+                        end
+                        CImGui.EndPopup()
                     end
-                    CImGui.EndPopup()
-                end
 
-                ### show daq editors ###
-                isshow_editor = show_daq_editors[i]
-                isshow_editor && @c edit(task, i, &isshow_editor)
-                show_daq_editors[i] = isshow_editor
+                    ### show daq editors ###
+                    isshow_editor = show_daq_editors[i]
+                    isshow_editor && @c edit(task, i, &isshow_editor)
+                    show_daq_editors[i] = isshow_editor
 
-                # 是否删除
-                isdeldaqtask && (CImGui.OpenPopup(stcstr("##if delete daqtasks", i));
-                isdeldaqtask = false)
-                if YesNoDialog(
-                    stcstr("##if delete daqtasks", i),
-                    mlstr("Confirm delete?"),
-                    CImGui.ImGuiWindowFlags_AlwaysAutoResize
-                )
-                    deleteat!(daqtasks, i)
-                    deleteat!(show_daq_editors, i)
-                end
+                    # 是否删除
+                    isdeldaqtask && (CImGui.OpenPopup(stcstr("##if delete daqtasks", i));
+                    isdeldaqtask = false)
+                    if YesNoDialog(
+                        stcstr("##if delete daqtasks", i),
+                        mlstr("Confirm delete?"),
+                        CImGui.ImGuiWindowFlags_AlwaysAutoResize
+                    )
+                        deleteat!(daqtasks, i)
+                        deleteat!(torunstates, i)
+                        deleteat!(show_daq_editors, i)
+                    end
 
-                # 重命名
-                isrename && (CImGui.OpenPopup(stcstr(mlstr("rename"), i));
-                isrename = false)
-                if CImGui.BeginPopup(stcstr(mlstr("rename"), i))
-                    @c InputTextRSZ(stcstr(MORESTYLE.Icons.TaskButton, " ", mlstr("Task"), " ", i + OLDI), &task.name)
-                    CImGui.EndPopup()
+                    # 重命名
+                    isrename && (CImGui.OpenPopup(stcstr(mlstr("rename"), i));
+                    isrename = false)
+                    if CImGui.BeginPopup(stcstr(mlstr("rename"), i))
+                        @c InputTextRSZ(stcstr(MORESTYLE.Icons.TaskButton, " ", mlstr("Task"), " ", i + OLDI), &task.name)
+                        CImGui.EndPopup()
+                    end
+                    CImGui.PopID()
                 end
-                CImGui.PopID()
             end
             CONF.DAQ.showeditplotlayout && CImGui.CollapsingHeader(mlstr("Plot")) && editmenu(DAQDATAPLOT)
             CImGui.EndChild()
@@ -252,77 +305,16 @@ let
                 mlstr("Confirm delete?"),
                 CImGui.ImGuiWindowFlags_AlwaysAutoResize
             )
-                deleteat!(daqtasks, findall(task -> !task.enable, daqtasks))
-                deleteat!(show_daq_editors, findall(task -> !task.enable, daqtasks))
+                deleteidxes = findall(task -> !task.enable, daqtasks)
+                deleteat!(daqtasks, deleteidxes)
+                deleteat!(torunstates, deleteidxes)
+                deleteat!(show_daq_editors, deleteidxes)
             end
 
             ### show daq datapickers ###
             showdtpks(DAQDATAPLOT, "DAQ", DATABUF, DATABUFPARSED)
 
             CImGui.IsAnyItemHovered() || CImGui.OpenPopupOnItemClick("add task")
-            CImGui.PushStyleColor(
-                CImGui.ImGuiCol_Button,
-                if isrunall
-                    MORESTYLE.Colors.DAQTaskRunning
-                else
-                    CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_Button)
-                end
-            )
-            if CImGui.Button(stcstr(MORESTYLE.Icons.RunTask, " ", mlstr("Run All")))
-                if !SYNCSTATES[Int(IsDAQTaskRunning)]
-                    if ispath(WORKPATH)
-                        saveproject(projpath)
-                        runalltask = @async begin
-                            isrunall = true
-                            for (i, task) in enumerate(daqtasks)
-                                running_i = i
-                                run(task)
-                                SYNCSTATES[Int(IsInterrupted)] && (SYNCSTATES[Int(IsInterrupted)] = false; break)
-                            end
-                            isrunall = false
-                        end
-                        errormonitor(runalltask)
-                        DAQDATAPLOT.showdtpks .= false
-                    else
-                        WORKPATH = mlstr("no workplace selected!!!")
-                    end
-                end
-            end
-            CImGui.PopStyleColor()
-
-            CImGui.SameLine(
-                if CONF.DAQ.freelayout
-                    CImGui.GetContentRegionAvailWidth() - bottombtsz
-                else
-                    CImGui.GetColumnOffset(1) - bottombtsz - unsafe_load(IMGUISTYLE.WindowPadding.x)
-                end
-            )
-            if SYNCSTATES[Int(IsBlocked)]
-                if CImGui.Button(stcstr(MORESTYLE.Icons.RunTask, " ", mlstr("Continue")))
-                    SYNCSTATES[Int(IsBlocked)] = false
-                    remote_do(workers()[1]) do
-                        lock(() -> notify(BLOCK), BLOCK)
-                    end
-                end
-            else
-                if CImGui.Button(stcstr(MORESTYLE.Icons.BlockTask, " ", mlstr("Pause")))
-                    SYNCSTATES[Int(IsDAQTaskRunning)] && (SYNCSTATES[Int(IsBlocked)] = true)
-                end
-            end
-            bottombtsz = CImGui.GetItemRectSize().x
-            CImGui.SameLine()
-            if CImGui.Button(stcstr(MORESTYLE.Icons.InterruptTask, " ", mlstr("Interrupt")))
-                if SYNCSTATES[Int(IsDAQTaskRunning)]
-                    SYNCSTATES[Int(IsInterrupted)] = true
-                    if SYNCSTATES[Int(IsBlocked)]
-                        SYNCSTATES[Int(IsBlocked)] = false
-                        remote_do(workers()[1]) do
-                            lock(() -> notify(BLOCK), BLOCK)
-                        end
-                    end
-                end
-            end
-            bottombtsz += CImGui.GetItemRectSize().x
 
             CONF.DAQ.freelayout || CImGui.NextColumn()
         end
@@ -348,6 +340,28 @@ let
                 end
             end
             renderplots(DAQDATAPLOT, "DAQ")
+        end
+    end
+
+    function rundaqtasks()
+        if !SYNCSTATES[Int(IsDAQTaskRunning)]
+            global WORKPATH
+            if ispath(WORKPATH)
+                saveproject(projpath)
+                runalltask = @async begin
+                    for (i, task) in enumerate(daqtasks)
+                        torunstates[i] || continue
+                        running_i = i
+                        run(task)
+                        torunstates[running_i] = false
+                        SYNCSTATES[Int(IsInterrupted)] && (SYNCSTATES[Int(IsInterrupted)] = false; break)
+                    end
+                end
+                errormonitor(runalltask)
+                DAQDATAPLOT.showdtpks .= false
+            else
+                WORKPATH = mlstr("no workplace selected!!!")
+            end
         end
     end
 
