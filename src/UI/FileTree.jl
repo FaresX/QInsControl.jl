@@ -42,7 +42,7 @@ mutable struct FolderFileTree <: FileTree
 end
 
 function edit(filetree::FolderFileTree, isrename::Dict{String,Bool}, bnm=false)
-    if CImGui.TreeNode(bnm ? filetree.rootpath_bnm : filetree.rootpath)
+    if CImGui.TreeNode(stcstr(MORESTYLE.Icons.OpenFolder, " ", bnm ? filetree.rootpath_bnm : filetree.rootpath))
         for ft in filetree.filetrees
             edit(ft, isrename, true)
         end
@@ -51,8 +51,8 @@ function edit(filetree::FolderFileTree, isrename::Dict{String,Bool}, bnm=false)
 end
 
 function edit(filetree::FileFileTree, isrename::Dict{String,Bool}, ::Bool)
-    if !filetree.isdeleted && (filetree.filter[] == "" ||
-                               !isvalid(filetree.filter[]) || occursin(lowercase(filetree.filter[]), lowercase(filetree.filepath_bnm)))
+    if !filetree.isdeleted && (filetree.filter[] == "" || !isvalid(filetree.filter[]) ||
+                               occursin(lowercase(filetree.filter[]), lowercase(filetree.filepath_bnm)))
         filemenu(filetree, isrename)
     end
 end
@@ -65,6 +65,9 @@ let
         get!(isrename, path, false)
         isrnm = isrename[path]
         CImGui.PushID(path)
+        CImGui.Selectable(MORESTYLE.Icons.OpenFile, filetree.selectedpath[] == path)
+        CImGui.SetItemAllowOverlap()
+        CImGui.SameLine()
         CImGui.PushItemWidth(-1)
         @c(RenameSelectable("##path", &isrnm, &file, filetree.selectedpath[] == path)) && (filetree.selectedpath[] = path)
         CImGui.PopItemWidth()
