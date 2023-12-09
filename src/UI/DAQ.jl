@@ -52,25 +52,34 @@ let
                 firsttime && (CImGui.SetColumnOffset(1, CImGui.GetWindowWidth() * 0.25); firsttime = false)
             end
             CONF.DAQ.freelayout || (column1pos = CImGui.GetColumnOffset(1))
-            CImGui.BeginChild("queue", (Float32(0), -CImGui.GetFrameHeightWithSpacing()))
+            CImGui.BeginChild("queue")
             # CImGui.BulletText(mlstr("Task Queue"))
             if CImGui.CollapsingHeader(mlstr("Task Queue"))
                 ftsz = CImGui.GetFontSize()
                 CImGui.PushStyleVar(CImGui.ImGuiStyleVar_FrameRounding, 60)
                 if SYNCSTATES[Int(IsBlocked)]
-                    if CImGui.Button(stcstr(MORESTYLE.Icons.RunTask, "##", mlstr("Continue")), (2ftsz, 2ftsz))
+                    if ColoredButton(
+                        stcstr(MORESTYLE.Icons.RunTask, "##", mlstr("Continue"));
+                        size=(2ftsz, 2ftsz), colbt=MORESTYLE.Colors.LogWarn
+                    )
                         SYNCSTATES[Int(IsBlocked)] = false
                         remote_do(workers()[1]) do
                             lock(() -> notify(BLOCK), BLOCK)
                         end
                     end
                 else
-                    if CImGui.Button(stcstr(MORESTYLE.Icons.BlockTask, "##", mlstr("Pause")), (2ftsz, 2ftsz))
+                    if ColoredButton(
+                        stcstr(MORESTYLE.Icons.BlockTask, "##", mlstr("Pause"));
+                        size=(2ftsz, 2ftsz), colbt=MORESTYLE.Colors.LogInfo
+                    )
                         SYNCSTATES[Int(IsDAQTaskRunning)] && (SYNCSTATES[Int(IsBlocked)] = true)
                     end
                 end
                 CImGui.SameLine()
-                if CImGui.Button(stcstr(MORESTYLE.Icons.InterruptTask, "##", mlstr("Interrupt")), (2ftsz, 2ftsz))
+                if ColoredButton(
+                    stcstr(MORESTYLE.Icons.InterruptTask, "##", mlstr("Interrupt"));
+                    size=(2ftsz, 2ftsz), colbt=MORESTYLE.Colors.LogInfo
+                )
                     if SYNCSTATES[Int(IsDAQTaskRunning)]
                         SYNCSTATES[Int(IsInterrupted)] = true
                         if SYNCSTATES[Int(IsBlocked)]
