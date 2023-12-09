@@ -1,5 +1,5 @@
 @option mutable struct QuantityWidgetOption
-    uitype::String = "read"
+    uitype::String = "none"
     globaloptions::Bool = true
     allowoverlap::Bool = false
     useimage::Bool = false
@@ -14,10 +14,15 @@
     localposx::Cfloat = 0
     spacingw::Cfloat = -1
     cursorscreenpos::Vector{Cfloat} = [0, 0]
+    comboflags::Cint = 0
     uv0::Vector{Cfloat} = [0, 0]
     uv1::Vector{Cfloat} = [1, 1]
     framepadding::Cfloat = -1
+    starttext::String = "Start"
+    stoptext::String = "Stop"
     bindingidx::Cint = 1
+    selectorlist::Vector{String} = []
+    bindingqtwidxes::Vector{Cint} = []
     bindingonoff::Vector{Cint} = [1, 2]
     textcolor::Vector{Cfloat} = [0.000, 0.000, 0.000, 1.000]
     hintcolor::Vector{Cfloat} = [0.600, 0.600, 0.600, 1.000]
@@ -39,7 +44,7 @@ end
 @option mutable struct QuantityWidget
     name::String = ""
     alias::String = ""
-    qtype::String = "read"
+    qtype::String = "none"
     numoptvs::Cint = 0
     options::QuantityWidgetOption = QuantityWidgetOption()
 end
@@ -60,14 +65,14 @@ const INSWCONF = OrderedDict{String,Vector{InstrWidget}}() #仪器注册表
 
 function copyvars!(opts1, opts2)
     fnms = fieldnames(QuantityWidgetOption)
-    for fnm in fnms[1:20]
+    for fnm in fnms[1:24]
         setproperty!(opts1, fnm, getproperty(opts2, fnm))
     end
 end
 
 function copycolors!(opts1, opts2)
     fnms = fieldnames(QuantityWidgetOption)
-    for fnm in fnms[21:end]
+    for fnm in fnms[25:end]
         setproperty!(opts1, fnm, getproperty(opts2, fnm))
     end
 end
@@ -76,53 +81,160 @@ function edit(qtw::QuantityWidget, insbuf::InstrBuffer, instrnm, addr, gopts::Qu
     opts = qtw.options.globaloptions ? gopts : qtw.options
     qtw.options.globaloptions && copyvars!(opts, qtw.options)
     opts.cursorscreenpos == [0, 0] || CImGui.SetCursorScreenPos(CImGui.GetCursorScreenPos() .+ opts.cursorscreenpos)
-    if haskey(insbuf.quantities, qtw.name)
+    trig = if haskey(insbuf.quantities, qtw.name)
         qt = insbuf.quantities[qtw.name]
         edit(opts, qt, instrnm, addr, Val(Symbol(qtw.options.uitype)))
     elseif qtw.name == "_Panel_"
+        editPanel(qtw, opts)
+    elseif qtw.name == "_Image_"
+        editImage(qtw, opts)
+    elseif qtw.name == "_QuantitySelector_"
+        editQuantitySelector(qtw, opts, instrnm, Val(Symbol(qtw.options.uitype)))
+    elseif qtw.name == "_SameLine_"
+        editSameLine(opts)
+    end
+    opts.allowoverlap && CImGui.SetItemAllowOverlap()
+    return trig
+end
+
+function editPanel(qtw::QuantityWidget, opts::QuantityWidgetOption)
+    opts.textsize == "big" && CImGui.PushFont(PLOTFONT)
+    originscale = unsafe_load(CImGui.GetIO().FontGlobalScale)
+    CImGui.SetWindowFontScale(opts.textscale)
+    trig = ImageColoredButtonRect(
+        mlstr(qtw.alias), qtw.alias, opts.useimage;
+        size=opts.itemsize,
+        uv0=opts.uv0,
+        uv1=opts.uv1,
+        frame_padding=opts.framepadding,
+        rounding=opts.rounding,
+        bdrounding=opts.bdrounding,
+        thickness=opts.bdthickness,
+        bg_col=opts.imgbgcolor,
+        tint_col=opts.imgtintcolor,
+        colbt=opts.bgcolor,
+        colbth=opts.hoveredcolor,
+        colbta=opts.activecolor,
+        coltxt=opts.textcolor,
+        colrect=opts.rectcolor
+    )
+    opts.textsize == "big" && CImGui.PopFont()
+    CImGui.SetWindowFontScale(originscale)
+    return trig
+end
+
+function editImage(qtw::QuantityWidget, opts::QuantityWidgetOption)
+    Image(
+        qtw.alias;
+        size=opts.itemsize,
+        uv0=opts.uv0,
+        uv1=opts.uv1,
+        tint_col=opts.imgtintcolor,
+        border_col=opts.rectcolor
+    )
+    return false
+end
+
+let
+    # qts::Dict{String,Dict{String,Vector{String}}} = Dict()
+    # global function genqts(instrnm)
+    #     haskey(qts, instrnm) || push!(
+    #         qts, instrnm => Dict(
+    #             "sweep" => [qt.alias for (_, qt) in INSCONF[instrnm].quantities if qt.type == "sweep"],
+    #             "set" => [qt.alias for (_, qt) in INSCONF[instrnm].quantities if qt.type == "set"],
+    #             "read" => [qt.alias for (_, qt) in INSCONF[instrnm].quantities if qt.type == "read"]
+    #         )
+    #     )
+    # end
+    global function editQuantitySelector(qtw::QuantityWidget, opts::QuantityWidgetOption, instrnm, ::Val{:combo})
+        # haskey(INSCONF, instrnm) || return false
+        # genqts(instrnm)
         opts.textsize == "big" && CImGui.PushFont(PLOTFONT)
         originscale = unsafe_load(CImGui.GetIO().FontGlobalScale)
         CImGui.SetWindowFontScale(opts.textscale)
-        ImageColoredButtonRect(
-            qtw.alias, qtw.alias, opts.useimage;
-            size=opts.itemsize,
-            uv0=opts.uv0,
-            uv1=opts.uv1,
-            frame_padding=opts.framepadding,
+        trig = @c ColoredCombo(
+            stcstr("##selector", qtw.alias), &qtw.alias, opts.selectorlist, opts.comboflags;
+            # opts.selectortype in ["sweep", "set", "read"] ? qts[instrnm][opts.selectortype] : [qtw.alias], opts.comboflags;
+            width=opts.itemsize[1],
             rounding=opts.rounding,
             bdrounding=opts.bdrounding,
             thickness=opts.bdthickness,
-            bg_col=opts.imgbgcolor,
-            tint_col=opts.imgtintcolor,
-            colbt=opts.bgcolor,
-            colbth=opts.hoveredcolor,
-            colbta=opts.activecolor,
+            colbt=opts.combobtcolor,
+            colfrm=opts.bgcolor,
+            colfrmh=opts.hoveredcolor,
+            colfrma=opts.activecolor,
+            colpopup=opts.popupcolor,
             coltxt=opts.textcolor,
-            colrect=opts.rectcolor,
-            
+            colrect=opts.rectcolor
         )
         opts.textsize == "big" && CImGui.PopFont()
         CImGui.SetWindowFontScale(originscale)
-    elseif qtw.name == "_Image_"
-        Image(
-            qtw.alias;
-            size=opts.itemsize,
-            uv0=opts.uv0,
-            uv1=opts.uv1,
-            tint_col=opts.imgtintcolor,
-            border_col=opts.rectcolor
-        )
-    elseif qtw.name == "_SameLine_"
-        CImGui.SameLine(opts.localposx, opts.spacingw)
+        return trig
     end
-    opts.allowoverlap && CImGui.SetItemAllowOverlap()
+
+    global function editQuantitySelector(qtw::QuantityWidget, opts::QuantityWidgetOption, instrnm, ::Val{:vslider})
+        # haskey(INSCONF, instrnm) || return false
+        # genqts(instrnm)
+        opts.textsize == "big" && CImGui.PushFont(PLOTFONT)
+        originscale = unsafe_load(CImGui.GetIO().FontGlobalScale)
+        CImGui.SetWindowFontScale(opts.textscale)
+        # idxraw = findfirst(==(qtw.alias), qts[instrnm][opts.selectortype])
+        idxraw = findfirst(==(qtw.alias), opts.selectorlist)
+        idx::Cint = isnothing(idxraw) ? 1 : idxraw
+        llist = length(opts.selectorlist)
+        trig = @c ColoredVSlider(
+            CImGui.VSliderInt,
+            stcstr(opts.textinside ? "##" : "", qtw.alias),
+            &idx, 1, llist == 0 ? 1 : llist, opts.textinside ? qtw.alias : "";
+            size=opts.itemsize,
+            rounding=opts.rounding,
+            grabrounding=opts.grabrounding,
+            bdrounding=opts.bdrounding,
+            thickness=opts.bdthickness,
+            colgrab=opts.grabcolor,
+            colgraba=opts.grabactivecolor,
+            colfrm=opts.bgcolor,
+            colfrmh=opts.hoveredcolor,
+            colfrma=opts.activecolor,
+            coltxt=opts.textcolor,
+            colrect=opts.rectcolor
+        )
+        trig && idx <= llist && (qtw.alias = opts.selectorlist[idx])
+        opts.textsize == "big" && CImGui.PopFont()
+        CImGui.SetWindowFontScale(originscale)
+        return trig
+    end
 end
+
+function trigselector(qtw::QuantityWidget, insw::InstrWidget, trig::Bool)
+    if !isempty(qtw.options.bindingqtwidxes)
+        if trig
+            for bidx in qtw.options.bindingqtwidxes
+                i, j = idxtoij(insw, bidx)
+                if i <= length(insw.qtws) && j <= length(insw.qtws[i])
+                    qtnm, type = only(
+                        [(qtnm, qt.type) for (qtnm, qt) in INSCONF[insw.instrnm].quantities if qt.alias == qtw.alias]
+                    )
+                    if type == insw.qtws[i][j].qtype
+                        insw.qtws[i][j].alias = qtw.alias
+                        insw.qtws[i][j].name = qtnm
+                    end
+                end
+            end
+        else
+            i, j = idxtoij(insw, qtw.options.bindingqtwidxes[1])
+            qtw.alias = insw.qtws[i][j].alias
+        end
+    end
+end
+
+editSameLine(opts::QuantityWidgetOption) = (CImGui.SameLine(opts.localposx, opts.spacingw); return false)
 
 function edit(opts::QuantityWidgetOption, qt::AbstractQuantity, instrnm, addr, ::Val{:read})
     opts.textsize == "big" && CImGui.PushFont(PLOTFONT)
     originscale = unsafe_load(CImGui.GetIO().FontGlobalScale)
     CImGui.SetWindowFontScale(opts.textscale)
-    if ColoredButtonRect(
+    trig = ColoredButtonRect(
         qt.showval;
         size=opts.itemsize,
         colbt=opts.bgcolor,
@@ -134,6 +246,7 @@ function edit(opts::QuantityWidgetOption, qt::AbstractQuantity, instrnm, addr, :
         bdrounding=opts.bdrounding,
         thickness=opts.bdthickness
     )
+    if trig
         if qt.enable && addr != ""
             fetchdata = refresh_qt(instrnm, addr, qt.name)
             isnothing(fetchdata) || (qt.read = fetchdata)
@@ -142,13 +255,14 @@ function edit(opts::QuantityWidgetOption, qt::AbstractQuantity, instrnm, addr, :
     end
     opts.textsize == "big" && CImGui.PopFont()
     CImGui.SetWindowFontScale(originscale)
+    return trig
 end
 
 function edit(opts::QuantityWidgetOption, qt::AbstractQuantity, _, _, ::Val{:unit})
     opts.textsize == "big" && CImGui.PushFont(PLOTFONT)
     originscale = unsafe_load(CImGui.GetIO().FontGlobalScale)
     CImGui.SetWindowFontScale(opts.textscale)
-    if ColoredButtonRect(
+    trig = ColoredButtonRect(
         qt.showU;
         size=opts.itemsize,
         colbt=opts.bgcolor,
@@ -160,6 +274,7 @@ function edit(opts::QuantityWidgetOption, qt::AbstractQuantity, _, _, ::Val{:uni
         bdrounding=opts.bdrounding,
         thickness=opts.bdthickness
     )
+    if trig
         Us = CONF.U[qt.utype]
         qt.uindex = (qt.uindex + 1) % length(Us)
         qt.uindex == 0 && (qt.uindex = length(Us))
@@ -167,13 +282,14 @@ function edit(opts::QuantityWidgetOption, qt::AbstractQuantity, _, _, ::Val{:uni
     end
     opts.textsize == "big" && CImGui.PopFont()
     CImGui.SetWindowFontScale(originscale)
+    return trig
 end
 
 function edit(opts::QuantityWidgetOption, qt::AbstractQuantity, instrnm, addr, ::Val{:readunit})
     opts.textsize == "big" && CImGui.PushFont(PLOTFONT)
     originscale = unsafe_load(CImGui.GetIO().FontGlobalScale)
     CImGui.SetWindowFontScale(opts.textscale)
-    if ColoredButtonRect(
+    trig = ColoredButtonRect(
         stcstr(qt.showval, " ", qt.showU);
         size=opts.itemsize,
         colbt=opts.bgcolor,
@@ -185,6 +301,7 @@ function edit(opts::QuantityWidgetOption, qt::AbstractQuantity, instrnm, addr, :
         bdrounding=opts.bdrounding,
         thickness=opts.bdthickness
     )
+    if trig
         if qt.enable && addr != ""
             fetchdata = refresh_qt(instrnm, addr, qt.name)
             isnothing(fetchdata) || (qt.read = fetchdata)
@@ -199,13 +316,14 @@ function edit(opts::QuantityWidgetOption, qt::AbstractQuantity, instrnm, addr, :
     end
     opts.textsize == "big" && CImGui.PopFont()
     CImGui.SetWindowFontScale(originscale)
+    return trig
 end
 
 function edit(opts::QuantityWidgetOption, qt::SweepQuantity, _, _, ::Val{:inputstep})
     opts.textsize == "big" && CImGui.PushFont(PLOTFONT)
     originscale = unsafe_load(CImGui.GetIO().FontGlobalScale)
     CImGui.SetWindowFontScale(opts.textscale)
-    @c ColoredInputTextWithHintRSZ(
+    trig = @c ColoredInputTextWithHintRSZ(
         "##step", mlstr("step"), &qt.step;
         width=opts.itemsize[1],
         rounding=opts.rounding,
@@ -218,13 +336,14 @@ function edit(opts::QuantityWidgetOption, qt::SweepQuantity, _, _, ::Val{:inputs
     )
     opts.textsize == "big" && CImGui.PopFont()
     CImGui.SetWindowFontScale(originscale)
+    return trig
 end
 
 function edit(opts::QuantityWidgetOption, qt::SweepQuantity, _, _, ::Val{:inputstop})
     opts.textsize == "big" && CImGui.PushFont(PLOTFONT)
     originscale = unsafe_load(CImGui.GetIO().FontGlobalScale)
     CImGui.SetWindowFontScale(opts.textscale)
-    @c ColoredInputTextWithHintRSZ("##stop", mlstr("stop"), &qt.stop;
+    trig = @c ColoredInputTextWithHintRSZ("##stop", mlstr("stop"), &qt.stop;
         width=opts.itemsize[1],
         rounding=opts.rounding,
         bdrounding=opts.bdrounding,
@@ -236,13 +355,14 @@ function edit(opts::QuantityWidgetOption, qt::SweepQuantity, _, _, ::Val{:inputs
     )
     opts.textsize == "big" && CImGui.PopFont()
     CImGui.SetWindowFontScale(originscale)
+    return trig
 end
 
 function edit(opts::QuantityWidgetOption, qt::SweepQuantity, _, _, ::Val{:dragdelay})
     opts.textsize == "big" && CImGui.PushFont(PLOTFONT)
     originscale = unsafe_load(CImGui.GetIO().FontGlobalScale)
     CImGui.SetWindowFontScale(opts.textscale)
-    @c ColoredDragWidget(
+    trig = @c ColoredDragWidget(
         CImGui.DragFloat,
         "##delay", &qt.delay, 0.01, 0.01, 60, "%.3f", CImGui.ImGuiSliderFlags_AlwaysClamp;
         width=opts.itemsize[1],
@@ -257,35 +377,38 @@ function edit(opts::QuantityWidgetOption, qt::SweepQuantity, _, _, ::Val{:dragde
     )
     opts.textsize == "big" && CImGui.PopFont()
     CImGui.SetWindowFontScale(originscale)
+    return trig
 end
 
 function edit(opts::QuantityWidgetOption, qt::SweepQuantity, instrnm, addr, ::Val{:ctrlsweep})
     opts.textsize == "big" && CImGui.PushFont(PLOTFONT)
     originscale = unsafe_load(CImGui.GetIO().FontGlobalScale)
     CImGui.SetWindowFontScale(opts.textscale)
-    @c(ToggleButtonRect(
-            mlstr(qt.issweeping ? " Stop " : " Start "), &qt.issweeping;
-            size=opts.itemsize,
-            rounding=opts.rounding,
-            bdrounding=opts.bdrounding,
-            thickness=opts.bdthickness,
-            colon=opts.oncolor,
-            coloff=opts.offcolor,
-            colbth=opts.hoveredcolor,
-            colbta=opts.activecolor,
-            coltxt=opts.textcolor,
-            colrect=opts.rectcolor,
-        )) && qt.issweeping && apply!(qt, instrnm, addr)
+    trig = @c ToggleButtonRect(
+        mlstr(qt.issweeping ? opts.stoptext : opts.starttext), &qt.issweeping;
+        size=opts.itemsize,
+        rounding=opts.rounding,
+        bdrounding=opts.bdrounding,
+        thickness=opts.bdthickness,
+        colon=opts.oncolor,
+        coloff=opts.offcolor,
+        colbth=opts.hoveredcolor,
+        colbta=opts.activecolor,
+        coltxt=opts.textcolor,
+        colrect=opts.rectcolor,
+    )
+    trig && qt.issweeping && apply!(qt, instrnm, addr)
     opts.textsize == "big" && CImGui.PopFont()
     CImGui.SetWindowFontScale(originscale)
     qt.issweeping && updatefront!(qt)
+    return trig
 end
 
 function edit(opts::QuantityWidgetOption, qt::SetQuantity, _, _, ::Val{:inputset})
     opts.textsize == "big" && CImGui.PushFont(PLOTFONT)
     originscale = unsafe_load(CImGui.GetIO().FontGlobalScale)
     CImGui.SetWindowFontScale(opts.textscale)
-    @c ColoredInputTextWithHintRSZ("##set", mlstr("set"), &qt.set;
+    trig = @c ColoredInputTextWithHintRSZ("##set", mlstr("set"), &qt.set;
         width=opts.itemsize[1],
         rounding=opts.rounding,
         bdrounding=opts.bdrounding,
@@ -297,14 +420,15 @@ function edit(opts::QuantityWidgetOption, qt::SetQuantity, _, _, ::Val{:inputset
     )
     opts.textsize == "big" && CImGui.PopFont()
     CImGui.SetWindowFontScale(originscale)
+    return trig
 end
 
 function edit(opts::QuantityWidgetOption, qt::SetQuantity, instrnm, addr, ::Val{:ctrlset})
     opts.textsize == "big" && CImGui.PushFont(PLOTFONT)
     originscale = unsafe_load(CImGui.GetIO().FontGlobalScale)
     CImGui.SetWindowFontScale(opts.textscale)
-    ColoredButtonRect(
-        mlstr(" Confirm ");
+    trig = ColoredButtonRect(
+        mlstr(opts.starttext);
         size=opts.itemsize,
         colbt=opts.bgcolor,
         colbth=opts.hoveredcolor,
@@ -317,6 +441,7 @@ function edit(opts::QuantityWidgetOption, qt::SetQuantity, instrnm, addr, ::Val{
     ) && (apply!(qt, instrnm, addr); updatefront!(qt))
     opts.textsize == "big" && CImGui.PopFont()
     CImGui.SetWindowFontScale(originscale)
+    return trig
 end
 
 function edit(opts::QuantityWidgetOption, qt::SetQuantity, instrnm, addr, ::Val{:combo})
@@ -324,8 +449,8 @@ function edit(opts::QuantityWidgetOption, qt::SetQuantity, instrnm, addr, ::Val{
     opts.textsize == "big" && CImGui.PushFont(PLOTFONT)
     originscale = unsafe_load(CImGui.GetIO().FontGlobalScale)
     CImGui.SetWindowFontScale(opts.textscale)
-    if @c ColoredCombo(
-        stcstr("##", qt.alias), &presentv, qt.optkeys;
+    trig = @c ColoredCombo(
+        stcstr("##", qt.alias), &presentv, qt.optkeys, opts.comboflags;
         width=opts.itemsize[1],
         rounding=opts.rounding,
         bdrounding=opts.bdrounding,
@@ -338,6 +463,7 @@ function edit(opts::QuantityWidgetOption, qt::SetQuantity, instrnm, addr, ::Val{
         coltxt=opts.textcolor,
         colrect=opts.rectcolor
     )
+    if trig
         qt.optedidx = findfirst(==(presentv), qt.optkeys)
         qt.set = qt.optvalues[qt.optedidx]
         apply!(qt, instrnm, addr)
@@ -345,13 +471,14 @@ function edit(opts::QuantityWidgetOption, qt::SetQuantity, instrnm, addr, ::Val{
     end
     opts.textsize == "big" && CImGui.PopFont()
     CImGui.SetWindowFontScale(originscale)
+    return trig
 end
 
 function edit(opts::QuantityWidgetOption, qt::SetQuantity, instrnm, addr, ::Val{:radio})
     opts.textsize == "big" && CImGui.PushFont(PLOTFONT)
     originscale = unsafe_load(CImGui.GetIO().FontGlobalScale)
     CImGui.SetWindowFontScale(opts.textscale)
-    if @c ColoredRadioButton(
+    trig = @c ColoredRadioButton(
         qt.optkeys[opts.bindingidx], &qt.optedidx, opts.bindingidx;
         bdrounding=opts.bdrounding,
         thickness=opts.bdthickness,
@@ -362,6 +489,7 @@ function edit(opts::QuantityWidgetOption, qt::SetQuantity, instrnm, addr, ::Val{
         coltxt=opts.textcolor,
         colrect=opts.rectcolor
     )
+    if trig
         qt.optedidx = opts.bindingidx
         qt.set = qt.optvalues[qt.optedidx]
         apply!(qt, instrnm, addr)
@@ -369,13 +497,14 @@ function edit(opts::QuantityWidgetOption, qt::SetQuantity, instrnm, addr, ::Val{
     end
     opts.textsize == "big" && CImGui.PopFont()
     CImGui.SetWindowFontScale(originscale)
+    return trig
 end
 
 function edit(opts::QuantityWidgetOption, qt::SetQuantity, instrnm, addr, ::Val{:slider})
     opts.textsize == "big" && CImGui.PushFont(PLOTFONT)
     originscale = unsafe_load(CImGui.GetIO().FontGlobalScale)
     CImGui.SetWindowFontScale(opts.textscale)
-    if @c ColoredSlider(
+    trig = @c ColoredSlider(
         CImGui.SliderInt,
         stcstr(opts.textinside ? "##" : "", qt.optkeys[qt.optedidx]),
         &qt.optedidx, 1, length(qt.optvalues), opts.textinside ? qt.optkeys[qt.optedidx] : "";
@@ -392,19 +521,21 @@ function edit(opts::QuantityWidgetOption, qt::SetQuantity, instrnm, addr, ::Val{
         coltxt=opts.textcolor,
         colrect=opts.rectcolor
     )
+    if trig
         qt.set = qt.optvalues[qt.optedidx]
         apply!(qt, instrnm, addr)
         updatefront!(qt)
     end
     opts.textsize == "big" && CImGui.PopFont()
     CImGui.SetWindowFontScale(originscale)
+    return trig
 end
 
 function edit(opts::QuantityWidgetOption, qt::SetQuantity, instrnm, addr, ::Val{:vslider})
     opts.textsize == "big" && CImGui.PushFont(PLOTFONT)
     originscale = unsafe_load(CImGui.GetIO().FontGlobalScale)
     CImGui.SetWindowFontScale(opts.textscale)
-    if @c ColoredVSlider(
+    trig = @c ColoredVSlider(
         CImGui.VSliderInt,
         stcstr(opts.textinside ? "##" : "", qt.optkeys[qt.optedidx]),
         &qt.optedidx, 1, length(qt.optvalues), opts.textinside ? qt.optkeys[qt.optedidx] : "";
@@ -421,12 +552,14 @@ function edit(opts::QuantityWidgetOption, qt::SetQuantity, instrnm, addr, ::Val{
         coltxt=opts.textcolor,
         colrect=opts.rectcolor
     )
+    if trig
         qt.set = qt.optvalues[qt.optedidx]
         apply!(qt, instrnm, addr)
         updatefront!(qt)
     end
     opts.textsize == "big" && CImGui.PopFont()
     CImGui.SetWindowFontScale(originscale)
+    return trig
 end
 
 function edit(opts::QuantityWidgetOption, qt::SetQuantity, instrnm, addr, ::Val{:toggle})
@@ -434,7 +567,7 @@ function edit(opts::QuantityWidgetOption, qt::SetQuantity, instrnm, addr, ::Val{
     opts.textsize == "big" && CImGui.PushFont(PLOTFONT)
     originscale = unsafe_load(CImGui.GetIO().FontGlobalScale)
     CImGui.SetWindowFontScale(opts.textscale)
-    if @c ToggleButtonRect(
+    trig = @c ToggleButtonRect(
         qt.optkeys[opts.bindingonoff[ison ? 1 : 2]], &ison;
         size=opts.itemsize,
         colon=opts.oncolor,
@@ -447,6 +580,7 @@ function edit(opts::QuantityWidgetOption, qt::SetQuantity, instrnm, addr, ::Val{
         bdrounding=opts.bdrounding,
         thickness=opts.bdthickness
     )
+    if trig
         qt.optedidx = opts.bindingonoff[ison ? 1 : 2]
         qt.set = qt.optvalues[qt.optedidx]
         apply!(qt, instrnm, addr)
@@ -454,6 +588,7 @@ function edit(opts::QuantityWidgetOption, qt::SetQuantity, instrnm, addr, ::Val{
     end
     opts.textsize == "big" && CImGui.PopFont()
     CImGui.SetWindowFontScale(originscale)
+    return trig
 end
 
 function edit(insw::InstrWidget, insbuf::InstrBuffer, addr, p_open, id)
@@ -474,7 +609,8 @@ function edit(insw::InstrWidget, insbuf::InstrBuffer, addr, p_open, id)
             length(qtwg) == 1 || CImGui.BeginGroup()
             for (j, qtw) in enumerate(qtwg)
                 CImGui.PushID(j)
-                edit(qtw, insbuf, insw.instrnm, addr, insw.options)
+                trig = edit(qtw, insbuf, insw.instrnm, addr, insw.options)
+                qtw.name == "_QuantitySelector_" && trigselector(qtw, insw, trig)
                 CImGui.PopID()
             end
             length(qtwg) == 1 || CImGui.EndGroup()
@@ -498,10 +634,12 @@ function modify(qtw::QuantityWidget, id)
         if qtw.options.useimage
             CImGui.Button(stcstr("Image\nButton"))
         else
-            CImGui.Button(stcstr(" Text", " \n ", qtw.alias, "###", id))
+            CImGui.Button(stcstr(" Text", " \n ", mlstr(qtw.alias), "###", id))
         end
     elseif qtw.name == "_Image_"
         CImGui.Button(stcstr(" Image", " \n "))
+    elseif qtw.name == "_QuantitySelector_"
+        CImGui.Button(stcstr("Selector\n", join(qtw.options.bindingqtwidxes, ' '), "###", id))
     else
         CImGui.Button(stcstr(qtw.alias, "\n", qtw.options.uitype))
     end
@@ -533,6 +671,7 @@ let
                 modify(qtw, idx)
                 if CImGui.BeginPopupContextItem()
                     CImGui.PushID(idx)
+                    CImGui.Text(stcstr("QT", " ", idx))
                     if CImGui.MenuItem(stcstr(MORESTYLE.Icons.Copy, " ", mlstr("Copy Options")))
                         copiedopts[] = deepcopy(qtw.options)
                     end
@@ -557,7 +696,7 @@ let
                         split_ij = (i, j)
                     end
                     CImGui.MenuItem(stcstr(MORESTYLE.Icons.CloseFile, " ", mlstr("delete"))) && (delete_ij = (i, j))
-                    optionsmenu(qtw)
+                    optionsmenu(qtw, insw.instrnm)
                     CImGui.PopID()
                     CImGui.EndPopup()
                 end
@@ -675,6 +814,11 @@ function addmenu(insw::InstrWidget; mode=:addlastg)
             newqtw = QuantityWidget(name="_Image_", alias="")
             mode == :addlastg && push!(insw.qtws, [newqtw])
         end
+        if CImGui.MenuItem(mlstr("Selector"))
+            newqtw = QuantityWidget(name="_QuantitySelector_", alias="")
+            newqtw.options.uitype = "combo"
+            mode == :addlastg && push!(insw.qtws, [newqtw])
+        end
         if CImGui.MenuItem(mlstr("SameLine"))
             newqtw = QuantityWidget(name="_SameLine_", alias=mlstr("SameLine"))
             mode == :addlastg && push!(insw.qtws, [newqtw])
@@ -685,6 +829,7 @@ function addmenu(insw::InstrWidget; mode=:addlastg)
                     qt.type == "sweep" || continue
                     if CImGui.MenuItem(qtnm)
                         newqtw = QuantityWidget(name=qtnm, alias=qt.alias, qtype="sweep")
+                        newqtw.options.uitype = "read"
                         mode == :addlastg && push!(insw.qtws, [newqtw])
                     end
                 end
@@ -697,6 +842,7 @@ function addmenu(insw::InstrWidget; mode=:addlastg)
                     qt.type == "set" || continue
                     if CImGui.MenuItem(qtnm)
                         newqtw = QuantityWidget(name=qtnm, alias=qt.alias, qtype="set", numoptvs=length(qt.optvalues))
+                        newqtw.options.uitype = "read"
                         mode == :addlastg && push!(insw.qtws, [newqtw])
                     end
                 end
@@ -708,7 +854,8 @@ function addmenu(insw::InstrWidget; mode=:addlastg)
                 for (qtnm, qt) in INSCONF[insw.instrnm].quantities
                     qt.type == "read" || continue
                     if CImGui.MenuItem(qtnm)
-                        newqtw = QuantityWidget(name=qtnm, alias=qt.alias)
+                        newqtw = QuantityWidget(name=qtnm, alias=qt.alias, qtype="read")
+                        newqtw.options.uitype = "read"
                         mode == :addlastg && push!(insw.qtws, [newqtw])
                     end
                 end
@@ -778,9 +925,12 @@ let
     setuitypesall = ["read", "unit", "readunit", "inputset", "ctrlset", "combo", "radio", "slider", "vslider", "toggle"]
     setuitypesnoopts = ["read", "unit", "readunit", "inputset", "ctrlset"]
     setuitypesno2opts = ["read", "unit", "readunit", "inputset", "ctrlset", "combo", "radio", "slider", "vslider"]
-    readuitypes = ["text"]
+    readuitypes = ["read", "unit", "readunit"]
+    otheruitypes = ["none"]
+    qtselectoruitypes = ["combo", "vslider"]
+    # selectortypes = ["sweep", "set", "read"]
     textsizes = ["normal", "big"]
-    global function optionsmenu(qtw::QuantityWidget)
+    global function optionsmenu(qtw::QuantityWidget, instrnm)
         if qtw.name != "_SameLine_" && CImGui.CollapsingHeader(mlstr("Variable Options"))
             @c ComBoS(
                 mlstr("UI type"),
@@ -795,15 +945,32 @@ let
                     else
                         setuitypesall
                     end
-                else
+                elseif qtw.qtype == "read"
                     readuitypes
+                elseif qtw.name == "_QuantitySelector_"
+                    qtselectoruitypes
+                else
+                    otheruitypes
                 end
             )
             @c CImGui.Checkbox(mlstr("Global Options"), &qtw.options.globaloptions)
             @c CImGui.Checkbox(mlstr("Allow Overlap"), &qtw.options.allowoverlap)
             if qtw.name == "_Panel_"
                 @c CImGui.Checkbox(mlstr("Use ImageButton"), &qtw.options.useimage)
-                @c InputTextRSZ(mlstr("Text"), &qtw.alias)
+                @c InputTextRSZ("##Text", &qtw.alias)
+                CImGui.SameLine()
+                iconstr = MORESTYLE.Icons.CopyIcon
+                @c(IconSelector(mlstr("Text"), &iconstr)) && (qtw.alias *= iconstr)
+            end
+            if qtw.options.uitype in ["ctrlsweep", "ctrlset"]
+                @c InputTextRSZ("##Start", &qtw.options.starttext)
+                CImGui.SameLine()
+                iconstr = MORESTYLE.Icons.CopyIcon
+                @c(IconSelector(mlstr("Start"), &iconstr)) && (qtw.options.starttext *= iconstr)
+                @c InputTextRSZ("##Stop", &qtw.options.stoptext)
+                CImGui.SameLine()
+                iconstr = MORESTYLE.Icons.CopyIcon
+                @c(IconSelector(mlstr("Stop"), &iconstr)) && (qtw.options.stoptext *= iconstr)
             end
             @c ComBoS(mlstr("Text Size"), &qtw.options.textsize, textsizes)
             @c CImGui.DragFloat(
@@ -813,6 +980,9 @@ let
                 CImGui.ImGuiSliderFlags_AlwaysClamp
             )
             qtw.options.uitype in ["slider", "vslider"] && @c CImGui.Checkbox("Text Inside", &qtw.options.textinside)
+            qtw.options.uitype == "combo" && @c CImGui.CheckboxFlags(
+                mlstr("No ArrowButton"), &qtw.options.comboflags, CImGui.ImGuiComboFlags_NoArrowButton
+            )
             CImGui.DragFloat2(mlstr("Item Size"), qtw.options.itemsize)
             CImGui.DragFloat2(mlstr("CursorScreenPos"), qtw.options.cursorscreenpos)
             @c CImGui.DragFloat(
@@ -868,6 +1038,59 @@ let
         if qtw.qtype == "set" && CImGui.CollapsingHeader(mlstr("Binding Options"))
             @c CImGui.SliderInt("Binding Index to RadioButton", &qtw.options.bindingidx, 1, qtw.numoptvs)
             CImGui.SliderInt2("Bingding Index to ON/OFF", qtw.options.bindingonoff, 1, qtw.numoptvs)
+        end
+        if qtw.name == "_QuantitySelector_" && CImGui.CollapsingHeader(mlstr("Selector Options"))
+            # @c ComBoS(mlstr("Selector Type"), &qtw.options.selectortype, selectortypes)
+            CImGui.PushStyleColor(CImGui.ImGuiCol_Button, CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_PopupBg))
+            CImGui.PushStyleColor(CImGui.ImGuiCol_ButtonHovered, CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_HeaderHovered))
+            CImGui.PushStyleColor(CImGui.ImGuiCol_ButtonActive, CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_HeaderActive))
+            if CImGui.BeginMenu(stcstr(MORESTYLE.Icons.NewFile, " ", mlstr("Add")))
+                if CImGui.BeginMenu(mlstr("Sweep Quantity"))
+                    if haskey(INSCONF, instrnm)
+                        for (_, qt) in INSCONF[instrnm].quantities
+                            qt.type == "sweep" || continue
+                            CImGui.Button(qt.alias) && push!(qtw.options.selectorlist, qt.alias)
+                        end
+                    end
+                    CImGui.EndMenu()
+                end
+                if CImGui.BeginMenu(mlstr("Set Quantity"))
+                    if haskey(INSCONF, instrnm)
+                        for (_, qt) in INSCONF[instrnm].quantities
+                            qt.type == "set" || continue
+                            CImGui.Button(qt.alias) && push!(qtw.options.selectorlist, qt.alias)
+                        end
+                    end
+                    CImGui.EndMenu()
+                end
+                if CImGui.BeginMenu(mlstr("Read Quantity"))
+                    if haskey(INSCONF, instrnm)
+                        for (_, qt) in INSCONF[instrnm].quantities
+                            qt.type == "read" || continue
+                            CImGui.Button(qt.alias) && push!(qtw.options.selectorlist, qt.alias)
+                        end
+                    end
+                    CImGui.EndMenu()
+                end
+                CImGui.EndMenu()
+            end
+            CImGui.PopStyleColor(3)
+            deletealias_i = 0
+            for (i, alias) in enumerate(qtw.options.selectorlist)
+                CImGui.Selectable(alias)
+                if CImGui.BeginPopupContextItem()
+                    CImGui.MenuItem(stcstr(MORESTYLE.Icons.CloseFile, " ", mlstr("Delete"))) && (deletealias_i = i)
+                    CImGui.EndPopup()
+                end
+                i % CONF.InsBuf.showcol != 0 && i != length(qtw.options.selectorlist) && CImGui.SameLine()
+            end
+            deletealias_i == 0 || deleteat!(qtw.options.selectorlist, deletealias_i)
+            bindingqtwidxesstr = join(qtw.options.bindingqtwidxes, ',')
+            if @c InputTextRSZ("Binding to Widgets", &bindingqtwidxesstr)
+                idxstrs = split(bindingqtwidxesstr, ',')
+                idxes = tryparse.(Int, idxstrs)
+                qtw.options.bindingqtwidxes = idxes[findall(!isnothing, idxes)]
+            end
         end
         if qtw.name != "_SameLine_" && CImGui.CollapsingHeader(mlstr("Color Options"))
             widgetcolormenu(qtw.options)
@@ -954,5 +1177,35 @@ function idxtoij(insw, idx)
         lso = ls
         ls += l
         ls >= idx && return (i, idx - lso)
+    end
+end
+
+function initialize!(insw::InstrWidget, addr)
+    for qtwg in insw.qtws
+        for qtw in qtwg
+            qtw.options.globaloptions && copycolors!(qtw.options, insw.options)
+            qtw.options.globaloptions = false
+        end
+    end
+    if haskey(INSTRBUFFERVIEWERS, insw.instrnm) && haskey(INSTRBUFFERVIEWERS[insw.instrnm], addr)
+        insbuf = INSTRBUFFERVIEWERS[insw.instrnm][addr].insbuf
+        islogall = CONF.DAQ.logall
+        qtenablelist = Dict(qtnm => qt.enable for (qtnm, qt) in insbuf.quantities)
+        CONF.DAQ.logall = false
+        for (_, qt) in insbuf.quantities
+            qt.enable = false
+        end
+        for qtwg in insw.qtws
+            for qtw in qtwg
+                if qtw.qtype in ["sweep", "set", "read"] && haskey(qtenablelist, qtw.name)
+                    insbuf.quantities[qtw.name].enable = true
+                end
+            end
+        end
+        refresh1(true; instrlist=[insw.instrnm])
+        CONF.DAQ.logall = islogall
+        for (qtnm, qt) in insbuf.quantities
+            qt.enable = qtenablelist[qtnm]
+        end
     end
 end
