@@ -229,13 +229,13 @@ let
             for (ins, inses) in INSTRBUFFERVIEWERS
                 CImGui.Selectable(
                     stcstr(INSCONF[ins].conf.icon, " ", ins), selectedins == ins,
-                    0, (Cfloat(0), 3CImGui.GetFrameHeight()/2)
+                    0, (Cfloat(0), 3CImGui.GetFrameHeight() / 2)
                 ) && (selectedins = ins)
                 CImGui.SameLine()
                 # CImGui.TextDisabled(stcstr("(", length(inses), ")"))
                 CImGui.PushStyleColor(CImGui.ImGuiCol_Text, CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_TextDisabled))
                 CImGui.Selectable(
-                    stcstr("(", length(inses), ")"), false, 0, (Cfloat(0), 3CImGui.GetFrameHeight()/2)
+                    stcstr("(", length(inses), ")"), false, 0, (Cfloat(0), 3CImGui.GetFrameHeight() / 2)
                 )
                 CImGui.PopStyleColor()
             end
@@ -878,27 +878,32 @@ function apply!(qt::SetQuantity, instrnm, addr)
     U = isempty(Us) ? "" : Us[qt.uindex]
     U == "" || (Uchange::Float64 = Us[1] isa Unitful.FreeUnits ? ustrip(Us[1], 1U) : 1.0)
     sv = U == "" ? qt.set : @trypasse string(float(eval(Meta.parse(qt.set)) * Uchange)) qt.set
-    fetchdata = wait_remotecall_fetch(workers()[1], instrnm, addr, sv) do instrnm, addr, sv
-        ct = Controller(instrnm, addr)
-        try
-            setfunc = Symbol(instrnm, :_, qt.name, :_set) |> eval
-            getfunc = Symbol(instrnm, :_, qt.name, :_get) |> eval
-            login!(CPU, ct)
-            ct(setfunc, CPU, sv, Val(:write))
-            readstr = ct(getfunc, CPU, Val(:read))
-            logout!(CPU, ct)
-            return readstr
-        catch e
-            @error(
-                "[$(now())]\n$(mlstr("instrument communication failed!!!"))",
-                instrument = string(instrnm, ": ", addr),
-                quantity = qt.name,
-                exception = e
-            )
-            logout!(CPU, ct)
+    sv = lstrip(rstrip(sv))
+    if (U == "" && sv != "") || !isnothing(tryparse(Float64, sv))
+        fetchdata = wait_remotecall_fetch(workers()[1], instrnm, addr, sv) do instrnm, addr, sv
+            ct = Controller(instrnm, addr)
+            try
+                setfunc = Symbol(instrnm, :_, qt.name, :_set) |> eval
+                getfunc = Symbol(instrnm, :_, qt.name, :_get) |> eval
+                login!(CPU, ct)
+                ct(setfunc, CPU, sv, Val(:write))
+                readstr = ct(getfunc, CPU, Val(:read))
+                logout!(CPU, ct)
+                return readstr
+            catch e
+                @error(
+                    "[$(now())]\n$(mlstr("instrument communication failed!!!"))",
+                    instrument = string(instrnm, ": ", addr),
+                    quantity = qt.name,
+                    exception = e
+                )
+                logout!(CPU, ct)
+            end
         end
+        isnothing(fetchdata) || (qt.read = fetchdata; updatefront!(qt))
+    else
+        @warn "[$(now())]\n$(mlstr(unsupported string!)"
     end
-    isnothing(fetchdata) || (qt.read = fetchdata; updatefront!(qt))
     return nothing
 end
 
@@ -997,12 +1002,12 @@ end
 #     end
 # end
 
-function refresh1(log=false)
+function refresh1(log=false; instrlist=keys(INSTRBUFFERVIEWERS))
     fetchibvs = wait_remotecall_fetch(workers()[1], INSTRBUFFERVIEWERS; timeout=120) do ibvs
         @isdefined(refreshcts) || (global refreshcts = Dict())
         empty!(INSTRBUFFERVIEWERS)
         merge!(INSTRBUFFERVIEWERS, ibvs)
-        @sync for (ins, inses) in filter(x -> !isempty(x.second), INSTRBUFFERVIEWERS)
+        @sync for (ins, inses) in filter(x -> x.first in instrlist && !isempty(x.second), INSTRBUFFERVIEWERS)
             ins == "Others" && continue
             haskey(refreshcts, ins) || push!(refreshcts, ins => Dict())
             for (addr, ibv) in inses
