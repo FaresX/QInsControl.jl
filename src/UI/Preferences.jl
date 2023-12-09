@@ -227,14 +227,14 @@ let
                 CImGui.Separator()
 
                 ###Icons###
-                CImGui.TextColored(MORESTYLE.Colors.HighlightText, mlstr("Icon"))
-                @c CImGui.DragInt(
-                    mlstr("icon size"),
-                    &CONF.Icons.size, 1.0, 6, 120, "%d",
-                    CImGui.ImGuiSliderFlags_AlwaysClamp
-                )
-                CImGui.Text(" ")
-                CImGui.Separator()
+                # CImGui.TextColored(MORESTYLE.Colors.HighlightText, mlstr("Icon"))
+                # @c CImGui.DragInt(
+                #     mlstr("icon size"),
+                #     &CONF.Icons.size, 1.0, 6, 120, "%d",
+                #     CImGui.ImGuiSliderFlags_AlwaysClamp
+                # )
+                # CImGui.Text(" ")
+                # CImGui.Separator()
 
                 ###Console###
                 CImGui.TextColored(MORESTYLE.Colors.HighlightText, mlstr("Console"))
