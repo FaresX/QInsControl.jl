@@ -902,7 +902,7 @@ function apply!(qt::SetQuantity, instrnm, addr)
         end
         isnothing(fetchdata) || (qt.read = fetchdata; updatefront!(qt))
     else
-        @warn "[$(now())]\n$(mlstr(unsupported string!)"
+        @warn "[$(now())]\n$(mlstr("invalid input!"))"
     end
     return nothing
 end
