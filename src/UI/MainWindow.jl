@@ -246,14 +246,10 @@ let
                                             if !haskey(instrwidgets[addr], w.name)
                                                 insw = deepcopy(w)
                                                 push!(instrwidgets[addr], w.name => (Ref(false), insw))
-                                                for qtwg in insw.qtws
-                                                    for qtw in qtwg
-                                                        qtw.options.globaloptions && copycolors!(qtw.options, insw.options)
-                                                        qtw.options.globaloptions = false
-                                                    end
-                                                end
                                             end
-                                            CImGui.MenuItem(w.name, C_NULL, instrwidgets[addr][w.name][1])
+                                            if CImGui.MenuItem(w.name, C_NULL, instrwidgets[addr][w.name][1])
+                                                instrwidgets[addr][w.name][1][] && Threads.@spawn initialize!(w, addr)
+                                            end
                                         end
                                     end
                                     CImGui.EndMenu()
@@ -286,7 +282,7 @@ let
                 @c CImGui.MenuItem(stcstr(MORESTYLE.Icons.Console, " ", mlstr("Console")), C_NULL, &show_console)
                 @c CImGui.MenuItem(stcstr(MORESTYLE.Icons.Metrics, " ", mlstr("Metrics")), C_NULL, &show_metrics)
                 @c CImGui.MenuItem(stcstr(MORESTYLE.Icons.Logger, " ", mlstr("Logger")), C_NULL, &show_logger)
-                # @c CImGui.MenuItem(MORESTYLE.Icons.HelpPad * " 帮助板", C_NULL, &show_helppad)
+                                # @c CImGui.MenuItem(MORESTYLE.Icons.HelpPad * " 帮助板", C_NULL, &show_helppad)
                 @c CImGui.MenuItem(stcstr(MORESTYLE.Icons.About, " ", mlstr("About")), C_NULL, &show_about)
                 CImGui.EndMenu()
             end
