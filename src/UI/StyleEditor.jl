@@ -106,6 +106,7 @@ Base.@kwdef mutable struct MoreStyleIcon
     SendMsg::String = ICONS.ICON_PAPER_PLANE
     Metrics::String = ICONS.ICON_EYE
     Logger::String = ICONS.ICON_BOX_ARCHIVE
+    CopyIcon::String = ICONS.ICON_SQUARE_VIRUS
     HelpPad::String = ICONS.ICON_ENVELOPE_CIRCLE_CHECK
     About::String = ICONS.ICON_SPLOTCH
 end

@@ -61,7 +61,11 @@ function UI(breakdown=false; precompile=false)
     ranges = ImVector_ImWchar_create()
     ImVector_ImWchar_Init(ranges)
     builder = ImFontGlyphRangesBuilder_ImFontGlyphRangesBuilder()
-    addchar = ['α', 'β', 'γ', 'μ', 'Ω', 'Φ', '┌', '│', '└']
+    addchar = [
+        'Α', 'Β', 'Γ', 'Δ', 'Ε', 'Ζ', 'Η', 'Θ', 'Ι', 'Κ', 'Λ', 'Ξ', 'Π', 'Ρ', 'Σ', 'Τ', 'Υ', 'Φ', 'Χ', 'Ψ', 'Ω',
+        'α', 'β', 'γ', 'δ', 'ϵ', 'ζ', 'η', 'θ', 'ι', 'κ', 'λ', 'μ', 'ν', 'ξ', 'ο', 'π', 'ρ', 'σ', 'τ', 'υ', 'ϕ', 'χ', 'ψ', 'ω',
+        '┌', '│', '└'
+    ]
     for c in addchar
         ImFontGlyphRangesBuilder_AddChar(builder, c)
     end
@@ -81,7 +85,7 @@ function UI(breakdown=false; precompile=false)
     fontcfg.MergeMode = true
     CImGui.AddFontFromFileTTF(fonts, joinpath(CONF.Fonts.dir, CONF.Fonts.second), CONF.Fonts.size, fontcfg, r[1].Data)
 
-    # 加载图标字体
+    # 加载全局图标字体
     icon_ranges = ImVector_ImWchar_create()
     ImVector_ImWchar_Init(icon_ranges)
     icon_ranges_ptr = pointer([ICON_MIN, ICON_MAX, ImWchar(0)])
@@ -92,14 +96,14 @@ function UI(breakdown=false; precompile=false)
     CImGui.AddFontFromFileTTF(
         fonts,
         joinpath(ENV["QInsControlAssets"], "Necessity/fa-regular-400.ttf"),
-        CONF.Icons.size,
+        CONF.Fonts.size,
         fontcfg,
         icon_r[1].Data
     )
     CImGui.AddFontFromFileTTF(
         fonts,
         joinpath(ENV["QInsControlAssets"], "Necessity/fa-solid-900.ttf"),
-        CONF.Icons.size,
+        CONF.Fonts.size,
         fontcfg,
         icon_r[1].Data
     )
@@ -121,6 +125,29 @@ function UI(breakdown=false; precompile=false)
         CONF.Fonts.plotfontsize,
         fontcfg,
         ImFontAtlas_GetGlyphRangesChineseFull(fonts)
+    )
+
+    # 加载绘图图标字体
+    icon_ranges = ImVector_ImWchar_create()
+    ImVector_ImWchar_Init(icon_ranges)
+    icon_ranges_ptr = pointer([ICON_MIN, ICON_MAX, ImWchar(0)])
+    icon_builder = ImFontGlyphRangesBuilder_ImFontGlyphRangesBuilder()
+    ImFontGlyphRangesBuilder_AddRanges(icon_builder, icon_ranges_ptr)
+    ImFontGlyphRangesBuilder_BuildRanges(icon_builder, icon_ranges)
+    icon_r = unsafe_wrap(Vector{ImVector_ImWchar}, icon_ranges, 1)
+    CImGui.AddFontFromFileTTF(
+        fonts,
+        joinpath(ENV["QInsControlAssets"], "Necessity/fa-regular-400.ttf"),
+        CONF.Fonts.plotfontsize,
+        fontcfg,
+        icon_r[1].Data
+    )
+    CImGui.AddFontFromFileTTF(
+        fonts,
+        joinpath(ENV["QInsControlAssets"], "Necessity/fa-solid-900.ttf"),
+        CONF.Fonts.plotfontsize,
+        fontcfg,
+        icon_r[1].Data
     )
 
     # setup Platform/Renderer bindings

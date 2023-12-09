@@ -49,9 +49,9 @@ end
     plotfont::String = "arial.ttf"
 end
 
-@option mutable struct OptIcons
-    size::Cint = 18
-end
+# @option mutable struct OptIcons
+#     size::Cint = 18
+# end
 
 @option mutable struct OptConsole
     dir::String = ""
@@ -87,7 +87,7 @@ end
     DAQ::OptDAQ = OptDAQ()
     InsBuf::OptInsBuf = OptInsBuf()
     Fonts::OptFonts = OptFonts()
-    Icons::OptIcons = OptIcons()
+    # Icons::OptIcons = OptIcons()
     Console::OptConsole = OptConsole()
     Logs::OptLogs = OptLogs()
     BGImage::OptBGImage = OptBGImage()
