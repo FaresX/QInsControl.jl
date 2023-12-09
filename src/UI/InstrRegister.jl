@@ -308,7 +308,6 @@ let
                         for (i, widget) in enumerate(INSWCONF[selectedins])
                             ispreserve = true
                             if @c CImGui.BeginTabItem(stcstr(mlstr("Widget"), " ", i), &ispreserve)
-                                CImGui.BeginChild(stcstr("Widget", i))
                                 if CImGui.BeginPopupContextItem()
                                     if CImGui.MenuItem(stcstr(MORESTYLE.Icons.Copy, " ", mlstr("Copy")))
                                         wcopy = deepcopy(widget)
@@ -317,6 +316,7 @@ let
                                     end
                                     CImGui.EndPopup()
                                 end
+                                CImGui.BeginChild(stcstr("Widget", i))
                                 if CImGui.CollapsingHeader(mlstr("Global Options"))
                                     @c InputTextRSZ(mlstr("Rename"), &widget.name)
                                     @c CImGui.Checkbox(mlstr("Use Wallpaper"), &widget.usewallpaper)

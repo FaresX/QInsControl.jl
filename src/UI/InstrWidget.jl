@@ -827,7 +827,7 @@ function addmenu(insw::InstrWidget; mode=:addlastg)
             if haskey(INSCONF, insw.instrnm)
                 for (qtnm, qt) in INSCONF[insw.instrnm].quantities
                     qt.type == "sweep" || continue
-                    if CImGui.MenuItem(qtnm)
+                    if CImGui.MenuItem(qt.alias)
                         newqtw = QuantityWidget(name=qtnm, alias=qt.alias, qtype="sweep")
                         newqtw.options.uitype = "read"
                         mode == :addlastg && push!(insw.qtws, [newqtw])
@@ -840,7 +840,7 @@ function addmenu(insw::InstrWidget; mode=:addlastg)
             if haskey(INSCONF, insw.instrnm)
                 for (qtnm, qt) in INSCONF[insw.instrnm].quantities
                     qt.type == "set" || continue
-                    if CImGui.MenuItem(qtnm)
+                    if CImGui.MenuItem(qt.alias)
                         newqtw = QuantityWidget(name=qtnm, alias=qt.alias, qtype="set", numoptvs=length(qt.optvalues))
                         newqtw.options.uitype = "read"
                         mode == :addlastg && push!(insw.qtws, [newqtw])
@@ -853,7 +853,7 @@ function addmenu(insw::InstrWidget; mode=:addlastg)
             if haskey(INSCONF, insw.instrnm)
                 for (qtnm, qt) in INSCONF[insw.instrnm].quantities
                     qt.type == "read" || continue
-                    if CImGui.MenuItem(qtnm)
+                    if CImGui.MenuItem(qt.alias)
                         newqtw = QuantityWidget(name=qtnm, alias=qt.alias, qtype="read")
                         newqtw.options.uitype = "read"
                         mode == :addlastg && push!(insw.qtws, [newqtw])
@@ -876,7 +876,7 @@ function convertmenu(insw::InstrWidget, i, j)
             if haskey(INSCONF, insw.instrnm)
                 for (qtnm, qt) in INSCONF[insw.instrnm].quantities
                     qt.type == "sweep" || continue
-                    if CImGui.MenuItem(qtnm)
+                    if CImGui.MenuItem(qt.alias)
                         insw.qtws[i][j] = QuantityWidget(
                             name=qtnm,
                             alias=qt.alias,
@@ -892,7 +892,7 @@ function convertmenu(insw::InstrWidget, i, j)
             if haskey(INSCONF, insw.instrnm)
                 for (qtnm, qt) in INSCONF[insw.instrnm].quantities
                     qt.type == "set" || continue
-                    if CImGui.MenuItem(qtnm)
+                    if CImGui.MenuItem(qt.alias)
                         insw.qtws[i][j] = QuantityWidget(
                             name=qtnm,
                             alias=qt.alias,
@@ -909,7 +909,7 @@ function convertmenu(insw::InstrWidget, i, j)
             if haskey(INSCONF, insw.instrnm)
                 for (qtnm, qt) in INSCONF[insw.instrnm].quantities
                     qt.type == "read" || continue
-                    if CImGui.MenuItem(qtnm)
+                    if CImGui.MenuItem(qt.alias)
                         insw.qtws[i][j] = QuantityWidget(name=qtnm, alias=qt.alias, options=insw.qtws[i][j].options)
                     end
                 end
