@@ -866,6 +866,8 @@ function apply!(qt::SweepQuantity, instrnm, addr)
                 remotecall_wait(ctid -> delete!(sweepcts, ctid), workers()[1], ct.id)
             end
         )
+    else
+        qt.issweeping = false
     end
     return nothing
 end
