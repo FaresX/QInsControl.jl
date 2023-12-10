@@ -247,8 +247,8 @@ let
                                                 insw = deepcopy(w)
                                                 push!(instrwidgets[addr], w.name => (Ref(false), insw))
                                             end
-                                            if CImGui.MenuItem(w.name, C_NULL, instrwidgets[addr][w.name][1])
-                                                instrwidgets[addr][w.name][1][] && Threads.@spawn initialize!(w, addr)
+                                            if CImGui.MenuItem(w.name, C_NULL, instrwidgets[addr][w.name][1]) && instrwidgets[addr][w.name][1][]
+                                                Threads.@spawn initialize!(instrwidgets[addr][w.name][2], addr)
                                             end
                                         end
                                     end

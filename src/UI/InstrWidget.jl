@@ -59,20 +59,21 @@ end
     windowbgcolor::Vector{Cfloat} = [1.000, 1.000, 1.000, 1.000]
     bgtintcolor::Vector{Cfloat} = [1.000, 1.000, 1.000, 1.000]
     options::QuantityWidgetOption = QuantityWidgetOption()
+    qtlist::Vector{String} = []
 end
 
 const INSWCONF = OrderedDict{String,Vector{InstrWidget}}() #仪器注册表
 
 function copyvars!(opts1, opts2)
     fnms = fieldnames(QuantityWidgetOption)
-    for fnm in fnms[1:24]
+    for fnm in fnms[1:25]
         setproperty!(opts1, fnm, getproperty(opts2, fnm))
     end
 end
 
 function copycolors!(opts1, opts2)
     fnms = fieldnames(QuantityWidgetOption)
-    for fnm in fnms[25:end]
+    for fnm in fnms[26:end]
         setproperty!(opts1, fnm, getproperty(opts2, fnm))
     end
 end
@@ -135,18 +136,7 @@ function editImage(qtw::QuantityWidget, opts::QuantityWidgetOption)
     return false
 end
 
-let
-    # qts::Dict{String,Dict{String,Vector{String}}} = Dict()
-    # global function genqts(instrnm)
-    #     haskey(qts, instrnm) || push!(
-    #         qts, instrnm => Dict(
-    #             "sweep" => [qt.alias for (_, qt) in INSCONF[instrnm].quantities if qt.type == "sweep"],
-    #             "set" => [qt.alias for (_, qt) in INSCONF[instrnm].quantities if qt.type == "set"],
-    #             "read" => [qt.alias for (_, qt) in INSCONF[instrnm].quantities if qt.type == "read"]
-    #         )
-    #     )
-    # end
-    global function editQuantitySelector(qtw::QuantityWidget, opts::QuantityWidgetOption, instrnm, ::Val{:combo})
+function editQuantitySelector(qtw::QuantityWidget, opts::QuantityWidgetOption, instrnm, ::Val{:combo})
         # haskey(INSCONF, instrnm) || return false
         # genqts(instrnm)
         opts.textsize == "big" && CImGui.PushFont(PLOTFONT)
@@ -154,7 +144,6 @@ let
         CImGui.SetWindowFontScale(opts.textscale)
         trig = @c ColoredCombo(
             stcstr("##selector", qtw.alias), &qtw.alias, opts.selectorlist, opts.comboflags;
-            # opts.selectortype in ["sweep", "set", "read"] ? qts[instrnm][opts.selectortype] : [qtw.alias], opts.comboflags;
             width=opts.itemsize[1],
             rounding=opts.rounding,
             bdrounding=opts.bdrounding,
@@ -172,13 +161,10 @@ let
         return trig
     end
 
-    global function editQuantitySelector(qtw::QuantityWidget, opts::QuantityWidgetOption, instrnm, ::Val{:vslider})
-        # haskey(INSCONF, instrnm) || return false
-        # genqts(instrnm)
+    function editQuantitySelector(qtw::QuantityWidget, opts::QuantityWidgetOption, instrnm, ::Val{:vslider})
         opts.textsize == "big" && CImGui.PushFont(PLOTFONT)
         originscale = unsafe_load(CImGui.GetIO().FontGlobalScale)
         CImGui.SetWindowFontScale(opts.textscale)
-        # idxraw = findfirst(==(qtw.alias), qts[instrnm][opts.selectortype])
         idxraw = findfirst(==(qtw.alias), opts.selectorlist)
         idx::Cint = isnothing(idxraw) ? 1 : idxraw
         llist = length(opts.selectorlist)
@@ -204,7 +190,6 @@ let
         CImGui.SetWindowFontScale(originscale)
         return trig
     end
-end
 
 function trigselector(qtw::QuantityWidget, insw::InstrWidget, trig::Bool)
     if !isempty(qtw.options.bindingqtwidxes)
@@ -597,39 +582,43 @@ function edit(opts::QuantityWidgetOption, qt::SetQuantity, instrnm, addr, ::Val{
     return trig
 end
 
-function edit(insw::InstrWidget, insbuf::InstrBuffer, addr, p_open, id)
-    CImGui.SetNextWindowSize(insw.windowsize)
-    CImGui.PushStyleColor(CImGui.ImGuiCol_WindowBg, insw.windowbgcolor)
-    if CImGui.Begin(
-        stcstr(
-            INSCONF[insw.instrnm].conf.icon, " ", insw.instrnm, " ", addr, " ", insw.name,
-            "###", insw.instrnm, addr, id
-        ),
-        p_open,
-        addr == "" ? CImGui.ImGuiWindowFlags_NoDocking : 0
-    )
-        insw.usewallpaper && SetWindowBgImage(insw.wallpaperpath; tint_col=insw.bgtintcolor)
-        CImGui.BeginChild(stcstr(insw.instrnm, " ", insw.name, " ", addr))
-        for (i, qtwg) in enumerate(insw.qtws)
-            CImGui.PushID(i)
-            length(qtwg) == 1 || CImGui.BeginGroup()
-            for (j, qtw) in enumerate(qtwg)
-                CImGui.PushID(j)
-                trig = edit(qtw, insbuf, insw.instrnm, addr, insw.options)
-                qtw.name == "_QuantitySelector_" && trigselector(qtw, insw, trig)
+let
+    qtypes = ["sweep", "set", "read"]
+    global function edit(insw::InstrWidget, insbuf::InstrBuffer, addr, p_open, id)
+        CImGui.SetNextWindowSize(insw.windowsize)
+        CImGui.PushStyleColor(CImGui.ImGuiCol_WindowBg, insw.windowbgcolor)
+        if CImGui.Begin(
+            stcstr(
+                INSCONF[insw.instrnm].conf.icon, " ", insw.instrnm, " ", addr, " ", insw.name,
+                "###", insw.instrnm, addr, id
+            ),
+            p_open,
+            addr == "" ? CImGui.ImGuiWindowFlags_NoDocking : 0
+        )
+            insw.usewallpaper && SetWindowBgImage(insw.wallpaperpath; tint_col=insw.bgtintcolor)
+            CImGui.BeginChild(stcstr(insw.instrnm, " ", insw.name, " ", addr))
+            for (i, qtwg) in enumerate(insw.qtws)
+                CImGui.PushID(i)
+                length(qtwg) == 1 || CImGui.BeginGroup()
+                for (j, qtw) in enumerate(qtwg)
+                    CImGui.PushID(j)
+                    trig = edit(qtw, insbuf, insw.instrnm, addr, insw.options)
+                    trig && qtw.qtype in qtypes && Threads.@spawn refresh1(insw, addr)
+                    qtw.name == "_QuantitySelector_" && trigselector(qtw, insw, trig)
+                    CImGui.PopID()
+                end
+                length(qtwg) == 1 || CImGui.EndGroup()
                 CImGui.PopID()
             end
-            length(qtwg) == 1 || CImGui.EndGroup()
-            CImGui.PopID()
+            CImGui.EndChild()
+            if !CImGui.IsAnyItemHovered() && CImGui.IsWindowHovered(CImGui.ImGuiHoveredFlags_ChildWindows)
+                CImGui.IsMouseClicked(1) && CImGui.OpenPopup(stcstr("edit widget", insw.instrnm, insw.name))
+            end
         end
-        CImGui.EndChild()
-        if !CImGui.IsAnyItemHovered() && CImGui.IsWindowHovered(CImGui.ImGuiHoveredFlags_ChildWindows)
-            CImGui.IsMouseClicked(1) && CImGui.OpenPopup(stcstr("edit widget", insw.instrnm, insw.name))
-        end
+        CImGui.IsWindowCollapsed() || (insw.windowsize .= CImGui.GetWindowSize())
+        CImGui.End()
+        CImGui.PopStyleColor()
     end
-    CImGui.IsWindowCollapsed() || (insw.windowsize .= CImGui.GetWindowSize())
-    CImGui.End()
-    CImGui.PopStyleColor()
 end
 
 function modify(qtw::QuantityWidget, id, showslnums)
@@ -832,7 +821,7 @@ function addmenu(insw::InstrWidget; mode=:addlastg)
             mode == :addlastg && push!(insw.qtws, [newqtw])
         end
         if CImGui.MenuItem(mlstr("SameLine"))
-            newqtw = QuantityWidget(name="_SameLine_", alias=mlstr("SameLine"))
+            newqtw = QuantityWidget(name="_SameLine_", alias="SameLine")
             mode == :addlastg && push!(insw.qtws, [newqtw])
         end
         if CImGui.BeginMenu(mlstr("Sweep Quantity"))
@@ -1193,31 +1182,52 @@ function idxtoij(insw, idx)
 end
 
 function initialize!(insw::InstrWidget, addr)
+    empty!(insw.qtlist)
+    qtlist = []
     for qtwg in insw.qtws
         for qtw in qtwg
             qtw.options.globaloptions && copycolors!(qtw.options, insw.options)
             qtw.options.globaloptions = false
+            qtw.qtype in ["sweep", "set", "read"] && push!(qtlist, qtw.name)
         end
     end
+    append!(insw.qtlist, Set(qtlist))
+    refresh1(insw, addr)
+end
+
+function refresh1(insw::InstrWidget, addr)
     if haskey(INSTRBUFFERVIEWERS, insw.instrnm) && haskey(INSTRBUFFERVIEWERS[insw.instrnm], addr)
-        insbuf = INSTRBUFFERVIEWERS[insw.instrnm][addr].insbuf
-        islogall = CONF.DAQ.logall
-        qtenablelist = Dict(qtnm => qt.enable for (qtnm, qt) in insbuf.quantities)
-        CONF.DAQ.logall = false
-        for (_, qt) in insbuf.quantities
-            qt.enable = false
-        end
-        for qtwg in insw.qtws
-            for qtw in qtwg
-                if qtw.qtype in ["sweep", "set", "read"] && haskey(qtenablelist, qtw.name)
-                    insbuf.quantities[qtw.name].enable = true
+        fetchibvs = wait_remotecall_fetch(
+            workers()[1], INSTRBUFFERVIEWERS, insw.instrnm, addr, insw.qtlist; timeout=120
+        ) do ibvs, ins, addr, qtlist
+            @isdefined(refreshcts) || (global refreshcts = Dict())
+            empty!(INSTRBUFFERVIEWERS)
+            merge!(INSTRBUFFERVIEWERS, ibvs)
+            haskey(refreshcts, ins) || push!(refreshcts, ins => Dict())
+            haskey(refreshcts[ins], addr) || push!(refreshcts[ins], addr => Controller(ins, addr))
+            ct = refreshcts[ins][addr]
+            try
+                login!(CPU, ct)
+                for (qtnm, qt) in filter(x -> x.first in qtlist, INSTRBUFFERVIEWERS[ins][addr].insbuf.quantities)
+                    getfunc = Symbol(ins, :_, qtnm, :_get) |> eval
+                    qt.read = ct(getfunc, CPU, Val(:read))
                 end
+            catch e
+                @error(
+                    "[$(now())]\n$(mlstr("instrument communication failed!!!"))",
+                    instrument = string(ins, ": ", addr),
+                    exception = e
+                )
+            finally
+                logout!(CPU, ct)
             end
+            return INSTRBUFFERVIEWERS
         end
-        refresh1(true; instrlist=[insw.instrnm])
-        CONF.DAQ.logall = islogall
-        for (qtnm, qt) in insbuf.quantities
-            qt.enable = qtenablelist[qtnm]
+        Threads.@spawn if !isnothing(fetchibvs)
+            for (qtnm, qt) in filter(x -> x.first in insw.qtlist, INSTRBUFFERVIEWERS[insw.instrnm][addr].insbuf.quantities)
+                qt.read = fetchibvs[insw.instrnm][addr].insbuf.quantities[qtnm].read
+                updatefront!(qt)
+            end
         end
     end
 end
