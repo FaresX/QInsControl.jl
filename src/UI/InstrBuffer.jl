@@ -878,7 +878,7 @@ function apply!(qt::SetQuantity, instrnm, addr)
     U = isempty(Us) ? "" : Us[qt.uindex]
     U == "" || (Uchange::Float64 = Us[1] isa Unitful.FreeUnits ? ustrip(Us[1], 1U) : 1.0)
     sv = U == "" ? qt.set : @trypasse string(float(eval(Meta.parse(qt.set)) * Uchange)) qt.set
-    sv = lstrip(rstrip(sv))
+    sv = string(lstrip(rstrip(sv)))
     if (U == "" && sv != "") || !isnothing(tryparse(Float64, sv))
         fetchdata = wait_remotecall_fetch(workers()[1], instrnm, addr, sv) do instrnm, addr, sv
             ct = Controller(instrnm, addr)

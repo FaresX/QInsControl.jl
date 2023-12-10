@@ -210,20 +210,26 @@ function trigselector(qtw::QuantityWidget, insw::InstrWidget, trig::Bool)
     if !isempty(qtw.options.bindingqtwidxes)
         if trig
             for bidx in qtw.options.bindingqtwidxes
-                i, j = idxtoij(insw, bidx)
-                if i <= length(insw.qtws) && j <= length(insw.qtws[i])
-                    qtnm, type = only(
-                        [(qtnm, qt.type) for (qtnm, qt) in INSCONF[insw.instrnm].quantities if qt.alias == qtw.alias]
-                    )
-                    if type == insw.qtws[i][j].qtype
-                        insw.qtws[i][j].alias = qtw.alias
-                        insw.qtws[i][j].name = qtnm
+                ij = idxtoij(insw, bidx)
+                if !isnothing(ij)
+                    i, j = ij
+                    if i <= length(insw.qtws) && j <= length(insw.qtws[i])
+                        qtnm, type = only(
+                            [(qtnm, qt.type) for (qtnm, qt) in INSCONF[insw.instrnm].quantities if qt.alias == qtw.alias]
+                        )
+                        if type == insw.qtws[i][j].qtype
+                            insw.qtws[i][j].alias = qtw.alias
+                            insw.qtws[i][j].name = qtnm
+                        end
                     end
                 end
             end
         else
-            i, j = idxtoij(insw, qtw.options.bindingqtwidxes[1])
-            qtw.alias = insw.qtws[i][j].alias
+            ij = idxtoij(insw, qtw.options.bindingqtwidxes[1])
+            if !isnothing(ij)
+                i, j = ij
+                qtw.alias = insw.qtws[i][j].alias
+            end
         end
     end
 end
@@ -626,27 +632,28 @@ function edit(insw::InstrWidget, insbuf::InstrBuffer, addr, p_open, id)
     CImGui.PopStyleColor()
 end
 
-function modify(qtw::QuantityWidget, id)
+function modify(qtw::QuantityWidget, id, showslnums)
     if qtw.name == "_SameLine_"
         CImGui.SameLine()
-        CImGui.Button("Same\nLine")
+        CImGui.Button(showslnums ? stcstr(id, " ", "Same\nLine") : "Same\nLine")
     elseif qtw.name == "_Panel_"
         if qtw.options.useimage
-            CImGui.Button(stcstr("Image\nButton"))
+            CImGui.Button(showslnums ? stcstr(id, " ", "Image\nButton") : "Image\nButton")
         else
-            CImGui.Button(stcstr(" Text", " \n ", mlstr(qtw.alias), "###", id))
+            CImGui.Button(stcstr(showslnums ? id : "", " Text", " \n ", mlstr(qtw.alias), "###", id))
         end
     elseif qtw.name == "_Image_"
-        CImGui.Button(stcstr(" Image", " \n "))
+        CImGui.Button(showslnums ? stcstr(id, " Image\n ") : " Image\n ")
     elseif qtw.name == "_QuantitySelector_"
-        CImGui.Button(stcstr("Selector\n", join(qtw.options.bindingqtwidxes, ' '), "###", id))
+        CImGui.Button(stcstr(showslnums ? stcstr(id, " ") : "", "Selector\n", join(qtw.options.bindingqtwidxes, ' '), "###", id))
     else
-        CImGui.Button(stcstr(qtw.alias, "\n", qtw.options.uitype))
+        CImGui.Button(stcstr(showslnums ? stcstr(id, " ") : "", qtw.alias, "\n", qtw.options.uitype))
     end
 end
 
 let
     copiedopts::Ref{QuantityWidgetOption} = QuantityWidgetOption()
+    showslnums::Bool = false
     global function modify(insw::InstrWidget)
         insert_ij = ((0, 0), (:before, QuantityWidget()))
         delete_ij = (0, 0)
@@ -668,7 +675,7 @@ let
                 CImGui.PushID(j)
                 j > 1 && qtwg[j-1].name == "_SameLine_" && CImGui.SameLine()
                 idx = sum(length.(@view(insw.qtws[1:i-1]))) + j
-                modify(qtw, idx)
+                modify(qtw, idx, showslnums)
                 if CImGui.BeginPopupContextItem()
                     CImGui.PushID(idx)
                     CImGui.Text(stcstr("QT", " ", idx))
@@ -763,16 +770,20 @@ let
         if swap_idx12 != (0, 0)
             spos = idxtoij(insw, swap_idx12[1])
             tpos = idxtoij(insw, swap_idx12[2])
-            tqtw = insw.qtws[tpos[1]][tpos[2]]
-            insw.qtws[tpos[1]][tpos[2]] = insw.qtws[spos[1]][spos[2]]
-            insw.qtws[spos[1]][spos[2]] = tqtw
+            if !(isnothing(spos) | isnothing(tpos))
+                tqtw = insw.qtws[tpos[1]][tpos[2]]
+                insw.qtws[tpos[1]][tpos[2]] = insw.qtws[spos[1]][spos[2]]
+                insw.qtws[spos[1]][spos[2]] = tqtw
+            end
         end
         if group_idx12 != (0, 0)
             spos = idxtoij(insw, group_idx12[1])
             tpos = idxtoij(insw, group_idx12[2])
-            insert!(insw.qtws[tpos[1]], tpos[2], insw.qtws[spos[1]][spos[2]])
-            deleteat!(insw.qtws[spos[1]], spos[2])
-            isempty(insw.qtws[spos[1]]) && deleteat!(insw.qtws, spos[1])
+            if !(isnothing(spos) | isnothing(tpos))
+                insert!(insw.qtws[tpos[1]], tpos[2], insw.qtws[spos[1]][spos[2]])
+                deleteat!(insw.qtws[spos[1]], spos[2])
+                isempty(insw.qtws[spos[1]]) && deleteat!(insw.qtws, spos[1])
+            end
         end
 
         openmodw && CImGui.OpenPopup(stcstr("modify widget", insw.instrnm, insw.name))
@@ -781,6 +792,7 @@ let
         end
         if CImGui.BeginPopup(stcstr("modify widget", insw.instrnm, insw.name))
             addmenu(insw)
+            @c CImGui.Checkbox(mlstr("Show Serial Numbers"), &showslnums)
             CImGui.EndPopup()
         end
     end
