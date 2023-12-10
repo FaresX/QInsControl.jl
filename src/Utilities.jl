@@ -339,3 +339,9 @@ function gensweeplist(start, step, stop)
     end
     return sweeplist
 end
+
+function getU(utype, uidx)
+    Us = haskey(CONF.U, utype) ? CONF.U[utype] : [""]
+    U = (uidx > length(Us) || uidx < 1) ? Us[1] : Us[uidx]
+    return U, Us
+end

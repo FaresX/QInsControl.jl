@@ -177,15 +177,15 @@ function ShowHelpMarker(desc)
     end
 end
 
-function ShowUnit(id, utype, ui::Ref, flags=CImGui.ImGuiComboFlags_NoArrowButton)
-    units = string.(haskey(CONF.U, utype) ? CONF.U[utype] : [""])
-    (ui[] > length(units) || ui[] < 1) && (ui[] = 1)
-    showu = units[ui[]]
-    begincombo = CImGui.BeginCombo(stcstr("##unit", id), showu, flags)
+function ShowUnit(id, utype, ui::Ref{Int}, flags=CImGui.ImGuiComboFlags_NoArrowButton)
+    Us = string.(haskey(CONF.U, utype) ? CONF.U[utype] : [""])
+    (ui[] > length(Us) || ui[] < 1) && (ui[] = 1)
+    U = Us[ui[]]
+    begincombo = CImGui.BeginCombo(stcstr("##unit", id), U, flags)
     if begincombo
-        for u in eachindex(units)
+        for u in eachindex(Us)
             local selected = ui[] == u
-            CImGui.Selectable(units[u], selected) && (ui[] = u)
+            CImGui.Selectable(Us[u], selected) && (ui[] = u)
             selected && CImGui.SetItemDefaultFocus()
         end
         CImGui.EndCombo()

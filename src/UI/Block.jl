@@ -164,10 +164,7 @@ function tocodes(bk::SweepBlock)
     quantity = bk.quantity
     setfunc = Symbol(bk.instrnm, :_, bk.quantity, :_set)
     getfunc = Symbol(bk.instrnm, :_, bk.quantity, :_get)
-    Ut = INSCONF[bk.instrnm].quantities[quantity].U
-    Us = haskey(CONF.U, Ut) ? CONF.U[Ut] : [""]
-    bk.ui > length(Us) && (bk.ui = 1)
-    U = Us[bk.ui]
+    U, Us = getU(INSCONF[bk.instrnm].quantities[quantity].U, bk.ui)
     U == "" && (@error "[$(now())]\n$(mlstr("input data error!!!"))" bk = bk;
     return)
     stepc = @trypass Meta.parse(bk.step) begin
@@ -212,9 +209,7 @@ end
 function tocodes(bk::SettingBlock)
     instr = string(bk.instrnm, "_", bk.addr)
     quantity = bk.quantity
-    Ut = INSCONF[bk.instrnm].quantities[quantity].U
-    Us = haskey(CONF.U, Ut) ? CONF.U[Ut] : [""]
-    U = Us[bk.ui]
+    U, Us = getU(INSCONF[bk.instrnm].quantities[quantity].U, bk.ui)
     if U == ""
         setvalue = parsedollar(bk.setvalue)
     else
@@ -1160,8 +1155,7 @@ function view(bk::SweepBlock)
     else
         ""
     end
-    units::Vector{String} = string.(haskey(CONF.U, Ut) ? CONF.U[Ut] : [""])
-    showu = @trypass units[bk.ui] ""
+    U = getU(Ut, bk.ui)
     CImGui.TextColored(
         bk.istrycatch ? MORESTYLE.Colors.BlockTrycatch : MORESTYLE.Colors.BlockIcons,
         MORESTYLE.Icons.SweepBlock
@@ -1174,8 +1168,8 @@ function view(bk::SweepBlock)
             mlstr("instrument"), ": ", instrnm,
             "\t", mlstr("address"), ": ", addr,
             "\t", mlstr("sweep"), ": ", quantity,
-            "\t", mlstr("step"), ": ", bk.step, showu,
-            "\t", mlstr("stop"), ": ", bk.stop, showu,
+            "\t", mlstr("step"), ": ", bk.step, U,
+            "\t", mlstr("stop"), ": ", bk.stop, U,
             "\t", mlstr("delay"), ": ", bk.delay
         ),
         (-1, 0)
@@ -1196,8 +1190,7 @@ function view(bk::SettingBlock)
     else
         ""
     end
-    units::Vector{String} = string.(haskey(CONF.U, Ut) ? CONF.U[Ut] : [""])
-    showu = @trypass units[bk.ui] ""
+    U = getU(Ut, bk.ui)
     CImGui.TextColored(
         bk.istrycatch ? MORESTYLE.Colors.BlockTrycatch : MORESTYLE.Colors.BlockIcons,
         MORESTYLE.Icons.SettingBlock
@@ -1209,7 +1202,7 @@ function view(bk::SettingBlock)
             mlstr("instrument"), ": ", instrnm,
             "\t", mlstr("address"), ": ", addr,
             "\t", mlstr("set"), ": ", quantity,
-            "\t", mlstr("set value"), ": ", bk.setvalue, showu
+            "\t", mlstr("set value"), ": ", bk.setvalue, U
         ),
         (-1, 0)
     )
@@ -1412,12 +1405,12 @@ function Base.show(io::IO, bk::BranchBlock)
     bk.codes == "" || print(io, string(bk.codes, "\n"))
 end
 function Base.show(io::IO, bk::SweepBlock)
-    ut = if haskey(INSCONF, bk.instrnm) && haskey(INSCONF[bk.instrnm].quantities, bk.quantity)
+    Ut = if haskey(INSCONF, bk.instrnm) && haskey(INSCONF[bk.instrnm].quantities, bk.quantity)
         INSCONF[bk.instrnm].quantities[bk.quantity].U
     else
         ""
     end
-    u = CONF.U[ut][bk.ui]
+    U = getU(Ut, bk.ui)
     str = """
     SweepBlock :
         region min : $(bk.regmin)
@@ -1441,12 +1434,12 @@ function Base.show(io::IO, bk::SweepBlock)
     end
 end
 function Base.show(io::IO, bk::SettingBlock)
-    ut = if haskey(INSCONF, bk.instrnm) && haskey(INSCONF[bk.instrnm].quantities, bk.quantity)
+    Ut = if haskey(INSCONF, bk.instrnm) && haskey(INSCONF[bk.instrnm].quantities, bk.quantity)
         INSCONF[bk.instrnm].quantities[bk.quantity].U
     else
         ""
     end
-    u = CONF.U[ut][bk.ui]
+    U = getU(Ut, bk.ui)
     str = """
     SettingBlock :
         region min : $(bk.regmin)

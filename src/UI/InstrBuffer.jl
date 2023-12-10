@@ -74,8 +74,7 @@ function quantity(name, qtcf::QuantityConf)
 end
 
 function getvalU!(qt::AbstractQuantity)
-    Us = haskey(CONF.U, qt.utype) ? CONF.U[qt.utype] : [""]
-    U = isempty(Us) ? "" : Us[qt.uindex]
+    U, Us = getU(qt.utype, qt.uindex)
     U == "" || (Uchange::Float64 = Us[1] isa Unitful.FreeUnits ? ustrip(Us[1], 1U) : 1.0)
     qt.showval = U == "" ? qt.read : @trypass string(parse(Float64, qt.read) / Uchange) qt.read
     qt.showU = string(U)
@@ -780,8 +779,7 @@ end
 
 function apply!(qt::SweepQuantity, instrnm, addr)
     addr == "" && return nothing
-    Us = haskey(CONF.U, qt.utype) ? CONF.U[qt.utype] : [""]
-    U = isempty(Us) ? "" : Us[qt.uindex]
+    U, Us = getU(qt.utype, qt.uindex)
     U == "" || (Uchange::Float64 = Us[1] isa Unitful.FreeUnits ? ustrip(Us[1], 1U) : 1.0)
     start = wait_remotecall_fetch(workers()[1], instrnm, addr) do instrnm, addr
         ct = Controller(instrnm, addr)
@@ -874,8 +872,7 @@ end
 
 function apply!(qt::SetQuantity, instrnm, addr)
     addr == "" && return nothing
-    Us = haskey(CONF.U, qt.utype) ? CONF.U[qt.utype] : [""]
-    U = isempty(Us) ? "" : Us[qt.uindex]
+    U, Us = getU(qt.utype, qt.uindex)
     U == "" || (Uchange::Float64 = Us[1] isa Unitful.FreeUnits ? ustrip(Us[1], 1U) : 1.0)
     sv = U == "" ? qt.set : @trypasse string(float(eval(Meta.parse(qt.set)) * Uchange)) qt.set
     sv = string(lstrip(rstrip(sv)))
