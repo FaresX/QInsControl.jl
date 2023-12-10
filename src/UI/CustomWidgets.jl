@@ -178,7 +178,7 @@ function ShowHelpMarker(desc)
 end
 
 function ShowUnit(id, utype, ui::Ref, flags=CImGui.ImGuiComboFlags_NoArrowButton)
-    units = string.(CONF.U[utype])
+    units = string.(haskey(CONF.U, utype) ? CONF.U[utype] : [""])
     (ui[] > length(units) || ui[] < 1) && (ui[] = 1)
     showu = units[ui[]]
     begincombo = CImGui.BeginCombo(stcstr("##unit", id), showu, flags)

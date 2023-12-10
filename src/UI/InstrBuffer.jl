@@ -74,7 +74,7 @@ function quantity(name, qtcf::QuantityConf)
 end
 
 function getvalU!(qt::AbstractQuantity)
-    Us = CONF.U[qt.utype]
+    Us = haskey(CONF.U, qt.utype) ? CONF.U[qt.utype] : [""]
     U = isempty(Us) ? "" : Us[qt.uindex]
     U == "" || (Uchange::Float64 = Us[1] isa Unitful.FreeUnits ? ustrip(Us[1], 1U) : 1.0)
     qt.showval = U == "" ? qt.read : @trypass string(parse(Float64, qt.read) / Uchange) qt.read
@@ -700,7 +700,7 @@ function view(qt::AbstractQuantity)
         qt.enable ? CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_Button) : MORESTYLE.Colors.LogError
     )
     if CImGui.Button(qt.show_view, (-1, 0))
-        Us = CONF.U[qt.utype]
+        Us = haskey(CONF.U, qt.utype) ? CONF.U[qt.utype] : [""]
         qt.uindex = (qt.uindex + 1) % length(Us)
         qt.uindex == 0 && (qt.uindex = length(Us))
         updatefront!(qt; show_edit=false)
@@ -710,7 +710,7 @@ end
 
 # function apply!(qt::SweepQuantity, instrnm, addr)
 #     addr == "" && return nothing
-#     Us = CONF.U[qt.utype]
+#     Us = haskey(CONF.U, qt.utype) ? CONF.U[qt.utype] : [""]
 #     U = isempty(Us) ? "" : Us[qt.uindex]
 #     U == "" || (Uchange::Float64 = Us[1] isa Unitful.FreeUnits ? ustrip(Us[1], 1U) : 1.0)
 #     start = wait_remotecall_fetch(workers()[1], instrnm, addr) do instrnm, addr
@@ -780,7 +780,7 @@ end
 
 function apply!(qt::SweepQuantity, instrnm, addr)
     addr == "" && return nothing
-    Us = CONF.U[qt.utype]
+    Us = haskey(CONF.U, qt.utype) ? CONF.U[qt.utype] : [""]
     U = isempty(Us) ? "" : Us[qt.uindex]
     U == "" || (Uchange::Float64 = Us[1] isa Unitful.FreeUnits ? ustrip(Us[1], 1U) : 1.0)
     start = wait_remotecall_fetch(workers()[1], instrnm, addr) do instrnm, addr
@@ -874,7 +874,7 @@ end
 
 function apply!(qt::SetQuantity, instrnm, addr)
     addr == "" && return nothing
-    Us = CONF.U[qt.utype]
+    Us = haskey(CONF.U, qt.utype) ? CONF.U[qt.utype] : [""]
     U = isempty(Us) ? "" : Us[qt.uindex]
     U == "" || (Uchange::Float64 = Us[1] isa Unitful.FreeUnits ? ustrip(Us[1], 1U) : 1.0)
     sv = U == "" ? qt.set : @trypasse string(float(eval(Meta.parse(qt.set)) * Uchange)) qt.set

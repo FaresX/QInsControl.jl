@@ -165,7 +165,8 @@ function tocodes(bk::SweepBlock)
     setfunc = Symbol(bk.instrnm, :_, bk.quantity, :_set)
     getfunc = Symbol(bk.instrnm, :_, bk.quantity, :_get)
     Ut = INSCONF[bk.instrnm].quantities[quantity].U
-    Us = CONF.U[Ut]
+    Us = haskey(CONF.U, Ut) ? CONF.U[Ut] : [""]
+    bk.ui > length(Us) && (bk.ui = 1)
     U = Us[bk.ui]
     U == "" && (@error "[$(now())]\n$(mlstr("input data error!!!"))" bk = bk;
     return)
@@ -212,7 +213,7 @@ function tocodes(bk::SettingBlock)
     instr = string(bk.instrnm, "_", bk.addr)
     quantity = bk.quantity
     Ut = INSCONF[bk.instrnm].quantities[quantity].U
-    Us = CONF.U[Ut]
+    Us = haskey(CONF.U, Ut) ? CONF.U[Ut] : [""]
     U = Us[bk.ui]
     if U == ""
         setvalue = parsedollar(bk.setvalue)
@@ -1159,7 +1160,7 @@ function view(bk::SweepBlock)
     else
         ""
     end
-    units::Vector{String} = string.(CONF.U[Ut])
+    units::Vector{String} = string.(haskey(CONF.U, Ut) ? CONF.U[Ut] : [""])
     showu = @trypass units[bk.ui] ""
     CImGui.TextColored(
         bk.istrycatch ? MORESTYLE.Colors.BlockTrycatch : MORESTYLE.Colors.BlockIcons,
@@ -1195,7 +1196,7 @@ function view(bk::SettingBlock)
     else
         ""
     end
-    units::Vector{String} = string.(CONF.U[Ut])
+    units::Vector{String} = string.(haskey(CONF.U, Ut) ? CONF.U[Ut] : [""])
     showu = @trypass units[bk.ui] ""
     CImGui.TextColored(
         bk.istrycatch ? MORESTYLE.Colors.BlockTrycatch : MORESTYLE.Colors.BlockIcons,
