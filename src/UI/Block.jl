@@ -1155,7 +1155,7 @@ function view(bk::SweepBlock)
     else
         ""
     end
-    U = getU(Ut, bk.ui)
+    U, _ = getU(Ut, bk.ui)
     CImGui.TextColored(
         bk.istrycatch ? MORESTYLE.Colors.BlockTrycatch : MORESTYLE.Colors.BlockIcons,
         MORESTYLE.Icons.SweepBlock
@@ -1190,7 +1190,7 @@ function view(bk::SettingBlock)
     else
         ""
     end
-    U = getU(Ut, bk.ui)
+    U, _ = getU(Ut, bk.ui)
     CImGui.TextColored(
         bk.istrycatch ? MORESTYLE.Colors.BlockTrycatch : MORESTYLE.Colors.BlockIcons,
         MORESTYLE.Icons.SettingBlock
@@ -1410,7 +1410,7 @@ function Base.show(io::IO, bk::SweepBlock)
     else
         ""
     end
-    U = getU(Ut, bk.ui)
+    U, _ = getU(Ut, bk.ui)
     str = """
     SweepBlock :
         region min : $(bk.regmin)
@@ -1421,7 +1421,7 @@ function Base.show(io::IO, bk::SweepBlock)
           quantity : $(bk.quantity)
               step : $(bk.step)
               stop : $(bk.stop)
-              unit : $u
+              unit : $U
              delay : $(bk.delay)
           trycatch : $(bk.istrycatch)
         hideblocks : $(bk.hideblocks)
@@ -1439,7 +1439,7 @@ function Base.show(io::IO, bk::SettingBlock)
     else
         ""
     end
-    U = getU(Ut, bk.ui)
+    U, _ = getU(Ut, bk.ui)
     str = """
     SettingBlock :
         region min : $(bk.regmin)
@@ -1448,7 +1448,7 @@ function Base.show(io::IO, bk::SettingBlock)
            address : $(bk.addr)
           quantity : $(bk.quantity)
          set value : $(bk.setvalue)
-              unit : $u
+              unit : $U
           trycatch : $(bk.istrycatch)
     """
     print(io, str)
