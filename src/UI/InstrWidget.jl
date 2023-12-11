@@ -137,59 +137,59 @@ function editImage(qtw::QuantityWidget, opts::QuantityWidgetOption)
 end
 
 function editQuantitySelector(qtw::QuantityWidget, opts::QuantityWidgetOption, instrnm, ::Val{:combo})
-        # haskey(INSCONF, instrnm) || return false
-        # genqts(instrnm)
-        opts.textsize == "big" && CImGui.PushFont(PLOTFONT)
-        originscale = unsafe_load(CImGui.GetIO().FontGlobalScale)
-        CImGui.SetWindowFontScale(opts.textscale)
-        trig = @c ColoredCombo(
-            stcstr("##selector", qtw.alias), &qtw.alias, opts.selectorlist, opts.comboflags;
-            width=opts.itemsize[1],
-            rounding=opts.rounding,
-            bdrounding=opts.bdrounding,
-            thickness=opts.bdthickness,
-            colbt=opts.combobtcolor,
-            colfrm=opts.bgcolor,
-            colfrmh=opts.hoveredcolor,
-            colfrma=opts.activecolor,
-            colpopup=opts.popupcolor,
-            coltxt=opts.textcolor,
-            colrect=opts.rectcolor
-        )
-        opts.textsize == "big" && CImGui.PopFont()
-        CImGui.SetWindowFontScale(originscale)
-        return trig
-    end
+    # haskey(INSCONF, instrnm) || return false
+    # genqts(instrnm)
+    opts.textsize == "big" && CImGui.PushFont(PLOTFONT)
+    originscale = unsafe_load(CImGui.GetIO().FontGlobalScale)
+    CImGui.SetWindowFontScale(opts.textscale)
+    trig = @c ColoredCombo(
+        stcstr("##selector", qtw.alias), &qtw.alias, opts.selectorlist, opts.comboflags;
+        width=opts.itemsize[1],
+        rounding=opts.rounding,
+        bdrounding=opts.bdrounding,
+        thickness=opts.bdthickness,
+        colbt=opts.combobtcolor,
+        colfrm=opts.bgcolor,
+        colfrmh=opts.hoveredcolor,
+        colfrma=opts.activecolor,
+        colpopup=opts.popupcolor,
+        coltxt=opts.textcolor,
+        colrect=opts.rectcolor
+    )
+    opts.textsize == "big" && CImGui.PopFont()
+    CImGui.SetWindowFontScale(originscale)
+    return trig
+end
 
-    function editQuantitySelector(qtw::QuantityWidget, opts::QuantityWidgetOption, instrnm, ::Val{:vslider})
-        opts.textsize == "big" && CImGui.PushFont(PLOTFONT)
-        originscale = unsafe_load(CImGui.GetIO().FontGlobalScale)
-        CImGui.SetWindowFontScale(opts.textscale)
-        idxraw = findfirst(==(qtw.alias), opts.selectorlist)
-        idx::Cint = isnothing(idxraw) ? 1 : idxraw
-        llist = length(opts.selectorlist)
-        trig = @c ColoredVSlider(
-            CImGui.VSliderInt,
-            stcstr(opts.textinside ? "##" : "", qtw.alias),
-            &idx, 1, llist == 0 ? 1 : llist, opts.textinside ? qtw.alias : "";
-            size=opts.itemsize,
-            rounding=opts.rounding,
-            grabrounding=opts.grabrounding,
-            bdrounding=opts.bdrounding,
-            thickness=opts.bdthickness,
-            colgrab=opts.grabcolor,
-            colgraba=opts.grabactivecolor,
-            colfrm=opts.bgcolor,
-            colfrmh=opts.hoveredcolor,
-            colfrma=opts.activecolor,
-            coltxt=opts.textcolor,
-            colrect=opts.rectcolor
-        )
-        trig && idx <= llist && (qtw.alias = opts.selectorlist[idx])
-        opts.textsize == "big" && CImGui.PopFont()
-        CImGui.SetWindowFontScale(originscale)
-        return trig
-    end
+function editQuantitySelector(qtw::QuantityWidget, opts::QuantityWidgetOption, instrnm, ::Val{:vslider})
+    opts.textsize == "big" && CImGui.PushFont(PLOTFONT)
+    originscale = unsafe_load(CImGui.GetIO().FontGlobalScale)
+    CImGui.SetWindowFontScale(opts.textscale)
+    idxraw = findfirst(==(qtw.alias), opts.selectorlist)
+    idx::Cint = isnothing(idxraw) ? 1 : idxraw
+    llist = length(opts.selectorlist)
+    trig = @c ColoredVSlider(
+        CImGui.VSliderInt,
+        stcstr(opts.textinside ? "##" : "", qtw.alias),
+        &idx, 1, llist == 0 ? 1 : llist, opts.textinside ? qtw.alias : "";
+        size=opts.itemsize,
+        rounding=opts.rounding,
+        grabrounding=opts.grabrounding,
+        bdrounding=opts.bdrounding,
+        thickness=opts.bdthickness,
+        colgrab=opts.grabcolor,
+        colgraba=opts.grabactivecolor,
+        colfrm=opts.bgcolor,
+        colfrmh=opts.hoveredcolor,
+        colfrma=opts.activecolor,
+        coltxt=opts.textcolor,
+        colrect=opts.rectcolor
+    )
+    trig && idx <= llist && (qtw.alias = opts.selectorlist[idx])
+    opts.textsize == "big" && CImGui.PopFont()
+    CImGui.SetWindowFontScale(originscale)
+    return trig
+end
 
 function trigselector(qtw::QuantityWidget, insw::InstrWidget, trig::Bool)
     if !isempty(qtw.options.bindingqtwidxes)
@@ -220,6 +220,8 @@ function trigselector(qtw::QuantityWidget, insw::InstrWidget, trig::Bool)
 end
 
 editSameLine(opts::QuantityWidgetOption) = (CImGui.SameLine(opts.localposx, opts.spacingw); return false)
+
+edit(::QuantityWidgetOption, ::AbstractQuantity, _, _, ::Val) = CImGui.Button(mlstr("Invalid UI Type"))
 
 function edit(opts::QuantityWidgetOption, qt::AbstractQuantity, instrnm, addr, ::Val{:read})
     opts.textsize == "big" && CImGui.PushFont(PLOTFONT)
