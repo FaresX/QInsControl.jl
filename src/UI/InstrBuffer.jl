@@ -74,7 +74,7 @@ function quantity(name, qtcf::QuantityConf)
 end
 
 function getvalU!(qt::AbstractQuantity)
-    U, Us = getU(qt.utype, qt.uindex)
+    U, Us = @c getU(qt.utype, &qt.uindex)
     U == "" || (Uchange::Float64 = Us[1] isa Unitful.FreeUnits ? ustrip(Us[1], 1U) : 1.0)
     qt.showval = U == "" ? qt.read : @trypass string(parse(Float64, qt.read) / Uchange) qt.read
     qt.showU = string(U)
@@ -573,7 +573,7 @@ let
                        (-Cfloat(0.1), Cfloat(0))
                    ) || triggerset || CImGui.IsKeyPressed(igGetKeyIndex(ImGuiKey_Enter), false)
                     triggerset && (qt.set = qt.optvalues[qt.optedidx])
-                    apply!(qt, instrnm, addr)
+                    apply!(qt, instrnm, addr, triggerset)
                     triggerset = false
                     closepopup = true
                 end
@@ -698,12 +698,7 @@ function view(qt::AbstractQuantity)
         CImGui.ImGuiCol_Button,
         qt.enable ? CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_Button) : MORESTYLE.Colors.LogError
     )
-    if CImGui.Button(qt.show_view, (-1, 0))
-        Us = haskey(CONF.U, qt.utype) ? CONF.U[qt.utype] : [""]
-        qt.uindex = (qt.uindex + 1) % length(Us)
-        qt.uindex == 0 && (qt.uindex = length(Us))
-        updatefront!(qt; show_edit=false)
-    end
+    CImGui.Button(qt.show_view, (-1, 0)) && (qt.uindex += 1; updatefront!(qt; show_edit=false))
     CImGui.PopStyleColor()
 end
 
@@ -779,7 +774,7 @@ end
 
 function apply!(qt::SweepQuantity, instrnm, addr)
     addr == "" && return nothing
-    U, Us = getU(qt.utype, qt.uindex)
+    U, Us = @c getU(qt.utype, &qt.uindex)
     U == "" || (Uchange::Float64 = Us[1] isa Unitful.FreeUnits ? ustrip(Us[1], 1U) : 1.0)
     start = wait_remotecall_fetch(workers()[1], instrnm, addr) do instrnm, addr
         ct = Controller(instrnm, addr)
@@ -872,11 +867,11 @@ function apply!(qt::SweepQuantity, instrnm, addr)
     return nothing
 end
 
-function apply!(qt::SetQuantity, instrnm, addr)
+function apply!(qt::SetQuantity, instrnm, addr, byoptvalues=false)
     addr == "" && return nothing
-    U, Us = getU(qt.utype, qt.uindex)
+    U, Us = @c getU(qt.utype, &qt.uindex)
     U == "" || (Uchange::Float64 = Us[1] isa Unitful.FreeUnits ? ustrip(Us[1], 1U) : 1.0)
-    sv = U == "" ? qt.set : @trypasse string(float(eval(Meta.parse(qt.set)) * Uchange)) qt.set
+    sv = (U == "" || byoptvalues) ? qt.set : @trypasse string(float(eval(Meta.parse(qt.set)) * Uchange)) qt.set
     sv = string(lstrip(rstrip(sv)))
     if (U == "" && sv != "") || !isnothing(tryparse(Float64, sv))
         fetchdata = wait_remotecall_fetch(workers()[1], instrnm, addr, sv) do instrnm, addr, sv

@@ -340,8 +340,13 @@ function gensweeplist(start, step, stop)
     return sweeplist
 end
 
-function getU(utype, uidx)
+function getU(utype, uidx::Ref{Int})
     Us = haskey(CONF.U, utype) ? CONF.U[utype] : [""]
-    U = (uidx > length(Us) || uidx < 1) ? Us[1] : Us[uidx]
-    return U, Us
+    if uidx[] == 0
+        uidx[] = 1
+    elseif abs(uidx[]) > length(Us)
+        uidx[] = abs(uidx[]) % length(Us)
+        uidx[] == 0 && (uidx[] = length(Us))
+    end
+    return Us[uidx[]], Us
 end

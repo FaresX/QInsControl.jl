@@ -265,12 +265,7 @@ function edit(opts::QuantityWidgetOption, qt::AbstractQuantity, _, _, ::Val{:uni
         bdrounding=opts.bdrounding,
         thickness=opts.bdthickness
     )
-    if trig
-        Us = CONF.U[qt.utype]
-        qt.uindex = (qt.uindex + 1) % length(Us)
-        qt.uindex == 0 && (qt.uindex = length(Us))
-        getvalU!(qt)
-    end
+    trig && (qt.uindex += 1; getvalU!(qt))
     opts.textsize == "big" && CImGui.PopFont()
     CImGui.SetWindowFontScale(originscale)
     return trig
@@ -299,12 +294,7 @@ function edit(opts::QuantityWidgetOption, qt::AbstractQuantity, instrnm, addr, :
             updatefront!(qt)
         end
     end
-    if CImGui.IsItemClicked(2)
-        Us = CONF.U[qt.utype]
-        qt.uindex = (qt.uindex + 1) % length(Us)
-        qt.uindex == 0 && (qt.uindex = length(Us))
-        getvalU!(qt)
-    end
+    CImGui.IsItemClicked(2) && (qt.uindex += 1; getvalU!(qt))
     opts.textsize == "big" && CImGui.PopFont()
     CImGui.SetWindowFontScale(originscale)
     return trig
@@ -457,7 +447,7 @@ function edit(opts::QuantityWidgetOption, qt::SetQuantity, instrnm, addr, ::Val{
     if trig
         qt.optedidx = findfirst(==(presentv), qt.optkeys)
         qt.set = qt.optvalues[qt.optedidx]
-        apply!(qt, instrnm, addr)
+        apply!(qt, instrnm, addr, true)
         updatefront!(qt)
     end
     opts.textsize == "big" && CImGui.PopFont()
@@ -483,7 +473,7 @@ function edit(opts::QuantityWidgetOption, qt::SetQuantity, instrnm, addr, ::Val{
     if trig
         qt.optedidx = opts.bindingidx
         qt.set = qt.optvalues[qt.optedidx]
-        apply!(qt, instrnm, addr)
+        apply!(qt, instrnm, addr, true)
         updatefront!(qt)
     end
     opts.textsize == "big" && CImGui.PopFont()
@@ -514,7 +504,7 @@ function edit(opts::QuantityWidgetOption, qt::SetQuantity, instrnm, addr, ::Val{
     )
     if trig
         qt.set = qt.optvalues[qt.optedidx]
-        apply!(qt, instrnm, addr)
+        apply!(qt, instrnm, addr, true)
         updatefront!(qt)
     end
     opts.textsize == "big" && CImGui.PopFont()
@@ -545,7 +535,7 @@ function edit(opts::QuantityWidgetOption, qt::SetQuantity, instrnm, addr, ::Val{
     )
     if trig
         qt.set = qt.optvalues[qt.optedidx]
-        apply!(qt, instrnm, addr)
+        apply!(qt, instrnm, addr, true)
         updatefront!(qt)
     end
     opts.textsize == "big" && CImGui.PopFont()
@@ -574,7 +564,7 @@ function edit(opts::QuantityWidgetOption, qt::SetQuantity, instrnm, addr, ::Val{
     if trig
         qt.optedidx = opts.bindingonoff[ison ? 1 : 2]
         qt.set = qt.optvalues[qt.optedidx]
-        apply!(qt, instrnm, addr)
+        apply!(qt, instrnm, addr, true)
         updatefront!(qt)
     end
     opts.textsize == "big" && CImGui.PopFont()
