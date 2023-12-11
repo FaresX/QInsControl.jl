@@ -1193,12 +1193,9 @@ function refresh1(insw::InstrWidget, addr)
         fetchibvs = wait_remotecall_fetch(
             workers()[1], INSTRBUFFERVIEWERS, insw.instrnm, addr, insw.qtlist; timeout=120
         ) do ibvs, ins, addr, qtlist
-            @isdefined(refreshcts) || (global refreshcts = Dict())
             empty!(INSTRBUFFERVIEWERS)
             merge!(INSTRBUFFERVIEWERS, ibvs)
-            haskey(refreshcts, ins) || push!(refreshcts, ins => Dict())
-            haskey(refreshcts[ins], addr) || push!(refreshcts[ins], addr => Controller(ins, addr))
-            ct = refreshcts[ins][addr]
+            ct = Controller(ins, addr)
             try
                 login!(CPU, ct)
                 for (qtnm, qt) in filter(x -> x.first in qtlist, INSTRBUFFERVIEWERS[ins][addr].insbuf.quantities)
