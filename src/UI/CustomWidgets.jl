@@ -200,12 +200,13 @@ function MultiSelectable(
     states,
     n,
     idxing=Ref(1),
-    size=(Cfloat(0), CImGui.GetFrameHeight() * ceil(Int, length(labels) / n))
+    size=(Cfloat(0), CImGui.GetFrameHeight() * ceil(Int, length(labels) / n));
+    border=false
 )
     l = length(labels)
     length(states) == l || resize!(states, l)
     size = l == 0 ? (Cfloat(0), CImGui.GetFrameHeightWithSpacing()) : size
-    CImGui.BeginChild(stcstr("MultiSelectable##", id), size)
+    CImGui.BeginChild(stcstr("MultiSelectable##", id), size, border)
     CImGui.Columns(n, C_NULL, false)
     for i in 1:l
         CImGui.PushStyleVar(CImGui.ImGuiStyleVar_SelectableTextAlign, (0.5, 0.5))

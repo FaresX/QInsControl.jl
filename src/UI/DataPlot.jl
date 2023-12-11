@@ -15,13 +15,13 @@ labeltoidx!(lo::Layout) = lo.selectedidx = [lo.labeltoidx[lb] for lb in lo.selec
 function edit(
     rightclickmenu,
     lo::Layout,
-    size=(Cfloat(0), CImGui.GetFrameHeight() * ceil(Int, length(lo.labels) / lo.showcol));
+    size=(Cfloat(0), CImGui.GetTextLineHeight() * ceil(Int, length(lo.labels) / lo.showcol));
     showlayout=true
 )
     states_old = copy(lo.states)
     marks_old = copy(lo.marks)
     editlabels = @. lo.labels * " " * lo.marks * "###for rename" * lo.labels
-    @c MultiSelectable(rightclickmenu, lo.id, editlabels, lo.states, lo.showcol, &lo.idxing, size)
+    @c MultiSelectable(rightclickmenu, lo.id, editlabels, lo.states, lo.showcol, &lo.idxing, size; border=true)
     if lo.states != states_old || lo.marks != marks_old
         editlabels = @. lo.labels * " " * lo.marks
         lo.selectedlabels = editlabels[lo.states]
@@ -119,8 +119,8 @@ function editmenu(dtp::DataPlot)
         dtp.layout,
         (
             maxploticonwidth,
-            CImGui.GetFrameHeight() * ceil(Int, length(dtp.layout.labels) /
-                                                dtp.layout.showcol)
+            CImGui.GetTextLineHeightWithSpacing() * ceil(Int, length(dtp.layout.labels) / dtp.layout.showcol) -
+            unsafe_load(IMGUISTYLE.ItemSpacing.y) + 2unsafe_load(IMGUISTYLE.WindowPadding.y)
         );
         showlayout=!CONF.DAQ.freelayout
     ) do
