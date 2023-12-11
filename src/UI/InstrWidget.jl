@@ -421,7 +421,8 @@ function edit(opts::QuantityWidgetOption, qt::SetQuantity, instrnm, addr, ::Val{
         rounding=opts.rounding,
         bdrounding=opts.bdrounding,
         thickness=opts.bdthickness
-    ) && (apply!(qt, instrnm, addr); updatefront!(qt))
+    )
+    trig && (apply!(qt, instrnm, addr); updatefront!(qt))
     opts.textsize == "big" && CImGui.PopFont()
     CImGui.SetWindowFontScale(originscale)
     return trig
