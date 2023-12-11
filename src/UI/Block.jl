@@ -164,7 +164,7 @@ function tocodes(bk::SweepBlock)
     quantity = bk.quantity
     setfunc = Symbol(bk.instrnm, :_, bk.quantity, :_set)
     getfunc = Symbol(bk.instrnm, :_, bk.quantity, :_get)
-    U, Us = getU(INSCONF[bk.instrnm].quantities[quantity].U, bk.ui)
+    U, Us = @c getU(INSCONF[bk.instrnm].quantities[quantity].U, &bk.ui)
     U == "" && (@error "[$(now())]\n$(mlstr("input data error!!!"))" bk = bk;
     return)
     stepc = @trypass Meta.parse(bk.step) begin
@@ -209,7 +209,7 @@ end
 function tocodes(bk::SettingBlock)
     instr = string(bk.instrnm, "_", bk.addr)
     quantity = bk.quantity
-    U, Us = getU(INSCONF[bk.instrnm].quantities[quantity].U, bk.ui)
+    U, Us = @c getU(INSCONF[bk.instrnm].quantities[quantity].U, &bk.ui)
     if U == ""
         setvalue = parsedollar(bk.setvalue)
     else
@@ -1155,7 +1155,7 @@ function view(bk::SweepBlock)
     else
         ""
     end
-    U, _ = getU(Ut, bk.ui)
+    U, _ = @c getU(Ut, &bk.ui)
     CImGui.TextColored(
         bk.istrycatch ? MORESTYLE.Colors.BlockTrycatch : MORESTYLE.Colors.BlockIcons,
         MORESTYLE.Icons.SweepBlock
@@ -1190,7 +1190,7 @@ function view(bk::SettingBlock)
     else
         ""
     end
-    U, _ = getU(Ut, bk.ui)
+    U, _ = @c getU(Ut, &bk.ui)
     CImGui.TextColored(
         bk.istrycatch ? MORESTYLE.Colors.BlockTrycatch : MORESTYLE.Colors.BlockIcons,
         MORESTYLE.Icons.SettingBlock
@@ -1410,7 +1410,7 @@ function Base.show(io::IO, bk::SweepBlock)
     else
         ""
     end
-    U, _ = getU(Ut, bk.ui)
+    U, _ = @c getU(Ut, &bk.ui)
     str = """
     SweepBlock :
         region min : $(bk.regmin)
@@ -1439,7 +1439,7 @@ function Base.show(io::IO, bk::SettingBlock)
     else
         ""
     end
-    U, _ = getU(Ut, bk.ui)
+    U, _ = @c getU(Ut, &bk.ui)
     str = """
     SettingBlock :
         region min : $(bk.regmin)
