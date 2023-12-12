@@ -270,7 +270,11 @@ let
         end
         try
             uiplot.x, uiplot.y, nz = if nprocs() > 2
-                f = @eval Main QInsControl.remotecall(() -> eval($ex), QInsControl.workers()[2])
+                f = if dtpk.isrealtime
+                    @eval Main QInsControl.remotecall(() -> try eval($ex) catch end, QInsControl.workers()[2])
+                else
+                    @eval Main QInsControl.remotecall(() -> eval($ex), QInsControl.workers()[2])
+                end
                 waittask = errormonitor(@async fetch(f))
                 wait(waittask)
                 fetch(waittask)
