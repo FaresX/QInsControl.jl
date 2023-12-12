@@ -577,6 +577,7 @@ end
 
 let
     qtypes = ["sweep", "set", "read"]
+    continuousuitypes = ["inputstep", "inputstop", "dragdelay", "inputset"]
     global function edit(insw::InstrWidget, insbuf::InstrBuffer, addr, p_open, id)
         CImGui.SetNextWindowSize(insw.windowsize)
         CImGui.PushStyleColor(CImGui.ImGuiCol_WindowBg, insw.windowbgcolor)
@@ -596,7 +597,7 @@ let
                 for (j, qtw) in enumerate(qtwg)
                     CImGui.PushID(j)
                     trig = edit(qtw, insbuf, insw.instrnm, addr, insw.options)
-                    trig && qtw.qtype in qtypes && Threads.@spawn refresh1(insw, addr)
+                    trig && qtw.qtype in qtypes && qtw.options.uitype ∉ continuousuitypes && Threads.@spawn refresh1(insw, addr)
                     qtw.name == "_QuantitySelector_" && trigselector(qtw, insw, trig)
                     CImGui.PopID()
                 end
