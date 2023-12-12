@@ -81,7 +81,14 @@ let
                     CImGui.PushItemWidth(-1)
                     @c ComBoS("##select Z", &dtpk.z, [dtpk.datalist; ""])
                     CImGui.PopItemWidth()
-                    CImGui.DragInt2(mlstr("matrix dimension"), dtpk.zsize, 1, 0, 1000000, "%d", CImGui.ImGuiSliderFlags_AlwaysClamp)
+                    CImGui.DragInt2(
+                        mlstr("matrix dimension"), dtpk.zsize, 1, 0, 1000000, "%d",
+                        CImGui.ImGuiSliderFlags_AlwaysClamp
+                    )
+                    if SYNCSTATES[Int(IsDAQTaskRunning)]
+                        CImGui.SameLine()
+                        CImGui.Button(MORESTYLE.Icons.InstrumentsAutoRef) && (dtpk.zsize .= guesshmsize())
+                    end
                     @c CImGui.Checkbox(mlstr("flip vertically"), &dtpk.vflipz)
                     CImGui.SameLine(CImGui.GetContentRegionAvailWidth() / 2)
                     @c CImGui.Checkbox(mlstr("flip horizontally"), &dtpk.hflipz)
@@ -155,6 +162,8 @@ let
     end
 end
 
+guesshmsize() = length(PROGRESSLIST) == 2 ? reverse([pgb[3] for pgb in values(PROGRESSLIST)]) : [0, 0]
+
 let
     synctasks::Dict{String,Task} = Dict()
     global function syncplotdata(uiplot::UIPlot, dtpk::DataPicker, datastr::Dict, datafloat::Dict=Dict())
@@ -166,7 +175,7 @@ let
         return nothing
     end
 
-    function processdata(uiplot::UIPlot, dtpk::DataPicker, datastr::Dict, datafloat::Dict)
+    global function processdata(uiplot::UIPlot, dtpk::DataPicker, datastr::Dict, datafloat::Dict)
         dtpk.isrunning = true
         dtpk.runtime = 0
         errormonitor(
