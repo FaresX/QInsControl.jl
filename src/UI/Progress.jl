@@ -5,6 +5,7 @@ macro progress(exfor)
             $pgid = uuid4()
             $pgn = length(collect($(exfor.args[1].args[2])))
             $pgi = 0
+            put!(progress_lc, ($pgid, $pgi, $pgn, 0))
             $tn = time()
             for $(exfor.args[1].args[1]) in $(exfor.args[1].args[2])
                 $(exfor.args[2])
@@ -17,6 +18,7 @@ macro progress(exfor)
 end
 
 function tohms(second)
+    isnan(second) && return string("--", ":", "--", ":", "--")
     s = round(Int, second)
     m, s = divrem(s, 60)
     h, m = divrem(m, 60)
@@ -37,13 +39,13 @@ function update_progress()
     end
 end
 
-function ShowProgressBar()
+function ShowProgressBar(; size=(-1, 0))
     for pgb in values(PROGRESSLIST)
         pgmark = string(pgb[2], "/", pgb[3], "(", tohms(pgb[4]), "/", tohms(pgb[3] * pgb[4] / pgb[2]), ")")
         if pgb[2] == pgb[3]
             delete!(PROGRESSLIST, pgb[1])
         else
-            CImGui.ProgressBar(pgb[2] / pgb[3], (-1, 0), pgmark)
+            CImGui.ProgressBar(pgb[2] / pgb[3], size, pgmark)
         end
     end
 end
