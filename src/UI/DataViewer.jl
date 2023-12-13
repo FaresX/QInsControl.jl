@@ -20,9 +20,9 @@ function edit(dtviewer::DataViewer, filetree::FileTree, isrename::Dict{String,Bo
         CImGui.Columns(2)
         dtviewer.firsttime && (CImGui.SetColumnOffset(1, CImGui.GetWindowWidth() * 0.3); dtviewer.firsttime = false)
 
-        CImGui.BeginChild("DataViewer-FileTree")
         oldfile = filetree.selectedpath[]
         InputTextRSZ(stcstr(mlstr("Filter"), "##", id), filetree.filter)
+        CImGui.BeginChild("DataViewer-FileTree")
         edit(filetree, isrename)
         if filetree.selectedpath[] != oldfile
             if split(basename(filetree.selectedpath[]), '.')[end] in ["qdt", "cfg"]
