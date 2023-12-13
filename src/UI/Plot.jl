@@ -321,9 +321,9 @@ let
                         yr = collect(range(ylims[1], ylims[2], length=zsz[2]))
                         xidx = argmin(abs.(xr .- lc.pos))
                         if lc.ptype == "line"
-                            ImPlot.PlotLine("", yr, z[xidx, :], zsz[2])
+                            ImPlot.PlotLine("", yr, reverse(z[xidx, :]), zsz[2])
                         elseif lc.ptype == "scatter"
-                            ImPlot.PlotScatter("", yr, z[xidx, :], zsz[2])
+                            ImPlot.PlotScatter("", yr, reverse(z[xidx, :]), zsz[2])
                         end
                     end
                     ImPlot.EndPlot()
