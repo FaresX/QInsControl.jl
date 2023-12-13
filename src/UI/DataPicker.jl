@@ -269,7 +269,7 @@ let
             end
         end
         try
-            uiplot.x, uiplot.y, nz = if nprocs() > 2
+            uiplot.x, uiplot.y, nz = if CONF.Basic.remoteprocessdata && nprocs() > 2
                 f = if dtpk.isrealtime
                     @eval Main QInsControl.remotecall(() -> try eval($ex) catch end, QInsControl.workers()[2])
                 else
