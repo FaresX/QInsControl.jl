@@ -73,7 +73,7 @@ function UI(breakdown=false; precompile=false)
     ImFontGlyphRangesBuilder_BuildRanges(builder, ranges)
     r = unsafe_wrap(Vector{ImVector_ImWchar}, ranges, 1)
     # 加载全局字体
-    CImGui.AddFontFromFileTTF(
+    global GLOBALFONT = CImGui.AddFontFromFileTTF(
         fonts,
         joinpath(CONF.Fonts.dir, CONF.Fonts.first),
         CONF.Fonts.size,
