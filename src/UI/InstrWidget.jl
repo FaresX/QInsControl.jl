@@ -251,7 +251,7 @@ function edit(opts::QuantityWidgetOption, qt::AbstractQuantity, instrnm, addr, :
     return trig
 end
 
-function edit(opts::QuantityWidgetOption, qt::AbstractQuantity, _, _, ::Val{:unit})
+function edit(opts::QuantityWidgetOption, qt::AbstractQuantity, instrnm, addr, ::Val{:unit})
     opts.textsize == "big" && CImGui.PushFont(PLOTFONT)
     originscale = unsafe_load(CImGui.GetIO().FontGlobalScale)
     CImGui.SetWindowFontScale(opts.textscale)
@@ -267,7 +267,7 @@ function edit(opts::QuantityWidgetOption, qt::AbstractQuantity, _, _, ::Val{:uni
         bdrounding=opts.bdrounding,
         thickness=opts.bdthickness
     )
-    trig && (qt.uindex += 1; getvalU!(qt))
+    trig && (qt.uindex += 1; getvalU!(qt); resolveunitlist(qt, instrnm, addr))
     opts.textsize == "big" && CImGui.PopFont()
     CImGui.SetWindowFontScale(originscale)
     return trig
@@ -296,7 +296,7 @@ function edit(opts::QuantityWidgetOption, qt::AbstractQuantity, instrnm, addr, :
             updatefront!(qt)
         end
     end
-    CImGui.IsItemClicked(2) && (qt.uindex += 1; getvalU!(qt))
+    CImGui.IsItemClicked(2) && (qt.uindex += 1; getvalU!(qt); resolveunitlist(qt, instrnm, addr))
     opts.textsize == "big" && CImGui.PopFont()
     CImGui.SetWindowFontScale(originscale)
     return trig
