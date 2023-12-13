@@ -4,8 +4,6 @@
     yhv::Bool = false
     chv::Bool = false
     phv::Bool = false
-    annhv::Bool = false
-    annhv_i::Cint = 1
     showtooltip::Bool = true
     mspos::ImPlot.ImPlotPoint = ImPlot.ImPlotPoint(0, 0)
     plotpos::CImGui.ImVec2 = (0, 0)
@@ -23,6 +21,12 @@ end
 end
 Annotation(label, posx, posy) = Annotation(label, posx, posy, posx, posy, [1.000, 1.000, 1.000, 1.000], 4)
 
+@kwdef mutable struct Linecut
+    ptype::String = "line"
+    vline::Bool = true
+    pos::Cdouble = 0
+end
+
 @kwdef mutable struct UIPlot
     x::Vector{Tx} where {Tx<:Union{Real,String}} = Union{Real,String}[]
     y::Vector{Vector{Ty}} where {Ty<:Real} = [Real[]]
@@ -35,6 +39,7 @@ Annotation(label, posx, posy) = Annotation(label, posx, posy, posx, posy, [1.000
     legends::Vector{String} = [string("y", i) for i in eachindex(y)]
     cmap::Cint = 4
     anns::Vector{Annotation} = Annotation[]
+    linecuts::Vector{Linecut} = Linecut[]
     ps::PlotStates = PlotStates()
 end
 UIPlot(x, y, z) = UIPlot(x=x, y=y, z=z)
@@ -62,7 +67,8 @@ let
                     xlims=xlims,
                     ylims=ylims,
                     zlims=zlims,
-                    anns=uip.anns
+                    anns=uip.anns,
+                    linecuts=uip.linecuts
                 )
             end
         else
@@ -105,6 +111,11 @@ let
                 uip.cmap = (uip.cmap + 1) % Cint(ImPlot.GetColormapCount())
             end
             @c CImGui.Checkbox(mlstr("data tip"), &uip.ps.showtooltip)
+            if CImGui.BeginMenu(mlstr("Add Linecut"))
+                CImGui.MenuItem(mlstr("Horizontal Linecut")) && push!(uip.linecuts, Linecut(vline=false, pos=openpopup_mspos[2]))
+                CImGui.MenuItem(mlstr("Vertical Linecut")) && push!(uip.linecuts, Linecut(pos=openpopup_mspos[1]))
+                CImGui.EndMenu()
+            end
             if CImGui.CollapsingHeader(mlstr("Annotation"))
                 @c InputTextRSZ(mlstr("content"), &annbuf.label)
                 pos = Cfloat[annbuf.posx, annbuf.posy]
@@ -128,25 +139,6 @@ let
             CImGui.EndPopup()
         end
         igIsPopupOpenStr(stcstr("title", id), 0) || openpopup_mspos == Cfloat[0, 0] || fill!(openpopup_mspos, 0)
-        uip.ps.annhv && CImGui.IsMouseClicked(1) && CImGui.OpenPopup(stcstr("annotation", id))
-        if CImGui.BeginPopup(stcstr("annotation", id))
-            ann_i = uip.anns[uip.ps.annhv_i]
-            @c InputTextRSZ(mlstr("content"), &ann_i.label)
-            pos = Cfloat[ann_i.posx, ann_i.posy]
-            CImGui.InputFloat2(mlstr("position"), pos)
-            ann_i.posx, ann_i.posy = pos
-            offset = Cfloat[ann_i.offsetx, ann_i.offsety]
-            CImGui.InputFloat2(mlstr("offset"), offset)
-            ann_i.offsetx, ann_i.offsety = offset
-            @c CImGui.DragFloat(mlstr("size"), &ann_i.possz, 1.0, 1, 60, "%.3f", CImGui.ImGuiSliderFlags_AlwaysClamp)
-            CImGui.ColorEdit4(mlstr("color"), ann_i.color, CImGui.ImGuiColorEditFlags_AlphaBar)
-            CImGui.SameLine()
-            if CImGui.Button(stcstr(MORESTYLE.Icons.CloseFile, "##annotation"))
-                deleteat!(uip.anns, uip.ps.annhv_i)
-                CImGui.CloseCurrentPopup()
-            end
-            CImGui.EndPopup()
-        end
         if CImGui.IsWindowHovered(CImGui.ImGuiHoveredFlags_RootAndChildWindows)
             uip.ps.xhv && CImGui.IsMouseDoubleClicked(0) && CImGui.OpenPopup(stcstr("xlabel", id))
         end
@@ -198,8 +190,11 @@ function Plot(x::Vector{T1}, ys::Vector{Vector{T2}}, ps::PlotStates;
         ps.phv = ImPlot.IsPlotHovered()
         for (lg, y) in zip(legends, ys)
             px, py = Vector{T2}.(trunc(x, y))
-            ptype == "line" && ImPlot.PlotLine(lg, px, py, length(py))
-            ptype == "scatter" && ImPlot.PlotScatter(lg, px, py, length(py))
+            if ptype == "line"
+                ImPlot.PlotLine(lg, px, py, length(py))
+            elseif ptype == "scatter"
+                ImPlot.PlotScatter(lg, px, py, length(py))
+            end
             xl, xr = extrema(px)
             ps.mspos = ImPlot.GetPlotMousePos()
             if ps.showtooltip && ps.phv && xl <= ps.mspos.x <= xr && !SYNCSTATES[Int(SavingImg)]
@@ -220,7 +215,7 @@ function Plot(x::Vector{T1}, ys::Vector{Vector{T2}}, ps::PlotStates;
                 end
             end
         end
-        PlotAnns(anns, ps)
+        PlotAnns(anns)
         ImPlot.EndPlot()
     end
     ps.plotpos = CImGui.GetItemRectMin()
@@ -239,7 +234,8 @@ let
         xlims=(0, 1),
         ylims=(0, 1),
         zlims=(0, 1),
-        anns=[]
+        anns=[],
+        linecuts=[]
     )
         CImGui.BeginChild("Heatmap", psize)
         CImGui.PushStyleVar(CImGui.ImGuiStyleVar_ItemSpacing, (0, 2))
@@ -264,9 +260,9 @@ let
             ps.mspos = ImPlot.GetPlotMousePos()
             if ps.showtooltip && ps.phv &&
                inregion(ps.mspos, (xlims[1], ylims[1]), (xlims[2], ylims[2])) && !SYNCSTATES[Int(SavingImg)]
-                zsz = reverse(size(z))
-                xr = range(xlims[1], xlims[2], length=zsz[2])
-                yr = range(ylims[2], ylims[1], length=zsz[1])
+                zsz = size(z)
+                xr = range(xlims[1], xlims[2], length=zsz[1])
+                yr = range(ylims[2], ylims[1], length=zsz[2])
                 xidx = argmin(abs.(xr .- ps.mspos.x))
                 yidx = argmin(abs.(yr .- ps.mspos.y))
                 CImGui.BeginTooltip()
@@ -277,7 +273,8 @@ let
                 CImGui.PopTextWrapPos()
                 CImGui.EndTooltip()
             end
-            PlotAnns(anns, ps)
+            PlotAnns(anns)
+            PlotLinecuts(linecuts)
             ImPlot.EndPlot()
         end
         ps.plotpos = CImGui.GetItemRectMin()
@@ -291,6 +288,50 @@ let
         ImPlot.PopColormap()
         CImGui.PopStyleVar()
         CImGui.EndChild()
+        if !isempty(linecuts)
+            p_open = Ref(true)
+            CImGui.SetNextWindowSize((600, 600), CImGui.ImGuiCond_Once)
+            if CImGui.Begin(stcstr(title, " ", mlstr("Linecuts"), "###", ps.id), p_open, CImGui.ImGuiWindowFlags_NoDocking)
+                zsz = size(z)
+                hlines = collect(filter(x -> !x.vline, linecuts))
+                vlines = collect(filter(x -> x.vline, linecuts))
+                if !isempty(hlines) && ImPlot.BeginPlot(
+                    stcstr(title, " ", mlstr("Horizontal Linecuts")), xlabel, zlabel,
+                    CImGui.ImVec2(CImGui.GetContentRegionAvailWidth() / (1 + !isempty(vlines)), -1)
+                )
+                    for lc in hlines
+                        xr = collect(range(xlims[1], xlims[2], length=zsz[1]))
+                        yr = collect(range(ylims[2], ylims[1], length=zsz[2]))
+                        yidx = argmin(abs.(yr .- lc.pos))
+                        if lc.ptype == "line"
+                            ImPlot.PlotLine("", xr, z[:, yidx], zsz[1])
+                        elseif lc.ptype == "scatter"
+                            ImPlot.PlotScatter("", xr, z[:, yidx], zsz[1])
+                        end
+                    end
+                    ImPlot.EndPlot()
+                end
+                CImGui.SameLine()
+                if !isempty(vlines) && ImPlot.BeginPlot(
+                    stcstr(title, " ", mlstr("Vertical Linecuts")), ylabel, zlabel,
+                    CImGui.ImVec2(-1, -1)
+                )
+                    for lc in vlines
+                        xr = collect(range(xlims[1], xlims[2], length=zsz[1]))
+                        yr = collect(range(ylims[1], ylims[2], length=zsz[2]))
+                        xidx = argmin(abs.(xr .- lc.pos))
+                        if lc.ptype == "line"
+                            ImPlot.PlotLine("", yr, z[xidx, :], zsz[2])
+                        elseif lc.ptype == "scatter"
+                            ImPlot.PlotScatter("", yr, z[xidx, :], zsz[2])
+                        end
+                    end
+                    ImPlot.EndPlot()
+                end
+            end
+            CImGui.End()
+            p_open[] || empty!(linecuts)
+        end
     end
 end
 
@@ -304,8 +345,11 @@ function PlotHolder(ps::PlotStates, psize=CImGui.ImVec2(0, 0))
     end
 end
 
-function PlotAnns(anns::Vector{Annotation}, ps::PlotStates)
-    ps.annhv = false
+function PlotAnns(anns::Vector{Annotation})
+    openpopup_i = 0
+    delete_i = 0
+    ishv = false
+    CImGui.PushFont(GLOBALFONT)
     for (i, ann) in enumerate(anns)
         offset = ImPlot.PlotToPixels(ann.offsetx, ann.offsety) .- ImPlot.PlotToPixels(ann.posx, ann.posy)
         halflabelsz = CImGui.CalcTextSize(ann.label) ./ 2
@@ -328,9 +372,45 @@ function PlotAnns(anns::Vector{Annotation}, ps::PlotStates)
             halflabelsz[2] / 2
         )
         ishv |= CImGui.IsItemHovered()
-        ishv && (ps.annhv = true; ps.annhv_i = i)
+        ishv && (openpopup_i = i)
         CImGui.PopID()
+        if CImGui.BeginPopup(stcstr("annotation", i))
+            ann = anns[i]
+            @c InputTextRSZ(mlstr("content"), &ann.label)
+            pos = Cfloat[ann.posx, ann.posy]
+            CImGui.InputFloat2(mlstr("position"), pos)
+            ann.posx, ann.posy = pos
+            offset = Cfloat[ann.offsetx, ann.offsety]
+            CImGui.InputFloat2(mlstr("offset"), offset)
+            ann.offsetx, ann.offsety = offset
+            @c CImGui.DragFloat(mlstr("size"), &ann.possz, 1.0, 1, 60, "%.3f", CImGui.ImGuiSliderFlags_AlwaysClamp)
+            CImGui.ColorEdit4(mlstr("color"), ann.color, CImGui.ImGuiColorEditFlags_AlphaBar)
+            CImGui.SameLine()
+            CImGui.Button(stcstr(MORESTYLE.Icons.CloseFile, "##annotation")) && (delete_i = i)
+            CImGui.EndPopup()
+        end
     end
+    CImGui.PopFont()
+    ishv && CImGui.IsMouseClicked(1) && CImGui.OpenPopup(stcstr("annotation", openpopup_i))
+    delete_i == 0 || deleteat!(anns, delete_i)
+end
+
+function PlotLinecuts(linecuts::Vector{Linecut})
+    delete_i = 0
+    CImGui.PushFont(GLOBALFONT)
+    for (i, lc) in enumerate(linecuts)
+        if lc.vline
+            @c ImPlot.DragLineX(stcstr("Linecuts", " ", i), &lc.pos)
+        else
+            @c ImPlot.DragLineY(stcstr("Linecuts", " ", i), &lc.pos)
+        end
+        if CImGui.BeginPopupContextItem()
+            CImGui.MenuItem(stcstr(MORESTYLE.Icons.CloseFile, " ", mlstr("Delete"))) && (delete_i = i)
+            CImGui.EndPopup()
+        end
+    end
+    CImGui.PopFont()
+    delete_i == 0 || deleteat!(linecuts, delete_i)
 end
 
 function correct_offset(offset, halflabelsz)
