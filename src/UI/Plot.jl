@@ -375,7 +375,6 @@ function PlotAnns(anns::Vector{Annotation})
         ishv && (openpopup_i = i)
         CImGui.PopID()
         if CImGui.BeginPopup(stcstr("annotation", i))
-            ann = anns[i]
             @c InputTextRSZ(mlstr("content"), &ann.label)
             pos = Cfloat[ann.posx, ann.posy]
             CImGui.InputFloat2(mlstr("position"), pos)
