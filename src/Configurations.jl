@@ -2,7 +2,7 @@
     isremote::Bool = true
     remoteprocessdata::Bool = false
     viewportenable::Bool = true
-    scale::Bool = true
+    scale::Bool = false
     hidewindow::Bool = false
     nthreads::Cint = 1
     windowsize::Vector{Cint} = [1280, 720]
