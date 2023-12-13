@@ -108,7 +108,8 @@ let
 
                 length(show_daq_editors) == length(daqtasks) || resize!(show_daq_editors, length(daqtasks))
                 length(torunstates) == length(daqtasks) || resize!(torunstates, length(daqtasks))
-                daqtaskscdy = (length(daqtasks) + SYNCSTATES[Int(IsDAQTaskRunning)] * length(PROGRESSLIST)) *
+                daqtaskscdy = (count(x -> x.enable | showdisabled, daqtasks) +
+                               SYNCSTATES[Int(IsDAQTaskRunning)] * length(PROGRESSLIST)) *
                               CImGui.GetFrameHeightWithSpacing() - unsafe_load(IMGUISTYLE.ItemSpacing.y) +
                               2unsafe_load(IMGUISTYLE.WindowPadding.y)
                 CImGui.BeginChild("daqtasks", (Cfloat(0), daqtaskscdy), true)
