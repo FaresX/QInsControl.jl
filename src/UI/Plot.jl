@@ -37,13 +37,7 @@ Annotation(label, posx, posy) = Annotation(label, posx, posy, posx, posy, [1.000
     anns::Vector{Annotation} = Annotation[]
     ps::PlotStates = PlotStates()
 end
-UIPlot(x, y, z) = UIPlot(
-    x, y, z,
-    "line",
-    "title", "x", "y", "z", [string("y", i) for i in eachindex(y)], 4,
-    Annotation[],
-    PlotStates()
-)
+UIPlot(x, y, z) = UIPlot(x=x, y=y, z=z)
 
 let
     annbuf::Annotation = Annotation()
