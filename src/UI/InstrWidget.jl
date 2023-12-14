@@ -80,6 +80,9 @@ end
 
 function edit(qtw::QuantityWidget, insbuf::InstrBuffer, instrnm, addr, gopts::QuantityWidgetOption)
     opts = qtw.options.globaloptions ? gopts : qtw.options
+    scale = unsafe_load(CImGui.GetIO().FontGlobalScale)
+    opts.itemsize *= scale
+    opts.cursorscreenpos *= scale
     qtw.options.globaloptions && copyvars!(opts, qtw.options)
     opts.cursorscreenpos == [0, 0] || CImGui.SetCursorScreenPos(CImGui.GetCursorScreenPos() .+ opts.cursorscreenpos)
     trig = if haskey(insbuf.quantities, qtw.name)
@@ -95,6 +98,8 @@ function edit(qtw::QuantityWidget, insbuf::InstrBuffer, instrnm, addr, gopts::Qu
         editSameLine(opts)
     end
     opts.allowoverlap && CImGui.SetItemAllowOverlap()
+    opts.itemsize ./= scale
+    opts.cursorscreenpos ./= scale
     return trig
 end
 
@@ -136,9 +141,7 @@ function editImage(qtw::QuantityWidget, opts::QuantityWidgetOption)
     return false
 end
 
-function editQuantitySelector(qtw::QuantityWidget, opts::QuantityWidgetOption, instrnm, ::Val{:combo})
-    # haskey(INSCONF, instrnm) || return false
-    # genqts(instrnm)
+function editQuantitySelector(qtw::QuantityWidget, opts::QuantityWidgetOption, _, ::Val{:combo})
     opts.textsize == "big" && CImGui.PushFont(PLOTFONT)
     originscale = unsafe_load(CImGui.GetIO().FontGlobalScale)
     CImGui.SetWindowFontScale(opts.textscale)
@@ -161,7 +164,7 @@ function editQuantitySelector(qtw::QuantityWidget, opts::QuantityWidgetOption, i
     return trig
 end
 
-function editQuantitySelector(qtw::QuantityWidget, opts::QuantityWidgetOption, instrnm, ::Val{:vslider})
+function editQuantitySelector(qtw::QuantityWidget, opts::QuantityWidgetOption, _, ::Val{:vslider})
     opts.textsize == "big" && CImGui.PushFont(PLOTFONT)
     originscale = unsafe_load(CImGui.GetIO().FontGlobalScale)
     CImGui.SetWindowFontScale(opts.textscale)
@@ -579,7 +582,8 @@ let
     qtypes = ["sweep", "set", "read"]
     continuousuitypes = ["inputstep", "inputstop", "dragdelay", "inputset"]
     global function edit(insw::InstrWidget, insbuf::InstrBuffer, addr, p_open, id)
-        CImGui.SetNextWindowSize(insw.windowsize)
+        scale = unsafe_load(CImGui.GetIO().FontGlobalScale)
+        CImGui.SetNextWindowSize(insw.windowsize * scale)
         CImGui.PushStyleColor(CImGui.ImGuiCol_WindowBg, insw.windowbgcolor)
         if CImGui.Begin(
             stcstr(
@@ -609,7 +613,7 @@ let
                 CImGui.IsMouseClicked(1) && CImGui.OpenPopup(stcstr("edit widget", insw.instrnm, insw.name))
             end
         end
-        CImGui.IsWindowCollapsed() || (insw.windowsize .= CImGui.GetWindowSize())
+        CImGui.IsWindowCollapsed() || (insw.windowsize .= CImGui.GetWindowSize() ./ scale)
         CImGui.End()
         CImGui.PopStyleColor()
     end
