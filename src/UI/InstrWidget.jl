@@ -194,34 +194,6 @@ function editQuantitySelector(qtw::QuantityWidget, opts::QuantityWidgetOption, _
     return trig
 end
 
-function trigselector(qtw::QuantityWidget, insw::InstrWidget, trig::Bool)
-    if !isempty(qtw.options.bindingqtwidxes)
-        if trig
-            for bidx in qtw.options.bindingqtwidxes
-                ij = idxtoij(insw, bidx)
-                if !isnothing(ij)
-                    i, j = ij
-                    if i <= length(insw.qtws) && j <= length(insw.qtws[i])
-                        qtnm, type = only(
-                            [(qtnm, qt.type) for (qtnm, qt) in INSCONF[insw.instrnm].quantities if qt.alias == qtw.alias]
-                        )
-                        if type == insw.qtws[i][j].qtype
-                            insw.qtws[i][j].alias = qtw.alias
-                            insw.qtws[i][j].name = qtnm
-                        end
-                    end
-                end
-            end
-        else
-            ij = idxtoij(insw, qtw.options.bindingqtwidxes[1])
-            if !isnothing(ij)
-                i, j = ij
-                qtw.alias = insw.qtws[i][j].alias
-            end
-        end
-    end
-end
-
 editSameLine(opts::QuantityWidgetOption) = (CImGui.SameLine(opts.localposx, opts.spacingw); return false)
 
 edit(::QuantityWidgetOption, ::AbstractQuantity, _, _, ::Val) = CImGui.Button(mlstr("Invalid UI Type"))
@@ -600,18 +572,16 @@ let
                 length(qtwg) == 1 || CImGui.BeginGroup()
                 for (j, qtw) in enumerate(qtwg)
                     CImGui.PushID(j)
-                    trig = edit(qtw, insbuf, insw.instrnm, addr, insw.options)
-                    trig && qtw.qtype in qtypes && qtw.options.uitype ∉ continuousuitypes && Threads.@spawn refresh1(insw, addr)
-                    qtw.name == "_QuantitySelector_" && trigselector(qtw, insw, trig)
+                    if edit(qtw, insbuf, insw.instrnm, addr, insw.options)
+                        qtw.qtype in qtypes && qtw.options.uitype ∉ continuousuitypes && Threads.@spawn refresh1(insw, addr)
+                        qtw.name == "_QuantitySelector_" && (trigselector!(qtw, insw); Threads.@spawn refresh1(insw, addr))
+                    end
                     CImGui.PopID()
                 end
                 length(qtwg) == 1 || CImGui.EndGroup()
                 CImGui.PopID()
             end
             CImGui.EndChild()
-            if !CImGui.IsAnyItemHovered() && CImGui.IsWindowHovered(CImGui.ImGuiHoveredFlags_ChildWindows)
-                CImGui.IsMouseClicked(1) && CImGui.OpenPopup(stcstr("edit widget", insw.instrnm, insw.name))
-            end
         end
         CImGui.IsWindowCollapsed() || (insw.windowsize .= CImGui.GetWindowSize() ./ scale)
         CImGui.End()
@@ -1222,6 +1192,34 @@ function refresh1(insw::InstrWidget, addr)
             for (qtnm, qt) in filter(x -> x.first in insw.qtlist, INSTRBUFFERVIEWERS[insw.instrnm][addr].insbuf.quantities)
                 qt.read = fetchibvs[insw.instrnm][addr].insbuf.quantities[qtnm].read
                 updatefront!(qt)
+            end
+        end
+    end
+end
+
+function trigselector!(qtw::QuantityWidget, insw::InstrWidget)
+    if !isempty(qtw.options.bindingqtwidxes)
+        for bidx in qtw.options.bindingqtwidxes
+            ij = idxtoij(insw, bidx)
+            if !isnothing(ij)
+                i, j = ij
+                if i <= length(insw.qtws) && j <= length(insw.qtws[i])
+                    qtnm, type = only(
+                        [(qtnm, qt.type) for (qtnm, qt) in INSCONF[insw.instrnm].quantities if qt.alias == qtw.alias]
+                    )
+                    if type == insw.qtws[i][j].qtype
+                        insw.qtws[i][j].alias = qtw.alias
+                        insw.qtws[i][j].name = qtnm
+                    end
+                end
+            end
+        end
+    end
+    for qtwg in insw.qtws
+        for qtw in filter(x -> x.name == "_QuantitySelector_", qtwg)
+            if !isempty(qtw.options.bindingqtwidxes)
+                ij = idxtoij(insw, qtw.options.bindingqtwidxes[1])
+                isnothing(ij) || (qtw.alias = insw.qtws[ij[1]][ij[2]].alias)
             end
         end
     end
