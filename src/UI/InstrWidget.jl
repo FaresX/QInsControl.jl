@@ -96,6 +96,8 @@ function edit(qtw::QuantityWidget, insbuf::InstrBuffer, instrnm, addr, gopts::Qu
         editQuantitySelector(qtw, opts, instrnm, Val(Symbol(qtw.options.uitype)))
     elseif qtw.name == "_SameLine_"
         editSameLine(opts)
+    else
+        false
     end
     opts.allowoverlap && CImGui.SetItemAllowOverlap()
     opts.itemsize ./= scale
