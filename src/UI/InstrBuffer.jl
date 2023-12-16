@@ -199,7 +199,7 @@ function edit(ibv::InstrBufferViewer)
         SetWindowBgImage()
         @c testcmd(ins, addr, &ibv.inputcmd, &ibv.readstr)
         edit(ibv.insbuf, addr)
-        CImGui.IsKeyPressed(294, false) && (refresh1(true); updatefrontall!())
+        CImGui.IsKeyPressed(ImGuiKey_F5, false) && (refresh1(true); updatefrontall!())
     end
     CImGui.End()
 end
@@ -444,7 +444,7 @@ function edit(insbuf::InstrBuffer, addr)
         @c CImGui.Checkbox("##show disabled", &insbuf.showdisable)
         CImGui.EndPopup()
     end
-    CImGui.IsKeyPressed(294, false) && (refresh1(true); updatefrontall!())
+    CImGui.IsKeyPressed(ImGuiKey_F5, false) && (refresh1(true); updatefrontall!())
 end
 
 let
@@ -494,18 +494,18 @@ let
                 if qt.issweeping
                     if CImGui.Button(
                         mlstr(" Stop "), (-0.1, 0.0)
-                    ) || CImGui.IsKeyPressed(igGetKeyIndex(ImGuiKey_Enter), false)
+                    ) || CImGui.IsKeyPressed(ImGuiKey_Enter, false)
                         qt.issweeping = false
                     end
                 else
                     if CImGui.Button(
                         mlstr(" Start "), (-0.1, 0.0)
-                    ) || CImGui.IsKeyPressed(igGetKeyIndex(ImGuiKey_Enter), false)
+                    ) || CImGui.IsKeyPressed(ImGuiKey_Enter, false)
                         apply!(qt, instrnm, addr)
                         closepopup = true
                     end
                 end
-                if closepopup && !CImGui.IsKeyDown(igGetKeyIndex(ImGuiKey_Enter))
+                if closepopup && !CImGui.IsKeyDown(ImGuiKey_Enter)
                     CImGui.CloseCurrentPopup()
                     closepopup = false
                 end
@@ -571,13 +571,13 @@ let
                 if CImGui.Button(
                        mlstr(" Confirm "),
                        (-Cfloat(0.1), Cfloat(0))
-                   ) || triggerset || CImGui.IsKeyPressed(igGetKeyIndex(ImGuiKey_Enter), false)
+                   ) || triggerset || CImGui.IsKeyPressed(ImGuiKey_Enter, false)
                     triggerset && (qt.set = qt.optvalues[qt.optedidx])
                     apply!(qt, instrnm, addr, triggerset)
                     triggerset = false
                     closepopup = true
                 end
-                if closepopup && !CImGui.IsKeyDown(igGetKeyIndex(ImGuiKey_Enter))
+                if closepopup && !CImGui.IsKeyDown(ImGuiKey_Enter)
                     CImGui.CloseCurrentPopup()
                     closepopup = false
                 end

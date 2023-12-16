@@ -41,7 +41,7 @@ let
             ftsz = CImGui.GetFontSize()
             if selectedpref == "General"
                 ### Basic ###
-                CImGui.TextColored(MORESTYLE.Colors.HighlightText, mlstr("Basic Setup"))
+                SeperatorTextColored(MORESTYLE.Colors.HighlightText, mlstr("Basic Setup"))
                 @c CImGui.Checkbox(
                     CONF.Basic.isremote ? mlstr("dual core") : mlstr("single core"),
                     &CONF.Basic.isremote
@@ -89,10 +89,10 @@ let
                     loadlanguage(CONF.Basic.languages[CONF.Basic.language])
                 end
                 CImGui.Text(" ")
-                CImGui.Separator()
+                
 
                 ###DtViewer###
-                CImGui.TextColored(MORESTYLE.Colors.HighlightText, mlstr("Data Viewer"))
+                SeperatorTextColored(MORESTYLE.Colors.HighlightText, mlstr("Data Viewer"))
                 @c CImGui.DragInt(
                     mlstr("data amount per page"),
                     &CONF.DtViewer.showdatarow,
@@ -100,10 +100,10 @@ let
                     CImGui.ImGuiSliderFlags_AlwaysClamp
                 )
                 CImGui.Text(" ")
-                CImGui.Separator()
+                
 
                 ###DAQ###
-                CImGui.TextColored(MORESTYLE.Colors.HighlightText, "DAQ")
+                SeperatorTextColored(MORESTYLE.Colors.HighlightText, "DAQ")
                 # @c CImGui.Checkbox(mlstr("screenshot save"), &CONF.DAQ.saveimg)
                 @c CImGui.Checkbox(
                     CONF.DAQ.logall ? mlstr("log all quantities") : mlstr("log enabled quantities"),
@@ -167,10 +167,10 @@ let
                     CImGui.ImGuiSliderFlags_AlwaysClamp
                 )) && remotecall_wait(x -> (CONF.DAQ.retryconnecttimes = x), workers()[1], CONF.DAQ.retryconnecttimes)
                 CImGui.Text(" ")
-                CImGui.Separator()
+                
 
                 ###InsBuf###
-                CImGui.TextColored(MORESTYLE.Colors.HighlightText, mlstr("Instrument Settings and Status"))
+                SeperatorTextColored(MORESTYLE.Colors.HighlightText, mlstr("Instrument Settings and Status"))
                 @c CImGui.Checkbox(mlstr("show help"), &CONF.InsBuf.showhelp)
                 @c CImGui.DragInt(
                     mlstr("display columns"),
@@ -185,10 +185,10 @@ let
                     CImGui.ImGuiSliderFlags_AlwaysClamp
                 )
                 CImGui.Text(" ")
-                CImGui.Separator()
+                
 
                 ###Fonts###
-                CImGui.TextColored(MORESTYLE.Colors.HighlightText, mlstr("Font"))
+                SeperatorTextColored(MORESTYLE.Colors.HighlightText, mlstr("Font"))
                 fontdir = CONF.Fonts.dir
                 inputfontdir = @c InputTextRSZ(stcstr(mlstr("path"), "##Fonts"), &fontdir)
                 CImGui.SameLine()
@@ -224,20 +224,20 @@ let
                     CImGui.ImGuiSliderFlags_AlwaysClamp
                 )
                 CImGui.Text(" ")
-                CImGui.Separator()
+                
 
                 ###Icons###
-                # CImGui.TextColored(MORESTYLE.Colors.HighlightText, mlstr("Icon"))
+                # SeperatorTextColored(MORESTYLE.Colors.HighlightText, mlstr("Icon"))
                 # @c CImGui.DragInt(
                 #     mlstr("icon size"),
                 #     &CONF.Icons.size, 1.0, 6, 120, "%d",
                 #     CImGui.ImGuiSliderFlags_AlwaysClamp
                 # )
                 # CImGui.Text(" ")
-                # CImGui.Separator()
+                # 
 
                 ###Console###
-                CImGui.TextColored(MORESTYLE.Colors.HighlightText, mlstr("Console"))
+                SeperatorTextColored(MORESTYLE.Colors.HighlightText, mlstr("Console"))
                 iodir = CONF.Console.dir
                 inputiodir = @c InputTextRSZ(stcstr(mlstr("path"), "##Console"), &iodir)
                 CImGui.SameLine()
@@ -263,10 +263,10 @@ let
                     CImGui.ImGuiSliderFlags_AlwaysClamp
                 )
                 CImGui.Text(" ")
-                CImGui.Separator()
+                
 
                 ###Logs###
-                CImGui.TextColored(MORESTYLE.Colors.HighlightText, mlstr("Logger"))
+                SeperatorTextColored(MORESTYLE.Colors.HighlightText, mlstr("Logger"))
                 logdir = CONF.Logs.dir
                 inputlogdir = @c InputTextRSZ(stcstr(mlstr("path"), "##Logs"), &logdir)
                 CImGui.SameLine()
@@ -292,10 +292,10 @@ let
                     CImGui.ImGuiSliderFlags_AlwaysClamp
                 )
                 CImGui.Text(" ")
-                CImGui.Separator()
+                
 
                 ###ComAddr###
-                CImGui.TextColored(MORESTYLE.Colors.HighlightText, mlstr("Common Address"))
+                SeperatorTextColored(MORESTYLE.Colors.HighlightText, mlstr("Common Address"))
                 addrs = join(CONF.ComAddr.addrs, "\n")
                 y = max(1, length(CONF.ComAddr.addrs)) * CImGui.GetTextLineHeight() +
                     2unsafe_load(IMGUISTYLE.FramePadding.y)
@@ -306,7 +306,7 @@ let
                     end
                 end
                 CImGui.Text(" ")
-                CImGui.Separator()
+                
 
                 ###U###
                 CImGui.PushStyleColor(CImGui.ImGuiCol_Text, MORESTYLE.Colors.HighlightText)

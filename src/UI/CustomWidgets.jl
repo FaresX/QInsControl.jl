@@ -579,3 +579,9 @@ function SetWindowBgImage(path=CONF.BGImage.path; tint_col=MORESTYLE.Colors.BgIm
         CImGui.SetCursorScreenPos(co)
     end
 end
+
+function SeperatorTextColored(col, label)
+    CImGui.PushStyleColor(CImGui.ImGuiCol_Text, col)
+    igSeparatorText(label)
+    CImGui.PopStyleColor()
+end

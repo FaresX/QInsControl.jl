@@ -217,27 +217,28 @@ function Base.getindex(v::Union{ImVec2,ImPlot.ImPlotPoint}, i)
 end
 Base.length(::Union{ImVec2,ImPlot.ImPlotPoint}) = 2
 
-function Base.getproperty(x::Ptr{LibCImGui.Style}, f::Symbol)
-    f === :grid_spacing && return Ptr{Cfloat}(x + 0)
-    f === :node_corner_rounding && return Ptr{Cfloat}(x + 4)
-    f === :node_padding_horizontal && return Ptr{Cfloat}(x + 8)
-    f === :node_padding_vertical && return Ptr{Cfloat}(x + 12)
-    f === :node_border_thickness && return Ptr{Cfloat}(x + 16)
-    f === :link_thickness && return Ptr{Cfloat}(x + 20)
-    f === :link_line_segments_per_length && return Ptr{Cfloat}(x + 24)
-    f === :link_hover_distance && return Ptr{Cfloat}(x + 28)
-    f === :pin_circle_radius && return Ptr{Cfloat}(x + 32)
-    f === :pin_quad_side_length && return Ptr{Cfloat}(x + 36)
-    f === :pin_triangle_side_length && return Ptr{Cfloat}(x + 40)
-    f === :pin_line_thickness && return Ptr{Cfloat}(x + 44)
-    f === :pin_hover_radius && return Ptr{Cfloat}(x + 48)
-    f === :pin_offset && return Ptr{Cfloat}(x + 52)
-    f === :flags && return Ptr{UInt32}(x + 56)
-    f === :colors && return Ptr{NTuple{16,Cuint}}(x + 60)
+function Base.getproperty(x::Ptr{LibCImGui.ImNodesStyle}, f::Symbol)
+    f === :GridSpacing && return Ptr{Cfloat}(x + 0)
+    f === :NodeCornerRounding && return Ptr{Cfloat}(x + 4)
+    f === :NodePadding && return Ptr{ImVec2}(x + 8)
+    f === :NodeBorderThickness && return Ptr{Cfloat}(x + 16)
+    f === :LinkThickness && return Ptr{Cfloat}(x + 20)
+    f === :LinkLineSegmentsPerLength && return Ptr{Cfloat}(x + 24)
+    f === :LinkHoverDistance && return Ptr{Cfloat}(x + 28)
+    f === :PinCircleRadius && return Ptr{Cfloat}(x + 32)
+    f === :PinQuadSideLength && return Ptr{Cfloat}(x + 36)
+    f === :PinTriangleSideLength && return Ptr{Cfloat}(x + 40)
+    f === :PinLineThickness && return Ptr{Cfloat}(x + 44)
+    f === :PinHoverRadius && return Ptr{Cfloat}(x + 48)
+    f === :PinOffset && return Ptr{Cfloat}(x + 52)
+    f === :MiniMapPadding && return Ptr{ImVec2}(x + 56)
+    f === :MiniMapOffset && return Ptr{ImVec2}(x + 64)
+    f === :Flags && return Ptr{UInt32}(x + 72)
+    f === :Colors && return Ptr{NTuple{29,Cuint}}(x + 76)
     return getfield(x, f)
 end
 
-Base.setproperty!(x::Ptr{LibCImGui.Style}, f::Symbol, v) = unsafe_store!(getproperty(x, f), v)
+Base.setproperty!(x::Ptr{LibCImGui.ImNodesStyle}, f::Symbol, v) = unsafe_store!(getproperty(x, f), v)
 
 function newtuple(t::Tuple, i, v)
     newt = []
@@ -304,7 +305,7 @@ move!(lv::LoopVector, i=1) = (lv.index += i)
 
 function waittofetch(f, timeout=2; pollint=0.001)
     waittask = errormonitor(@async fetch(f))
-    isok = timedwait(()->istaskdone(waittask), timeout; pollint=pollint)
+    isok = timedwait(() -> istaskdone(waittask), timeout; pollint=pollint)
     isok == :ok && return fetch(waittask)
     return nothing
 end
@@ -312,7 +313,7 @@ end
 function wait_remotecall_fetch(f, id::Integer, args...; timeout=2, pollint=0.001, kwargs...)
     future = remotecall_fetch(f, id, args...; kwargs...)
     waittask = errormonitor(@async fetch(future))
-    isok = timedwait(()->istaskdone(waittask), timeout; pollint=pollint)
+    isok = timedwait(() -> istaskdone(waittask), timeout; pollint=pollint)
     isok == :ok && return fetch(waittask)
     return nothing
 end

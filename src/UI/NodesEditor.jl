@@ -659,7 +659,7 @@ end
 let
     hold::Bool = false
     holdsz::Cfloat = 0
-    nodeeditor_contexts::Dict{String,Ptr{LibCImGui.EditorContext}} = Dict()
+    nodeeditor_contexts::Dict{String,Ptr{LibCImGui.ImNodesEditorContext}} = Dict()
     global function edit(nodeeditor::NodeEditor, id, p_open::Ref{Bool})
         CImGui.SetNextWindowSize((1200, 600), CImGui.ImGuiCond_Once)
         CImGui.PushStyleColor(CImGui.ImGuiCol_WindowBg, CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_PopupBg))
@@ -766,7 +766,7 @@ end
 let
     # isanynodehovered_list::Dict{String,Bool} = Dict()
     # isanylinkhovered_list::Dict{String,Bool} = Dict()
-    nodeeditor_contexts::Dict{String,Ptr{LibCImGui.EditorContext}} = Dict()
+    nodeeditor_contexts::Dict{String,Ptr{LibCImGui.ImNodesEditorContext}} = Dict()
     global function view(nodeeditor::NodeEditor, id)
         haskey(nodeeditor_contexts, id) || push!(nodeeditor_contexts, id => imnodes_EditorContextCreate())
         # haskey(isanynodehovered_list, id) || push!(isanynodehovered_list, id => false)
