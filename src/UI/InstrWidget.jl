@@ -881,7 +881,12 @@ function convertmenu(insw::InstrWidget, i, j)
                 for (qtnm, qt) in INSCONF[insw.instrnm].quantities
                     qt.type == "read" || continue
                     if CImGui.MenuItem(qt.alias)
-                        insw.qtws[i][j] = QuantityWidget(name=qtnm, alias=qt.alias, options=insw.qtws[i][j].options)
+                        insw.qtws[i][j] = QuantityWidget(
+                            name=qtnm,
+                            alias=qt.alias,
+                            qtype="read",
+                            options=insw.qtws[i][j].options
+                        )
                     end
                 end
             end
