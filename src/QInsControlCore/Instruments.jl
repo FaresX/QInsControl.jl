@@ -126,13 +126,22 @@ Base.read(::VirtualInstr) = "read"
 
 query the instrument with some message string.
 """
-query(instr::GPIBInstr, msg::AbstractString; delay=0) = Instruments.query(instr.geninstr, msg; delay=delay)
-query(instr::SerialInstr, msg::AbstractString; delay=0) = Instruments.query(instr.geninstr, string(msg, "\n"); delay=delay)
-function query(instr::TCPIPInstr, msg::AbstractString; delay=0, timeout=6)
+function _query_(instr::Instruments.GenericInstrument, msg; delay=0, pollint=0.001, timeout=6, errormsg="time out")
+    Instruments.write(instr, msg)
+    sleep(delay)
+    t = Threads.@spawn Instruments.read(instr)
+    isok = timedwait(()->istaskdone(t), timeout; pollint=pollint)
+    return isok == :ok ? fetch(t) : error(errormsg)
+end
+query(instr::GPIBInstr, msg::AbstractString) = _query_(instr.geninstr, msg; errormsg="$(instr.addr) time out")
+function query(instr::SerialInstr, msg::AbstractString; termchar='\n')
+    _query_(instr.geninstr, string(msg, termchar); errormsg="$(instr.addr) time out")
+end
+function query(instr::TCPIPInstr, msg::AbstractString; delay=0, pollint=0.001, timeout=6)
     println(instr.sock[], msg)
     sleep(delay)
-    t = @async readline(instr.sock[])
-    isok = timedwait(()->istaskdone(t), timeout; pollint=0.001)
+    t = Threads.@spawn readline(instr.sock[])
+    isok = timedwait(()->istaskdone(t), timeout; pollint=pollint)
     return isok == :ok ? fetch(t) : error("$(instr.addr) time out")
 end
 query(::VirtualInstr, ::AbstractString; delay=0) = "query"
