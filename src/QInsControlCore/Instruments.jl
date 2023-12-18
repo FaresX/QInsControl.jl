@@ -129,7 +129,7 @@ query the instrument with some message string.
 function _query_(instr::Instruments.GenericInstrument, msg; delay=0, pollint=0.001, timeout=6, errormsg="time out")
     Instruments.write(instr, msg)
     sleep(delay)
-    t = Threads.@spawn Instruments.read(instr)
+    t = @async Instruments.read(instr)
     isok = timedwait(()->istaskdone(t), timeout; pollint=pollint)
     return isok == :ok ? fetch(t) : error(errormsg)
 end
@@ -140,7 +140,7 @@ end
 function query(instr::TCPIPInstr, msg::AbstractString; delay=0, pollint=0.001, timeout=6)
     println(instr.sock[], msg)
     sleep(delay)
-    t = Threads.@spawn readline(instr.sock[])
+    t = @async readline(instr.sock[])
     isok = timedwait(()->istaskdone(t), timeout; pollint=pollint)
     return isok == :ok ? fetch(t) : error("$(instr.addr) time out")
 end

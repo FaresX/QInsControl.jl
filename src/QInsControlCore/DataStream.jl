@@ -186,18 +186,18 @@ end
 
 function runcmd(cpu::Processor, ctid::UUID, cmdid::UUID, f::Function, val::String, ::Val{:write})
     ct = cpu.controllers[ctid]
-    wait(Threads.@spawn f(cpu.instrs[ct.addr], val))
+    f(cpu.instrs[ct.addr], val)
     push!(ct.databuf, cmdid => "done")
     return nothing
 end
 function runcmd(cpu::Processor, ctid::UUID, cmdid::UUID, f::Function, ::String, ::Val{:read})
     ct = cpu.controllers[ctid]
-    push!(ct.databuf, cmdid => fetch(Threads.@spawn f(cpu.instrs[ct.addr])))
+    push!(ct.databuf, cmdid => f(cpu.instrs[ct.addr]))
     return nothing
 end
 function runcmd(cpu::Processor, ctid::UUID, cmdid::UUID, f::Function, val::String, ::Val{:query})
     ct = cpu.controllers[ctid]
-    push!(ct.databuf, cmdid => fetch(Threads.@spawn f(cpu.instrs[ct.addr], val)))
+    push!(ct.databuf, cmdid => f(cpu.instrs[ct.addr], val))
     return nothing
 end
 

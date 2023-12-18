@@ -4,7 +4,7 @@
     viewportenable::Bool = true
     scale::Bool = false
     hidewindow::Bool = false
-    nthreads_2::Cint = 2
+    nthreads_2::Cint = 1
     nthreads_3::Cint = 1
     windowsize::Vector{Cint} = [1280, 720]
     encoding::String = "GBK"
