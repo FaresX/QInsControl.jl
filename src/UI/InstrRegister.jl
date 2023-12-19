@@ -199,7 +199,7 @@ let
                         CImGui.BeginChild("Configurations")
                         selectedinscf = INSCONF[selectedins]
                         ###conf###
-                        SeperatorTextColored(MORESTYLE.Colors.HighlightText, mlstr("Basic"))
+                        SeparatorTextColored(MORESTYLE.Colors.HighlightText, mlstr("Basic"))
                         @c IconSelector(mlstr("icon"), &selectedinscf.conf.icon)
                         if @c InputTextRSZ(mlstr("identification string"), &selectedinscf.conf.idn)
                             lstrip(selectedinscf.conf.idn) == "" && (selectedinscf.conf.idn = selectedins)
@@ -248,10 +248,9 @@ let
                         end
                         CImGui.EndGroup()
                         CImGui.Text(" ") #空行
-                        CImGui.Separator()
 
                         ###quantities###
-                        SeperatorTextColored(MORESTYLE.Colors.HighlightText, mlstr("Variables"))
+                        SeparatorTextColored(MORESTYLE.Colors.HighlightText, mlstr("Variables"))
                         if @c ComBoS(mlstr("variables"), &selectedqt, keys(selectedinscf.quantities))
                             if selectedqt != "" && haskey(selectedinscf.quantities, selectedqt)
                                 qtname = selectedqt
@@ -270,8 +269,8 @@ let
                             selectedqt = ""
                         end
                         CImGui.Text(" ") #空行
-                        CImGui.Separator()
-                        SeperatorTextColored(MORESTYLE.Colors.HighlightText, mlstr("Edit"))
+                        
+                        SeparatorTextColored(MORESTYLE.Colors.HighlightText, mlstr("Edit"))
                         CImGui.SameLine()
                         if CImGui.Button(stcstr(MORESTYLE.Icons.SaveButton, "##QuantityConf to INSCONF"))
                             push!(selectedinscf.quantities, qtname => deepcopy(editqt))

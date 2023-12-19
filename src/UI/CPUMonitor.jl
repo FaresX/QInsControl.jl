@@ -6,7 +6,7 @@ function CPUMonitor(p_open::Ref)
         CImGui.SameLine()
         CImGui.Text(stcstr(remotecall_fetch(() -> CPU.id, workers()[1])))
         CImGui.Spacing()
-        SeperatorTextColored(MORESTYLE.Colors.HighlightText, mlstr("status"))
+        SeparatorTextColored(MORESTYLE.Colors.HighlightText, mlstr("status"))
         CImGui.Indent()
         if remotecall_fetch(() -> CPU.running, workers()[1])[]
             CImGui.TextColored(MORESTYLE.Colors.LogInfo, mlstr("running"))
@@ -42,7 +42,7 @@ function CPUMonitor(p_open::Ref)
         end
         CImGui.Unindent()
         CImGui.Spacing()
-        SeperatorTextColored(MORESTYLE.Colors.HighlightText, mlstr("controllers"))
+        SeparatorTextColored(MORESTYLE.Colors.HighlightText, mlstr("controllers"))
         CImGui.Button(
             stcstr(MORESTYLE.Icons.InstrumentsManualRef, " ", mlstr("Reconnect"))
         ) && remotecall_wait(() -> reconnect!(CPU), workers()[1])

@@ -943,7 +943,7 @@ let
         CImGui.PopFont()
         if isdragging && draggingid == presentid && length(dragblock) == 1
             draw_list = CImGui.GetWindowDrawList()
-            tiptxt = split(string(typeof(only(dragblock))), '.')[end]
+            tiptxt = mlstr(split(string(typeof(only(dragblock))), '.')[end])
             ftsz = CImGui.GetFontSize()
             rmin = CImGui.GetMousePos() .+ CImGui.ImVec2(ftsz, ftsz)
             rmax = rmin .+ CImGui.CalcTextSize(tiptxt) .+ CImGui.ImVec2(ftsz, ftsz)

@@ -580,7 +580,7 @@ function SetWindowBgImage(path=CONF.BGImage.path; tint_col=MORESTYLE.Colors.BgIm
     end
 end
 
-function SeperatorTextColored(col, label)
+function SeparatorTextColored(col, label)
     CImGui.PushStyleColor(CImGui.ImGuiCol_Text, col)
     igSeparatorText(label)
     CImGui.PopStyleColor()

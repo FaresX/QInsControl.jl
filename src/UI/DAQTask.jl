@@ -34,7 +34,7 @@ let
             @c CImGui.Checkbox(mlstr("HOLD"), &daqtask.hold)
             holdsz = CImGui.GetItemRectSize().x
             CImGui.Separator()
-            SeperatorTextColored(MORESTYLE.Colors.HighlightText, mlstr("Experimental Records"))
+            SeparatorTextColored(MORESTYLE.Colors.HighlightText, mlstr("Experimental Records"))
             y = (1 + length(findall("\n", daqtask.explog))) * CImGui.GetTextLineHeight() +
                 2unsafe_load(IMGUISTYLE.FramePadding.y)
             @c InputTextMultilineRSZ("##experimental record", &daqtask.explog, (Float32(-1), y))
@@ -42,7 +42,7 @@ let
                 CImGui.MenuItem(stcstr(mlstr("clear"), "##experimental record")) && (daqtask.explog = "")
                 CImGui.EndPopup()
             end
-            SeperatorTextColored(MORESTYLE.Colors.HighlightText, mlstr("Script"))
+            SeparatorTextColored(MORESTYLE.Colors.HighlightText, mlstr("Script"))
             CImGui.Button(
                 stcstr(MORESTYLE.Icons.InstrumentsAutoDetect, " ", mlstr("Refresh instrument list"))
             ) && refresh_instrlist()
