@@ -107,13 +107,13 @@ function login!(cpu::Processor, ct::Controller)
         if !haskey(cpu.instrs, ct.addr)
             push!(cpu.instrs, ct.addr => instrument(ct.instrnm, ct.addr))
             push!(cpu.exechannels, ct.addr => [])
-            push!(cpu.taskhandlers, ct.addr => true)
-            t = @async while cpu.taskhandlers[ct.addr]
-                isempty(cpu.exechannels[ct.addr]) || runcmd(cpu, popfirst!(cpu.exechannels[ct.addr])...)
-                yield()
-            end
+            # push!(cpu.taskhandlers, ct.addr => true)
+            # t = @async while cpu.taskhandlers[ct.addr]
+            #     isempty(cpu.exechannels[ct.addr]) || runcmd(cpu, popfirst!(cpu.exechannels[ct.addr])...)
+            #     yield()
+            # end
             # @info "task(address: $(ct.addr)) is created"
-            push!(cpu.tasks, ct.addr => errormonitor(t))
+            # push!(cpu.tasks, ct.addr => errormonitor(t))
             connect!(cpu.resourcemanager[], cpu.instrs[ct.addr])
         end
     else
@@ -200,6 +200,8 @@ function runcmd(cpu::Processor, ctid::UUID, cmdid::UUID, f::Function, val::Strin
     push!(ct.databuf, cmdid => f(cpu.instrs[ct.addr], val))
     return nothing
 end
+runcmd(cpu::Processor, cmd::Tuple{UUID,UUID,Function,String,Val}) = runcmd(cpu, cmd...)
+runcmd(_, ::Nothing) = nothing
 
 function init!(cpu::Processor)
     if !cpu.running[]
@@ -236,34 +238,46 @@ function run!(cpu::Processor)
                 yield()
             end
         )
-        for (addr, exec) in cpu.exechannels
-            cpu.taskhandlers[addr] = true
-            t = @async while cpu.taskhandlers[addr]
-                isempty(exec) || runcmd(cpu, popfirst!(exec)...)
-                cpu.fast[] || sleep(0.001)
-                yield()
-            end
-            @info "task(address: $addr) is created"
-            push!(cpu.tasks, addr => errormonitor(t))
-        end
         errormonitor(
             @async while cpu.running[]
-                for (addr, t) in cpu.tasks
-                    if istaskfailed(t)
-                        @warn "task(address: $addr) is failed, recreating..."
-                        newt = @async while cpu.taskhandlers[addr]
-                            isempty(cpu.exechannels[addr]) || runcmd(cpu, popfirst!(cpu.exechannels[addr])...)
-                            cpu.fast[] || sleep(0.001)
-                            yield()
-                        end
-                        @info "task(address: $addr) is recreated"
-                        push!(cpu.tasks, addr => errormonitor(newt))
-                    end
+                cmds = map(values(cpu.exechannels)) do exec
+                    isempty(exec) ? nothing : popfirst!(exec)
                 end
-                cpu.fast[] || sleep(0.001)
+                cmd_parts = Iterators.partition(cmds, Threads.nthreads())
+                @sync map(cmd_parts) do cmd_part
+                    Threads.@spawn map(cmd -> runcmd(cpu, cmd), cmd_part)
+                end
                 yield()
             end
         )
+        # for (addr, exec) in cpu.exechannels
+        #     cpu.taskhandlers[addr] = true
+        #     t = @async while cpu.taskhandlers[addr]
+        #         isempty(exec) || runcmd(cpu, popfirst!(exec)...)
+        #         cpu.fast[] || sleep(0.001)
+        #         yield()
+        #     end
+        #     @info "task(address: $addr) is created"
+        #     push!(cpu.tasks, addr => errormonitor(t))
+        # end
+        # errormonitor(
+        #     @async while cpu.running[]
+        #         for (addr, t) in cpu.tasks
+        #             if istaskfailed(t)
+        #                 @warn "task(address: $addr) is failed, recreating..."
+        #                 newt = @async while cpu.taskhandlers[addr]
+        #                     isempty(cpu.exechannels[addr]) || runcmd(cpu, popfirst!(cpu.exechannels[addr])...)
+        #                     cpu.fast[] || sleep(0.001)
+        #                     yield()
+        #                 end
+        #                 @info "task(address: $addr) is recreated"
+        #                 push!(cpu.tasks, addr => errormonitor(newt))
+        #             end
+        #         end
+        #         cpu.fast[] || sleep(0.001)
+        #         yield()
+        #     end
+        # )
     end
     return nothing
 end
