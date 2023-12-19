@@ -918,14 +918,17 @@ mousein(::NullBlock, total=false) = false
 
 let
     isdragging::Bool = false
+    draggingid = 0
+    presentid = 0
     dragblock = AbstractBlock[]
     dropblock = AbstractBlock[]
     copyblock::AbstractBlock = NullBlock()
     instrblocks::Vector{Type} = [SweepBlock, SettingBlock, ReadingBlock, WriteBlock, QueryBlock, ReadBlock]
-    global function edit(blocks::Vector{AbstractBlock}, n::Int)
+    global function edit(blocks::Vector{AbstractBlock}, n::Int, id=0)
+        n == 1 && (presentid = id)
         for (i, bk) in enumerate(blocks)
             bk isa NullBlock && continue
-            if isdragging && mousein(bk)
+            if isdragging && draggingid == presentid && mousein(bk)
                 CImGui.PushStyleColor(CImGui.ImGuiCol_Separator, MORESTYLE.Colors.HighlightText)
                 draw_list = CImGui.GetWindowDrawList()
                 rectcolor = CImGui.ColorConvertFloat4ToU32(MORESTYLE.Colors.BlockDragdrop)
@@ -948,9 +951,10 @@ let
                 if CImGui.c_get(CImGui.GetIO().MouseDownDuration, 0) > 0.2 && !isdragging && mousein(bk)
                     isempty(dragblock) && push!(dragblock, bk)
                     isdragging = true
+                    draggingid = presentid
                 end
             else
-                if isdragging && mousein(bk)
+                if isdragging && draggingid == presentid && mousein(bk)
                     isempty(dropblock) && push!(dropblock, bk)
                     isdragging = false
                 end
@@ -1006,7 +1010,7 @@ let
         for (i, bk) in enumerate(blocks)
             bk isa NullBlock && deleteat!(blocks, i)
         end
-        if n == 1
+        if n == 1 && draggingid == presentid
             if isdragging && !CImGui.IsMouseDown(0)
                 isdragging = false
             elseif !isdragging
