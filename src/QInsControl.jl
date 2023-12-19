@@ -99,6 +99,7 @@ function julia_main()::Cint
         loadconf()
         databuf_c::Channel{Vector{Tuple{String,String}}} = Channel{Vector{NTuple{2,String}}}(CONF.DAQ.channel_size)
         progress_c::Channel{Vector{Tuple{UUID,Int,Int,Float64}}} = Channel{Vector{Tuple{UUID,Int,Int,Float64}}}(CONF.DAQ.channel_size)
+        ENV["JULIA_NUM_THREADS"] = CONF.Basic.nthreads_2
         CONF.Basic.isremote && nprocs() == 1 && addprocs(1)
         @eval @everywhere using QInsControl
         global SYNCSTATES = SharedVector{Bool}(9)
@@ -122,7 +123,7 @@ function julia_main()::Cint
         remotecall_wait(() -> start!(CPU), workers()[1])
         global AUTOREFRESHTASK = autorefresh()
         if CONF.Basic.remoteprocessdata && nprocs() == 2
-            ENV["JULIA_NUM_THREADS"] = CONF.Basic.nthreads
+            ENV["JULIA_NUM_THREADS"] = CONF.Basic.nthreads_3
             addprocs(1)
         end
         @info "[$(now())]\n$(mlstr("successfully started!"))"

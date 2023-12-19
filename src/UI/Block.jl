@@ -105,10 +105,15 @@ end
 
 ############ isapprox --------------------------------------------------------------------------------------------------
 
-Base.isapprox(::T1, ::T2) where {T1<:AbstractBlock} where {T2<:AbstractBlock} = T1 == T2
-Base.isapprox(x::CodeBlock, y::CodeBlock) = x.codes == y.codes
-Base.isapprox(x::StrideCodeBlock, y::StrideCodeBlock) = x.codes == y.codes && x.blocks ≈ y.blocks
-Base.isapprox(x::SweepBlock, y::SweepBlock) = x.blocks ≈ y.blocks
+function Base.isapprox(bk1::T1, bk2::T2) where {T1<:AbstractBlock} where {T2<:AbstractBlock}
+    if T1 == T2
+        return all(
+            fnm == :blocks ? getproperty(bk1, fnm) ≈ getproperty(bk2, fnm) : getproperty(bk1, fnm) == getproperty(bk2, fnm)
+            for fnm in fieldnames(T1)[1:end-2]
+        )
+    end
+    return false
+end
 Base.isapprox(x::Vector{AbstractBlock}, y::Vector{AbstractBlock}) = length(x) == length(y) ? all(x .≈ y) : false
 
 ############ tocodes ---------------------------------------------------------------------------------------------------
@@ -916,6 +921,7 @@ let
     dragblock = AbstractBlock[]
     dropblock = AbstractBlock[]
     copyblock::AbstractBlock = NullBlock()
+    instrblocks::Vector{Type} = [SweepBlock, SettingBlock, ReadingBlock, WriteBlock, QueryBlock, ReadBlock]
     global function edit(blocks::Vector{AbstractBlock}, n::Int)
         for (i, bk) in enumerate(blocks)
             bk isa NullBlock && continue
@@ -930,106 +936,61 @@ let
             edit(bk)
             id = stcstr(CImGui.igGetItemID())
             if typeof(bk) in [SweepBlock, StrideCodeBlock]
-                rmin, rmax = CImGui.GetItemRectMin(), CImGui.GetItemRectMax()
+                bk.regmin, rmax = CImGui.GetItemRectMin(), CImGui.GetItemRectMax()
                 wp = unsafe_load(IMGUISTYLE.WindowPadding.y)
                 extraheight = isempty(bk.blocks) ? wp : unsafe_load(IMGUISTYLE.ItemSpacing.y) ÷ 2
-                # bk.region .= rmin.x, rmin.y, rmax.x, rmin.y + wp + CImGui.GetFrameHeight() + extraheight
-                bk.regmin = rmin
-                bk.regmax = (rmax.x, rmin.y + wp + CImGui.GetFrameHeight() + extraheight)
+                bk.regmax = (rmax.x, bk.regmin.y + wp + CImGui.GetFrameHeight() + extraheight)
             else
-                rmin, rmax = CImGui.GetItemRectMin(), CImGui.GetItemRectMax()
-                # bk.region .= rmin.x, rmin.y, rmax.x, rmax.y
-                bk.regmin = rmin
-                bk.regmax = rmax
+                bk.regmin, bk.regmax = CImGui.GetItemRectMin(), CImGui.GetItemRectMax()
             end
             CImGui.PopID()
             if CImGui.IsMouseDown(0)
                 if CImGui.c_get(CImGui.GetIO().MouseDownDuration, 0) > 0.2 && !isdragging && mousein(bk)
-                    bk in dragblock || length(dragblock) == 1 || push!(dragblock, bk)
+                    isempty(dragblock) && push!(dragblock, bk)
                     isdragging = true
                 end
             else
                 if isdragging && mousein(bk)
-                    bk in dropblock || length(dropblock) == 1 || push!(dropblock, bk)
+                    isempty(dropblock) && push!(dropblock, bk)
                     isdragging = false
                 end
             end
             mousein(bk) && CImGui.OpenPopupOnItemClick(id, 1)
             if CImGui.BeginPopup(id)
                 if CImGui.BeginMenu(stcstr(MORESTYLE.Icons.InsertUp, " ", mlstr("Insert Above")))
-                    CImGui.MenuItem(stcstr(MORESTYLE.Icons.CodeBlock, " ", mlstr("CodeBlock"))) && insert!(blocks, i, CodeBlock())
-                    CImGui.MenuItem(stcstr(MORESTYLE.Icons.StrideCodeBlock, " ", mlstr("StrideCodeBlock"))) && insert!(blocks, i, StrideCodeBlock(level=n))
-                    CImGui.MenuItem(stcstr(MORESTYLE.Icons.BranchBlock, " ", mlstr("BranchBlock"))) && insert!(blocks, i, BranchBlock())
-                    CImGui.MenuItem(stcstr(MORESTYLE.Icons.SweepBlock, " ", mlstr("SweepBlock"))) && insert!(blocks, i, SweepBlock(level=n))
-                    CImGui.MenuItem(stcstr(MORESTYLE.Icons.SettingBlock, " ", mlstr("SettingBlock"))) && insert!(blocks, i, SettingBlock())
-                    CImGui.MenuItem(stcstr(MORESTYLE.Icons.ReadingBlock, " ", mlstr("ReadingBlock"))) && insert!(blocks, i, ReadingBlock())
-                    # CImGui.MenuItem(stcstr(MORESTYLE.Icons.LogBlock, " ", mlstr("LogBlock"))) && insert!(blocks, i, LogBlock())
-                    CImGui.MenuItem(stcstr(MORESTYLE.Icons.WriteBlock, " ", mlstr("WriteBlock"))) && insert!(blocks, i, WriteBlock())
-                    CImGui.MenuItem(stcstr(MORESTYLE.Icons.QueryBlock, " ", mlstr("QueryBlock"))) && insert!(blocks, i, QueryBlock())
-                    CImGui.MenuItem(stcstr(MORESTYLE.Icons.ReadBlock, " ", mlstr("ReadBlock"))) && insert!(blocks, i, ReadBlock())
-                    # CImGui.MenuItem(stcstr(MORESTYLE.Icons.SaveBlock, " ", mlstr("SaveBlock"))) && insert!(blocks, i, SaveBlock())
+                    newblock = addblockmenu(n)
+                    isnothing(newblock) || insert!(blocks, i, newblock)
                     CImGui.EndMenu()
                 end
                 if (bk isa StrideCodeBlock || bk isa SweepBlock) && isempty(skipnull(bk.blocks))
                     if CImGui.BeginMenu(stcstr(MORESTYLE.Icons.InsertInside, " ", mlstr("Insert Inside")), bk.level < 6)
-                        CImGui.MenuItem(stcstr(MORESTYLE.Icons.CodeBlock, " ", mlstr("CodeBlock"))) && push!(bk.blocks, CodeBlock())
-                        CImGui.MenuItem(stcstr(MORESTYLE.Icons.StrideCodeBlock, " ", mlstr("StrideCodeBlock"))) && push!(bk.blocks, StrideCodeBlock(level=n + 1))
-                        CImGui.MenuItem(stcstr(MORESTYLE.Icons.BranchBlock, " ", mlstr("BranchBlock"))) && push!(bk.blocks, BranchBlock())
-                        CImGui.MenuItem(stcstr(MORESTYLE.Icons.SweepBlock, " ", mlstr("SweepBlock"))) && push!(bk.blocks, SweepBlock(level=n + 1))
-                        CImGui.MenuItem(stcstr(MORESTYLE.Icons.SettingBlock, " ", mlstr("SettingBlock"))) && push!(bk.blocks, SettingBlock())
-                        CImGui.MenuItem(stcstr(MORESTYLE.Icons.ReadingBlock, " ", mlstr("ReadingBlock"))) && push!(bk.blocks, ReadingBlock())
-                        # CImGui.MenuItem(stcstr(MORESTYLE.Icons.LogBlock, " ", mlstr("LogBlock"))) && push!(bk.blocks, LogBlock())
-                        CImGui.MenuItem(stcstr(MORESTYLE.Icons.WriteBlock, " ", mlstr("WriteBlock"))) && push!(bk.blocks, WriteBlock())
-                        CImGui.MenuItem(stcstr(MORESTYLE.Icons.QueryBlock, " ", mlstr("QueryBlock"))) && push!(bk.blocks, QueryBlock())
-                        CImGui.MenuItem(stcstr(MORESTYLE.Icons.ReadBlock, " ", mlstr("ReadBlock"))) && push!(bk.blocks, ReadBlock())
-                        # CImGui.MenuItem(stcstr(MORESTYLE.Icons.SaveBlock, " ", mlstr("SaveBlock"))) && push!(bk.blocks, SaveBlock())
+                        newblock = addblockmenu(n)
+                        isnothing(newblock) || push!(bk.blocks, newblock)
                         CImGui.EndMenu()
                     end
                 end
                 if CImGui.BeginMenu(stcstr(MORESTYLE.Icons.InsertDown, " ", mlstr("Insert Below")))
-                    CImGui.MenuItem(stcstr(MORESTYLE.Icons.CodeBlock, " ", mlstr("CodeBlock"))) && insert!(blocks, i + 1, CodeBlock())
-                    CImGui.MenuItem(stcstr(MORESTYLE.Icons.StrideCodeBlock, " ", mlstr("StrideCodeBlock"))) && insert!(blocks, i + 1, StrideCodeBlock(level=n))
-                    CImGui.MenuItem(stcstr(MORESTYLE.Icons.BranchBlock, " ", mlstr("BranchBlock"))) && insert!(blocks, i + 1, BranchBlock())
-                    CImGui.MenuItem(stcstr(MORESTYLE.Icons.SweepBlock, " ", mlstr("SweepBlock"))) && insert!(blocks, i + 1, SweepBlock(level=n))
-                    CImGui.MenuItem(stcstr(MORESTYLE.Icons.SettingBlock, " ", mlstr("SettingBlock"))) && insert!(blocks, i + 1, SettingBlock())
-                    CImGui.MenuItem(stcstr(MORESTYLE.Icons.ReadingBlock, " ", mlstr("ReadingBlock"))) && insert!(blocks, i + 1, ReadingBlock())
-                    # CImGui.MenuItem(stcstr(MORESTYLE.Icons.LogBlock, " ", mlstr("LogBlock"))) && insert!(blocks, i + 1, LogBlock())
-                    CImGui.MenuItem(stcstr(MORESTYLE.Icons.WriteBlock, " ", mlstr("WriteBlock"))) && insert!(blocks, i + 1, WriteBlock())
-                    CImGui.MenuItem(stcstr(MORESTYLE.Icons.QueryBlock, " ", mlstr("QueryBlock"))) && insert!(blocks, i + 1, QueryBlock())
-                    CImGui.MenuItem(stcstr(MORESTYLE.Icons.ReadBlock, " ", mlstr("ReadBlock"))) && insert!(blocks, i + 1, ReadBlock())
-                    # CImGui.MenuItem(stcstr(MORESTYLE.Icons.SaveBlock, " ", mlstr("SaveBlock"))) && insert!(blocks, i + 1, SaveBlock())
+                    newblock = addblockmenu(n)
+                    isnothing(newblock) || insert!(blocks, i + 1, newblock)
                     CImGui.EndMenu()
                 end
                 if CImGui.BeginMenu(stcstr(MORESTYLE.Icons.Convert, " ", mlstr("Convert to")))
-                    CImGui.MenuItem(stcstr(MORESTYLE.Icons.CodeBlock, " ", mlstr("CodeBlock"))) && (bk isa CodeBlock || (blocks[i] = CodeBlock()))
-                    if CImGui.MenuItem(stcstr(MORESTYLE.Icons.StrideCodeBlock, " ", mlstr("StrideCodeBlock")))
-                        if !(bk isa StrideCodeBlock)
-                            if bk isa SweepBlock
-                                blocks[i] = StrideCodeBlock(level=n)
-                                blocks[i].blocks = bk.blocks
-                            else
-                                blocks[i] = StrideCodeBlock(level=n)
-                            end
-                        end
-                    end
-                    CImGui.MenuItem(stcstr(MORESTYLE.Icons.BranchBlock, " ", mlstr("BranchBlock"))) && (bk isa BranchBlock || (blocks[i] = BranchBlock()))
-                    if CImGui.MenuItem(stcstr(MORESTYLE.Icons.SweepBlock, " ", mlstr("SweepBlock")))
-                        if !(bk isa SweepBlock)
+                    newblock = addblockmenu(n)
+                    if !(isnothing(newblock) || newblock isa typeof(bk))
+                        if newblock isa StrideCodeBlock
+                            bk isa SweepBlock && (newblock.blocks = bk.blocks)
+                        elseif newblock isa SweepBlock
                             if bk isa StrideCodeBlock
-                                blocks[i] = SweepBlock(level=n)
-                                blocks[i].blocks = bk.blocks
-                            else
-                                blocks[i] = SweepBlock(level=n)
+                                newblock.blocks = bk.blocks
+                            elseif typeof(bk) in instrblocks
+                                newblock.instrnm = bk.instrnm
+                                newblock.addr = bk.addr
                             end
+                        elseif typeof(newblock) in instrblocks
+                            typeof(bk) in instrblocks && (newblock.instrnm = bk.instrnm; newblock.addr = bk.addr)
                         end
+                        blocks[i] = newblock
                     end
-                    CImGui.MenuItem(stcstr(MORESTYLE.Icons.SettingBlock, " ", mlstr("SettingBlock"))) && (bk isa SettingBlock || (blocks[i] = SettingBlock()))
-                    CImGui.MenuItem(stcstr(MORESTYLE.Icons.ReadingBlock, " ", mlstr("ReadingBlock"))) && (bk isa ReadingBlock || (blocks[i] = ReadingBlock()))
-                    # CImGui.MenuItem(stcstr(MORESTYLE.Icons.LogBlock, " ", mlstr("LogBlock"))) && (bk isa LogBlock || (blocks[i] = LogBlock()))
-                    CImGui.MenuItem(stcstr(MORESTYLE.Icons.WriteBlock, " ", mlstr("WriteBlock"))) && (bk isa WriteBlock || (blocks[i] = WriteBlock()))
-                    CImGui.MenuItem(stcstr(MORESTYLE.Icons.QueryBlock, " ", mlstr("QueryBlock"))) && (bk isa QueryBlock || (blocks[i] = QueryBlock()))
-                    CImGui.MenuItem(stcstr(MORESTYLE.Icons.ReadBlock, " ", mlstr("ReadBlock"))) && (bk isa ReadBlock || (blocks[i] = ReadBlock()))
-                    # CImGui.MenuItem(stcstr(MORESTYLE.Icons.SaveBlock, " ", mlstr("SaveBlock"))) && (bk isa SaveBlock || (blocks[i] = SaveBlock()))
                     CImGui.EndMenu()
                 end
                 CImGui.Separator()
@@ -1056,6 +1017,19 @@ let
         end
     end
 end #let
+
+function addblockmenu(n)
+    CImGui.MenuItem(stcstr(MORESTYLE.Icons.CodeBlock, " ", mlstr("CodeBlock"))) && return CodeBlock()
+    CImGui.MenuItem(stcstr(MORESTYLE.Icons.StrideCodeBlock, " ", mlstr("StrideCodeBlock"))) && return StrideCodeBlock(level=n)
+    CImGui.MenuItem(stcstr(MORESTYLE.Icons.BranchBlock, " ", mlstr("BranchBlock"))) && return BranchBlock()
+    CImGui.MenuItem(stcstr(MORESTYLE.Icons.SweepBlock, " ", mlstr("SweepBlock"))) && return SweepBlock(level=n)
+    CImGui.MenuItem(stcstr(MORESTYLE.Icons.SettingBlock, " ", mlstr("SettingBlock"))) && return SettingBlock()
+    CImGui.MenuItem(stcstr(MORESTYLE.Icons.ReadingBlock, " ", mlstr("ReadingBlock"))) && return ReadingBlock()
+    CImGui.MenuItem(stcstr(MORESTYLE.Icons.WriteBlock, " ", mlstr("WriteBlock"))) && return WriteBlock()
+    CImGui.MenuItem(stcstr(MORESTYLE.Icons.QueryBlock, " ", mlstr("QueryBlock"))) && return QueryBlock()
+    CImGui.MenuItem(stcstr(MORESTYLE.Icons.ReadBlock, " ", mlstr("ReadBlock"))) && return ReadBlock()
+    return nothing
+end
 
 function swapblock(blocks::Vector{AbstractBlock}, dragbk::AbstractBlock, dropbk::AbstractBlock)
     (dragbk == dropbk || isininnerblocks(dropbk, dragbk)) && return

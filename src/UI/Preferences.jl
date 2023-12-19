@@ -62,9 +62,15 @@ let
                 #     @c CImGui.Checkbox(mlstr("hide window"), &CONF.Basic.hidewindow)
                 # end
                 @c CImGui.DragInt(
-                    mlstr("threads"),
-                    &CONF.Basic.nthreads,
-                    1, 1, 1000, "%d",
+                    mlstr("DAQ threads"),
+                    &CONF.Basic.nthreads_2,
+                    1, 1, 100, "%d",
+                    CImGui.ImGuiSliderFlags_AlwaysClamp
+                )
+                @c CImGui.DragInt(
+                    mlstr("data processing threads"),
+                    &CONF.Basic.nthreads_3,
+                    1, 1, 100, "%d",
                     CImGui.ImGuiSliderFlags_AlwaysClamp
                 )
                 # io = CImGui.GetIO()
