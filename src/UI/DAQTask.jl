@@ -58,6 +58,7 @@ let
             @c CImGui.Checkbox(viewmode ? mlstr("View") : mlstr("Edit"), &viewmode)
             CImGui.PushID(id)
             CImGui.BeginChild("DAQTask.blocks")
+            dragblockmenu(id)
             viewmode ? view(daqtask.blocks) : edit(daqtask.blocks, 1, id)
             CImGui.EndChild()
             haskey(redolist, id) || (push!(redolist, id => LoopVector(fill(AbstractBlock[], 10))); redolist[id][] = deepcopy(daqtask.blocks))

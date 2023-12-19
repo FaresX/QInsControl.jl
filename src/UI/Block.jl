@@ -918,12 +918,45 @@ mousein(::NullBlock, total=false) = false
 
 let
     isdragging::Bool = false
+    addmode::Bool = false
     draggingid = 0
     presentid = 0
     dragblock = AbstractBlock[]
     dropblock = AbstractBlock[]
     copyblock::AbstractBlock = NullBlock()
     instrblocks::Vector{Type} = [SweepBlock, SettingBlock, ReadingBlock, WriteBlock, QueryBlock, ReadBlock]
+    allblocks::Vector{Symbol} = [:CodeBlock, :StrideCodeBlock, :SweepBlock, :SettingBlock, :ReadingBlock,
+        :WriteBlock, :QueryBlock, :ReadBlock]
+
+    global function dragblockmenu(id)
+        CImGui.PushFont(PLOTFONT)
+        for (i, bk) in enumerate(allblocks)
+            ColoredButton(getproperty(MORESTYLE.Icons, bk); coltxt=MORESTYLE.Colors.BlockIcons)
+            if CImGui.IsItemActive() && !isdragging && isempty(dragblock)
+                push!(dragblock, eval(bk)())
+                isdragging = true
+                addmode = true
+                draggingid = presentid
+            end
+            i == 8 || CImGui.SameLine()
+        end
+        CImGui.PopFont()
+        if isdragging && draggingid == presentid && length(dragblock) == 1
+            draw_list = CImGui.GetWindowDrawList()
+            tiptxt = split(string(typeof(only(dragblock))), '.')[end]
+            ftsz = CImGui.GetFontSize()
+            rmin = CImGui.GetMousePos() .+ CImGui.ImVec2(ftsz, ftsz)
+            rmax = rmin .+ CImGui.CalcTextSize(tiptxt) .+ CImGui.ImVec2(ftsz, ftsz)
+            CImGui.AddRectFilled(draw_list, rmin, rmax, CImGui.ColorConvertFloat4ToU32(MORESTYLE.Colors.BlockDragdrop))
+            CImGui.AddText(
+                draw_list,
+                rmin .+ CImGui.ImVec2(ftsz/2, ftsz/2),
+                CImGui.ColorConvertFloat4ToU32(MORESTYLE.Colors.HighlightText),
+                tiptxt
+            )
+        end
+    end
+
     global function edit(blocks::Vector{AbstractBlock}, n::Int, id=0)
         n == 1 && (presentid = id)
         for (i, bk) in enumerate(blocks)
@@ -948,14 +981,15 @@ let
             end
             CImGui.PopID()
             if CImGui.IsMouseDown(0)
-                if CImGui.c_get(CImGui.GetIO().MouseDownDuration, 0) > 0.2 && !isdragging && mousein(bk)
-                    isempty(dragblock) && push!(dragblock, bk)
+                if CImGui.c_get(CImGui.GetIO().MouseDownDuration, 0) > 0.2 && !isdragging && mousein(bk) && isempty(dragblock)
+                    push!(dragblock, bk)
                     isdragging = true
+                    addmode = false
                     draggingid = presentid
                 end
             else
-                if isdragging && draggingid == presentid && mousein(bk)
-                    isempty(dropblock) && push!(dropblock, bk)
+                if isdragging && draggingid == presentid && mousein(bk) && isempty(dropblock)
+                    push!(dropblock, bk)
                     isdragging = false
                 end
             end
