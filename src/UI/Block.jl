@@ -105,10 +105,15 @@ end
 
 ############ isapprox --------------------------------------------------------------------------------------------------
 
-Base.isapprox(::T1, ::T2) where {T1<:AbstractBlock} where {T2<:AbstractBlock} = T1 == T2
-Base.isapprox(x::CodeBlock, y::CodeBlock) = x.codes == y.codes
-Base.isapprox(x::StrideCodeBlock, y::StrideCodeBlock) = x.codes == y.codes && x.blocks ≈ y.blocks
-Base.isapprox(x::SweepBlock, y::SweepBlock) = x.blocks ≈ y.blocks
+function Base.isapprox(bk1::T1, bk2::T2) where {T1<:AbstractBlock} where {T2<:AbstractBlock}
+    if T1 == T2
+        return all(
+            fnm == :blocks ? getproperty(bk1, fnm) ≈ getproperty(bk2, fnm) : getproperty(bk1, fnm) == getproperty(bk2, fnm)
+            for fnm in fieldnames(T1)[1:end-2]
+        )
+    end
+    return false
+end
 Base.isapprox(x::Vector{AbstractBlock}, y::Vector{AbstractBlock}) = length(x) == length(y) ? all(x .≈ y) : false
 
 ############ tocodes ---------------------------------------------------------------------------------------------------
@@ -931,17 +936,12 @@ let
             edit(bk)
             id = stcstr(CImGui.igGetItemID())
             if typeof(bk) in [SweepBlock, StrideCodeBlock]
-                rmin, rmax = CImGui.GetItemRectMin(), CImGui.GetItemRectMax()
+                bk.regmin, rmax = CImGui.GetItemRectMin(), CImGui.GetItemRectMax()
                 wp = unsafe_load(IMGUISTYLE.WindowPadding.y)
                 extraheight = isempty(bk.blocks) ? wp : unsafe_load(IMGUISTYLE.ItemSpacing.y) ÷ 2
-                # bk.region .= rmin.x, rmin.y, rmax.x, rmin.y + wp + CImGui.GetFrameHeight() + extraheight
-                bk.regmin = rmin
-                bk.regmax = (rmax.x, rmin.y + wp + CImGui.GetFrameHeight() + extraheight)
+                bk.regmax = (rmax.x, bk.regmin.y + wp + CImGui.GetFrameHeight() + extraheight)
             else
-                rmin, rmax = CImGui.GetItemRectMin(), CImGui.GetItemRectMax()
-                # bk.region .= rmin.x, rmin.y, rmax.x, rmax.y
-                bk.regmin = rmin
-                bk.regmax = rmax
+                bk.regmin, bk.regmax = CImGui.GetItemRectMin(), CImGui.GetItemRectMax()
             end
             CImGui.PopID()
             if CImGui.IsMouseDown(0)
