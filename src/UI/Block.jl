@@ -924,14 +924,22 @@ let
     dragblock = AbstractBlock[]
     dropblock = AbstractBlock[]
     copyblock::AbstractBlock = NullBlock()
+    selectedblock::Cint = 0
     instrblocks::Vector{Type} = [SweepBlock, SettingBlock, ReadingBlock, WriteBlock, QueryBlock, ReadBlock]
     allblocks::Vector{Symbol} = [:CodeBlock, :StrideCodeBlock, :SweepBlock, :SettingBlock, :ReadingBlock,
         :WriteBlock, :QueryBlock, :ReadBlock]
 
     global function dragblockmenu(id)
+        presentid = id
         CImGui.PushFont(PLOTFONT)
+        ftsz = CImGui.GetFontSize()
+        availw = CImGui.GetContentRegionAvailWidth()/8 - unsafe_load(IMGUISTYLE.ItemSpacing.x)
         for (i, bk) in enumerate(allblocks)
-            ColoredButton(getproperty(MORESTYLE.Icons, bk); coltxt=MORESTYLE.Colors.BlockIcons)
+            CImGui.PushStyleColor(CImGui.ImGuiCol_Text, MORESTYLE.Colors.BlockIcons)
+            CImGui.PushStyleVar(CImGui.ImGuiStyleVar_SelectableTextAlign, (0.5, 0.5))
+            CImGui.Selectable(getproperty(MORESTYLE.Icons, bk), true, 0, (availw, 2ftsz))
+            CImGui.PopStyleVar()
+            CImGui.PopStyleColor()
             if CImGui.IsItemActive() && !isdragging && isempty(dragblock)
                 push!(dragblock, eval(bk)())
                 isdragging = true
@@ -944,7 +952,6 @@ let
         if isdragging && draggingid == presentid && length(dragblock) == 1
             draw_list = CImGui.GetWindowDrawList()
             tiptxt = mlstr(split(string(typeof(only(dragblock))), '.')[end])
-            ftsz = CImGui.GetFontSize()
             rmin = CImGui.GetMousePos() .+ CImGui.ImVec2(ftsz, ftsz)
             rmax = rmin .+ CImGui.CalcTextSize(tiptxt) .+ CImGui.ImVec2(ftsz, ftsz)
             CImGui.AddRectFilled(draw_list, rmin, rmax, CImGui.ColorConvertFloat4ToU32(MORESTYLE.Colors.BlockDragdrop))
