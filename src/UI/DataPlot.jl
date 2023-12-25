@@ -62,7 +62,7 @@ end
     dtpks::Vector{DataPicker} = [DataPicker()]
     showdtpks::Vector{Bool} = [false]
     linkidx::Vector{Cint} = [0]
-    uiplots::Vector{UIPlot} = [UIPlot()]
+    plots::Vector{Plot} = [Plot()]
     layout::Layout = Layout()
     isdelplot::Bool = false
     delplot_i::Int = 0
@@ -97,7 +97,7 @@ function editmenu(dtp::DataPlot)
         push!(dtp.layout.labels, string(length(dtp.layout.labels) + 1))
         push!(dtp.layout.marks, "")
         push!(dtp.layout.states, false)
-        push!(dtp.uiplots, UIPlot())
+        push!(dtp.plots, Plot())
         push!(dtp.dtpks, DataPicker())
         push!(dtp.linkidx, 0)
     end
@@ -127,7 +127,11 @@ function editmenu(dtp::DataPlot)
         openright = CImGui.BeginPopupContextItem()
         if openright
             if CImGui.MenuItem(stcstr(MORESTYLE.Icons.Plot, " ", mlstr("Select Data")))
-                dtp.layout.states[dtp.layout.idxing] || (dtp.dtpks[dtp.layout.idxing].isrealtime = false)
+                if !dtp.layout.states[dtp.layout.idxing]
+                    for dtss in dtp.dtpks[dtp.layout.idxing].series
+                        dtss.isrealtime = false
+                    end
+                end
                 dtp.showdtpks[dtp.layout.idxing] = true
             end
             if CImGui.MenuItem(stcstr(MORESTYLE.Icons.CloseFile, " ", mlstr("Delete")))
@@ -156,7 +160,12 @@ function editmenu(dtp::DataPlot)
     end
 end
 
-function showdtpks(dtp::DataPlot, id, datastr::Dict, datafloat::Dict=Dict())
+function showdtpks(
+    dtp::DataPlot,
+    id,
+    datastr::Dict{String,Vector{String}},
+    datafloat::Dict{String,Vector{Cdouble}}=Dict{String,Vector{Cdouble}}()
+)
     if CImGui.BeginPopupModal(stcstr("no data", id), C_NULL, CImGui.ImGuiWindowFlags_AlwaysAutoResize)
         CImGui.TextColored(MORESTYLE.Colors.LogError, mlstr("no data!"))
         CImGui.Button(stcstr(mlstr("Confirm"), "##no data"), (180, 0)) && CImGui.CloseCurrentPopup()
@@ -171,41 +180,37 @@ function showdtpks(dtp::DataPlot, id, datastr::Dict, datafloat::Dict=Dict())
             end
             if dtp.linkidx[i] == 0
                 dtpk = dtp.dtpks[i]
-                datakeys = sort(collect(keys(isempty(datastr) ? datafloat : datastr)))
-                if datakeys != dtpk.datalist
-                    dtpk.datalist = collect(datakeys)
-                    dtpk.y = falses(length(datakeys))
-                    dtpk.w = falses(length(datakeys))
-                end
-                isupdate = @c edit(dtpk, stcstr(id, "-", i), &isshowdtpk)
+                datakeys = [sort(collect(keys(isempty(datastr) ? datafloat : datastr))); ""]
+                datakeys == dtpk.datalist || (dtpk.datalist = datakeys)
+                @c edit(dtpk, stcstr(id, "-", i), &isshowdtpk)
                 dtp.showdtpks[i] = isshowdtpk
-                if isupdate || (dtpk.isrealtime && waittime(stcstr(id, "-", i, "-DataPicker"), dtpk.refreshrate))
-                    syncplotdata(dtp.uiplots[i], dtpk, datastr, datafloat)
-                end
+                syncplotdata(dtp.plots[i], dtpk, datastr, datafloat)
             else
                 dtpk = dtp.dtpks[i]
-                uip = dtp.uiplots[dtp.linkidx[i]]
+                pltlink = dtp.plots[dtp.linkidx[i]]
                 dtpklink = dtp.dtpks[dtp.linkidx[i]]
-                yl = length(uip.y)
-                ykeys = "y" .* string.(1:yl)
-                datakeys = ["x", ykeys..., "z"]
-                if datakeys != dtpk.datalist
-                    dtpk.datalist = collect(datakeys)
-                    dtpk.y = falses(length(datakeys))
-                    dtpk.w = falses(length(datakeys))
-                end
-                isupdate = @c edit(dtpk, stcstr(id, "-", i), &isshowdtpk)
+                xkeys = "x" .* string.(1:length(pltlink.series))
+                ykeys = "y" .* string.(1:length(pltlink.series))
+                zkeys = "z" .* string.(1:length(pltlink.series))
+                datakeys = [xkeys; ykeys; zkeys; ""]
+                datakeys == dtpk.datalist || (dtpk.datalist = datakeys)
+                @c edit(dtpk, stcstr(id, "-", i), &isshowdtpk)
                 dtp.showdtpks[i] = isshowdtpk
-                if isupdate || (dtpk.isrealtime && waittime(stcstr(id, "-", i, "-DataPicker"), dtpk.refreshrate))
-                    linkeddata = Dict(
-                        "x" => uip.x,
-                        Dict("y$yi" => uip.y[yi] for yi in 1:yl)...,
-                        "z" => copy(uip.z)
-                    )
-                    dtpklink.hflipz && reverse!(linkeddata["z"], dims=1)
-                    dtpklink.vflipz && reverse!(linkeddata["z"], dims=2)
-                    linkeddata["z"] = collect(transpose(linkeddata["z"]))
-                    syncplotdata(dtp.uiplots[i], dtpk, Dict(), linkeddata)
+                if true in [
+                    dtss.update ||
+                    (dtss.isrealtime && waittime(stcstr(dtp.plots[i].id, "-", j, "DataPicker"), dtss.refreshrate))
+                    for (j, dtss) in enumerate(dtpk.series)
+                ]
+                    linkeddata = Dict()
+                    for (j, pss) in enumerate(pltlink)
+                        push!(linkeddata, "x$j" => pss.x)
+                        push!(linkeddata, "y$j" => pss.y)
+                        push!(linkeddata, "z$j" => pss.z)
+                        dtpklink.series[j].hflipz && reverse!(linkeddata["z$j"], dims=1)
+                        dtpklink.series[j].vflipz && reverse!(linkeddata["z$j"], dims=2)
+                        linkeddata["z$j"] = transpose(linkeddata["z$j"])
+                    end
+                    syncplotdata(dtp.plots[i], dtpk, Dict(), linkeddata)
                 end
             end
         end
@@ -218,9 +223,9 @@ function showdtpks(dtp::DataPlot, id, datastr::Dict, datafloat::Dict=Dict())
         mlstr("Confirm delete?"),
         CImGui.ImGuiWindowFlags_AlwaysAutoResize
     )
-        if length(dtp.uiplots) > 1
+        if length(dtp.plots) > 1
             deleteat!(dtp.layout, dtp.delplot_i)
-            deleteat!(dtp.uiplots, dtp.delplot_i)
+            deleteat!(dtp.plots, dtp.delplot_i)
             deleteat!(dtp.dtpks, dtp.delplot_i)
             deleteat!(dtp.showdtpks, dtp.delplot_i)
             deleteat!(dtp.linkidx, dtp.delplot_i)
@@ -242,7 +247,7 @@ function renderplots(dtp::DataPlot, id)
                 ),
                 &isopenplot
             )
-            Plot(dtp.uiplots[idx], stcstr(id, "-", idx))
+            Plot(dtp.plots[idx], stcstr(id, "-", idx))
             CImGui.End()
             dtp.layout.states[idx] = isopenplot
             isopenplot || (deleteat!(dtp.layout.selectedidx, i); deleteat!(dtp.layout.selectedlabels, i))
@@ -250,7 +255,7 @@ function renderplots(dtp::DataPlot, id)
     else
         CImGui.BeginChild("plot")
         if isempty(dtp.layout.selectedidx)
-            Plot(dtp.uiplots[1], stcstr(id, "-", 1))
+            Plot(dtp.plots[1], stcstr(id, "-", 1))
         else
             totalsz = CImGui.GetContentRegionAvail()
             l = length(dtp.layout.selectedidx)
@@ -265,7 +270,7 @@ function renderplots(dtp::DataPlot, id)
                     idx = (i - 1) * n + j
                     if idx <= l
                         index = dtp.layout.selectedidx[idx]
-                        Plot(dtp.uiplots[index], stcstr(id, "-", index), (Cfloat(0), height))
+                        Plot(dtp.plots[index], stcstr(id, "-", index), (Cfloat(0), height))
                         CImGui.NextColumn()
                     end
                 end
@@ -273,6 +278,26 @@ function renderplots(dtp::DataPlot, id)
             end
         end
         CImGui.EndChild()
+    end
+end
+
+function Base.empty!(dtp::DataPlot)
+    for plt in dtp.plots
+        empty!(plt.xaxes)
+        empty!(plt.yaxes)
+        empty!(plt.zaxes)
+        for pss in plt.series
+            empty!(pss.x)
+            empty!(pss.y)
+            pss.z = Matrix{eltype(pss.z)}(undef, 0, 0)
+        end
+    end
+end
+
+function update!(dtp::DataPlot, datastr, datafloat::Dict{String,Vector{Cdouble}}=Dict{String,Vector{Cdouble}}())
+    for (i, dtpk) in enumerate(dtp.dtpks)
+        dtpk.update = true
+        syncplotdata(dtp.plots[i], dtpk, datastr, datafloat; quiet=true)
     end
 end
 

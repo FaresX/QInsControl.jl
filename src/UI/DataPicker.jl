@@ -1,18 +1,22 @@
-@kwdef mutable struct DataPicker
-    datalist::Vector{String} = [""]
+@kwdef mutable struct DataSeries
     ptype::String = "line"
     x::String = ""
-    y::Vector{Bool} = [false]
+    y::String = ""
     z::String = ""
-    w::Vector{Bool} = [false]
-    aux::Vector{Vector{Bool}} = Vector{Bool}[]
+    w::String = ""
+    aux::Vector{String} = String[]
+    xaxis::Cint = 1
+    yaxis::Cint = 1
+    zaxis::Cint = 1
+    legend::String = "s1"
     xtype::Bool = true # true = > Number false = > String
     zsize::Vector{Cint} = [0, 0]
     vflipz::Bool = false
     hflipz::Bool = false
-    nonuniform::Bool = false
+    nonuniformx::Bool = false
+    nonuniformy::Bool = false
     codes::CodeBlock = CodeBlock()
-    hold::Bool = false
+    update::Bool = false
     isrealtime::Bool = false
     isrunning::Bool = false
     runtime::Float64 = 0
@@ -20,290 +24,341 @@
     alsz::Cfloat = 0
 end
 
+@kwdef mutable struct DataPicker
+    datalist::Vector{String} = String[]
+    series::Vector{DataSeries} = [DataSeries()]
+    hold::Bool = false
+    update::Bool = false
+end
+
 let
     holdsz::Cfloat = 0
-    ptypelist::Vector{String} = ["line", "scatter", "heatmap"]
-    global function edit(dtpk::DataPicker, id, p_open::Ref)
+    global function edit(dtpk::DataPicker, id, p_open::Ref{Bool})
         CImGui.SetNextWindowSize((400, 600), CImGui.ImGuiCond_Once)
-        # dtpk.hold && CImGui.SetNextWindowFocus()
         CImGui.PushStyleColor(CImGui.ImGuiCol_WindowBg, CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_PopupBg))
         CImGui.PushStyleVar(CImGui.ImGuiStyleVar_WindowRounding, unsafe_load(IMGUISTYLE.PopupRounding))
-        isupdate = false
         isfocus = true
         if CImGui.Begin(
             stcstr("Data Selecting##", id),
             p_open,
             CImGui.ImGuiWindowFlags_NoTitleBar | CImGui.ImGuiWindowFlags_NoDocking
         )
+            dtpk.update = false
             CImGui.TextColored(MORESTYLE.Colors.HighlightText, MORESTYLE.Icons.Plot)
             CImGui.SameLine()
             CImGui.Text(stcstr(" ", mlstr("Data Selecting")))
             CImGui.SameLine(CImGui.GetContentRegionAvailWidth() - holdsz)
-            @c CImGui.Checkbox(mlstr("HOLD"), &dtpk.hold)
+            CImGui.Button(MORESTYLE.Icons.Update) && (dtpk.update = true)
             holdsz = CImGui.GetItemRectSize().x
-            CImGui.PushItemWidth(CImGui.GetContentRegionAvailWidth() / 2)
-            @c ComBoS(mlstr("plot type"), &dtpk.ptype, ptypelist)
-            CImGui.PopItemWidth()
             CImGui.SameLine()
-            CImGui.Button(stcstr(MORESTYLE.Icons.NewFile)) && push!(dtpk.aux, [false])
+            CImGui.Button(MORESTYLE.Icons.NewFile) && push!(dtpk.series, DataSeries())
+            holdsz += CImGui.GetItemRectSize().x
             CImGui.SameLine()
-            CImGui.Button(stcstr(MORESTYLE.Icons.CloseFile)) && (isempty(dtpk.aux) || pop!(dtpk.aux))
+            CImGui.Button(MORESTYLE.Icons.CloseFile) && (isempty(dtpk.series) || pop!(dtpk.series))
+            holdsz += CImGui.GetItemRectSize().x + 2unsafe_load(IMGUISTYLE.ItemSpacing.x)
             CImGui.SameLine()
-            CImGui.Text(mlstr("Aux Dims"))
-            CImGui.Separator()
-
-            CImGui.PushStyleColor(CImGui.ImGuiCol_Text, MORESTYLE.Colors.HighlightText)
-            selectx = CImGui.CollapsingHeader(stcstr(mlstr("Select"), " X"))
-            CImGui.PopStyleColor()
-            if selectx
-                CImGui.PushItemWidth(-1)
-                @c ComBoS("##select X", &dtpk.x, [dtpk.datalist; ""])
-                CImGui.PopItemWidth()
-                @c CImGui.Checkbox(dtpk.xtype ? mlstr("number") : mlstr("text"), &dtpk.xtype)
-            end
-
-            CImGui.PushStyleColor(CImGui.ImGuiCol_Text, MORESTYLE.Colors.HighlightText)
-            selecty = CImGui.CollapsingHeader(stcstr(mlstr("Select"), " Y"))
-            CImGui.PopStyleColor()
-            if selecty
-                if isempty(dtpk.datalist)
-                    CImGui.Selectable("")
-                else
-                    MultiSelectable(() -> false, "select Y", dtpk.datalist, dtpk.y, 1)
-                end
-            end
-
-            if dtpk.ptype == "heatmap"
+            @c CImGui.Checkbox(mlstr("HOLD"), &dtpk.hold)
+            holdsz += CImGui.GetItemRectSize().x
+            CImGui.BeginChild("Series")
+            for (i, dtss) in enumerate(dtpk.series)
                 CImGui.PushStyleColor(CImGui.ImGuiCol_Text, MORESTYLE.Colors.HighlightText)
-                selectz = CImGui.CollapsingHeader(stcstr(mlstr("Select"), " Z"))
+                openseries = CImGui.CollapsingHeader(stcstr(mlstr("Series"), " ", i, " ", dtss.legend, "###", i))
                 CImGui.PopStyleColor()
-                if selectz
-                    CImGui.PushItemWidth(-1)
-                    @c ComBoS("##select Z", &dtpk.z, [dtpk.datalist; ""])
-                    CImGui.PopItemWidth()
-                    CImGui.DragInt2(
-                        mlstr("matrix dimension"), dtpk.zsize, 1, 0, 1000000, "%d",
-                        CImGui.ImGuiSliderFlags_AlwaysClamp
-                    )
-                    if SYNCSTATES[Int(IsDAQTaskRunning)]
-                        CImGui.SameLine()
-                        CImGui.Button(MORESTYLE.Icons.InstrumentsAutoRef) && (dtpk.zsize .= guesshmsize())
+                if CImGui.BeginDragDropSource(0)
+                    @c CImGui.SetDragDropPayload("Swap Series", &i, sizeof(Cint))
+                    CImGui.Text(stcstr(mlstr("Series"), " ", i, " ", dtss.legend))
+                    CImGui.EndDragDropSource()
+                end
+                if CImGui.BeginDragDropTarget()
+                    payload = CImGui.AcceptDragDropPayload("Swap Series")
+                    if payload != C_NULL && unsafe_load(payload).DataSize == sizeof(Cint)
+                        payload_i = unsafe_load(Ptr{Cint}(unsafe_load(payload).Data))
+                        if i != payload_i
+                            insert!(dtpk.series, i, dtpk.series[payload_i])
+                            deleteat!(dtpk.series, payload_i < i ? payload_i : payload_i + 1)
+                            dtpk.update = true
+                        end
                     end
-                    @c CImGui.Checkbox(mlstr("flip vertically"), &dtpk.vflipz)
-                    CImGui.SameLine(CImGui.GetContentRegionAvailWidth() / 2)
-                    @c CImGui.Checkbox(mlstr("flip horizontally"), &dtpk.hflipz)
-                    @c CImGui.Checkbox(mlstr("nonuniform axes"), &dtpk.nonuniform)
+                    CImGui.EndDragDropTarget()
+                end
+                if openseries
+                    CImGui.PushID(i)
+                    edit(dtss, dtpk.datalist)
+                    CImGui.PopID()
                 end
             end
-
-            CImGui.PushStyleColor(CImGui.ImGuiCol_Text, MORESTYLE.Colors.HighlightText)
-            selectw = CImGui.CollapsingHeader(stcstr(mlstr("Select"), " W"))
-            CImGui.PopStyleColor()
-            if selectw
-                if isempty(dtpk.datalist)
-                    CImGui.Selectable("")
-                else
-                    MultiSelectable(() -> false, "select W", dtpk.datalist, dtpk.w, 1)
-                end
-            end
-
-            for i in eachindex(dtpk.aux)
-                CImGui.PushStyleColor(CImGui.ImGuiCol_Text, MORESTYLE.Colors.HighlightText)
-                selectaux = CImGui.CollapsingHeader(stcstr(mlstr("Select"), " AUX ", i))
-                CImGui.PopStyleColor()
-                if selectaux
-                    if isempty(dtpk.datalist)
-                        CImGui.Selectable("")
-                    else
-                        MultiSelectable(() -> false, stcstr("select AUX", i), dtpk.datalist, dtpk.aux[i], 1)
-                    end
-                end
-            end
-
-            CImGui.TextColored(MORESTYLE.Colors.LogInfo, mlstr("data processing"))
-            CImGui.SameLine(CImGui.GetWindowContentRegionWidth() - dtpk.alsz)
-            if dtpk.isrealtime
-                CImGui.Text(mlstr("sampling rate"))
-                CImGui.SameLine()
-                dtpk.alsz = CImGui.GetItemRectSize().x
-                CImGui.PushItemWidth(2CImGui.GetFontSize())
-                @c CImGui.DragFloat("s", &dtpk.refreshrate, 0.01, 0.01, 6, "%.2f", CImGui.ImGuiSliderFlags_AlwaysClamp)
-                CImGui.SameLine()
-                CImGui.PopItemWidth()
-                dtpk.alsz += CImGui.GetItemRectSize().x + unsafe_load(IMGUISTYLE.ItemSpacing.x)
-            else
-                CImGui.Button(
-                    stcstr(
-                        MORESTYLE.Icons.Update, " ",
-                        dtpk.isrunning ? stcstr(mlstr("Updating..."), " ", dtpk.runtime, "s") : mlstr("Update"), " "
-                    )
-                ) && (isupdate = true)
-                dtpk.alsz = CImGui.GetItemRectSize().x
-            end
-            CImGui.SameLine()
-            @c CImGui.Checkbox("RT", &dtpk.isrealtime)
-            dtpk.alsz += CImGui.GetItemRectSize().x + unsafe_load(IMGUISTYLE.ItemSpacing.x)
-            CImGui.IsItemHovered() && CImGui.SetTooltip(mlstr("real-time data update/manual data update"))
-
-            CImGui.PushID("select XYZ")
-            edit(dtpk.codes)
-            if CImGui.BeginPopupContextItem()
-                CImGui.MenuItem(mlstr("Clear")) && (dtpk.codes = CodeBlock())
-                CImGui.EndPopup()
-            end
-            CImGui.PopID()
+            CImGui.EndChild()
             isfocus &= CImGui.IsWindowFocused(CImGui.ImGuiFocusedFlags_ChildWindows)
         end
         CImGui.End()
-        p_open.x &= (isfocus | dtpk.hold)
+        p_open[] &= (isfocus | dtpk.hold)
         CImGui.PopStyleVar()
         CImGui.PopStyleColor()
-        isupdate
     end
 end
 
-guesshmsize() = length(PROGRESSLIST) == 2 ? reverse([pgb[3] for pgb in values(PROGRESSLIST)]) : [0, 0]
+let
+    ptypelist::Vector{String} = ["line", "scatter", "heatmap"]
+    global function edit(dtss::DataSeries, datalist)
+        dtss.update = false
+        @c InputTextRSZ(mlstr("legend"), &dtss.legend)
+        CImGui.PushItemWidth(CImGui.GetContentRegionAvailWidth() / 2)
+        @c ComBoS(mlstr("plot type"), &dtss.ptype, ptypelist)
+        CImGui.PopItemWidth()
+        CImGui.SameLine()
+        CImGui.Button(stcstr(MORESTYLE.Icons.NewFile)) && push!(dtss.aux, "")
+        CImGui.SameLine()
+        CImGui.Button(stcstr(MORESTYLE.Icons.CloseFile)) && (isempty(dtss.aux) || pop!(dtss.aux))
+        CImGui.SameLine()
+        CImGui.Text(mlstr("Aux Dims"))
+        CImGui.Separator()
+
+        BoxTextColored("X"; size=(4CImGui.GetFontSize(), Cfloat(0)), col=MORESTYLE.Colors.HighlightText)
+        CImGui.SameLine()
+        CImGui.BeginGroup()
+        CImGui.PushItemWidth(-1)
+        @c ComBoS("##select X", &dtss.x, datalist)
+        CImGui.PushItemWidth(CImGui.GetContentRegionAvailWidth() / 2)
+        @c CImGui.SliderInt(stcstr("X", mlstr("axis")), &dtss.xaxis, 1, 3)
+        CImGui.PopItemWidth()
+        CImGui.SameLine()
+        CImGui.PopItemWidth()
+        @c CImGui.Checkbox(dtss.xtype ? mlstr("number") : mlstr("text"), &dtss.xtype)
+        CImGui.EndGroup()
+
+        BoxTextColored("Y"; size=(4CImGui.GetFontSize(), Cfloat(0)), col=MORESTYLE.Colors.HighlightText)
+        CImGui.SameLine()
+        CImGui.BeginGroup()
+        CImGui.PushItemWidth(-1)
+        @c ComBoS("##select Y", &dtss.y, datalist)
+        CImGui.PopItemWidth()
+        CImGui.PushItemWidth(CImGui.GetContentRegionAvailWidth() / 2)
+        @c CImGui.SliderInt(stcstr("Y", mlstr("axis")), &dtss.yaxis, 1, 3)
+        CImGui.PopItemWidth()
+        CImGui.EndGroup()
+
+        if dtss.ptype == "heatmap"
+            BoxTextColored("Z"; size=(4CImGui.GetFontSize(), Cfloat(0)), col=MORESTYLE.Colors.HighlightText)
+            CImGui.SameLine()
+            CImGui.BeginGroup()
+            CImGui.PushItemWidth(-1)
+            @c ComBoS("##select Z", &dtss.z, datalist)
+            CImGui.PopItemWidth()
+            CImGui.PushItemWidth(CImGui.GetContentRegionAvailWidth() / 2)
+            @c CImGui.SliderInt(stcstr("Z", mlstr("axis")), &dtss.zaxis, 1, 6)
+            CImGui.PopItemWidth()
+            CImGui.PushItemWidth(
+                -CImGui.CalcTextSize(mlstr("matrix size")).x -
+                SYNCSTATES[Int(IsDAQTaskRunning)] * CImGui.CalcTextSize(MORESTYLE.Icons.InstrumentsAutoRef).x
+            )
+            CImGui.DragInt2(
+                mlstr("matrix size"), dtss.zsize, 1, 0, 1000000, "%d",
+                CImGui.ImGuiSliderFlags_AlwaysClamp
+            )
+            CImGui.PopItemWidth()
+            if SYNCSTATES[Int(IsDAQTaskRunning)]
+                CImGui.SameLine()
+                if CImGui.Button(MORESTYLE.Icons.InstrumentsAutoRef) && length(PROGRESSLIST) == 2
+                    dtss.zsize .= reverse([pgb[3] for pgb in values(PROGRESSLIST)])
+                end
+            end
+            @c CImGui.Checkbox(mlstr("flip vertically"), &dtss.vflipz)
+            CImGui.SameLine(CImGui.GetContentRegionAvailWidth() / 2)
+            @c CImGui.Checkbox(mlstr("flip horizontally"), &dtss.hflipz)
+            @c CImGui.Checkbox(stcstr(mlstr("nonuniform"), " ", "X"), &dtss.nonuniformx)
+            CImGui.SameLine(CImGui.GetContentRegionAvailWidth() / 2)
+            @c CImGui.Checkbox(stcstr(mlstr("nonuniform"), " ", "Y"), &dtss.nonuniformy)
+            CImGui.EndGroup()
+        end
+
+        BoxTextColored("W"; size=(4CImGui.GetFontSize(), Cfloat(0)), col=MORESTYLE.Colors.HighlightText)
+        CImGui.SameLine()
+        CImGui.PushItemWidth(-1)
+        @c ComBoS("##select W", &dtss.w, datalist)
+        CImGui.PopItemWidth()
+
+        for (i, aux) in enumerate(dtss.aux)
+            BoxTextColored(stcstr("AUX", " ", i); size=(4CImGui.GetFontSize(), Cfloat(0)), col=MORESTYLE.Colors.HighlightText)
+            CImGui.SameLine()
+            CImGui.PushItemWidth(-1)
+            @c(ComBoS(stcstr("##select AUX", i), &aux, datalist)) && (dtss.aux[i] = aux)
+            CImGui.PopItemWidth()
+        end
+
+        CImGui.TextColored(MORESTYLE.Colors.LogInfo, mlstr("data processing"))
+        CImGui.SameLine(CImGui.GetWindowContentRegionWidth() - dtss.alsz)
+        if dtss.isrealtime
+            CImGui.Text(mlstr("sampling rate"))
+            CImGui.SameLine()
+            dtss.alsz = CImGui.GetItemRectSize().x
+            CImGui.PushItemWidth(2CImGui.GetFontSize())
+            @c CImGui.DragFloat("s", &dtss.refreshrate, 0.01, 0.03, 6, "%.2f", CImGui.ImGuiSliderFlags_AlwaysClamp)
+            CImGui.SameLine()
+            CImGui.PopItemWidth()
+            dtss.alsz += CImGui.GetItemRectSize().x + unsafe_load(IMGUISTYLE.ItemSpacing.x)
+        else
+            CImGui.Button(
+                stcstr(
+                    MORESTYLE.Icons.Update, " ",
+                    dtss.isrunning ? stcstr(mlstr("Updating..."), " ", dtss.runtime, "s") : mlstr("Update"), " "
+                )
+            ) && (dtss.update = true)
+            dtss.alsz = CImGui.GetItemRectSize().x
+        end
+        CImGui.SameLine()
+        @c CImGui.Checkbox("RT", &dtss.isrealtime)
+        dtss.alsz += CImGui.GetItemRectSize().x + unsafe_load(IMGUISTYLE.ItemSpacing.x)
+        CImGui.IsItemHovered() && CImGui.SetTooltip(mlstr("real-time data update/manual data update"))
+
+        CImGui.PushID("select XYZ")
+        edit(dtss.codes)
+        if CImGui.BeginPopupContextItem()
+            CImGui.MenuItem(mlstr("Clear")) && (dtss.codes.codes = "")
+            CImGui.EndPopup()
+        end
+        CImGui.PopID()
+    end
+end
 
 let
-    synctasks::Dict{String,Task} = Dict()
-    global function syncplotdata(uiplot::UIPlot, dtpk::DataPicker, datastr::Dict, datafloat::Dict=Dict())
-        if haskey(synctasks, uiplot.ps.id)
-            istaskdone(synctasks[uiplot.ps.id]) ? delete!(synctasks, uiplot.ps.id) : return nothing
+    synctasks::Dict{String,Dict{Int,Task}} = Dict()
+    global function syncplotdata(
+        plt::Plot,
+        dtpk::DataPicker,
+        datastr::Dict{String,Vector{String}},
+        datafloat::Dict{String,Vector{Cdouble}}=Dict{String,Vector{Cdouble}}();
+        quiet=false
+    )
+        haskey(synctasks, plt.id) || push!(synctasks, plt.id => Dict())
+        lpltss = length(plt.series)
+        ldtpkss = length(dtpk.series)
+        if lpltss < ldtpkss
+            append!(plt.series, fill(PlotSeries(), ldtpkss - lpltss))
+            mergexaxes!(plt)
+            mergeyaxes!(plt)
+            mergezaxes!(plt)
+        elseif lpltss > ldtpkss
+            deleteat!(plt.series, ldtpkss+1:lpltss)
+            mergexaxes!(plt)
+            mergeyaxes!(plt)
+            mergezaxes!(plt)
         end
-        pdtask = @async processdata(uiplot, dtpk, datastr, datafloat)
-        push!(synctasks, uiplot.ps.id => pdtask)
-        return nothing
+        for (i, dtss) in enumerate(dtpk.series)
+            if dtpk.update || dtss.update || (dtss.isrealtime && waittime(stcstr("DataPicker", plt.id, "-", i), dtss.refreshrate))
+                if haskey(synctasks[plt.id], i)
+                    istaskdone(synctasks[plt.id][i]) ? delete!(synctasks[plt.id], i) : continue
+                end
+                pdtask = errormonitor(@async processdata(plt, plt.series[i], dtss, datastr, datafloat; quiet=quiet))
+                push!(synctasks[plt.id], i => pdtask)
+            end
+        end
     end
 
-    global function processdata(uiplot::UIPlot, dtpk::DataPicker, datastr::Dict, datafloat::Dict)
-        dtpk.isrunning = true
-        dtpk.runtime = 0
+    global function processdata(
+        plt::Plot,
+        pss::PlotSeries,
+        dtss::DataSeries,
+        datastr::Dict{String,Vector{String}},
+        datafloat::Dict{String,Vector{Cdouble}};
+        quiet=false
+    )
+        dtss.isrunning = true
+        dtss.runtime = 0
         errormonitor(
             @async begin
                 t1 = time()
-                while dtpk.isrunning
-                    dtpk.runtime = round(time() - t1; digits=1)
+                while dtss.isrunning
+                    dtss.runtime = round(time() - t1; digits=1)
                     sleep(0.001)
                     yield()
                 end
             end
         )
-        uiplot.ptype = dtpk.ptype
-        if isempty(datafloat)
-            if dtpk.xtype
-                xbuf = haskey(datastr, dtpk.x) ? replace(tryparse.(Float64, datastr[dtpk.x]), nothing => NaN) : Float64[]
-            else
-                xbuf = haskey(datastr, dtpk.x) ? copy(datastr[dtpk.x]) : String[]
-            end
-            ybuf = @trypass(
-                [replace(tryparse.(Float64, datastr[key]), nothing => NaN) for key in dtpk.datalist[dtpk.y]],
-                [Float64[]]
-            )
-            uiplot.legends = @trypass dtpk.datalist[dtpk.y] uiplot.legends
-            zbuf = uiplot.z
-            if uiplot.ptype == "heatmap"
-                zbuf = if haskey(datastr, dtpk.z)
-                    replace(tryparse.(Float64, datastr[dtpk.z]), nothing => 0)
-                else
-                    Matrix{Float64}(undef, 0, 0)
-                end
-            end
-            wbuf = @trypass(
-                [replace(tryparse.(Float64, datastr[key]), nothing => NaN) for key in dtpk.datalist[dtpk.w]],
-                [Float64[]]
-            )
-            auxbuf = [
-                @trypass(
-                    [replace(tryparse.(Float64, datastr[key]), nothing => NaN) for key in dtpk.datalist[aux]],
-                    [Float64[]]
-                )
-                for aux in dtpk.aux
-            ]
-        else
-            if dtpk.xtype
-                xbuf = haskey(datafloat, dtpk.x) ? copy(datafloat[dtpk.x]) : Float64[]
-            else
-                xbuf = haskey(datastr, dtpk.x) ? copy(datastr[dtpk.x]) : String[]
-            end
-            ybuf = @trypass [copy(datafloat[key]) for key in dtpk.datalist[dtpk.y]] [Float64[]]
-            uiplot.legends = @trypass dtpk.datalist[dtpk.y] uiplot.legends
-            zbuf = uiplot.z
-            if uiplot.ptype == "heatmap"
-                zbuf = if haskey(datafloat, dtpk.z)
-                    all(!isnan, datafloat[dtpk.z]) ? copy(datafloat[dtpk.z]) : replace(datafloat[dtpk.z], NaN => 0)
-                else
-                    Matrix{Float64}(undef, 0, 0)
-                end
-            end
-            wbuf = @trypass [copy(datafloat[key]) for key in dtpk.datalist[dtpk.w]] [Float64[]]
-            auxbuf = [
-                @trypass([copy(datafloat[key]) for key in dtpk.datalist[aux]], [Float64[]])
-                for aux in dtpk.aux
-            ]
-        end
-        innercodes = tocodes(dtpk.codes)
+        pss.ptype = dtss.ptype
+        xbuf = dtss.xtype ? loaddata(datastr, datafloat, dtss.x) : haskey(datastr, dtss.x) ? copy(datastr[dtss.x]) : String[]
+        ybuf = loaddata(datastr, datafloat, dtss.y)
+        zbuf = pss.ptype == "heatmap" ? loaddata(datastr, datafloat, dtss.z) : Cdouble[]
+        wbuf = loaddata(datastr, datafloat, dtss.w)
+        auxbufs = [loaddata(datastr, datafloat, aux) for aux in dtss.aux]
+        innercodes = tocodes(dtss.codes)
         ex::Expr = quote
             let
                 x = $xbuf
-                ys = $ybuf
-                isempty(ys) && (ys = [Float64[]])
-                y = ys[1]
+                y = $ybuf
                 z = $zbuf
-                ws = $wbuf
-                isempty(ws) && (ws = [Float64[]])
-                w = ws[1]
-                $(
-                    [
-                        Expr(
-                            :block,
-                            Expr(:(=), Symbol(:aux, i, :s), auxbuf[i]),
-                            Expr(:&&, Expr(:call, :isempty, Symbol(:aux, i, :s)), Expr(:(=), Symbol(:aux, i, :s), [Float64[]])),
-                            Expr(:(=), Symbol(:aux, i), Expr(:ref, Symbol(:aux, i, :s), 1))
-                        )
-                        for i in eachindex(dtpk.aux)
-                    ]...
-                )
+                w = $wbuf
+                $([Expr(:block, Expr(:(=), Symbol(:aux, i), auxbufs[i])) for i in eachindex(dtss.aux)]...)
                 $innercodes
-                ys[1] = y
-                x, ys, z
+                x, y, z
             end
         end
         try
-            uiplot.x, uiplot.y, nz = if CONF.Basic.remoteprocessdata && nprocs() > 2
-                f = if dtpk.isrealtime
-                    @eval Main QInsControl.remotecall(() -> try eval($ex) catch end, QInsControl.workers()[2])
+            nx, ny, nz = if CONF.Basic.remoteprocessdata && nprocs() > 2
+                f = if dtss.isrealtime
+                    @eval Main QInsControl.remotecall(
+                        () -> try
+                            eval($ex)
+                        catch
+                        end, QInsControl.workers()[2]
+                    )
                 else
                     @eval Main QInsControl.remotecall(() -> eval($ex), QInsControl.workers()[2])
                 end
                 waittask = errormonitor(@async fetch(f))
                 wait(waittask)
-                fetch(waittask)
+                fetch(waittask)auxbuf
             else
                 eval(ex)
             end
-            if uiplot.ptype == "heatmap"
-                true in ismissing.(nz) && (replace!(nz, missing => 0); nz = float.(nz))
-                true in isnan.(nz) && replace!(nz, NaN => 0)
-                Inf in nz && (replace!(nz, Inf => 0))
-                -Inf in nz && (replace!(nz, -Inf => 0))
+            if pss.ptype == "heatmap"
+                dropexeption!(nz)
                 if nz isa Matrix
-                    uiplot.z = collect(transpose(nz))
+                    pss.z = transpose(nz)
                 else
-                    all(size(uiplot.z) .== reverse(dtpk.zsize)) || (uiplot.z = zeros(Float64, reverse(dtpk.zsize)...))
-                    lmin = min(length(uiplot.z), length(nz))
-                    rows = ceil(Int, lmin / dtpk.zsize[1])
-                    fill!(uiplot.z, zero(eltype(uiplot.z)))
-                    @views uiplot.z[1:rows, :] = transpose(resize(nz, dtpk.zsize[1], rows))
+                    all(size(pss.z) .== reverse(dtss.zsize)) || (pss.z = zeros(Float64, reverse(dtss.zsize)...))
+                    lmin = min(length(pss.z), length(nz))
+                    rows = ceil(Int, lmin / dtss.zsize[1])
+                    fill!(pss.z, zero(eltype(pss.z)))
+                    @views pss.z[1:rows, :] = transpose(resize(nz, dtss.zsize[1], rows))
                 end
-                dtpk.nonuniform && uniformz!(uiplot.y[1], uiplot.x, uiplot.z)
-                dtpk.vflipz && reverse!(uiplot.z, dims=2)
-                dtpk.hflipz && reverse!(uiplot.z, dims=1)
+                dtss.nonuniformx && uniformx!(pss.x, pss.y, pss.z)
+                dtss.nonuniformx && uniformy!(pss.x, pss.y, pss.z)
+                dtss.vflipz && reverse!(pss.z, dims=2)
+                dtss.hflipz && reverse!(pss.z, dims=1)
+                setupplotseries!(pss, nx, ny, pss.z)
+            else
+                setupplotseries!(pss, nx, ny)
             end
-            dtpk.isrealtime || @info "[$(now())]" data_processing = prettify(innercodes)
+            syncaxes(plt, pss, dtss)
+            (dtss.isrealtime | quiet) || @info "[$(now())]" data_processing = prettify(innercodes)
         catch e
-            dtpk.isrealtime || @error "[$(now())]\n$(mlstr("processing data failed!!!"))" exception = e codes = prettify(ex)
+            (dtss.isrealtime | quiet) || @error "[$(now())]\n$(mlstr("processing data failed!!!"))" exception = e codes = prettify(ex)
         finally
-            dtpk.isrunning = false
+            dtss.isrunning = false
         end
+    end
+end
+
+function syncaxes(plt::Plot, pss::PlotSeries, dtss::DataSeries)
+    pss.legend = dtss.legend
+    if pss.axis.xaxis.axis + 1 != dtss.xaxis
+        pss.axis.xaxis.axis = ImPlot.ImAxis_(dtss.xaxis - 1)
+        mergexaxes!(plt)
+    end
+    if pss.axis.yaxis.axis - 2 != dtss.yaxis
+        pss.axis.yaxis.axis = ImPlot.ImAxis_(dtss.yaxis + 2)
+        mergeyaxes!(plt)
+    end
+    if pss.axis.zaxis.axis != dtss.zaxis || pss.zlims != plt.zaxes[findfirst(axis -> axis.axis == pss.axis.zaxis.axis, plt.zaxes)].zlims
+        pss.axis.zaxis.axis = dtss.zaxis
+        mergezaxes!(plt)
+    end
+end
+
+function loaddata(datastr::Dict{String,Vector{String}}, datafloat::Dict{String,Vector{Cdouble}}, key)
+    if isempty(datafloat)
+        haskey(datastr, key) ? replace(tryparse.(Cdouble, datastr[key]), nothing => NaN) : Float64[]
+    else
+        haskey(datafloat, key) ? copy(datafloat[key]) : Float64[]
     end
 end
