@@ -42,10 +42,10 @@ let
             if selectedpref == "General"
                 ### Basic ###
                 SeparatorTextColored(MORESTYLE.Colors.HighlightText, mlstr("Basic Setup"))
-                @c CImGui.Checkbox(
-                    CONF.Basic.isremote ? mlstr("dual core") : mlstr("single core"),
-                    &CONF.Basic.isremote
-                )
+                # @c CImGui.Checkbox(
+                #     CONF.Basic.isremote ? mlstr("dual core") : mlstr("single core"),
+                #     &CONF.Basic.isremote
+                # )
                 @c CImGui.Checkbox(
                     mlstr("remote processing data"),
                     &CONF.Basic.remoteprocessdata
@@ -61,12 +61,12 @@ let
                 # if unsafe_load(CImGui.GetIO().ConfigFlags) & CImGui.ImGuiConfigFlags_ViewportsEnable == CImGui.ImGuiConfigFlags_ViewportsEnable
                 #     @c CImGui.Checkbox(mlstr("hide window"), &CONF.Basic.hidewindow)
                 # end
-                @c CImGui.DragInt(
-                    mlstr("DAQ threads"),
-                    &CONF.Basic.nthreads_2,
-                    1, 1, 100, "%d",
-                    CImGui.ImGuiSliderFlags_AlwaysClamp
-                )
+                # @c CImGui.DragInt(
+                #     mlstr("DAQ threads"),
+                #     &CONF.Basic.nthreads_2,
+                #     1, 1, 100, "%d",
+                #     CImGui.ImGuiSliderFlags_AlwaysClamp
+                # )
                 @c CImGui.DragInt(
                     mlstr("data processing threads"),
                     &CONF.Basic.nthreads_3,
@@ -148,12 +148,6 @@ let
                     1.0, 1, 6, "%d",
                     CImGui.ImGuiSliderFlags_AlwaysClamp
                 )
-                # CImGui.DragInt2(
-                #     mlstr("pickup frame counts"),
-                #     CONF.DAQ.pick_fps,
-                #     1.0, 1, 180, "%d",
-                #     CImGui.ImGuiSliderFlags_AlwaysClamp
-                # )
                 @c CImGui.DragInt(
                     stcstr(mlstr("history blocks"), "##DAQ"),
                     &CONF.DAQ.historylen,
@@ -230,17 +224,6 @@ let
                     CImGui.ImGuiSliderFlags_AlwaysClamp
                 )
                 CImGui.Text(" ")
-                
-
-                ###Icons###
-                # SeparatorTextColored(MORESTYLE.Colors.HighlightText, mlstr("Icon"))
-                # @c CImGui.DragInt(
-                #     mlstr("icon size"),
-                #     &CONF.Icons.size, 1.0, 6, 120, "%d",
-                #     CImGui.ImGuiSliderFlags_AlwaysClamp
-                # )
-                # CImGui.Text(" ")
-                # 
 
                 ###Console###
                 SeparatorTextColored(MORESTYLE.Colors.HighlightText, mlstr("Console"))
