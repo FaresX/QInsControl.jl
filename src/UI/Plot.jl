@@ -121,42 +121,54 @@ let
                 CImGui.MenuItem(mlstr("Vertical Linecut")) && push!(plt.linecuts, Linecut(pos=openpopup_mspos[1]))
                 CImGui.EndMenu()
             end
-            # if CImGui.CollapsingHeader(mlstr("Annotation"))
-            #     @c InputTextRSZ(mlstr("content"), &annbuf.label)
-            #     pos = Cfloat[annbuf.posx, annbuf.posy]
-            #     CImGui.InputFloat2(mlstr("position"), pos)
-            #     annbuf.posx, annbuf.posy = pos
-            #     offset = Cfloat[annbuf.offsetx, annbuf.offsety]
-            #     CImGui.InputFloat2(mlstr("offset"), offset)
-            #     annbuf.offsetx, annbuf.offsety = offset
-            #     @c CImGui.DragFloat(mlstr("size"), &annbuf.possz, 1.0, 1, 60, "%.3f", CImGui.ImGuiSliderFlags_AlwaysClamp)
-            #     CImGui.ColorEdit4(mlstr("color"), annbuf.color, CImGui.ImGuiColorEditFlags_AlphaBar)
-            #     CImGui.SameLine()
-            #     if CImGui.Button(MORESTYLE.Icons.NewFile * "##annotation")
-            #         push!(plt.anns, deepcopy(annbuf))
-            #     end
-            # end
+            if CImGui.CollapsingHeader(mlstr("Annotation"))
+                @c InputTextRSZ(mlstr("content"), &annbuf.label)
+                pos = Cfloat[annbuf.posx, annbuf.posy]
+                CImGui.InputFloat2(mlstr("position"), pos)
+                annbuf.posx, annbuf.posy = pos
+                offset = Cfloat[annbuf.offsetx, annbuf.offsety]
+                CImGui.InputFloat2(mlstr("offset"), offset)
+                annbuf.offsetx, annbuf.offsety = offset
+                @c CImGui.DragFloat(mlstr("size"), &annbuf.possz, 1.0, 1, 60, "%.3f", CImGui.ImGuiSliderFlags_AlwaysClamp)
+                CImGui.ColorEdit4(mlstr("color"), annbuf.color, CImGui.ImGuiColorEditFlags_AlphaBar)
+                CImGui.SameLine()
+                if CImGui.Button(MORESTYLE.Icons.NewFile * "##annotation")
+                    push!(plt.anns, deepcopy(annbuf))
+                end
+            end
             CImGui.EndPopup()
         end
         igIsPopupOpen_Str(stcstr("title", id), 0) || openpopup_mspos == Cfloat[0, 0] || fill!(openpopup_mspos, 0)
         for (i, pltxa) in enumerate(plt.xaxes)
             pltxa.hovered && mousedoubleclicked0 && CImGui.OpenPopup(stcstr("xlabel", i, "-", id))
             if CImGui.BeginPopup(stcstr("xlabel", i, "-", id))
-                @c InputTextRSZ(stcstr("X ", mlstr("label")), &pltxa.label)
+                if @c InputTextRSZ(stcstr("X ", mlstr("label")), &pltxa.label)
+                    for pss in plt.series
+                        pss.axis.xaxis.axis == pltxa.axis && (pss.axis.xaxis.label = pltxa.label)
+                    end
+                end
                 CImGui.EndPopup()
             end
         end
         for (i, pltya) in enumerate(plt.yaxes)
             pltya.hovered && mousedoubleclicked0 && CImGui.OpenPopup(stcstr("ylabel", i, "-", id))
             if CImGui.BeginPopup(stcstr("ylabel", i, "-", id))
-                @c InputTextRSZ(stcstr("Y ", mlstr("label")), &pltya.label)
+                if @c InputTextRSZ(stcstr("Y ", mlstr("label")), &pltya.label)
+                    for pss in plt.series
+                        pss.axis.yaxis.axis == pltya.axis && (pss.axis.yaxis.label = pltya.label)
+                    end
+                end
                 CImGui.EndPopup()
             end
         end
         for (i, pltza) in enumerate(plt.zaxes)
             pltza.hovered && mousedoubleclicked0 && CImGui.OpenPopup(stcstr("zlabel", i, "-", id))
             if CImGui.BeginPopup(stcstr("zlabel", i, "-", id))
-                @c InputTextRSZ(stcstr("Z ", mlstr("label")), &pltza.label)
+                if @c InputTextRSZ(stcstr("Z ", mlstr("label")), &pltza.label)
+                    for pss in plt.series
+                        pss.axis.zaxis.axis == pltza.axis && (pss.axis.zaxis.label = pltza.label)
+                    end
+                end
                 CImGui.EndPopup()
             end
         end
@@ -170,8 +182,8 @@ function mergexaxes!(plt::Plot)
     for x in [pss.axis.xaxis for pss in plt.series]
         x.axis in [xa.axis for xa in plt.xaxes] || push!(plt.xaxes, deepcopy(x))
     end
-    for axis in [pss.axis for pss in plt.series]
-        for pltxa in plt.xaxes
+    for pltxa in plt.xaxes
+        for axis in [pss.axis for pss in plt.series]
             axis.xaxis.axis == pltxa.axis && (axis.xaxis = deepcopy(pltxa))
         end
     end
@@ -182,8 +194,8 @@ function mergeyaxes!(plt::Plot)
     for y in [pss.axis.yaxis for pss in plt.series]
         y.axis in [ya.axis for ya in plt.yaxes] || push!(plt.yaxes, deepcopy(y))
     end
-    for axis in [pss.axis for pss in plt.series]
-        for pltya in plt.yaxes
+    for pltya in plt.yaxes
+        for axis in [pss.axis for pss in plt.series]
             axis.yaxis.axis == pltya.axis && (axis.yaxis = deepcopy(pltya))
         end
     end
@@ -194,8 +206,8 @@ function mergezaxes!(plt::Plot)
     for z in [pss.axis.zaxis for pss in plt.series if pss.ptype == "heatmap"]
         z.axis in [za.axis for za in plt.zaxes] || push!(plt.zaxes, deepcopy(z))
     end
-    for axis in [pss.axis for pss in plt.series]
-        for pltza in plt.zaxes
+    for pltza in plt.zaxes
+        for axis in [pss.axis for pss in plt.series]
             axis.zaxis.axis == pltza.axis && (axis.zaxis = deepcopy(pltza))
         end
     end
@@ -209,15 +221,10 @@ function Plot(plt::Plot; psize=CImGui.ImVec2(0, 0), flags=0)
     )
         isempty(plt.xaxes) && mergexaxes!(plt)
         isempty(plt.yaxes) && mergeyaxes!(plt)
-        isempty(plt.zaxes) && mergezaxes!(plt)
-        for xa in plt.xaxes
-            ImPlot.SetupAxis(xa.axis, xa.label)
-            xa.hovered = ImPlot.IsAxisHovered(xa.axis)
-        end
-        for ya in plt.yaxes
-            ImPlot.SetupAxis(ya.axis, ya.label)
-            ya.hovered = ImPlot.IsAxisHovered(ya.axis)
-        end
+        map(xa -> ImPlot.SetupAxis(xa.axis, xa.label), plt.xaxes)
+        map(ya -> ImPlot.SetupAxis(ya.axis, ya.label), plt.yaxes)
+        map(xa -> xa.hovered = ImPlot.IsAxisHovered(xa.axis), plt.xaxes)
+        map(ya -> ya.hovered = ImPlot.IsAxisHovered(ya.axis), plt.yaxes)
         for (i, pss) in enumerate(plt.series)
             if pss.ptype == "heatmap"
                 (isempty(pss.x) | isempty(pss.y) | isempty(pss.z)) && continue
@@ -230,7 +237,7 @@ function Plot(plt::Plot; psize=CImGui.ImVec2(0, 0), flags=0)
                 ImPlot.EndLegendPopup()
             end
         end
-        # PlotAnns(plt.anns)
+        PlotAnns(plt.anns)
         plt.hovered = ImPlot.IsPlotHovered()
         ImPlot.EndPlot()
     end
@@ -353,70 +360,115 @@ function setupplotseries!(pss::PlotSeries, x::AbstractVector{Tx}, y, z) where {T
     pss.axis.zaxis.zlims = pss.zlims
 end
 
-# function PlotAnns(anns::Vector{Annotation})
-#     openpopup_i = 0
-#     delete_i = 0
-#     ishv = false
-#     CImGui.PushFont(GLOBALFONT)
-#     for (i, ann) in enumerate(anns)
-#         offset = ImPlot.PlotToPixels(ann.offsetx, ann.offsety) .- ImPlot.PlotToPixels(ann.posx, ann.posy)
-#         halflabelsz = CImGui.CalcTextSize(ann.label) ./ 2
-#         ImPlot.AnnotationClamped(
-#             ann.posx,
-#             ann.posy,
-#             CImGui.ImVec4(ann.color...),
-#             correct_offset(offset, halflabelsz),
-#             ann.label
-#         )
-#         CImGui.PushID(i)
-#         @c ImPlot.DragPoint(i, &ann.posx, &ann.posy, CImGui.ImVec4(ann.color...), ann.possz)
-#         ishv = CImGui.IsItemHovered()
-#         ItemTooltip(ann.label)
-#         @c ImPlot.DragPoint(
-#             -i,
-#             &ann.offsetx,
-#             &ann.offsety,
-#             CImGui.ImVec4(ann.color[1:3]..., 0.000),
-#             halflabelsz[2] / 2
-#         )
-#         ishv |= CImGui.IsItemHovered()
-#         ItemTooltip(ann.label)
-#         ishv && (openpopup_i = i)
-#         CImGui.PopID()
-#         if CImGui.BeginPopup(stcstr("annotation", i))
-#             @c InputTextRSZ(mlstr("content"), &ann.label)
-#             pos = Cfloat[ann.posx, ann.posy]
-#             CImGui.InputFloat2(mlstr("position"), pos)
-#             ann.posx, ann.posy = pos
-#             offset = Cfloat[ann.offsetx, ann.offsety]
-#             CImGui.InputFloat2(mlstr("offset"), offset)
-#             ann.offsetx, ann.offsety = offset
-#             @c CImGui.DragFloat(mlstr("size"), &ann.possz, 1.0, 1, 60, "%.3f", CImGui.ImGuiSliderFlags_AlwaysClamp)
-#             CImGui.ColorEdit4(mlstr("color"), ann.color, CImGui.ImGuiColorEditFlags_AlphaBar)
-#             CImGui.SameLine()
-#             CImGui.Button(stcstr(MORESTYLE.Icons.CloseFile, "##annotation")) && (delete_i = i)
-#             CImGui.EndPopup()
-#         end
-#     end
-#     CImGui.PopFont()
-#     openpopup_i != 0 && CImGui.IsMouseClicked(1) && CImGui.OpenPopup(stcstr("annotation", openpopup_i))
-#     delete_i == 0 || deleteat!(anns, delete_i)
-# end
+function PlotAnns(anns::Vector{Annotation})
+    openpopup_i = 0
+    ishv = false
+    ImPlot.SetAxes(ImPlot.ImAxis_X1, ImPlot.ImAxis_Y1)
+    CImGui.PushFont(GLOBALFONT)
+    for (i, ann) in enumerate(anns)
+        offset = ImPlot.PlotToPixels(ann.offsetx, ann.offsety) .- ImPlot.PlotToPixels(ann.posx, ann.posy)
+        halflabelsz = CImGui.CalcTextSize(ann.label) ./ 2
+        ImPlot.AnnotationClamped(
+            ann.posx,
+            ann.posy,
+            CImGui.ImVec4(ann.color...),
+            correct_offset(offset, halflabelsz),
+            ann.label
+        )
+        CImGui.PushID(i)
+        @c ImPlot.DragPoint(i, &ann.posx, &ann.posy, CImGui.ImVec4(ann.color...), ann.possz)
+        ishv = isdragpointhovered(ann.posx, ann.posy, ann.possz)
+        @c ImPlot.DragPoint(
+            -i,
+            &ann.offsetx,
+            &ann.offsety,
+            CImGui.ImVec4(ann.color[1:3]..., 0.000),
+            halflabelsz[2] / 2
+        )
+        ishv |= isdragpointhovered(ann.offsetx, ann.offsety, halflabelsz[2])
+        ishv && (ItemTooltipNoHovered(ann.label); openpopup_i = i)
+        CImGui.PopID()
+        if CImGui.BeginPopup(stcstr("annotation", i))
+            @c InputTextRSZ(mlstr("content"), &ann.label)
+            pos = Cfloat[ann.posx, ann.posy]
+            CImGui.InputFloat2(mlstr("position"), pos)
+            ann.posx, ann.posy = pos
+            offset = Cfloat[ann.offsetx, ann.offsety]
+            CImGui.InputFloat2(mlstr("offset"), offset)
+            ann.offsetx, ann.offsety = offset
+            @c CImGui.DragFloat(mlstr("size"), &ann.possz, 1.0, 1, 60, "%.3f", CImGui.ImGuiSliderFlags_AlwaysClamp)
+            CImGui.ColorEdit4(mlstr("color"), ann.color, CImGui.ImGuiColorEditFlags_AlphaBar)
+            CImGui.SameLine()
+            CImGui.Button(stcstr(MORESTYLE.Icons.CloseFile, "##annotation")) && (deleteat!(anns, i); break)
+            CImGui.EndPopup()
+        end
+    end
+    CImGui.PopFont()
+    openpopup_i != 0 && CImGui.IsMouseClicked(1) && CImGui.OpenPopup(stcstr("annotation", openpopup_i))
+end
+
+function isdragpointhovered(x, y, sz)
+    ppos = ImPlot.PlotToPixels(x, y)
+    inregion(CImGui.GetMousePos(), ppos .- sz / 2, ppos .+ sz / 2)
+end
+
+function correct_offset(offset, halflabelsz)
+    if offset[1] > halflabelsz[1]
+        if offset[2] > halflabelsz[2]
+            offset_correct = offset - halflabelsz
+        elseif -halflabelsz[2] <= offset[2] <= halflabelsz[2]
+            offset_correct = CImGui.ImVec2(offset[1] - halflabelsz[1], Cfloat(0))
+        else
+            offset_correct = CImGui.ImVec2(offset[1] - halflabelsz[1], offset[2] + halflabelsz[2])
+        end
+    elseif -halflabelsz[1] <= offset[1] <= halflabelsz[1]
+        if offset[2] > halflabelsz[2]
+            offset_correct = CImGui.ImVec2(Cfloat(0), offset[2] - halflabelsz[2])
+        elseif -halflabelsz[2] <= offset[2] <= halflabelsz[2]
+            offset_correct = CImGui.ImVec2(Cfloat(0), Cfloat(0))
+        else
+            offset_correct = CImGui.ImVec2(Cfloat(0), offset[2] + halflabelsz[2])
+        end
+    else
+        if offset[2] > halflabelsz[2]
+            offset_correct = CImGui.ImVec2(offset[1] + halflabelsz[1], offset[2] - halflabelsz[2])
+        elseif -halflabelsz[2] <= offset[2] <= halflabelsz[2]
+            offset_correct = CImGui.ImVec2(offset[1] + halflabelsz[1], Cfloat(0))
+        else
+            offset_correct = offset + halflabelsz
+        end
+    end
+    return ImVec2(offset_correct...)
+end
 
 function PlotLinecuts(linecuts::Vector{Linecut})
+    openpopup_i = 0
+    ishv = false
+    ImPlot.SetAxes(ImPlot.ImAxis_X1, ImPlot.ImAxis_Y1)
     CImGui.PushFont(GLOBALFONT)
     for (i, lc) in enumerate(linecuts)
         if lc.vline
             @c ImPlot.DragLineX(i, &lc.pos, CImGui.ImVec4(MORESTYLE.Colors.HighlightText...))
+            ishv |= isdraglinexhovered(lc.pos)
         else
             @c ImPlot.DragLineY(i, &lc.pos, CImGui.ImVec4(MORESTYLE.Colors.HighlightText...))
+            ishv |= isdraglineyhovered(lc.pos)
         end
-        # if CImGui.BeginPopupContextItem()
-        #     CImGui.MenuItem(stcstr(MORESTYLE.Icons.CloseFile, " ", mlstr("Delete"), "##", i)) && (deleteat!(linecuts, i); break)
-        #     CImGui.EndPopup()
-        # end
+        ishv && (openpopup_i = i)
+        if CImGui.BeginPopup(stcstr("linecut", i))
+            CImGui.MenuItem(stcstr(MORESTYLE.Icons.CloseFile, " ", mlstr("Delete"), "##", i)) && (deleteat!(linecuts, i); break)
+            CImGui.EndPopup()
+        end
     end
     CImGui.PopFont()
+    openpopup_i != 0 && CImGui.IsMouseClicked(1) && CImGui.OpenPopup(stcstr("linecut", openpopup_i))
+end
+
+function isdraglinexhovered(x)
+    !ImPlot.IsPlotHovered() && abs(ImPlot.PlotToPixels(x, ImPlot.GetPlotMousePos().y).x - CImGui.GetMousePos().x) < 4
+end
+function isdraglineyhovered(y)
+    !ImPlot.IsPlotHovered() && abs(ImPlot.PlotToPixels(ImPlot.GetPlotMousePos().x, y).y - CImGui.GetMousePos().y) < 4
 end
 
 function renderlinecuts(linecuts::Vector{Linecut}, pss::PlotSeries, plt::Plot)
@@ -432,9 +484,11 @@ function renderlinecuts(linecuts::Vector{Linecut}, pss::PlotSeries, plt::Plot)
             hlines = collect(filter(x -> !x.vline, linecuts))
             vlines = collect(filter(x -> x.vline, linecuts))
             if !isempty(hlines) && ImPlot.BeginPlot(
-                stcstr(plt.title, " ", mlstr("Horizontal Linecuts")), pss.axis.xaxis.label, pss.axis.zaxis.label,
+                stcstr(plt.title, " ", mlstr("Horizontal Linecuts")),
                 CImGui.ImVec2(CImGui.GetContentRegionAvailWidth() / (1 + !isempty(vlines)), -1)
             )
+                ImPlot.SetupAxis(pss.axis.xaxis.axis, pss.axis.xaxis.label)
+                ImPlot.SetupAxis(pss.axis.yaxis.axis, pss.axis.zaxis.label)
                 for lc in hlines
                     xr = collect(range(pss.xlims[1], pss.xlims[2], length=zsz[1]))
                     yr = collect(range(pss.ylims[2], pss.ylims[1], length=zsz[2]))
@@ -468,35 +522,6 @@ function renderlinecuts(linecuts::Vector{Linecut}, pss::PlotSeries, plt::Plot)
         CImGui.End()
         p_open[] || empty!(linecuts)
     end
-end
-
-function correct_offset(offset, halflabelsz)
-    if offset[1] > halflabelsz[1]
-        if offset[2] > halflabelsz[2]
-            offset_correct = offset - halflabelsz
-        elseif -halflabelsz[2] <= offset[2] <= halflabelsz[2]
-            offset_correct = CImGui.ImVec2(offset[1] - halflabelsz[1], Cfloat(0))
-        else
-            offset_correct = CImGui.ImVec2(offset[1] - halflabelsz[1], offset[2] + halflabelsz[2])
-        end
-    elseif -halflabelsz[1] <= offset[1] <= halflabelsz[1]
-        if offset[2] > halflabelsz[2]
-            offset_correct = CImGui.ImVec2(Cfloat(0), offset[2] - halflabelsz[2])
-        elseif -halflabelsz[2] <= offset[2] <= halflabelsz[2]
-            offset_correct = CImGui.ImVec2(Cfloat(0), Cfloat(0))
-        else
-            offset_correct = CImGui.ImVec2(Cfloat(0), offset[2] + halflabelsz[2])
-        end
-    else
-        if offset[2] > halflabelsz[2]
-            offset_correct = CImGui.ImVec2(offset[1] + halflabelsz[1], offset[2] - halflabelsz[2])
-        elseif -halflabelsz[2] <= offset[2] <= halflabelsz[2]
-            offset_correct = CImGui.ImVec2(offset[1] + halflabelsz[1], Cfloat(0))
-        else
-            offset_correct = offset + halflabelsz
-        end
-    end
-    return ImVec2(offset_correct...)
 end
 
 function trunc(x::T1, y::T2)::Tuple{T1,T2} where {T1} where {T2}
