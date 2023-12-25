@@ -261,18 +261,8 @@ function synccall_wait(f, ids, args...)
     end
 end
 
-function uniformz!(x, y, z)
-    zyl, zxl = size(z)
-    if length(y) == zyl
-        miny, maxy = extrema(y)
-        if miny != maxy
-            @views for j in axes(z, 2)
-                lineary = range(miny, maxy, length=zyl)
-                interp = LinearInterpolation(z[:, j], y; extrapolate=true)
-                z[:, j] = interp.(lineary)
-            end
-        end
-    end
+function uniformx!(x, y, z)
+    zxl = size(z, 2)
     if length(x) == zxl
         minx, maxx = extrema(x)
         if minx != maxx
@@ -280,6 +270,20 @@ function uniformz!(x, y, z)
                 linearx = range(minx, maxx, length=zxl)
                 interp = LinearInterpolation(z[i, :], x; extrapolate=true)
                 z[i, :] = interp.(linearx)
+            end
+        end
+    end
+end
+
+function uniformy!(x, y, z)
+    zyl = size(z, 1)
+    if length(y) == zyl
+        miny, maxy = extrema(y)
+        if miny != maxy
+            @views for j in axes(z, 2)
+                lineary = range(miny, maxy, length=zyl)
+                interp = LinearInterpolation(z[:, j], y; extrapolate=true)
+                z[:, j] = interp.(lineary)
             end
         end
     end
@@ -350,4 +354,15 @@ function getU(utype, uidx::Ref{Int})
         uidx[] == 0 && (uidx[] = length(Us))
     end
     return Us[uidx[]], Us
+end
+
+function calcmaxwidth(labels)
+    maxwidth = max([CImGui.CalcTextSize(label).x for label in labels]...)
+    availwidth = CImGui.GetContentRegionAvailWidth()
+    itemspacing = unsafe_load(IMGUISTYLE.ItemSpacing)
+    cols = floor(Int, availwidth / (maxwidth + itemspacing.x))
+    cols == 0 && (cols = 1)
+    lb = length(labels)
+    labelwidth = cols > lb ? maxwidth : (availwidth - (cols - 1) * itemspacing.x) / cols
+    return cols, labelwidth
 end
