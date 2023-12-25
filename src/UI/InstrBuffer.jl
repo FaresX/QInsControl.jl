@@ -76,7 +76,7 @@ end
 function getvalU!(qt::AbstractQuantity)
     U, Us = @c getU(qt.utype, &qt.uindex)
     U == "" || (Uchange::Float64 = Us[1] isa Unitful.FreeUnits ? ustrip(Us[1], 1U) : 1.0)
-    qt.showval = U == "" ? qt.read : @trypass string(parse(Float64, qt.read) / Uchange) qt.read
+    qt.showval = U == "" ? qt.read : @trypass @sprintf("%g", string(parse(Float64, qt.read) / Uchange)) qt.read
     qt.showU = string(U)
 end
 
@@ -702,76 +702,6 @@ function view(qt::AbstractQuantity)
     CImGui.PopStyleColor()
 end
 
-# function apply!(qt::SweepQuantity, instrnm, addr)
-#     addr == "" && return nothing
-#     Us = haskey(CONF.U, qt.utype) ? CONF.U[qt.utype] : [""]
-#     U = isempty(Us) ? "" : Us[qt.uindex]
-#     U == "" || (Uchange::Float64 = Us[1] isa Unitful.FreeUnits ? ustrip(Us[1], 1U) : 1.0)
-#     start = wait_remotecall_fetch(workers()[1], instrnm, addr) do instrnm, addr
-#         ct = Controller(instrnm, addr)
-#         try
-#             getfunc = Symbol(instrnm, :_, qt.name, :_get) |> eval
-#             login!(CPU, ct)
-#             readstr = ct(getfunc, CPU, Val(:read))
-#             logout!(CPU, ct)
-#             return parse(Float64, readstr)
-#         catch e
-#             @error(
-#                 "[$(now())]\n$(mlstr("error getting start value!!!"))",
-#                 instrument = string(instrnm, "-", addr),
-#                 exception = e
-#             )
-#             logout!(CPU, ct)
-#         end
-#     end
-#     step = @trypasse eval(Meta.parse(qt.step)) * Uchange begin
-#         @error "[$(now())]\n$(mlstr("error parsing step value!!!"))" step = qt.step
-#     end
-#     stop = @trypasse eval(Meta.parse(qt.stop)) * Uchange begin
-#         @error "[$(now())]\n$(mlstr("error parsing stop value!!!"))" stop = qt.stop
-#     end
-#     if !(isnothing(start) || isnothing(step) || isnothing(stop))
-#         sweeplist = gensweeplist(start, step, stop)
-#         errormonitor(
-#             Threads.@spawn begin
-#                 qt.issweeping = true
-#                 ct = Controller(instrnm, addr)
-#                 remotecall_wait(workers()[1], ct) do ct
-#                     @isdefined(sweepcts) || (global sweepcts = Dict{UUID,Controller}())
-#                     push!(sweepcts, ct.id => ct)
-#                     login!(CPU, ct)
-#                 end
-#                 for sv in sweeplist
-#                     qt.issweeping || break
-#                     sleep(qt.delay)
-#                     fetchdata = remotecall_fetch(workers()[1], sv, ct.id) do sv, ctid
-#                         try
-#                             setfunc = Symbol(instrnm, :_, qt.name, :_set) |> eval
-#                             getfunc = Symbol(instrnm, :_, qt.name, :_get) |> eval
-#                             sweepcts[ctid](setfunc, CPU, string(sv), Val(:write))
-#                             returnval = sweepcts[ctid](getfunc, CPU, Val(:read))
-#                         catch e
-#                             @error(
-#                                 "[$(now())]\n$(mlstr("instrument communication failed!!!"))",
-#                                 instrument = string(instrnm, ": ", addr),
-#                                 quantity = qt.name,
-#                                 exception = e
-#                             )
-#                         end
-#                     end
-#                     isnothing(fetchdata) ? break : qt.read = fetchdata
-#                 end
-#                 remotecall_wait(workers()[1], ct.id) do ctid
-#                     logout!(CPU, sweepcts[ctid])
-#                     delete!(sweepcts, ctid)
-#                 end
-#                 qt.issweeping = false
-#             end
-#         )
-#     end
-#     return nothing
-# end
-
 function apply!(qt::SweepQuantity, instrnm, addr)
     addr == "" && return nothing
     U, Us = @c getU(qt.utype, &qt.uindex)
@@ -799,7 +729,7 @@ function apply!(qt::SweepQuantity, instrnm, addr)
     stop = @trypasse eval(Meta.parse(qt.stop)) * Uchange begin
         @error "[$(now())]\n$(mlstr("error parsing stop value!!!"))" stop = qt.stop
     end
-    if !(isnothing(start) || isnothing(step) || isnothing(stop))
+    if !(isnothing(start) | isnothing(step) | isnothing(stop))
         sweeplist = gensweeplist(start, step, stop)
         errormonitor(
             Threads.@spawn begin
@@ -810,8 +740,7 @@ function apply!(qt::SweepQuantity, instrnm, addr)
                 sweepcalltask = @async remotecall_wait(
                     workers()[1], ct, sweeplist, sweep_rc, qt.name, qt.delay
                 ) do ct, sweeplist, sweep_rc, qtnm, delay
-                    @isdefined(sweepcts) || (global sweepcts = Dict{UUID,Tuple{Ref{Bool},Controller}}())
-                    push!(sweepcts, ct.id => (Ref(true), ct))
+                    push!(SWEEPCTS, ct.id => (Ref(true), ct))
                     sweep_lc = Channel{String}(CONF.DAQ.channel_size)
                     login!(CPU, ct)
                     try
@@ -821,10 +750,10 @@ function apply!(qt::SweepQuantity, instrnm, addr)
                             sweeptask = errormonitor(
                                 @async begin
                                     for sv in sweeplist
-                                        sweepcts[ct.id][1][] || break
+                                        SWEEPCTS[ct.id][1][] || break
                                         sleep(delay)
-                                        sweepcts[ct.id][2](setfunc, CPU, string(sv), Val(:write))
-                                        put!(sweep_lc, sweepcts[ct.id][2](getfunc, CPU, Val(:read)))
+                                        SWEEPCTS[ct.id][2](setfunc, CPU, string(sv), Val(:write))
+                                        put!(sweep_lc, SWEEPCTS[ct.id][2](getfunc, CPU, Val(:read)))
                                     end
                                 end
                             )
@@ -844,12 +773,12 @@ function apply!(qt::SweepQuantity, instrnm, addr)
                             exception = e
                         )
                     finally
-                        logout!(CPU, sweepcts[ct.id][2])
-                        sweepcts[ct.id][1][] = false
+                        logout!(CPU, SWEEPCTS[ct.id][2])
+                        SWEEPCTS[ct.id][1][] = false
                     end
                 end
                 while !istaskdone(sweepcalltask) || isready(sweep_rc)
-                    qt.issweeping || remotecall_wait(ctid -> sweepcts[ctid][1][] = false, workers()[1], ct.id)
+                    qt.issweeping || remotecall_wait(ctid -> SWEEPCTS[ctid][1][] = false, workers()[1], ct.id)
                     isready(sweep_rc) && for val in take!(sweep_rc)
                         qt.read = val
                         updatefront!(qt)
@@ -858,7 +787,7 @@ function apply!(qt::SweepQuantity, instrnm, addr)
                     yield()
                 end
                 qt.issweeping = false
-                remotecall_wait(ctid -> delete!(sweepcts, ctid), workers()[1], ct.id)
+                remotecall_wait(ctid -> delete!(SWEEPCTS, ctid), workers()[1], ct.id)
             end
         )
     else
@@ -954,60 +883,17 @@ function log_instrbufferviewers()
     push!(CFGBUF, "instrbufferviewers/[$(now())]" => deepcopy(INSTRBUFFERVIEWERS))
 end
 
-# function refresh1(log=false)
-#     remotecall_wait(workers()[1]) do
-#         @isdefined(refreshcts) || (global refreshcts = Dict())
-#     end
-#     @sync for ins in keys(INSTRBUFFERVIEWERS)
-#         ins == "Others" && continue
-#         remotecall_wait(workers()[1], ins) do ins
-#             haskey(refreshcts, ins) || push!(refreshcts, ins => Dict())
-#         end
-#         for (addr, ibv) in INSTRBUFFERVIEWERS[ins]
-#             @async if ibv.insbuf.isautorefresh || log
-#                 remotecall_wait(workers()[1]) do
-#                     haskey(refreshcts[ins], addr) || push!(refreshcts[ins], addr => Controller(ins, addr))
-#                     login!(CPU, refreshcts[ins][addr])
-#                 end
-#                 for (qtnm, qt) in INSTRBUFFERVIEWERS[ins][addr].insbuf.quantities
-#                     if (qt.isautorefresh && qt.enable) || (log && (CONF.DAQ.logall || qt.enable))
-#                         fetchdata = wait_remotecall_fetch(workers()[1], ins, addr, qtnm) do ins, addr, qtnm
-#                             try
-#                                 getfunc = Symbol(ins, :_, qtnm, :_get) |> eval
-#                                 refreshcts[ins][addr](getfunc, CPU, Val(:read))
-#                             catch e
-#                                 @error(
-#                                     "[$(now())]\n$(mlstr("instrument communication failed!!!"))",
-#                                     instrument = string(ins, ": ", addr),
-#                                     exception = e
-#                                 )
-#                             end
-#                         end
-#                         isnothing(fetchdata) ? (qt.read = ""; break) : qt.read = fetchdata
-#                     elseif !qt.enable
-#                         qt.read = ""
-#                     end
-#                 end
-#                 remotecall_wait(workers()[1]) do
-#                     logout!(CPU, refreshcts[ins][addr])
-#                 end
-#             end
-#         end
-#     end
-# end
-
 function refresh1(log=false; instrlist=keys(INSTRBUFFERVIEWERS))
     fetchibvs = wait_remotecall_fetch(workers()[1], INSTRBUFFERVIEWERS; timeout=120) do ibvs
-        @isdefined(refreshcts) || (global refreshcts = Dict())
         empty!(INSTRBUFFERVIEWERS)
         merge!(INSTRBUFFERVIEWERS, ibvs)
         @sync for (ins, inses) in filter(x -> x.first in instrlist && !isempty(x.second), INSTRBUFFERVIEWERS)
             ins == "Others" && continue
-            haskey(refreshcts, ins) || push!(refreshcts, ins => Dict())
+            haskey(REFRESHCTS, ins) || push!(REFRESHCTS, ins => Dict())
             for (addr, ibv) in inses
                 @async if ibv.insbuf.isautorefresh || log
-                    haskey(refreshcts[ins], addr) || push!(refreshcts[ins], addr => Controller(ins, addr))
-                    ct = refreshcts[ins][addr]
+                    haskey(REFRESHCTS[ins], addr) || push!(REFRESHCTS[ins], addr => Controller(ins, addr))
+                    ct = REFRESHCTS[ins][addr]
                     try
                         login!(CPU, ct)
                         for (qtnm, qt) in ibv.insbuf.quantities
