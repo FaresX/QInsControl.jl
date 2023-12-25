@@ -2,7 +2,6 @@
     name::String = ""
     explog::String = ""
     blocks::Vector{AbstractBlock} = [SweepBlock()]
-    enable::Bool = true
     hold::Bool = false
 end
 
@@ -108,7 +107,6 @@ function run(daqtask::DAQTask)
     global WORKPATH
     global SAVEPATH
     global OLDI
-    daqtask.enable || return
     SYNCSTATES[Int(IsDAQTaskRunning)] = true
     SYNCSTATES[Int(IsAutoRefreshing)] = false
     date = today()
@@ -215,14 +213,7 @@ function saveqdt()
         file["data"] = DATABUF
         file["circuit"] = CIRCUIT
         DAQDATAPLOT_copy = deepcopy(DAQDATAPLOT)
-        saveplotsidx = isempty(DAQDATAPLOT.layout.selectedidx) ? [1] : DAQDATAPLOT.layout.selectedidx
-        for (i, p) in enumerate(DAQDATAPLOT_copy.uiplots)
-            if i ∉ saveplotsidx
-                p.x = eltype(p.x)[]
-                p.y = [Float64[]]
-                p.z = Matrix{Float64}(undef, 0, 0)
-            end
-        end
+        empty!(DAQDATAPLOT_copy)
         file["dataplot"] = DAQDATAPLOT_copy
         for (key, val) in CFGBUF
             file[key] = val
@@ -258,18 +249,7 @@ end
 
 function update_all()
     if SYNCSTATES[Int(IsDAQTaskDone)]
-        if isfile(SAVEPATH) || !isempty(DATABUF)
-            saveqdt()
-            # if CONF.DAQ.saveimg
-            #     if isempty(DAQPLOTLAYOUT.selectedidx)
-            #         saveimg_seting("$SAVEPATH.png", UIPSWEEPS[[1]])
-            #     else
-            #         saveimg_seting("$SAVEPATH.png", UIPSWEEPS[DAQPLOTLAYOUT.selectedidx])
-            #     end
-            #     SYNCSTATES[Int(SavingImg)] = true
-            # end
-            global OLDI += 1
-        end
+        (isfile(SAVEPATH) | !isempty(DATABUF)) && (saveqdt(); global OLDI += 1)
         empty!(PROGRESSLIST)
         empty!(CFGBUF)
         SYNCSTATES[Int(IsDAQTaskDone)] = false
