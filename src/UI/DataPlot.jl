@@ -164,7 +164,7 @@ function showdtpks(
     dtp::DataPlot,
     id,
     datastr::Dict{String,Vector{String}},
-    datafloat::Dict{String,Vector{Cdouble}}=Dict{String,Vector{Cdouble}}()
+    datafloat::Dict{String,VecOrMat{Cdouble}}=Dict{String,VecOrMat{Cdouble}}()
 )
     if CImGui.BeginPopupModal(stcstr("no data", id), C_NULL, CImGui.ImGuiWindowFlags_AlwaysAutoResize)
         CImGui.TextColored(MORESTYLE.Colors.LogError, mlstr("no data!"))
@@ -198,19 +198,19 @@ function showdtpks(
                 dtp.showdtpks[i] = isshowdtpk
                 if true in [
                     dtss.update ||
-                    (dtss.isrealtime && waittime(stcstr(dtp.plots[i].id, "-", j, "DataPicker"), dtss.refreshrate))
+                    (dtss.isrealtime && waittime(stcstr("DataPicker", dtp.plots[i].id, "-", j), dtss.refreshrate))
                     for (j, dtss) in enumerate(dtpk.series)
                 ]
-                    linkeddata = Dict()
-                    for (j, pss) in enumerate(pltlink)
+                    linkeddata = Dict{String,VecOrMat{Cdouble}}()
+                    for (j, pss) in enumerate(pltlink.series)
                         push!(linkeddata, "x$j" => pss.x)
                         push!(linkeddata, "y$j" => pss.y)
                         push!(linkeddata, "z$j" => pss.z)
                         dtpklink.series[j].hflipz && reverse!(linkeddata["z$j"], dims=1)
                         dtpklink.series[j].vflipz && reverse!(linkeddata["z$j"], dims=2)
-                        linkeddata["z$j"] = transpose(linkeddata["z$j"])
+                        linkeddata["z$j"] = transpose(linkeddata["z$j"]) |> collect
                     end
-                    syncplotdata(dtp.plots[i], dtpk, Dict(), linkeddata)
+                    syncplotdata(dtp.plots[i], dtpk, Dict{String,Vector{String}}(), linkeddata)
                 end
             end
         end
@@ -292,9 +292,10 @@ function Base.empty!(dtp::DataPlot)
             pss.z = Matrix{eltype(pss.z)}(undef, 0, 0)
         end
     end
+    return dtp
 end
 
-function update!(dtp::DataPlot, datastr, datafloat::Dict{String,Vector{Cdouble}}=Dict{String,Vector{Cdouble}}())
+function update!(dtp::DataPlot, datastr, datafloat::Dict{String,VecOrMat{Cdouble}}=Dict{String,VecOrMat{Cdouble}}())
     for (i, dtpk) in enumerate(dtp.dtpks)
         dtpk.update = true
         syncplotdata(dtp.plots[i], dtpk, datastr, datafloat; quiet=true)

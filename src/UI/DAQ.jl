@@ -287,16 +287,16 @@ let
                     ]
                         pltlink = DAQDATAPLOT.plots[DAQDATAPLOT.linkidx[i]]
                         dtpklink = DAQDATAPLOT.dtpks[DAQDATAPLOT.linkidx[i]]
-                        linkeddata = Dict()
-                        for (j, pss) in enumerate(pltlink)
+                        linkeddata = Dict{String,VecOrMat{Cdouble}}()
+                        for (j, pss) in enumerate(pltlink.series)
                             push!(linkeddata, "x$j" => pss.x)
                             push!(linkeddata, "y$j" => pss.y)
                             push!(linkeddata, "z$j" => pss.z)
                             dtpklink.series[j].hflipz && reverse!(linkeddata["z$j"], dims=1)
                             dtpklink.series[j].vflipz && reverse!(linkeddata["z$j"], dims=2)
-                            linkeddata["z$j"] = transpose(linkeddata["z$j"])
+                            linkeddata["z$j"] = transpose(linkeddata["z$j"]) |> collect
                         end
-                        syncplotdata(DAQDATAPLOT.plots[i], DAQDATAPLOT.dtpks[i], Dict(), linkeddata)
+                        syncplotdata(DAQDATAPLOT.plots[i], DAQDATAPLOT.dtpks[i], Dict{String,Vector{String}}(), linkeddata)
                     end
                 end
             end

@@ -48,7 +48,7 @@ end
 
 const CPU = Processor()
 const DATABUF = Dict{String,Vector{String}}() #数据缓存
-const DATABUFPARSED = Dict{String,Vector{Float64}}()
+const DATABUFPARSED = Dict{String,VecOrMat{Cdouble}}()
 const PROGRESSLIST = OrderedDict{UUID,Tuple{UUID,Int,Int,Float64}}() #进度条缓存
 
 global SYNCSTATES::SharedVector{Bool}

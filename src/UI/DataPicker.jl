@@ -226,7 +226,7 @@ let
         plt::Plot,
         dtpk::DataPicker,
         datastr::Dict{String,Vector{String}},
-        datafloat::Dict{String,Vector{Cdouble}}=Dict{String,Vector{Cdouble}}();
+        datafloat::Dict{String,VecOrMat{Cdouble}}=Dict{String,VecOrMat{Cdouble}}();
         quiet=false
     )
         haskey(synctasks, plt.id) || push!(synctasks, plt.id => Dict())
@@ -259,7 +259,7 @@ let
         pss::PlotSeries,
         dtss::DataSeries,
         datastr::Dict{String,Vector{String}},
-        datafloat::Dict{String,Vector{Cdouble}};
+        datafloat::Dict{String,VecOrMat{Cdouble}};
         quiet=false
     )
         dtss.isrunning = true
@@ -349,13 +349,15 @@ function syncaxes(plt::Plot, pss::PlotSeries, dtss::DataSeries)
         pss.axis.yaxis.axis = ImPlot.ImAxis_(dtss.yaxis + 2)
         mergeyaxes!(plt)
     end
-    if pss.axis.zaxis.axis != dtss.zaxis || pss.zlims != plt.zaxes[findfirst(axis -> axis.axis == pss.axis.zaxis.axis, plt.zaxes)].zlims
+    changez = pss.axis.zaxis.axis != dtss.zaxis
+    changez |=  !isempty(plt.zaxes) && pss.zlims != plt.zaxes[findfirst(za -> za.axis == pss.axis.zaxis.axis, plt.zaxes)].zlims
+    if pss.ptype == "heatmap" && changez
         pss.axis.zaxis.axis = dtss.zaxis
         mergezaxes!(plt)
     end
 end
 
-function loaddata(datastr::Dict{String,Vector{String}}, datafloat::Dict{String,Vector{Cdouble}}, key)
+function loaddata(datastr::Dict{String,Vector{String}}, datafloat::Dict{String,VecOrMat{Cdouble}}, key)
     if isempty(datafloat)
         haskey(datastr, key) ? replace(tryparse.(Cdouble, datastr[key]), nothing => NaN) : Float64[]
     else
