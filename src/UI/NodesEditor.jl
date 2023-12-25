@@ -445,9 +445,9 @@ let
                     stcstr(getproperty(MORESTYLE.Icons, Symbol(nodetype, :Node)), " ", mlstr(nodetype))
                     for nodetype in simplenodetypes
                 ]
-                cols, labelwidth = calcmaxwidth(nodelabels)
+                cols, labelwidth = calcmaxwidth(nodelabels, CImGui.GetFontSize())
                 for (i, label) in enumerate(nodelabels)
-                    CImGui.Selectable(label, false, 0, (labelwidth + CImGui.GetFontSize(), 3CImGui.GetFrameHeight()))
+                    CImGui.Selectable(label, false, 0, (labelwidth, 3CImGui.GetFrameHeight()))
                     i % cols == 0 || i == length(simplenodetypes) || CImGui.SameLine()
                     if CImGui.IsItemActive() && !isdragging && isempty(dragnode)
                         isempty(dragnode) && push!(dragnode, simplenodetypes[i])
@@ -458,7 +458,7 @@ let
             if CImGui.CollapsingHeader(mlstr("Instruments"))
                 inses = setdiff(keys(INSCONF), Set(["Others"]))
                 nodelabels = [stcstr(INSCONF[ins].conf.icon, " ", ins) for ins in inses]
-                cols, labelwidth = calcmaxwidth(nodelabels)
+                cols, labelwidth = calcmaxwidth(nodelabels, CImGui.GetFontSize())
                 for (i, ins) in enumerate(inses)
                     CImGui.Selectable(stcstr(INSCONF[ins].conf.icon, " ", ins),
                         false,

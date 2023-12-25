@@ -356,8 +356,8 @@ function getU(utype, uidx::Ref{Int})
     return Us[uidx[]], Us
 end
 
-function calcmaxwidth(labels)
-    maxwidth = max([CImGui.CalcTextSize(label).x for label in labels]...)
+function calcmaxwidth(labels, padding=0)
+    maxwidth = max([CImGui.CalcTextSize(label).x for label in labels]...) + padding
     availwidth = CImGui.GetContentRegionAvailWidth()
     itemspacing = unsafe_load(IMGUISTYLE.ItemSpacing)
     cols = floor(Int, availwidth / (maxwidth + itemspacing.x))

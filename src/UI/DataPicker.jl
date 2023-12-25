@@ -102,7 +102,7 @@ let
     global function edit(dtss::DataSeries, datalist)
         dtss.update = false
         @c InputTextRSZ(mlstr("legend"), &dtss.legend)
-        CImGui.PushItemWidth(CImGui.GetContentRegionAvailWidth() / 2)
+        CImGui.PushItemWidth(CImGui.GetContentRegionAvailWidth() / 3)
         @c ComBoS(mlstr("plot type"), &dtss.ptype, ptypelist)
         CImGui.PopItemWidth()
         CImGui.SameLine()
@@ -147,10 +147,7 @@ let
             CImGui.PushItemWidth(CImGui.GetContentRegionAvailWidth() / 2)
             @c CImGui.SliderInt(stcstr("Z", mlstr("axis")), &dtss.zaxis, 1, 6)
             CImGui.PopItemWidth()
-            CImGui.PushItemWidth(
-                -CImGui.CalcTextSize(mlstr("matrix size")).x -
-                SYNCSTATES[Int(IsDAQTaskRunning)] * CImGui.CalcTextSize(MORESTYLE.Icons.InstrumentsAutoRef).x
-            )
+            CImGui.PushItemWidth(-CImGui.CalcTextSize(mlstr("matrix size")).x - 2CImGui.GetFontSize())
             CImGui.DragInt2(
                 mlstr("matrix size"), dtss.zsize, 1, 0, 1000000, "%d",
                 CImGui.ImGuiSliderFlags_AlwaysClamp
