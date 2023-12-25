@@ -934,9 +934,8 @@ function edit(bk::ReadBlock)
 end
 
 let
-    actions::Vector{String} = []
+    actions::Vector{String} = ["Pause", "Interrupt", "Continue"]
     global function edit(bk::FeedbackBlock)
-        isempty(actions) && append!(actions, mlstr.(["Pause", "Interrupt", "Continue"]))
         CImGui.PushStyleVar(CImGui.ImGuiStyleVar_ItemSpacing, (Float32(2), unsafe_load(IMGUISTYLE.ItemSpacing.y)))
         CImGui.BeginChild("##FeedbackBlock", (Float32(0), bkheight(bk)), true)
         CImGui.TextColored(MORESTYLE.Colors.BlockIcons, MORESTYLE.Icons.FeedbackBlock)
@@ -956,7 +955,7 @@ let
         CImGui.SameLine() #选地址
 
         CImGui.PushItemWidth(-1)
-        @c ComBoS("##FeedbackBlock action", &bk.action, actions, CImGui.ImGuiComboFlags_NoArrowButton)
+        @c ComBoS("##FeedbackBlock action", &bk.action, mlstr.(actions), CImGui.ImGuiComboFlags_NoArrowButton)
         CImGui.PopItemWidth() #action
 
         CImGui.EndChild()
@@ -998,6 +997,9 @@ let
             CImGui.Selectable(getproperty(MORESTYLE.Icons, bk), false, 0, (availw, 2ftsz))
             CImGui.PopStyleVar()
             CImGui.PopStyleColor()
+            CImGui.PushFont(GLOBALFONT)
+            ItemTooltip(mlstr(stcstr(bk)))
+            CImGui.PopFont()
             if CImGui.IsItemActive() && !isdragging && isempty(dragblock)
                 push!(dragblock, eval(bk)())
                 isdragging = true
@@ -1113,7 +1115,13 @@ let
             if isdragging && !CImGui.IsMouseDown(0)
                 isdragging = false
             elseif !isdragging
-                !isempty(dragblock) && !isempty(dropblock) && swapblock(blocks, only(dragblock), only(dropblock), addmode)
+                if !isempty(dragblock)
+                    if isempty(dropblock)
+                        CImGui.IsAnyItemHovered() || (addmode && push!(blocks, only(dragblock)))
+                    else
+                        swapblock(blocks, only(dragblock), only(dropblock), addmode)
+                    end
+                end
                 empty!(dragblock)
                 empty!(dropblock)
             end
