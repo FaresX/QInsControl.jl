@@ -56,8 +56,8 @@ function loadconf()
 
     if myid() == 1
         ###### generate INSTRBUFFERVIEWERS ######
-        for key in keys(INSCONF)
-            push!(INSTRBUFFERVIEWERS, key => Dict{String,InstrBufferViewer}())
+        for ins in keys(INSCONF)
+            push!(INSTRBUFFERVIEWERS, ins => Dict{String,InstrBufferViewer}())
         end
         push!(INSTRBUFFERVIEWERS, "VirtualInstr" => Dict("VirtualAddress" => InstrBufferViewer("VirtualInstr", "VirtualAddress")))
 
@@ -67,7 +67,7 @@ function loadconf()
             split(bnm, '.')[end] == "sty" && merge!(STYLES, load(file))
         end
 
-        ##### save conf.toml ######
+        ###### save conf.toml ######
         svconf = deepcopy(CONF)
         svconf.U = Dict(up.first => string.(up.second) for up in CONF.U)
         to_toml(joinpath(ENV["QInsControlAssets"], "Necessity/conf.toml"), svconf)
