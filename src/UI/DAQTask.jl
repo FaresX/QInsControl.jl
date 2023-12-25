@@ -212,9 +212,7 @@ function saveqdt()
     jldopen(SAVEPATH, "w") do file
         file["data"] = DATABUF
         file["circuit"] = CIRCUIT
-        DAQDATAPLOT_copy = deepcopy(DAQDATAPLOT)
-        empty!(DAQDATAPLOT_copy)
-        file["dataplot"] = DAQDATAPLOT_copy
+        file["dataplot"] = empty!(deepcopy(DAQDATAPLOT))
         for (key, val) in CFGBUF
             file[key] = val
         end
