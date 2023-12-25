@@ -184,30 +184,6 @@ function UI(breakdown=false; precompile=false)
             ###### 检查 STATICSTRINGS ######
             waittime("Check STATICSTRINGS", 36) && checklifetime()
 
-            ######保存图像######
-            # if SYNCSTATES[Int(SavingImg)]
-            #     @c glfwGetWindowPos(window, &glfwwindowx, &glfwwindowy)
-            #     count_fps = saveimg()
-            #     if count_fps == 1
-            #         iswindowiconified = glfwGetWindowAttrib(window, GLFW_ICONIFIED) != 0
-            #         if iswindowiconified
-            #             pick_fps_normal = CONF.DAQ.pick_fps[1]
-            #             CONF.DAQ.pick_fps[1] = CONF.DAQ.pick_fps[2]
-            #         end
-            #     elseif count_fps == 0
-            #         glfwSetWindowAttrib(window, GLFW_FLOATING, GLFW_FALSE)
-            #         if iswindowiconified
-            #             glfwIconifyWindow(window)
-            #             CONF.DAQ.pick_fps[1] = pick_fps_normal
-            #         end
-            #     else
-            #         iswindowiconified && glfwRestoreWindow(window)
-            #         glfwSetWindowAttrib(window, GLFW_FLOATING, GLFW_TRUE)
-            #     end
-            # end
-            ###### 加速核心通讯 ######
-            # SYNCSTATES[Int(IsAutoRefreshing)] && remotecall_fetch(()->CPU.running, workers()[1])
-
             MainWindow()
             if CImGui.BeginPopupModal("##windowshouldclose?", C_NULL, CImGui.ImGuiWindowFlags_AlwaysAutoResize)
                 CImGui.TextColored(
