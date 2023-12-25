@@ -254,7 +254,7 @@ function Plot(plt::Plot; psize=CImGui.ImVec2(0, 0), flags=0)
     end
     CImGui.PopStyleVar()
     for pss in plt.series
-        pss.ptype == "heatmap" && renderlinecuts(plt.linecuts, pss, plt)
+        pss.ptype == "heatmap" && !isempty(pss.z) && renderlinecuts(plt.linecuts, pss, plt)
     end
 end
 
@@ -319,19 +319,11 @@ end
 function setupplotseries!(pss::PlotSeries, x::AbstractVector{Tx}, y) where {Tx<:AbstractString}
     pss.x = 1:length(y)
     pss.y = y
-    xticksnum = round(Int, 2CImGui.GetContentRegionAvailWidth() / max_with_empty(lengthpr.(x)) / 3CImGui.GetFontSize())
-    if xticksnum == 0
-        pss.xtickvalues = 1
-        pss.xticklabels = x[1]
-    else
-        pss.xtickvalues = round.(Int, range(1, length(x), length=2xticksnum + 1))[2:2:end-1]
-        pss.xticklabels = x[Int.(pss.xtickvalues)]
-    end
+    pss.xaxis.axis.ticklabels = x
 end
 function setupplotseries!(pss::PlotSeries, x::AbstractVector{Tx}, y) where {Tx<:Real}
     pss.x, pss.y = trunc(x, y)
 end
-
 function setupplotseries!(pss::PlotSeries, x::AbstractVector{Tx}, y, z) where {Tx<:Real}
     pss.x = x
     pss.y = y
