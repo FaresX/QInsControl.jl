@@ -27,8 +27,10 @@ function edit(dtviewer::DataViewer, filetree::FileTree, isrename::Dict{String,Bo
         if filetree.selectedpath[] != oldfile
             if split(basename(filetree.selectedpath[]), '.')[end] in ["qdt", "cfg"]
                 dtviewer.data = @trypasse load(filetree.selectedpath[]) Dict()
-                datakeys = keys(dtviewer.data)
-                "dataplot" in datakeys ? (dtviewer.dtp = @trypasse dtviewer.data["dataplot"] dtviewer.dtp) : combotodataplot(dtviewer)
+                if haskey(dtviewer.data, "dataplot")
+                    dtviewer.dtp = dtviewer.data["dataplot"]
+                    haskey(dtviewer.data, "data") && update!(dtviewer.dtp, dtviewer.data["data"])
+                end
                 if !isempty(dtviewer.data)
                     if haskey(dtviewer.data, "circuit")
                         for (_, node) in dtviewer.data["circuit"].nodes
@@ -241,12 +243,13 @@ end
 
 function saveqdt(dtviewer::DataViewer, filetree::FileTree)
     if !isempty(dtviewer.data)
+        dtpsaving = deepcopy(dtviewer.dtp)
+        empty!(dtpsaving)
         jldopen(filetree.selectedpath[], "w") do file
             for key in keys(dtviewer.data)
-                key in ["uiplots", "datapickers", "plotlayout"] && continue
+                key == "dataplot" && (file[key] = dtpsaving; continue)
                 file[key] = dtviewer.data[key]
             end
-            haskey(dtviewer.data, "dataplot") || (file["dataplot"] = dtviewer.dtp)
         end
     end
 end
