@@ -585,3 +585,73 @@ function SeparatorTextColored(col, label)
     igSeparatorText(label)
     CImGui.PopStyleColor()
 end
+
+function BoxTextColored(label; size=(0, 0), col=CImGui.c_get(IMGUISTYLE.Colors, ImGuiCol_Text))
+    CImGui.PushStyleVar(ImGuiStyleVar_FrameBorderSize, 1)
+    ColoredButton(label; size=size, colbt=[0, 0, 0, 0], colbth=[0, 0, 0, 0], colbta=[0, 0, 0, 0], coltxt=col)
+    CImGui.PopStyleVar()
+end
+
+@kwdef mutable struct ResizeChild
+    regmin::CImGui.ImVec2 = (0, 0)
+    regmax::CImGui.ImVec2 = (200, 400)
+    rszgripsize::Cfloat = 24
+    limminsize::CImGui.ImVec2 = (0, 0)
+    limmaxsize::CImGui.ImVec2 = (Inf, Inf)
+    hovered::Bool = false
+    dragging::Bool = false
+end
+
+function (rszcd::ResizeChild)(f, id, args...; kwargs...)
+    CImGui.BeginChild(id, rszcd.regmax .- rszcd.regmin, true)
+    f(args...; kwargs...)
+    CImGui.EndChild()
+    CImGui.AddTriangleFilled(
+        CImGui.GetWindowDrawList(),
+        (rszcd.regmax.x - rszcd.rszgripsize, rszcd.regmax.y), rszcd.regmax, (rszcd.regmax.x, rszcd.regmax.y - rszcd.rszgripsize),
+        if rszcd.hovered && rszcd.dragging
+            CImGui.ColorConvertFloat4ToU32(CImGui.c_get(IMGUISTYLE.Colors, ImGuiCol_ResizeGripActive))
+        elseif rszcd.hovered
+            CImGui.ColorConvertFloat4ToU32(CImGui.c_get(IMGUISTYLE.Colors, ImGuiCol_ResizeGripHovered))
+        else
+            CImGui.ColorConvertFloat4ToU32(CImGui.c_get(IMGUISTYLE.Colors, ImGuiCol_ResizeGrip))
+        end
+    )
+    rszcd.regmin = CImGui.GetItemRectMin()
+    rszcd.regmax = CImGui.GetItemRectMax()
+    mospos = CImGui.GetMousePos()
+    rszcd.hovered = inregion(mospos, rszcd.regmax .- rszcd.rszgripsize, rszcd.regmax)
+    rszcd.hovered &= -(mospos.x - rszcd.regmax.x + rszcd.rszgripsize) < mospos.y - rszcd.regmax.y
+    if rszcd.dragging
+        if CImGui.IsMouseDown(0)
+            rszcd.regmax = cutoff(mospos, rszcd.regmin .+ rszcd.limminsize, rszcd.regmin .+ rszcd.limmaxsize) .+ rszcd.rszgripsize ./ 4
+        else
+            rszcd.dragging = false
+        end
+    else
+        rszcd.hovered && CImGui.IsMouseDown(0) && CImGui.c_get(CImGui.GetIO().MouseDownDuration, 0) < 0.1 && (rszcd.dragging = true)
+    end
+end
+
+@kwdef mutable struct AnimateChild
+    presentsize::CImGui.ImVec2 = (0, 0)
+    targetsize::CImGui.ImVec2 = (400, 600)
+    rate::CImGui.ImVec2 = (4, 6)
+end
+
+function (acd::AnimateChild)(f, id, border, flags, args...; kwargs...)
+    CImGui.BeginChild(id, acd.presentsize, border, flags)
+    f(args...; kwargs...)
+    CImGui.EndChild()
+    acd.presentsize = CImGui.GetItemRectSize()
+    if all(acd.presentsize .== acd.targetsize)
+    else
+        rate = sign.(acd.targetsize .- acd.presentsize) .* abs.(acd.rate)
+        gap = abs.(acd.presentsize .- acd.targetsize)
+        newsize = acd.presentsize .+ rate
+        acd.presentsize = (
+            gap[1] < abs(acd.rate[1]) ? acd.targetsize[1] : newsize[1],
+            gap[2] < abs(acd.rate[2]) ? acd.targetsize[2] : newsize[2]
+        )
+    end
+end
