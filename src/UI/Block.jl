@@ -103,6 +103,13 @@ end
     regmax::ImVec2 = (0, 0)
 end
 
+@kwdef mutable struct FeedbackBlock <: AbstractBlock
+    instrnm::String = mlstr("instrument")
+    addr::String = mlstr("address")
+    action::String = mlstr("Pause")
+    regmin::ImVec2 = (0, 0)
+    regmax::ImVec2 = (0, 0)
+end
 ############ isapprox --------------------------------------------------------------------------------------------------
 
 function Base.isapprox(bk1::T1, bk2::T2) where {T1<:AbstractBlock} where {T2<:AbstractBlock}
@@ -248,6 +255,25 @@ end
 tocodes(bk::QueryBlock) = gencodes_read(bk)
 
 tocodes(bk::ReadBlock) = gencodes_read(bk)
+
+function tocodes(bk::FeedbackBlock)
+    instr = string(bk.instrnm, "_", bk.addr)
+    quote
+        for cttask in values(SWEEPCTS)
+            cttask[2].instrnm == $(bk.instrnm) && cttask[2].addr == $(bk.addr) && (cttask[1][] = false)
+        end
+        if $(bk.action) == mlstr("Pause")
+            SYNCSTATES[Int(IsBlocked)] = true
+            @warn "[$(now())]\n$(mlstr("pause!"))" FeedbackBlock = $instr
+            lock(() -> wait(BLOCK), BLOCK)
+            @info "[$(now())]\n$(mlstr("continue!"))" FeedbackBlock = $instr
+        elseif $(bk.action) == mlstr("Interrupt")
+            SYNCSTATES[Int(IsInterrupted)] = true
+            @warn "[$(now())]\n$(mlstr("interrupt!"))" FeedbackBlock = $instr
+            return nothing
+        end
+    end
+end
 
 function gencodes_read(bk::Union{ReadingBlock,QueryBlock,ReadBlock})
     instr = string(bk.instrnm, "_", bk.addr)
@@ -907,6 +933,37 @@ function edit(bk::ReadBlock)
     CImGui.PopStyleColor()
 end
 
+let
+    actions::Vector{String} = []
+    global function edit(bk::FeedbackBlock)
+        isempty(actions) && append!(actions, mlstr.(["Pause", "Interrupt", "Continue"]))
+        CImGui.PushStyleVar(CImGui.ImGuiStyleVar_ItemSpacing, (Float32(2), unsafe_load(IMGUISTYLE.ItemSpacing.y)))
+        CImGui.BeginChild("##FeedbackBlock", (Float32(0), bkheight(bk)), true)
+        CImGui.TextColored(MORESTYLE.Colors.BlockIcons, MORESTYLE.Icons.FeedbackBlock)
+        CImGui.SameLine()
+        width = (CImGui.GetContentRegionAvailWidth() - 2CImGui.GetFontSize()) / 3
+        CImGui.PushItemWidth(width)
+        @c ComBoS("##FeedbackBlock instrument", &bk.instrnm, keys(INSCONF), CImGui.ImGuiComboFlags_NoArrowButton)
+        CImGui.PopItemWidth()
+        CImGui.SameLine() #选仪器
+
+        inlist = haskey(INSTRBUFFERVIEWERS, bk.instrnm) && haskey(INSTRBUFFERVIEWERS[bk.instrnm], bk.addr)
+        bk.addr = inlist ? bk.addr : mlstr("address")
+        addrlist = haskey(INSTRBUFFERVIEWERS, bk.instrnm) ? keys(INSTRBUFFERVIEWERS[bk.instrnm]) : String[]
+        CImGui.PushItemWidth(width)
+        @c ComBoS("##FeedbackBlock address", &bk.addr, addrlist, CImGui.ImGuiComboFlags_NoArrowButton)
+        CImGui.PopItemWidth()
+        CImGui.SameLine() #选地址
+
+        CImGui.PushItemWidth(-1)
+        @c ComBoS("##FeedbackBlock action", &bk.action, actions, CImGui.ImGuiComboFlags_NoArrowButton)
+        CImGui.PopItemWidth() #action
+
+        CImGui.EndChild()
+        CImGui.PopStyleVar()
+    end
+end
+
 function mousein(bk::AbstractBlock, total=false)::Bool
     if total
         mousein(bk.regmin, bk.regmax) || (typeof(bk) in [SweepBlock, StrideCodeBlock] && true in mousein.(bk.blocks, true))
@@ -925,19 +982,20 @@ let
     dropblock = AbstractBlock[]
     copyblock::AbstractBlock = NullBlock()
     selectedblock::Cint = 0
-    instrblocks::Vector{Type} = [SweepBlock, SettingBlock, ReadingBlock, WriteBlock, QueryBlock, ReadBlock]
+    instrblocks::Vector{Type} = [SweepBlock, SettingBlock, ReadingBlock, WriteBlock, QueryBlock, ReadBlock, FeedbackBlock]
     allblocks::Vector{Symbol} = [:CodeBlock, :StrideCodeBlock, :SweepBlock, :SettingBlock, :ReadingBlock,
-        :WriteBlock, :QueryBlock, :ReadBlock]
+        :WriteBlock, :QueryBlock, :ReadBlock, :FeedbackBlock]
 
     global function dragblockmenu(id)
         presentid = id
         CImGui.PushFont(PLOTFONT)
         ftsz = CImGui.GetFontSize()
-        availw = CImGui.GetContentRegionAvailWidth()/8 - unsafe_load(IMGUISTYLE.ItemSpacing.x)
+        lbk = length(allblocks)
+        availw = CImGui.GetContentRegionAvailWidth() / lbk - unsafe_load(IMGUISTYLE.ItemSpacing.x)
         for (i, bk) in enumerate(allblocks)
             CImGui.PushStyleColor(CImGui.ImGuiCol_Text, MORESTYLE.Colors.BlockIcons)
             CImGui.PushStyleVar(CImGui.ImGuiStyleVar_SelectableTextAlign, (0.5, 0.5))
-            CImGui.Selectable(getproperty(MORESTYLE.Icons, bk), true, 0, (availw, 2ftsz))
+            CImGui.Selectable(getproperty(MORESTYLE.Icons, bk), false, 0, (availw, 2ftsz))
             CImGui.PopStyleVar()
             CImGui.PopStyleColor()
             if CImGui.IsItemActive() && !isdragging && isempty(dragblock)
@@ -946,7 +1004,7 @@ let
                 addmode = true
                 draggingid = presentid
             end
-            i == 8 || CImGui.SameLine()
+            i == lbk || CImGui.SameLine()
         end
         CImGui.PopFont()
         if isdragging && draggingid == presentid && length(dragblock) == 1
@@ -957,7 +1015,7 @@ let
             CImGui.AddRectFilled(draw_list, rmin, rmax, CImGui.ColorConvertFloat4ToU32(MORESTYLE.Colors.BlockDragdrop))
             CImGui.AddText(
                 draw_list,
-                rmin .+ CImGui.ImVec2(ftsz/2, ftsz/2),
+                rmin .+ CImGui.ImVec2(ftsz / 2, ftsz / 2),
                 CImGui.ColorConvertFloat4ToU32(MORESTYLE.Colors.HighlightText),
                 tiptxt
             )
@@ -1055,7 +1113,7 @@ let
             if isdragging && !CImGui.IsMouseDown(0)
                 isdragging = false
             elseif !isdragging
-                !isempty(dragblock) && !isempty(dropblock) && swapblock(blocks, only(dragblock), only(dropblock))
+                !isempty(dragblock) && !isempty(dropblock) && swapblock(blocks, only(dragblock), only(dropblock), addmode)
                 empty!(dragblock)
                 empty!(dropblock)
             end
@@ -1073,17 +1131,18 @@ function addblockmenu(n)
     CImGui.MenuItem(stcstr(MORESTYLE.Icons.WriteBlock, " ", mlstr("WriteBlock"))) && return WriteBlock()
     CImGui.MenuItem(stcstr(MORESTYLE.Icons.QueryBlock, " ", mlstr("QueryBlock"))) && return QueryBlock()
     CImGui.MenuItem(stcstr(MORESTYLE.Icons.ReadBlock, " ", mlstr("ReadBlock"))) && return ReadBlock()
+    CImGui.MenuItem(stcstr(MORESTYLE.Icons.FeedbackBlock, " ", mlstr("FeedbackBlock"))) && return FeedbackBlock()
     return nothing
 end
 
-function swapblock(blocks::Vector{AbstractBlock}, dragbk::AbstractBlock, dropbk::AbstractBlock)
+function swapblock(blocks::Vector{AbstractBlock}, dragbk::AbstractBlock, dropbk::AbstractBlock, addmode)
     (dragbk == dropbk || isininnerblocks(dropbk, dragbk)) && return
     disable_drag(blocks, dragbk)
     if typeof(dropbk) in [SweepBlock, StrideCodeBlock] && unsafe_load(CImGui.GetIO().KeyCtrl)
         push!(dropbk.blocks, dragbk)
         return
     end
-    insert_drop(blocks, dragbk, dropbk)
+    insert_drop(blocks, dragbk, dropbk, addmode)
 end
 
 function isininnerblocks(dropbk::AbstractBlock, dragbk::AbstractBlock)
@@ -1102,10 +1161,10 @@ function disable_drag(blocks::Vector{AbstractBlock}, dragbk::AbstractBlock)
     return false
 end
 
-function insert_drop(blocks::Vector{AbstractBlock}, dragbk::AbstractBlock, dropbk::AbstractBlock)
+function insert_drop(blocks::Vector{AbstractBlock}, dragbk::AbstractBlock, dropbk::AbstractBlock, addmode)
     for (i, bk) in enumerate(blocks)
-        bk == dropbk && (insert!(blocks, i, dragbk); return true)
-        typeof(bk) in [SweepBlock, StrideCodeBlock] && insert_drop(bk.blocks, dragbk, dropbk) && return true
+        bk == dropbk && (insert!(blocks, addmode ? i + 1 : i, dragbk); return true)
+        typeof(bk) in [SweepBlock, StrideCodeBlock] && insert_drop(bk.blocks, dragbk, dropbk, addmode) && return true
     end
     return false
 end
@@ -1307,7 +1366,7 @@ function view(bk::QueryBlock)
             CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_Border)
         end
     )
-    CImGui.BeginChild("##WriteBlockViewer", (Float32(0), bkheight(bk)), true)
+    CImGui.BeginChild("##QueryBlockViewer", (Float32(0), bkheight(bk)), true)
     markc = if bk.isobserve
         ImVec4(MORESTYLE.Colors.BlockObserveBG...)
     else
@@ -1346,7 +1405,7 @@ function view(bk::ReadBlock)
             CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_Border)
         end
     )
-    CImGui.BeginChild("##WriteBlockViewer", (Float32(0), bkheight(bk)), true)
+    CImGui.BeginChild("##ReadBlockViewer", (Float32(0), bkheight(bk)), true)
     markc = if bk.isobserve
         ImVec4(MORESTYLE.Colors.BlockObserveBG...)
     else
@@ -1373,6 +1432,23 @@ function view(bk::ReadBlock)
     CImGui.PopStyleColor()
     CImGui.EndChild()
     CImGui.PopStyleColor()
+end
+
+function view(bk::FeedbackBlock)
+    CImGui.BeginChild("##FeedbackBlockViewer", (Float32(0), bkheight(bk)), true)
+    CImGui.TextColored(MORESTYLE.Colors.BlockIcons, MORESTYLE.Icons.FeedbackBlock)
+    CImGui.SameLine()
+    CImGui.PushStyleVar(CImGui.ImGuiStyleVar_ButtonTextAlign, (0.0, 0.5))
+    CImGui.Button(
+        stcstr(
+            mlstr("instrument"), ": ", bk.instrnm,
+            "\t", mlstr("address"), ": ", bk.addr,
+            "\t", mlstr("action"), ": ", bk.action
+        ),
+        (-1, 0)
+    )
+    CImGui.PopStyleVar()
+    CImGui.EndChild()
 end
 
 function view(blocks::Vector{AbstractBlock})
@@ -1532,6 +1608,17 @@ function Base.show(io::IO, bk::ReadBlock)
            observe : $(bk.isobserve)
            reading : $(bk.isreading)
           trycatch : $(bk.istrycatch)
+    """
+    print(io, str)
+end
+function Base.show(io::IO, bk::FeedbackBlock)
+    str = """
+     FeedbackBlock :
+        region min : $(bk.regmin)
+        region max : $(bk.regmax)
+        instrument : $(bk.instrnm)
+           address : $(bk.addr)
+            action : $(bk.action)
     """
     print(io, str)
 end
