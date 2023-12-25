@@ -317,6 +317,7 @@ let
                                 end
                                 CImGui.BeginChild(stcstr("Widget", i))
                                 if CImGui.CollapsingHeader(mlstr("Global Options"))
+                                    CImGui.BeginChild("global widget options", (Cfloat(0), CImGui.GetContentRegionAvail().y/3))
                                     @c InputTextRSZ(mlstr("Rename"), &widget.name)
                                     @c CImGui.Checkbox(mlstr("Use Wallpaper"), &widget.usewallpaper)
                                     if widget.usewallpaper
@@ -347,6 +348,8 @@ let
                                         CImGui.ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_AlphaPreviewHalf
                                     )
                                     widgetcolormenu(widget.options)
+                                    CImGui.EndChild()
+                                    SeparatorTextColored(MORESTYLE.Colors.HighlightText, mlstr("Widgets"))
                                 end
                                 modify(widget)
                                 if !haskey(default_insbufs, selectedins)
