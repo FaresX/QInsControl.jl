@@ -447,7 +447,7 @@ let
                 ]
                 cols, labelwidth = calcmaxwidth(nodelabels)
                 for (i, label) in enumerate(nodelabels)
-                    CImGui.Selectable(label, false, 0, (labelwidth, 3CImGui.GetFrameHeight()))
+                    CImGui.Selectable(label, false, 0, (labelwidth + CImGui.GetFontSize(), 3CImGui.GetFrameHeight()))
                     i % cols == 0 || i == length(simplenodetypes) || CImGui.SameLine()
                     if CImGui.IsItemActive() && !isdragging && isempty(dragnode)
                         isempty(dragnode) && push!(dragnode, simplenodetypes[i])
