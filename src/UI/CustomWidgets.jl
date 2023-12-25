@@ -291,7 +291,7 @@ function TextRect(str)
     rmin, (pos.x + width, rmax.y)
 end
 
-function ItemTooltip(tipstr, wrappos=CImGui.GetFontSize() * 36.0)
+function ItemTooltip(tipstr, wrappos=36CImGui.GetFontSize())
     if CImGui.IsItemHovered()
         CImGui.BeginTooltip()
         CImGui.PushTextWrapPos(wrappos)
@@ -299,6 +299,14 @@ function ItemTooltip(tipstr, wrappos=CImGui.GetFontSize() * 36.0)
         CImGui.PopTextWrapPos()
         CImGui.EndTooltip()
     end
+end
+
+function ItemTooltipNoHovered(tipstr, wrappos=36CImGui.GetFontSize())
+    CImGui.BeginTooltip()
+    CImGui.PushTextWrapPos(wrappos)
+    CImGui.TextUnformatted(tipstr)
+    CImGui.PopTextWrapPos()
+    CImGui.EndTooltip()
 end
 
 function RenameSelectable(str_id, isrename::Ref{Bool}, label::Ref, selected::Bool, flags=0, size=(0, 0); fixedlabel="")
