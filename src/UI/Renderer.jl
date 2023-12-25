@@ -165,12 +165,6 @@ function UI(breakdown=false; precompile=false)
 
     @async try
         clear_color = Cfloat[0.45, 0.55, 0.60, 1.00]
-        # global glfwwindowx = Cint(0)
-        # global glfwwindowy = Cint(0)
-        # global glfwwindoww = Cint(0)
-        # global glfwwindowh = Cint(0)
-        # iswindowiconified::Bool = false
-        # pick_fps_normal = CONF.DAQ.pick_fps[1]
         scale_old::Cfloat = 0
         isshowapp()[] = true
         # firsthide::Bool = CONF.Basic.hidewindow

@@ -349,7 +349,7 @@ function syncaxes(plt::Plot, pss::PlotSeries, dtss::DataSeries)
         pss.axis.yaxis.axis = ImPlot.ImAxis_(dtss.yaxis + 2)
         mergeyaxes!(plt)
     end
-    changez = pss.axis.zaxis.axis != dtss.zaxis
+    changez = pss.axis.zaxis.axis != dtss.zaxis || isempty(plt.zaxes)
     changez |=  !isempty(plt.zaxes) && pss.zlims != plt.zaxes[findfirst(za -> za.axis == pss.axis.zaxis.axis, plt.zaxes)].zlims
     if pss.ptype == "heatmap" && changez
         pss.axis.zaxis.axis = dtss.zaxis
