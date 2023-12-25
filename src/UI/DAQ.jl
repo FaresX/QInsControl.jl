@@ -4,8 +4,6 @@ let
     show_circuit_editor::Bool = false
     isdeldaqtask::Bool = false
     isrename::Bool = false
-    showdisabled::Bool = false
-    isdelall::Bool = false
     oldworkpath::String = ""
     running_i::Int = 0
     torunstates::Vector{Bool} = [false]
@@ -39,9 +37,7 @@ let
                 if isdir(WORKPATH)
                     oldworkpath = WORKPATH
                     date = today()
-                    find_old_i(
-                        joinpath(WORKPATH, string(year(date)), string(year(date), "-", month(date)), string(date))
-                    )
+                    find_old_i(joinpath(WORKPATH, string(year(date)), string(year(date), "-", month(date)), string(date)))
                 else
                     OLDI = 0
                 end
@@ -60,7 +56,7 @@ let
                 if SYNCSTATES[Int(IsBlocked)]
                     if ColoredButton(
                         stcstr(MORESTYLE.Icons.RunTask, "##", mlstr("Continue"));
-                        size=(2ftsz, 2ftsz), colbt=MORESTYLE.Colors.LogWarn
+                        size=(2ftsz, 2ftsz), colbt=MORESTYLE.Colors.ControlButtonPause
                     )
                         SYNCSTATES[Int(IsBlocked)] = false
                         remote_do(workers()[1]) do
@@ -70,7 +66,7 @@ let
                 else
                     if ColoredButton(
                         stcstr(MORESTYLE.Icons.BlockTask, "##", mlstr("Pause"));
-                        size=(2ftsz, 2ftsz), colbt=MORESTYLE.Colors.LogInfo
+                        size=(2ftsz, 2ftsz), colbt=MORESTYLE.Colors.ControlButton
                     )
                         SYNCSTATES[Int(IsDAQTaskRunning)] && (SYNCSTATES[Int(IsBlocked)] = true)
                     end
@@ -78,7 +74,7 @@ let
                 CImGui.SameLine()
                 if ColoredButton(
                     stcstr(MORESTYLE.Icons.InterruptTask, "##", mlstr("Interrupt"));
-                    size=(2ftsz, 2ftsz), colbt=MORESTYLE.Colors.LogInfo
+                    size=(2ftsz, 2ftsz), colbt=MORESTYLE.Colors.ControlButton
                 )
                     if SYNCSTATES[Int(IsDAQTaskRunning)]
                         SYNCSTATES[Int(IsInterrupted)] = true
@@ -108,39 +104,29 @@ let
 
                 length(show_daq_editors) == length(daqtasks) || resize!(show_daq_editors, length(daqtasks))
                 length(torunstates) == length(daqtasks) || resize!(torunstates, length(daqtasks))
-                daqtaskscdy = (count(x -> x.enable | showdisabled, daqtasks) +
-                               SYNCSTATES[Int(IsDAQTaskRunning)] * length(PROGRESSLIST)) *
+                daqtaskscdy = (length(daqtasks) + SYNCSTATES[Int(IsDAQTaskRunning)] * length(PROGRESSLIST)) *
                               CImGui.GetFrameHeightWithSpacing() - unsafe_load(IMGUISTYLE.ItemSpacing.y) +
                               2unsafe_load(IMGUISTYLE.WindowPadding.y)
                 CImGui.BeginChild("daqtasks", (Cfloat(0), daqtaskscdy), true)
                 for (i, task) in enumerate(daqtasks)
-                    task.enable || showdisabled || continue
                     CImGui.PushID(i)
                     isrunning_i = SYNCSTATES[Int(IsDAQTaskRunning)] && i == running_i
                     CImGui.PushStyleColor(
                         CImGui.ImGuiCol_Button,
-                        if task.enable
-                            if isrunning_i
-                                MORESTYLE.Colors.DAQTaskRunning
-                            elseif torunstates[i]
-                                MORESTYLE.Colors.DAQTaskToRun
-                            else
-                                CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_Button)
-                            end
+                        if isrunning_i
+                            MORESTYLE.Colors.DAQTaskRunning
+                        elseif torunstates[i]
+                            MORESTYLE.Colors.DAQTaskToRun
                         else
-                            MORESTYLE.Colors.LogError
+                            CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_Button)
                         end
                     )
                     CImGui.PushStyleColor(
                         CImGui.ImGuiCol_ButtonHovered,
-                        if task.enable
-                            if isrunning_i
-                                MORESTYLE.Colors.DAQTaskRunning
-                            else
-                                CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_ButtonHovered)
-                            end
+                        if isrunning_i
+                            MORESTYLE.Colors.DAQTaskRunning
                         else
-                            MORESTYLE.Colors.LogError
+                            CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_ButtonHovered)
                         end
                     )
                     if CImGui.Button(
@@ -191,22 +177,10 @@ let
                             stcstr(MORESTYLE.Icons.RunTask, " ", mlstr(torunstates[i] ? "Cancel" : "Run")),
                             C_NULL,
                             false,
-                            task.enable && !isrunning_i
-                            # !SYNCSTATES[Int(IsDAQTaskRunning)] && task.enable
+                            !isrunning_i
                         )
                             torunstates[i] ⊻= true
                             torunstates[i] && (SYNCSTATES[Int(IsDAQTaskRunning)] || rundaqtasks())
-                            # if ispath(WORKPATH)
-                            #     saveproject(projpath)
-                            #     running_i = i
-                            #     errormonitor(@async begin
-                            #         run(task)
-                            #         SYNCSTATES[Int(IsInterrupted)] && (SYNCSTATES[Int(IsInterrupted)] = false)
-                            #     end)
-                            #     DAQDATAPLOT.showdtpks .= false
-                            # else
-                            #     WORKPATH = mlstr("no workplace selected!!!")
-                            # end
                         end
                         CImGui.Separator()
                         CImGui.MenuItem(stcstr(MORESTYLE.Icons.Edit, " ", mlstr("Edit"))) && (show_daq_editors[i] = true)
@@ -231,17 +205,10 @@ let
                         end
                         CImGui.Separator()
                         CImGui.MenuItem(stcstr(MORESTYLE.Icons.Rename, " ", mlstr("Rename"))) && (isrename = true)
-                        if task.enable
-                            CImGui.MenuItem(
-                                stcstr(MORESTYLE.Icons.Disable, " ", mlstr("Disable")),
-                                C_NULL,
-                                false,
-                                !isrunning_i
-                            ) && (task.enable = false)
-                        else
-                            CImGui.MenuItem(stcstr(MORESTYLE.Icons.Restore, " ", mlstr("Enable"))) && (task.enable = true)
-                            CImGui.MenuItem(stcstr(MORESTYLE.Icons.CloseFile, " ", mlstr("Delete"))) && (isdeldaqtask = true)
-                        end
+                        CImGui.MenuItem(
+                            stcstr(MORESTYLE.Icons.CloseFile, " ", mlstr("Delete")),
+                            C_NULL, false, !isrunning_i
+                        ) && (isdeldaqtask = true)
                         CImGui.EndPopup()
                     end
 
@@ -290,18 +257,6 @@ let
                     end
                 end
                 CImGui.Separator()
-                if showdisabled
-                    CImGui.MenuItem(
-                        stcstr(MORESTYLE.Icons.NotShowDisable, " ", mlstr("Hide Disabled"))
-                    ) && (showdisabled = false)
-                    CImGui.MenuItem(
-                        stcstr(MORESTYLE.Icons.CloseFile, " ", mlstr("Delete Disabled"))
-                    ) && (isdelall = true)
-                else
-                    CImGui.MenuItem(
-                        stcstr(MORESTYLE.Icons.ShowDisable, " ", mlstr("Show Disabled"))
-                    ) && (showdisabled = true)
-                end
                 CImGui.MenuItem(stcstr(MORESTYLE.Icons.SaveButton, " ", mlstr("Save Project"))) && saveproject()
                 CImGui.MenuItem(stcstr(MORESTYLE.Icons.Load, " ", mlstr("Load Project"))) && loadproject()
                 if !CONF.DAQ.showeditplotlayout
@@ -313,19 +268,6 @@ let
                 end
                 CImGui.EndPopup()
             end
-            isdelall && (CImGui.OpenPopup("##delete all disable tasks");
-            isdelall = false)
-            if YesNoDialog(
-                "##delete all disable tasks",
-                mlstr("Confirm delete?"),
-                CImGui.ImGuiWindowFlags_AlwaysAutoResize
-            )
-                deleteidxes = findall(task -> !task.enable, daqtasks)
-                deleteat!(daqtasks, deleteidxes)
-                deleteat!(torunstates, deleteidxes)
-                deleteat!(show_daq_editors, deleteidxes)
-            end
-
             ### show daq datapickers ###
             showdtpks(DAQDATAPLOT, "DAQ", DATABUF, DATABUFPARSED)
 
@@ -336,21 +278,25 @@ let
         CImGui.End()
         if p_open[]
             for i in DAQDATAPLOT.layout.selectedidx
-                if DAQDATAPLOT.dtpks[i].isrealtime && waittime(stcstr("DAQ", i), DAQDATAPLOT.dtpks[i].refreshrate)
-                    if DAQDATAPLOT.linkidx[i] == 0
-                        syncplotdata(DAQDATAPLOT.uiplots[i], DAQDATAPLOT.dtpks[i], DATABUF, DATABUFPARSED)
-                    else
-                        uip = DAQDATAPLOT.uiplots[DAQDATAPLOT.linkidx[i]]
+                if DAQDATAPLOT.linkidx[i] == 0
+                    syncplotdata(DAQDATAPLOT.plots[i], DAQDATAPLOT.dtpks[i], DATABUF, DATABUFPARSED)
+                else
+                    if true in [
+                        dtss.isrealtime && waittime(stcstr("DAQ", i, "-", j), dtss.refreshrate)
+                        for (j, dtss) in enumerate(DAQDATAPLOT.dtpks[i].series)
+                    ]
+                        pltlink = DAQDATAPLOT.plots[DAQDATAPLOT.linkidx[i]]
                         dtpklink = DAQDATAPLOT.dtpks[DAQDATAPLOT.linkidx[i]]
-                        linkeddata = Dict(
-                            "x" => uip.x,
-                            Dict("y$yi" => uip.y[yi] for yi in 1:length(uip.y))...,
-                            "z" => copy(uip.z)
-                        )
-                        dtpklink.hflipz && reverse!(linkeddata["z"], dims=1)
-                        dtpklink.vflipz && reverse!(linkeddata["z"], dims=2)
-                        linkeddata["z"] = collect(transpose(linkeddata["z"]))
-                        syncplotdata(DAQDATAPLOT.uiplots[i], DAQDATAPLOT.dtpks[i], Dict(), linkeddata)
+                        linkeddata = Dict()
+                        for (j, pss) in enumerate(pltlink)
+                            push!(linkeddata, "x$j" => pss.x)
+                            push!(linkeddata, "y$j" => pss.y)
+                            push!(linkeddata, "z$j" => pss.z)
+                            dtpklink.series[j].hflipz && reverse!(linkeddata["z$j"], dims=1)
+                            dtpklink.series[j].vflipz && reverse!(linkeddata["z$j"], dims=2)
+                            linkeddata["z$j"] = transpose(linkeddata["z$j"])
+                        end
+                        syncplotdata(DAQDATAPLOT.plots[i], DAQDATAPLOT.dtpks[i], Dict(), linkeddata)
                     end
                 end
             end
@@ -358,7 +304,7 @@ let
         end
     end
 
-    function rundaqtasks()
+    global function rundaqtasks()
         if !SYNCSTATES[Int(IsDAQTaskRunning)]
             global WORKPATH
             if ispath(WORKPATH)
@@ -380,19 +326,19 @@ let
         end
     end
 
-    function saveproject(daqsvpath="")
+    global function saveproject(daqsvpath="")
         daqsvpath == "" && (daqsvpath = save_file(filterlist="daq"))
         if daqsvpath != ""
             projpath = daqsvpath
             jldsave(daqsvpath;
                 daqtasks=daqtasks,
                 circuit=CIRCUIT,
-                dataplot=DAQDATAPLOT
+                dataplot=empty!(deepcopy(DAQDATAPLOT))
             )
         end
     end
 
-    function loadproject()
+    global function loadproject()
         daqloadpath = pick_file(filterlist="daq;qdt")
         if isfile(daqloadpath)
             loaddaqproj = @trypasse load(daqloadpath) begin
