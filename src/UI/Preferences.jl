@@ -79,6 +79,12 @@ let
                 # else
                 #     io.ConfigFlags = unsafe_load(io.ConfigFlags) & ~CImGui.ImGuiConfigFlags_ViewportsEnable
                 # end
+                @c CImGui.DragInt(
+                    mlstr("sampling threshold"),
+                    &CONF.Basic.samplingthreshold,
+                    100, 10000, 1000000, "%d",
+                    CImGui.ImGuiSliderFlags_AlwaysClamp
+                )
                 CImGui.DragInt2(
                     mlstr("window size"),
                     CONF.Basic.windowsize,

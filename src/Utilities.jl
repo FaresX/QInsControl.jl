@@ -261,30 +261,24 @@ function synccall_wait(f, ids, args...)
     end
 end
 
-function uniformx!(x, y, z)
+function uniformx!(x, z)
     zxl = size(z, 2)
     if length(x) == zxl
-        minx, maxx = extrema(x)
-        if minx != maxx
-            @views for i in axes(z, 1)
-                linearx = range(minx, maxx, length=zxl)
-                interp = LinearInterpolation(z[i, :], x; extrapolate=true)
-                z[i, :] = interp.(linearx)
-            end
+        linearx = range(extrema(x)..., length=zxl)
+        @views for i in axes(z, 1)
+            interp = LinearInterpolation(z[i, :], x; extrapolate=true)
+            z[i, :] = interp.(linearx)
         end
     end
 end
 
-function uniformy!(x, y, z)
+function uniformy!(y, z)
     zyl = size(z, 1)
     if length(y) == zyl
-        miny, maxy = extrema(y)
-        if miny != maxy
-            @views for j in axes(z, 2)
-                lineary = range(miny, maxy, length=zyl)
-                interp = LinearInterpolation(z[:, j], y; extrapolate=true)
-                z[:, j] = interp.(lineary)
-            end
+        lineary = range(extrema(y)..., length=zyl)
+        @views for j in axes(z, 2)
+            interp = LinearInterpolation(z[:, j], y; extrapolate=true)
+            z[:, j] = interp.(lineary)
         end
     end
 end
@@ -365,4 +359,40 @@ function calcmaxwidth(labels, padding=0)
     lb = length(labels)
     labelwidth = cols > lb ? maxwidth : (availwidth - (cols - 1) * itemspacing.x) / cols
     return cols, labelwidth
+end
+
+function imgsampling(x, y; num=100000)
+    if num > 1000
+        xl, yl = length(x), length(y)
+        xmin, xmax = extrema(x)
+        xinterp = xl == yl ? x : range(xmin, xmax, length=yl)
+        nx = range(xmin, xmax, length=num)
+        ny = LinearInterpolation(y, xinterp).(nx)
+        return nx, ny
+    else
+        return x, y
+    end
+end
+
+function imgsampling(x, y, z; num=100000)
+    if num > 1000
+        scale = √(num / length(z))
+        yl, xl = size(z)
+        nxl, nyl = round.(Int, (xl, yl) .* scale)
+        z_reducex = similar(z, yl, nxl)
+        linearx = range(extrema(x)..., length=nxl)
+        @views for i in axes(z, 1)
+            interp = LinearInterpolation(z[i, :], x; extrapolate=true)
+            z_reducex[i, :] = interp.(linearx)
+        end
+        nz = similar(z_reducex, nyl, nxl)
+        lineary = range(extrema(y)..., length=nyl)
+        @views for j in axes(z_reducex, 2)
+            interp = LinearInterpolation(z_reducex[:, j], y; extrapolate=true)
+            nz[:, j] = interp.(lineary)
+        end
+        return linearx, lineary, nz
+    else
+        return x, y, z
+    end
 end

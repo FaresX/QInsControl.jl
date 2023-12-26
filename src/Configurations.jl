@@ -6,6 +6,7 @@
     hidewindow::Bool = false
     nthreads_2::Cint = 1
     nthreads_3::Cint = 1
+    samplingthreshold::Cint = 200000
     windowsize::Vector{Cint} = [1280, 720]
     encoding::String = "GBK"
     editor::String = "notepad"

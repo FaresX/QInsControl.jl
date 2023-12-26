@@ -9,6 +9,7 @@
     yaxis::Cint = 1
     zaxis::Cint = 1
     legend::String = "s1"
+    samplingnum::Cint = 0
     xtype::Bool = true # true = > Number false = > String
     zsize::Vector{Cint} = [0, 0]
     vflipz::Bool = false
@@ -101,8 +102,15 @@ let
     ptypelist::Vector{String} = ["line", "scatter", "heatmap"]
     global function edit(dtss::DataSeries, datalist)
         dtss.update = false
+        availwidth = CImGui.GetContentRegionAvailWidth()
+        CImGui.PushItemWidth(availwidth / 3)
         @c InputTextRSZ(mlstr("legend"), &dtss.legend)
-        CImGui.PushItemWidth(CImGui.GetContentRegionAvailWidth() / 3)
+        CImGui.PopItemWidth()
+        CImGui.SameLine()
+        CImGui.PushItemWidth(availwidth / 3)
+        @c CImGui.DragInt(mlstr("sampling"), &dtss.samplingnum, 100, 0, 1000000, "%d", CImGui.ImGuiSliderFlags_AlwaysClamp)
+        CImGui.PopItemWidth()
+        CImGui.PushItemWidth(availwidth / 3)
         @c ComBoS(mlstr("plot type"), &dtss.ptype, ptypelist)
         CImGui.PopItemWidth()
         CImGui.SameLine()
@@ -303,7 +311,7 @@ let
                 end
                 waittask = errormonitor(@async fetch(f))
                 wait(waittask)
-                fetch(waittask)auxbuf
+                fetch(waittask)
             else
                 eval(ex)
             end
@@ -318,13 +326,15 @@ let
                     fill!(pss.z, zero(eltype(pss.z)))
                     @views pss.z[1:rows, :] = transpose(resize(nz, dtss.zsize[1], rows))
                 end
-                dtss.nonuniformx && uniformx!(pss.x, pss.y, pss.z)
-                dtss.nonuniformx && uniformy!(pss.x, pss.y, pss.z)
+                dtss.nonuniformx && uniformx!(pss.x, pss.z)
+                dtss.nonuniformx && uniformy!(pss.y, pss.z)
                 dtss.vflipz && reverse!(pss.z, dims=2)
                 dtss.hflipz && reverse!(pss.z, dims=1)
                 setupplotseries!(pss, nx, ny, pss.z)
+                pss.x, pss.y, pss.z = imgsampling(pss.x, pss.y, pss.z; num=min(dtss.samplingnum, CONF.Basic.samplingthreshold))
             else
                 setupplotseries!(pss, nx, ny)
+                pss.x, pss.y = imgsampling(pss.x, pss.y; num=min(dtss.samplingnum, CONF.Basic.samplingthreshold))
             end
             syncaxes(plt, pss, dtss)
             (dtss.isrealtime | quiet) || @info "[$(now())]" data_processing = prettify(innercodes)
@@ -347,7 +357,7 @@ function syncaxes(plt::Plot, pss::PlotSeries, dtss::DataSeries)
         mergeyaxes!(plt)
     end
     changez = pss.axis.zaxis.axis != dtss.zaxis || isempty(plt.zaxes)
-    changez |=  !isempty(plt.zaxes) && pss.zlims != plt.zaxes[findfirst(za -> za.axis == pss.axis.zaxis.axis, plt.zaxes)].zlims
+    changez |= !isempty(plt.zaxes) && pss.zlims != plt.zaxes[findfirst(za -> za.axis == pss.axis.zaxis.axis, plt.zaxes)].zlims
     if pss.ptype == "heatmap" && changez
         pss.axis.zaxis.axis = dtss.zaxis
         mergezaxes!(plt)
