@@ -26,7 +26,7 @@ let
             width = CImGui.GetContentRegionAvailWidth()
             ftsz = CImGui.GetFontSize()
             CImGui.Text("")
-            CImGui.SameLine((width-6ftsz)/2)
+            CImGui.SameLine((width - 6ftsz) / 2)
             CImGui.Image(Ptr{Cvoid}(ICONID), (6ftsz, 6ftsz))
             CImGui.Spacing()
             CImGui.Separator()
@@ -52,11 +52,6 @@ let
                 end
             end
             CImGui.Separator()
-            if !CONF.DAQ.freelayout
-                CImGui.Columns(2)
-                firsttime && (CImGui.SetColumnOffset(1, CImGui.GetWindowWidth() * 0.25); firsttime = false)
-            end
-            CONF.DAQ.freelayout || (column1pos = CImGui.GetColumnOffset(1))
             CImGui.BeginChild("queue")
             # CImGui.BulletText(mlstr("Task Queue"))
             if CImGui.CollapsingHeader(mlstr("Task Queue"))
@@ -95,13 +90,7 @@ let
                         end
                     end
                 end
-                CImGui.SameLine(
-                    if CONF.DAQ.freelayout
-                        CImGui.GetContentRegionAvailWidth() - ccbtsz - 3
-                    else
-                        column1pos - ccbtsz - unsafe_load(IMGUISTYLE.WindowPadding.x) - 3
-                    end
-                )
+                CImGui.SameLine(CImGui.GetContentRegionAvailWidth() - ccbtsz - 3)
                 CImGui.Button(
                     stcstr(MORESTYLE.Icons.Circuit, "##circuit"),
                     (2ftsz, 2ftsz)
@@ -250,7 +239,7 @@ let
                 end
                 CImGui.EndChild()
             end
-            CONF.DAQ.showeditplotlayout && CImGui.CollapsingHeader(mlstr("Plot")) && editmenu(DAQDATAPLOT)
+            CImGui.CollapsingHeader(mlstr("Plot")) && editmenu(DAQDATAPLOT)
             CImGui.EndChild()
 
 
@@ -268,21 +257,12 @@ let
                 CImGui.Separator()
                 CImGui.MenuItem(stcstr(MORESTYLE.Icons.SaveButton, " ", mlstr("Save Project"))) && saveproject()
                 CImGui.MenuItem(stcstr(MORESTYLE.Icons.Load, " ", mlstr("Load Project"))) && loadproject()
-                if !CONF.DAQ.showeditplotlayout
-                    CImGui.Separator()
-                    if CImGui.BeginMenu(stcstr(MORESTYLE.Icons.Plot, " ", mlstr("Plot")))
-                        editmenu(DAQDATAPLOT)
-                        CImGui.EndMenu()
-                    end
-                end
                 CImGui.EndPopup()
             end
             ### show daq datapickers ###
             showdtpks(DAQDATAPLOT, "DAQ", DATABUF, DATABUFPARSED)
 
             CImGui.IsAnyItemHovered() || CImGui.OpenPopupOnItemClick("add task")
-
-            CONF.DAQ.freelayout || CImGui.NextColumn()
         end
         CImGui.End()
         if p_open[]

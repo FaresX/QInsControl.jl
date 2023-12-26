@@ -163,26 +163,11 @@ function edit(dtviewer::DataViewer, filetree::FileTree, isrename::Dict{String,Bo
             end
             if CImGui.BeginTabItem(mlstr("Plots"))
                 if haskey(dtviewer.data, "data")
-                    if CONF.DAQ.freelayout
-                        if CImGui.Button(stcstr(MORESTYLE.Icons.SaveButton, " ", mlstr("Save")))
-                            saveqdt(dtviewer, filetree)
-                        end
-                        CImGui.SameLine()
-                        editmenu(dtviewer.dtp)
-                    else
-                        if CImGui.BeginPopupContextItem("select data to plot")
-                            if CImGui.BeginMenu(stcstr(MORESTYLE.Icons.Plot, " ", mlstr("Plot")))
-                                editmenu(dtviewer.dtp)
-                                CImGui.EndMenu()
-                            end
-                            CImGui.Separator()
-                            if CImGui.MenuItem(stcstr(MORESTYLE.Icons.SaveButton, " ", mlstr("Save")))
-                                saveqdt(dtviewer, filetree)
-                            end
-                            CImGui.EndPopup()
-                        end
-                        renderplots(dtviewer.dtp, stcstr("plot file", id))
+                    if CImGui.Button(stcstr(MORESTYLE.Icons.SaveButton, " ", mlstr("Save")))
+                        saveqdt(dtviewer, filetree)
                     end
+                    CImGui.SameLine()
+                    editmenu(dtviewer.dtp)
                 else
                     CImGui.Text(mlstr("data not loaded or data format not supported!"))
                 end
@@ -236,9 +221,7 @@ function edit(dtviewer::DataViewer, filetree::FileTree, isrename::Dict{String,Bo
         haskey(dtviewer.data, "data") && showdtpks(dtviewer.dtp, stcstr("DataViewer", id), dtviewer.data["data"])
     end
     CImGui.End()
-    if dtviewer.p_open[] && haskey(dtviewer.data, "data")
-        CONF.DAQ.freelayout && renderplots(dtviewer.dtp, stcstr("plot file", id))
-    end
+    dtviewer.p_open[] && haskey(dtviewer.data, "data") && renderplots(dtviewer.dtp, stcstr("plot file", id))
 end
 
 function saveqdt(dtviewer::DataViewer, filetree::FileTree)
