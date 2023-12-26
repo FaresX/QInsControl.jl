@@ -201,7 +201,9 @@ function MultiSelectable(
     n,
     idxing=Ref(1),
     size=(Cfloat(0), CImGui.GetFrameHeight() * ceil(Int, length(labels) / n));
-    border=false
+    border=false,
+    selectableflags=0,
+    selectablesize=(0, 0)
 )
     l = length(labels)
     length(states) == l || resize!(states, l)
@@ -209,9 +211,14 @@ function MultiSelectable(
     CImGui.BeginChild(stcstr("MultiSelectable##", id), size, border)
     CImGui.Columns(n, C_NULL, false)
     for i in 1:l
+        if i == 1
+            ccpos = CImGui.GetCursorScreenPos()
+            CImGui.SetCursorScreenPos(ccpos.x, ccpos.y + unsafe_load(IMGUISTYLE.WindowPadding.y) / 2)
+        end
         CImGui.PushStyleVar(CImGui.ImGuiStyleVar_SelectableTextAlign, (0.5, 0.5))
-        CImGui.Selectable(labels[i], states[i]) && (states[i] ⊻= true)
+        CImGui.Selectable(labels[i], states[i], selectableflags, selectablesize) && (states[i] ⊻= true)
         CImGui.PopStyleVar()
+        i == l || CImGui.Spacing()
         rightclickmenu() && (idxing[] = i)
         CImGui.NextColumn()
     end

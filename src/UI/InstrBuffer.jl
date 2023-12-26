@@ -371,14 +371,17 @@ function edit(insbuf::InstrBuffer, addr)
         &insbuf.filtervarname
     )) && update_passfilter!(insbuf)
     CImGui.BeginChild("InstrBuffer")
-    CImGui.Columns(CONF.InsBuf.showcol, C_NULL, false)
+    # CImGui.Columns(CONF.InsBuf.showcol, C_NULL, false)
+    btsize = (CImGui.GetContentRegionAvailWidth() - unsafe_load(IMGUISTYLE.ItemSpacing.x) * (CONF.InsBuf.showcol - 1)) / CONF.InsBuf.showcol
     for (i, qt) in enumerate(values(insbuf.quantities))
         qt.enable || insbuf.showdisable || continue
         qt.passfilter || continue
         CImGui.PushID(qt.name)
-        edit(qt, insbuf.instrnm, addr)
+        i % CONF.InsBuf.showcol == 1 || i == 1 || CImGui.SameLine()
+        edit(qt, insbuf.instrnm, addr; btsize=(btsize, Cfloat(0)))
+        # i % CONF.InsBuf.showcol == 0 && i != 1 && CImGui.SameLine()
         CImGui.PopID()
-        CImGui.NextColumn()
+        # CImGui.NextColumn()
         CImGui.Indent()
         if CImGui.BeginDragDropSource(0)
             @c CImGui.SetDragDropPayload("Swap DAQTask", &i, sizeof(Cint))
@@ -450,7 +453,7 @@ end
 let
     stbtsz::Float32 = 0
     closepopup::Bool = false
-    global function edit(qt::SweepQuantity, instrnm, addr)
+    global function edit(qt::SweepQuantity, instrnm, addr; btsize=(-1, 0))
         CImGui.PushStyleColor(CImGui.ImGuiCol_Text, MORESTYLE.Colors.SweepQuantityTxt)
         CImGui.PushStyleColor(
             CImGui.ImGuiCol_ButtonHovered,
@@ -464,7 +467,7 @@ let
         # CImGui.PushFont(PLOTFONT)
         if ColoredButton(
             qt.show_edit;
-            size=(-1, 0),
+            size=btsize,
             colbt=if qt.enable
                 if qt.isautorefresh || qt.issweeping
                     MORESTYLE.Colors.DAQTaskRunning
@@ -531,7 +534,7 @@ let
     popup_before_list::Dict{String,Dict{String,Dict{String,Bool}}} = Dict()
     popup_now::Bool = false
     closepopup::Bool = false
-    global function edit(qt::SetQuantity, instrnm, addr)
+    global function edit(qt::SetQuantity, instrnm, addr; btsize=(-1, 0))
         CImGui.PushStyleColor(CImGui.ImGuiCol_Text, MORESTYLE.Colors.SetQuantityTxt)
         CImGui.PushStyleColor(
             CImGui.ImGuiCol_ButtonHovered,
@@ -541,7 +544,7 @@ let
         # CImGui.PushFont(PLOTFONT)
         if ColoredButton(
             qt.show_edit;
-            size=(-1, 0),
+            size=btsize,
             colbt=if qt.enable
                 qt.isautorefresh ? MORESTYLE.Colors.DAQTaskRunning : MORESTYLE.Colors.SetQuantityBt
             else
@@ -620,7 +623,7 @@ end
 
 let
     refbtsz::Float32 = 0
-    global function edit(qt::ReadQuantity, instrnm, addr)
+    global function edit(qt::ReadQuantity, instrnm, addr; btsize=(-1, 0))
         CImGui.PushStyleColor(CImGui.ImGuiCol_Text, MORESTYLE.Colors.ReadQuantityTxt)
         CImGui.PushStyleColor(
             CImGui.ImGuiCol_ButtonHovered,
@@ -630,7 +633,7 @@ let
         # CImGui.PushFont(PLOTFONT)
         if ColoredButton(
             qt.show_edit;
-            size=(-1, 0),
+            size=btsize,
             colbt=if qt.enable
                 qt.isautorefresh ? MORESTYLE.Colors.DAQTaskRunning : MORESTYLE.Colors.ReadQuantityBt
             else

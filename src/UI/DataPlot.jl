@@ -16,12 +16,17 @@ function edit(
     rightclickmenu,
     lo::Layout,
     size=(Cfloat(0), CImGui.GetTextLineHeight() * ceil(Int, length(lo.labels) / lo.showcol));
-    showlayout=true
+    showlayout=false,
+    selectableflags=0,
+    selectablesize=(0, 0)
 )
     states_old = copy(lo.states)
     marks_old = copy(lo.marks)
     editlabels = @. lo.labels * " " * lo.marks * "###for rename" * lo.labels
-    @c MultiSelectable(rightclickmenu, lo.id, editlabels, lo.states, lo.showcol, &lo.idxing, size; border=true)
+    @c MultiSelectable(
+        rightclickmenu, lo.id, editlabels, lo.states, lo.showcol, &lo.idxing, size;
+        border=true, selectableflags=selectableflags, selectablesize=selectablesize
+    )
     if lo.states != states_old || lo.marks != marks_old
         editlabels = @. lo.labels * " " * lo.marks
         lo.selectedlabels = editlabels[lo.states]
@@ -73,26 +78,16 @@ function editmenu(dtp::DataPlot)
     length(dtp.showdtpks) == ldtpks || resize!(dtp.showdtpks, ldtpks)
     llink = length(dtp.linkidx)
     llink == ldtpks || (resize!(dtp.linkidx, ldtpks); llink < ldtpks && (dtp.linkidx[llink+1:end] .= 0))
-    CImGui.PushID("add new plot")
-    if CImGui.Button(stcstr(MORESTYLE.Icons.NewFile, " ", mlstr("new plot")))
-        push!(dtp.layout.labels, string(length(dtp.layout.labels) + 1))
-        push!(dtp.layout.marks, "")
-        push!(dtp.layout.states, false)
-        push!(dtp.plots, Plot())
-        push!(dtp.dtpks, DataPicker())
-        push!(dtp.linkidx, 0)
-    end
-    CImGui.PopID()
 
     dtp.layout.labels = MORESTYLE.Icons.Plot * " " .* string.(collect(eachindex(dtp.layout.labels)))
     edit(
         dtp.layout,
         (
             Cfloat(0),
-            CImGui.GetTextLineHeightWithSpacing() * ceil(Int, length(dtp.layout.labels) / dtp.layout.showcol) -
+            CImGui.GetFrameHeightWithSpacing() * ceil(Int, length(dtp.layout.labels) / dtp.layout.showcol) -
             unsafe_load(IMGUISTYLE.ItemSpacing.y) + 2unsafe_load(IMGUISTYLE.WindowPadding.y)
         );
-        showlayout=false
+        selectablesize=(Cfloat(0), CImGui.GetTextLineHeightWithSpacing())
     ) do
         openright = CImGui.BeginPopupContextItem()
         if openright
@@ -128,6 +123,15 @@ function editmenu(dtp::DataPlot)
         # dealwithlinkidx(dtp)
         return openright
     end
+end
+
+function newplot!(dtp::DataPlot)
+    push!(dtp.layout.labels, string(length(dtp.layout.labels) + 1))
+    push!(dtp.layout.marks, "")
+    push!(dtp.layout.states, false)
+    push!(dtp.plots, Plot())
+    push!(dtp.dtpks, DataPicker())
+    push!(dtp.linkidx, 0)
 end
 
 function showdtpks(

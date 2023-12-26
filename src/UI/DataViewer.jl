@@ -163,10 +163,13 @@ function edit(dtviewer::DataViewer, filetree::FileTree, isrename::Dict{String,Bo
             end
             if CImGui.BeginTabItem(mlstr("Plots"))
                 if haskey(dtviewer.data, "data")
-                    if CImGui.Button(stcstr(MORESTYLE.Icons.SaveButton, " ", mlstr("Save")))
+                    if CImGui.Button(stcstr(MORESTYLE.Icons.SaveButton, " ", mlstr("Save")), (Cfloat(0), 2CImGui.GetFontSize()))
                         saveqdt(dtviewer, filetree)
                     end
                     CImGui.SameLine()
+                    if CImGui.Button(stcstr(MORESTYLE.Icons.NewFile, " ", mlstr("New Plot")), (Cfloat(-1), 2CImGui.GetFontSize()))
+                        newplot!(dtviewer.dtp)
+                    end
                     editmenu(dtviewer.dtp)
                 else
                     CImGui.Text(mlstr("data not loaded or data format not supported!"))
