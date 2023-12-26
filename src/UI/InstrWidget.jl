@@ -617,7 +617,7 @@ end
 let
     copiedopts::Ref{QuantityWidgetOption} = QuantityWidgetOption()
     showslnums::Bool = false
-    dragmode::String = "swap"
+    dragmode::String = ""
     dragmodes::Vector{String} = ["swap", "before", "after"]
     selectedqtw::Cint = 0
     acd::AnimateChild = AnimateChild(rate=(8, 12))
