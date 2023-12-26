@@ -189,23 +189,23 @@ let
         # imnodesstyle = imnodes_GetStyle()
         if CImGui.Button("Save Ref")
             for var in fieldnames(LibCImGui.ImNodesStyle)
-                var == :colors && continue
+                var == :Colors && continue
                 setproperty!(style_ref, var, unsafe_load(getproperty(IMNODESSTYLE, var)))
             end
             storecolors = Cuint[]
-            for i in eachindex(instances(LibCImGui.ColorStyle)[1:end-1])
+            for i in eachindex(instances(LibCImGui.ImNodesCol_)[1:end-1])
                 push!(storecolors, CImGui.c_get(IMNODESSTYLE.Colors, i - 1))
             end
-            style_ref.colors = (storecolors...,)
+            style_ref.Colors = (storecolors...,)
         end
         CImGui.SameLine()
         if CImGui.Button("Revert Ref")
             for var in fieldnames(LibCImGui.ImNodesStyle)
-                var == :colors && continue
+                var == :Colors && continue
                 setproperty!(IMNODESSTYLE, var, getproperty(style_ref, var))
             end
-            for i in eachindex(instances(LibCImGui.ColorStyle)[1:end-1])
-                CImGui.c_set!(IMNODESSTYLE.Colors, i - 1, style_ref.colors[i])
+            for i in eachindex(instances(LibCImGui.ImNodesCol_)[1:end-1])
+                CImGui.c_set!(IMNODESSTYLE.Colors, i - 1, style_ref.Colors[i])
             end
         end
         CImGui.SameLine()
@@ -248,8 +248,8 @@ let
                         CImGui.LogToTTY()
                     end
                     CImGui.LogText("ImVec4* colors = imnodes_GetStyle().colors;\n")
-                    for col in instances(LibCImGui.ColorStyle)[1:end-1]
-                        if !output_only_modified || style_ref.colors[Int(col)+1] != CImGui.c_get(IMNODESSTYLE.Colors, col)
+                    for col in instances(LibCImGui.ImNodesCol_)[1:end-1]
+                        if !output_only_modified || style_ref.Colors[Int(col)+1] != CImGui.c_get(IMNODESSTYLE.Colors, col)
                             CImGui.LogText(string("colors[$col] = ", CImGui.c_get(IMNODESSTYLE.Colors, col), "\n"))
                         end
                     end
@@ -491,11 +491,11 @@ function loadstyle(style_ref::ImNodesStyle)
         var == :Colors && continue
         setproperty!(IMNODESSTYLE, var, getproperty(style_ref, var))
     end
-    for i in eachindex(instances(LibCImGui.ColorStyle)[1:end-1])
+    for i in eachindex(instances(LibCImGui.ImNodesCol_)[1:end-1])
         CImGui.c_set!(IMNODESSTYLE.Colors, i - 1, style_ref.Colors[i])
     end
 end
-loadstyle(style_ref::MoreStyle) = (global MORESTYLE = deepcopy(style_ref); IMPLOTSTYLE.Marker = MORESTYLE.ImPlotMarker)
+loadstyle(style_ref::MoreStyle) = (global MORESTYLE = deepcopy(style_ref); IMPLOTSTYLE.Marker = MORESTYLE.Variables.ImPlotMarker)
 function loadstyle(ustyle::UnionStyle)
     for s in fieldnames(UnionStyle)
         loadstyle(getproperty(ustyle, s))
