@@ -269,18 +269,15 @@ function Plot2D(plotfunc, pss::PlotSeries, plt::Plot)
     plt.mspos = ImPlot.GetPlotMousePos()
     if plt.showtooltip && plt.hovered && xl <= plt.mspos.x <= xr
         idx = argmin(abs.(pss.x .- plt.mspos.x))
-        yrg = ImPlot.GetPlotLimits().Y
-        yl, yr = yrg.Min, yrg.Max
-        if abs(pss.y[idx] - plt.mspos.y) < 0.04(yr - yl)
+        xpos, ypos = pss.x[idx], pss.y[idx]
+        ppixel = ImPlot.PlotToPixels(xpos, ypos)
+        mspospixel = CImGui.GetMousePos()
+        if sum(abs2.(mspospixel .- ppixel)) < abs2(unsafe_load(IMPLOTSTYLE.MarkerSize))
             CImGui.BeginTooltip()
             SeparatorTextColored(MORESTYLE.Colors.HighlightText, pss.legend)
-            CImGui.PushTextWrapPos(CImGui.GetFontSize() * 35.0)
-            if isempty(pss.axis.xaxis.tickvalues)
-                CImGui.Text(string("x : ", pss.x[idx]))
-            else
-                CImGui.Text(string("x : ", pss.axis.xaxis.ticklabels[idx]))
-            end
-            CImGui.Text(string("y : ", pss.y[idx]))
+            CImGui.PushTextWrapPos(36CImGui.GetFontSize())
+            CImGui.Text(string("x : ", isempty(pss.axis.xaxis.ticklabels) ? xpos : pss.axis.xaxis.ticklabels[idx]))
+            CImGui.Text(string("y : ", ypos))
             CImGui.PopTextWrapPos()
             CImGui.EndTooltip()
         end
@@ -306,7 +303,7 @@ function Plot(pss::PlotSeries, plt::Plot, ::Val{:heatmap})
         yidx = argmin(abs.(yr .- plt.mspos.y))
         CImGui.BeginTooltip()
         SeparatorTextColored(MORESTYLE.Colors.HighlightText, pss.legend)
-        CImGui.PushTextWrapPos(CImGui.GetFontSize() * 35.0)
+        CImGui.PushTextWrapPos(36CImGui.GetFontSize())
         CImGui.Text(string("x : ", xr[xidx]))
         CImGui.Text(string("y : ", yr[yidx]))
         CImGui.Text(string("z : ", pss.z[xidx, yidx]))
@@ -319,32 +316,40 @@ end
 function setupplotseries!(pss::PlotSeries, x::AbstractVector{Tx}, y) where {Tx<:AbstractString}
     pss.x = 1:length(y)
     pss.y = y
-    pss.xaxis.axis.ticklabels = x
+    lx, ly = length(x), length(y)
+    pss.axis.xaxis.ticklabels = lx < ly ? append!(copy(x), fill("", ly - lx)) : x[1:ly]
 end
 function setupplotseries!(pss::PlotSeries, x::AbstractVector{Tx}, y) where {Tx<:Real}
     pss.x, pss.y = trunc(x, y)
 end
 function setupplotseries!(pss::PlotSeries, x::AbstractVector{Tx}, y, z) where {Tx<:Real}
-    pss.x = x
-    pss.y = y
     pss.z = z
-    if isempty(x)
+    if isempty(pss.z)
+        empty!(pss.x)
+        empty!(pss.y)
         pss.xlims = (0, 1)
-    else
-        xlims = extrema(x)
-        xlims[1] == xlims[2] && (xlims = (0, 1))
-        pss.xlims = xlims
-    end
-    if isempty(y)
         pss.ylims = (0, 1)
-    else
-        ylims = extrema(y)
-        ylims[1] == ylims[2] && (ylims = (0, 1))
-        pss.ylims = ylims
-    end
-    if isempty(z)
         pss.zlims = (0, 1)
     else
+        zsz = size(pss.z)
+        if isempty(x)
+            pss.xlims = (0, 1)
+            pss.x = 1:zsz[2]
+        else
+            xlims = extrema(x)
+            xlims[1] == xlims[2] && (xlims = (0, 1))
+            pss.xlims = xlims
+            pss.x = length(x) == zsz[2] ? x : range(extrema(x)..., length=zsz[2])
+        end
+        if isempty(y)
+            pss.ylims = (0, 1)
+            pss.y = 1:zsz[1]
+        else
+            ylims = extrema(y)
+            ylims[1] == ylims[2] && (ylims = (0, 1))
+            pss.ylims = ylims
+            pss.y = length(y) == zsz[1] ? y : range(extrema(y)..., length=zsz[1])
+        end
         zlims = extrema(z)
         zlims[1] == zlims[2] && (zlims = (0, 1))
         pss.zlims = zlims
