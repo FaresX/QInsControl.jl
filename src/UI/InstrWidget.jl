@@ -617,6 +617,8 @@ end
 let
     copiedopts::Ref{QuantityWidgetOption} = QuantityWidgetOption()
     showslnums::Bool = false
+    dragmode::String = "swap"
+    dragmodes::Vector{String} = ["swap", "before", "after"]
     selectedqtw::Cint = 0
     acd::AnimateChild = AnimateChild(rate=(8, 12))
     fakewidget::QuantityWidget = QuantityWidget()
@@ -625,6 +627,13 @@ let
     global function modify(insw::InstrWidget)
         openmodw = false
         CImGui.BeginChild(stcstr(insw.instrnm, insw.name), (0, 0), false, CImGui.ImGuiWindowFlags_HorizontalScrollbar)
+        SeparatorTextColored(MORESTYLE.Colors.HighlightText, mlstr("Options"))
+        @c CImGui.Checkbox(mlstr("Show Serial Numbers"), &showslnums)
+        CImGui.SameLine()
+        CImGui.PushItemWidth(6CImGui.GetFontSize())
+        @c ComBoS(mlstr("Dragging Mode"), &dragmode, mlstr.(dragmodes))
+        CImGui.PopItemWidth()
+        SeparatorTextColored(MORESTYLE.Colors.HighlightText, mlstr("Widgets"))
         for (i, qtwg) in enumerate(insw.qtws)
             CImGui.PushID(i)
             lqtwg = length(qtwg)
@@ -697,15 +706,20 @@ let
                     if payload != C_NULL && unsafe_load(payload).DataSize == sizeof(Cint)
                         payload_i = unsafe_load(Ptr{Cint}(unsafe_load(payload).Data))
                         if idx != payload_i
-                            if unsafe_load(CImGui.GetIO().KeyCtrl)
-                                groupwidget!(insw, payload_i, idx)
-                                isbreak = true
-                                break
+                            dragmodesym = if dragmode == mlstr("before")
+                                :before
+                            elseif dragmode == mlstr("after")
+                                :after
                             else
-                                swapwidget!(insw, payload_i, idx)
-                                isbreak = true
-                                break
+                                :swap
                             end
+                            if unsafe_load(CImGui.GetIO().KeyCtrl)
+                                draggroup!(insw, payload_i, idx, Val(dragmodesym))
+                            else
+                                dragwidget!(insw, payload_i, idx, Val(dragmodesym))
+                            end
+                            isbreak = true
+                            break
                         end
                     end
                     CImGui.EndDragDropTarget()
@@ -717,9 +731,9 @@ let
                 CImGui.PopID()
             end
             CImGui.EndGroup()
+            CImGui.PopStyleColor(2)
             isbreak && break
             lqtwg == 1 && only(qtwg).name == "_SameLine_" && CImGui.SameLine()
-            CImGui.PopStyleColor(2)
             if i < length(insw.qtws)
                 if !((lqtwg == 1 && only(qtwg).name == "_SameLine_") ||
                      (length(insw.qtws[i+1]) == 1 && only(insw.qtws[i+1]).name == "_SameLine_"))
@@ -766,7 +780,7 @@ let
                 end
                 CImGui.EndChild()
             end
-            changesize && (acd.presentsize=(4, 6))
+            changesize && (acd.presentsize = (4, 6))
             CImGui.PopStyleColor()
         end
 
@@ -776,7 +790,6 @@ let
         end
         if CImGui.BeginPopup(stcstr("modify widget", insw.instrnm, insw.name))
             addwidgetmenu(insw)
-            @c CImGui.Checkbox(mlstr("Show Serial Numbers"), &showslnums)
             CImGui.EndPopup()
         end
     end
@@ -806,7 +819,7 @@ function splitwidget!(insw::InstrWidget, i, j)
     isempty(insw.qtws[i]) && deleteat!(insw.qtws, i)
 end
 
-function swapwidget!(insw::InstrWidget, idx1, idx2)
+function dragwidget!(insw::InstrWidget, idx1, idx2, ::Val{:swap})
     spos = idxtoij(insw, idx1)
     tpos = idxtoij(insw, idx2)
     if !(isnothing(spos) | isnothing(tpos))
@@ -816,13 +829,59 @@ function swapwidget!(insw::InstrWidget, idx1, idx2)
     end
 end
 
-function groupwidget!(insw::InstrWidget, idx1, idx2)
+function dragwidget!(insw::InstrWidget, idx1, idx2, ::Val{:before})
     spos = idxtoij(insw, idx1)
     tpos = idxtoij(insw, idx2)
     if !(isnothing(spos) | isnothing(tpos))
         insert!(insw.qtws[tpos[1]], tpos[2], insw.qtws[spos[1]][spos[2]])
-        deleteat!(insw.qtws[spos[1]], spos[2])
-        isempty(insw.qtws[spos[1]]) && deleteat!(insw.qtws, spos[1])
+        if spos[1] == tpos[1]
+            deleteat!(insw.qtws[spos[1]], spos[2] < tpos[2] ? spos[2] : spos[2] + 1)
+        else
+            deleteat!(insw.qtws[spos[1]], spos[2])
+            isempty(insw.qtws[spos[1]]) && deleteat!(insw.qtws, spos[1])
+        end
+    end
+end
+
+function dragwidget!(insw::InstrWidget, idx1, idx2, ::Val{:after})
+    spos = idxtoij(insw, idx1)
+    tpos = idxtoij(insw, idx2)
+    if !(isnothing(spos) | isnothing(tpos))
+        insert!(insw.qtws[tpos[1]], tpos[2] + 1, insw.qtws[spos[1]][spos[2]])
+        if spos[1] == tpos[1]
+            deleteat!(insw.qtws[spos[1]], spos[2] < tpos[2] ? spos[2] : spos[2] + 1)
+        else
+            deleteat!(insw.qtws[spos[1]], spos[2])
+            isempty(insw.qtws[spos[1]]) && deleteat!(insw.qtws, spos[1])
+        end
+    end
+end
+
+function draggroup!(insw::InstrWidget, idx1, idx2, ::Val{:swap})
+    spos = idxtoij(insw, idx1)
+    tpos = idxtoij(insw, idx2)
+    if !(isnothing(spos) | isnothing(tpos)) && spos[1] != tpos[1]
+        tqtws = insw.qtws[tpos[1]]
+        insw.qtws[tpos[1]] = insw.qtws[spos[1]]
+        insw.qtws[spos[1]] = tqtws
+    end
+end
+
+function draggroup!(insw::InstrWidget, idx1, idx2, ::Val{:before})
+    spos = idxtoij(insw, idx1)
+    tpos = idxtoij(insw, idx2)
+    if !(isnothing(spos) | isnothing(tpos)) && spos[1] != tpos[1]
+        insert!(insw.qtws, tpos[1], insw.qtws[spos[1]])
+        deleteat!(insw.qtws, spos[1] < tpos[1] ? spos[1] : spos[1] + 1)
+    end
+end
+
+function draggroup!(insw::InstrWidget, idx1, idx2, ::Val{:after})
+    spos = idxtoij(insw, idx1)
+    tpos = idxtoij(insw, idx2)
+    if !(isnothing(spos) | isnothing(tpos)) && spos[1] != tpos[1]
+        insert!(insw.qtws, tpos[1] + 1, insw.qtws[spos[1]])
+        deleteat!(insw.qtws, spos[1] < tpos[1] ? spos[1] : spos[1] + 1)
     end
 end
 
