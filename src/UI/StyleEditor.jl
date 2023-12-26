@@ -75,6 +75,7 @@ Base.@kwdef mutable struct MoreStyleIcon
     InsertDown::String = ICONS.ICON_CIRCLE_ARROW_DOWN
     InsertInside::String = ICONS.ICON_CIRCLE_ARROW_RIGHT
     Convert::String = ICONS.ICON_RIGHT_LEFT
+    ShowDisable::String = ICONS.ICON_EYE
 
     CodeBlock::String = ICONS.ICON_SITEMAP
     StrideCodeBlock::String = ICONS.ICON_RAINBOW
