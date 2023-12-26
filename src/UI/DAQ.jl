@@ -23,8 +23,16 @@ let
             SetWindowBgImage()
             global WORKPATH
             global OLDI
+            width = CImGui.GetContentRegionAvailWidth()
+            ftsz = CImGui.GetFontSize()
+            CImGui.Text("")
+            CImGui.SameLine((width-6ftsz)/2)
+            CImGui.Image(Ptr{Cvoid}(ICONID), (6ftsz, 6ftsz))
+            CImGui.Spacing()
+            CImGui.Separator()
             CImGui.Button(stcstr(MORESTYLE.Icons.SelectPath, " ", mlstr("Workplace"), " ")) && (WORKPATH = pick_folder())
-            CImGui.SameLine()
+            # CImGui.SameLine()
+            CImGui.PushTextWrapPos()
             CImGui.TextColored(
                 if WORKPATH == mlstr("no workplace selected!!!")
                     MORESTYLE.Colors.LogError
@@ -33,6 +41,7 @@ let
                 end,
                 WORKPATH
             )
+            CImGui.PopTextWrapPos()
             if WORKPATH != oldworkpath
                 if isdir(WORKPATH)
                     oldworkpath = WORKPATH

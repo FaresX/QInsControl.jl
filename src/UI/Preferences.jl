@@ -12,6 +12,12 @@ let
                 firsttime && (CImGui.SetColumnOffset(1, CImGui.GetWindowWidth() * 0.2); firsttime = false)
             end
             CImGui.BeginChild("options", (Float32(0), -2CImGui.GetFrameHeight() - unsafe_load(IMGUISTYLE.ItemSpacing.y)))
+            width = CImGui.GetContentRegionAvailWidth()
+            ftsz = CImGui.GetFontSize()
+            CImGui.Text("")
+            CImGui.SameLine((width-6ftsz)/2)
+            CImGui.Image(Ptr{Cvoid}(ICONID), (6ftsz, 6ftsz))
+            CImGui.Spacing()
             CImGui.PushStyleVar(CImGui.ImGuiStyleVar_SelectableTextAlign, (0.5, 0.5))
             CImGui.Selectable(
                 stcstr(MORESTYLE.Icons.CommonSetting, " ", mlstr("General")),
