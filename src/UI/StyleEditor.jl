@@ -601,10 +601,8 @@ let
         end
 
         CImGui.PushItemWidth(ws / 2)
-        selected_style == "" && haskey(STYLES, CONF.Style.default) && (selected_style = CONF.Style.default)
-        startup = CImGui.GetFrameCount() == 1 && haskey(STYLES, CONF.Style.default)
-        startup && (selected_style = CONF.Style.default)
-        if @c(ComBoS("##Style Selecting", &selected_style, keys(STYLES))) || startup
+        selected_style == "" && haskey(STYLES, CONF.Style.default) && (selected_style = CONF.Style.default; ustyle = STYLES[selected_style])
+        if @c ComBoS("##Style Selecting", &selected_style, keys(STYLES))
             if selected_style != ""
                 ustyle = STYLES[selected_style]
                 style_name = selected_style
