@@ -9,6 +9,7 @@
     yaxis::Cint = 1
     zaxis::Cint = 1
     legend::String = "s1"
+    sampling::Bool = false
     samplingnum::Cint = 0
     xtype::Bool = true # true = > Number false = > String
     zsize::Vector{Cint} = [0, 0]
@@ -106,6 +107,8 @@ let
         CImGui.PushItemWidth(availwidth / 3)
         @c InputTextRSZ(mlstr("legend"), &dtss.legend)
         CImGui.PopItemWidth()
+        CImGui.SameLine()
+        @c CImGui.Checkbox(mlstr("##sampling"), &dtss.sampling)
         CImGui.SameLine()
         CImGui.PushItemWidth(availwidth / 3)
         @c CImGui.DragInt(mlstr("sampling"), &dtss.samplingnum, 100, 0, 1000000, "%d", CImGui.ImGuiSliderFlags_AlwaysClamp)
@@ -331,10 +334,16 @@ let
                 dtss.vflipz && reverse!(pss.z, dims=2)
                 dtss.hflipz && reverse!(pss.z, dims=1)
                 setupplotseries!(pss, nx, ny, pss.z)
-                pss.x, pss.y, pss.z = imgsampling(pss.x, pss.y, pss.z; num=min(dtss.samplingnum, CONF.Basic.samplingthreshold))
+                pss.x, pss.y, pss.z = imgsampling(
+                    pss.x, pss.y, pss.z;
+                    num=dtss.sampling ? min(dtss.samplingnum, CONF.Basic.samplingthreshold) : 0
+                )
             else
                 setupplotseries!(pss, nx, ny)
-                pss.x, pss.y = imgsampling(pss.x, pss.y; num=min(dtss.samplingnum, CONF.Basic.samplingthreshold))
+                pss.x, pss.y = imgsampling(
+                    pss.x, pss.y;
+                    num=dtss.sampling ? min(dtss.samplingnum, CONF.Basic.samplingthreshold) : 0
+                )
             end
             syncaxes(plt, pss, dtss)
             (dtss.isrealtime | quiet) || @info "[$(now())]" data_processing = prettify(innercodes)

@@ -75,10 +75,12 @@ let
                 end
                 CImGui.Separator()
                 if CImGui.MenuItem(stcstr(MORESTYLE.Icons.Undo, " ", mlstr("Undo")))
-                    move!(redolist[id], -1); daqtask.blocks = deepcopy(redolist[id][])
+                    move!(redolist[id], -1)
+                    daqtask.blocks = deepcopy(redolist[id][])
                 end
                 if CImGui.MenuItem(stcstr(MORESTYLE.Icons.Redo, " ", mlstr("Redo")))
-                    move!(redolist[id]); daqtask.blocks = deepcopy(redolist[id][])
+                    move!(redolist[id])
+                    daqtask.blocks = deepcopy(redolist[id][])
                 end
                 if CImGui.MenuItem(stcstr(MORESTYLE.Icons.Convert, " ", mlstr("Interpret")))
                     codes = @trypasse quote
@@ -298,8 +300,8 @@ end
 #################################################################
 function view(daqtask::DAQTask)
     CImGui.BeginChild("view DAQTask")
-    CImGui.TextColored(MORESTYLE.Colors.HighlightText, mlstr("experimental record"))
-    TextRect(string(daqtask.explog, "\n "))
+    CImGui.TextColored(MORESTYLE.Colors.HighlightText, mlstr("Experimental Records"))
+    TextRect(string(daqtask.explog, "\n "); nochild=true)
     view(daqtask.blocks)
     CImGui.EndChild()
 end
