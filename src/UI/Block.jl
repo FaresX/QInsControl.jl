@@ -982,7 +982,7 @@ let
     copyblock::AbstractBlock = NullBlock()
     selectedblock::Cint = 0
     instrblocks::Vector{Type} = [SweepBlock, SettingBlock, ReadingBlock, WriteBlock, QueryBlock, ReadBlock, FeedbackBlock]
-    allblocks::Vector{Symbol} = [:CodeBlock, :StrideCodeBlock, :SweepBlock, :SettingBlock, :ReadingBlock,
+    allblocks::Vector{Symbol} = [:CodeBlock, :StrideCodeBlock, :BranchBlock, :SweepBlock, :SettingBlock, :ReadingBlock,
         :WriteBlock, :QueryBlock, :ReadBlock, :FeedbackBlock]
 
     global function dragblockmenu(id)
@@ -1117,7 +1117,7 @@ let
             elseif !isdragging
                 if !isempty(dragblock)
                     if isempty(dropblock)
-                        CImGui.IsAnyItemHovered() || (addmode && push!(blocks, only(dragblock)))
+                        CImGui.IsAnyItemHovered() || (addmode && CImGui.IsWindowHovered() && push!(blocks, only(dragblock)))
                     else
                         swapblock(blocks, only(dragblock), only(dropblock), addmode)
                     end

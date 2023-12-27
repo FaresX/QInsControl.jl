@@ -85,7 +85,7 @@ let
             !CImGui.IsItemHovered() && !CImGui.IsItemActive() && CImGui.IsMouseClicked(0) && (edithelp = false)
             CImGui.EndChild()
         else
-            region = TextRect(replace(string(qtcf.help, "\n "), "\\\n" => ""))
+            region = TextRect(replace(string(qtcf.help, "\n "), "\\\n" => ""); nochild=true)
             CImGui.IsMouseDoubleClicked(0) && mousein(region...) && (edithelp = true)
         end
     end
@@ -269,7 +269,7 @@ let
                             selectedqt = ""
                         end
                         CImGui.Text(" ") #空行
-                        
+
                         SeparatorTextColored(MORESTYLE.Colors.HighlightText, mlstr("Edit"))
                         CImGui.SameLine()
                         if CImGui.Button(stcstr(MORESTYLE.Icons.SaveButton, "##QuantityConf to INSCONF"))
@@ -317,7 +317,7 @@ let
                                 end
                                 CImGui.BeginChild(stcstr("Widget", i))
                                 if CImGui.CollapsingHeader(mlstr("Global Options"))
-                                    CImGui.BeginChild("global widget options", (Cfloat(0), CImGui.GetContentRegionAvail().y/3))
+                                    CImGui.BeginChild("global widget options", (Cfloat(0), CImGui.GetContentRegionAvail().y / 3))
                                     @c InputTextRSZ(mlstr("Rename"), &widget.name)
                                     @c CImGui.Checkbox(mlstr("Use Wallpaper"), &widget.usewallpaper)
                                     if widget.usewallpaper

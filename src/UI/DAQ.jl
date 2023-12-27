@@ -79,15 +79,17 @@ let
             CImGui.BeginChild("queue")
             if ColoredButtonRect(
                 stcstr(MORESTYLE.Icons.SelectPath, " ", mlstr("Workplace"));
-                size=(Cfloat(-1), 2ftsz),
+                size=(6ftsz, 4ftsz),
                 colbt=zeros(4),
-                coltxt=MORESTYLE.Colors.HighlightText
+                coltxt=MORESTYLE.Colors.HighlightText,
+                colrect=MORESTYLE.Colors.ItemBorder
             )
                 WORKPATH = pick_folder()
             end
-            CImGui.Spacing()
+            CImGui.SameLine()
             TextRect(
                 WORKPATH;
+                size=(Cfloat(0), 4ftsz),
                 coltxt=if WORKPATH == mlstr("no workplace selected!!!")
                     MORESTYLE.Colors.LogError
                 else
@@ -257,8 +259,7 @@ let
             CImGui.EndChild()
 
             CImGui.SameLine()
-            # plotscdy = length(DAQDATAPLOT.plots) * CImGui.GetFrameHeightWithSpacing() -
-            #            unsafe_load(IMGUISTYLE.ItemSpacing.y) + 2unsafe_load(IMGUISTYLE.WindowPadding.y)
+
             CImGui.BeginChild("scrobarplot", (halfwidth, Cfloat(0)))
             CImGui.PushStyleColor(CImGui.ImGuiCol_Border, MORESTYLE.Colors.ItemBorder)
             CImGui.PushStyleVar(CImGui.ImGuiStyleVar_ChildBorderSize, 1)

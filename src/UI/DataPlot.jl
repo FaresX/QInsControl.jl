@@ -87,7 +87,7 @@ function editmenu(dtp::DataPlot)
             CImGui.GetFrameHeightWithSpacing() * ceil(Int, length(dtp.layout.labels) / dtp.layout.showcol) -
             unsafe_load(IMGUISTYLE.ItemSpacing.y) + 2unsafe_load(IMGUISTYLE.WindowPadding.y)
         );
-        selectablesize=(Cfloat(0), CImGui.GetTextLineHeightWithSpacing())
+        selectablesize=(Cfloat(0), CImGui.GetFrameHeight()-unsafe_load(IMGUISTYLE.ItemSpacing.y))
     ) do
         openright = CImGui.BeginPopupContextItem()
         if openright
@@ -140,15 +140,15 @@ function showdtpks(
     datastr::Dict{String,Vector{String}},
     datafloat::Dict{String,VecOrMat{Cdouble}}=Dict{String,VecOrMat{Cdouble}}()
 )
-    if CImGui.BeginPopupModal(stcstr("no data", id), C_NULL, CImGui.ImGuiWindowFlags_AlwaysAutoResize)
-        CImGui.TextColored(MORESTYLE.Colors.LogError, mlstr("no data!"))
+    if CImGui.BeginPopupModal(stcstr("##no data", id), C_NULL, CImGui.ImGuiWindowFlags_AlwaysAutoResize)
+        CImGui.TextColored(MORESTYLE.Colors.LogError, stcstr("\n", mlstr("No data!"), "\n "))
         CImGui.Button(stcstr(mlstr("Confirm"), "##no data"), (180, 0)) && CImGui.CloseCurrentPopup()
         CImGui.EndPopup()
     end
     for (i, isshowdtpk) in enumerate(dtp.showdtpks)
         if isshowdtpk
             if isempty(datastr) && isempty(datafloat)
-                CImGui.OpenPopup(stcstr("no data", id))
+                CImGui.OpenPopup(stcstr("##no data", id))
                 dtp.showdtpks[i] = false
                 continue
             end

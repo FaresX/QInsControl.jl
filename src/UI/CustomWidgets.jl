@@ -213,7 +213,7 @@ function MultiSelectable(
     for i in 1:l
         if i == 1
             ccpos = CImGui.GetCursorScreenPos()
-            CImGui.SetCursorScreenPos(ccpos.x, ccpos.y + unsafe_load(IMGUISTYLE.WindowPadding.y) / 2)
+            CImGui.SetCursorScreenPos(ccpos.x, ccpos.y + unsafe_load(IMGUISTYLE.ItemSpacing.y) / 2)
         end
         CImGui.PushStyleVar(CImGui.ImGuiStyleVar_SelectableTextAlign, (0.5, 0.5))
         CImGui.Selectable(labels[i], states[i], selectableflags, selectablesize) && (states[i] ⊻= true)
@@ -280,25 +280,26 @@ end
 
 function TextRect(
     str;
+    size=(0, 0),
+    nochild=false,
     bdrounding=MORESTYLE.Variables.TextRectRounding,
     thickness=MORESTYLE.Variables.TextRectThickness,
     padding=MORESTYLE.Variables.TextRectPadding,
     coltxt=CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_Text)
 )
-    cspos = CImGui.GetCursorScreenPos()
     draw_list = CImGui.GetWindowDrawList()
-    width = CImGui.GetContentRegionAvailWidth()
-    CImGui.SetCursorScreenPos(cspos .+ thickness .+ padding)
-    CImGui.PushTextWrapPos(CImGui.GetCursorPosX() + width - 2thickness - 2padding[1])
+    nochild || CImGui.BeginChild("TextRect", size)
+    CImGui.SetCursorScreenPos(CImGui.GetCursorScreenPos() .+ padding)
+    CImGui.PushTextWrapPos(nochild ? CImGui.GetContentRegionAvailWidth() - padding[1] : 0)
     CImGui.PushStyleColor(CImGui.ImGuiCol_Text, coltxt)
     CImGui.TextUnformatted(str)
     CImGui.PopStyleColor()
     CImGui.PopTextWrapPos()
-    rmax = CImGui.GetItemRectMax()
-    ColoredButton(""; size=(Cfloat(0), thickness + padding[2]), colbt=[0, 0, 0, 0], colbth=[0, 0, 0, 0], colbta=[0, 0, 0, 0])
-    recta = cspos .+ thickness
-    rectb = CImGui.ImVec2(cspos.x + width - thickness, rmax.y + padding[2])
-    CImGui.SetCursorScreenPos(cspos.x, rectb.y)
+    nochild || CImGui.EndChild()
+    rmin, rmax = CImGui.GetItemRectMin(), CImGui.GetItemRectMax()
+    nochild && ColoredButton(""; size=(Cfloat(0), thickness + padding[2]), colbt=[0, 0, 0, 0], colbth=[0, 0, 0, 0], colbta=[0, 0, 0, 0])
+    recta = nochild ? rmin .- padding : rmin .+ thickness
+    rectb = nochild ? rmax .+ padding : rmax .- thickness
     CImGui.AddRect(
         draw_list,
         recta, rectb,

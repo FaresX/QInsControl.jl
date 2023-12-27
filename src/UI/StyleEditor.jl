@@ -14,6 +14,7 @@ Base.@kwdef mutable struct MoreStyleColor
     ControlButtonPause::Vector{Cfloat} = [0.000, 0.000, 1.000, 1.000]
     StrideCodeBlockBorder::Vector{Cfloat} = [1.000, 0.000, 0.680, 1.000]
     SweepBlockBorder::Vector{Cfloat} = [1.000, 0.750, 0.000, 1.000]
+    NormalBlockBorder::Vector{Cfloat} = [1.000, 1.000, 1.000, 0.600]
     BlockAsyncBorder::Vector{Cfloat} = [0.000, 1.000, 0.000, 0.600]
     BlockObserveBG::Vector{Cfloat} = [0.000, 0.960, 1.000, 0.700]
     BlockObserveReadingBG::Vector{Cfloat} = [1.000, 0.600, 0.000, 0.700]
@@ -601,7 +602,9 @@ let
 
         CImGui.PushItemWidth(ws / 2)
         selected_style == "" && haskey(STYLES, CONF.Style.default) && (selected_style = CONF.Style.default)
-        if @c ComBoS("##Style Selecting", &selected_style, keys(STYLES))
+        startup = CImGui.GetFrameCount() == 1 && haskey(STYLES, CONF.Style.default)
+        startup && (selected_style = CONF.Style.default)
+        if @c(ComBoS("##Style Selecting", &selected_style, keys(STYLES))) || startup
             if selected_style != ""
                 ustyle = STYLES[selected_style]
                 style_name = selected_style
