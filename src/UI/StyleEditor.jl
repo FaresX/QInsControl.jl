@@ -31,6 +31,7 @@ Base.@kwdef mutable struct MoreStyleColor
     ToggleButtonOn::Vector{Cfloat} = [0.000, 1.000, 0.000, 1.000]
     ToggleButtonOff::Vector{Cfloat} = [0.600, 0.600, 0.600, 1.000]
     SelectedWidgetBt::Vector{Cfloat} = [0.600, 0.600, 0.000, 0.600]
+    ItemBorder::Vector{Cfloat} = [1.000, 1.000, 1.000, 1.000]
 end
 
 Base.@kwdef mutable struct MoreStyleIcon
@@ -141,6 +142,9 @@ mutable struct ImNodesStyle
 end
 
 Base.@kwdef mutable struct MoreStyleVariable
+    TextRectRounding::Cfloat = 0
+    TextRectThickness::Cfloat = 2
+    TextRectPadding::Vector{Cfloat} = [6, 6]
     PinShapeInput::LibCImGui.ImNodesPinShape = LibCImGui.ImNodesPinShape_Circle
     PinShapeOutput::LibCImGui.ImNodesPinShape = LibCImGui.ImNodesPinShape_Triangle
     MiniMapFraction::Cfloat = 0.2
@@ -347,6 +351,18 @@ let
         )
         if CImGui.BeginTabBar("MoreStyle")
             if CImGui.BeginTabItem("Variables")
+                @c CImGui.DragFloat(
+                    "TextRectRounding", &MORESTYLE.Variables.TextRectRounding,
+                    1, 0, 60, "%.1f", CImGui.ImGuiSliderFlags_AlwaysClamp
+                )
+                @c CImGui.DragFloat(
+                    "TextRectThickness", &MORESTYLE.Variables.TextRectThickness,
+                    1, 0, 60, "%.1f", CImGui.ImGuiSliderFlags_AlwaysClamp
+                )
+                CImGui.DragFloat2(
+                    "TextRectPadding", MORESTYLE.Variables.TextRectPadding,
+                    1, 0, 60, "%.1f", CImGui.ImGuiSliderFlags_AlwaysClamp
+                )
                 inpin = string(LibCImGui.ImNodesPinShape_(MORESTYLE.Variables.PinShapeInput))
                 if @c ComBoS("Input PinShape", &inpin, string.(instances(LibCImGui.ImNodesPinShape_)))
                     MORESTYLE.Variables.PinShapeInput = getproperty(LibCImGui, Symbol(inpin))

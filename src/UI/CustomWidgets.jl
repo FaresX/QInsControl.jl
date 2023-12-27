@@ -278,24 +278,36 @@ function YesNoDialog(id, msg, flags=0)::Bool
     return false
 end
 
-function TextRect(str)
-    pos = CImGui.GetCursorScreenPos()
+function TextRect(
+    str;
+    bdrounding=MORESTYLE.Variables.TextRectRounding,
+    thickness=MORESTYLE.Variables.TextRectThickness,
+    padding=MORESTYLE.Variables.TextRectPadding,
+    coltxt=CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_Text)
+)
+    cspos = CImGui.GetCursorScreenPos()
     draw_list = CImGui.GetWindowDrawList()
     width = CImGui.GetContentRegionAvailWidth()
-    CImGui.PushTextWrapPos(CImGui.GetCursorPosX() + width)
+    CImGui.SetCursorScreenPos(cspos .+ thickness .+ padding)
+    CImGui.PushTextWrapPos(CImGui.GetCursorPosX() + width - 2thickness - 2padding[1])
+    CImGui.PushStyleColor(CImGui.ImGuiCol_Text, coltxt)
     CImGui.TextUnformatted(str)
-    rmin, rmax = CImGui.GetItemRectMin(), CImGui.GetItemRectMax()
+    CImGui.PopStyleColor()
+    CImGui.PopTextWrapPos()
+    rmax = CImGui.GetItemRectMax()
+    ColoredButton(""; size=(Cfloat(0), thickness + padding[2]), colbt=[0, 0, 0, 0], colbth=[0, 0, 0, 0], colbta=[0, 0, 0, 0])
+    recta = cspos .+ thickness
+    rectb = CImGui.ImVec2(cspos.x + width - thickness, rmax.y + padding[2])
+    CImGui.SetCursorScreenPos(cspos.x, rectb.y)
     CImGui.AddRect(
         draw_list,
-        rmin,
-        CImGui.ImVec2(pos.x + width, rmax.y),
+        recta, rectb,
         CImGui.ColorConvertFloat4ToU32(MORESTYLE.Colors.ShowTextRect),
-        0.0,
+        bdrounding,
         0,
-        2
+        thickness
     )
-    CImGui.PopTextWrapPos()
-    rmin, (pos.x + width, rmax.y)
+    recta, rectb
 end
 
 function ItemTooltip(tipstr, wrappos=36CImGui.GetFontSize())
@@ -601,10 +613,16 @@ function SeparatorTextColored(col, label)
     CImGui.PopStyleColor()
 end
 
-function BoxTextColored(label; size=(0, 0), col=CImGui.c_get(IMGUISTYLE.Colors, ImGuiCol_Text))
+function BoxTextColored(
+    label;
+    size=(0, 0),
+    col=CImGui.c_get(IMGUISTYLE.Colors, ImGuiCol_Text),
+    colbd=MORESTYLE.Colors.ItemBorder)
+    CImGui.PushStyleColor(CImGui.ImGuiCol_Border, colbd)
     CImGui.PushStyleVar(ImGuiStyleVar_FrameBorderSize, 1)
     ColoredButton(label; size=size, colbt=[0, 0, 0, 0], colbth=[0, 0, 0, 0], colbta=[0, 0, 0, 0], coltxt=col)
     CImGui.PopStyleVar()
+    CImGui.PopStyleColor()
 end
 
 @kwdef mutable struct ResizeChild

@@ -86,16 +86,14 @@ let
                 WORKPATH = pick_folder()
             end
             CImGui.Spacing()
-            CImGui.PushTextWrapPos()
-            CImGui.TextColored(
-                if WORKPATH == mlstr("no workplace selected!!!")
+            TextRect(
+                WORKPATH;
+                coltxt=if WORKPATH == mlstr("no workplace selected!!!")
                     MORESTYLE.Colors.LogError
                 else
                     CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_Text)
-                end,
-                WORKPATH
+                end
             )
-            CImGui.PopTextWrapPos()
             if WORKPATH != oldworkpath
                 if isdir(WORKPATH)
                     oldworkpath = WORKPATH
@@ -105,7 +103,6 @@ let
                     OLDI = 0
                 end
             end
-            CImGui.Spacing()
             igSeparatorText("")
             halfwidth = (CImGui.GetContentRegionAvailWidth() - unsafe_load(IMGUISTYLE.ItemSpacing.x)) / 2
             CImGui.Button(stcstr(MORESTYLE.Icons.NewFile, " ", mlstr("New Task")), (halfwidth, 2ftsz)) && push!(daqtasks, DAQTask())
@@ -120,6 +117,7 @@ let
                           2unsafe_load(IMGUISTYLE.WindowPadding.y)
 
             CImGui.BeginChild("scrobartask", (halfwidth, Cfloat(0)))
+            CImGui.PushStyleColor(CImGui.ImGuiCol_Border, MORESTYLE.Colors.ItemBorder)
             CImGui.PushStyleVar(CImGui.ImGuiStyleVar_ChildBorderSize, 1)
             CImGui.BeginChild("daqtasks", (halfwidth, daqtaskscdy), true)
             for (i, task) in enumerate(daqtasks)
@@ -255,15 +253,18 @@ let
             end
             CImGui.EndChild()
             CImGui.PopStyleVar()
+            CImGui.PopStyleColor()
             CImGui.EndChild()
 
             CImGui.SameLine()
             # plotscdy = length(DAQDATAPLOT.plots) * CImGui.GetFrameHeightWithSpacing() -
             #            unsafe_load(IMGUISTYLE.ItemSpacing.y) + 2unsafe_load(IMGUISTYLE.WindowPadding.y)
             CImGui.BeginChild("scrobarplot", (halfwidth, Cfloat(0)))
+            CImGui.PushStyleColor(CImGui.ImGuiCol_Border, MORESTYLE.Colors.ItemBorder)
             CImGui.PushStyleVar(CImGui.ImGuiStyleVar_ChildBorderSize, 1)
             editmenu(DAQDATAPLOT)
             CImGui.PopStyleVar()
+            CImGui.PopStyleColor()
             CImGui.EndChild()
 
             CImGui.EndChild()
