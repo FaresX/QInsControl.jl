@@ -120,6 +120,7 @@ let
                           2unsafe_load(IMGUISTYLE.WindowPadding.y)
 
             CImGui.BeginChild("scrobartask", (halfwidth, Cfloat(0)))
+            CImGui.PushStyleVar(CImGui.ImGuiStyleVar_ChildBorderSize, 1)
             CImGui.BeginChild("daqtasks", (halfwidth, daqtaskscdy), true)
             for (i, task) in enumerate(daqtasks)
                 CImGui.PushID(i)
@@ -253,13 +254,16 @@ let
                 CImGui.PopID()
             end
             CImGui.EndChild()
+            CImGui.PopStyleVar()
             CImGui.EndChild()
 
             CImGui.SameLine()
             # plotscdy = length(DAQDATAPLOT.plots) * CImGui.GetFrameHeightWithSpacing() -
             #            unsafe_load(IMGUISTYLE.ItemSpacing.y) + 2unsafe_load(IMGUISTYLE.WindowPadding.y)
             CImGui.BeginChild("scrobarplot", (halfwidth, Cfloat(0)))
+            CImGui.PushStyleVar(CImGui.ImGuiStyleVar_ChildBorderSize, 1)
             editmenu(DAQDATAPLOT)
+            CImGui.PopStyleVar()
             CImGui.EndChild()
 
             CImGui.EndChild()
