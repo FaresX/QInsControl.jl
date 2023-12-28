@@ -149,6 +149,9 @@ let
                             @c CImGui.MenuItem(title, C_NULL, &dtv[1].p_open)
                             if CImGui.BeginPopupContextItem()
                                 CImGui.MenuItem(stcstr(MORESTYLE.Icons.CloseFile, " ", mlstr("Close"))) && (dtv[1].noclose = false)
+                                if CImGui.MenuItem(stcstr(MORESTYLE.Icons.Convert, " ", mlstr("Convert to New Version")))
+                                    converttonew(dtv[2].rootpath)
+                                end
                                 CImGui.EndPopup()
                             end
                         end
@@ -174,6 +177,9 @@ let
                                     ).filetrees
                                 end
                                 CImGui.MenuItem(stcstr(MORESTYLE.Icons.CloseFile, " ", mlstr("Close"))) && (dtv[1].noclose = false)
+                                if CImGui.MenuItem(stcstr(MORESTYLE.Icons.Convert, " ", mlstr("Convert to New Version")))
+                                    converttonew(dtv[2].rootpath)
+                                end
                                 CImGui.EndPopup()
                             end
                         end
@@ -321,3 +327,30 @@ let
         end
     end
 end #let
+
+function converttonew(rootpath)
+    for (root, dirs, files) in walkdir(rootpath)
+        for file in files
+            if split(file, '.')[end] == "qdt"
+                try
+                    data = load(joinpath(root, file))
+                    if !isempty(data)
+                        dtpsaving = haskey(data, "dataplot") ? data["dataplot"] : DataPlot()
+                        empty!(dtpsaving)
+                        jldopen(joinpath(root, file), "w") do f
+                            for key in keys(data)
+                                key == "dataplot" && (f[key] = dtpsaving; continue)
+                                f[key] = data[key]
+                            end
+                        end
+                    end
+                catch e
+                    @error "converting failed!" Exception=e
+                end
+            end
+        end
+        for dir in dirs
+            converttonew(joinpath(root, dir))
+        end
+    end
+end

@@ -247,22 +247,30 @@ end
 
 function JLD2.rconvert(::Type{DataPicker}, jld2obj::JLD2DataPicker)
     dtpk = DataPicker()
-    dtpk.datalist = jld2obj.fieldnames_dict[:datalist]
-    for i in eachindex(jld2obj.fieldnames_dict[:y])
-        jld2obj.fieldnames_dict[:y][i] || continue
-        dtss = DataSeries()
-        dtss.ptype = jld2obj.fieldnames_dict[:ptype]
-        dtss.x = jld2obj.fieldnames_dict[:x]
-        dtss.y = dtpk.datalist[i]
-        dtss.z = jld2obj.fieldnames_dict[:z]
-        true in jld2obj.fieldnames_dict[:w] && (dtss.w = dtpk.datalist[findfirst(jld2obj.fieldnames_dict[:w])])
-        dtss.aux = jld2obj.fieldnames_dict[:aux]
-        dtss.xtype = jld2obj.fieldnames_dict[:xtype]
-        dtss.zsize = jld2obj.fieldnames_dict[:zsize]
-        dtss.vflipz = jld2obj.fieldnames_dict[:vflipz]
-        dtss.hflipz = jld2obj.fieldnames_dict[:hflipz]
-        dtss.codes = jld2obj.fieldnames_dict[:codes]
-        push!(dtpk.series, dtss)
+    empty!(dtpk.series)
+    if haskey(jld2obj.fieldnames_dict, :series)
+        fdnms = fieldnames(DataPicker)
+        for fdnm in keys(jld2obj.fieldnames_dict)
+            fdnm in fdnms && setproperty!(dtpk, fdnm, convert(fieldtype(DataPicker, fdnm), jld2obj.fieldnames_dict[fdnm]))
+        end
+    else
+        dtpk.datalist = jld2obj.fieldnames_dict[:datalist]
+        for i in eachindex(jld2obj.fieldnames_dict[:y])
+            jld2obj.fieldnames_dict[:y][i] || continue
+            dtss = DataSeries()
+            dtss.ptype = jld2obj.fieldnames_dict[:ptype]
+            dtss.x = jld2obj.fieldnames_dict[:x]
+            dtss.y = dtpk.datalist[i]
+            dtss.z = jld2obj.fieldnames_dict[:z]
+            true in jld2obj.fieldnames_dict[:w] && (dtss.w = dtpk.datalist[findfirst(jld2obj.fieldnames_dict[:w])])
+            dtss.aux = jld2obj.fieldnames_dict[:aux]
+            dtss.xtype = jld2obj.fieldnames_dict[:xtype]
+            dtss.zsize = jld2obj.fieldnames_dict[:zsize]
+            dtss.vflipz = jld2obj.fieldnames_dict[:vflipz]
+            dtss.hflipz = jld2obj.fieldnames_dict[:hflipz]
+            dtss.codes = jld2obj.fieldnames_dict[:codes]
+            push!(dtpk.series, dtss)
+        end
     end
     return dtpk
 end
