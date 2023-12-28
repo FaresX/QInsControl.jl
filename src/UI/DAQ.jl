@@ -307,9 +307,9 @@ let
                         dtpklink = DAQDATAPLOT.dtpks[DAQDATAPLOT.linkidx[i]]
                         linkeddata = Dict{String,VecOrMat{Cdouble}}()
                         for (j, pss) in enumerate(pltlink.series)
-                            push!(linkeddata, "x$j" => pss.x)
-                            push!(linkeddata, "y$j" => pss.y)
-                            push!(linkeddata, "z$j" => pss.z)
+                            push!(linkeddata, "x$j" => copy(pss.x))
+                            push!(linkeddata, "y$j" => copy(pss.y))
+                            push!(linkeddata, "z$j" => copy(pss.z))
                             dtpklink.series[j].hflipz && reverse!(linkeddata["z$j"], dims=1)
                             dtpklink.series[j].vflipz && reverse!(linkeddata["z$j"], dims=2)
                             linkeddata["z$j"] = transpose(linkeddata["z$j"]) |> collect
