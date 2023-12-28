@@ -1,11 +1,11 @@
 types = [
-    :InstrBufferViewer, :InstrBuffer, :SweepQuantity, :SetQuantity, :ReadQuantity,
-    :DAQTask, :NodeEditor, :Node, :ResizeGrip, :ImagePin, :ImageRegion, :SampleHolderNode,
-    :DataPlot, :Layout, :DataPicker, :DataSeries,
-    :Plot, :PlotSeries, :Axis, :Xaxis, :Yaxis, :Zaxis, :Linecut, :Annotation,
-    :UnionStyle, :MoreStyle, :MoreStyleVariable, :MoreStyleColor, :MoreStyleIcon,
+    :SweepQuantity, :SetQuantity, :ReadQuantity, :InstrBuffer, :InstrBufferViewer,
     :CodeBlock, :StrideCodeBlock, :SweepBlock, :SettingBlock, :ReadingBlock,
-    :WriteBlock, :QueryBlock, :ReadBlock, :FeedbackBlock
+    :WriteBlock, :QueryBlock, :ReadBlock, :FeedbackBlock,
+    :Node, :ResizeGrip, :ImagePin, :ImageRegion, :SampleHolderNode, :NodeEditor, :DAQTask,
+    :Layout, :DataSeries, :DataPicker,
+    :Xaxis, :Yaxis, :Zaxis, :Axis, :Linecut, :Annotation, :PlotSeries, :Plot, :DataPlot,
+    :ImNodesStyle, :MoreStyleVariable, :MoreStyleColor, :MoreStyleIcon, :MoreStyle, :UnionStyle
 ]
 
 for T in types

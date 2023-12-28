@@ -34,7 +34,7 @@ function edit(dtviewer::DataViewer, filetree::FileTree, isrename::Dict{String,Bo
                 if !isempty(dtviewer.data)
                     if haskey(dtviewer.data, "circuit")
                         for (_, node) in dtviewer.data["circuit"].nodes
-                            if node isa SampleBaseNode
+                            if node isa SampleHolderNode
                                 try
                                     imgsize = size(node.imgr.image)
                                     node.imgr.id = ImGui_ImplOpenGL3_CreateImageTexture(imgsize...)
@@ -47,7 +47,7 @@ function edit(dtviewer::DataViewer, filetree::FileTree, isrename::Dict{String,Bo
                     end
                     if haskey(dtviewer.data, "revision")
                         for (_, node) in dtviewer.data["revision"]["circuit"].nodes
-                            if node isa SampleBaseNode
+                            if node isa SampleHolderNode
                                 try
                                     imgsize = size(node.imgr.image)
                                     node.imgr.id = ImGui_ImplOpenGL3_CreateImageTexture(imgsize...)

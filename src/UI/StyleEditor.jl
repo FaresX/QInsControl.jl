@@ -1,4 +1,4 @@
-Base.@kwdef mutable struct MoreStyleColor
+@kwdef mutable struct MoreStyleColor
     BgImageTint::Vector{Cfloat} = [1.000, 1.000, 1.000, 0.600]
     HighlightText::Vector{Cfloat} = [1.000, 1.000, 0.000, 1.000]
     LogInfo::Vector{Cfloat} = [0.000, 0.855, 1.000, 1.000]
@@ -35,7 +35,7 @@ Base.@kwdef mutable struct MoreStyleColor
     ItemBorder::Vector{Cfloat} = [1.000, 1.000, 1.000, 1.000]
 end
 
-Base.@kwdef mutable struct MoreStyleIcon
+@kwdef mutable struct MoreStyleIcon
     File::String = ICONS.ICON_FILE
     OpenFile::String = ICONS.ICON_FILE
     OpenFolder::String = ICONS.ICON_FOLDER
@@ -142,7 +142,7 @@ mutable struct ImNodesStyle
     end
 end
 
-Base.@kwdef mutable struct MoreStyleVariable
+@kwdef mutable struct MoreStyleVariable
     TextRectRounding::Cfloat = 0
     TextRectThickness::Cfloat = 2
     TextRectPadding::Vector{Cfloat} = [6, 6]
@@ -154,17 +154,16 @@ Base.@kwdef mutable struct MoreStyleVariable
 end
 
 @kwdef mutable struct MoreStyle
+    Variables::MoreStyleVariable = MoreStyleVariable()
     Colors::MoreStyleColor = MoreStyleColor()
     Icons::MoreStyleIcon = MoreStyleIcon()
-    Variables::MoreStyleVariable = MoreStyleVariable()
 end
 
-mutable struct UnionStyle
-    imguistyle::LibCImGui.ImGuiStyle
-    implotstyle::ImPlot.ImPlotStyle
-    imnodesstyle::ImNodesStyle
-    morestyle::MoreStyle
-    UnionStyle() = new(Ref{LibCImGui.ImGuiStyle}()[], Ref{ImPlot.ImPlotStyle}()[], ImNodesStyle(), MoreStyle())
+@kwdef mutable struct UnionStyle
+    imguistyle::LibCImGui.ImGuiStyle = Ref{LibCImGui.ImGuiStyle}()[]
+    implotstyle::ImPlot.ImPlotStyle = Ref{ImPlot.ImPlotStyle}()[]
+    imnodesstyle::ImNodesStyle = ImNodesStyle()
+    morestyle::MoreStyle = MoreStyle()
 end
 
 global IMGUISTYLE::Ptr{CImGui.LibCImGui.ImGuiStyle}

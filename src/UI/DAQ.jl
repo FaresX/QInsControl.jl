@@ -373,7 +373,7 @@ let
                 if haskey(loaddaqproj, "circuit")
                     CIRCUIT = loaddaqproj["circuit"]
                     for (_, node) in CIRCUIT.nodes
-                        if node isa SampleBaseNode
+                        if node isa SampleHolderNode
                             try
                                 imgsize = size(node.imgr.image)
                                 node.imgr.id = ImGui_ImplOpenGL3_CreateImageTexture(imgsize...)
