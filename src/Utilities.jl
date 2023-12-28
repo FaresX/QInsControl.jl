@@ -377,19 +377,19 @@ end
 function imgsampling(x, y, z; num=100000)
     if num > 1000
         scale = √(num / length(z))
-        yl, xl = size(z)
+        xl, yl = size(z)
         nxl, nyl = round.(Int, (xl, yl) .* scale)
-        z_reducex = similar(z, yl, nxl)
+        z_reducex = similar(z, nxl, yl)
         linearx = range(extrema(x)..., length=nxl)
-        @views for i in axes(z, 1)
-            interp = LinearInterpolation(z[i, :], x; extrapolate=true)
-            z_reducex[i, :] = interp.(linearx)
+        @views for i in axes(z, 2)
+            interp = LinearInterpolation(z[:, i], x; extrapolate=true)
+            z_reducex[:, i] = interp.(linearx)
         end
-        nz = similar(z_reducex, nyl, nxl)
+        nz = similar(z_reducex, nxl, nyl)
         lineary = range(extrema(y)..., length=nyl)
-        @views for j in axes(z_reducex, 2)
-            interp = LinearInterpolation(z_reducex[:, j], y; extrapolate=true)
-            nz[:, j] = interp.(lineary)
+        @views for j in axes(z_reducex, 1)
+            interp = LinearInterpolation(z_reducex[j, :], y; extrapolate=true)
+            nz[j, :] = interp.(lineary)
         end
         return linearx, lineary, nz
     else

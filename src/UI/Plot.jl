@@ -334,21 +334,21 @@ function setupplotseries!(pss::PlotSeries, x::AbstractVector{Tx}, y, z) where {T
         zsz = size(pss.z)
         if isempty(x)
             pss.xlims = (0, 1)
-            pss.x = 1:zsz[2]
+            pss.x = 1:zsz[1]
         else
             xlims = extrema(x)
             xlims[1] == xlims[2] && (xlims = (0, 1))
             pss.xlims = xlims
-            pss.x = length(x) == zsz[2] ? x : range(extrema(x)..., length=zsz[2])
+            pss.x = length(x) == zsz[1] ? x : range(extrema(x)..., length=zsz[1])
         end
         if isempty(y)
             pss.ylims = (0, 1)
-            pss.y = 1:zsz[1]
+            pss.y = 1:zsz[2]
         else
             ylims = extrema(y)
             ylims[1] == ylims[2] && (ylims = (0, 1))
             pss.ylims = ylims
-            pss.y = length(y) == zsz[1] ? y : range(extrema(y)..., length=zsz[1])
+            pss.y = length(y) == zsz[2] ? y : range(extrema(y)..., length=zsz[2])
         end
         zlims = extrema(z)
         zlims[1] == zlims[2] && (zlims = (0, 1))
