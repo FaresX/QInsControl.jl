@@ -33,6 +33,8 @@
     ToggleButtonOff::Vector{Cfloat} = [0.600, 0.600, 0.600, 1.000]
     SelectedWidgetBt::Vector{Cfloat} = [0.600, 0.600, 0.000, 0.600]
     ItemBorder::Vector{Cfloat} = [1.000, 1.000, 1.000, 1.000]
+    FormatDataBorder::Vector{Cfloat} = [1.000, 1.000, 1.000, 1.000]
+    FormatDataGroupBorder::Vector{Cfloat} = [1.000, 1.000, 0.000, 1.000]
 end
 
 @kwdef mutable struct MoreStyleIcon
@@ -41,6 +43,7 @@ end
     OpenFolder::String = ICONS.ICON_FOLDER
     NewFile::String = ICONS.ICON_CIRCLE_PLUS
     CloseFile::String = ICONS.ICON_TRASH_CAN
+    DataFormatter::String = ICONS.ICON_FILE_EXPORT
 
     Preferences::String = ICONS.ICON_GEAR
     CommonSetting::String = ICONS.ICON_ADDRESS_BOOK
