@@ -205,10 +205,9 @@ end
 function mergezaxes!(plt::Plot)
     empty!(plt.zaxes)
     for pss in plt.series
-        zlims = extrema(pss.z)
+        zlims = isempty(pss.z) ? (0, 1) : extrema(pss.z)
         zlims[1] == zlims[2] && (zlims = (0, 1))
         pss.axis.zaxis.lims = zlims
-        @info zlims
     end
     for z in [pss.axis.zaxis for pss in plt.series if pss.ptype == "heatmap"]
         z.axis in [za.axis for za in plt.zaxes] || push!(plt.zaxes, deepcopy(z))
