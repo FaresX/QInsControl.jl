@@ -19,6 +19,7 @@ end
     label::String = "x1"
     tickvalues::Vector{Cdouble} = []
     ticklabels::Vector{String} = []
+    lims::Tuple{Cdouble,Cdouble} = (0, 1)
     hovered::Bool = false
 end
 
@@ -27,6 +28,7 @@ end
     label::String = "y1"
     tickvalues::Vector{Cdouble} = []
     ticklabels::Vector{String} = []
+    lims::Tuple{Cdouble,Cdouble} = (0, 1)
     hovered::Bool = false
 end
 
@@ -34,7 +36,9 @@ end
     axis::UInt32 = 1
     label::String = "z1"
     colormap::ImPlot.ImPlotColormap = ImPlot.ImPlotColormap_Viridis
-    zlims::Tuple{Cdouble,Cdouble} = (0, 1)
+    tickvalues::Vector{Cdouble} = []
+    ticklabels::Vector{String} = []
+    lims::Tuple{Cdouble,Cdouble} = (0, 1)
     hovered::Bool = false
     colormapscalesize::CImGui.ImVec2 = (0, 0)
 end
@@ -51,9 +55,6 @@ end
     x::Vector{Tx} = Cdouble[]
     y::Vector{Ty} = Cdouble[]
     z::Matrix{Tz} = Matrix{Cdouble}(undef, 0, 0)
-    xlims::Tuple{Cdouble,Cdouble} = (0.0, 1.0)
-    ylims::Tuple{Cdouble,Cdouble} = (0.0, 1.0)
-    zlims::Tuple{Cdouble,Cdouble} = (0.0, 1.0)
     axis::Axis = Axis()
     legendhovered::Bool = false
 end
@@ -203,12 +204,20 @@ end
 
 function mergezaxes!(plt::Plot)
     empty!(plt.zaxes)
+    for pss in plt.series
+        zlims = extrema(pss.z)
+        zlims[1] == zlims[2] && (zlims = (0, 1))
+        pss.axis.zaxis.lims = zlims
+        @info zlims
+    end
     for z in [pss.axis.zaxis for pss in plt.series if pss.ptype == "heatmap"]
         z.axis in [za.axis for za in plt.zaxes] || push!(plt.zaxes, deepcopy(z))
     end
     for pltza in plt.zaxes
-        for axis in [pss.axis for pss in plt.series]
-            axis.zaxis.axis == pltza.axis && (axis.zaxis = deepcopy(pltza))
+        sameaxis = [pss.axis for pss in plt.series if pss.axis.zaxis.axis == pltza.axis]
+        pltza.lims = extrema(vcat([collect(axis.zaxis.lims) for axis in sameaxis]...))
+        for axis in sameaxis
+            axis.zaxis = deepcopy(pltza)
         end
     end
 end
@@ -247,7 +256,7 @@ function Plot(plt::Plot; psize=CImGui.ImVec2(0, 0), flags=0)
     for za in plt.zaxes
         CImGui.SameLine()
         ImPlot.PushColormap(za.colormap)
-        ImPlot.ColormapScale(stcstr(za.label, "###", plt.id, "-", za.axis), za.zlims..., CImGui.ImVec2(Cfloat(0), psize.y))
+        ImPlot.ColormapScale(stcstr(za.label, "###", plt.id, "-", za.axis), za.lims..., CImGui.ImVec2(Cfloat(0), psize.y))
         ImPlot.PopColormap()
         za.colormapscalesize = CImGui.GetItemRectSize()
         za.hovered = CImGui.IsItemHovered()
@@ -289,16 +298,20 @@ Plot(pss::PlotSeries, plt::Plot, ::Val{:scatter}) = Plot2D(ImPlot.PlotScatter, p
 function Plot(pss::PlotSeries, plt::Plot, ::Val{:heatmap})
     ImPlot.PushColormap(pss.axis.zaxis.colormap)
     ImPlot.PlotHeatmap(
-        pss.legend, pss.z, reverse(size(pss.z))..., pss.axis.zaxis.zlims..., "",
-        ImPlot.ImPlotPoint(pss.xlims[1], pss.ylims[1]), ImPlot.ImPlotPoint(pss.xlims[2], pss.ylims[2])
+        pss.legend, pss.z, reverse(size(pss.z))..., pss.axis.zaxis.lims..., "",
+        ImPlot.ImPlotPoint(pss.axis.xaxis.lims[1], pss.axis.yaxis.lims[1]),
+        ImPlot.ImPlotPoint(pss.axis.xaxis.lims[2], pss.axis.yaxis.lims[2])
     )
     ImPlot.PopColormap()
     pss.legendhovered = ImPlot.IsLegendEntryHovered(pss.legend)
     plt.mspos = ImPlot.GetPlotMousePos()
-    if plt.showtooltip && plt.hovered && inregion(plt.mspos, (pss.xlims[1], pss.ylims[1]), (pss.xlims[2], pss.ylims[2]))
+    if plt.showtooltip && plt.hovered && inregion(
+           plt.mspos,
+           (pss.axis.xaxis.lims[1], pss.axis.yaxis.lims[1]), (pss.axis.xaxis.lims[2], pss.axis.yaxis.lims[2])
+       )
         zsz = size(pss.z)
-        xr = range(pss.xlims[1], pss.xlims[2], length=zsz[1])
-        yr = range(pss.ylims[2], pss.ylims[1], length=zsz[2])
+        xr = range(pss.axis.xaxis.lims[1], pss.axis.xaxis.lims[2], length=zsz[1])
+        yr = range(pss.axis.yaxis.lims[2], pss.axis.yaxis.lims[1], length=zsz[2])
         xidx = argmin(abs.(xr .- plt.mspos.x))
         yidx = argmin(abs.(yr .- plt.mspos.y))
         CImGui.BeginTooltip()
@@ -320,41 +333,37 @@ function setupplotseries!(pss::PlotSeries, x::AbstractVector{Tx}, y) where {Tx<:
     pss.axis.xaxis.ticklabels = lx < ly ? append!(copy(x), fill("", ly - lx)) : x[1:ly]
 end
 function setupplotseries!(pss::PlotSeries, x::AbstractVector{Tx}, y) where {Tx<:Real}
-    pss.x, pss.y = trunc(x, y)
+    pss.x, pss.y = isempty(x) ? (1:length(y), y) : trunc(x, y)
 end
 function setupplotseries!(pss::PlotSeries, x::AbstractVector{Tx}, y, z) where {Tx<:Real}
     pss.z = z
     if isempty(pss.z)
         empty!(pss.x)
         empty!(pss.y)
-        pss.xlims = (0, 1)
-        pss.ylims = (0, 1)
-        pss.zlims = (0, 1)
+        pss.axis.xaxis.lims = (0, 1)
+        pss.axis.yaxis.lims = (0, 1)
+        pss.axis.zaxis.lims = (0, 1)
     else
         zsz = size(pss.z)
         if isempty(x)
-            pss.xlims = (0, 1)
+            pss.axis.xaxis.lims = (0, 1)
             pss.x = 1:zsz[1]
         else
             xlims = extrema(x)
             xlims[1] == xlims[2] && (xlims = (0, 1))
-            pss.xlims = xlims
+            pss.axis.xaxis.lims = xlims
             pss.x = length(x) == zsz[1] ? x : range(extrema(x)..., length=zsz[1])
         end
         if isempty(y)
-            pss.ylims = (0, 1)
+            pss.axis.yaxis.lims = (0, 1)
             pss.y = 1:zsz[2]
         else
             ylims = extrema(y)
             ylims[1] == ylims[2] && (ylims = (0, 1))
-            pss.ylims = ylims
+            pss.axis.yaxis.lims = ylims
             pss.y = length(y) == zsz[2] ? y : range(extrema(y)..., length=zsz[2])
         end
-        zlims = extrema(z)
-        zlims[1] == zlims[2] && (zlims = (0, 1))
-        pss.zlims = zlims
     end
-    pss.axis.zaxis.zlims = pss.zlims
 end
 
 function PlotAnns(anns::Vector{Annotation})
@@ -487,8 +496,8 @@ function renderlinecuts(linecuts::Vector{Linecut}, pss::PlotSeries, plt::Plot)
                 ImPlot.SetupAxis(pss.axis.xaxis.axis, pss.axis.xaxis.label)
                 ImPlot.SetupAxis(pss.axis.yaxis.axis, pss.axis.zaxis.label)
                 for lc in hlines
-                    xr = collect(range(pss.xlims[1], pss.xlims[2], length=zsz[1]))
-                    yr = collect(range(pss.ylims[2], pss.ylims[1], length=zsz[2]))
+                    xr = collect(range(pss.axis.xaxis.lims[1], pss.axis.xaxis.lims[2], length=zsz[1]))
+                    yr = collect(range(pss.axis.yaxis.lims[2], pss.axis.yaxis.lims[1], length=zsz[2]))
                     yidx = argmin(abs.(yr .- lc.pos))
                     if lc.ptype == "line"
                         ImPlot.PlotLine("", xr, pss.z[:, yidx], zsz[1])
@@ -504,8 +513,8 @@ function renderlinecuts(linecuts::Vector{Linecut}, pss::PlotSeries, plt::Plot)
                 CImGui.ImVec2(-1, -1)
             )
                 for lc in vlines
-                    xr = collect(range(pss.xlims[1], pss.xlims[2], length=zsz[1]))
-                    yr = collect(range(pss.ylims[1], pss.ylims[2], length=zsz[2]))
+                    xr = collect(range(pss.axis.xaxis.lims[1], pss.axis.xaxis.lims[2], length=zsz[1]))
+                    yr = collect(range(pss.axis.yaxis.lims[1], pss.axis.yaxis.lims[2], length=zsz[2]))
                     xidx = argmin(abs.(xr .- lc.pos))
                     if lc.ptype == "line"
                         ImPlot.PlotLine("", yr, reverse(pss.z[xidx, :]), zsz[2])
