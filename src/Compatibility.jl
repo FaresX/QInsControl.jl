@@ -83,7 +83,7 @@ end
 
 function view(logbk::LogBlock)
     CImGui.BeginChild("##LogBlock", (Float32(0), bkheight(logbk)), true)
-    CImGui.TextColored(MORESTYLE.Colors.BlockIcons, MORESTYLE.Icons.LogBlock)
+    CImGui.TextColored(MORESTYLE.Colors.BlockIcons, MORESTYLE.Icons.Console)
     CImGui.SameLine()
     CImGui.Button("LogBlock", (-1, 0))
     CImGui.EndChild()
@@ -91,7 +91,7 @@ end
 
 function view(bk::SaveBlock)
     CImGui.BeginChild("##SaveBlock", (Float32(0), bkheight(bk)), true)
-    CImGui.TextColored(MORESTYLE.Colors.BlockIcons, MORESTYLE.Icons.SaveBlock)
+    CImGui.TextColored(MORESTYLE.Colors.BlockIcons, MORESTYLE.Icons.SaveButton)
     CImGui.SameLine()
     CImGui.PushStyleVar(CImGui.ImGuiStyleVar_ButtonTextAlign, (0.0, 0.5))
     CImGui.Button(stcstr(mlstr("mark"), ": ", bk.mark, "\t", mlstr("variable"), ": ", bk.varname), (-1, 0))
@@ -129,6 +129,20 @@ function combotodataplot(dtviewer::DataViewer)
         dtviewer.dtp = DataPlot()
     end
     return nothing
+end
+
+function compatload(path)
+    data = load(path)
+    if haskey(data, "uiplots")
+        uiplots = data["uiplots"]
+        dtpks = data["datapickers"]
+        layout = data["plotlayout"]
+        delete!(data, "uiplots")
+        delete!(data, "datapickers")
+        delete!(data, "plotlayout")
+        push!(data, "dataplot" => DataPlot(plots=uiplots, dtpks=dtpks, layout=layout))
+    end
+    return data
 end
 
 Base.@kwdef mutable struct PlotState
@@ -175,7 +189,7 @@ end
 function Base.convert(::Type{PlotStates}, x::PlotState)
     ps = PlotStates()
     for fnm in fieldnames(PlotState)
-        setproperty!(ps, fnm, getproperty(x, fnm))
+        fnm in fieldnames(PlotStates) && setproperty!(ps, fnm, getproperty(x, fnm))
     end
     return ps
 end
@@ -189,7 +203,7 @@ function Base.convert(::Type{Plot}, uip::UIPlot)
     if uip.ptype == "heatmap"
         pss = PlotSeries()
         pss.ptype = uip.ptype
-        pss.legend = uip.legends[1]
+        isempty(uip.legends) || (pss.legend = uip.legends[1])
         pss.x = eltype(uip.x) <: String ? Cdouble[] : uip.x
         pss.y = isempty(uip.y) ? [] : uip.y[1]
         pss.z = uip.z
@@ -201,7 +215,7 @@ function Base.convert(::Type{Plot}, uip::UIPlot)
         for i in eachindex(uip.y)
             pss = PlotSeries()
             pss.ptype = uip.ptype
-            pss.legend = uip.legends[i]
+            isempty(uip.legends) || (pss.legend = uip.legends[i])
             pss.x = eltype(uip.x) <: String ? Cdouble[] : copy(uip.x)
             pss.y = isempty(uip.y) ? [] : uip.y[i]
             pss.axis.xaxis.label = uip.xlabel
@@ -210,6 +224,22 @@ function Base.convert(::Type{Plot}, uip::UIPlot)
         end
     end
     return plt
+end
+
+function Base.convert(::Type{OrderedDict{Int32,AbstractNode}}, nodes::Vector{Pair{Int32,AbstractNode}})
+    dict = OrderedDict{Int32, AbstractNode}()
+    for (id, node) in nodes
+        push!(dict, id => node)
+    end
+    return dict
+end
+
+function Base.convert(::Type{OrderedDict{String,AbstractQuantity}}, qts::Vector{Pair{String,AbstractQuantity}})
+    dict = OrderedDict{String, AbstractQuantity}()
+    for (id, qt) in qts
+        push!(dict, id => qt)
+    end
+    return dict
 end
 
 SampleBaseNode = SampleHolderNode
@@ -235,6 +265,15 @@ for T in compattypes
     end)
 end
 
+function JLD2.rconvert(::Type{SampleHolderNode}, jld2obj::JLD2SampleBaseNode)
+    obj = SampleHolderNode()
+    fdnms = fieldnames(SampleHolderNode)
+    for fdnm in keys(jld2obj.fieldnames_dict)
+        fdnm in fdnms && setproperty!(obj, fdnm, convert(fieldtype(SampleHolderNode, fdnm), jld2obj.fieldnames_dict[fdnm]))
+    end
+    return obj
+end
+
 function JLD2.rconvert(::Type{DataPlot}, jld2obj::JLD2DataPlot)
     obj = DataPlot()
     fdnms = fieldnames(DataPlot)
@@ -258,17 +297,17 @@ function JLD2.rconvert(::Type{DataPicker}, jld2obj::JLD2DataPicker)
         for i in eachindex(jld2obj.fieldnames_dict[:y])
             jld2obj.fieldnames_dict[:y][i] || continue
             dtss = DataSeries()
-            dtss.ptype = jld2obj.fieldnames_dict[:ptype]
-            dtss.x = jld2obj.fieldnames_dict[:x]
+            haskey(jld2obj.fieldnames_dict, :ptype) && (dtss.ptype = jld2obj.fieldnames_dict[:ptype])
+            haskey(jld2obj.fieldnames_dict, :x) && (dtss.x = jld2obj.fieldnames_dict[:x])
             dtss.y = dtpk.datalist[i]
-            dtss.z = jld2obj.fieldnames_dict[:z]
+            haskey(jld2obj.fieldnames_dict, :z) && (dtss.z = jld2obj.fieldnames_dict[:z])
             true in jld2obj.fieldnames_dict[:w] && (dtss.w = dtpk.datalist[findfirst(jld2obj.fieldnames_dict[:w])])
-            dtss.aux = jld2obj.fieldnames_dict[:aux]
-            dtss.xtype = jld2obj.fieldnames_dict[:xtype]
-            dtss.zsize = jld2obj.fieldnames_dict[:zsize]
-            dtss.vflipz = jld2obj.fieldnames_dict[:vflipz]
-            dtss.hflipz = jld2obj.fieldnames_dict[:hflipz]
-            dtss.codes = jld2obj.fieldnames_dict[:codes]
+            true in jld2obj.fieldnames_dict[:aux] && (dtss.aux = dtpk.datalist[findfirst(jld2obj.fieldnames_dict[:aux])])
+            haskey(jld2obj.fieldnames_dict, :xtype) && (dtss.xtype = jld2obj.fieldnames_dict[:xtype])
+            haskey(jld2obj.fieldnames_dict, :zsize) && (dtss.zsize = jld2obj.fieldnames_dict[:zsize])
+            haskey(jld2obj.fieldnames_dict, :vflipz) && (dtss.vflipz = jld2obj.fieldnames_dict[:vflipz])
+            haskey(jld2obj.fieldnames_dict, :hflipz) && (dtss.hflipz = jld2obj.fieldnames_dict[:hflipz])
+            haskey(jld2obj.fieldnames_dict, :codes) && (dtss.codes = jld2obj.fieldnames_dict[:codes])
             push!(dtpk.series, dtss)
         end
     end

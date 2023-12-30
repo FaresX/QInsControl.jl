@@ -193,7 +193,7 @@ end
 
 function loaddtviewer!(dtviewer::DataViewer, path)
     if split(basename(path), '.')[end] in ["qdt", "cfg"]
-        dtviewer.data = @trypasse load(path) Dict()
+        dtviewer.data = @trypasse compatload(path) Dict()
         if haskey(dtviewer.data, "dataplot")
             dtviewer.dtp = dtviewer.data["dataplot"]
             haskey(dtviewer.data, "data") && update!(dtviewer.dtp, dtviewer.data["data"])
