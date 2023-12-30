@@ -320,7 +320,7 @@ function setupplotseries!(pss::PlotSeries, x::AbstractVector{Tx}, y) where {Tx<:
     pss.axis.xaxis.ticklabels = lx < ly ? append!(copy(x), fill("", ly - lx)) : x[1:ly]
 end
 function setupplotseries!(pss::PlotSeries, x::AbstractVector{Tx}, y) where {Tx<:Real}
-    pss.x, pss.y = trunc(x, y)
+    pss.x, pss.y = isempty(x) ? (1:length(y), y) : trunc(x, y)
 end
 function setupplotseries!(pss::PlotSeries, x::AbstractVector{Tx}, y, z) where {Tx<:Real}
     pss.z = z
