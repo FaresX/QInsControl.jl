@@ -366,7 +366,7 @@ function syncaxes(plt::Plot, pss::PlotSeries, dtss::DataSeries)
         mergeyaxes!(plt)
     end
     changez = pss.axis.zaxis.axis != dtss.zaxis || isempty(plt.zaxes)
-    changez |= !isempty(plt.zaxes) && pss.zlims != plt.zaxes[findfirst(za -> za.axis == pss.axis.zaxis.axis, plt.zaxes)].zlims
+    changez |= !isempty(plt.zaxes) && pss.axis.zaxis.lims != plt.zaxes[findfirst(za -> za.axis == pss.axis.zaxis.axis, plt.zaxes)].lims
     if pss.ptype == "heatmap" && changez
         pss.axis.zaxis.axis = dtss.zaxis
         mergezaxes!(plt)
