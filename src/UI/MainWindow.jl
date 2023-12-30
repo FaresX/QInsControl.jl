@@ -28,6 +28,7 @@ let
     no_docking::Bool = true
 
     dtviewers = Tuple{DataViewer,FolderFileTree,Dict{String,Bool}}[]
+    dataformatters = DataFormatter[]
     instrwidgets = Dict{String,Dict{String,Tuple{Ref{Bool},InstrWidget}}}()
 
     window_flags::Cint = 0
@@ -59,7 +60,10 @@ let
         for dtv in dtviewers
             dtv[1].p_open = false
         end
-        for (_, inses) in filter(x->!isempty(x.second), INSTRBUFFERVIEWERS)
+        for dft in dataformatters
+            dft.p_open = false
+        end
+        for (_, inses) in filter(x -> !isempty(x.second), INSTRBUFFERVIEWERS)
             for (_, ibv) in inses
                 ibv.p_open = false
             end
@@ -99,12 +103,18 @@ let
         for (i, dtv) in enumerate(dtviewers)
             dtv[1].noclose || deleteat!(dtviewers, i)
         end
+        for (i, dft) in enumerate(dataformatters)
+            dft.p_open && edit(dft, i)
+        end
+        for (i, dft) in enumerate(dataformatters)
+            dft.noclose || deleteat!(dataformatters, i)
+        end
         show_preferences && @c Preferences(&show_preferences)
 
         show_instr_register && @c InstrRegister(&show_instr_register)
         show_cpu_monitor && @c CPUMonitor(&show_cpu_monitor)
         show_instr_buffer && @c ShowInstrBuffer(&show_instr_buffer)
-        for (_, inses) in filter(x->!isempty(x.second), INSTRBUFFERVIEWERS)
+        for (_, inses) in filter(x -> !isempty(x.second), INSTRBUFFERVIEWERS)
             for (addr, ibv) in inses
                 ibv.p_open && edit(ibv)
                 if haskey(instrwidgets, addr)
@@ -128,6 +138,7 @@ let
         ######主菜单######
         isopenfiles = false
         isopenfolder = false
+        isopenformatter = false
         # if CONF.Basic.hidewindow
         #     viewport = igGetMainViewport()
         #     CImGui.SetNextWindowPos((unsafe_load(viewport.WorkPos) .+ 6 ...,), CImGui.ImGuiCond_Appearing)
@@ -182,6 +193,23 @@ let
                                 end
                                 CImGui.EndPopup()
                             end
+                        end
+                        CImGui.PopID()
+                    end
+                    CImGui.EndMenu()
+                end
+                if CImGui.BeginMenu(stcstr(MORESTYLE.Icons.DataFormatter, " ", mlstr("Open Formatter")))
+                    isopenformatter = CImGui.MenuItem(stcstr(MORESTYLE.Icons.NewFile, " ", mlstr("New")))
+                    if !isempty(dataformatters)
+                        CImGui.Separator()
+                        CImGui.TextColored(MORESTYLE.Colors.HighlightText, mlstr("Opened"))
+                    end
+                    for (i, dft) in enumerate(dataformatters)
+                        CImGui.PushID(i)
+                        @c CImGui.MenuItem(stcstr(mlstr("Formatter"), " ", i), C_NULL, &dft.p_open)
+                        if CImGui.BeginPopupContextItem()
+                            CImGui.MenuItem(stcstr(MORESTYLE.Icons.CloseFile, " ", mlstr("Close"))) && (dft.noclose = false)
+                            CImGui.EndPopup()
                         end
                         CImGui.PopID()
                     end
@@ -288,7 +316,7 @@ let
                 @c CImGui.MenuItem(stcstr(MORESTYLE.Icons.Console, " ", mlstr("Console")), C_NULL, &show_console)
                 @c CImGui.MenuItem(stcstr(MORESTYLE.Icons.Metrics, " ", mlstr("Metrics")), C_NULL, &show_metrics)
                 @c CImGui.MenuItem(stcstr(MORESTYLE.Icons.Logger, " ", mlstr("Logger")), C_NULL, &show_logger)
-                                # @c CImGui.MenuItem(MORESTYLE.Icons.HelpPad * " 帮助板", C_NULL, &show_helppad)
+                # @c CImGui.MenuItem(MORESTYLE.Icons.HelpPad * " 帮助板", C_NULL, &show_helppad)
                 @c CImGui.MenuItem(stcstr(MORESTYLE.Icons.About, " ", mlstr("About")), C_NULL, &show_about)
                 CImGui.EndMenu()
             end
@@ -319,6 +347,9 @@ let
         if isopenfolder || (unsafe_load(CImGui.GetIO().KeyCtrl) && CImGui.IsKeyDown(ImGuiKey_K))
             root = pick_folder()
             isdir(root) && push!(dtviewers, (DataViewer(), FolderFileTree(root), Dict())) #true -> active
+        end
+        if isopenformatter
+            push!(dataformatters, DataFormatter())
         end
         if !isempty(ARGS)
             filepath = reencoding(ARGS[1], CONF.Basic.encoding)

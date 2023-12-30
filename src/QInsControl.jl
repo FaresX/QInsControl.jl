@@ -75,6 +75,7 @@ include("UI/DataPlot.jl")
 include("UI/UtilitiesForRenderer.jl")
 
 include("UI/DataViewer.jl")
+include("UI/DataFormatter.jl")
 include("UI/StyleEditor.jl")
 include("UI/Preferences.jl")
 include("UI/CPUMonitor.jl")

@@ -1460,12 +1460,16 @@ function view(bk::FeedbackBlock)
 end
 
 function view(blocks::Vector{AbstractBlock})
+    CImGui.PushStyleColor(CImGui.ImGuiCol_Border, MORESTYLE.Colors.NormalBlockBorder)
+    CImGui.PushStyleVar(CImGui.ImGuiStyleVar_ChildBorderSize, 1)
     for (i, bk) in enumerate(blocks)
         bk isa NullBlock && continue
         CImGui.PushID(i)
         view(bk)
         CImGui.PopID()
     end
+    CImGui.PopStyleVar()
+    CImGui.PopStyleColor()
 end
 
 ############show-------------------------------------------------------------------------------------------------------
