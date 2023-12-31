@@ -246,13 +246,13 @@ end
 
 let
     flags::Cint = 0
-    # flags |= CImGui.ImGuiTableFlags_Resizable
-    # flags |= CImGui.ImGuiTableFlags_Reorderable
-    # # flags |= CImGui.ImGuiTableFlags_Sortable
-    # flags |= CImGui.ImGuiTableFlags_Hideable
-    # # flags |= CImGui.ImGuiTableFlags_BordersOuter
-    # flags |= CImGui.ImGuiTableFlags_BordersInnerV
-    # flags |= CImGui.ImGuiTableFlags_RowBg
+    flags |= CImGui.ImGuiTableFlags_Resizable
+    flags |= CImGui.ImGuiTableFlags_Reorderable
+    # flags |= CImGui.ImGuiTableFlags_Sortable
+    flags |= CImGui.ImGuiTableFlags_Hideable
+    # flags |= CImGui.ImGuiTableFlags_BordersOuter
+    flags |= CImGui.ImGuiTableFlags_BordersInnerV
+    flags |= CImGui.ImGuiTableFlags_RowBg
     pagei::Dict = Dict()
     global function showdata(data, id)
         lmax = max_with_empty(length.(values(data)))
