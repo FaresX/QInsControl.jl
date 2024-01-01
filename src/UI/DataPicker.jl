@@ -283,7 +283,7 @@ let
             end
         )
         forcesync = pss.ptype != dtss.ptype
-        pss.ptype = dtss.ptype
+        forcesync && (pss.ptype = dtss.ptype)
         xbuf = dtss.xtype ? loaddata(datastr, datafloat, dtss.x) : haskey(datastr, dtss.x) ? copy(datastr[dtss.x]) : String[]
         ybuf = loaddata(datastr, datafloat, dtss.y)
         zbuf = pss.ptype == "heatmap" ? loaddata(datastr, datafloat, dtss.z) : Cdouble[]
