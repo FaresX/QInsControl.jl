@@ -157,7 +157,7 @@ function edit(dtviewer::DataViewer, path, id)
                 if haskey(dtviewer.data, "revision")
                     if CImGui.BeginPopupContextItem()
                         if CImGui.MenuItem(stcstr(MORESTYLE.Icons.SaveButton, " ", mlstr("Save")))
-                            saveqdt(dtviewer, filetree.selectedpath[])
+                            saveqdt(dtviewer, path)
                         end
                         CImGui.EndPopup()
                     end
