@@ -76,7 +76,7 @@ end
 function getvalU!(qt::AbstractQuantity)
     U, Us = @c getU(qt.utype, &qt.uindex)
     U == "" || (Uchange::Float64 = Us[1] isa Unitful.FreeUnits ? ustrip(Us[1], 1U) : 1.0)
-    qt.showval = U == "" ? qt.read : @trypass @sprintf("%g", string(parse(Float64, qt.read) / Uchange)) qt.read
+    qt.showval = U == "" ? qt.read : @trypass @sprintf("%g", parse(Float64, qt.read) / Uchange) qt.read
     qt.showU = string(U)
 end
 
@@ -86,12 +86,27 @@ function updatefront!(qt::SweepQuantity)
     qt.show_edit = string(content, "###for refresh")
 end
 
+function updateoptvalue!(qt::SetQuantity)
+    if qt.showU == ""
+        if qt.read in qt.optvalues
+            qt.optedidx = findfirst(==(qt.read), qt.optvalues)
+            qt.showval = string(qt.optkeys[qt.optedidx], " => ", qt.read)
+        end
+    else
+        floatread = tryparse(Float64, qt.read)
+        if !isnothing(floatread)
+            floatoptvalues = replace(tryparse.(Float64, qt.optvalues), nothing => NaN)
+            if true in Bool.(floatread .≈ floatoptvalues)
+                qt.optedidx = findfirst(floatread .≈ floatoptvalues)
+                qt.showval = string(qt.optkeys[qt.optedidx], " => ", qt.showval)
+            end
+        end
+    end
+end
+
 function updatefront!(qt::SetQuantity)
     getvalU!(qt)
-    if qt.showval in qt.optvalues
-        qt.optedidx = findfirst(==(qt.showval), qt.optvalues)
-        qt.showval = string(qt.optkeys[qt.optedidx], " => ", qt.optvalues[qt.optedidx])
-    end
+    updateoptvalue!(qt)
     content = string("\n", qt.alias, "\n \n", qt.showval, " ", qt.showU, "\n ") |> centermultiline
     qt.show_edit = string(content, "###for refresh")
 end
@@ -107,10 +122,7 @@ function updatefront!(qt::AbstractQuantity; show_edit=true)
         updatefront!(qt)
     else
         getvalU!(qt)
-        if qt isa SetQuantity && qt.showval in qt.optvalues
-            qt.optedidx = findfirst(==(qt.showval), qt.optvalues)
-            qt.showval = string(qt.optkeys[qt.optedidx], " => ", qt.optvalues[qt.optedidx])
-        end
+        qt isa SetQuantity && updateoptvalue!(qt)
         qt.show_view = string(qt.alias, "\n", qt.showval, " ", qt.showU) |> centermultiline
     end
 end
