@@ -27,7 +27,7 @@ let
     no_bring_to_front::Bool = false
     no_docking::Bool = true
 
-    dtviewers = Tuple{DataViewer,FolderFileTree,Dict{String,Bool}}[]
+    global dtviewers = Tuple{DataViewer,FolderFileTree,Dict{String,Bool}}[]
     dataformatters = DataFormatter[]
     instrwidgets = Dict{String,Dict{String,Tuple{Ref{Bool},InstrWidget}}}()
 
