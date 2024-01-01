@@ -364,7 +364,7 @@ function converttonew(rootpath)
         for file in files
             if split(file, '.')[end] == "qdt"
                 try
-                    data = load(joinpath(root, file))
+                    data = compatload(joinpath(root, file))
                     if !isempty(data)
                         dtpsaving = haskey(data, "dataplot") ? data["dataplot"] : DataPlot()
                         empty!(dtpsaving)

@@ -116,7 +116,6 @@ end
 
 function compatload(path)
     data = load(path)
-    @info keys(data)
     if haskey(data, "uiplots")
         uiplots = data["uiplots"]
         dtpks = data["datapickers"]
@@ -152,18 +151,35 @@ function compatload(path)
     end
     for key in keys(data)
         if occursin("instrbufferviewers", key)
-            for (_, inses) in data[key]
+            for (ins, inses) in data[key]
                 for (_, ibv) in inses
                     for (qtnm, qt) in ibv.insbuf.quantities
                         if qt isa InstrQuantity
                             fdnms = fieldnames(InstrQuantity)
-                            if qt.set != ""
+                            if (haskey(INSCONF, ins) && haskey(INSCONF[ins].quantities, qtnm) && INSCONF[ins].quantities[qtnm].type == "set") || qt.set != "" || !isempty(qt.optkeys) || !isempty(qt.optvalues)
                                 fdnmsset = fieldnames(SetQuantity)
                                 newqt = SetQuantity()
                                 for fdnm in fdnms
                                     fdnm in fdnmsset && setproperty!(newqt, fdnm, getproperty(qt, fdnm))
                                 end
-                            elseif qt.step != "" || qt.stop != ""
+                                if isempty(newqt.optkeys) && !isempty(newqt.optvalues)
+                                    if haskey(INSCONF, ins) && haskey(INSCONF[ins].quantities, qtnm) && INSCONF[ins].quantities[qtnm].type == "set"
+                                        qtcf = INSCONF[ins].quantities[qtnm]
+                                        lcf = length(qtcf.optkeys)
+                                        lqt = length(newqt.optvalues)
+                                        newqt.optkeys = if lcf == lqt
+                                            qtcf.optkeys
+                                        elseif lcf < lqt
+                                            vcat(qtcf.optkeys, "key " .* string.(lcf+1:lqt))
+                                        else
+                                            qtcf.optkeys[1:lqt]
+                                        end
+                                    else
+                                        append!(newqt.optkeys, "key " .* string.(1:length(newqt.optvalues)))
+                                    end
+                                    # @info newqt.optkeys
+                                end
+                            elseif (haskey(INSCONF, ins) && haskey(INSCONF[ins].quantities, qtnm) && INSCONF[ins].quantities[qtnm].type == "sweep") || qt.step != "" || qt.stop != ""
                                 fdnmssweep = fieldnames(SweepQuantity)
                                 newqt = SweepQuantity()
                                 for fdnm in fdnms
@@ -444,9 +460,30 @@ function Base.convert(::Type{AbstractBlock}, bk::JLD2.ReconstructedMutable{Symbo
     return newbk
 end
 
+function Base.convert(::Type{AbstractBlock}, bk::JLD2.ReconstructedMutable{Symbol("QInsControl.StrideCodeBlock"), (:head, :level, :blocks, :region), Tuple{String, Int64, Any, Any}})
+    newbk = StrideCodeBlock()
+    loadfields = JLD2.ReconstructedMutable{Symbol("QInsControl.StrideCodeBlock"), (:head, :level, :blocks, :region), Tuple{String, Int64, Any, Any}}.parameters[2]
+    newfields = fieldnames(StrideCodeBlock)
+    for fdnm in loadfields
+        fdnm == :head && (newbk.codes = bk.head)
+        fdnm in newfields && setproperty!(newbk, fdnm, convert(fieldtype(StrideCodeBlock, fdnm), getproperty(bk, fdnm)))
+    end
+    return newbk
+end
+
 function Base.convert(::Type{AbstractBlock}, bk::JLD2.ReconstructedMutable{Symbol("QInsControl.SweepBlock"),(:instrnm, :addr, :quantity, :step, :stop, :level, :blocks, :ui, :region),Tuple{String,String,String,String,String,Int64,Any,Int64,Any}})
     newbk = SweepBlock()
     loadfields = JLD2.ReconstructedMutable{Symbol("QInsControl.SweepBlock"),(:instrnm, :addr, :quantity, :step, :stop, :level, :blocks, :ui, :region),Tuple{String,String,String,String,String,Int64,Any,Int64,Any}}.parameters[2]
+    newfields = fieldnames(SweepBlock)
+    for fdnm in loadfields
+        fdnm in newfields && setproperty!(newbk, fdnm, convert(fieldtype(SweepBlock, fdnm), getproperty(bk, fdnm)))
+    end
+    return newbk
+end
+
+function Base.convert(::Type{AbstractBlock}, bk::JLD2.ReconstructedMutable{Symbol("QInsControl.SweepBlock"), (:instrnm, :addr, :quantity, :step, :stop, :level, :blocks, :ui, :delay, :region), Tuple{String, String, String, String, String, Int64, Any, Int64, Float32, Any}})
+    newbk = SweepBlock()
+    loadfields = JLD2.ReconstructedMutable{Symbol("QInsControl.SweepBlock"), (:instrnm, :addr, :quantity, :step, :stop, :level, :blocks, :ui, :delay, :region), Tuple{String, String, String, String, String, Int64, Any, Int64, Float32, Any}}.parameters[2]
     newfields = fieldnames(SweepBlock)
     for fdnm in loadfields
         fdnm in newfields && setproperty!(newbk, fdnm, convert(fieldtype(SweepBlock, fdnm), getproperty(bk, fdnm)))
@@ -474,6 +511,16 @@ function Base.convert(::Type{AbstractBlock}, bk::JLD2.ReconstructedMutable{Symbo
     return newbk
 end
 
+function Base.convert(::Type{AbstractBlock}, bk::JLD2.ReconstructedMutable{Symbol("QInsControl.ReadingBlock"), (:instrnm, :mark, :addr, :quantity, :index, :isasync, :isobserve, :region), Tuple{String, String, String, String, String, Bool, Bool, Any}})
+    newbk = ReadingBlock()
+    loadfields = JLD2.ReconstructedMutable{Symbol("QInsControl.ReadingBlock"), (:instrnm, :mark, :addr, :quantity, :index, :isasync, :isobserve, :region), Tuple{String, String, String, String, String, Bool, Bool, Any}}.parameters[2]
+    newfields = fieldnames(ReadingBlock)
+    for fdnm in loadfields
+        fdnm in newfields && setproperty!(newbk, fdnm, convert(fieldtype(ReadingBlock, fdnm), getproperty(bk, fdnm)))
+    end
+    return newbk
+end
+
 function Base.convert(::Type{InstrQuantity}, qt::JLD2.ReconstructedMutable{Symbol("QInsControl.InstrQuantity"),(:name, :alias, :step, :stop, :delay, :set, :read, :utype, :uindex, :type, :help),Tuple{String,String,String,String,Float32,String,String,String,Int64,Symbol,String}})
     newqt = InstrQuantity()
     loadfields = JLD2.ReconstructedMutable{Symbol("QInsControl.InstrQuantity"),(:name, :alias, :step, :stop, :delay, :set, :read, :utype, :uindex, :type, :help),Tuple{String,String,String,String,Float32,String,String,String,Int64,Symbol,String}}.parameters[2]
@@ -484,9 +531,19 @@ function Base.convert(::Type{InstrQuantity}, qt::JLD2.ReconstructedMutable{Symbo
     return newqt
 end
 
-function Base.convert(::Type{InstrBuffer}, ib::JLD2.ReconstructedMutable{Symbol("QInsControl.InstrBuffer"), (:instrnm, :qtindex, :quantities), Tuple{String, Dict{String, Int64}, Any}})
+function Base.convert(::Type{InstrQuantity}, qt:: JLD2.ReconstructedMutable{Symbol("QInsControl.InstrQuantity"), (:name, :alias, :step, :stop, :delay, :set, :read, :utype, :uindex, :type, :help, :isautorefresh), Tuple{String, String, String, String, Float32, String, String, String, Int64, Symbol, String, Bool}})
+    newqt = InstrQuantity()
+    loadfields =  JLD2.ReconstructedMutable{Symbol("QInsControl.InstrQuantity"), (:name, :alias, :step, :stop, :delay, :set, :read, :utype, :uindex, :type, :help, :isautorefresh), Tuple{String, String, String, String, Float32, String, String, String, Int64, Symbol, String, Bool}}.parameters[2]
+    newfields = fieldnames(InstrQuantity)
+    for fdnm in loadfields
+        fdnm in newfields && setproperty!(newqt, fdnm, convert(fieldtype(InstrQuantity, fdnm), getproperty(qt, fdnm)))
+    end
+    return newqt
+end
+
+function Base.convert(::Type{InstrBuffer}, ib::JLD2.ReconstructedMutable{Symbol("QInsControl.InstrBuffer"),(:instrnm, :qtindex, :quantities),Tuple{String,Dict{String,Int64},Any}})
     newib = InstrBuffer()
-    loadfields = JLD2.ReconstructedMutable{Symbol("QInsControl.InstrBuffer"), (:instrnm, :qtindex, :quantities), Tuple{String, Dict{String, Int64}, Any}}.parameters[2]
+    loadfields = JLD2.ReconstructedMutable{Symbol("QInsControl.InstrBuffer"),(:instrnm, :qtindex, :quantities),Tuple{String,Dict{String,Int64},Any}}.parameters[2]
     newfields = fieldnames(InstrBuffer)
     for fdnm in loadfields
         fdnm in newfields && setproperty!(newib, fdnm, convert(fieldtype(InstrBuffer, fdnm), getproperty(ib, fdnm)))
@@ -494,9 +551,19 @@ function Base.convert(::Type{InstrBuffer}, ib::JLD2.ReconstructedMutable{Symbol(
     return newib
 end
 
-function Base.convert(::Type{DAQTask}, task::JLD2.ReconstructedMutable{Symbol("QInsControl.DAQTask"), (:name, :explog, :blocks, :enable), Tuple{String, String, Any, Bool}})
+function Base.convert(::Type{InstrBuffer}, ib:: JLD2.ReconstructedMutable{Symbol("QInsControl.InstrBuffer"), (:instrnm, :qtindex, :quantities, :isautorefresh), Tuple{String, Dict{String, Int64}, Any, Bool}})
+    newib = InstrBuffer()
+    loadfields =  JLD2.ReconstructedMutable{Symbol("QInsControl.InstrBuffer"), (:instrnm, :qtindex, :quantities, :isautorefresh), Tuple{String, Dict{String, Int64}, Any, Bool}}.parameters[2]
+    newfields = fieldnames(InstrBuffer)
+    for fdnm in loadfields
+        fdnm in newfields && setproperty!(newib, fdnm, convert(fieldtype(InstrBuffer, fdnm), getproperty(ib, fdnm)))
+    end
+    return newib
+end
+
+function Base.convert(::Type{DAQTask}, task::JLD2.ReconstructedMutable{Symbol("QInsControl.DAQTask"),(:name, :explog, :blocks, :enable),Tuple{String,String,Any,Bool}})
     newtask = DAQTask()
-    loadfields = JLD2.ReconstructedMutable{Symbol("QInsControl.DAQTask"), (:name, :explog, :blocks, :enable), Tuple{String, String, Any, Bool}}.parameters[2]
+    loadfields = JLD2.ReconstructedMutable{Symbol("QInsControl.DAQTask"),(:name, :explog, :blocks, :enable),Tuple{String,String,Any,Bool}}.parameters[2]
     newfields = fieldnames(DAQTask)
     for fdnm in loadfields
         fdnm in newfields && setproperty!(newtask, fdnm, convert(fieldtype(DAQTask, fdnm), getproperty(task, fdnm)))
