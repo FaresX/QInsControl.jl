@@ -65,10 +65,12 @@ let
         get!(isrename, path, false)
         isrnm = isrename[path]
         CImGui.PushID(path)
+        CImGui.PushItemWidth(-1)
         @c(RenameSelectable(
             "##path", &isrnm, &file, filetree.selectedpath[] == path;
             fixedlabel=stcstr(MORESTYLE.Icons.OpenFile, " ")
         )) && (filetree.selectedpath[] = path)
+        CImGui.PopItemWidth()
         if file != "" && (isrename[path] && !isrnm)
             newpath = joinpath(dirname(path), file)
             if newpath != path

@@ -282,6 +282,7 @@ let
                 end
             end
         )
+        forcesync = pss.ptype != dtss.ptype
         pss.ptype = dtss.ptype
         xbuf = dtss.xtype ? loaddata(datastr, datafloat, dtss.x) : haskey(datastr, dtss.x) ? copy(datastr[dtss.x]) : String[]
         ybuf = loaddata(datastr, datafloat, dtss.y)
@@ -345,7 +346,7 @@ let
                     num=dtss.sampling ? min(dtss.samplingnum, CONF.Basic.samplingthreshold) : 0
                 )
             end
-            syncaxes(plt, pss, dtss)
+            syncaxes(plt, pss, dtss; force=forcesync)
             (dtss.isrealtime | quiet) || @info "[$(now())]" data_processing = prettify(innercodes)
         catch e
             (dtss.isrealtime | quiet) || @error "[$(now())]\n$(mlstr("processing data failed!!!"))" exception = e codes = prettify(ex)
@@ -355,13 +356,13 @@ let
     end
 end
 
-function syncaxes(plt::Plot, pss::PlotSeries, dtss::DataSeries)
+function syncaxes(plt::Plot, pss::PlotSeries, dtss::DataSeries; force=false)
     pss.legend = dtss.legend
-    if pss.axis.xaxis.axis + 1 != dtss.xaxis
+    if pss.axis.xaxis.axis + 1 != dtss.xaxis || force
         pss.axis.xaxis.axis = ImPlot.ImAxis_(dtss.xaxis - 1)
         mergexaxes!(plt)
     end
-    if pss.axis.yaxis.axis - 2 != dtss.yaxis
+    if pss.axis.yaxis.axis - 2 != dtss.yaxis || force
         pss.axis.yaxis.axis = ImPlot.ImAxis_(dtss.yaxis + 2)
         mergeyaxes!(plt)
     end
@@ -372,7 +373,7 @@ function syncaxes(plt::Plot, pss::PlotSeries, dtss::DataSeries)
         pss.axis.zaxis.lims = zlims
         changez |= pss.axis.zaxis.lims != plt.zaxes[findfirst(za -> za.axis == pss.axis.zaxis.axis, plt.zaxes)].lims
     end
-    if pss.ptype == "heatmap" && changez
+    if (pss.ptype == "heatmap" && changez) || force
         pss.axis.zaxis.axis = dtss.zaxis
         mergezaxes!(plt)
     end

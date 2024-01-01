@@ -2,35 +2,32 @@ Base.convert(::Type{OrderedDict{String,T}}, vec::Vector{T}) where {T} = OrderedD
 Base.convert(::Type{OrderedDict{Cint,AbstractNode}}, nodes::Vector{Node}) = OrderedDict(node.id => node for node in nodes)
 Base.convert(::Type{OrderedDict{Cint,AbstractNode}}, nodes::Type{OrderedDict{Cint,Node}}) = OrderedDict{Cint,AbstractNode}(node.id => node for node in nodes)
 
-mutable struct InstrQuantity <: AbstractQuantity
+@kwdef mutable struct InstrQuantity <: AbstractQuantity
     # back end
-    enable::Bool
-    name::String
-    alias::String
-    step::String
-    stop::String
-    delay::Cfloat
-    set::String
-    optkeys::Vector{String}
-    optvalues::Vector{String}
-    optedidx::Cint
-    read::String
-    utype::String
-    uindex::Int
-    type::Symbol
-    help::String
-    isautorefresh::Bool
-    issweeping::Bool
+    enable::Bool = true
+    name::String = ""
+    alias::String = ""
+    step::String = ""
+    stop::String = ""
+    delay::Cfloat = 0.1
+    set::String = ""
+    optkeys::Vector{String} = []
+    optvalues::Vector{String} = []
+    optedidx::Cint = 1
+    read::String = ""
+    utype::String = ""
+    uindex::Int = 1
+    type::Symbol = :set
+    help::String = ""
+    isautorefresh::Bool = false
+    issweeping::Bool = false
     # front end
-    show_edit::String
-    show_view::String
-    passfilter::Bool
+    showval::String = ""
+    showU::String = ""
+    show_edit::String = ""
+    show_view::String = ""
+    passfilter::Bool = false
 end
-
-InstrQuantity() = InstrQuantity(
-    true, "", "", "", "", Cfloat(0.1), "", [], [], 1, "", "", 1, :set, "", false, false,
-    "", "", true
-)
 
 mutable struct LogBlock <: AbstractBlock
     regmin::ImVec2
@@ -124,7 +121,11 @@ function combotodataplot(dtviewer::DataViewer)
     if "uiplots" in datakeys
         dtviewer.dtp.uiplots = @trypasse dtviewer.data["uiplots"] dtviewer.dtp.uiplots
         "datapickers" in datakeys && (dtviewer.dtp.dtpks = @trypasse dtviewer.data["datapickers"] dtviewer.dtp.dtpks)
-        "plotlayout" in datakeys && (dtviewer.dtp.layout = @trypasse dtviewer.data["plotlayout"] dtviewer.dtp.layout)
+        if "plotlayout" in datakeys
+            dtviewer.dtp.layout = @trypasse dtviewer.data["plotlayout"] dtviewer.dtp.layout
+        else
+
+        end
     else
         dtviewer.dtp = DataPlot()
     end
@@ -133,6 +134,7 @@ end
 
 function compatload(path)
     data = load(path)
+    @info keys(data)
     if haskey(data, "uiplots")
         uiplots = data["uiplots"]
         dtpks = data["datapickers"]
@@ -141,6 +143,38 @@ function compatload(path)
         delete!(data, "datapickers")
         delete!(data, "plotlayout")
         push!(data, "dataplot" => DataPlot(plots=uiplots, dtpks=dtpks, layout=layout))
+    end
+    for key in keys(data)
+        if occursin("instrbuffer", key)
+            instrbuffer = pop!(data, key)
+            instrbufferviewers = Dict{String,Dict{String,InstrBufferViewer}}()
+            for (ins, inses) in instrbuffer
+                push!(instrbufferviewers, ins => Dict{String,InstrBufferViewer}())
+                for (addr, insbuf) in inses
+                    # @info insbuf
+                    if insbuf isa InstrBuffer
+                        push!(instrbufferviewers[ins], addr => InstrBufferViewer(instrnm=ins, addr=addr, insbuf=insbuf))
+                    elseif insbuf isa InstrBufferViewer
+                        push!(instrbufferviewers[ins], addr => insbuf)
+                    end
+                end
+            end
+            if occursin("instrbufferviewers", key)
+                push!(data, key => instrbufferviewers)
+            else
+                push!(data, replace(key, "instrbuffer" => "instrbufferviewers") => instrbufferviewers)
+            end
+        end
+    end
+    if haskey(data, "daqtask")
+        task = pop!(data, "daqtask")
+        push!(data, "daqtask" => convert(DAQTask, task))
+    end
+    if !haskey(data, "circuit")
+        push!(data, "circuit" => NodeEditor())
+    end
+    if !haskey(data, "dataplot")
+        push!(data, "dataplot" => DataPlot())
     end
     return data
 end
@@ -227,7 +261,7 @@ function Base.convert(::Type{Plot}, uip::UIPlot)
 end
 
 function Base.convert(::Type{OrderedDict{Int32,AbstractNode}}, nodes::Vector{Pair{Int32,AbstractNode}})
-    dict = OrderedDict{Int32, AbstractNode}()
+    dict = OrderedDict{Int32,AbstractNode}()
     for (id, node) in nodes
         push!(dict, id => node)
     end
@@ -235,9 +269,17 @@ function Base.convert(::Type{OrderedDict{Int32,AbstractNode}}, nodes::Vector{Pai
 end
 
 function Base.convert(::Type{OrderedDict{String,AbstractQuantity}}, qts::Vector{Pair{String,AbstractQuantity}})
-    dict = OrderedDict{String, AbstractQuantity}()
+    dict = OrderedDict{String,AbstractQuantity}()
     for (id, qt) in qts
         push!(dict, id => qt)
+    end
+    return dict
+end
+
+function Base.convert(::Type{OrderedDict{String,AbstractQuantity}}, qts::Vector{InstrQuantity})
+    dict = OrderedDict{String,AbstractQuantity}()
+    for qt in qts
+        push!(dict, qt.name => qt)
     end
     return dict
 end
@@ -301,8 +343,8 @@ function JLD2.rconvert(::Type{DataPicker}, jld2obj::JLD2DataPicker)
             haskey(jld2obj.fieldnames_dict, :x) && (dtss.x = jld2obj.fieldnames_dict[:x])
             dtss.y = dtpk.datalist[i]
             haskey(jld2obj.fieldnames_dict, :z) && (dtss.z = jld2obj.fieldnames_dict[:z])
-            true in jld2obj.fieldnames_dict[:w] && (dtss.w = dtpk.datalist[findfirst(jld2obj.fieldnames_dict[:w])])
-            true in jld2obj.fieldnames_dict[:aux] && (dtss.aux = dtpk.datalist[findfirst(jld2obj.fieldnames_dict[:aux])])
+            haskey(jld2obj.fieldnames_dict, :w) && true in jld2obj.fieldnames_dict[:w] && (dtss.w = dtpk.datalist[findfirst(jld2obj.fieldnames_dict[:w])])
+            haskey(jld2obj.fieldnames_dict, :aux) && true in jld2obj.fieldnames_dict[:aux] && (dtss.aux = dtpk.datalist[findfirst(jld2obj.fieldnames_dict[:aux])])
             haskey(jld2obj.fieldnames_dict, :xtype) && (dtss.xtype = jld2obj.fieldnames_dict[:xtype])
             haskey(jld2obj.fieldnames_dict, :zsize) && (dtss.zsize = jld2obj.fieldnames_dict[:zsize])
             haskey(jld2obj.fieldnames_dict, :vflipz) && (dtss.vflipz = jld2obj.fieldnames_dict[:vflipz])
@@ -312,4 +354,117 @@ function JLD2.rconvert(::Type{DataPicker}, jld2obj::JLD2DataPicker)
         end
     end
     return dtpk
+end
+
+
+function JLD2.rconvert(::Type{Layout}, jld2obj::JLD2Layout)
+    obj = Layout()
+    fdnms = fieldnames(Layout)
+    for fdnm in keys(jld2obj.fieldnames_dict)
+        fdnm in fdnms && setproperty!(obj, fdnm, convert(fieldtype(Layout, fdnm), jld2obj.fieldnames_dict[fdnm]))
+    end
+    length(obj.marks) == length(obj.labels) || append!(obj.marks, fill("", length(obj.labels) - length(obj.marks)))
+    return obj
+end
+
+function JLD2.rconvert(::Type{StrideCodeBlock}, jld2obj::JLD2StrideCodeBlock)
+    obj = StrideCodeBlock()
+    fdnms = fieldnames(StrideCodeBlock)
+    for fdnm in keys(jld2obj.fieldnames_dict)
+        fdnm in fdnms && setproperty!(obj, fdnm, convert(fieldtype(StrideCodeBlock, fdnm), jld2obj.fieldnames_dict[fdnm]))
+    end
+    haskey(jld2obj.fieldnames_dict, :head) && (obj.codes = jld2obj.fieldnames_dict[:head])
+    return obj
+end
+
+function JLD2.rconvert(::Type{DAQTask}, jld2obj::JLD2StrideCodeBlock)
+    obj = StrideCodeBlock()
+    fdnms = fieldnames(StrideCodeBlock)
+    for fdnm in keys(jld2obj.fieldnames_dict)
+        fdnm in fdnms && setproperty!(obj, fdnm, convert(fieldtype(StrideCodeBlock, fdnm), jld2obj.fieldnames_dict[fdnm]))
+    end
+    haskey(jld2obj.fieldnames_dict, :head) && (obj.codes = jld2obj.fieldnames_dict[:head])
+    return obj
+end
+
+# function view(instrbufferviewers_local::Dict{String,Dict{String,InstrBuffer}})
+#     for (ins, inses) in filter(x -> !isempty(x.second), instrbufferviewers_local)
+#         ins == "Others" && continue
+#         for (addr, ib) in inses
+#             CImGui.TextColored(MORESTYLE.Colors.HighlightText, stcstr(ins, "：", addr))
+#             CImGui.PushID(addr)
+#             view(ib)
+#             CImGui.PopID()
+#         end
+#     end
+# end
+
+function Base.convert(::Type{AbstractBlock}, bk::JLD2.ReconstructedMutable{Symbol("QInsControl.CodeBlock"),(:codes, :region),Tuple{String,Any}})
+    newbk = CodeBlock()
+    loadfields = JLD2.ReconstructedMutable{Symbol("QInsControl.CodeBlock"),(:codes, :region),Tuple{String,Any}}.parameters[2]
+    newfields = fieldnames(CodeBlock)
+    for fdnm in loadfields
+        fdnm in newfields && setproperty!(newbk, fdnm, convert(fieldtype(CodeBlock, fdnm), getproperty(bk, fdnm)))
+    end
+    return newbk
+end
+
+function Base.convert(::Type{AbstractBlock}, bk::JLD2.ReconstructedMutable{Symbol("QInsControl.SweepBlock"),(:instrnm, :addr, :quantity, :step, :stop, :level, :blocks, :ui, :region),Tuple{String,String,String,String,String,Int64,Any,Int64,Any}})
+    newbk = SweepBlock()
+    loadfields = JLD2.ReconstructedMutable{Symbol("QInsControl.SweepBlock"),(:instrnm, :addr, :quantity, :step, :stop, :level, :blocks, :ui, :region),Tuple{String,String,String,String,String,Int64,Any,Int64,Any}}.parameters[2]
+    newfields = fieldnames(SweepBlock)
+    for fdnm in loadfields
+        fdnm in newfields && setproperty!(newbk, fdnm, convert(fieldtype(SweepBlock, fdnm), getproperty(bk, fdnm)))
+    end
+    return newbk
+end
+
+function Base.convert(::Type{AbstractBlock}, bk::JLD2.ReconstructedMutable{Symbol("QInsControl.SettingBlock"),(:instrnm, :addr, :quantity, :setvalue, :ui, :region),Tuple{String,String,String,String,Int64,Any}})
+    newbk = SettingBlock()
+    loadfields = JLD2.ReconstructedMutable{Symbol("QInsControl.SettingBlock"),(:instrnm, :addr, :quantity, :setvalue, :ui, :region),Tuple{String,String,String,String,Int64,Any}}.parameters[2]
+    newfields = fieldnames(SettingBlock)
+    for fdnm in loadfields
+        fdnm in newfields && setproperty!(newbk, fdnm, convert(fieldtype(SettingBlock, fdnm), getproperty(bk, fdnm)))
+    end
+    return newbk
+end
+
+function Base.convert(::Type{AbstractBlock}, bk::JLD2.ReconstructedMutable{Symbol("QInsControl.ReadingBlock"),(:instrnm, :mark, :addr, :quantity, :index, :isasync, :region),Tuple{String,String,String,String,String,Bool,Any}})
+    newbk = ReadingBlock()
+    loadfields = JLD2.ReconstructedMutable{Symbol("QInsControl.ReadingBlock"),(:instrnm, :mark, :addr, :quantity, :index, :isasync, :region),Tuple{String,String,String,String,String,Bool,Any}}.parameters[2]
+    newfields = fieldnames(ReadingBlock)
+    for fdnm in loadfields
+        fdnm in newfields && setproperty!(newbk, fdnm, convert(fieldtype(ReadingBlock, fdnm), getproperty(bk, fdnm)))
+    end
+    return newbk
+end
+
+function Base.convert(::Type{InstrQuantity}, qt::JLD2.ReconstructedMutable{Symbol("QInsControl.InstrQuantity"),(:name, :alias, :step, :stop, :delay, :set, :read, :utype, :uindex, :type, :help),Tuple{String,String,String,String,Float32,String,String,String,Int64,Symbol,String}})
+    newqt = InstrQuantity()
+    loadfields = JLD2.ReconstructedMutable{Symbol("QInsControl.InstrQuantity"),(:name, :alias, :step, :stop, :delay, :set, :read, :utype, :uindex, :type, :help),Tuple{String,String,String,String,Float32,String,String,String,Int64,Symbol,String}}.parameters[2]
+    newfields = fieldnames(InstrQuantity)
+    for fdnm in loadfields
+        fdnm in newfields && setproperty!(newqt, fdnm, convert(fieldtype(InstrQuantity, fdnm), getproperty(qt, fdnm)))
+    end
+    return newqt
+end
+
+function Base.convert(::Type{InstrBuffer}, ib::JLD2.ReconstructedMutable{Symbol("QInsControl.InstrBuffer"), (:instrnm, :qtindex, :quantities), Tuple{String, Dict{String, Int64}, Any}})
+    newib = InstrBuffer()
+    loadfields = JLD2.ReconstructedMutable{Symbol("QInsControl.InstrBuffer"), (:instrnm, :qtindex, :quantities), Tuple{String, Dict{String, Int64}, Any}}.parameters[2]
+    newfields = fieldnames(InstrBuffer)
+    for fdnm in loadfields
+        fdnm in newfields && setproperty!(newib, fdnm, convert(fieldtype(InstrBuffer, fdnm), getproperty(ib, fdnm)))
+    end
+    return newib
+end
+
+function Base.convert(::Type{DAQTask}, task::JLD2.ReconstructedMutable{Symbol("QInsControl.DAQTask"), (:name, :explog, :blocks, :enable), Tuple{String, String, Any, Bool}})
+    newtask = DAQTask()
+    loadfields = JLD2.ReconstructedMutable{Symbol("QInsControl.DAQTask"), (:name, :explog, :blocks, :enable), Tuple{String, String, Any, Bool}}.parameters[2]
+    newfields = fieldnames(DAQTask)
+    for fdnm in loadfields
+        fdnm in newfields && setproperty!(newtask, fdnm, convert(fieldtype(DAQTask, fdnm), getproperty(task, fdnm)))
+    end
+    return newtask
 end
