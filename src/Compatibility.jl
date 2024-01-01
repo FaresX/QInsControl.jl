@@ -29,108 +29,90 @@ Base.convert(::Type{OrderedDict{Cint,AbstractNode}}, nodes::Type{OrderedDict{Cin
     passfilter::Bool = false
 end
 
-mutable struct LogBlock <: AbstractBlock
-    regmin::ImVec2
-    regmax::ImVec2
-end
-LogBlock() = LogBlock((0, 0), (0, 0))
-
-mutable struct SaveBlock <: AbstractBlock
-    varname::String
-    mark::String
-    regmin::ImVec2
-    regmax::ImVec2
-end
-SaveBlock() = SaveBlock("", "", (0, 0), (0, 0))
-
-tocodes(::LogBlock) = :(remotecall_wait(eval, 1, :(log_instrbufferviewers())))
-
-function tocodes(bk::SaveBlock)
-    var = Symbol(bk.varname)
-    return if rstrip(bk.mark, ' ') == ""
-        :(put!(databuf_lc, ($(bk.varname), string($var))))
-    else
-        :(put!(databuf_lc, ($(bk.mark), string($var))))
-    end
+@kwdef mutable struct LogBlock <: AbstractBlock
+    regmin::ImVec2 = (0, 0)
+    regmax::ImVec2 = (0, 0)
 end
 
-function edit(bk::LogBlock)
-    CImGui.BeginChild("##LogBlock", (Float32(0), bkheight(bk)), true)
-    CImGui.TextColored(MORESTYLE.Colors.BlockIcons, MORESTYLE.Icons.LogBlock)
-    CImGui.SameLine()
-    CImGui.Button("LogBlock##", (-1, 0))
-    CImGui.EndChild()
+@kwdef mutable struct SaveBlock <: AbstractBlock
+    varname::String = ""
+    mark::String = ""
+    regmin::ImVec2 = (0, 0)
+    regmax::ImVec2 = (0, 0)
 end
 
-function edit(bk::SaveBlock)
-    CImGui.PushStyleVar(CImGui.ImGuiStyleVar_ItemSpacing, (Float32(2), unsafe_load(IMGUISTYLE.ItemSpacing.y)))
-    CImGui.BeginChild("##SaveBlock", (Float32(0), bkheight(bk)), true)
-    CImGui.TextColored(MORESTYLE.Colors.BlockIcons, MORESTYLE.Icons.SaveBlock)
-    CImGui.SameLine()
-    CImGui.PushItemWidth(CImGui.GetContentRegionAvailWidth() / 2)
-    @c InputTextWithHintRSZ("##SaveBlock mark", mlstr("mark"), &bk.mark)
-    CImGui.PopItemWidth()
-    CImGui.SameLine()
-    CImGui.PushItemWidth(-1)
-    @c InputTextWithHintRSZ("##SaveBlock var", mlstr("variable"), &bk.varname)
-    CImGui.PopItemWidth()
-    CImGui.EndChild()
-    CImGui.PopStyleVar()
-end
+# tocodes(::LogBlock) = :(remotecall_wait(eval, 1, :(log_instrbufferviewers())))
 
-function view(logbk::LogBlock)
-    CImGui.BeginChild("##LogBlock", (Float32(0), bkheight(logbk)), true)
-    CImGui.TextColored(MORESTYLE.Colors.BlockIcons, MORESTYLE.Icons.Console)
-    CImGui.SameLine()
-    CImGui.Button("LogBlock", (-1, 0))
-    CImGui.EndChild()
-end
+# function tocodes(bk::SaveBlock)
+#     var = Symbol(bk.varname)
+#     return if rstrip(bk.mark, ' ') == ""
+#         :(put!(databuf_lc, ($(bk.varname), string($var))))
+#     else
+#         :(put!(databuf_lc, ($(bk.mark), string($var))))
+#     end
+# end
 
-function view(bk::SaveBlock)
-    CImGui.BeginChild("##SaveBlock", (Float32(0), bkheight(bk)), true)
-    CImGui.TextColored(MORESTYLE.Colors.BlockIcons, MORESTYLE.Icons.SaveButton)
-    CImGui.SameLine()
-    CImGui.PushStyleVar(CImGui.ImGuiStyleVar_ButtonTextAlign, (0.0, 0.5))
-    CImGui.Button(stcstr(mlstr("mark"), ": ", bk.mark, "\t", mlstr("variable"), ": ", bk.varname), (-1, 0))
-    CImGui.PopStyleVar()
-    CImGui.EndChild()
-end
+# function edit(bk::LogBlock)
+#     CImGui.BeginChild("##LogBlock", (Float32(0), bkheight(bk)), true)
+#     CImGui.TextColored(MORESTYLE.Colors.BlockIcons, MORESTYLE.Icons.LogBlock)
+#     CImGui.SameLine()
+#     CImGui.Button("LogBlock##", (-1, 0))
+#     CImGui.EndChild()
+# end
 
-function Base.show(io::IO, bk::LogBlock)
-    str = """
-    LogBlock :
-        region min : $(bk.regmin)
-        region max : $(bk.regmax)
-    """
-    print(io, str)
-end
+# function edit(bk::SaveBlock)
+#     CImGui.PushStyleVar(CImGui.ImGuiStyleVar_ItemSpacing, (Float32(2), unsafe_load(IMGUISTYLE.ItemSpacing.y)))
+#     CImGui.BeginChild("##SaveBlock", (Float32(0), bkheight(bk)), true)
+#     CImGui.TextColored(MORESTYLE.Colors.BlockIcons, MORESTYLE.Icons.SaveBlock)
+#     CImGui.SameLine()
+#     CImGui.PushItemWidth(CImGui.GetContentRegionAvailWidth() / 2)
+#     @c InputTextWithHintRSZ("##SaveBlock mark", mlstr("mark"), &bk.mark)
+#     CImGui.PopItemWidth()
+#     CImGui.SameLine()
+#     CImGui.PushItemWidth(-1)
+#     @c InputTextWithHintRSZ("##SaveBlock var", mlstr("variable"), &bk.varname)
+#     CImGui.PopItemWidth()
+#     CImGui.EndChild()
+#     CImGui.PopStyleVar()
+# end
 
-function Base.show(io::IO, bk::SaveBlock)
-    str = """
-    SaveBlock :
-        region min : $(bk.regmin)
-        region max : $(bk.regmax)
-              mark : $(bk.mark)
-               var : $(bk.varname)
-    """
-    print(io, str)
-end
+# function view(logbk::LogBlock)
+#     CImGui.BeginChild("##LogBlock", (Float32(0), bkheight(logbk)), true)
+#     CImGui.TextColored(MORESTYLE.Colors.BlockIcons, MORESTYLE.Icons.Console)
+#     CImGui.SameLine()
+#     CImGui.Button("LogBlock", (-1, 0))
+#     CImGui.EndChild()
+# end
 
-function combotodataplot(dtviewer::DataViewer)
-    datakeys = keys(dtviewer.data)
-    if "uiplots" in datakeys
-        dtviewer.dtp.uiplots = @trypasse dtviewer.data["uiplots"] dtviewer.dtp.uiplots
-        "datapickers" in datakeys && (dtviewer.dtp.dtpks = @trypasse dtviewer.data["datapickers"] dtviewer.dtp.dtpks)
-        if "plotlayout" in datakeys
-            dtviewer.dtp.layout = @trypasse dtviewer.data["plotlayout"] dtviewer.dtp.layout
-        else
+# function view(bk::SaveBlock)
+#     CImGui.BeginChild("##SaveBlock", (Float32(0), bkheight(bk)), true)
+#     CImGui.TextColored(MORESTYLE.Colors.BlockIcons, MORESTYLE.Icons.SaveButton)
+#     CImGui.SameLine()
+#     CImGui.PushStyleVar(CImGui.ImGuiStyleVar_ButtonTextAlign, (0.0, 0.5))
+#     CImGui.Button(stcstr(mlstr("mark"), ": ", bk.mark, "\t", mlstr("variable"), ": ", bk.varname), (-1, 0))
+#     CImGui.PopStyleVar()
+#     CImGui.EndChild()
+# end
 
-        end
-    else
-        dtviewer.dtp = DataPlot()
-    end
-    return nothing
-end
+# function Base.show(io::IO, bk::LogBlock)
+#     str = """
+#     LogBlock :
+#         region min : $(bk.regmin)
+#         region max : $(bk.regmax)
+#     """
+#     print(io, str)
+# end
+
+# function Base.show(io::IO, bk::SaveBlock)
+#     str = """
+#     SaveBlock :
+#         region min : $(bk.regmin)
+#         region max : $(bk.regmax)
+#               mark : $(bk.mark)
+#                var : $(bk.varname)
+#     """
+#     print(io, str)
+# end
 
 function compatload(path)
     data = load(path)
@@ -161,13 +143,49 @@ function compatload(path)
             end
             if occursin("instrbufferviewers", key)
                 push!(data, key => instrbufferviewers)
+            elseif occursin("instrbufferviewer", key)
+                push!(data, replace(key, "instrbufferviewer" => "instrbufferviewers") => instrbufferviewers)
             else
                 push!(data, replace(key, "instrbuffer" => "instrbufferviewers") => instrbufferviewers)
             end
         end
     end
+    for key in keys(data)
+        if occursin("instrbufferviewers", key)
+            for (_, inses) in data[key]
+                for (_, ibv) in inses
+                    for (qtnm, qt) in ibv.insbuf.quantities
+                        if qt isa InstrQuantity
+                            fdnms = fieldnames(InstrQuantity)
+                            if qt.set != ""
+                                fdnmsset = fieldnames(SetQuantity)
+                                newqt = SetQuantity()
+                                for fdnm in fdnms
+                                    fdnm in fdnmsset && setproperty!(newqt, fdnm, getproperty(qt, fdnm))
+                                end
+                            elseif qt.step != "" || qt.stop != ""
+                                fdnmssweep = fieldnames(SweepQuantity)
+                                newqt = SweepQuantity()
+                                for fdnm in fdnms
+                                    fdnm in fdnmssweep && setproperty!(newqt, fdnm, getproperty(qt, fdnm))
+                                end
+                            else
+                                fdnmsread = fieldnames(ReadQuantity)
+                                newqt = ReadQuantity()
+                                for fdnm in fdnms
+                                    fdnm in fdnmsread && setproperty!(newqt, fdnm, getproperty(qt, fdnm))
+                                end
+                            end
+                            push!(ibv.insbuf.quantities, qtnm => newqt)
+                        end
+                    end
+                end
+            end
+        end
+    end
     if haskey(data, "daqtask")
         task = pop!(data, "daqtask")
+        convertbk!(task.blocks)
         push!(data, "daqtask" => convert(DAQTask, task))
     end
     if !haskey(data, "circuit")
@@ -177,6 +195,23 @@ function compatload(path)
         push!(data, "dataplot" => DataPlot())
     end
     return data
+end
+
+function convertbk!(bks::Vector{AbstractBlock})
+    for (i, bk) in enumerate(bks)
+        if bk isa LogBlock
+            bks[i] = CodeBlock(codes="@logblock")
+        elseif bk isa SaveBlock
+            codes = if bk.mark == ""
+                "@saveblock $(bk.varname)"
+            else
+                "@saveblock $(bk.mark) $(bk.varname)"
+            end
+            bks[i] = CodeBlock(codes=codes)
+        elseif bk isa StrideCodeBlock || bk isa SweepBlock
+            convertbk!(bk.blocks)
+        end
+    end
 end
 
 Base.@kwdef mutable struct PlotState
