@@ -13,6 +13,7 @@ end
 
 @kwdef mutable struct FormatCodes <: AbstractFormatData
     codes::AbstractString = ""
+    mode::AbstractString = "default"
 end
 
 @kwdef mutable struct DataFormatter
@@ -21,7 +22,9 @@ end
     p_open::Bool = true
 end
 
-const FORMATTERMODES = ["default"]
+const FORMATTERSINGLEMODES = ["default"]
+const FORMATTERGROUPMODES = ["default"]
+const FORMATTERCODEMODES = ["default"]
 
 function edit(fc::FormatCodes, _)
     lines = split(fc.codes, '\n')
@@ -34,6 +37,10 @@ function edit(fc::FormatCodes, _)
     CImGui.EndChild()
     rmin, rmax = CImGui.GetItemRectMin(), CImGui.GetItemRectMax()
     CImGui.SetCursorScreenPos(rmin.x, rmax.y)
+    CImGui.PushItemWidth(3CImGui.GetFontSize())
+    @c ComBoS("##mode", &fc.mode, FORMATTERCODEMODES, CImGui.ImGuiComboFlags_NoArrowButton)
+    CImGui.PopItemWidth()
+    CImGui.SameLine()
     CImGui.Button(mlstr("Codes"), (-1, 0))
 end
 
@@ -66,7 +73,7 @@ function edit(fd::FormatData, id)
     CImGui.PopItemWidth()
     CImGui.SameLine()
     CImGui.PushItemWidth(3ftsz)
-    @c ComBoS("##mode", &fd.mode, FORMATTERMODES, CImGui.ImGuiComboFlags_NoArrowButton)
+    @c ComBoS("##mode", &fd.mode, FORMATTERSINGLEMODES, CImGui.ImGuiComboFlags_NoArrowButton)
     CImGui.PopItemWidth()
     CImGui.PopStyleVar()
     CImGui.SameLine()
@@ -127,7 +134,7 @@ function edit(fdg::FormatDataGroup, id)
     CImGui.PopStyleVar()
     CImGui.SameLine()
     CImGui.PushItemWidth(3ftsz)
-    @c ComBoS("##mode", &fdg.mode, FORMATTERMODES, CImGui.ImGuiComboFlags_NoArrowButton)
+    @c ComBoS("##mode", &fdg.mode, FORMATTERGROUPMODES, CImGui.ImGuiComboFlags_NoArrowButton)
     CImGui.PopItemWidth()
     CImGui.SameLine()
     if CImGui.Button(mlstr("Data Group"), (-1, 0))
@@ -199,7 +206,7 @@ function edit(dft::DataFormatter, id)
 end
 
 function formatdata(fds::Vector{AbstractFormatData})
-    savepath = save_file(filterlist=".jl")
+    savepath = save_file(filterlist=".jmd;.jl")
     if savepath != ""
         open(savepath, "a+") do file
             for fd in fds
@@ -210,7 +217,8 @@ function formatdata(fds::Vector{AbstractFormatData})
         end
     end
 end
-formatdata(fc::FormatCodes) = fc.codes
+formatdata(fc::FormatCodes) = formatdata(fc, Val(Symbol(fc.mode)))
+formatdata(fc::FormatCodes, ::Val{:default}) = string(fc.codes, '\n')
 formatdata(fd::FormatData) = formatdata(fd, Val(Symbol(fd.mode)))
 formatdata(fdg::FormatDataGroup) = formatdata(fdg, Val(Symbol(fdg.mode)))
 function formatdata(fd::FormatData, ::Val{:default})
@@ -220,4 +228,12 @@ function formatdata(fdg::FormatDataGroup, ::Val{:default})
     ""
 end
 
-registermodes!(modes) = append!(FORMATTERMODES, modes)
+function registermodes!(modes, type=:single)
+    if type == :single
+        append!(FORMATTERSINGLEMODES, setdiff(Set(modes), Set(FORMATTERSINGLEMODES)))
+    elseif type == :group
+        append!(FORMATTERGROUPMODES, setdiff(Set(modes), Set(FORMATTERGROUPMODES)))
+    elseif type == :code
+        append!(FORMATTERCODEMODES, setdiff(Set(modes), Set(FORMATTERCODEMODES)))
+    end
+end
