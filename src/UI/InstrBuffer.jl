@@ -298,7 +298,7 @@ function testcmd(ins, addr, inputcmd::Ref{String}, readstr::Ref{String})
             CImGui.MenuItem(mlstr("clear")) && (inputcmd[] = "")
             CImGui.EndPopup()
         end
-        TextRect(stcstr(readstr[], "\n "))
+        TextRect(stcstr(readstr[], "\n "); size=(Cfloat(0), 4CImGui.GetFontSize()))
         CImGui.BeginChild("align buttons", (Float32(0), CImGui.GetFrameHeightWithSpacing()))
         CImGui.PushStyleVar(CImGui.ImGuiStyleVar_FrameRounding, 12)
         CImGui.Columns(3, C_NULL, false)
