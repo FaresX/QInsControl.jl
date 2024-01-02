@@ -15,6 +15,7 @@ import FileIO
 import ImageMagick
 using ImPlot
 using JLD2
+using JpegTurbo
 using MacroTools
 using NativeFileDialog
 using OrderedCollections
