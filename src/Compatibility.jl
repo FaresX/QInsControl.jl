@@ -358,6 +358,16 @@ for T in compattypes
     end)
 end
 
+function JLD2.rconvert(::Type{ImageRegion}, jld2obj::JLD2ImageRegion)
+    obj = ImageRegion()
+    fdnms = fieldnames(ImageRegion)
+    for fdnm in keys(jld2obj.fieldnames_dict)
+        fdnm == :image && jld2obj.fieldnames_dict[:image] isa Matrix && (obj.image = jpeg_encode(jld2obj.fieldnames_dict[:image]); continue)
+        fdnm in fdnms && setproperty!(obj, fdnm, convert(fieldtype(ImageRegion, fdnm), jld2obj.fieldnames_dict[fdnm]))
+    end
+    return obj
+end
+
 function JLD2.rconvert(::Type{SampleHolderNode}, jld2obj::JLD2SampleBaseNode)
     obj = SampleHolderNode()
     fdnms = fieldnames(SampleHolderNode)
