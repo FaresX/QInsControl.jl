@@ -92,7 +92,7 @@ end
     id::Int = 0
     posmin::ImVec2 = (0, 0)
     posmax::ImVec2 = (400, 400)
-    image::Matrix{T} where {T} = Matrix{RGBA}(undef, 0, 0)
+    image::Vector{UInt8} = []
     rszgrip::ResizeGrip = ResizeGrip()
     pins::Vector{ImagePin} = []
     pin_relds::Vector{ImVec2} = []
@@ -331,7 +331,7 @@ let
                         imgsize = size(img)
                         imgr.id = ImGui_ImplOpenGL3_CreateImageTexture(imgsize...)
                         ImGui_ImplOpenGL3_UpdateImageTexture(imgr.id, img, imgsize...)
-                        imgr.image = img
+                        imgr.image = jpeg_encode(img)
                     catch e
                         @error "[$(now())]\n$(mlstr("loading image failed!!!"))" exception = e
                     end

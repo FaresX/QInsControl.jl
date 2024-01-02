@@ -157,7 +157,7 @@ function edit(dtviewer::DataViewer, path, id)
                 if haskey(dtviewer.data, "revision")
                     if CImGui.BeginPopupContextItem()
                         if CImGui.MenuItem(stcstr(MORESTYLE.Icons.SaveButton, " ", mlstr("Save")))
-                            saveqdt(dtviewer, filetree.selectedpath[])
+                            saveqdt(dtviewer, path)
                         end
                         CImGui.EndPopup()
                     end
@@ -203,9 +203,10 @@ function loaddtviewer!(dtviewer::DataViewer, path)
                 for (_, node) in dtviewer.data["circuit"].nodes
                     if node isa SampleHolderNode
                         try
-                            imgsize = size(node.imgr.image)
+                            img = RGBA.(jpeg_decode(node.imgr.image))
+                            imgsize = size(img)
                             node.imgr.id = ImGui_ImplOpenGL3_CreateImageTexture(imgsize...)
-                            ImGui_ImplOpenGL3_UpdateImageTexture(node.imgr.id, node.imgr.image, imgsize...)
+                            ImGui_ImplOpenGL3_UpdateImageTexture(node.imgr.id, img, imgsize...)
                         catch e
                             @error "[$(now())]\n$(mlstr("loading image failed!!!"))" exception = e
                         end
@@ -216,9 +217,10 @@ function loaddtviewer!(dtviewer::DataViewer, path)
                 for (_, node) in dtviewer.data["revision"]["circuit"].nodes
                     if node isa SampleHolderNode
                         try
-                            imgsize = size(node.imgr.image)
+                            img = RGBA.(jpeg_decode(node.imgr.image))
+                            imgsize = size(img)
                             node.imgr.id = ImGui_ImplOpenGL3_CreateImageTexture(imgsize...)
-                            ImGui_ImplOpenGL3_UpdateImageTexture(node.imgr.id, node.imgr.image, imgsize...)
+                            ImGui_ImplOpenGL3_UpdateImageTexture(node.imgr.id, img, imgsize...)
                         catch e
                             @error "[$(now())]\n$(mlstr("loading image failed!!!"))" exception = e
                         end
