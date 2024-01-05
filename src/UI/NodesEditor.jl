@@ -400,7 +400,7 @@ function edit(node::SampleHolderNode)
     CImGui.EndGroup()
     imnodes_EndNode()
     for pin in node.imgr.pins
-        pin.linked = pin.link_idx in node.connected_ids .% 100 ? true : false
+        pin.linked = pin.link_idx in node.connected_ids .% 100
     end
 end
 
@@ -547,6 +547,10 @@ let
         )
         imnodes_EndNodeEditor()
         rszcd.limmaxsize = CImGui.GetItemRectSize()
+        rszcd.regmax = (
+            min(rszcd.regmin[1] + rszcd.limmaxsize[1], rszcd.regmax[1]),
+            min(rszcd.regmin[2] + rszcd.limmaxsize[2], rszcd.regmax[2])
+        )
         nodeeditor.selectednodesnum = imnodes_NumSelectedNodes()
         resize!(nodeeditor.selectednodes, nodeeditor.selectednodesnum)
         imnodes_GetSelectedNodes(nodeeditor.selectednodes)
@@ -581,20 +585,22 @@ let
                     end
                 end
             end
-            if CImGui.CollapsingHeader(mlstr("Basic Nodes"))
+            if CImGui.BeginMenu(mlstr("Basic Nodes"))
                 for nodetype in simplenodetypes
                     CImGui.MenuItem(
                         stcstr(getproperty(MORESTYLE.Icons, Symbol(nodetype, :Node)), " ", mlstr(nodetype))
                     ) && addnewnode(nodeeditor, Symbol(nodetype), CImGui.GetMousePosOnOpeningCurrentPopup(), Val(:simple))
                 end
+                CImGui.EndMenu()
             end
-            if CImGui.CollapsingHeader(mlstr("Instrument Nodes"))
+            if CImGui.BeginMenu(mlstr("Instrument Nodes"))
                 for ins in keys(INSCONF)
                     ins == "Others" && continue
                     if CImGui.MenuItem(stcstr(INSCONF[ins].conf.icon, " ", ins))
                         addnewnode(nodeeditor, ins, CImGui.GetMousePosOnOpeningCurrentPopup(), Val(:instrument))
                     end
                 end
+                CImGui.EndMenu()
             end
             CImGui.EndPopup()
         end
