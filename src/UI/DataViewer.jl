@@ -235,11 +235,9 @@ end
 
 function saveqdt(dtviewer::DataViewer, path)
     if !isempty(dtviewer.data)
-        dtpsaving = deepcopy(dtviewer.dtp)
-        empty!(dtpsaving)
         jldopen(path, "w") do file
             for key in keys(dtviewer.data)
-                key == "dataplot" && (file[key] = dtpsaving; continue)
+                key == "dataplot" && (file[key] = empty!(deepcopy(dtviewer.dtp)); continue)
                 file[key] = dtviewer.data[key]
             end
         end

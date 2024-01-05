@@ -82,12 +82,7 @@ let
                     move!(redolist[id])
                     daqtask.blocks = deepcopy(redolist[id][])
                 end
-                if CImGui.MenuItem(stcstr(MORESTYLE.Icons.Convert, " ", mlstr("Interpret")))
-                    codes = @trypasse quote
-                        $(tocodes.(daqtask.blocks)...)
-                    end |> prettify @error "[$(now())]\n$(mlstr("interpreting blocks failed!!!"))"
-                    isnothing(codes) || @info codes
-                end
+                CImGui.MenuItem(stcstr(MORESTYLE.Icons.Convert, " ", mlstr("Interpret"))) && interpret(daqtask.blocks)
                 CImGui.EndPopup()
             end
             if unsafe_load(CImGui.GetIO().KeyCtrl)
@@ -107,6 +102,13 @@ let
         CImGui.PopStyleColor()
         p_open[] &= (isfocus | daqtask.hold)
     end
+end
+
+function interpret(blocks::Vector{AbstractBlock})
+    codes = @trypasse quote
+        $(tocodes.(blocks)...)
+    end |> prettify @error "[$(now())]\n$(mlstr("interpreting blocks failed!!!"))"
+    return isnothing(codes) ? :nothing : (@info codes; codes)
 end
 
 function run(daqtask::DAQTask)

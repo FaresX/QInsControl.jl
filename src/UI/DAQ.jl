@@ -358,26 +358,26 @@ let
 
     global function loadproject()
         daqloadpath = pick_file(filterlist="daq;qdt")
+        loadproject(daqloadpath)
+    end
+
+    global function loadproject(daqloadpath)
         if isfile(daqloadpath)
             loaddaqproj = @trypasse load(daqloadpath) begin
                 @error mlstr("unsupported file!!!") filepath = daqloadpath
             end
             if !isnothing(loaddaqproj)
                 projpath = daqloadpath
-                if haskey(loaddaqproj, "daqtasks")
-                    empty!(daqtasks)
-                    for task in loaddaqproj["daqtasks"]
-                        push!(daqtasks, task)
-                    end
-                end
+                haskey(loaddaqproj, "daqtasks") && (empty!(daqtasks); append!(daqtasks, loaddaqproj["daqtasks"]))
                 if haskey(loaddaqproj, "circuit")
                     CIRCUIT = loaddaqproj["circuit"]
                     for (_, node) in CIRCUIT.nodes
                         if node isa SampleHolderNode
                             try
-                                imgsize = size(node.imgr.image)
+                                img = RGBA.(jpeg_decode(node.imgr.image))
+                                imgsize = size(img)
                                 node.imgr.id = ImGui_ImplOpenGL3_CreateImageTexture(imgsize...)
-                                ImGui_ImplOpenGL3_UpdateImageTexture(node.imgr.id, node.imgr.image, imgsize...)
+                                ImGui_ImplOpenGL3_UpdateImageTexture(node.imgr.id, img, imgsize...)
                             catch e
                                 @error "[$(now())]\n$(mlstr("loading image failed!!!"))" exception = e
                             end
@@ -406,4 +406,3 @@ function find_old_i(dir)
         OLDI = 0
     end
 end
-
