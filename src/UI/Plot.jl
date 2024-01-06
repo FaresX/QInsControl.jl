@@ -276,18 +276,22 @@ function Plot2D(plotfunc, pss::PlotSeries, plt::Plot)
     xl, xr = extrema(pss.x)
     plt.mspos = ImPlot.GetPlotMousePos()
     if plt.showtooltip && plt.hovered && xl <= plt.mspos.x <= xr
-        idx = argmin(abs.(pss.x .- plt.mspos.x))
-        xpos, ypos = pss.x[idx], pss.y[idx]
-        ppixel = ImPlot.PlotToPixels(xpos, ypos)
+        minx = pss.x[argmin(abs.(pss.x .- plt.mspos.x))]
+        idxes = findall(≈(minx), pss.x)
         mspospixel = CImGui.GetMousePos()
-        if sum(abs2.(mspospixel .- ppixel)) < abs2(unsafe_load(IMPLOTSTYLE.MarkerSize))
-            CImGui.BeginTooltip()
-            SeparatorTextColored(MORESTYLE.Colors.HighlightText, pss.legend)
-            CImGui.PushTextWrapPos(36CImGui.GetFontSize())
-            CImGui.Text(string("x : ", isempty(pss.axis.xaxis.ticklabels) ? xpos : pss.axis.xaxis.ticklabels[idx]))
-            CImGui.Text(string("y : ", ypos))
-            CImGui.PopTextWrapPos()
-            CImGui.EndTooltip()
+        d2s = [sum(abs2.(mspospixel .- ImPlot.PlotToPixels(pss.x[idx], pss.y[idx]))) for idx in idxes]
+        if !isempty(d2s)
+            mind2 = findmin(d2s)
+            idx = idxes[mind2[2]]
+            if mind2[1] < abs2(unsafe_load(IMPLOTSTYLE.MarkerSize))
+                CImGui.BeginTooltip()
+                SeparatorTextColored(MORESTYLE.Colors.HighlightText, pss.legend)
+                CImGui.PushTextWrapPos(36CImGui.GetFontSize())
+                CImGui.Text(string("x : ", isempty(pss.axis.xaxis.ticklabels) ? pss.x[idx] : pss.axis.xaxis.ticklabels[idx]))
+                CImGui.Text(string("y : ", pss.y[idx]))
+                CImGui.PopTextWrapPos()
+                CImGui.EndTooltip()
+            end
         end
     end
 end
