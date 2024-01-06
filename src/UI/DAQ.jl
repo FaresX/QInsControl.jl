@@ -67,7 +67,9 @@ let
                 (btwidth, 6ftsz)
             ) && (show_circuit_editor ⊻= true)
             CImGui.SameLine()
-            CImGui.Button(stcstr(MORESTYLE.Icons.Load, "##Load Project"), (btwidth, 6ftsz)) && loadproject()
+            CImGui.Button(
+                stcstr(MORESTYLE.Icons.Load, "##Load Project"), (btwidth, 6ftsz)
+            ) && loadproject(pick_file(filterlist="daq;qdt"))
             CImGui.Button(
                 stcstr(MORESTYLE.Icons.SaveButton, "##Save Project"),
                 (2btwidth + unsafe_load(IMGUISTYLE.ItemSpacing.x), 6ftsz)
@@ -284,7 +286,9 @@ let
                 end
                 CImGui.Separator()
                 CImGui.MenuItem(stcstr(MORESTYLE.Icons.SaveButton, " ", mlstr("Save Project"))) && saveproject()
-                CImGui.MenuItem(stcstr(MORESTYLE.Icons.Load, " ", mlstr("Load Project"))) && loadproject()
+                CImGui.MenuItem(
+                    stcstr(MORESTYLE.Icons.Load, " ", mlstr("Load Project"))
+                ) && loadproject(pick_file(filterlist="daq;qdt"))
                 CImGui.EndPopup()
             end
             if !CImGui.IsAnyItemHovered() && CImGui.IsWindowHovered(CImGui.ImGuiHoveredFlags_ChildWindows)
@@ -354,11 +358,6 @@ let
                 dataplot=empty!(deepcopy(DAQDATAPLOT))
             )
         end
-    end
-
-    global function loadproject()
-        daqloadpath = pick_file(filterlist="daq;qdt")
-        loadproject(daqloadpath)
     end
 
     global function loadproject(daqloadpath)

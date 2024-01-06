@@ -297,6 +297,8 @@ function Plot2D(plotfunc, pss::PlotSeries, plt::Plot)
 end
 Plot(pss::PlotSeries, plt::Plot, ::Val{:line}) = Plot2D(ImPlot.PlotLine, pss, plt)
 Plot(pss::PlotSeries, plt::Plot, ::Val{:scatter}) = Plot2D(ImPlot.PlotScatter, pss, plt)
+Plot(pss::PlotSeries, plt::Plot, ::Val{:stairs}) = Plot2D(ImPlot.PlotStairs, pss, plt)
+Plot(pss::PlotSeries, plt::Plot, ::Val{:stems}) = Plot2D(ImPlot.PlotStems, pss, plt)
 
 function Plot(pss::PlotSeries, plt::Plot, ::Val{:heatmap})
     ImPlot.PushColormap(pss.axis.zaxis.colormap)

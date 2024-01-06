@@ -100,7 +100,7 @@ let
 end
 
 let
-    ptypelist::Vector{String} = ["line", "scatter", "heatmap"]
+    ptypelist::Vector{String} = ["line", "scatter", "stairs", "stems", "heatmap"]
     global function edit(dtss::DataSeries, datalist)
         dtss.update = false
         availwidth = CImGui.GetContentRegionAvailWidth()
