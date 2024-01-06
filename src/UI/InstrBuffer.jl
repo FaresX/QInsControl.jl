@@ -61,6 +61,47 @@ end
     passfilter::Bool = true
 end
 
+function Base.show(io::IO, qt::SweepQuantity)
+    updatefront!(qt)
+    str = """
+    SweepQuantity :
+                name : $(qt.name)
+               alias : $(qt.alias)
+                step : $(qt.step)
+                stop : $(qt.stop)
+               delay : $(qt.delay)
+                read : $(qt.showval) $(qt.showU)
+        auto-refresh : $(qt.isautorefresh)
+            sweeping : $(qt.issweeping)
+    """
+    print(io, str)
+end
+
+function Base.show(io::IO, qt::SetQuantity)
+    updatefront!(qt)
+    str = """
+    SweepQuantity :
+                name : $(qt.name)
+               alias : $(qt.alias)
+                set : $(qt.set)
+                read : $(qt.showval) $(qt.showU)
+        auto-refresh : $(qt.isautorefresh)
+    """
+    print(io, str)
+end
+
+function Base.show(io::IO, qt::ReadQuantity)
+    updatefront!(qt)
+    str = """
+    SweepQuantity :
+                name : $(qt.name)
+               alias : $(qt.alias)
+                read : $(qt.showval) $(qt.showU)
+        auto-refresh : $(qt.isautorefresh)
+    """
+    print(io, str)
+end
+
 function quantity(name, qtcf::QuantityConf)
     return if qtcf.type == "sweep"
         SweepQuantity(name=name, alias=qtcf.alias, utype=qtcf.U, help=qtcf.help)
@@ -707,14 +748,37 @@ function view(insbuf::InstrBuffer)
     CImGui.EndChild()
 end
 
-function view(qt::AbstractQuantity)
+function view(qt::AbstractQuantity, size=(-1, 0))
     qt.show_view == "" && updatefront!(qt; show_edit=false)
     CImGui.PushStyleColor(
         CImGui.ImGuiCol_Button,
         qt.enable ? CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_Button) : MORESTYLE.Colors.LogError
     )
-    CImGui.Button(qt.show_view, (-1, 0)) && (qt.uindex += 1; updatefront!(qt; show_edit=false))
+    if CImGui.Button(qt.show_view, size)
+        _, Us = @c getU(qt.utype, &qt.uindex)
+        uindex = findfirst(==(qt.showU), string.(Us))
+        if !isnothing(uindex)
+            uindexo = qt.uindex
+            qt.uindex = uindex + 1
+            updatefront!(qt; show_edit=false)
+            qt.uindex = uindexo
+        end
+    end
     CImGui.PopStyleColor()
+    if CImGui.IsItemHovered() && !(qt isa ReadQuantity)
+        CImGui.BeginTooltip()
+        CImGui.PushTextWrapPos(CImGui.GetFontSize() * 36.0)
+        U, _ = @c getU(qt.utype, &qt.uindex)
+        if qt isa SweepQuantity
+            CImGui.Text(stcstr("step: ", qt.step, U))
+            CImGui.Text(stcstr("stop: ", qt.stop, U))
+            CImGui.Text(stcstr("delay: ", qt.delay, "s"))
+        elseif qt isa SetQuantity
+            CImGui.Text(stcstr("set: ", qt.set, U))
+        end
+        CImGui.PopTextWrapPos()
+        CImGui.EndTooltip()
+    end
 end
 
 function apply!(qt::SweepQuantity, instrnm, addr)
@@ -749,6 +813,8 @@ function apply!(qt::SweepQuantity, instrnm, addr)
         errormonitor(
             Threads.@spawn begin
                 qt.issweeping = true
+                @info "[$(now())]\nBefore sweeping" instrument = instrnm address = addr quantity = qt
+                SYNCSTATES[Int(IsDAQTaskRunning)] && (actionidx = logaction(qt, instrnm, addr))
                 ct = Controller(instrnm, addr)
                 sweep_c = Channel{Vector{String}}(CONF.DAQ.channel_size)
                 sweep_rc = RemoteChannel(() -> sweep_c)
@@ -803,6 +869,8 @@ function apply!(qt::SweepQuantity, instrnm, addr)
                 end
                 qt.issweeping = false
                 remotecall_wait(ctid -> delete!(SWEEPCTS, ctid), workers()[1], ct.id)
+                @info "[$(now())]\nAfter sweeping" instrument = instrnm address = addr quantity = qt
+                SYNCSTATES[Int(IsDAQTaskRunning)] && logaction(qt, instrnm, addr, actionidx)
             end
         )
     else
@@ -818,6 +886,8 @@ function apply!(qt::SetQuantity, instrnm, addr, byoptvalues=false)
     sv = (U == "" || byoptvalues) ? qt.set : @trypasse string(float(eval(Meta.parse(qt.set)) * Uchange)) qt.set
     sv = string(lstrip(rstrip(sv)))
     if (U == "" && sv != "") || !isnothing(tryparse(Float64, sv))
+        @info "[$(now())]\nBefore setting" instrument = instrnm address = addr quantity = qt
+        SYNCSTATES[Int(IsDAQTaskRunning)] && (actionidx = logaction(qt, instrnm, addr))
         fetchdata = wait_remotecall_fetch(workers()[1], instrnm, addr, sv) do instrnm, addr, sv
             ct = Controller(instrnm, addr)
             try
@@ -839,10 +909,89 @@ function apply!(qt::SetQuantity, instrnm, addr, byoptvalues=false)
             end
         end
         isnothing(fetchdata) || (qt.read = fetchdata; updatefront!(qt))
+        @info "[$(now())]\nAfter setting" instrument = instrnm address = addr quantity = qt
+        SYNCSTATES[Int(IsDAQTaskRunning)] && logaction(qt, instrnm, addr, actionidx)
     else
         @warn "[$(now())]\n$(mlstr("invalid input!"))"
     end
     return nothing
+end
+
+function logaction(qt::AbstractQuantity, instrnm, addr)
+    haskey(CFGBUF, "actions") || push!(CFGBUF, "actions" => Vector{Tuple{DateTime,String,String,AbstractQuantity}}[])
+    push!(CFGBUF["actions"], Tuple{DateTime,String,String,AbstractQuantity}[])
+    push!(CFGBUF["actions"][end], (now(), instrnm, addr, deepcopy(qt)))
+    return length(CFGBUF["actions"])
+end
+logaction(qt::AbstractQuantity, instrnm, addr, idx) = push!(CFGBUF["actions"][idx], (now(), instrnm, addr, deepcopy(qt)))
+
+function viewactions(actions::Vector{Vector{Tuple{DateTime,String,String,AbstractQuantity}}})
+    CImGui.BeginChild("viewactions")
+    CImGui.Columns(CONF.InsBuf.showcol, C_NULL, false)
+    for (i, action) in enumerate(actions)
+        CImGui.PushID(i)
+        viewactions(action)
+        CImGui.NextColumn()
+        CImGui.PopID()
+    end
+    CImGui.EndChild()
+end
+function viewactions(actions::Vector{Tuple{DateTime,String,String,AbstractQuantity}})
+    sz1 = CImGui.CalcTextSize(mlstr("B\ne\nf\no\nr\ne")).y
+    sz2 = CImGui.CalcTextSize(mlstr("A\nf\nt\ne\nr")).y
+    y = sz1 + sz2 + 4unsafe_load(IMGUISTYLE.FramePadding.y) + 2unsafe_load(IMGUISTYLE.WindowPadding.y) +
+        unsafe_load(IMGUISTYLE.ItemSpacing.y) + CImGui.GetFrameHeightWithSpacing()
+    CImGui.PushStyleColor(CImGui.ImGuiCol_Border, MORESTYLE.Colors.ItemBorder)
+    CImGui.PushStyleVar(CImGui.ImGuiStyleVar_ChildBorderSize, 1)
+    CImGui.BeginChild("action", (Cfloat(-1), y), true)
+    ColoredButton(
+        stcstr(actions[1][2], ": ", actions[1][3]);
+        size=(-1, 0), colbt=(0, 0, 0, 0), colbth=(0, 0, 0, 0), colbta=(0, 0, 0, 0)
+    )
+    if length(actions) == 1
+        CImGui.Button(mlstr("B\ne\nf\no\nr\ne"), (2CImGui.GetFontSize(), Cfloat(0)))
+        CImGui.SameLine()
+        viewaction(actions[1], sz1 + 2unsafe_load(IMGUISTYLE.FramePadding.y))
+        CImGui.Button(mlstr("A\nf\nt\ne\nr"), (2CImGui.GetFontSize(), Cfloat(0)))
+        CImGui.SameLine()
+        CImGui.Button(mlstr("Unrecorded"), (-1, -1))
+    elseif length(actions) == 2
+        CImGui.Button(mlstr("B\ne\nf\no\nr\ne"), (2CImGui.GetFontSize(), Cfloat(0)))
+        CImGui.SameLine()
+        viewaction(actions[1], sz1 + 2unsafe_load(IMGUISTYLE.FramePadding.y))
+        CImGui.Button(mlstr("A\nf\nt\ne\nr"), (2CImGui.GetFontSize(), Cfloat(0)))
+        CImGui.SameLine()
+        viewaction(actions[2], sz2 + 2unsafe_load(IMGUISTYLE.FramePadding.y))
+    end
+    CImGui.EndChild()
+    CImGui.PopStyleVar()
+    CImGui.PopStyleColor()
+end
+function viewaction(action::Tuple{DateTime,String,String,AbstractQuantity}, totalheight)
+    CImGui.BeginGroup()
+    CImGui.PushStyleVar(CImGui.ImGuiStyleVar_ItemSpacing, (0, 0))
+    CImGui.Button(string(action[1]), (Cfloat(-1), 2CImGui.GetFontSize()))
+    view(action[4], (Cfloat(-1), totalheight - CImGui.GetItemRectSize().y))
+    # qt = action[4]
+    # qt.show_view == "" && updatefront!(qt; show_edit=false)
+    # CImGui.Button(
+    #     qt.show_view, (Cfloat(-1), totalheight - CImGui.GetItemRectSize().y)
+    # ) && (qt.uindex += 1; updatefront!(qt; show_edit=false))
+    # if CImGui.IsItemHovered() && !(qt isa ReadQuantity)
+    #     CImGui.BeginTooltip()
+    #     CImGui.PushTextWrapPos(CImGui.GetFontSize() * 36.0)
+    #     if qt isa SweepQuantity
+    #         CImGui.Text(stcstr("step: ", qt.step))
+    #         CImGui.Text(stcstr("stop: ", qt.stop))
+    #         CImGui.Text(stcstr("delay: ", qt.delay))
+    #     elseif qt isa SetQuantity
+    #         CImGui.Text(stcstr("set: ", qt.set))
+    #     end
+    #     CImGui.PopTextWrapPos()
+    #     CImGui.EndTooltip()
+    # end
+    CImGui.PopStyleVar()
+    CImGui.EndGroup()
 end
 
 function resolvedisablelist(qt::AbstractQuantity, instrnm, addr)

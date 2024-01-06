@@ -82,6 +82,10 @@ function edit(dtviewer::DataViewer, path, id)
             end
             CImGui.EndTabItem()
         end
+        if CImGui.BeginTabItem(mlstr("Actions"))
+            haskey(dtviewer.data, "actions") ? viewactions(dtviewer.data["actions"]) : CImGui.Text(mlstr("No actions!"))
+            CImGui.EndTabItem()
+        end
         if CImGui.BeginTabItem(mlstr("Script"))
             if haskey(dtviewer.data, "daqtask")
                 CImGui.PushID(id)
