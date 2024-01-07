@@ -165,7 +165,7 @@ function update_state!(pin::ImagePin)
         pin.hovered_in && !pin.dragging_out && CImGui.IsMouseDown(2) && (pin.dragging_in = true)
     end
     if pin.dragging_out
-        CImGui.IsMouseClicked(0) ? (pin.dragging_out = false) : pin.radius = sqrt(sum(abs2.(mospos .- pin.pos)))
+        CImGui.IsMouseClicked(0) ? (pin.dragging_out = false) : pin.radius = min(sqrt(sum(abs2.(mospos .- pin.pos))), 100)
     else
         pin.hovered_out && !pin.dragging_in && CImGui.IsMouseClicked(0) && (pin.dragging_out = true)
     end
@@ -227,7 +227,7 @@ function draw(pin::ImagePin)
             pin.num_segments
         )
     end
-    ftsz = ceil(Int, 3pin.radius / 2)
+    ftsz = min(ceil(Int, 3pin.radius / 2), 60)
     l = lengthpr(stcstr(pin.link_idx))
     CImGui.AddText(
         drawlist,
