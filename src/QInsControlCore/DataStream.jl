@@ -211,7 +211,7 @@ function init!(cpu::Processor)
         cpu.resourcemanager[] = try
             ResourceManager()
         catch e
-            @error mlstr("creating resourcemanager failed!!!") exception = e
+            @error "creating resourcemanager failed!!!" exception = e
             1
         end
         for (addr, instr) in cpu.instrs
