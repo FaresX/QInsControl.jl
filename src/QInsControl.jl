@@ -162,7 +162,7 @@ start() = (get!(ENV, "QInsControlAssets", joinpath(Base.@__DIR__, "../Assets"));
 @compile_workload begin
     get!(ENV, "QInsControlAssets", joinpath(Base.@__DIR__, "../Assets"))
     global SYNCSTATES = SharedVector{Bool}(8)
-    loadconf()
+    loadconf(true)
     try
         UI(precompile=true) |> wait
     catch

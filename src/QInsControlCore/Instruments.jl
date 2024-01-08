@@ -130,7 +130,7 @@ function _query_(instr::Instruments.GenericInstrument, msg; delay=0, pollint=0.0
     Instruments.write(instr, msg)
     sleep(delay)
     t = @async Instruments.read(instr)
-    isok = timedwait(()->istaskdone(t), timeout; pollint=pollint)
+    isok = timedwait(() -> istaskdone(t), timeout; pollint=pollint)
     return isok == :ok ? fetch(t) : error(errormsg)
 end
 query(instr::GPIBInstr, msg::AbstractString) = _query_(instr.geninstr, msg; errormsg="$(instr.addr) time out")
@@ -141,7 +141,7 @@ function query(instr::TCPIPInstr, msg::AbstractString; delay=0, pollint=0.001, t
     println(instr.sock[], msg)
     sleep(delay)
     t = @async readline(instr.sock[])
-    isok = timedwait(()->istaskdone(t), timeout; pollint=pollint)
+    isok = timedwait(() -> istaskdone(t), timeout; pollint=pollint)
     return isok == :ok ? fetch(t) : error("$(instr.addr) time out")
 end
 query(::VirtualInstr, ::AbstractString; delay=0) = "query"
@@ -155,3 +155,11 @@ isconnected(instr::GPIBInstr) = instr.geninstr.connected
 isconnected(instr::SerialInstr) = instr.geninstr.connected
 isconnected(instr::TCPIPInstr) = instr.connected[]
 isconnected(::VirtualInstr) = true
+
+function find_visa()
+    BinDeps.@setup
+    visa = library_dependency("visa", aliases=["visa64", "VISA", "/Library/Frameworks/VISA.framework/VISA", "librsvisa"])
+    # librsvisa is the specific Rohde & Schwarz VISA library name
+    visa_path_found = BinDeps._find_library(visa)
+    return isempty(visa_path_found) ? "" : visa_path_found[1][end]
+end

@@ -109,8 +109,29 @@ let
                 end
                 CImGui.Text(" ")
                 
+                ### Communication ###
+                SeparatorTextColored(MORESTYLE.Colors.HighlightText, mlstr("Communication"))
+                visapath = CONF.Communication.visapath
+                inputvisapath = @c InputTextRSZ("##visa path", &visapath)
+                CImGui.SameLine()
+                selectvisapath = CImGui.Button(stcstr(MORESTYLE.Icons.SelectPath, "##visapath"))
+                CImGui.SameLine()
+                autovisapath = CImGui.Button(stcstr(MORESTYLE.Icons.InstrumentsManualRef, "##visapath"))
+                CImGui.SameLine()
+                CImGui.Text(mlstr("visa path"))
+                selectvisapath && (visapath = pick_file(abspath(visapath)))
+                autovisapath && (visapath = QInsControlCore.find_visa())
+                (inputvisapath || selectvisapath || autovisapath) && isvalidpath(visapath) && (CONF.Communication.visapath = visapath)
+                if isfile(CONF.Communication.visapath)
+                    QInsControlCore.Instruments.libvisa = CONF.Communication.visapath
+                    remotecall_wait(workers()[1], CONF.Communication.visapath) do visapath
+                        CONF.Communication.visapath = visapath
+                        QInsControlCore.Instruments.libvisa = visapath
+                    end
+                end
+                CImGui.Text(" ")
 
-                ###DtViewer###
+                ### DtViewer ###
                 SeparatorTextColored(MORESTYLE.Colors.HighlightText, mlstr("Data Viewer"))
                 @c CImGui.DragInt(
                     mlstr("data amount per page"),
@@ -120,7 +141,6 @@ let
                 )
                 CImGui.Text(" ")
                 
-
                 ###DAQ###
                 SeparatorTextColored(MORESTYLE.Colors.HighlightText, "DAQ")
                 # @c CImGui.Checkbox(mlstr("screenshot save"), &CONF.DAQ.saveimg)
@@ -198,27 +218,35 @@ let
                 ###Fonts###
                 SeparatorTextColored(MORESTYLE.Colors.HighlightText, mlstr("Font"))
                 fontdir = CONF.Fonts.dir
-                inputfontdir = @c InputTextRSZ(stcstr(mlstr("path"), "##Fonts"), &fontdir)
+                inputfontdir = @c InputTextRSZ("##Fonts", &fontdir)
                 CImGui.SameLine()
                 selectfontdir = CImGui.Button(stcstr(MORESTYLE.Icons.SelectPath, "##Fonts-dir"))
+                CImGui.SameLine()
+                CImGui.Text(mlstr("path"))
                 selectfontdir && (fontdir = pick_folder(abspath(fontdir)))
                 (inputfontdir || selectfontdir) && isvalidpath(fontdir; file=false) && (CONF.Fonts.dir = fontdir)
                 ft1 = CONF.Fonts.first
-                inputft1 = @c InputTextRSZ(stcstr(mlstr("font"), "1"), &ft1)
+                inputft1 = @c InputTextRSZ("##font1", &ft1)
                 CImGui.SameLine()
                 selectft1 = CImGui.Button(stcstr(MORESTYLE.Icons.SelectPath, "##Fonts-first"))
+                CImGui.SameLine()
+                CImGui.Text(stcstr(mlstr("font"), " ", 1))
                 selectft1 && (ft1 = basename(pick_file(joinpath(abspath(fontdir), ft1); filterlist="ttf,ttc,otf")))
                 (inputft1 || selectft1) && isvalidpath(joinpath(fontdir, ft1)) && (CONF.Fonts.first = ft1)
                 ft2 = CONF.Fonts.second
-                inputft2 = @c InputTextRSZ(stcstr(mlstr("font"), "2"), &ft2)
+                inputft2 = @c InputTextRSZ("##font2", &ft2)
                 CImGui.SameLine()
                 selectft2 = CImGui.Button(stcstr(MORESTYLE.Icons.SelectPath, "##Fonts-second"))
+                CImGui.SameLine()
+                CImGui.Text(stcstr(mlstr("font"), " ", 2))
                 selectft2 && (ft2 = basename(pick_file(joinpath(abspath(fontdir), ft2); filterlist="ttf,ttc,otf")))
                 (inputft2 || selectft2) && isvalidpath(joinpath(fontdir, ft2)) && (CONF.Fonts.second = ft2)
                 ftp = CONF.Fonts.plotfont
-                inputftp = @c InputTextRSZ(stcstr(mlstr("plot font"), ""), &ftp)
+                inputftp = @c InputTextRSZ("##plotfont", &ftp)
                 CImGui.SameLine()
-                selectftp = CImGui.Button(stcstr(MORESTYLE.Icons.SelectPath, "##Fonts-second"))
+                selectftp = CImGui.Button(stcstr(MORESTYLE.Icons.SelectPath, "##Fonts-plot"))
+                CImGui.SameLine()
+                CImGui.Text(mlstr("plot font"))
                 selectftp && (ftp = basename(pick_file(joinpath(abspath(fontdir), ftp); filterlist="ttf,ttc,otf")))
                 (inputftp || selectftp) && isvalidpath(joinpath(fontdir, ftp)) && (CONF.Fonts.plotfont = ftp)
                 @c CImGui.DragInt(
@@ -236,9 +264,11 @@ let
                 ###Console###
                 SeparatorTextColored(MORESTYLE.Colors.HighlightText, mlstr("Console"))
                 iodir = CONF.Console.dir
-                inputiodir = @c InputTextRSZ(stcstr(mlstr("path"), "##Console"), &iodir)
+                inputiodir = @c InputTextRSZ("##Console", &iodir)
                 CImGui.SameLine()
                 selectiodir = CImGui.Button(stcstr(MORESTYLE.Icons.SelectPath, "##IO-dir"))
+                CImGui.SameLine()
+                CImGui.Text(mlstr("path"))
                 selectiodir && (iodir = pick_folder(abspath(iodir)))
                 (inputiodir || selectiodir) && isvalidpath(iodir; file=false) && (CONF.Console.dir = iodir)
                 @c CImGui.DragFloat(
@@ -265,9 +295,11 @@ let
                 ###Logs###
                 SeparatorTextColored(MORESTYLE.Colors.HighlightText, mlstr("Logger"))
                 logdir = CONF.Logs.dir
-                inputlogdir = @c InputTextRSZ(stcstr(mlstr("path"), "##Logs"), &logdir)
+                inputlogdir = @c InputTextRSZ("##Logs", &logdir)
                 CImGui.SameLine()
                 selectlogdir = CImGui.Button(stcstr(MORESTYLE.Icons.SelectPath, "##Logs-dir"))
+                CImGui.SameLine()
+                CImGui.Text(mlstr("path"))
                 selectlogdir && (logdir = pick_folder(abspath(logdir)))
                 (inputlogdir || selectlogdir) && isvalidpath(logdir; file=false) && (CONF.Logs.dir = logdir)
                 @c CImGui.DragFloat(

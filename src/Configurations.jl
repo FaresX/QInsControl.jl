@@ -14,6 +14,10 @@
     languages::Dict{String,String} = Dict()
 end
 
+@option mutable struct OptCommunication
+    visapath::String = ""
+end
+
 @option mutable struct OptDtViewer
     showdatarow::Cint = 10000
 end
@@ -83,6 +87,7 @@ end
 
 @option mutable struct Conf
     Basic::OptBasic = OptBasic()
+    Communication::OptCommunication = OptCommunication()
     DtViewer::OptDtViewer = OptDtViewer()
     DAQ::OptDAQ = OptDAQ()
     InsBuf::OptInsBuf = OptInsBuf()
