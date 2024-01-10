@@ -1,6 +1,7 @@
 let
     selectedpref::String = "General"
     ecds::Vector{String} = encodings()
+    datatypes::Vector{String} = ["String", "Float16", "Float32", "Float64"]
     global function Preferences(p_open::Ref)
         # CImGui.SetNextWindowPos((100, 100), CImGui.ImGuiCond_Once)
         CImGui.SetNextWindowSize((800, 600), CImGui.ImGuiCond_Once)
@@ -102,8 +103,6 @@ let
                 editor = CONF.Basic.editor
                 @c InputTextRSZ(mlstr("text editor"), &editor)
                 editor == "" || (CONF.Basic.editor = editor)
-                # global pick_fps
-                # @c CImGui.DragInt("拾取帧数", &pick_fps, 1.0, 1, 180, "%d", CImGui.ImGuiSliderFlags_AlwaysClamp)
                 if @c ComBoS(mlstr("language"), &CONF.Basic.language, keys(CONF.Basic.languages))
                     loadlanguage(CONF.Basic.languages[CONF.Basic.language])
                 end
@@ -143,7 +142,6 @@ let
                 
                 ###DAQ###
                 SeparatorTextColored(MORESTYLE.Colors.HighlightText, "DAQ")
-                # @c CImGui.Checkbox(mlstr("screenshot save"), &CONF.DAQ.saveimg)
                 @c CImGui.Checkbox(
                     CONF.DAQ.logall ? mlstr("log all quantities") : mlstr("log enabled quantities"),
                     &CONF.DAQ.logall
@@ -152,6 +150,7 @@ let
                     CONF.DAQ.equalstep ? mlstr("equal step sampling") : mlstr("fixed step sampling"),
                     &CONF.DAQ.equalstep
                 )
+                @c ComBoS(mlstr("stored data type"), &CONF.DAQ.savetype, datatypes)
                 @c CImGui.DragInt(
                     mlstr("saving time"),
                     &CONF.DAQ.savetime,
@@ -168,12 +167,6 @@ let
                     mlstr("packing size"),
                     &CONF.DAQ.packsize,
                     1.0, 6, 120, "%d",
-                    CImGui.ImGuiSliderFlags_AlwaysClamp
-                )
-                @c CImGui.DragInt(
-                    mlstr("plot columns"),
-                    &CONF.DAQ.plotshowcol,
-                    1.0, 1, 6, "%d",
                     CImGui.ImGuiSliderFlags_AlwaysClamp
                 )
                 @c CImGui.DragInt(

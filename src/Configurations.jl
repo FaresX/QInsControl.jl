@@ -23,14 +23,12 @@ end
 end
 
 @option mutable struct OptDAQ
-    saveimg::Bool = false
+    savetype::String = "String"
     logall::Bool = false
     equalstep::Bool = true
     savetime::Cint = 60
     channel_size::Cint = 512
     packsize::Cint = 6
-    plotshowcol::Cint = 2
-    pick_fps::Vector{Cint} = [3, 36]
     historylen::Cint = 120
     retrysendtimes::Cint = 3
     retryconnecttimes::Cint = 3

@@ -217,8 +217,18 @@ function run_remote(daqtask::DAQTask)
 end
 
 function saveqdt()
+    savetype = eval(Symbol(CONF.DAQ.savetype))
     jldopen(SAVEPATH, "w") do file
-        file["data"] = DATABUF
+        if savetype == String
+            file["data"] = DATABUF
+        else
+            datafloat = Dict()
+            for (key, val) in DATABUF
+                dataparsed = tryparse.(savetype, val)
+                push!(datafloat, key => true in isnothing.(dataparsed) ? val : dataparsed)
+            end
+            file["data"] = datafloat
+        end
         file["circuit"] = CIRCUIT
         file["dataplot"] = empty!(deepcopy(DAQDATAPLOT))
         for (key, val) in CFGBUF

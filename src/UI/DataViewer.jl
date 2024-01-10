@@ -198,6 +198,9 @@ end
 function loaddtviewer!(dtviewer::DataViewer, path)
     if split(basename(path), '.')[end] in ["qdt", "cfg"]
         dtviewer.data = @trypasse load(path) Dict()
+        if haskey(dtviewer.data, "data") && !(dtviewer.data["data"] isa Dict{String,Vector{String}})
+            push!(dtviewer.data, "data" => Dict(key => string.(val) for (key, val) in dtviewer.data["data"]))
+        end
         if haskey(dtviewer.data, "dataplot")
             dtviewer.dtp = dtviewer.data["dataplot"]
             haskey(dtviewer.data, "data") && update!(dtviewer.dtp, dtviewer.data["data"])
@@ -242,6 +245,19 @@ function saveqdt(dtviewer::DataViewer, path)
         jldopen(path, "w") do file
             for key in keys(dtviewer.data)
                 key == "dataplot" && (file[key] = empty!(deepcopy(dtviewer.dtp)); continue)
+                if key == "data"
+                    savetype = eval(Symbol(CONF.DAQ.savetype))
+                    if savetype == String
+                        file["data"] = dtviewer.data["data"]
+                    else
+                        datafloat = Dict()
+                        for (key, val) in dtviewer.data["data"]
+                            dataparsed = tryparse.(savetype, val)
+                            push!(datafloat, key => true in isnothing.(dataparsed) ? val : dataparsed)
+                        end
+                        file["data"] = datafloat
+                    end
+                end
                 file[key] = dtviewer.data[key]
             end
         end
