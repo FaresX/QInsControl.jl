@@ -349,7 +349,6 @@ let
                                     )
                                     widgetcolormenu(widget.options)
                                     CImGui.EndChild()
-                                    SeparatorTextColored(MORESTYLE.Colors.HighlightText, mlstr("Widgets"))
                                 end
                                 modify(widget)
                                 if !haskey(default_insbufs, selectedins)
