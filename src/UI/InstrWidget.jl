@@ -626,6 +626,7 @@ let
     windowpos::Bool = true # false left true right
     global function modify(insw::InstrWidget)
         openmodw = false
+        dragmode == "" && (dragmode = mlstr("swap"))
         CImGui.BeginChild(stcstr(insw.instrnm, insw.name), (0, 0), false, CImGui.ImGuiWindowFlags_HorizontalScrollbar)
         SeparatorTextColored(MORESTYLE.Colors.HighlightText, mlstr("Options"))
         @c CImGui.Checkbox(mlstr("Show Serial Numbers"), &showslnums)
