@@ -160,7 +160,7 @@ function update_state!(pin::ImagePin)
     pin.hovered_in = reld2 < pin.radius - pin.thickness
     pin.hovered_out = pin.radius - pin.thickness < reld2 < pin.radius + pin.thickness
     if pin.dragging_in
-        CImGui.IsMouseDragging(2) ? pin.pos = cutoff(mospos, pin.limmin, pin.limmax) : pin.dragging_in = false
+        CImGui.IsMouseDown(2) ? pin.pos = cutoff(mospos, pin.limmin, pin.limmax) : pin.dragging_in = false
     else
         pin.hovered_in && !pin.dragging_out && CImGui.IsMouseDown(2) && (pin.dragging_in = true)
     end
