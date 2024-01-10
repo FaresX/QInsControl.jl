@@ -217,27 +217,28 @@ function Base.getindex(v::Union{ImVec2,ImPlot.ImPlotPoint}, i)
 end
 Base.length(::Union{ImVec2,ImPlot.ImPlotPoint}) = 2
 
-function Base.getproperty(x::Ptr{LibCImGui.Style}, f::Symbol)
-    f === :grid_spacing && return Ptr{Cfloat}(x + 0)
-    f === :node_corner_rounding && return Ptr{Cfloat}(x + 4)
-    f === :node_padding_horizontal && return Ptr{Cfloat}(x + 8)
-    f === :node_padding_vertical && return Ptr{Cfloat}(x + 12)
-    f === :node_border_thickness && return Ptr{Cfloat}(x + 16)
-    f === :link_thickness && return Ptr{Cfloat}(x + 20)
-    f === :link_line_segments_per_length && return Ptr{Cfloat}(x + 24)
-    f === :link_hover_distance && return Ptr{Cfloat}(x + 28)
-    f === :pin_circle_radius && return Ptr{Cfloat}(x + 32)
-    f === :pin_quad_side_length && return Ptr{Cfloat}(x + 36)
-    f === :pin_triangle_side_length && return Ptr{Cfloat}(x + 40)
-    f === :pin_line_thickness && return Ptr{Cfloat}(x + 44)
-    f === :pin_hover_radius && return Ptr{Cfloat}(x + 48)
-    f === :pin_offset && return Ptr{Cfloat}(x + 52)
-    f === :flags && return Ptr{UInt32}(x + 56)
-    f === :colors && return Ptr{NTuple{16,Cuint}}(x + 60)
+function Base.getproperty(x::Ptr{LibCImGui.ImNodesStyle}, f::Symbol)
+    f === :GridSpacing && return Ptr{Cfloat}(x + 0)
+    f === :NodeCornerRounding && return Ptr{Cfloat}(x + 4)
+    f === :NodePadding && return Ptr{ImVec2}(x + 8)
+    f === :NodeBorderThickness && return Ptr{Cfloat}(x + 16)
+    f === :LinkThickness && return Ptr{Cfloat}(x + 20)
+    f === :LinkLineSegmentsPerLength && return Ptr{Cfloat}(x + 24)
+    f === :LinkHoverDistance && return Ptr{Cfloat}(x + 28)
+    f === :PinCircleRadius && return Ptr{Cfloat}(x + 32)
+    f === :PinQuadSideLength && return Ptr{Cfloat}(x + 36)
+    f === :PinTriangleSideLength && return Ptr{Cfloat}(x + 40)
+    f === :PinLineThickness && return Ptr{Cfloat}(x + 44)
+    f === :PinHoverRadius && return Ptr{Cfloat}(x + 48)
+    f === :PinOffset && return Ptr{Cfloat}(x + 52)
+    f === :MiniMapPadding && return Ptr{ImVec2}(x + 56)
+    f === :MiniMapOffset && return Ptr{ImVec2}(x + 64)
+    f === :Flags && return Ptr{UInt32}(x + 72)
+    f === :Colors && return Ptr{NTuple{29,Cuint}}(x + 76)
     return getfield(x, f)
 end
 
-Base.setproperty!(x::Ptr{LibCImGui.Style}, f::Symbol, v) = unsafe_store!(getproperty(x, f), v)
+Base.setproperty!(x::Ptr{LibCImGui.ImNodesStyle}, f::Symbol, v) = unsafe_store!(getproperty(x, f), v)
 
 function newtuple(t::Tuple, i, v)
     newt = []
@@ -260,26 +261,24 @@ function synccall_wait(f, ids, args...)
     end
 end
 
-function uniformz!(x, y, z)
-    zyl, zxl = size(z)
-    if length(y) == zyl
-        miny, maxy = extrema(y)
-        if miny != maxy
-            @views for j in axes(z, 2)
-                lineary = range(miny, maxy, length=zyl)
-                interp = LinearInterpolation(z[:, j], y; extrapolate=true)
-                z[:, j] = interp.(lineary)
-            end
+function uniformx!(x, z)
+    zxl = size(z, 2)
+    if length(x) == zxl
+        linearx = range(extrema(x)..., length=zxl)
+        @views for i in axes(z, 1)
+            interp = LinearInterpolation(z[i, :], x; extrapolate=true)
+            z[i, :] = interp.(linearx)
         end
     end
-    if length(x) == zxl
-        minx, maxx = extrema(x)
-        if minx != maxx
-            @views for i in axes(z, 1)
-                linearx = range(minx, maxx, length=zxl)
-                interp = LinearInterpolation(z[i, :], x; extrapolate=true)
-                z[i, :] = interp.(linearx)
-            end
+end
+
+function uniformy!(y, z)
+    zyl = size(z, 1)
+    if length(y) == zyl
+        lineary = range(extrema(y)..., length=zyl)
+        @views for j in axes(z, 2)
+            interp = LinearInterpolation(z[:, j], y; extrapolate=true)
+            z[:, j] = interp.(lineary)
         end
     end
 end
@@ -304,7 +303,7 @@ move!(lv::LoopVector, i=1) = (lv.index += i)
 
 function waittofetch(f, timeout=2; pollint=0.001)
     waittask = errormonitor(@async fetch(f))
-    isok = timedwait(()->istaskdone(waittask), timeout; pollint=pollint)
+    isok = timedwait(() -> istaskdone(waittask), timeout; pollint=pollint)
     isok == :ok && return fetch(waittask)
     return nothing
 end
@@ -312,7 +311,7 @@ end
 function wait_remotecall_fetch(f, id::Integer, args...; timeout=2, pollint=0.001, kwargs...)
     future = remotecall_fetch(f, id, args...; kwargs...)
     waittask = errormonitor(@async fetch(future))
-    isok = timedwait(()->istaskdone(waittask), timeout; pollint=pollint)
+    isok = timedwait(() -> istaskdone(waittask), timeout; pollint=pollint)
     isok == :ok && return fetch(waittask)
     return nothing
 end
@@ -349,4 +348,51 @@ function getU(utype, uidx::Ref{Int})
         uidx[] == 0 && (uidx[] = length(Us))
     end
     return Us[uidx[]], Us
+end
+
+function calcmaxwidth(labels, padding=0)
+    maxwidth = max([CImGui.CalcTextSize(label).x for label in labels]...) + padding
+    availwidth = CImGui.GetContentRegionAvailWidth()
+    itemspacing = unsafe_load(IMGUISTYLE.ItemSpacing)
+    cols = floor(Int, availwidth / (maxwidth + itemspacing.x))
+    cols == 0 && (cols = 1)
+    lb = length(labels)
+    labelwidth = cols > lb ? maxwidth : (availwidth - (cols - 1) * itemspacing.x) / cols
+    return cols, labelwidth
+end
+
+function imgsampling(x, y; num=100000)
+    if num > 1000
+        xl, yl = length(x), length(y)
+        xmin, xmax = extrema(x)
+        xinterp = xl == yl ? x : range(xmin, xmax, length=yl)
+        nx = range(xmin, xmax, length=num)
+        ny = LinearInterpolation(y, xinterp).(nx)
+        return nx, ny
+    else
+        return x, y
+    end
+end
+
+function imgsampling(x, y, z; num=100000)
+    if num > 1000
+        scale = √(num / length(z))
+        xl, yl = size(z)
+        nxl, nyl = round.(Int, (xl, yl) .* scale)
+        z_reducex = similar(z, nxl, yl)
+        linearx = range(extrema(x)..., length=nxl)
+        @views for i in axes(z, 2)
+            interp = LinearInterpolation(z[:, i], x; extrapolate=true)
+            z_reducex[:, i] = interp.(linearx)
+        end
+        nz = similar(z_reducex, nxl, nyl)
+        lineary = range(extrema(y)..., length=nyl)
+        @views for j in axes(z_reducex, 1)
+            interp = LinearInterpolation(z_reducex[j, :], y; extrapolate=true)
+            nz[j, :] = interp.(lineary)
+        end
+        return linearx, lineary, nz
+    else
+        return x, y, z
+    end
 end

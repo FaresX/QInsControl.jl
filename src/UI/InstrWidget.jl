@@ -591,36 +591,49 @@ let
     end
 end
 
-function modify(qtw::QuantityWidget, id, showslnums)
-    if qtw.name == "_SameLine_"
+function modify(qtw::QuantityWidget, id, showslnums, selectedqtw::Ref{Cint})
+    label = if qtw.name == "_SameLine_"
         CImGui.SameLine()
-        CImGui.Button(showslnums ? stcstr(id, " ", "Same\nLine") : "Same\nLine")
+        label = showslnums ? stcstr(id, " ", "Same\nLine") : "Same\nLine"
     elseif qtw.name == "_Panel_"
         if qtw.options.useimage
-            CImGui.Button(showslnums ? stcstr(id, " ", "Image\nButton") : "Image\nButton")
+            showslnums ? stcstr(id, " ", "Image\nButton") : "Image\nButton"
         else
-            CImGui.Button(stcstr(showslnums ? id : "", " Text", " \n ", mlstr(qtw.alias), "###", id))
+            stcstr(showslnums ? id : "", " Text", " \n ", mlstr(qtw.alias), "###", id)
         end
     elseif qtw.name == "_Image_"
-        CImGui.Button(showslnums ? stcstr(id, " Image\n ") : " Image\n ")
+        showslnums ? stcstr(id, " Image\n ") : " Image\n "
     elseif qtw.name == "_QuantitySelector_"
-        CImGui.Button(stcstr(showslnums ? stcstr(id, " ") : "", "Selector\n", join(qtw.options.bindingqtwidxes, ' '), "###", id))
+        stcstr(showslnums ? stcstr(id, " ") : "", "Selector\n", join(qtw.options.bindingqtwidxes, ' '), "###", id)
     else
-        CImGui.Button(stcstr(showslnums ? stcstr(id, " ") : "", qtw.alias, "\n", qtw.options.uitype))
+        stcstr(showslnums ? stcstr(id, " ") : "", qtw.alias, "\n", qtw.options.uitype)
     end
+    ispushstylecol = selectedqtw[] == id
+    ispushstylecol && CImGui.PushStyleColor(CImGui.ImGuiCol_Button, MORESTYLE.Colors.SelectedWidgetBt)
+    CImGui.Button(label) && (selectedqtw[] = selectedqtw[] == id ? 0 : id)
+    ispushstylecol && CImGui.PopStyleColor()
 end
 
 let
     copiedopts::Ref{QuantityWidgetOption} = QuantityWidgetOption()
     showslnums::Bool = false
+    dragmode::String = ""
+    dragmodes::Vector{String} = ["swap", "before", "after"]
+    selectedqtw::Cint = 0
+    acd::AnimateChild = AnimateChild(rate=(8, 12))
+    fakewidget::QuantityWidget = QuantityWidget()
+    maxwindowsize::CImGui.ImVec2 = (400, 600)
+    windowpos::Bool = true # false left true right
     global function modify(insw::InstrWidget)
-        insert_ij = ((0, 0), (:before, QuantityWidget()))
-        delete_ij = (0, 0)
-        split_ij = (0, 0)
-        swap_idx12 = (0, 0)
-        group_idx12 = (0, 0)
         openmodw = false
         CImGui.BeginChild(stcstr(insw.instrnm, insw.name), (0, 0), false, CImGui.ImGuiWindowFlags_HorizontalScrollbar)
+        SeparatorTextColored(MORESTYLE.Colors.HighlightText, mlstr("Options"))
+        @c CImGui.Checkbox(mlstr("Show Serial Numbers"), &showslnums)
+        CImGui.SameLine()
+        CImGui.PushItemWidth(6CImGui.GetFontSize())
+        @c ComBoS(mlstr("Dragging Mode"), &dragmode, mlstr.(dragmodes))
+        CImGui.PopItemWidth()
+        SeparatorTextColored(MORESTYLE.Colors.HighlightText, mlstr("Widgets"))
         for (i, qtwg) in enumerate(insw.qtws)
             CImGui.PushID(i)
             lqtwg = length(qtwg)
@@ -629,39 +642,55 @@ let
             CImGui.PushStyleColor(CImGui.ImGuiCol_Button, isodd(i) ? btcol : bthcol)
             CImGui.PushStyleColor(CImGui.ImGuiCol_ButtonHovered, isodd(i) ? bthcol : btcol)
             lqtwg == 1 && only(qtwg).name == "_SameLine_" && CImGui.SameLine()
+            isbreak = false
             CImGui.BeginGroup()
             for (j, qtw) in enumerate(qtwg)
                 CImGui.PushID(j)
                 j > 1 && qtwg[j-1].name == "_SameLine_" && CImGui.SameLine()
                 idx = sum(length.(@view(insw.qtws[1:i-1]))) + j
-                modify(qtw, idx, showslnums)
+                @c modify(qtw, idx, showslnums, &selectedqtw)
                 if CImGui.BeginPopupContextItem()
                     CImGui.PushID(idx)
-                    CImGui.Text(stcstr("QT", " ", idx))
+                    SeparatorTextColored(MORESTYLE.Colors.HighlightText, stcstr("QT", " ", idx))
                     if CImGui.MenuItem(stcstr(MORESTYLE.Icons.Copy, " ", mlstr("Copy Options")))
                         copiedopts[] = deepcopy(qtw.options)
                     end
                     if CImGui.MenuItem(stcstr(MORESTYLE.Icons.Paste, " ", mlstr("Paste Options")))
                         qtw.options = deepcopy(copiedopts[])
                     end
-                    newqtw = addmenu(insw; mode=:before)
-                    isnothing(newqtw) || isnothing(newqtw[2]) || (insert_ij = ((i, j), newqtw))
-                    newqtw = addmenu(insw; mode=:after)
-                    isnothing(newqtw) || isnothing(newqtw[2]) || (insert_ij = ((i, j), newqtw))
-                    newqtw = addmenu(insw; mode=:beforeg)
-                    isnothing(newqtw) || isnothing(newqtw[2]) || (insert_ij = ((i, j), newqtw))
-                    newqtw = addmenu(insw; mode=:afterg)
-                    isnothing(newqtw) || isnothing(newqtw[2]) || (insert_ij = ((i, j), newqtw))
+                    newqtw = addwidgetmenu(insw; mode=:before)
+                    isnothing(newqtw) || (insertwidget!(insw, newqtw, i, j, :before); isbreak = true; break)
+                    newqtw = addwidgetmenu(insw; mode=:after)
+                    isnothing(newqtw) || (insertwidget!(insw, newqtw, i, j, :after); isbreak = true; break)
+                    newqtw = addwidgetmenu(insw; mode=:beforeg)
+                    isnothing(newqtw) || (insertwidget!(insw, newqtw, i, j, :beforeg); isbreak = true; break)
+                    newqtw = addwidgetmenu(insw; mode=:afterg)
+                    isnothing(newqtw) || (insertwidget!(insw, newqtw, i, j, :afterg); isbreak = true; break)
                     convertmenu(insw, i, j)
-                    if CImGui.MenuItem(
-                        stcstr(MORESTYLE.Icons.InsertDown, " ", mlstr("Split Group")),
-                        C_NULL,
-                        false,
-                        lqtwg != 1
-                    )
-                        split_ij = (i, j)
+                    if CImGui.MenuItem(stcstr(MORESTYLE.Icons.InsertDown, " ", mlstr("Merge Group Before")), C_NULL, false, i > 1)
+                        append!(insw.qtws[i-1], insw.qtws[i])
+                        deleteat!(insw.qtws, i)
+                        isbreak = true
+                        break
                     end
-                    CImGui.MenuItem(stcstr(MORESTYLE.Icons.CloseFile, " ", mlstr("delete"))) && (delete_ij = (i, j))
+                    if CImGui.MenuItem(stcstr(MORESTYLE.Icons.InsertDown, " ", mlstr("Merge Group After")), C_NULL, false, i < length(insw.qtws))
+                        append!(insw.qtws[i], insw.qtws[i+1])
+                        deleteat!(insw.qtws, i + 1)
+                        isbreak = true
+                        break
+                    end
+                    if CImGui.MenuItem(
+                        stcstr(MORESTYLE.Icons.InsertDown, " ", mlstr("Split Group")), C_NULL, false, lqtwg != 1
+                    )
+                        splitwidget!(insw, i, j)
+                        isbreak = true
+                        break
+                    end
+                    if CImGui.MenuItem(stcstr(MORESTYLE.Icons.CloseFile, " ", mlstr("Delete")))
+                        deletewidget!(insw, i, j)
+                        isbreak = true
+                        break
+                    end
                     optionsmenu(qtw, insw.instrnm)
                     CImGui.PopID()
                     CImGui.EndPopup()
@@ -677,11 +706,20 @@ let
                     if payload != C_NULL && unsafe_load(payload).DataSize == sizeof(Cint)
                         payload_i = unsafe_load(Ptr{Cint}(unsafe_load(payload).Data))
                         if idx != payload_i
-                            if unsafe_load(CImGui.GetIO().KeyCtrl)
-                                group_idx12 = (payload_i, idx)
+                            dragmodesym = if dragmode == mlstr("before")
+                                :before
+                            elseif dragmode == mlstr("after")
+                                :after
                             else
-                                swap_idx12 = (payload_i, idx)
+                                :swap
                             end
+                            if unsafe_load(CImGui.GetIO().KeyCtrl)
+                                draggroup!(insw, payload_i, idx, Val(dragmodesym))
+                            else
+                                dragwidget!(insw, payload_i, idx, Val(dragmodesym))
+                            end
+                            isbreak = true
+                            break
                         end
                     end
                     CImGui.EndDragDropTarget()
@@ -693,8 +731,9 @@ let
                 CImGui.PopID()
             end
             CImGui.EndGroup()
-            lqtwg == 1 && only(qtwg).name == "_SameLine_" && CImGui.SameLine()
             CImGui.PopStyleColor(2)
+            isbreak && break
+            lqtwg == 1 && only(qtwg).name == "_SameLine_" && CImGui.SameLine()
             if i < length(insw.qtws)
                 if !((lqtwg == 1 && only(qtwg).name == "_SameLine_") ||
                      (length(insw.qtws[i+1]) == 1 && only(insw.qtws[i+1]).name == "_SameLine_"))
@@ -704,45 +743,45 @@ let
             CImGui.PopID()
         end
         CImGui.EndChild()
-
-        if insert_ij[1] != (0, 0)
-            if insert_ij[2][1] == :before
-                insert!(insw.qtws[insert_ij[1][1]], insert_ij[1][2], insert_ij[2][2])
-            elseif insert_ij[2][1] == :after
-                insert!(insw.qtws[insert_ij[1][1]], insert_ij[1][2] + 1, insert_ij[2][2])
-            elseif insert_ij[2][1] == :beforeg
-                insert!(insw.qtws, insert_ij[1][1], [insert_ij[2][2]])
-            elseif insert_ij[2][1] == :afterg
-                insert!(insw.qtws, insert_ij[1][1] + 1, [insert_ij[2][2]])
+        CImGui.IsItemClicked() && (selectedqtw = 0)
+        if windowpos
+            CImGui.SetCursorScreenPos(CImGui.GetItemRectMax() .- acd.presentsize)
+        else
+            rectmin = CImGui.GetItemRectMin()
+            rectmax = CImGui.GetItemRectMax()
+            CImGui.SetCursorScreenPos((rectmin.x, rectmax.y - acd.presentsize.y))
+        end
+        if all(acd.targetsize .== (4, 6)) && all(acd.presentsize .== (4, 6))
+            selectedqtw[] == 0 || (acd.targetsize = maxwindowsize)
+        else
+            mainwindowsz = CImGui.GetItemRectSize()
+            acd.targetsize = (2mainwindowsz.x / 5, 4mainwindowsz.y / 5)
+            acd.rate = acd.targetsize ./ 40
+            selectedqtw[] == 0 && (acd.targetsize = (4, 6))
+            CImGui.PushStyleColor(CImGui.ImGuiCol_ChildBg, CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_PopupBg))
+            changesize = false
+            acd("optionsmenu", true, 0) do
+                if windowpos
+                    CImGui.Button(ICONS.ICON_LEFT_LONG) && (windowpos = false; changesize = true)
+                    CImGui.SameLine()
+                end
+                SeparatorTextColored(MORESTYLE.Colors.HighlightText, stcstr("QT ", selectedqtw[]))
+                if !windowpos
+                    CImGui.SameLine(0, CImGui.GetFontSize())
+                    CImGui.Button(ICONS.ICON_RIGHT_LONG) && (windowpos = true; changesize = true)
+                end
+                CImGui.BeginChild("optionsmenu inside", (0, 0), false, CImGui.ImGuiWindowFlags_HorizontalScrollbar)
+                if selectedqtw[] == 0
+                    optionsmenu(fakewidget, "")
+                else
+                    i, j = idxtoij(insw, selectedqtw[])
+                    optionsmenu(insw.qtws[i][j], insw.instrnm)
+                    fakewidget = insw.qtws[i][j]
+                end
+                CImGui.EndChild()
             end
-        end
-        if delete_ij != (0, 0)
-            deleteat!(insw.qtws[delete_ij[1]], delete_ij[2])
-            isempty(insw.qtws[delete_ij[1]]) && deleteat!(insw.qtws, delete_ij[1])
-        end
-        if split_ij != (0, 0)
-            popqtwg = popat!(insw.qtws, split_ij[1])
-            insert!(insw.qtws, split_ij[1], popqtwg[1:split_ij[2]-1])
-            insert!(insw.qtws, split_ij[1] + 1, popqtwg[split_ij[2]:end])
-            isempty(insw.qtws[split_ij[1]]) && deleteat!(insw.qtws, split_ij[1])
-        end
-        if swap_idx12 != (0, 0)
-            spos = idxtoij(insw, swap_idx12[1])
-            tpos = idxtoij(insw, swap_idx12[2])
-            if !(isnothing(spos) | isnothing(tpos))
-                tqtw = insw.qtws[tpos[1]][tpos[2]]
-                insw.qtws[tpos[1]][tpos[2]] = insw.qtws[spos[1]][spos[2]]
-                insw.qtws[spos[1]][spos[2]] = tqtw
-            end
-        end
-        if group_idx12 != (0, 0)
-            spos = idxtoij(insw, group_idx12[1])
-            tpos = idxtoij(insw, group_idx12[2])
-            if !(isnothing(spos) | isnothing(tpos))
-                insert!(insw.qtws[tpos[1]], tpos[2], insw.qtws[spos[1]][spos[2]])
-                deleteat!(insw.qtws[spos[1]], spos[2])
-                isempty(insw.qtws[spos[1]]) && deleteat!(insw.qtws, spos[1])
-            end
+            changesize && (acd.presentsize = (4, 6))
+            CImGui.PopStyleColor()
         end
 
         openmodw && CImGui.OpenPopup(stcstr("modify widget", insw.instrnm, insw.name))
@@ -750,14 +789,103 @@ let
             CImGui.OpenPopupOnItemClick(stcstr("modify widget", insw.instrnm, insw.name))
         end
         if CImGui.BeginPopup(stcstr("modify widget", insw.instrnm, insw.name))
-            addmenu(insw)
-            @c CImGui.Checkbox(mlstr("Show Serial Numbers"), &showslnums)
+            addwidgetmenu(insw)
             CImGui.EndPopup()
         end
     end
 end
 
-function addmenu(insw::InstrWidget; mode=:addlastg)
+function insertwidget!(insw::InstrWidget, qtw::QuantityWidget, i, j, mode)
+    if mode == :before
+        insert!(insw.qtws[i], j, qtw)
+    elseif mode == :after
+        insert!(insw.qtws[i], j + 1, qtw)
+    elseif mode == :beforeg
+        insert!(insw.qtws, i, [qtw])
+    elseif mode == :afterg
+        insert!(insw.qtws, i + 1, [qtw])
+    end
+end
+
+function deletewidget!(insw::InstrWidget, i, j)
+    deleteat!(insw.qtws[i], j)
+    isempty(insw.qtws[i]) && deleteat!(insw.qtws, i)
+end
+
+function splitwidget!(insw::InstrWidget, i, j)
+    popqtwg = popat!(insw.qtws, i)
+    insert!(insw.qtws, i, popqtwg[1:j-1])
+    insert!(insw.qtws, i + 1, popqtwg[j:end])
+    isempty(insw.qtws[i]) && deleteat!(insw.qtws, i)
+end
+
+function dragwidget!(insw::InstrWidget, idx1, idx2, ::Val{:swap})
+    spos = idxtoij(insw, idx1)
+    tpos = idxtoij(insw, idx2)
+    if !(isnothing(spos) | isnothing(tpos))
+        tqtw = insw.qtws[tpos[1]][tpos[2]]
+        insw.qtws[tpos[1]][tpos[2]] = insw.qtws[spos[1]][spos[2]]
+        insw.qtws[spos[1]][spos[2]] = tqtw
+    end
+end
+
+function dragwidget!(insw::InstrWidget, idx1, idx2, ::Val{:before})
+    spos = idxtoij(insw, idx1)
+    tpos = idxtoij(insw, idx2)
+    if !(isnothing(spos) | isnothing(tpos))
+        insert!(insw.qtws[tpos[1]], tpos[2], insw.qtws[spos[1]][spos[2]])
+        if spos[1] == tpos[1]
+            deleteat!(insw.qtws[spos[1]], spos[2] < tpos[2] ? spos[2] : spos[2] + 1)
+        else
+            deleteat!(insw.qtws[spos[1]], spos[2])
+            isempty(insw.qtws[spos[1]]) && deleteat!(insw.qtws, spos[1])
+        end
+    end
+end
+
+function dragwidget!(insw::InstrWidget, idx1, idx2, ::Val{:after})
+    spos = idxtoij(insw, idx1)
+    tpos = idxtoij(insw, idx2)
+    if !(isnothing(spos) | isnothing(tpos))
+        insert!(insw.qtws[tpos[1]], tpos[2] + 1, insw.qtws[spos[1]][spos[2]])
+        if spos[1] == tpos[1]
+            deleteat!(insw.qtws[spos[1]], spos[2] < tpos[2] ? spos[2] : spos[2] + 1)
+        else
+            deleteat!(insw.qtws[spos[1]], spos[2])
+            isempty(insw.qtws[spos[1]]) && deleteat!(insw.qtws, spos[1])
+        end
+    end
+end
+
+function draggroup!(insw::InstrWidget, idx1, idx2, ::Val{:swap})
+    spos = idxtoij(insw, idx1)
+    tpos = idxtoij(insw, idx2)
+    if !(isnothing(spos) | isnothing(tpos)) && spos[1] != tpos[1]
+        tqtws = insw.qtws[tpos[1]]
+        insw.qtws[tpos[1]] = insw.qtws[spos[1]]
+        insw.qtws[spos[1]] = tqtws
+    end
+end
+
+function draggroup!(insw::InstrWidget, idx1, idx2, ::Val{:before})
+    spos = idxtoij(insw, idx1)
+    tpos = idxtoij(insw, idx2)
+    if !(isnothing(spos) | isnothing(tpos)) && spos[1] != tpos[1]
+        insert!(insw.qtws, tpos[1], insw.qtws[spos[1]])
+        deleteat!(insw.qtws, spos[1] < tpos[1] ? spos[1] : spos[1] + 1)
+    end
+end
+
+function draggroup!(insw::InstrWidget, idx1, idx2, ::Val{:after})
+    spos = idxtoij(insw, idx1)
+    tpos = idxtoij(insw, idx2)
+    if !(isnothing(spos) | isnothing(tpos)) && spos[1] != tpos[1]
+        insert!(insw.qtws, tpos[1] + 1, insw.qtws[spos[1]])
+        deleteat!(insw.qtws, spos[1] < tpos[1] ? spos[1] : spos[1] + 1)
+    end
+end
+
+function addwidgetmenu(insw::InstrWidget; mode=:addlastg)
     if CImGui.BeginMenu(
         stcstr(
             MORESTYLE.Icons.NewFile, " ",
@@ -834,7 +962,7 @@ function addmenu(insw::InstrWidget; mode=:addlastg)
             CImGui.EndMenu()
         end
         CImGui.EndMenu()
-        return mode, newqtw
+        return newqtw
     end
 end
 

@@ -2,6 +2,7 @@ module QInsControlCore
     using Instruments
     using Sockets
     using UUIDs
+    using BinDeps
 
     export Controller, Processor
     export login!, logout!, start!, stop!, reconnect!, find_resources, slow!, fast!

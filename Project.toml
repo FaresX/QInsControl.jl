@@ -4,6 +4,7 @@ authors = ["FaresX <fyzxst@sina.com> and contributors"]
 version = "0.1.0"
 
 [deps]
+BinDeps = "9e28174c-4ba2-5203-b857-d8d62c4213ee"
 CImGui = "5d785b6c-b76f-510e-a07c-3070796c7e87"
 ColorTypes = "3da002f7-5984-5a60-b8a6-cbb66c0b333f"
 Configurations = "5218b696-f38b-4ac9-8b61-a12ec717816d"
@@ -17,6 +18,7 @@ ImageMagick = "6218d12a-5da1-5696-b52f-db25d2ecc6d1"
 Instruments = "2c6aeda0-45f5-11e9-10ba-f7b3d6416888"
 InteractiveUtils = "b77e0a4c-d291-57a0-90e8-8db25a27a240"
 JLD2 = "033835bb-8acc-5ee8-8aae-3f567f8a3819"
+JpegTurbo = "b835a17e-a41a-41e7-81f0-2f016b05efe0"
 Logging = "56ddb016-857b-54e1-b83d-db4d58db5568"
 MacroTools = "1914dd2f-81c6-5fcd-8719-6d5c9610ff09"
 NativeFileDialog = "e1fe445b-aa65-4df4-81c1-2041507f0fd4"
@@ -31,11 +33,10 @@ UUIDs = "cf7118a7-6976-5b1a-9a39-7adc72f591a4"
 Unitful = "1986cc42-f94f-5a68-af5c-568840ba703d"
 
 [compat]
-CImGui = "~1.82"
+CImGui = "~1.89"
 ColorTypes = "0.11"
 Configurations = "0.17"
 FileIO = "1"
-ImPlot = "0.3"
 ImageIO = "0.6"
 ImageMagick = "1"
 Instruments = "0.2"

@@ -72,7 +72,7 @@ function Base.show(io::IO, cpu::Processor)
     for ct in values(cpu.controllers)
         print(io, "\t\t\tController\n")
         ct_strs = split(string(ct), '\n')[1:end-1]
-        print(io, string(join(fill("\t\t", 4).*ct_strs, "\n"), "\n\n"))
+        print(io, string(join(fill("\t\t", 4) .* ct_strs, "\n"), "\n\n"))
     end
     str2 = """
               tasks : 
@@ -81,7 +81,7 @@ function Base.show(io::IO, cpu::Processor)
     for (addr, state) in cpu.taskhandlers
         l = length(addr)
         if l < 26
-            print(io, string(" "^(26-length(addr)), addr, " : ", state))
+            print(io, string(" "^(26 - length(addr)), addr, " : ", state))
         else
             print(io, string(addr, " : ", state))
         end
@@ -142,7 +142,7 @@ function logout!(cpu::Processor, ct::Controller)
             try
                 wait(cpu.tasks[popinstr.addr])
             catch e
-                @error "an error occurs during logging out" exception=e
+                @error "an error occurs during logging out" exception = e
             end
             delete!(cpu.taskhandlers, popinstr.addr)
             delete!(cpu.tasks, popinstr.addr)
@@ -163,7 +163,7 @@ function (ct::Controller)(f::Function, cpu::Processor, val::String, ::Val{:write
     @assert cpu.running[] "Processor is not running"
     cmdid = uuid4()
     push!(cpu.cmdchannel, (ct.id, cmdid, f, val, Val(:write)))
-    isok = timedwait(()->haskey(ct.databuf, cmdid), timeout; pollint=pollint)
+    isok = timedwait(() -> haskey(ct.databuf, cmdid), timeout; pollint=pollint)
     return isok == :ok ? pop!(ct.databuf, cmdid) : error("timeout")
 end
 
@@ -172,7 +172,7 @@ function (ct::Controller)(f::Function, cpu::Processor, ::Val{:read}; timeout=6, 
     @assert cpu.running[] "Processor is not running"
     cmdid = uuid4()
     push!(cpu.cmdchannel, (ct.id, cmdid, f, "", Val(:read)))
-    isok = timedwait(()->haskey(ct.databuf, cmdid), timeout; pollint=pollint)
+    isok = timedwait(() -> haskey(ct.databuf, cmdid), timeout; pollint=pollint)
     return isok == :ok ? pop!(ct.databuf, cmdid) : error("timeout")
 end
 function (ct::Controller)(f::Function, cpu::Processor, val::String, ::Val{:query}; timeout=6, pollint=0.001)
@@ -180,7 +180,7 @@ function (ct::Controller)(f::Function, cpu::Processor, val::String, ::Val{:query
     @assert cpu.running[] "Processor is not running"
     cmdid = uuid4()
     push!(cpu.cmdchannel, (ct.id, cmdid, f, val, Val(:query)))
-    isok = timedwait(()->haskey(ct.databuf, cmdid), timeout; pollint=pollint)
+    isok = timedwait(() -> haskey(ct.databuf, cmdid), timeout; pollint=pollint)
     return isok == :ok ? pop!(ct.databuf, cmdid) : error("timeout")
 end
 
@@ -208,12 +208,17 @@ function init!(cpu::Processor)
         empty!(cpu.exechannels)
         empty!(cpu.tasks)
         empty!(cpu.taskhandlers)
-        cpu.resourcemanager[] = ResourceManager()
+        cpu.resourcemanager[] = try
+            ResourceManager()
+        catch e
+            @error "creating resourcemanager failed!!!" exception = e
+            1
+        end
         for (addr, instr) in cpu.instrs
             try
                 connect!(cpu.resourcemanager[], instr)
             catch e
-                @error "connecting to $addr failed" exception=e
+                @error "connecting to $addr failed" exception = e
             end
             push!(cpu.exechannels, addr => [])
             push!(cpu.taskhandlers, addr => false)
@@ -284,7 +289,7 @@ function stop!(cpu::Processor)
             try
                 wait(t)
             catch e
-                @error "an error occurs during stopping Processor:\n$cpu" exception=e
+                @error "an error occurs during stopping Processor:\n$cpu" exception = e
             end
         end
         for instr in values(cpu.instrs)

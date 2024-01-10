@@ -2,7 +2,6 @@
     name::String = ""
     explog::String = ""
     blocks::Vector{AbstractBlock} = [SweepBlock()]
-    enable::Bool = true
     hold::Bool = false
 end
 
@@ -34,7 +33,7 @@ let
             @c CImGui.Checkbox(mlstr("HOLD"), &daqtask.hold)
             holdsz = CImGui.GetItemRectSize().x
             CImGui.Separator()
-            CImGui.TextColored(MORESTYLE.Colors.HighlightText, mlstr("experimental record"))
+            SeparatorTextColored(MORESTYLE.Colors.HighlightText, mlstr("Experimental Records"))
             y = (1 + length(findall("\n", daqtask.explog))) * CImGui.GetTextLineHeight() +
                 2unsafe_load(IMGUISTYLE.FramePadding.y)
             @c InputTextMultilineRSZ("##experimental record", &daqtask.explog, (Float32(-1), y))
@@ -42,6 +41,7 @@ let
                 CImGui.MenuItem(stcstr(mlstr("clear"), "##experimental record")) && (daqtask.explog = "")
                 CImGui.EndPopup()
             end
+            SeparatorTextColored(MORESTYLE.Colors.HighlightText, mlstr("Script"))
             CImGui.Button(
                 stcstr(MORESTYLE.Icons.InstrumentsAutoDetect, " ", mlstr("Refresh instrument list"))
             ) && refresh_instrlist()
@@ -56,8 +56,13 @@ let
             CImGui.SameLine(CImGui.GetContentRegionAvailWidth() - holdsz)
             @c CImGui.Checkbox(viewmode ? mlstr("View") : mlstr("Edit"), &viewmode)
             CImGui.PushID(id)
+            dragblockmenu(id)
             CImGui.BeginChild("DAQTask.blocks")
-            viewmode ? view(daqtask.blocks) : edit(daqtask.blocks, 1)
+            CImGui.PushStyleColor(CImGui.ImGuiCol_Border, MORESTYLE.Colors.NormalBlockBorder)
+            CImGui.PushStyleVar(CImGui.ImGuiStyleVar_ChildBorderSize, 1)
+            viewmode ? view(daqtask.blocks) : edit(daqtask.blocks, 1, id)
+            CImGui.PopStyleVar()
+            CImGui.PopStyleColor()
             CImGui.EndChild()
             haskey(redolist, id) || (push!(redolist, id => LoopVector(fill(AbstractBlock[], 10))); redolist[id][] = deepcopy(daqtask.blocks))
             redolist[id][] ≈ daqtask.blocks || (move!(redolist[id]); redolist[id][] = deepcopy(daqtask.blocks))
@@ -70,24 +75,21 @@ let
                 end
                 CImGui.Separator()
                 if CImGui.MenuItem(stcstr(MORESTYLE.Icons.Undo, " ", mlstr("Undo")))
-                    move!(redolist[id], -1); daqtask.blocks = deepcopy(redolist[id][])
+                    move!(redolist[id], -1)
+                    daqtask.blocks = deepcopy(redolist[id][])
                 end
                 if CImGui.MenuItem(stcstr(MORESTYLE.Icons.Redo, " ", mlstr("Redo")))
-                    move!(redolist[id]); daqtask.blocks = deepcopy(redolist[id][])
+                    move!(redolist[id])
+                    daqtask.blocks = deepcopy(redolist[id][])
                 end
-                if CImGui.MenuItem(stcstr(MORESTYLE.Icons.Convert, " ", mlstr("Interpret")))
-                    codes = @trypasse quote
-                        $(tocodes.(daqtask.blocks)...)
-                    end |> prettify @error "[$(now())]\n$(mlstr("interpreting blocks failed!!!"))"
-                    isnothing(codes) || @info codes
-                end
+                CImGui.MenuItem(stcstr(MORESTYLE.Icons.Convert, " ", mlstr("Interpret"))) && interpret(daqtask.blocks)
                 CImGui.EndPopup()
             end
             if unsafe_load(CImGui.GetIO().KeyCtrl)
-                if CImGui.IsKeyPressed(igGetKeyIndex(ImGuiKey_Z), false)
+                if CImGui.IsKeyPressed(ImGuiKey_Z, false)
                     move!(redolist[id], -1)
                     daqtask.blocks = deepcopy(redolist[id][])
-                elseif CImGui.IsKeyPressed(igGetKeyIndex(ImGuiKey_Y), false)
+                elseif CImGui.IsKeyPressed(ImGuiKey_Y, false)
                     move!(redolist[id])
                     daqtask.blocks = deepcopy(redolist[id][])
                 end
@@ -102,11 +104,17 @@ let
     end
 end
 
+function interpret(blocks::Vector{AbstractBlock})
+    codes = @trypasse quote
+        $(tocodes.(blocks)...)
+    end |> prettify @error "[$(now())]\n$(mlstr("interpreting blocks failed!!!"))"
+    return isnothing(codes) ? :nothing : (@info codes; codes)
+end
+
 function run(daqtask::DAQTask)
     global WORKPATH
     global SAVEPATH
     global OLDI
-    daqtask.enable || return
     SYNCSTATES[Int(IsDAQTaskRunning)] = true
     SYNCSTATES[Int(IsAutoRefreshing)] = false
     date = today()
@@ -212,16 +220,7 @@ function saveqdt()
     jldopen(SAVEPATH, "w") do file
         file["data"] = DATABUF
         file["circuit"] = CIRCUIT
-        DAQDATAPLOT_copy = deepcopy(DAQDATAPLOT)
-        saveplotsidx = isempty(DAQDATAPLOT.layout.selectedidx) ? [1] : DAQDATAPLOT.layout.selectedidx
-        for (i, p) in enumerate(DAQDATAPLOT_copy.uiplots)
-            if i ∉ saveplotsidx
-                p.x = eltype(p.x)[]
-                p.y = [Float64[]]
-                p.z = Matrix{Float64}(undef, 0, 0)
-            end
-        end
-        file["dataplot"] = DAQDATAPLOT_copy
+        file["dataplot"] = empty!(deepcopy(DAQDATAPLOT))
         for (key, val) in CFGBUF
             file[key] = val
         end
@@ -256,18 +255,7 @@ end
 
 function update_all()
     if SYNCSTATES[Int(IsDAQTaskDone)]
-        if isfile(SAVEPATH) || !isempty(DATABUF)
-            saveqdt()
-            # if CONF.DAQ.saveimg
-            #     if isempty(DAQPLOTLAYOUT.selectedidx)
-            #         saveimg_seting("$SAVEPATH.png", UIPSWEEPS[[1]])
-            #     else
-            #         saveimg_seting("$SAVEPATH.png", UIPSWEEPS[DAQPLOTLAYOUT.selectedidx])
-            #     end
-            #     SYNCSTATES[Int(SavingImg)] = true
-            # end
-            global OLDI += 1
-        end
+        (isfile(SAVEPATH) | !isempty(DATABUF)) && (saveqdt(); global OLDI += 1)
         empty!(PROGRESSLIST)
         empty!(CFGBUF)
         SYNCSTATES[Int(IsDAQTaskDone)] = false
@@ -314,8 +302,8 @@ end
 #################################################################
 function view(daqtask::DAQTask)
     CImGui.BeginChild("view DAQTask")
-    CImGui.TextColored(MORESTYLE.Colors.HighlightText, mlstr("experimental record"))
-    TextRect(string(daqtask.explog, "\n "))
+    CImGui.TextColored(MORESTYLE.Colors.HighlightText, mlstr("Experimental Records"))
+    TextRect(string(daqtask.explog, "\n "); nochild=true)
     view(daqtask.blocks)
     CImGui.EndChild()
 end

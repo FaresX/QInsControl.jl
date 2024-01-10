@@ -6,11 +6,16 @@
     hidewindow::Bool = false
     nthreads_2::Cint = 1
     nthreads_3::Cint = 1
+    samplingthreshold::Cint = 200000
     windowsize::Vector{Cint} = [1280, 720]
     encoding::String = "GBK"
     editor::String = "notepad"
     language::String = "English"
     languages::Dict{String,String} = Dict()
+end
+
+@option mutable struct OptCommunication
+    visapath::String = ""
 end
 
 @option mutable struct OptDtViewer
@@ -21,8 +26,6 @@ end
     saveimg::Bool = false
     logall::Bool = false
     equalstep::Bool = true
-    showeditplotlayout::Bool = true
-    freelayout::Bool = true
     savetime::Cint = 60
     channel_size::Cint = 512
     packsize::Cint = 6
@@ -84,6 +87,7 @@ end
 
 @option mutable struct Conf
     Basic::OptBasic = OptBasic()
+    Communication::OptCommunication = OptCommunication()
     DtViewer::OptDtViewer = OptDtViewer()
     DAQ::OptDAQ = OptDAQ()
     InsBuf::OptInsBuf = OptInsBuf()

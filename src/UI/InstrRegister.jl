@@ -85,7 +85,7 @@ let
             !CImGui.IsItemHovered() && !CImGui.IsItemActive() && CImGui.IsMouseClicked(0) && (edithelp = false)
             CImGui.EndChild()
         else
-            region = TextRect(replace(string(qtcf.help, "\n "), "\\\n" => ""))
+            region = TextRect(replace(string(qtcf.help, "\n "), "\\\n" => ""); nochild=true)
             CImGui.IsMouseDoubleClicked(0) && mousein(region...) && (edithelp = true)
         end
     end
@@ -199,7 +199,7 @@ let
                         CImGui.BeginChild("Configurations")
                         selectedinscf = INSCONF[selectedins]
                         ###conf###
-                        CImGui.TextColored(MORESTYLE.Colors.HighlightText, mlstr("Basic"))
+                        SeparatorTextColored(MORESTYLE.Colors.HighlightText, mlstr("Basic"))
                         @c IconSelector(mlstr("icon"), &selectedinscf.conf.icon)
                         if @c InputTextRSZ(mlstr("identification string"), &selectedinscf.conf.idn)
                             lstrip(selectedinscf.conf.idn) == "" && (selectedinscf.conf.idn = selectedins)
@@ -248,10 +248,9 @@ let
                         end
                         CImGui.EndGroup()
                         CImGui.Text(" ") #空行
-                        CImGui.Separator()
 
                         ###quantities###
-                        CImGui.TextColored(MORESTYLE.Colors.HighlightText, mlstr("Variables"))
+                        SeparatorTextColored(MORESTYLE.Colors.HighlightText, mlstr("Variables"))
                         if @c ComBoS(mlstr("variables"), &selectedqt, keys(selectedinscf.quantities))
                             if selectedqt != "" && haskey(selectedinscf.quantities, selectedqt)
                                 qtname = selectedqt
@@ -270,8 +269,8 @@ let
                             selectedqt = ""
                         end
                         CImGui.Text(" ") #空行
-                        CImGui.Separator()
-                        CImGui.TextColored(MORESTYLE.Colors.HighlightText, mlstr("Edit"))
+
+                        SeparatorTextColored(MORESTYLE.Colors.HighlightText, mlstr("Edit"))
                         CImGui.SameLine()
                         if CImGui.Button(stcstr(MORESTYLE.Icons.SaveButton, "##QuantityConf to INSCONF"))
                             push!(selectedinscf.quantities, qtname => deepcopy(editqt))
@@ -318,6 +317,7 @@ let
                                 end
                                 CImGui.BeginChild(stcstr("Widget", i))
                                 if CImGui.CollapsingHeader(mlstr("Global Options"))
+                                    CImGui.BeginChild("global widget options", (Cfloat(0), CImGui.GetContentRegionAvail().y / 3))
                                     @c InputTextRSZ(mlstr("Rename"), &widget.name)
                                     @c CImGui.Checkbox(mlstr("Use Wallpaper"), &widget.usewallpaper)
                                     if widget.usewallpaper
@@ -348,6 +348,7 @@ let
                                         CImGui.ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_AlphaPreviewHalf
                                     )
                                     widgetcolormenu(widget.options)
+                                    CImGui.EndChild()
                                 end
                                 modify(widget)
                                 if !haskey(default_insbufs, selectedins)

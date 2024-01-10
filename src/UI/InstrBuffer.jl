@@ -61,6 +61,47 @@ end
     passfilter::Bool = true
 end
 
+function Base.show(io::IO, qt::SweepQuantity)
+    updatefront!(qt)
+    str = """
+    SweepQuantity :
+                name : $(qt.name)
+               alias : $(qt.alias)
+                step : $(qt.step)
+                stop : $(qt.stop)
+               delay : $(qt.delay)
+                read : $(qt.showval) $(qt.showU)
+        auto-refresh : $(qt.isautorefresh)
+            sweeping : $(qt.issweeping)
+    """
+    print(io, str)
+end
+
+function Base.show(io::IO, qt::SetQuantity)
+    updatefront!(qt)
+    str = """
+    SweepQuantity :
+                name : $(qt.name)
+               alias : $(qt.alias)
+                set : $(qt.set)
+                read : $(qt.showval) $(qt.showU)
+        auto-refresh : $(qt.isautorefresh)
+    """
+    print(io, str)
+end
+
+function Base.show(io::IO, qt::ReadQuantity)
+    updatefront!(qt)
+    str = """
+    SweepQuantity :
+                name : $(qt.name)
+               alias : $(qt.alias)
+                read : $(qt.showval) $(qt.showU)
+        auto-refresh : $(qt.isautorefresh)
+    """
+    print(io, str)
+end
+
 function quantity(name, qtcf::QuantityConf)
     return if qtcf.type == "sweep"
         SweepQuantity(name=name, alias=qtcf.alias, utype=qtcf.U, help=qtcf.help)
@@ -76,7 +117,7 @@ end
 function getvalU!(qt::AbstractQuantity)
     U, Us = @c getU(qt.utype, &qt.uindex)
     U == "" || (Uchange::Float64 = Us[1] isa Unitful.FreeUnits ? ustrip(Us[1], 1U) : 1.0)
-    qt.showval = U == "" ? qt.read : @trypass string(parse(Float64, qt.read) / Uchange) qt.read
+    qt.showval = U == "" ? qt.read : @trypass @sprintf("%g", parse(Float64, qt.read) / Uchange) qt.read
     qt.showU = string(U)
 end
 
@@ -86,12 +127,27 @@ function updatefront!(qt::SweepQuantity)
     qt.show_edit = string(content, "###for refresh")
 end
 
+function updateoptvalue!(qt::SetQuantity)
+    if qt.showU == ""
+        if qt.read in qt.optvalues
+            qt.optedidx = findfirst(==(qt.read), qt.optvalues)
+            qt.showval = string(qt.optkeys[qt.optedidx], " => ", qt.read)
+        end
+    else
+        floatread = tryparse(Float64, qt.read)
+        if !isnothing(floatread)
+            floatoptvalues = replace(tryparse.(Float64, qt.optvalues), nothing => NaN)
+            if true in Bool.(floatread .≈ floatoptvalues)
+                qt.optedidx = findfirst(floatread .≈ floatoptvalues)
+                qt.showval = string(qt.optkeys[qt.optedidx], " => ", qt.showval)
+            end
+        end
+    end
+end
+
 function updatefront!(qt::SetQuantity)
     getvalU!(qt)
-    if qt.showval in qt.optvalues
-        qt.optedidx = findfirst(==(qt.showval), qt.optvalues)
-        qt.showval = string(qt.optkeys[qt.optedidx], " => ", qt.optvalues[qt.optedidx])
-    end
+    updateoptvalue!(qt)
     content = string("\n", qt.alias, "\n \n", qt.showval, " ", qt.showU, "\n ") |> centermultiline
     qt.show_edit = string(content, "###for refresh")
 end
@@ -107,10 +163,7 @@ function updatefront!(qt::AbstractQuantity; show_edit=true)
         updatefront!(qt)
     else
         getvalU!(qt)
-        if qt isa SetQuantity && qt.showval in qt.optvalues
-            qt.optedidx = findfirst(==(qt.showval), qt.optvalues)
-            qt.showval = string(qt.optkeys[qt.optedidx], " => ", qt.optvalues[qt.optedidx])
-        end
+        qt isa SetQuantity && updateoptvalue!(qt)
         qt.show_view = string(qt.alias, "\n", qt.showval, " ", qt.showU) |> centermultiline
     end
 end
@@ -199,7 +252,7 @@ function edit(ibv::InstrBufferViewer)
         SetWindowBgImage()
         @c testcmd(ins, addr, &ibv.inputcmd, &ibv.readstr)
         edit(ibv.insbuf, addr)
-        CImGui.IsKeyPressed(294, false) && (refresh1(true); updatefrontall!())
+        CImGui.IsKeyPressed(ImGuiKey_F5, false) && (refresh1(true); updatefrontall!())
     end
     CImGui.End()
 end
@@ -286,7 +339,7 @@ function testcmd(ins, addr, inputcmd::Ref{String}, readstr::Ref{String})
             CImGui.MenuItem(mlstr("clear")) && (inputcmd[] = "")
             CImGui.EndPopup()
         end
-        TextRect(stcstr(readstr[], "\n "))
+        TextRect(stcstr(readstr[], "\n "); size=(Cfloat(0), 4CImGui.GetFontSize()))
         CImGui.BeginChild("align buttons", (Float32(0), CImGui.GetFrameHeightWithSpacing()))
         CImGui.PushStyleVar(CImGui.ImGuiStyleVar_FrameRounding, 12)
         CImGui.Columns(3, C_NULL, false)
@@ -371,14 +424,17 @@ function edit(insbuf::InstrBuffer, addr)
         &insbuf.filtervarname
     )) && update_passfilter!(insbuf)
     CImGui.BeginChild("InstrBuffer")
-    CImGui.Columns(CONF.InsBuf.showcol, C_NULL, false)
+    # CImGui.Columns(CONF.InsBuf.showcol, C_NULL, false)
+    btsize = (CImGui.GetContentRegionAvailWidth() - unsafe_load(IMGUISTYLE.ItemSpacing.x) * (CONF.InsBuf.showcol - 1)) / CONF.InsBuf.showcol
     for (i, qt) in enumerate(values(insbuf.quantities))
         qt.enable || insbuf.showdisable || continue
         qt.passfilter || continue
         CImGui.PushID(qt.name)
-        edit(qt, insbuf.instrnm, addr)
+        i % CONF.InsBuf.showcol == 1 || i == 1 || CImGui.SameLine()
+        edit(qt, insbuf.instrnm, addr; btsize=(btsize, Cfloat(0)))
+        # i % CONF.InsBuf.showcol == 0 && i != 1 && CImGui.SameLine()
         CImGui.PopID()
-        CImGui.NextColumn()
+        # CImGui.NextColumn()
         CImGui.Indent()
         if CImGui.BeginDragDropSource(0)
             @c CImGui.SetDragDropPayload("Swap DAQTask", &i, sizeof(Cint))
@@ -444,13 +500,13 @@ function edit(insbuf::InstrBuffer, addr)
         @c CImGui.Checkbox("##show disabled", &insbuf.showdisable)
         CImGui.EndPopup()
     end
-    CImGui.IsKeyPressed(294, false) && (refresh1(true); updatefrontall!())
+    CImGui.IsKeyPressed(ImGuiKey_F5, false) && (refresh1(true); updatefrontall!())
 end
 
 let
     stbtsz::Float32 = 0
     closepopup::Bool = false
-    global function edit(qt::SweepQuantity, instrnm, addr)
+    global function edit(qt::SweepQuantity, instrnm, addr; btsize=(-1, 0))
         CImGui.PushStyleColor(CImGui.ImGuiCol_Text, MORESTYLE.Colors.SweepQuantityTxt)
         CImGui.PushStyleColor(
             CImGui.ImGuiCol_ButtonHovered,
@@ -464,7 +520,7 @@ let
         # CImGui.PushFont(PLOTFONT)
         if ColoredButton(
             qt.show_edit;
-            size=(-1, 0),
+            size=btsize,
             colbt=if qt.enable
                 if qt.isautorefresh || qt.issweeping
                     MORESTYLE.Colors.DAQTaskRunning
@@ -494,18 +550,18 @@ let
                 if qt.issweeping
                     if CImGui.Button(
                         mlstr(" Stop "), (-0.1, 0.0)
-                    ) || CImGui.IsKeyPressed(igGetKeyIndex(ImGuiKey_Enter), false)
+                    ) || CImGui.IsKeyPressed(ImGuiKey_Enter, false)
                         qt.issweeping = false
                     end
                 else
                     if CImGui.Button(
                         mlstr(" Start "), (-0.1, 0.0)
-                    ) || CImGui.IsKeyPressed(igGetKeyIndex(ImGuiKey_Enter), false)
+                    ) || CImGui.IsKeyPressed(ImGuiKey_Enter, false)
                         apply!(qt, instrnm, addr)
                         closepopup = true
                     end
                 end
-                if closepopup && !CImGui.IsKeyDown(igGetKeyIndex(ImGuiKey_Enter))
+                if closepopup && !CImGui.IsKeyDown(ImGuiKey_Enter)
                     CImGui.CloseCurrentPopup()
                     closepopup = false
                 end
@@ -531,7 +587,7 @@ let
     popup_before_list::Dict{String,Dict{String,Dict{String,Bool}}} = Dict()
     popup_now::Bool = false
     closepopup::Bool = false
-    global function edit(qt::SetQuantity, instrnm, addr)
+    global function edit(qt::SetQuantity, instrnm, addr; btsize=(-1, 0))
         CImGui.PushStyleColor(CImGui.ImGuiCol_Text, MORESTYLE.Colors.SetQuantityTxt)
         CImGui.PushStyleColor(
             CImGui.ImGuiCol_ButtonHovered,
@@ -541,7 +597,7 @@ let
         # CImGui.PushFont(PLOTFONT)
         if ColoredButton(
             qt.show_edit;
-            size=(-1, 0),
+            size=btsize,
             colbt=if qt.enable
                 qt.isautorefresh ? MORESTYLE.Colors.DAQTaskRunning : MORESTYLE.Colors.SetQuantityBt
             else
@@ -571,13 +627,13 @@ let
                 if CImGui.Button(
                        mlstr(" Confirm "),
                        (-Cfloat(0.1), Cfloat(0))
-                   ) || triggerset || CImGui.IsKeyPressed(igGetKeyIndex(ImGuiKey_Enter), false)
+                   ) || triggerset || CImGui.IsKeyPressed(ImGuiKey_Enter, false)
                     triggerset && (qt.set = qt.optvalues[qt.optedidx])
                     apply!(qt, instrnm, addr, triggerset)
                     triggerset = false
                     closepopup = true
                 end
-                if closepopup && !CImGui.IsKeyDown(igGetKeyIndex(ImGuiKey_Enter))
+                if closepopup && !CImGui.IsKeyDown(ImGuiKey_Enter)
                     CImGui.CloseCurrentPopup()
                     closepopup = false
                 end
@@ -620,7 +676,7 @@ end
 
 let
     refbtsz::Float32 = 0
-    global function edit(qt::ReadQuantity, instrnm, addr)
+    global function edit(qt::ReadQuantity, instrnm, addr; btsize=(-1, 0))
         CImGui.PushStyleColor(CImGui.ImGuiCol_Text, MORESTYLE.Colors.ReadQuantityTxt)
         CImGui.PushStyleColor(
             CImGui.ImGuiCol_ButtonHovered,
@@ -630,7 +686,7 @@ let
         # CImGui.PushFont(PLOTFONT)
         if ColoredButton(
             qt.show_edit;
-            size=(-1, 0),
+            size=btsize,
             colbt=if qt.enable
                 qt.isautorefresh ? MORESTYLE.Colors.DAQTaskRunning : MORESTYLE.Colors.ReadQuantityBt
             else
@@ -692,85 +748,38 @@ function view(insbuf::InstrBuffer)
     CImGui.EndChild()
 end
 
-function view(qt::AbstractQuantity)
+function view(qt::AbstractQuantity, size=(-1, 0))
     qt.show_view == "" && updatefront!(qt; show_edit=false)
     CImGui.PushStyleColor(
         CImGui.ImGuiCol_Button,
         qt.enable ? CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_Button) : MORESTYLE.Colors.LogError
     )
-    CImGui.Button(qt.show_view, (-1, 0)) && (qt.uindex += 1; updatefront!(qt; show_edit=false))
+    if CImGui.Button(qt.show_view, size)
+        _, Us = @c getU(qt.utype, &qt.uindex)
+        uindex = findfirst(==(qt.showU), string.(Us))
+        if !isnothing(uindex)
+            uindexo = qt.uindex
+            qt.uindex = uindex + 1
+            updatefront!(qt; show_edit=false)
+            qt.uindex = uindexo
+        end
+    end
     CImGui.PopStyleColor()
+    if CImGui.IsItemHovered() && !(qt isa ReadQuantity)
+        CImGui.BeginTooltip()
+        CImGui.PushTextWrapPos(CImGui.GetFontSize() * 36.0)
+        U, _ = @c getU(qt.utype, &qt.uindex)
+        if qt isa SweepQuantity
+            CImGui.Text(stcstr("step: ", qt.step, U))
+            CImGui.Text(stcstr("stop: ", qt.stop, U))
+            CImGui.Text(stcstr("delay: ", qt.delay, "s"))
+        elseif qt isa SetQuantity
+            CImGui.Text(stcstr("set: ", qt.set, U))
+        end
+        CImGui.PopTextWrapPos()
+        CImGui.EndTooltip()
+    end
 end
-
-# function apply!(qt::SweepQuantity, instrnm, addr)
-#     addr == "" && return nothing
-#     Us = haskey(CONF.U, qt.utype) ? CONF.U[qt.utype] : [""]
-#     U = isempty(Us) ? "" : Us[qt.uindex]
-#     U == "" || (Uchange::Float64 = Us[1] isa Unitful.FreeUnits ? ustrip(Us[1], 1U) : 1.0)
-#     start = wait_remotecall_fetch(workers()[1], instrnm, addr) do instrnm, addr
-#         ct = Controller(instrnm, addr)
-#         try
-#             getfunc = Symbol(instrnm, :_, qt.name, :_get) |> eval
-#             login!(CPU, ct)
-#             readstr = ct(getfunc, CPU, Val(:read))
-#             logout!(CPU, ct)
-#             return parse(Float64, readstr)
-#         catch e
-#             @error(
-#                 "[$(now())]\n$(mlstr("error getting start value!!!"))",
-#                 instrument = string(instrnm, "-", addr),
-#                 exception = e
-#             )
-#             logout!(CPU, ct)
-#         end
-#     end
-#     step = @trypasse eval(Meta.parse(qt.step)) * Uchange begin
-#         @error "[$(now())]\n$(mlstr("error parsing step value!!!"))" step = qt.step
-#     end
-#     stop = @trypasse eval(Meta.parse(qt.stop)) * Uchange begin
-#         @error "[$(now())]\n$(mlstr("error parsing stop value!!!"))" stop = qt.stop
-#     end
-#     if !(isnothing(start) || isnothing(step) || isnothing(stop))
-#         sweeplist = gensweeplist(start, step, stop)
-#         errormonitor(
-#             Threads.@spawn begin
-#                 qt.issweeping = true
-#                 ct = Controller(instrnm, addr)
-#                 remotecall_wait(workers()[1], ct) do ct
-#                     @isdefined(sweepcts) || (global sweepcts = Dict{UUID,Controller}())
-#                     push!(sweepcts, ct.id => ct)
-#                     login!(CPU, ct)
-#                 end
-#                 for sv in sweeplist
-#                     qt.issweeping || break
-#                     sleep(qt.delay)
-#                     fetchdata = remotecall_fetch(workers()[1], sv, ct.id) do sv, ctid
-#                         try
-#                             setfunc = Symbol(instrnm, :_, qt.name, :_set) |> eval
-#                             getfunc = Symbol(instrnm, :_, qt.name, :_get) |> eval
-#                             sweepcts[ctid](setfunc, CPU, string(sv), Val(:write))
-#                             returnval = sweepcts[ctid](getfunc, CPU, Val(:read))
-#                         catch e
-#                             @error(
-#                                 "[$(now())]\n$(mlstr("instrument communication failed!!!"))",
-#                                 instrument = string(instrnm, ": ", addr),
-#                                 quantity = qt.name,
-#                                 exception = e
-#                             )
-#                         end
-#                     end
-#                     isnothing(fetchdata) ? break : qt.read = fetchdata
-#                 end
-#                 remotecall_wait(workers()[1], ct.id) do ctid
-#                     logout!(CPU, sweepcts[ctid])
-#                     delete!(sweepcts, ctid)
-#                 end
-#                 qt.issweeping = false
-#             end
-#         )
-#     end
-#     return nothing
-# end
 
 function apply!(qt::SweepQuantity, instrnm, addr)
     addr == "" && return nothing
@@ -799,19 +808,20 @@ function apply!(qt::SweepQuantity, instrnm, addr)
     stop = @trypasse eval(Meta.parse(qt.stop)) * Uchange begin
         @error "[$(now())]\n$(mlstr("error parsing stop value!!!"))" stop = qt.stop
     end
-    if !(isnothing(start) || isnothing(step) || isnothing(stop))
+    if !(isnothing(start) | isnothing(step) | isnothing(stop))
         sweeplist = gensweeplist(start, step, stop)
         errormonitor(
             Threads.@spawn begin
                 qt.issweeping = true
+                @info "[$(now())]\nBefore sweeping" instrument = instrnm address = addr quantity = qt
+                SYNCSTATES[Int(IsDAQTaskRunning)] && (actionidx = logaction(qt, instrnm, addr))
                 ct = Controller(instrnm, addr)
                 sweep_c = Channel{Vector{String}}(CONF.DAQ.channel_size)
                 sweep_rc = RemoteChannel(() -> sweep_c)
                 sweepcalltask = @async remotecall_wait(
                     workers()[1], ct, sweeplist, sweep_rc, qt.name, qt.delay
                 ) do ct, sweeplist, sweep_rc, qtnm, delay
-                    @isdefined(sweepcts) || (global sweepcts = Dict{UUID,Tuple{Ref{Bool},Controller}}())
-                    push!(sweepcts, ct.id => (Ref(true), ct))
+                    push!(SWEEPCTS, ct.id => (Ref(true), ct))
                     sweep_lc = Channel{String}(CONF.DAQ.channel_size)
                     login!(CPU, ct)
                     try
@@ -821,10 +831,10 @@ function apply!(qt::SweepQuantity, instrnm, addr)
                             sweeptask = errormonitor(
                                 @async begin
                                     for sv in sweeplist
-                                        sweepcts[ct.id][1][] || break
+                                        SWEEPCTS[ct.id][1][] || break
                                         sleep(delay)
-                                        sweepcts[ct.id][2](setfunc, CPU, string(sv), Val(:write))
-                                        put!(sweep_lc, sweepcts[ct.id][2](getfunc, CPU, Val(:read)))
+                                        SWEEPCTS[ct.id][2](setfunc, CPU, string(sv), Val(:write))
+                                        put!(sweep_lc, SWEEPCTS[ct.id][2](getfunc, CPU, Val(:read)))
                                     end
                                 end
                             )
@@ -844,12 +854,12 @@ function apply!(qt::SweepQuantity, instrnm, addr)
                             exception = e
                         )
                     finally
-                        logout!(CPU, sweepcts[ct.id][2])
-                        sweepcts[ct.id][1][] = false
+                        logout!(CPU, SWEEPCTS[ct.id][2])
+                        SWEEPCTS[ct.id][1][] = false
                     end
                 end
                 while !istaskdone(sweepcalltask) || isready(sweep_rc)
-                    qt.issweeping || remotecall_wait(ctid -> sweepcts[ctid][1][] = false, workers()[1], ct.id)
+                    qt.issweeping || remotecall_wait(ctid -> SWEEPCTS[ctid][1][] = false, workers()[1], ct.id)
                     isready(sweep_rc) && for val in take!(sweep_rc)
                         qt.read = val
                         updatefront!(qt)
@@ -858,7 +868,9 @@ function apply!(qt::SweepQuantity, instrnm, addr)
                     yield()
                 end
                 qt.issweeping = false
-                remotecall_wait(ctid -> delete!(sweepcts, ctid), workers()[1], ct.id)
+                remotecall_wait(ctid -> delete!(SWEEPCTS, ctid), workers()[1], ct.id)
+                @info "[$(now())]\nAfter sweeping" instrument = instrnm address = addr quantity = qt
+                SYNCSTATES[Int(IsDAQTaskRunning)] && logaction(qt, instrnm, addr, actionidx)
             end
         )
     else
@@ -874,6 +886,8 @@ function apply!(qt::SetQuantity, instrnm, addr, byoptvalues=false)
     sv = (U == "" || byoptvalues) ? qt.set : @trypasse string(float(eval(Meta.parse(qt.set)) * Uchange)) qt.set
     sv = string(lstrip(rstrip(sv)))
     if (U == "" && sv != "") || !isnothing(tryparse(Float64, sv))
+        @info "[$(now())]\nBefore setting" instrument = instrnm address = addr quantity = qt
+        SYNCSTATES[Int(IsDAQTaskRunning)] && (actionidx = logaction(qt, instrnm, addr))
         fetchdata = wait_remotecall_fetch(workers()[1], instrnm, addr, sv) do instrnm, addr, sv
             ct = Controller(instrnm, addr)
             try
@@ -895,10 +909,89 @@ function apply!(qt::SetQuantity, instrnm, addr, byoptvalues=false)
             end
         end
         isnothing(fetchdata) || (qt.read = fetchdata; updatefront!(qt))
+        @info "[$(now())]\nAfter setting" instrument = instrnm address = addr quantity = qt
+        SYNCSTATES[Int(IsDAQTaskRunning)] && logaction(qt, instrnm, addr, actionidx)
     else
         @warn "[$(now())]\n$(mlstr("invalid input!"))"
     end
     return nothing
+end
+
+function logaction(qt::AbstractQuantity, instrnm, addr)
+    haskey(CFGBUF, "actions") || push!(CFGBUF, "actions" => Vector{Tuple{DateTime,String,String,AbstractQuantity}}[])
+    push!(CFGBUF["actions"], Tuple{DateTime,String,String,AbstractQuantity}[])
+    push!(CFGBUF["actions"][end], (now(), instrnm, addr, deepcopy(qt)))
+    return length(CFGBUF["actions"])
+end
+logaction(qt::AbstractQuantity, instrnm, addr, idx) = push!(CFGBUF["actions"][idx], (now(), instrnm, addr, deepcopy(qt)))
+
+function viewactions(actions::Vector{Vector{Tuple{DateTime,String,String,AbstractQuantity}}})
+    CImGui.BeginChild("viewactions")
+    CImGui.Columns(CONF.InsBuf.showcol, C_NULL, false)
+    for (i, action) in enumerate(actions)
+        CImGui.PushID(i)
+        viewactions(action)
+        CImGui.NextColumn()
+        CImGui.PopID()
+    end
+    CImGui.EndChild()
+end
+function viewactions(actions::Vector{Tuple{DateTime,String,String,AbstractQuantity}})
+    sz1 = CImGui.CalcTextSize(mlstr("B\ne\nf\no\nr\ne")).y
+    sz2 = CImGui.CalcTextSize(mlstr("A\nf\nt\ne\nr")).y
+    y = sz1 + sz2 + 4unsafe_load(IMGUISTYLE.FramePadding.y) + 2unsafe_load(IMGUISTYLE.WindowPadding.y) +
+        unsafe_load(IMGUISTYLE.ItemSpacing.y) + CImGui.GetFrameHeightWithSpacing()
+    CImGui.PushStyleColor(CImGui.ImGuiCol_Border, MORESTYLE.Colors.ItemBorder)
+    CImGui.PushStyleVar(CImGui.ImGuiStyleVar_ChildBorderSize, 1)
+    CImGui.BeginChild("action", (Cfloat(-1), y), true)
+    ColoredButton(
+        stcstr(actions[1][2], ": ", actions[1][3]);
+        size=(-1, 0), colbt=(0, 0, 0, 0), colbth=(0, 0, 0, 0), colbta=(0, 0, 0, 0)
+    )
+    if length(actions) == 1
+        CImGui.Button(mlstr("B\ne\nf\no\nr\ne"), (2CImGui.GetFontSize(), Cfloat(0)))
+        CImGui.SameLine()
+        viewaction(actions[1], sz1 + 2unsafe_load(IMGUISTYLE.FramePadding.y))
+        CImGui.Button(mlstr("A\nf\nt\ne\nr"), (2CImGui.GetFontSize(), Cfloat(0)))
+        CImGui.SameLine()
+        CImGui.Button(mlstr("Unrecorded"), (-1, -1))
+    elseif length(actions) == 2
+        CImGui.Button(mlstr("B\ne\nf\no\nr\ne"), (2CImGui.GetFontSize(), Cfloat(0)))
+        CImGui.SameLine()
+        viewaction(actions[1], sz1 + 2unsafe_load(IMGUISTYLE.FramePadding.y))
+        CImGui.Button(mlstr("A\nf\nt\ne\nr"), (2CImGui.GetFontSize(), Cfloat(0)))
+        CImGui.SameLine()
+        viewaction(actions[2], sz2 + 2unsafe_load(IMGUISTYLE.FramePadding.y))
+    end
+    CImGui.EndChild()
+    CImGui.PopStyleVar()
+    CImGui.PopStyleColor()
+end
+function viewaction(action::Tuple{DateTime,String,String,AbstractQuantity}, totalheight)
+    CImGui.BeginGroup()
+    CImGui.PushStyleVar(CImGui.ImGuiStyleVar_ItemSpacing, (0, 0))
+    CImGui.Button(string(action[1]), (Cfloat(-1), 2CImGui.GetFontSize()))
+    view(action[4], (Cfloat(-1), totalheight - CImGui.GetItemRectSize().y))
+    # qt = action[4]
+    # qt.show_view == "" && updatefront!(qt; show_edit=false)
+    # CImGui.Button(
+    #     qt.show_view, (Cfloat(-1), totalheight - CImGui.GetItemRectSize().y)
+    # ) && (qt.uindex += 1; updatefront!(qt; show_edit=false))
+    # if CImGui.IsItemHovered() && !(qt isa ReadQuantity)
+    #     CImGui.BeginTooltip()
+    #     CImGui.PushTextWrapPos(CImGui.GetFontSize() * 36.0)
+    #     if qt isa SweepQuantity
+    #         CImGui.Text(stcstr("step: ", qt.step))
+    #         CImGui.Text(stcstr("stop: ", qt.stop))
+    #         CImGui.Text(stcstr("delay: ", qt.delay))
+    #     elseif qt isa SetQuantity
+    #         CImGui.Text(stcstr("set: ", qt.set))
+    #     end
+    #     CImGui.PopTextWrapPos()
+    #     CImGui.EndTooltip()
+    # end
+    CImGui.PopStyleVar()
+    CImGui.EndGroup()
 end
 
 function resolvedisablelist(qt::AbstractQuantity, instrnm, addr)
@@ -954,60 +1047,17 @@ function log_instrbufferviewers()
     push!(CFGBUF, "instrbufferviewers/[$(now())]" => deepcopy(INSTRBUFFERVIEWERS))
 end
 
-# function refresh1(log=false)
-#     remotecall_wait(workers()[1]) do
-#         @isdefined(refreshcts) || (global refreshcts = Dict())
-#     end
-#     @sync for ins in keys(INSTRBUFFERVIEWERS)
-#         ins == "Others" && continue
-#         remotecall_wait(workers()[1], ins) do ins
-#             haskey(refreshcts, ins) || push!(refreshcts, ins => Dict())
-#         end
-#         for (addr, ibv) in INSTRBUFFERVIEWERS[ins]
-#             @async if ibv.insbuf.isautorefresh || log
-#                 remotecall_wait(workers()[1]) do
-#                     haskey(refreshcts[ins], addr) || push!(refreshcts[ins], addr => Controller(ins, addr))
-#                     login!(CPU, refreshcts[ins][addr])
-#                 end
-#                 for (qtnm, qt) in INSTRBUFFERVIEWERS[ins][addr].insbuf.quantities
-#                     if (qt.isautorefresh && qt.enable) || (log && (CONF.DAQ.logall || qt.enable))
-#                         fetchdata = wait_remotecall_fetch(workers()[1], ins, addr, qtnm) do ins, addr, qtnm
-#                             try
-#                                 getfunc = Symbol(ins, :_, qtnm, :_get) |> eval
-#                                 refreshcts[ins][addr](getfunc, CPU, Val(:read))
-#                             catch e
-#                                 @error(
-#                                     "[$(now())]\n$(mlstr("instrument communication failed!!!"))",
-#                                     instrument = string(ins, ": ", addr),
-#                                     exception = e
-#                                 )
-#                             end
-#                         end
-#                         isnothing(fetchdata) ? (qt.read = ""; break) : qt.read = fetchdata
-#                     elseif !qt.enable
-#                         qt.read = ""
-#                     end
-#                 end
-#                 remotecall_wait(workers()[1]) do
-#                     logout!(CPU, refreshcts[ins][addr])
-#                 end
-#             end
-#         end
-#     end
-# end
-
 function refresh1(log=false; instrlist=keys(INSTRBUFFERVIEWERS))
     fetchibvs = wait_remotecall_fetch(workers()[1], INSTRBUFFERVIEWERS; timeout=120) do ibvs
-        @isdefined(refreshcts) || (global refreshcts = Dict())
         empty!(INSTRBUFFERVIEWERS)
         merge!(INSTRBUFFERVIEWERS, ibvs)
         @sync for (ins, inses) in filter(x -> x.first in instrlist && !isempty(x.second), INSTRBUFFERVIEWERS)
             ins == "Others" && continue
-            haskey(refreshcts, ins) || push!(refreshcts, ins => Dict())
+            haskey(REFRESHCTS, ins) || push!(REFRESHCTS, ins => Dict())
             for (addr, ibv) in inses
                 @async if ibv.insbuf.isautorefresh || log
-                    haskey(refreshcts[ins], addr) || push!(refreshcts[ins], addr => Controller(ins, addr))
-                    ct = refreshcts[ins][addr]
+                    haskey(REFRESHCTS[ins], addr) || push!(REFRESHCTS[ins], addr => Controller(ins, addr))
+                    ct = REFRESHCTS[ins][addr]
                     try
                         login!(CPU, ct)
                         for (qtnm, qt) in ibv.insbuf.quantities

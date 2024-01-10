@@ -15,6 +15,7 @@ import FileIO
 import ImageMagick
 using ImPlot
 using JLD2
+using JpegTurbo
 using MacroTools
 using NativeFileDialog
 using OrderedCollections
@@ -44,12 +45,11 @@ using .QInsControlCore
     IsBlocked
     IsAutoRefreshing
     NewLogging
-    SavingImg
 end
 
 const CPU = Processor()
 const DATABUF = Dict{String,Vector{String}}() #数据缓存
-const DATABUFPARSED = Dict{String,Vector{Float64}}()
+const DATABUFPARSED = Dict{String,VecOrMat{Cdouble}}()
 const PROGRESSLIST = OrderedDict{UUID,Tuple{UUID,Int,Int,Float64}}() #进度条缓存
 
 global SYNCSTATES::SharedVector{Bool}
@@ -76,6 +76,7 @@ include("UI/DataPlot.jl")
 include("UI/UtilitiesForRenderer.jl")
 
 include("UI/DataViewer.jl")
+include("UI/DataFormatter.jl")
 include("UI/StyleEditor.jl")
 include("UI/Preferences.jl")
 include("UI/CPUMonitor.jl")
@@ -92,35 +93,49 @@ include("UI/Renderer.jl")
 # include("AuxFunc.jl")
 include("JLD2Struct.jl")
 include("Conf.jl")
-include("Compatible.jl")
 
 function julia_main()::Cint
     try
         loadconf()
         databuf_c::Channel{Vector{Tuple{String,String}}} = Channel{Vector{NTuple{2,String}}}(CONF.DAQ.channel_size)
         progress_c::Channel{Vector{Tuple{UUID,Int,Int,Float64}}} = Channel{Vector{Tuple{UUID,Int,Int,Float64}}}(CONF.DAQ.channel_size)
-        ENV["JULIA_NUM_THREADS"] = CONF.Basic.nthreads_2
-        CONF.Basic.isremote && nprocs() == 1 && addprocs(1)
-        @eval @everywhere using QInsControl
-        global SYNCSTATES = SharedVector{Bool}(9)
+        global SYNCSTATES = SharedVector{Bool}(8)
         global DATABUFRC = RemoteChannel(() -> databuf_c)
         global PROGRESSRC = RemoteChannel(() -> progress_c)
-        synccall_wait(workers()[1], SYNCSTATES) do syncstates
-            myid() == 1 || loadconf()
-            global LOGIO = IOBuffer()
-            global_logger(SimpleLogger(LOGIO))
-            errormonitor(@async while true
-                sleep(1)
-                update_log(syncstates)
-            end)
-        end
+        global LOGIO = IOBuffer()
+        global_logger(SimpleLogger(LOGIO))
+        errormonitor(@async while true
+            sleep(1)
+            update_log()
+        end)
         jlverinfobuf = IOBuffer()
         versioninfo(jlverinfobuf)
         global JLVERINFO = wrapmultiline(String(take!(jlverinfobuf)), 48)
         @info ARGS
         isempty(ARGS) || @info reencoding.(ARGS, CONF.Basic.encoding)
         uitask = UI()
-        remotecall_wait(() -> start!(CPU), workers()[1])
+        if CONF.Basic.isremote
+            ENV["JULIA_NUM_THREADS"] = CONF.Basic.nthreads_2
+            nprocs() == 1 && addprocs(1)
+            @eval @everywhere using QInsControl
+            global SYNCSTATES = SharedVector{Bool}(8)
+            global DATABUFRC = RemoteChannel(() -> databuf_c)
+            global PROGRESSRC = RemoteChannel(() -> progress_c)
+            remotecall_wait(workers()[1], SYNCSTATES) do syncstates
+                loadconf()
+                global LOGIO = IOBuffer()
+                global_logger(SimpleLogger(LOGIO))
+                errormonitor(@async while true
+                    sleep(1)
+                    update_log(syncstates)
+                end)
+            end
+        end
+        remotecall_wait(workers()[1]) do
+            start!(CPU)
+            @eval const SWEEPCTS = Dict{UUID,Tuple{Ref{Bool},Controller}}()
+            @eval const REFRESHCTS = Dict{String,Dict{String,Controller}}()
+        end
         global AUTOREFRESHTASK = autorefresh()
         if CONF.Basic.remoteprocessdata && nprocs() == 2
             ENV["JULIA_NUM_THREADS"] = CONF.Basic.nthreads_3
@@ -146,8 +161,8 @@ start() = (get!(ENV, "QInsControlAssets", joinpath(Base.@__DIR__, "../Assets"));
 
 @compile_workload begin
     get!(ENV, "QInsControlAssets", joinpath(Base.@__DIR__, "../Assets"))
-    global SYNCSTATES = SharedVector{Bool}(9)
-    loadconf()
+    global SYNCSTATES = SharedVector{Bool}(8)
+    loadconf(true)
     try
         UI(precompile=true) |> wait
     catch

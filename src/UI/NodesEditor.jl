@@ -13,72 +13,47 @@ abstract type AbstractNode end
 end
 # input id: x0xx nodeid 0 inputid output id: x1xx nodeid 1 outputid
 
-Node(id) = Node(
-    id,
-    string(MORESTYLE.Icons.CommonNode, " ", mlstr("Universal Node"), id),
-    "",
-    [id * 1000 + 1],
-    ["Input 1"],
-    [id * 1000 + 100 + 1],
-    ["Output 1"],
-    Set(),
-    (0, 0)
+Node(id, ::Val{:Universal}) = Node(
+    id=id,
+    title=string(MORESTYLE.Icons.UniversalNode, " ", mlstr("Universal Node"), id),
+    input_ids=[id * 1000 + 1],
+    output_ids=[id * 1000 + 100 + 1]
 )
-Node(id, ::Val{:ground}) = Node(
-    id,
-    MORESTYLE.Icons.GroundNode * " " * mlstr("Ground End") * " 0Ω",
-    "",
-    [],
-    [],
-    [id * 1000 + 100 + 1],
-    ["Ground"],
-    Set(),
-    (0, 0)
+Node(id, ::Val{:Ground}) = Node(
+    id=id,
+    title=MORESTYLE.Icons.GroundNode * " " * mlstr("Ground End") * " 0Ω",
+    input_ids=[],
+    output_ids=[id * 1000 + 100 + 1],
+    output_labels=["Ground"]
 )
-Node(id, ::Val{:resistance}) = Node(
-    id,
-    MORESTYLE.Icons.ResistanceNode * " " * mlstr("Resistance") * " 10MΩ",
-    "",
-    [id * 1000 + 1],
-    ["Input 1"],
-    [id * 1000 + 100 + 1],
-    ["Output 1"],
-    Set(),
-    (0, 0)
+Node(id, ::Val{:Resistance}) = Node(
+    id=id,
+    title=MORESTYLE.Icons.ResistanceNode * " " * mlstr("Resistance") * " 10MΩ",
+    input_ids=[id * 1000 + 1],
+    output_ids=[id * 1000 + 100 + 1]
 )
-Node(id, ::Val{:trilink21}) = Node(
-    id,
-    MORESTYLE.Icons.TrilinkNode * " " * mlstr("Trilink") * "21",
-    "",
-    [id * 1000 + 1, id * 1000 + 2],
-    ["Input 1", "Input 2"],
-    [id * 1000 + 100 + 1],
-    ["Output 1"],
-    Set(),
-    (0, 0)
+Node(id, ::Val{:Trilink21}) = Node(
+    id=id,
+    title=MORESTYLE.Icons.Trilink21Node * " " * mlstr("Trilink") * "21",
+    input_ids=[id * 1000 + 1, id * 1000 + 2],
+    input_labels=["Input 1", "Input 2"],
+    output_ids=[id * 1000 + 100 + 1]
 )
-Node(id, ::Val{:trilink12}) = Node(
-    id,
-    MORESTYLE.Icons.TrilinkNode * " " * mlstr("Trilink") * "12",
-    "",
-    [id * 1000 + 1],
-    ["Input 1"],
-    [id * 1000 + 100 + 1, id * 1000 + 100 + 2],
-    ["Output 1", "Output 2"],
-    Set(),
-    (0, 0)
+Node(id, ::Val{:Trilink12}) = Node(
+    id=id,
+    title=MORESTYLE.Icons.Trilink12Node * " " * mlstr("Trilink") * "12",
+    input_ids=[id * 1000 + 1],
+    output_ids=[id * 1000 + 100 + 1, id * 1000 + 100 + 2],
+    output_labels=["Output 1", "Output 2"]
 )
-function Node(id, instrnm, ::Val{:instrument})
+function Node(id, instrnm, ::Val{:Instrument})
     node = Node(
-        id,
-        INSCONF[instrnm].conf.icon * " " * instrnm,
-        "",
-        [],
-        INSCONF[instrnm].conf.input_labels,
-        [],
-        INSCONF[instrnm].conf.output_labels,
-        Set(),
-        (0, 0)
+        id=id,
+        title=INSCONF[instrnm].conf.icon * " " * instrnm,
+        input_ids=[],
+        input_labels=INSCONF[instrnm].conf.input_labels,
+        output_ids=[],
+        output_labels=INSCONF[instrnm].conf.output_labels
     )
     for i in 1:length(node.input_labels)
         push!(node.input_ids, id * 1000 + i)
@@ -101,7 +76,7 @@ end
 @kwdef mutable struct ImagePin
     pos::ImVec2 = (0, 0)
     radius::Cfloat = 24
-    num_segments::Cint = 12
+    num_segments::Cint = 24
     thickness::Cint = 4
     limmin::ImVec2 = (0, 0)
     limmax::ImVec2 = (Inf, Inf)
@@ -117,16 +92,16 @@ end
     id::Int = 0
     posmin::ImVec2 = (0, 0)
     posmax::ImVec2 = (400, 400)
-    image::Matrix{T} where {T} = Matrix{RGBA}(undef, 0, 0)
+    image::Vector{UInt8} = []
     rszgrip::ResizeGrip = ResizeGrip()
     pins::Vector{ImagePin} = []
     pin_relds::Vector{ImVec2} = []
     hovered::Bool = false
 end
 
-@kwdef mutable struct SampleBaseNode <: AbstractNode
+@kwdef mutable struct SampleHolderNode <: AbstractNode
     id::Cint = 1
-    title::String = MORESTYLE.Icons.SampleBaseNode * " " * mlstr("Samplebase")
+    title::String = MORESTYLE.Icons.SampleHolderNode * " " * mlstr("Sample Holder")
     content::String = ""
     attr_ids::Vector{Cint} = []
     attr_labels::Vector{String} = []
@@ -136,8 +111,8 @@ end
     imgr::ImageRegion = ImageRegion()
 end
 
-function SampleBaseNode(id)
-    node = SampleBaseNode()
+function SampleHolderNode(id)
+    node = SampleHolderNode()
     node.id = id
     for i in 1:24
         push!(node.attr_ids, id * 1000 + i)
@@ -146,6 +121,7 @@ function SampleBaseNode(id)
     end
     node
 end
+Node(id, ::Val{:SampleHolder}) = SampleHolderNode(id)
 
 @kwdef mutable struct NodeEditor
     nodes::OrderedDict{Cint,AbstractNode} = OrderedDict()
@@ -155,6 +131,10 @@ end
     created_from_snap::Bool = false
     hoverednode_id::Cint = 0
     hoveredlink_id::Cint = 0
+    selectednodesnum::Cint = 0
+    selectednodes::Vector{Cint} = []
+    selectedlinksnum::Cint = 0
+    selectedlinks::Vector{Cint} = []
     maxid::Cint = 0
 end
 
@@ -164,13 +144,13 @@ function update_state!(rszgrip::ResizeGrip)
     rszgrip.hovered = inregion(mospos, rszgrip.pos .- rszgrip.size, rszgrip.pos)
     rszgrip.hovered &= -(rszgrip.size.y / rszgrip.size.x) * (mospos.x - rszgrip.pos.x + rszgrip.size.x) < mospos.y - rszgrip.pos.y
     if rszgrip.dragging
-        if CImGui.IsMouseDragging(2)
+        if CImGui.IsMouseDown(2)
             rszgrip.pos = cutoff(mospos, rszgrip.limmin, rszgrip.limmax) .+ rszgrip.size ./ 4
         else
             rszgrip.dragging = false
         end
     else
-        rszgrip.hovered && CImGui.IsMouseDown(2) && (rszgrip.dragging = true)
+        rszgrip.hovered && CImGui.IsMouseDown(2) && CImGui.c_get(CImGui.GetIO().MouseDownDuration, 2) < 0.1 && (rszgrip.dragging = true)
     end
 end
 
@@ -185,7 +165,7 @@ function update_state!(pin::ImagePin)
         pin.hovered_in && !pin.dragging_out && CImGui.IsMouseDown(2) && (pin.dragging_in = true)
     end
     if pin.dragging_out
-        CImGui.IsMouseClicked(0) ? (pin.dragging_out = false) : pin.radius = sqrt(sum(abs2.(mospos .- pin.pos)))
+        CImGui.IsMouseClicked(0) ? (pin.dragging_out = false) : pin.radius = min(sqrt(sum(abs2.(mospos .- pin.pos))), 100)
     else
         pin.hovered_out && !pin.dragging_in && CImGui.IsMouseClicked(0) && (pin.dragging_out = true)
     end
@@ -247,7 +227,7 @@ function draw(pin::ImagePin)
             pin.num_segments
         )
     end
-    ftsz = ceil(Int, 3pin.radius / 2)
+    ftsz = min(ceil(Int, 3pin.radius / 2), 60)
     l = lengthpr(stcstr(pin.link_idx))
     CImGui.AddText(
         drawlist,
@@ -270,6 +250,7 @@ function draw(imgr::ImageRegion)
         pin.hovered_in && CImGui.IsMouseClicked(1) && CImGui.OpenPopup(stcstr("editpin", pin.pos))
         if CImGui.BeginPopup(stcstr("editpin", pin.pos))
             @c CImGui.InputInt(mlstr("pin"), &pin.link_idx)
+            @c CImGui.DragInt(mlstr("segments"), &pin.num_segments, 1.0, 1, 100, "%d", CImGui.ImGuiSliderFlags_AlwaysClamp)
             @c CImGui.DragFloat(mlstr("size"), &pin.radius, 1.0, 1, 100, "%.3f", CImGui.ImGuiSliderFlags_AlwaysClamp)
             CImGui.SameLine()
             CImGui.Button(MORESTYLE.Icons.CloseFile) && (deleteat!(imgr.pins, i); deleteat!(imgr.pin_relds, i))
@@ -285,10 +266,10 @@ function edit(node::Node)
     imnodes_BeginNodeTitleBar()
     CImGui.Text(node.title)
     imnodes_EndNodeTitleBar()
-    CImGui.Text(node.content)
+    isempty(node.content) || CImGui.Text(node.content)
     CImGui.BeginGroup()
     for i in eachindex(node.input_ids)
-        imnodes_BeginInputAttribute(node.input_ids[i], MORESTYLE.PinShapes.input)
+        imnodes_BeginInputAttribute(node.input_ids[i], MORESTYLE.Variables.PinShapeInput)
         CImGui.TextColored(
             if node.input_ids[i] in node.connected_ids
                 MORESTYLE.Colors.NodeConnected
@@ -319,7 +300,7 @@ function edit(node::Node)
     end
     CImGui.BeginGroup()
     for i in eachindex(node.output_ids)
-        imnodes_BeginOutputAttribute(node.output_ids[i], MORESTYLE.PinShapes.output)
+        imnodes_BeginOutputAttribute(node.output_ids[i], MORESTYLE.Variables.PinShapeOutput)
         CImGui.TextColored(
             if node.output_ids[i] in node.connected_ids
                 MORESTYLE.Colors.NodeConnected
@@ -350,7 +331,7 @@ let
                         imgsize = size(img)
                         imgr.id = ImGui_ImplOpenGL3_CreateImageTexture(imgsize...)
                         ImGui_ImplOpenGL3_UpdateImageTexture(imgr.id, img, imgsize...)
-                        imgr.image = img
+                        imgr.image = jpeg_encode(img)
                     catch e
                         @error "[$(now())]\n$(mlstr("loading image failed!!!"))" exception = e
                     end
@@ -358,6 +339,7 @@ let
             end
             if CImGui.CollapsingHeader(mlstr("Pin"))
                 @c CImGui.InputInt(mlstr("pin"), &pinbuf.link_idx)
+                @c CImGui.DragInt(mlstr("segments"), &pinbuf.num_segments, 1.0, 1, 100, "%d", CImGui.ImGuiSliderFlags_AlwaysClamp)
                 @c CImGui.DragFloat(
                     mlstr("size"),
                     &pinbuf.radius, 1.0, 1, 100, "%.3f",
@@ -377,16 +359,16 @@ let
     end
 end
 
-function edit(node::SampleBaseNode)
+function edit(node::SampleHolderNode)
     imnodes_BeginNode(node.id)
     imnodes_BeginNodeTitleBar()
     CImGui.Text(node.title)
     imnodes_EndNodeTitleBar()
-    CImGui.Text(node.content)
+    isempty(node.content) || CImGui.Text(node.content)
     CImGui.BeginGroup()
     for i in eachindex(node.attr_ids)
         node.attr_types[i] || (CImGui.Text(""); continue)
-        imnodes_BeginInputAttribute(node.attr_ids[i], MORESTYLE.PinShapes.input)
+        imnodes_BeginInputAttribute(node.attr_ids[i], MORESTYLE.Variables.PinShapeInput)
         CImGui.TextColored(
             if node.attr_ids[i] in node.connected_ids
                 MORESTYLE.Colors.NodeConnected
@@ -398,30 +380,13 @@ function edit(node::SampleBaseNode)
         imnodes_EndInputAttribute()
     end
     CImGui.EndGroup()
-    # inlens = lengthpr.(node.input_labels)
-    # outlens = lengthpr.(node.output_labels)
-    # contentlines = split(node.content, '\n')
-    # contentls = lengthpr.(contentlines)
-    # maxcontentline = argmax(contentls)
-    # if true in (max_with_empty(inlens) + max_with_empty(outlens) .< [lengthpr(node.title), contentls[maxcontentline]])
-    #     maxinlabel = isempty(node.input_labels) ? "" : node.input_labels[argmax(inlens)]
-    #     maxoutlabel = isempty(node.output_labels) ? "" : node.output_labels[argmax(outlens)]
-    #     spacing = if lengthpr(node.title) < contentls[maxcontentline]
-    #         CImGui.CalcTextSize(contentlines[maxcontentline]).x - CImGui.CalcTextSize(maxinlabel).x - CImGui.CalcTextSize(maxoutlabel).x
-    #     else
-    #         CImGui.CalcTextSize(node.title).x - CImGui.CalcTextSize(maxinlabel).x - CImGui.CalcTextSize(maxoutlabel).x
-    #     end
-    #     CImGui.SameLine(0, max(spacing, 2CImGui.GetFontSize()))
-    # else
-    #     CImGui.SameLine(0, 2CImGui.GetFontSize())
-    # end
     CImGui.SameLine()
     edit(node.imgr)
     CImGui.SameLine()
     CImGui.BeginGroup()
     for i in eachindex(node.attr_ids)
         node.attr_types[i] && (CImGui.Text(""); continue)
-        imnodes_BeginOutputAttribute(node.attr_ids[i], MORESTYLE.PinShapes.output)
+        imnodes_BeginOutputAttribute(node.attr_ids[i], MORESTYLE.Variables.PinShapeOutput)
         CImGui.TextColored(
             if node.attr_ids[i] in node.connected_ids
                 MORESTYLE.Colors.NodeConnected
@@ -435,180 +400,116 @@ function edit(node::SampleBaseNode)
     CImGui.EndGroup()
     imnodes_EndNode()
     for pin in node.imgr.pins
-        pin.linked = pin.link_idx in node.connected_ids .% 100 ? true : false
+        pin.linked = pin.link_idx in node.connected_ids .% 100
     end
+end
+
+function minimaphoveringcallback(nodeid::Cint, userdata::ImNodesMiniMapNodeHoveringCallbackUserData)
+    nodeeditor = unsafe_load(Ptr{NodeEditor}(userdata))
+    if haskey(nodeeditor.nodes, nodeid)
+        node = nodeeditor.nodes[nodeid]
+        CImGui.Text(node.title)
+        isempty(node.content) || CImGui.Text(node.content)
+    end
+    return nothing
 end
 
 let
     isanynodehovered::Bool = false
     isanylinkhovered::Bool = false
     newnode::Bool = false
+    isdragging::Bool = false
+    dragnode::Vector{String} = []
+    simplenodetypes::Vector{String} = ["Universal", "Ground", "Resistance", "Trilink21", "Trilink12", "SampleHolder"]
+    rszcd::ResizeChild = ResizeChild(limminsize=(12, 12))
+
+    global function addnewnode(nodeeditor::NodeEditor, nodetype, pos, ::Val{:simple})
+        nodeeditor.maxid += 1
+        push!(nodeeditor.nodes, nodeeditor.maxid => Node(nodeeditor.maxid, Val(nodetype)))
+        imnodes_SetNodeScreenSpacePos(nodeeditor.maxid, pos)
+        newnode = true
+    end
+
+    global function addnewnode(nodeeditor::NodeEditor, ins, pos, ::Val{:instrument})
+        nodeeditor.maxid += 1
+        push!(nodeeditor.nodes, nodeeditor.maxid => Node(nodeeditor.maxid, ins, Val(:Instrument)))
+        imnodes_SetNodeScreenSpacePos(nodeeditor.maxid, pos)
+        newnode = true
+    end
+
+    global function dragnodemenu()
+        rszcd("DragMenu") do
+            CImGui.PushStyleVar(CImGui.ImGuiStyleVar_SelectableTextAlign, (0.5, 0.5))
+            if CImGui.CollapsingHeader(mlstr("Basic"))
+                nodelabels = [
+                    stcstr(getproperty(MORESTYLE.Icons, Symbol(nodetype, :Node)), " ", mlstr(nodetype))
+                    for nodetype in simplenodetypes
+                ]
+                cols, labelwidth = calcmaxwidth(nodelabels, CImGui.GetFontSize())
+                for (i, label) in enumerate(nodelabels)
+                    CImGui.Selectable(label, false, 0, (labelwidth, 3CImGui.GetFrameHeight()))
+                    i % cols == 0 || i == length(simplenodetypes) || CImGui.SameLine()
+                    if CImGui.IsItemActive() && !isdragging && isempty(dragnode)
+                        isempty(dragnode) && push!(dragnode, simplenodetypes[i])
+                        isdragging = true
+                    end
+                end
+            end
+            if CImGui.CollapsingHeader(mlstr("Instruments"))
+                inses = setdiff(keys(INSCONF), Set(["Others"]))
+                nodelabels = [stcstr(INSCONF[ins].conf.icon, " ", ins) for ins in inses]
+                cols, labelwidth = calcmaxwidth(nodelabels, CImGui.GetFontSize())
+                for (i, ins) in enumerate(inses)
+                    CImGui.Selectable(stcstr(INSCONF[ins].conf.icon, " ", ins),
+                        false,
+                        0,
+                        (labelwidth, 3CImGui.GetFrameHeight())
+                    )
+                    i % cols == 0 || i == length(inses) || CImGui.SameLine()
+                    if CImGui.IsItemActive() && !isdragging && isempty(dragnode)
+                        isempty(dragnode) && push!(dragnode, ins)
+                        isdragging = true
+                    end
+                end
+            end
+            CImGui.PopStyleVar()
+        end
+        if isdragging && length(dragnode) == 1
+            draw_list = CImGui.GetWindowDrawList()
+            tiptxt = mlstr(only(dragnode))
+            ftsz = CImGui.GetFontSize()
+            rmin = CImGui.GetMousePos() .+ CImGui.ImVec2(ftsz, ftsz)
+            rmax = rmin .+ CImGui.CalcTextSize(tiptxt) .+ CImGui.ImVec2(ftsz, ftsz)
+            CImGui.AddRectFilled(draw_list, rmin, rmax, CImGui.ColorConvertFloat4ToU32(MORESTYLE.Colors.BlockDragdrop))
+            CImGui.AddText(
+                draw_list,
+                rmin .+ CImGui.ImVec2(ftsz / 2, ftsz / 2),
+                CImGui.ColorConvertFloat4ToU32(MORESTYLE.Colors.HighlightText),
+                tiptxt
+            )
+        end
+    end
+
     global function edit(nodeeditor::NodeEditor)
         !(isanynodehovered || isanylinkhovered) && CImGui.IsMouseDoubleClicked(0) && imnodes_EditorContextResetPanning((0, 0))
         imnodes_BeginNodeEditor()
-        if CImGui.BeginPopup("NodeEditor")
-            if CImGui.MenuItem(stcstr(MORESTYLE.Icons.CommonNode, " ", mlstr("Universal Node")))
-                nodeeditor.maxid += 1
-                push!(nodeeditor.nodes, nodeeditor.maxid => Node(nodeeditor.maxid))
-                imnodes_SetNodeScreenSpacePos(nodeeditor.maxid, CImGui.GetMousePosOnOpeningCurrentPopup())
-                newnode = true
-            end
-            if CImGui.MenuItem(stcstr(MORESTYLE.Icons.GroundNode, " ", mlstr("Ground End")))
-                nodeeditor.maxid += 1
-                push!(nodeeditor.nodes, nodeeditor.maxid => Node(nodeeditor.maxid, Val(:ground)))
-                imnodes_SetNodeScreenSpacePos(nodeeditor.maxid, CImGui.GetMousePosOnOpeningCurrentPopup())
-                newnode = true
-            end
-            if CImGui.MenuItem(stcstr(MORESTYLE.Icons.ResistanceNode, " ", mlstr("Resistance")))
-                nodeeditor.maxid += 1
-                push!(nodeeditor.nodes, nodeeditor.maxid => Node(nodeeditor.maxid, Val(:resistance)))
-                imnodes_SetNodeScreenSpacePos(nodeeditor.maxid, CImGui.GetMousePosOnOpeningCurrentPopup())
-                newnode = true
-            end
-            if CImGui.MenuItem(stcstr(MORESTYLE.Icons.TrilinkNode, " ", mlstr("Trilink"), "21"))
-                nodeeditor.maxid += 1
-                push!(nodeeditor.nodes, nodeeditor.maxid => Node(nodeeditor.maxid, Val(:trilink21)))
-                imnodes_SetNodeScreenSpacePos(nodeeditor.maxid, CImGui.GetMousePosOnOpeningCurrentPopup())
-                newnode = true
-            end
-            if CImGui.MenuItem(stcstr(MORESTYLE.Icons.TrilinkNode, " ", mlstr("Trilink"), "12"))
-                nodeeditor.maxid += 1
-                push!(nodeeditor.nodes, nodeeditor.maxid => Node(nodeeditor.maxid, Val(:trilink12)))
-                imnodes_SetNodeScreenSpacePos(nodeeditor.maxid, CImGui.GetMousePosOnOpeningCurrentPopup())
-                newnode = true
-            end
-            if CImGui.MenuItem(stcstr(MORESTYLE.Icons.SampleBaseNode, " ", mlstr("Samplebase")))
-                nodeeditor.maxid += 1
-                push!(nodeeditor.nodes, nodeeditor.maxid => SampleBaseNode(nodeeditor.maxid))
-                imnodes_SetNodeScreenSpacePos(nodeeditor.maxid, CImGui.GetMousePosOnOpeningCurrentPopup())
-                newnode = true
-            end
-            for ins in keys(INSCONF)
-                ins == "Others" && continue
-                if CImGui.MenuItem(stcstr(INSCONF[ins].conf.icon, " ", ins))
-                    nodeeditor.maxid += 1
-                    push!(nodeeditor.nodes, nodeeditor.maxid => Node(nodeeditor.maxid, ins, Val(:instrument)))
-                    imnodes_SetNodeScreenSpacePos(nodeeditor.maxid, CImGui.GetMousePosOnOpeningCurrentPopup())
-                    newnode = true
+        dragnodemenu()
+        if isdragging && !CImGui.IsMouseDown(0)
+            isdragging = false
+        elseif !isdragging
+            if !isempty(dragnode)
+                if imnodes_IsEditorHovered()
+                    if only(dragnode) in simplenodetypes
+                        addnewnode(nodeeditor, Symbol(only(dragnode)), CImGui.GetMousePos(), Val(:simple))
+                    elseif only(dragnode) in keys(INSCONF)
+                        addnewnode(nodeeditor, only(dragnode), CImGui.GetMousePos(), Val(:instrument))
+                    end
                 end
+                empty!(dragnode)
             end
-            CImGui.EndPopup()
         end
-        if CImGui.BeginPopup("Edit Node")
-            hoverednode = nodeeditor.nodes[nodeeditor.hoverednode_id]
-            if CImGui.BeginMenu(stcstr(MORESTYLE.Icons.Edit, " ", mlstr("Edit")))
-                if hoverednode isa Node
-                    @c InputTextRSZ(mlstr("title"), &hoverednode.title)
-                    linesnum = (1 + length(findall("\n", hoverednode.content)))
-                    mtheigth = (linesnum > 6 ? 6 : linesnum) * CImGui.GetTextLineHeight() +
-                               2unsafe_load(IMGUISTYLE.FramePadding.y)
-                    @c InputTextMultilineRSZ(mlstr("content"), &hoverednode.content, (Cfloat(0), mtheigth))
-                    if CImGui.BeginPopupContextItem()
-                        for ins in keys(INSTRBUFFERVIEWERS)
-                            if !isempty(INSTRBUFFERVIEWERS[ins])
-                                if CImGui.BeginMenu(ins)
-                                    for addr in keys(INSTRBUFFERVIEWERS[ins])
-                                        CImGui.MenuItem(addr) && (hoverednode.content *= addr)
-                                    end
-                                    CImGui.EndMenu()
-                                end
-                            end
-                        end
-                        CImGui.EndPopup()
-                    end
-                    width = CImGui.GetItemRectSize().x / 2
-                    CImGui.BeginGroup()
-                    for i in eachindex(hoverednode.input_ids)
-                        input_label = hoverednode.input_labels[i]
-                        CImGui.PushItemWidth(width - CImGui.CalcTextSize(stcstr("In ", i, "       ")).x)
-                        @c InputTextRSZ(stcstr("In ", i), &input_label)
-                        hoverednode.input_labels[i] = input_label
-                        CImGui.PopItemWidth()
-                        CImGui.SameLine()
-                        if CImGui.Button(stcstr(MORESTYLE.Icons.CloseFile, "##input ", i))
-                            deleteat!(hoverednode.input_ids, i)
-                            deleteat!(hoverednode.input_labels, i)
-                            break
-                        end
-                    end
-                    if CImGui.Button(stcstr(MORESTYLE.Icons.NewFile, "##add Input"))
-                        li = length(hoverednode.input_ids)
-                        push!(hoverednode.input_ids, hoverednode.id * 1000 + li + 1)
-                        push!(hoverednode.input_labels, "Input $(li+1)")
-                    end
-                    CImGui.EndGroup()
-                    CImGui.SameLine()
-                    CImGui.BeginGroup()
-                    for i in eachindex(hoverednode.output_ids)
-                        output_label = hoverednode.output_labels[i]
-                        CImGui.PushItemWidth(width - CImGui.CalcTextSize(stcstr("Out ", i, "       ")).x)
-                        @c InputTextRSZ(stcstr("Out ", i), &output_label)
-                        hoverednode.output_labels[i] = output_label
-                        CImGui.PopItemWidth()
-                        CImGui.SameLine()
-                        if CImGui.Button(stcstr(MORESTYLE.Icons.CloseFile, "##Output ", i))
-                            deleteat!(hoverednode.output_ids, i)
-                            deleteat!(hoverednode.output_labels, i)
-                            break
-                        end
-                    end
-                    if CImGui.Button(stcstr(MORESTYLE.Icons.NewFile, "##add Output"))
-                        lo = length(hoverednode.output_ids)
-                        push!(hoverednode.output_ids, hoverednode.id * 1000 + 100 + lo + 1)
-                        push!(hoverednode.output_labels, "Output $(lo+1)")
-                    end
-                    CImGui.EndGroup()
-                elseif hoverednode isa SampleBaseNode
-                    @c InputTextRSZ(mlstr("title"), &hoverednode.title)
-                    linesnum = (1 + length(findall("\n", hoverednode.content)))
-                    mtheigth = (linesnum > 6 ? 6 : linesnum) * CImGui.GetTextLineHeight() +
-                               2unsafe_load(IMGUISTYLE.FramePadding.y)
-                    @c InputTextMultilineRSZ(mlstr("content"), &hoverednode.content, (Cfloat(0), mtheigth))
-                    CImGui.BeginGroup()
-                    for i in eachindex(hoverednode.attr_ids)
-                        attr_label = hoverednode.attr_labels[i]
-                        @c InputTextRSZ(stcstr("Pin ", i), &attr_label)
-                        hoverednode.attr_labels[i] = attr_label
-                        CImGui.SameLine()
-                        if CImGui.Button(stcstr(MORESTYLE.Icons.CloseFile, "##attr ", i))
-                            deleteat!(hoverednode.attr_ids, i)
-                            deleteat!(hoverednode.attr_labels, i)
-                            deleteat!(hoverednode.attr_types, i)
-                            break
-                        end
-                        CImGui.SameLine()
-                        attr_type = hoverednode.attr_types[i]
-                        if @c CImGui.Checkbox(stcstr("##IsInput", i), &attr_type)
-                            hoverednode.attr_types[i] = attr_type
-                            if hoverednode.attr_ids[i] in hoverednode.connected_ids
-                                dellinks = Cint[]
-                                for (j, link) in enumerate(nodeeditor.links)
-                                    true in (link .== hoverednode.attr_ids[i]) && push!(dellinks, j)
-                                end
-                                deleteat!(nodeeditor.links, dellinks)
-                            end
-                        end
-                    end
-                    CImGui.EndGroup()
-                    if CImGui.Button(stcstr(MORESTYLE.Icons.NewFile, "##add Attr"))
-                        li = length(hoverednode.attr_ids)
-                        push!(hoverednode.attr_ids, hoverednode.id * 1000 + li + 1)
-                        push!(hoverednode.attr_labels, "Pin $(li+1)")
-                        push!(hoverednode.attr_types, true)
-                    end
-                end
-                CImGui.EndMenu()
-            end
-            if CImGui.MenuItem(stcstr(MORESTYLE.Icons.CloseFile, " ", mlstr("Delete")))
-                delete!(nodeeditor.nodes, nodeeditor.hoverednode_id)
-                dellinks = Cint[]
-                for (j, link) in enumerate(nodeeditor.links)
-                    (link[1] ÷ 1000 == hoverednode.id || link[2] ÷ 1000 == hoverednode.id) && push!(dellinks, j)
-                end
-                deleteat!(nodeeditor.links, dellinks)
-            end
-            CImGui.EndPopup()
-        end
+        editnodeeditorpopup(nodeeditor)
+        editnodepopup(nodeeditor)
         if CImGui.BeginPopup("Edit Link")
             if CImGui.MenuItem(stcstr(MORESTYLE.Icons.CloseFile, " ", mlstr("Delete")))
                 deleteat!(nodeeditor.links, nodeeditor.hoveredlink_id)
@@ -620,7 +521,7 @@ let
                 CImGui.OpenPopup("NodeEditor")
             elseif isanynodehovered
                 hoverednode = nodeeditor.nodes[nodeeditor.hoverednode_id]
-                if hoverednode isa Node || (hoverednode isa SampleBaseNode && !hoverednode.imgr.hovered)
+                if hoverednode isa Node || (hoverednode isa SampleHolderNode && !hoverednode.imgr.hovered)
                     CImGui.OpenPopup("Edit Node")
                 end
             elseif isanylinkhovered
@@ -638,7 +539,24 @@ let
             push!(nodeeditor.nodes[link[1]÷1000].connected_ids, link[1])
             push!(nodeeditor.nodes[link[2]÷1000].connected_ids, link[2])
         end
+        imnodes_MiniMap(
+            MORESTYLE.Variables.MiniMapFraction,
+            MORESTYLE.Variables.MiniMapLocation,
+            @cfunction(minimaphoveringcallback, Cvoid, (Cint, ImNodesMiniMapNodeHoveringCallbackUserData)),
+            Ref{NodeEditor}(nodeeditor)
+        )
         imnodes_EndNodeEditor()
+        rszcd.limmaxsize = CImGui.GetItemRectSize()
+        rszcd.regmax = (
+            min(rszcd.regmin[1] + rszcd.limmaxsize[1], rszcd.regmax[1]),
+            min(rszcd.regmin[2] + rszcd.limmaxsize[2], rszcd.regmax[2])
+        )
+        nodeeditor.selectednodesnum = imnodes_NumSelectedNodes()
+        resize!(nodeeditor.selectednodes, nodeeditor.selectednodesnum)
+        imnodes_GetSelectedNodes(nodeeditor.selectednodes)
+        nodeeditor.selectedlinksnum = imnodes_NumSelectedLinks()
+        resize!(nodeeditor.selectedlinks, nodeeditor.selectedlinksnum)
+        imnodes_GetSelectedLinks(nodeeditor.selectedlinks)
         if @c imnodes_IsLinkCreated_BoolPtr(
             &nodeeditor.link_start,
             &nodeeditor.link_stop,
@@ -654,12 +572,216 @@ let
         isanynodehovered = @c imnodes_IsNodeHovered(&nodeeditor.hoverednode_id)
         isanylinkhovered = @c imnodes_IsLinkHovered(&nodeeditor.hoveredlink_id)
     end
+
+    global function editnodeeditorpopup(nodeeditor::NodeEditor)
+        if CImGui.BeginPopup("NodeEditor")
+            if nodeeditor.selectednodesnum > 0 || nodeeditor.selectedlinksnum > 0
+                if CImGui.MenuItem(stcstr(MORESTYLE.Icons.CloseFile, " ", mlstr("Delete")))
+                    for id in nodeeditor.selectedlinks
+                        length(nodeeditor.links) < id || deleteat!(nodeeditor.links, id)
+                    end
+                    for id in nodeeditor.selectednodes
+                        deletenode!(nodeeditor, id)
+                    end
+                end
+            end
+            if CImGui.BeginMenu(mlstr("Basic Nodes"))
+                for nodetype in simplenodetypes
+                    CImGui.MenuItem(
+                        stcstr(getproperty(MORESTYLE.Icons, Symbol(nodetype, :Node)), " ", mlstr(nodetype))
+                    ) && addnewnode(nodeeditor, Symbol(nodetype), CImGui.GetMousePosOnOpeningCurrentPopup(), Val(:simple))
+                end
+                CImGui.EndMenu()
+            end
+            if CImGui.BeginMenu(mlstr("Instrument Nodes"))
+                for ins in keys(INSCONF)
+                    ins == "Others" && continue
+                    if CImGui.MenuItem(stcstr(INSCONF[ins].conf.icon, " ", ins))
+                        addnewnode(nodeeditor, ins, CImGui.GetMousePosOnOpeningCurrentPopup(), Val(:instrument))
+                    end
+                end
+                CImGui.EndMenu()
+            end
+            CImGui.EndPopup()
+        end
+    end
+end
+
+function deletenode!(nodeeditor::NodeEditor, nodeid)
+    delete!(nodeeditor.nodes, nodeid)
+    dellinks = Cint[]
+    for (j, link) in enumerate(nodeeditor.links)
+        (link[1] ÷ 1000 == nodeid || link[2] ÷ 1000 == nodeid) && push!(dellinks, j)
+    end
+    deleteat!(nodeeditor.links, dellinks)
+end
+
+function editnodepopup(nodeeditor::NodeEditor)
+    if CImGui.BeginPopup("Edit Node")
+        hoverednode = nodeeditor.nodes[nodeeditor.hoverednode_id]
+        if CImGui.BeginMenu(stcstr(MORESTYLE.Icons.Edit, " ", mlstr("Edit")))
+            if hoverednode isa Node
+                @c InputTextRSZ(mlstr("title"), &hoverednode.title)
+                linesnum = (1 + length(findall("\n", hoverednode.content)))
+                mtheigth = (linesnum > 6 ? 6 : linesnum) * CImGui.GetTextLineHeight() +
+                           2unsafe_load(IMGUISTYLE.FramePadding.y)
+                @c InputTextMultilineRSZ(mlstr("content"), &hoverednode.content, (Cfloat(0), mtheigth))
+                if CImGui.BeginPopupContextItem()
+                    for ins in keys(INSTRBUFFERVIEWERS)
+                        if !isempty(INSTRBUFFERVIEWERS[ins])
+                            if CImGui.BeginMenu(ins)
+                                for addr in keys(INSTRBUFFERVIEWERS[ins])
+                                    CImGui.MenuItem(addr) && (hoverednode.content *= addr)
+                                end
+                                CImGui.EndMenu()
+                            end
+                        end
+                    end
+                    CImGui.EndPopup()
+                end
+                width = CImGui.GetItemRectSize().x / 3
+                CImGui.BeginGroup()
+                if CImGui.Button(stcstr(MORESTYLE.Icons.NewFile, "##add Input"))
+                    li = length(hoverednode.input_ids)
+                    push!(hoverednode.input_ids, hoverednode.id * 1000 + li + 1)
+                    push!(hoverednode.input_labels, "Input $(li+1)")
+                end
+                for i in eachindex(hoverednode.input_ids)
+                    input_label = hoverednode.input_labels[i]
+                    CImGui.PushItemWidth(width)
+                    @c InputTextRSZ(stcstr("In ", i), &input_label)
+                    hoverednode.input_labels[i] = input_label
+                    CImGui.PopItemWidth()
+                end
+                CImGui.EndGroup()
+                CImGui.SameLine()
+                CImGui.BeginGroup()
+                CImGui.Text("")
+                for i in eachindex(hoverednode.input_ids)
+                    if CImGui.Button(stcstr(MORESTYLE.Icons.CloseFile, "##input ", i))
+                        deleteat!(hoverednode.input_ids, i)
+                        deleteat!(hoverednode.input_labels, i)
+                        break
+                    end
+                end
+                CImGui.EndGroup()
+                CImGui.SameLine()
+                CImGui.BeginGroup()
+                if CImGui.Button(stcstr(MORESTYLE.Icons.NewFile, "##add Output"))
+                    lo = length(hoverednode.output_ids)
+                    push!(hoverednode.output_ids, hoverednode.id * 1000 + 100 + lo + 1)
+                    push!(hoverednode.output_labels, "Output $(lo+1)")
+                end
+                for i in eachindex(hoverednode.output_ids)
+                    output_label = hoverednode.output_labels[i]
+                    CImGui.PushItemWidth(width - CImGui.GetFontSize())
+                    @c InputTextRSZ(stcstr("Out ", i), &output_label)
+                    hoverednode.output_labels[i] = output_label
+                    CImGui.PopItemWidth()
+                end
+                CImGui.EndGroup()
+                CImGui.SameLine()
+                CImGui.BeginGroup()
+                CImGui.Text("")
+                for i in eachindex(hoverednode.output_ids)
+                    if CImGui.Button(stcstr(MORESTYLE.Icons.CloseFile, "##Output ", i))
+                        deleteat!(hoverednode.output_ids, i)
+                        deleteat!(hoverednode.output_labels, i)
+                        break
+                    end
+                end
+                CImGui.EndGroup()
+            elseif hoverednode isa SampleHolderNode
+                @c InputTextRSZ(mlstr("title"), &hoverednode.title)
+                linesnum = (1 + length(findall("\n", hoverednode.content)))
+                mtheigth = (linesnum > 6 ? 6 : linesnum) * CImGui.GetTextLineHeight() +
+                           2unsafe_load(IMGUISTYLE.FramePadding.y)
+                @c InputTextMultilineRSZ(mlstr("content"), &hoverednode.content, (Cfloat(0), mtheigth))
+                width = CImGui.GetItemRectSize().x / 4
+                if CImGui.Button(stcstr(MORESTYLE.Icons.NewFile, "##add Attr"))
+                    li = length(hoverednode.attr_ids)
+                    push!(hoverednode.attr_ids, hoverednode.id * 1000 + li + 1)
+                    push!(hoverednode.attr_labels, "Pin $(li+1)")
+                    push!(hoverednode.attr_types, true)
+                end
+                CImGui.BeginGroup()
+                for i in filter(isodd, eachindex(hoverednode.attr_ids))
+                    attr_label = hoverednode.attr_labels[i]
+                    CImGui.PushItemWidth(width)
+                    @c InputTextRSZ(stcstr("Pin ", i), &attr_label)
+                    CImGui.PopItemWidth()
+                    hoverednode.attr_labels[i] = attr_label
+                end
+                CImGui.EndGroup()
+                CImGui.SameLine()
+                CImGui.BeginGroup()
+                for i in filter(isodd, eachindex(hoverednode.attr_ids))
+                    if CImGui.Button(stcstr(MORESTYLE.Icons.CloseFile, "##attr ", i))
+                        deleteat!(hoverednode.attr_ids, i)
+                        deleteat!(hoverednode.attr_labels, i)
+                        deleteat!(hoverednode.attr_types, i)
+                        break
+                    end
+                    CImGui.SameLine()
+                    attr_type = hoverednode.attr_types[i]
+                    if @c CImGui.Checkbox(stcstr("##IsInput", i), &attr_type)
+                        hoverednode.attr_types[i] = attr_type
+                        if hoverednode.attr_ids[i] in hoverednode.connected_ids
+                            dellinks = Cint[]
+                            for (j, link) in enumerate(nodeeditor.links)
+                                true in (link .== hoverednode.attr_ids[i]) && push!(dellinks, j)
+                            end
+                            deleteat!(nodeeditor.links, dellinks)
+                        end
+                    end
+                end
+                CImGui.EndGroup()
+                CImGui.SameLine()
+                CImGui.BeginGroup()
+                for i in filter(iseven, eachindex(hoverednode.attr_ids))
+                    attr_label = hoverednode.attr_labels[i]
+                    CImGui.PushItemWidth(width)
+                    @c InputTextRSZ(stcstr("Pin ", i), &attr_label)
+                    CImGui.PopItemWidth()
+                    hoverednode.attr_labels[i] = attr_label
+                end
+                CImGui.EndGroup()
+                CImGui.SameLine()
+                CImGui.BeginGroup()
+                for i in filter(iseven, eachindex(hoverednode.attr_ids))
+                    if CImGui.Button(stcstr(MORESTYLE.Icons.CloseFile, "##attr ", i))
+                        deleteat!(hoverednode.attr_ids, i)
+                        deleteat!(hoverednode.attr_labels, i)
+                        deleteat!(hoverednode.attr_types, i)
+                        break
+                    end
+                    CImGui.SameLine()
+                    attr_type = hoverednode.attr_types[i]
+                    if @c CImGui.Checkbox(stcstr("##IsInput", i), &attr_type)
+                        hoverednode.attr_types[i] = attr_type
+                        if hoverednode.attr_ids[i] in hoverednode.connected_ids
+                            dellinks = Cint[]
+                            for (j, link) in enumerate(nodeeditor.links)
+                                true in (link .== hoverednode.attr_ids[i]) && push!(dellinks, j)
+                            end
+                            deleteat!(nodeeditor.links, dellinks)
+                        end
+                    end
+                end
+                CImGui.EndGroup()
+            end
+            CImGui.EndMenu()
+        end
+        CImGui.MenuItem(stcstr(MORESTYLE.Icons.CloseFile, " ", mlstr("Delete"))) && deletenode!(nodeeditor, hoverednode.id)
+        CImGui.EndPopup()
+    end
 end
 
 let
     hold::Bool = false
     holdsz::Cfloat = 0
-    nodeeditor_contexts::Dict{String,Ptr{LibCImGui.EditorContext}} = Dict()
+    nodeeditor_contexts::Dict{String,Ptr{LibCImGui.ImNodesEditorContext}} = Dict()
+
     global function edit(nodeeditor::NodeEditor, id, p_open::Ref{Bool})
         CImGui.SetNextWindowSize((1200, 600), CImGui.ImGuiCond_Once)
         CImGui.PushStyleColor(CImGui.ImGuiCol_WindowBg, CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_PopupBg))
@@ -701,7 +823,7 @@ function view(imgr::ImageRegion)
     draw(imgr.rszgrip)
 end
 
-function view(node::SampleBaseNode)
+function view(node::SampleHolderNode)
     imnodes_BeginNode(node.id)
     imnodes_BeginNodeTitleBar()
     CImGui.Text(node.title)
@@ -710,7 +832,7 @@ function view(node::SampleBaseNode)
     CImGui.BeginGroup()
     for i in eachindex(node.attr_ids)
         node.attr_types[i] || (CImGui.Text(""); continue)
-        imnodes_BeginInputAttribute(node.attr_ids[i], MORESTYLE.PinShapes.input)
+        imnodes_BeginInputAttribute(node.attr_ids[i], MORESTYLE.Variables.PinShapeInput)
         CImGui.TextColored(
             if node.attr_ids[i] in node.connected_ids
                 MORESTYLE.Colors.NodeConnected
@@ -722,30 +844,13 @@ function view(node::SampleBaseNode)
         imnodes_EndInputAttribute()
     end
     CImGui.EndGroup()
-    # inlens = lengthpr.(node.input_labels)
-    # outlens = lengthpr.(node.output_labels)
-    # contentlines = split(node.content, '\n')
-    # contentls = lengthpr.(contentlines)
-    # maxcontentline = argmax(contentls)
-    # if true in (max_with_empty(inlens) + max_with_empty(outlens) .< [lengthpr(node.title), contentls[maxcontentline]])
-    #     maxinlabel = isempty(node.input_labels) ? "" : node.input_labels[argmax(inlens)]
-    #     maxoutlabel = isempty(node.output_labels) ? "" : node.output_labels[argmax(outlens)]
-    #     spacing = if lengthpr(node.title) < contentls[maxcontentline]
-    #         CImGui.CalcTextSize(contentlines[maxcontentline]).x - CImGui.CalcTextSize(maxinlabel).x - CImGui.CalcTextSize(maxoutlabel).x
-    #     else
-    #         CImGui.CalcTextSize(node.title).x - CImGui.CalcTextSize(maxinlabel).x - CImGui.CalcTextSize(maxoutlabel).x
-    #     end
-    #     CImGui.SameLine(0, max(spacing, 2CImGui.GetFontSize()))
-    # else
-    #     CImGui.SameLine(0, 2CImGui.GetFontSize())
-    # end
     CImGui.SameLine()
     view(node.imgr)
     CImGui.SameLine()
     CImGui.BeginGroup()
     for i in eachindex(node.attr_ids)
         node.attr_types[i] && (CImGui.Text(""); continue)
-        imnodes_BeginOutputAttribute(node.attr_ids[i], MORESTYLE.PinShapes.output)
+        imnodes_BeginOutputAttribute(node.attr_ids[i], MORESTYLE.Variables.PinShapeOutput)
         CImGui.TextColored(
             if node.attr_ids[i] in node.connected_ids
                 MORESTYLE.Colors.NodeConnected
@@ -764,16 +869,10 @@ function view(node::SampleBaseNode)
 end
 
 let
-    # isanynodehovered_list::Dict{String,Bool} = Dict()
-    # isanylinkhovered_list::Dict{String,Bool} = Dict()
-    nodeeditor_contexts::Dict{String,Ptr{LibCImGui.EditorContext}} = Dict()
+    nodeeditor_contexts::Dict{String,Ptr{LibCImGui.ImNodesEditorContext}} = Dict()
     global function view(nodeeditor::NodeEditor, id)
         haskey(nodeeditor_contexts, id) || push!(nodeeditor_contexts, id => imnodes_EditorContextCreate())
-        # haskey(isanynodehovered_list, id) || push!(isanynodehovered_list, id => false)
-        # haskey(isanylinkhovered_list, id) || push!(isanylinkhovered_list, id => false)
         imnodes_EditorContextSet(nodeeditor_contexts[id])
-        # !(isanynodehovered_list[id] || isanylinkhovered_list[id]) && CImGui.IsMouseDoubleClicked(0) &&
-        # imnodes_EditorContextResetPanning((0, 0))
         imnodes_BeginNodeEditor()
         for (id, node) in nodeeditor.nodes
             imnodes_SetNodeGridSpacePos(id, node.position)
@@ -785,11 +884,15 @@ let
             push!(nodeeditor.nodes[link[1]÷1000].connected_ids, link[1])
             push!(nodeeditor.nodes[link[2]÷1000].connected_ids, link[2])
         end
+        imnodes_MiniMap(
+            MORESTYLE.Variables.MiniMapFraction,
+            MORESTYLE.Variables.MiniMapLocation,
+            @cfunction(minimaphoveringcallback, Cvoid, (Cint, ImNodesMiniMapNodeHoveringCallbackUserData)),
+            Ref{NodeEditor}(nodeeditor)
+        )
         imnodes_EndNodeEditor()
         for (id, node) in nodeeditor.nodes
             @c imnodes_GetNodeGridSpacePos(&node.position, id)
         end
-        # isanynodehovered_list[id] = @c imnodes_IsNodeHovered(&nodeeditor.hoverednode_id)
-        # isanylinkhovered_list[id] = @c imnodes_IsLinkHovered(&nodeeditor.hoveredlink_id)
     end
 end

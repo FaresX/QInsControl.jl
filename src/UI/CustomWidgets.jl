@@ -201,7 +201,9 @@ function MultiSelectable(
     n,
     idxing=Ref(1),
     size=(Cfloat(0), CImGui.GetFrameHeight() * ceil(Int, length(labels) / n));
-    border=false
+    border=false,
+    selectableflags=0,
+    selectablesize=(0, 0)
 )
     l = length(labels)
     length(states) == l || resize!(states, l)
@@ -209,9 +211,14 @@ function MultiSelectable(
     CImGui.BeginChild(stcstr("MultiSelectable##", id), size, border)
     CImGui.Columns(n, C_NULL, false)
     for i in 1:l
+        if i == 1
+            ccpos = CImGui.GetCursorScreenPos()
+            CImGui.SetCursorScreenPos(ccpos.x, ccpos.y + unsafe_load(IMGUISTYLE.ItemSpacing.y) / 2)
+        end
         CImGui.PushStyleVar(CImGui.ImGuiStyleVar_SelectableTextAlign, (0.5, 0.5))
-        CImGui.Selectable(labels[i], states[i]) && (states[i] ⊻= true)
+        CImGui.Selectable(labels[i], states[i], selectableflags, selectablesize) && (states[i] ⊻= true)
         CImGui.PopStyleVar()
+        i == l || CImGui.Spacing()
         rightclickmenu() && (idxing[] = i)
         CImGui.NextColumn()
     end
@@ -271,27 +278,41 @@ function YesNoDialog(id, msg, flags=0)::Bool
     return false
 end
 
-function TextRect(str)
-    pos = CImGui.GetCursorScreenPos()
+function TextRect(
+    str;
+    size=(0, 0),
+    nochild=false,
+    bdrounding=MORESTYLE.Variables.TextRectRounding,
+    thickness=MORESTYLE.Variables.TextRectThickness,
+    padding=MORESTYLE.Variables.TextRectPadding,
+    coltxt=CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_Text)
+)
     draw_list = CImGui.GetWindowDrawList()
-    width = CImGui.GetContentRegionAvailWidth()
-    CImGui.PushTextWrapPos(CImGui.GetCursorPosX() + width)
+    availwidth = CImGui.GetContentRegionAvailWidth()
+    nochild || CImGui.BeginChild("TextRect", size)
+    CImGui.SetCursorScreenPos(CImGui.GetCursorScreenPos() .+ padding .+ thickness)
+    CImGui.PushTextWrapPos(nochild ? availwidth - padding[1] : 0)
+    CImGui.PushStyleColor(CImGui.ImGuiCol_Text, coltxt)
     CImGui.TextUnformatted(str)
+    CImGui.PopStyleColor()
+    CImGui.PopTextWrapPos()
+    nochild || CImGui.EndChild()
     rmin, rmax = CImGui.GetItemRectMin(), CImGui.GetItemRectMax()
+    nochild && ColoredButton(""; size=(Cfloat(0), thickness + padding[2]), colbt=[0, 0, 0, 0], colbth=[0, 0, 0, 0], colbta=[0, 0, 0, 0])
+    recta = nochild ? rmin .- padding : rmin .+ thickness
+    rectb = nochild ? CImGui.ImVec2(rmin.x + availwidth .- 2padding[1] .- 2thickness, rmax.y + padding[2]) : rmax .- thickness
     CImGui.AddRect(
         draw_list,
-        rmin,
-        CImGui.ImVec2(pos.x + width, rmax.y),
+        recta, rectb,
         CImGui.ColorConvertFloat4ToU32(MORESTYLE.Colors.ShowTextRect),
-        0.0,
+        bdrounding,
         0,
-        2
+        thickness
     )
-    CImGui.PopTextWrapPos()
-    rmin, (pos.x + width, rmax.y)
+    recta, rectb
 end
 
-function ItemTooltip(tipstr, wrappos=CImGui.GetFontSize() * 36.0)
+function ItemTooltip(tipstr, wrappos=36CImGui.GetFontSize())
     if CImGui.IsItemHovered()
         CImGui.BeginTooltip()
         CImGui.PushTextWrapPos(wrappos)
@@ -299,6 +320,14 @@ function ItemTooltip(tipstr, wrappos=CImGui.GetFontSize() * 36.0)
         CImGui.PopTextWrapPos()
         CImGui.EndTooltip()
     end
+end
+
+function ItemTooltipNoHovered(tipstr, wrappos=36CImGui.GetFontSize())
+    CImGui.BeginTooltip()
+    CImGui.PushTextWrapPos(wrappos)
+    CImGui.TextUnformatted(tipstr)
+    CImGui.PopTextWrapPos()
+    CImGui.EndTooltip()
 end
 
 function RenameSelectable(str_id, isrename::Ref{Bool}, label::Ref, selected::Bool, flags=0, size=(0, 0); fixedlabel="")
@@ -577,5 +606,87 @@ function SetWindowBgImage(path=CONF.BGImage.path; tint_col=MORESTYLE.Colors.BgIm
         co = CImGui.GetCursorScreenPos()
         Image(path; size=CImGui.GetContentRegionAvail(), tint_col=tint_col)
         CImGui.SetCursorScreenPos(co)
+    end
+end
+
+function SeparatorTextColored(col, label)
+    CImGui.PushStyleColor(CImGui.ImGuiCol_Text, col)
+    igSeparatorText(label)
+    CImGui.PopStyleColor()
+end
+
+function BoxTextColored(
+    label;
+    size=(0, 0),
+    col=CImGui.c_get(IMGUISTYLE.Colors, ImGuiCol_Text),
+    colbd=MORESTYLE.Colors.ItemBorder)
+    CImGui.PushStyleColor(CImGui.ImGuiCol_Border, colbd)
+    CImGui.PushStyleVar(ImGuiStyleVar_FrameBorderSize, 1)
+    ColoredButton(label; size=size, colbt=[0, 0, 0, 0], colbth=[0, 0, 0, 0], colbta=[0, 0, 0, 0], coltxt=col)
+    CImGui.PopStyleVar()
+    CImGui.PopStyleColor()
+end
+
+@kwdef mutable struct ResizeChild
+    regmin::CImGui.ImVec2 = (0, 0)
+    regmax::CImGui.ImVec2 = (200, 400)
+    rszgripsize::Cfloat = 24
+    limminsize::CImGui.ImVec2 = (0, 0)
+    limmaxsize::CImGui.ImVec2 = (Inf, Inf)
+    hovered::Bool = false
+    dragging::Bool = false
+end
+
+function (rszcd::ResizeChild)(f, id, args...; kwargs...)
+    CImGui.BeginChild(id, rszcd.regmax .- rszcd.regmin, true)
+    f(args...; kwargs...)
+    CImGui.EndChild()
+    CImGui.AddTriangleFilled(
+        CImGui.GetWindowDrawList(),
+        (rszcd.regmax.x - rszcd.rszgripsize, rszcd.regmax.y), rszcd.regmax, (rszcd.regmax.x, rszcd.regmax.y - rszcd.rszgripsize),
+        if rszcd.hovered && rszcd.dragging
+            CImGui.ColorConvertFloat4ToU32(CImGui.c_get(IMGUISTYLE.Colors, ImGuiCol_ResizeGripActive))
+        elseif rszcd.hovered
+            CImGui.ColorConvertFloat4ToU32(CImGui.c_get(IMGUISTYLE.Colors, ImGuiCol_ResizeGripHovered))
+        else
+            CImGui.ColorConvertFloat4ToU32(CImGui.c_get(IMGUISTYLE.Colors, ImGuiCol_ResizeGrip))
+        end
+    )
+    rszcd.regmin = CImGui.GetItemRectMin()
+    rszcd.regmax = CImGui.GetItemRectMax()
+    mospos = CImGui.GetMousePos()
+    rszcd.hovered = inregion(mospos, rszcd.regmax .- rszcd.rszgripsize, rszcd.regmax)
+    rszcd.hovered &= -(mospos.x - rszcd.regmax.x + rszcd.rszgripsize) < mospos.y - rszcd.regmax.y
+    if rszcd.dragging
+        if CImGui.IsMouseDown(0)
+            rszcd.regmax = cutoff(mospos, rszcd.regmin .+ rszcd.limminsize, rszcd.regmin .+ rszcd.limmaxsize) .+ rszcd.rszgripsize ./ 4
+        else
+            rszcd.dragging = false
+        end
+    else
+        rszcd.hovered && CImGui.IsMouseDown(0) && CImGui.c_get(CImGui.GetIO().MouseDownDuration, 0) < 0.1 && (rszcd.dragging = true)
+    end
+end
+
+@kwdef mutable struct AnimateChild
+    presentsize::CImGui.ImVec2 = (0, 0)
+    targetsize::CImGui.ImVec2 = (400, 600)
+    rate::CImGui.ImVec2 = (4, 6)
+end
+
+function (acd::AnimateChild)(f, id, border, flags, args...; kwargs...)
+    CImGui.BeginChild(id, acd.presentsize, border, flags)
+    f(args...; kwargs...)
+    CImGui.EndChild()
+    acd.presentsize = CImGui.GetItemRectSize()
+    if all(acd.presentsize .== acd.targetsize)
+    else
+        rate = sign.(acd.targetsize .- acd.presentsize) .* abs.(acd.rate)
+        gap = abs.(acd.presentsize .- acd.targetsize)
+        newsize = acd.presentsize .+ rate
+        acd.presentsize = (
+            gap[1] < abs(acd.rate[1]) ? acd.targetsize[1] : newsize[1],
+            gap[2] < abs(acd.rate[2]) ? acd.targetsize[2] : newsize[2]
+        )
     end
 end

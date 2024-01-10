@@ -3,7 +3,7 @@ macro progress(exfor)
     ex = quote
         let
             $pgid = uuid4()
-            $pgn = length(collect($(exfor.args[1].args[2])))
+            $pgn = length($(exfor.args[1].args[2]))
             $pgi = 0
             put!(progress_lc, ($pgid, $pgi, $pgn, 0))
             $tn = time()

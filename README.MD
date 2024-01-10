@@ -13,8 +13,10 @@ See [docs](https://FaresX.github.io/QInsControl.jl/dev/) here.
 Before installation, make sure you have NI VISA installed!
 ```
 julia> ]
+(@v1.9) pkg> add ImPlot#main
 (@v1.9) pkg> add https://github.com/FaresX/QInsControl.jl.git
 ```
+or you can download the execution file on the releases pages, which is a quicker taste.
 
 ## usage
 ```julia
@@ -27,7 +29,7 @@ QInsControl.start()
 A simple project file [demo.daq](example) is in the example folder, which gives some ideas to write your own scripts.
 ## custom widgets
 now it comes to a new feture that anyone could create your own widgets to control the instruments.
-![image](example/test%20widget.png) ![image](example/widgetli5640.png)
+![image](example/test%20widget.png)
 
 ## <font color=#FF0000>**Note**</font>
 At present, the GUI may get crashed thanks to some bugs that do not interrupt the running DAQ program. When encountered, 
