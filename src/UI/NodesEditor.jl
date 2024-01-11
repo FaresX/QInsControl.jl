@@ -144,13 +144,13 @@ function update_state!(rszgrip::ResizeGrip)
     rszgrip.hovered = inregion(mospos, rszgrip.pos .- rszgrip.size, rszgrip.pos)
     rszgrip.hovered &= -(rszgrip.size.y / rszgrip.size.x) * (mospos.x - rszgrip.pos.x + rszgrip.size.x) < mospos.y - rszgrip.pos.y
     if rszgrip.dragging
-        if CImGui.IsMouseDown(2)
+        if CImGui.IsMouseDown(0)
             rszgrip.pos = cutoff(mospos, rszgrip.limmin, rszgrip.limmax) .+ rszgrip.size ./ 4
         else
             rszgrip.dragging = false
         end
     else
-        rszgrip.hovered && CImGui.IsMouseDown(2) && CImGui.c_get(CImGui.GetIO().MouseDownDuration, 2) < 0.1 && (rszgrip.dragging = true)
+        rszgrip.hovered && CImGui.IsMouseDown(0) && CImGui.c_get(CImGui.GetIO().MouseDownDuration, 0) < 0.1 && (rszgrip.dragging = true)
     end
 end
 
@@ -160,14 +160,14 @@ function update_state!(pin::ImagePin)
     pin.hovered_in = reld2 < pin.radius - pin.thickness
     pin.hovered_out = pin.radius - pin.thickness < reld2 < pin.radius + pin.thickness
     if pin.dragging_in
-        CImGui.IsMouseDown(2) ? pin.pos = cutoff(mospos, pin.limmin, pin.limmax) : pin.dragging_in = false
+        CImGui.IsMouseDown(0) ? pin.pos = cutoff(mospos, pin.limmin, pin.limmax) : pin.dragging_in = false
     else
-        pin.hovered_in && !pin.dragging_out && CImGui.IsMouseDown(2) && (pin.dragging_in = true)
+        pin.hovered_in && !pin.dragging_out && CImGui.IsMouseDown(0) && (pin.dragging_in = true)
     end
     if pin.dragging_out
-        CImGui.IsMouseClicked(0) ? (pin.dragging_out = false) : pin.radius = min(sqrt(sum(abs2.(mospos .- pin.pos))), 100)
+        CImGui.IsMouseDown(0) ? pin.radius = min(sqrt(sum(abs2.(mospos .- pin.pos))), 100) : pin.dragging_out = false
     else
-        pin.hovered_out && !pin.dragging_in && CImGui.IsMouseClicked(0) && (pin.dragging_out = true)
+        pin.hovered_out && !pin.dragging_in && CImGui.IsMouseDown(0) && (pin.dragging_out = true)
     end
 end
 
@@ -240,7 +240,9 @@ function draw(pin::ImagePin)
 end
 
 function draw(imgr::ImageRegion)
-    CImGui.Image(Ptr{Cvoid}(imgr.id), imgr.posmax .- imgr.posmin)
+    CImGui.PushStyleVar(CImGui.ImGuiStyleVar_FramePadding, (0, 0))
+    CImGui.ImageButton("ImageRegion", Ptr{Cvoid}(imgr.id), imgr.posmax .- imgr.posmin)
+    CImGui.PopStyleVar()
     imgr.posmin = CImGui.GetItemRectMin()
     imgr.posmax = CImGui.GetItemRectMax()
     imgr.rszgrip.pos = imgr.posmax
