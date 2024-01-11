@@ -19,7 +19,7 @@ function loadconf(precompile=false)
             end
             push!(unitslist, "" => [""])
             push!(conf_dict, "U" => unitslist)
-            from_dict(Conf, conf_dict)
+            try_from_dict(Conf, conf_dict)
         end
     else
         Conf()
@@ -152,4 +152,30 @@ function gen_insconf(conf_file)
         end
     end
     push!(INSCONF, string(instrnm) => oneinsconf)
+end
+
+function try_from_dict(t::Type, dict)
+    cf = t()
+    try
+        cf = from_dict(t, dict)
+    catch e
+        @error mlstr("invalid configuration file, trying refactoring") exception = e
+        cfdict = to_dict(cf)
+        cf = from_dict(t, mergeconf!(cfdict, dict))
+    end
+    return cf
+end
+
+function mergeconf!(cfdict, dict)
+    for (key, val) in cfdict
+        if haskey(dict, key)
+            if val isa AbstractDict
+                mergeconf!(val, dict[key])
+            else
+                oldval = @trypass convert(typeof(val), dict[key]) nothing
+                isnothing(oldval) || (cfdict[key] = dict[key])
+            end
+        end
+    end
+    return cfdict
 end
