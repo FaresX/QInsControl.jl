@@ -809,7 +809,7 @@ end
 ### view ###------------------------------------------------------------------------------------------------------------
 view(node::Node) = edit(node)
 
-view(pin::ImagePin) = (draw(pin); pin.dragging_in = false)
+view(pin::ImagePin) = (draw(pin); pin.dragging_in = false; pin.dragging_out = false)
 
 function view(imgr::ImageRegion)
     CImGui.Image(Ptr{Cvoid}(imgr.id), imgr.posmax .- imgr.posmin)
