@@ -786,7 +786,7 @@ let
         else
             mainwindowsz = CImGui.GetItemRectSize()
             acd.targetsize = (2mainwindowsz.x / 5, 4mainwindowsz.y / 5)
-            acd.rate = acd.targetsize ./ 40
+            acd.rate = acd.targetsize ./ 20 * 60 / unsafe_load(CImGui.GetIO().Framerate)
             selectedqtw[] == 0 && (acd.targetsize = (4, 6))
             CImGui.PushStyleColor(CImGui.ImGuiCol_ChildBg, CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_PopupBg))
             changesize = false
