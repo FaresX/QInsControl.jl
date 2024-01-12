@@ -426,11 +426,13 @@ function edit(insbuf::InstrBuffer, addr)
     CImGui.BeginChild("InstrBuffer")
     # CImGui.Columns(CONF.InsBuf.showcol, C_NULL, false)
     btsize = (CImGui.GetContentRegionAvailWidth() - unsafe_load(IMGUISTYLE.ItemSpacing.x) * (CONF.InsBuf.showcol - 1)) / CONF.InsBuf.showcol
+    showi = 0
     for (i, qt) in enumerate(values(insbuf.quantities))
         qt.enable || insbuf.showdisable || continue
         qt.passfilter || continue
+        showi += 1
         CImGui.PushID(qt.name)
-        i % CONF.InsBuf.showcol == 1 || i == 1 || CImGui.SameLine()
+        showi % CONF.InsBuf.showcol == 1 || showi == 1 || CImGui.SameLine()
         edit(qt, insbuf.instrnm, addr; btsize=(btsize, Cfloat(0)))
         # i % CONF.InsBuf.showcol == 0 && i != 1 && CImGui.SameLine()
         CImGui.PopID()
