@@ -313,7 +313,7 @@ function edit(opts::QuantityWidgetOption, qt::SweepQuantity, _, _, ::Val{:inputs
     CImGui.SetWindowFontScale(opts.textscale)
     trig = @c ColoredInputTextWithHintRSZ(
         "##step", mlstr("step"), &qt.step;
-        width=opts.itemsize[1],
+        size=opts.itemsize,
         rounding=opts.rounding,
         bdrounding=opts.bdrounding,
         thickness=opts.bdthickness,
@@ -332,7 +332,7 @@ function edit(opts::QuantityWidgetOption, qt::SweepQuantity, _, _, ::Val{:inputs
     originscale = unsafe_load(CImGui.GetIO().FontGlobalScale)
     CImGui.SetWindowFontScale(opts.textscale)
     trig = @c ColoredInputTextWithHintRSZ("##stop", mlstr("stop"), &qt.stop;
-        width=opts.itemsize[1],
+        size=opts.itemsize,
         rounding=opts.rounding,
         bdrounding=opts.bdrounding,
         thickness=opts.bdthickness,
@@ -353,7 +353,7 @@ function edit(opts::QuantityWidgetOption, qt::SweepQuantity, _, _, ::Val{:dragde
     trig = @c ColoredDragWidget(
         CImGui.DragFloat,
         "##delay", &qt.delay, 0.01, 0.01, 60, "%.3f", CImGui.ImGuiSliderFlags_AlwaysClamp;
-        width=opts.itemsize[1],
+        size=opts.itemsize,
         rounding=opts.rounding,
         bdrounding=opts.bdrounding,
         thickness=opts.bdthickness,
@@ -397,7 +397,7 @@ function edit(opts::QuantityWidgetOption, qt::SetQuantity, _, _, ::Val{:inputset
     originscale = unsafe_load(CImGui.GetIO().FontGlobalScale)
     CImGui.SetWindowFontScale(opts.textscale)
     trig = @c ColoredInputTextWithHintRSZ("##set", mlstr("set"), &qt.set;
-        width=opts.itemsize[1],
+        size=opts.itemsize,
         rounding=opts.rounding,
         bdrounding=opts.bdrounding,
         thickness=opts.bdthickness,

@@ -91,7 +91,7 @@ function ColoredInputTextWithHintRSZ(
     hint,
     str::Ref{String},
     flags=0;
-    width=0,
+    size=(0, 0),
     rounding=0,
     bdrounding=0,
     thickness=0,
@@ -104,10 +104,11 @@ function ColoredInputTextWithHintRSZ(
     CImGui.PushStyleColor(CImGui.ImGuiCol_Text, coltxt)
     CImGui.PushStyleColor(CImGui.ImGuiCol_TextDisabled, colhint)
     CImGui.PushStyleVar(CImGui.ImGuiStyleVar_FrameRounding, rounding)
-    CImGui.PushItemWidth(width)
+    CImGui.PushStyleVar(CImGui.ImGuiStyleVar_FramePadding, (unsafe_load(IMGUISTYLE.FramePadding.x), (size[2] - CImGui.GetFontSize()) / 2))
+    CImGui.PushItemWidth(size[1])
     input = InputTextWithHintRSZ(label, hint, str, flags)
     CImGui.PopItemWidth()
-    CImGui.PopStyleVar()
+    CImGui.PopStyleVar(2)
     CImGui.PopStyleColor(3)
     rmin, rmax = CImGui.GetItemRectMin(), CImGui.GetItemRectMax()
     draw_list = CImGui.GetWindowDrawList()
@@ -118,7 +119,7 @@ end
 function ColoredDragWidget(
     dragfunc,
     label, v::Ref, v_speed=1.0, v_min=0, v_max=0.0, format="%.3f", flag=0;
-    width=0,
+    size=(0, 0),
     rounding=0,
     bdrounding=0,
     thickness=0,
@@ -133,10 +134,11 @@ function ColoredDragWidget(
     CImGui.PushStyleColor(CImGui.ImGuiCol_FrameBgActive, colfrma)
     CImGui.PushStyleColor(CImGui.ImGuiCol_Text, coltxt)
     CImGui.PushStyleVar(CImGui.ImGuiStyleVar_FrameRounding, rounding)
-    CImGui.PushItemWidth(width)
+    CImGui.PushStyleVar(CImGui.ImGuiStyleVar_FramePadding, (unsafe_load(IMGUISTYLE.FramePadding.x), (size[2] - CImGui.GetFontSize()) / 2))
+    CImGui.PushItemWidth(size[1])
     dragged = dragfunc(label, v, v_speed, v_min, v_max, format, flag)
     CImGui.PopItemWidth()
-    CImGui.PopStyleVar()
+    CImGui.PopStyleVar(2)
     CImGui.PopStyleColor(4)
     rmin, rmax = CImGui.GetItemRectMin(), CImGui.GetItemRectMax()
     draw_list = CImGui.GetWindowDrawList()
