@@ -21,8 +21,11 @@
     starttext::String = "Start"
     stoptext::String = "Stop"
     bindingidx::Cint = 1
-    selectorlist::Vector{String} = []
-    bindingqtwidxes::Vector{Cint} = []
+    selectornum::Cint = 1
+    selectedidx::Cint = 1
+    selectorlabels::Vector{String} = ["option 1"]
+    selectorlist::Vector{Vector{String}} = []
+    bindingqtwidxes::Vector{Vector{Cint}} = []
     bindingonoff::Vector{Cint} = [1, 2]
     textcolor::Vector{Cfloat} = [0.000, 0.000, 0.000, 1.000]
     hintcolor::Vector{Cfloat} = [0.600, 0.600, 0.600, 1.000]
@@ -66,14 +69,14 @@ const INSWCONF = OrderedDict{String,Vector{InstrWidget}}() #仪器注册表
 
 function copyvars!(opts1, opts2)
     fnms = fieldnames(QuantityWidgetOption)
-    for fnm in fnms[1:25]
+    for fnm in fnms[1:28]
         setproperty!(opts1, fnm, getproperty(opts2, fnm))
     end
 end
 
 function copycolors!(opts1, opts2)
     fnms = fieldnames(QuantityWidgetOption)
-    for fnm in fnms[26:end]
+    for fnm in fnms[29:end]
         setproperty!(opts1, fnm, getproperty(opts2, fnm))
     end
 end
@@ -148,7 +151,7 @@ function editQuantitySelector(qtw::QuantityWidget, opts::QuantityWidgetOption, _
     originscale = unsafe_load(CImGui.GetIO().FontGlobalScale)
     CImGui.SetWindowFontScale(opts.textscale)
     trig = @c ColoredCombo(
-        stcstr("##selector", qtw.alias), &qtw.alias, opts.selectorlist, opts.comboflags;
+        stcstr("##selector", qtw.alias), &qtw.alias, opts.selectorlabels, opts.comboflags;
         width=opts.itemsize[1],
         rounding=opts.rounding,
         bdrounding=opts.bdrounding,
@@ -161,22 +164,20 @@ function editQuantitySelector(qtw::QuantityWidget, opts::QuantityWidgetOption, _
         coltxt=opts.textcolor,
         colrect=opts.rectcolor
     )
+    trig && (opts.selectedidx = findfirst(==(qtw.alias), opts.selectorlabels))
     opts.textsize == "big" && CImGui.PopFont()
     CImGui.SetWindowFontScale(originscale)
     return trig
 end
 
-function editQuantitySelector(qtw::QuantityWidget, opts::QuantityWidgetOption, _, ::Val{:vslider})
+function editQuantitySelector(qtw::QuantityWidget, opts::QuantityWidgetOption, _, ::Val{:slider})
     opts.textsize == "big" && CImGui.PushFont(PLOTFONT)
     originscale = unsafe_load(CImGui.GetIO().FontGlobalScale)
     CImGui.SetWindowFontScale(opts.textscale)
-    idxraw = findfirst(==(qtw.alias), opts.selectorlist)
-    idx::Cint = isnothing(idxraw) ? 1 : idxraw
-    llist = length(opts.selectorlist)
-    trig = @c ColoredVSlider(
-        CImGui.VSliderInt,
+    trig = @c ColoredSlider(
+        CImGui.SliderInt,
         stcstr(opts.textinside ? "##" : "", qtw.alias),
-        &idx, 1, llist == 0 ? 1 : llist, opts.textinside ? qtw.alias : "";
+        &opts.selectedidx, 1, opts.selectornum, opts.textinside ? qtw.alias : "";
         size=opts.itemsize,
         rounding=opts.rounding,
         grabrounding=opts.grabrounding,
@@ -190,7 +191,34 @@ function editQuantitySelector(qtw::QuantityWidget, opts::QuantityWidgetOption, _
         coltxt=opts.textcolor,
         colrect=opts.rectcolor
     )
-    trig && idx <= llist && (qtw.alias = opts.selectorlist[idx])
+    trig && (qtw.alias = opts.selectorlabels[opts.selectedidx])
+    opts.textsize == "big" && CImGui.PopFont()
+    CImGui.SetWindowFontScale(originscale)
+    return trig
+end
+
+function editQuantitySelector(qtw::QuantityWidget, opts::QuantityWidgetOption, _, ::Val{:vslider})
+    opts.textsize == "big" && CImGui.PushFont(PLOTFONT)
+    originscale = unsafe_load(CImGui.GetIO().FontGlobalScale)
+    CImGui.SetWindowFontScale(opts.textscale)
+    trig = @c ColoredVSlider(
+        CImGui.VSliderInt,
+        stcstr(opts.textinside ? "##" : "", qtw.alias),
+        &opts.selectedidx, 1, opts.selectornum, opts.textinside ? qtw.alias : "";
+        size=opts.itemsize,
+        rounding=opts.rounding,
+        grabrounding=opts.grabrounding,
+        bdrounding=opts.bdrounding,
+        thickness=opts.bdthickness,
+        colgrab=opts.grabcolor,
+        colgraba=opts.grabactivecolor,
+        colfrm=opts.bgcolor,
+        colfrmh=opts.hoveredcolor,
+        colfrma=opts.activecolor,
+        coltxt=opts.textcolor,
+        colrect=opts.rectcolor
+    )
+    trig && (qtw.alias = opts.selectorlabels[opts.selectedidx])
     opts.textsize == "big" && CImGui.PopFont()
     CImGui.SetWindowFontScale(originscale)
     return trig
@@ -469,7 +497,7 @@ function edit(opts::QuantityWidgetOption, qt::SetQuantity, instrnm, addr, ::Val{
         CImGui.SliderInt,
         stcstr(opts.textinside ? "##" : "", qt.optkeys[qt.optedidx]),
         &qt.optedidx, 1, length(qt.optvalues), opts.textinside ? qt.optkeys[qt.optedidx] : "";
-        width=opts.itemsize[1],
+        size=opts.itemsize,
         rounding=opts.rounding,
         grabrounding=opts.grabrounding,
         bdrounding=opts.bdrounding,
@@ -604,7 +632,8 @@ function modify(qtw::QuantityWidget, id, showslnums, selectedqtw::Ref{Cint})
     elseif qtw.name == "_Image_"
         showslnums ? stcstr(id, " Image\n ") : " Image\n "
     elseif qtw.name == "_QuantitySelector_"
-        stcstr(showslnums ? stcstr(id, " ") : "", "Selector\n", join(qtw.options.bindingqtwidxes, ' '), "###", id)
+        label = join([string('[', join(idxes, ' '), ']') for idxes in qtw.options.bindingqtwidxes], '\n')
+        stcstr(showslnums ? stcstr(id, " ") : "", "Selector\n", label, "###", id)
     else
         stcstr(showslnums ? stcstr(id, " ") : "", qtw.alias, "\n", qtw.options.uitype)
     end
@@ -1032,9 +1061,10 @@ let
     setuitypesno2opts = ["read", "unit", "readunit", "inputset", "ctrlset", "combo", "radio", "slider", "vslider"]
     readuitypes = ["read", "unit", "readunit"]
     otheruitypes = ["none"]
-    qtselectoruitypes = ["combo", "vslider"]
+    qtselectoruitypes = ["combo", "slider", "vslider"]
     # selectortypes = ["sweep", "set", "read"]
     textsizes = ["normal", "big"]
+    manualinputalias::String = ""
     global function optionsmenu(qtw::QuantityWidget, instrnm)
         if qtw.name != "_SameLine_" && CImGui.CollapsingHeader(mlstr("Variable Options"))
             @c ComBoS(
@@ -1146,55 +1176,87 @@ let
         end
         if qtw.name == "_QuantitySelector_" && CImGui.CollapsingHeader(mlstr("Selector Options"))
             # @c ComBoS(mlstr("Selector Type"), &qtw.options.selectortype, selectortypes)
-            CImGui.PushStyleColor(CImGui.ImGuiCol_Button, CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_PopupBg))
-            CImGui.PushStyleColor(CImGui.ImGuiCol_ButtonHovered, CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_HeaderHovered))
-            CImGui.PushStyleColor(CImGui.ImGuiCol_ButtonActive, CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_HeaderActive))
-            if CImGui.BeginMenu(stcstr(MORESTYLE.Icons.NewFile, " ", mlstr("Add")))
-                if CImGui.BeginMenu(mlstr("Sweep Quantity"))
-                    if haskey(INSCONF, instrnm)
-                        for (_, qt) in INSCONF[instrnm].quantities
-                            qt.type == "sweep" || continue
-                            CImGui.Button(qt.alias) && push!(qtw.options.selectorlist, qt.alias)
-                        end
-                    end
-                    CImGui.EndMenu()
+            @c CImGui.DragInt(
+                mlstr("binging numbers"), &qtw.options.selectornum, 1, 1, 12, "%d",
+                CImGui.ImGuiSliderFlags_AlwaysClamp
+            )
+            llbs = length(qtw.options.selectorlabels)
+            if llbs != qtw.options.selectornum
+                if llbs < qtw.options.selectornum
+                    append!(qtw.options.selectorlabels, "option " .* string.(llbs+1:qtw.options.selectornum))
+                else
+                    resize!(qtw.options.selectorlabels, qtw.options.selectornum)
                 end
-                if CImGui.BeginMenu(mlstr("Set Quantity"))
-                    if haskey(INSCONF, instrnm)
-                        for (_, qt) in INSCONF[instrnm].quantities
-                            qt.type == "set" || continue
-                            CImGui.Button(qt.alias) && push!(qtw.options.selectorlist, qt.alias)
-                        end
-                    end
-                    CImGui.EndMenu()
-                end
-                if CImGui.BeginMenu(mlstr("Read Quantity"))
-                    if haskey(INSCONF, instrnm)
-                        for (_, qt) in INSCONF[instrnm].quantities
-                            qt.type == "read" || continue
-                            CImGui.Button(qt.alias) && push!(qtw.options.selectorlist, qt.alias)
-                        end
-                    end
-                    CImGui.EndMenu()
-                end
-                CImGui.EndMenu()
             end
-            CImGui.PopStyleColor(3)
-            deletealias_i = 0
-            for (i, alias) in enumerate(qtw.options.selectorlist)
-                CImGui.Selectable(alias)
-                if CImGui.BeginPopupContextItem()
-                    CImGui.MenuItem(stcstr(MORESTYLE.Icons.CloseFile, " ", mlstr("Delete"))) && (deletealias_i = i)
-                    CImGui.EndPopup()
-                end
-                i % CONF.InsBuf.showcol != 0 && i != length(qtw.options.selectorlist) && CImGui.SameLine()
+            for (i, lb) in enumerate(qtw.options.selectorlabels)
+                @c(InputTextRSZ(stcstr(mlstr("option"), " ", i), &lb)) && (qtw.options.selectorlabels[i] = lb)
             end
-            deletealias_i == 0 || deleteat!(qtw.options.selectorlist, deletealias_i)
-            bindingqtwidxesstr = join(qtw.options.bindingqtwidxes, ',')
-            if @c InputTextRSZ("Binding to Widgets", &bindingqtwidxesstr)
-                idxstrs = split(bindingqtwidxesstr, ',')
-                idxes = tryparse.(Int, idxstrs)
-                qtw.options.bindingqtwidxes = idxes[findall(!isnothing, idxes)]
+            width = CImGui.GetContentRegionAvailWidth() / 3
+            if CImGui.Button(stcstr(MORESTYLE.Icons.NewFile, "##addselectorgroup"), (width, Cfloat(0)))
+                push!(qtw.options.selectorlist, [])
+                push!(qtw.options.bindingqtwidxes, [])
+            end
+            CImGui.SameLine()
+            if CImGui.Button(stcstr(MORESTYLE.Icons.CloseFile, "##deleteselectorgroup"), (width, Cfloat(0)))
+                pop!(qtw.options.selectorlist)
+                pop!(qtw.options.bindingqtwidxes)
+            end
+            for (i, group) in enumerate(qtw.options.selectorlist)
+                CImGui.PushID(i)
+                CImGui.PushStyleColor(CImGui.ImGuiCol_Button, CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_PopupBg))
+                CImGui.PushStyleColor(CImGui.ImGuiCol_ButtonHovered, CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_HeaderHovered))
+                CImGui.PushStyleColor(CImGui.ImGuiCol_ButtonActive, CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_HeaderActive))
+                CImGui.PushStyleVar(CImGui.ImGuiStyleVar_FramePadding, unsafe_load(IMGUISTYLE.FramePadding) ./ 2)
+                if CImGui.BeginMenu(stcstr(MORESTYLE.Icons.NewFile, " ", mlstr("Add")), length(group) < qtw.options.selectornum)
+                    if CImGui.BeginMenu(mlstr("Sweep Quantity"))
+                        if haskey(INSCONF, instrnm)
+                            for (_, qt) in INSCONF[instrnm].quantities
+                                qt.type == "sweep" || continue
+                                CImGui.Button(qt.alias) && push!(group, qt.alias)
+                            end
+                        end
+                        CImGui.EndMenu()
+                    end
+                    if CImGui.BeginMenu(mlstr("Set Quantity"))
+                        if haskey(INSCONF, instrnm)
+                            for (_, qt) in INSCONF[instrnm].quantities
+                                qt.type == "set" || continue
+                                CImGui.Button(qt.alias) && push!(group, qt.alias)
+                            end
+                        end
+                        CImGui.EndMenu()
+                    end
+                    if CImGui.BeginMenu(mlstr("Read Quantity"))
+                        if haskey(INSCONF, instrnm)
+                            for (_, qt) in INSCONF[instrnm].quantities
+                                qt.type == "read" || continue
+                                CImGui.Button(qt.alias) && push!(group, qt.alias)
+                            end
+                        end
+                        CImGui.EndMenu()
+                    end
+                    @c InputTextRSZ("##manualinput", &manualinputalias)
+                    CImGui.SameLine()
+                    CImGui.Button(stcstr(MORESTYLE.Icons.NewFile, "##addalias")) && push!(group, manualinputalias)
+                    CImGui.EndMenu()
+                end
+                CImGui.PopStyleVar()
+                CImGui.PopStyleColor(3)
+                for (j, alias) in enumerate(group)
+                    CImGui.Selectable(alias)
+                    if CImGui.BeginPopupContextItem()
+                        CImGui.MenuItem(stcstr(MORESTYLE.Icons.CloseFile, " ", mlstr("Delete"))) && (deleteat!(group, j); break)
+                        CImGui.EndPopup()
+                    end
+                    j % CONF.InsBuf.showcol != 0 && j != length(group) && CImGui.SameLine()
+                end
+                bindingqtwidxesstr = join(qtw.options.bindingqtwidxes[i], ',')
+                if @c InputTextRSZ("Binding to Widgets", &bindingqtwidxesstr)
+                    idxstrs = split(bindingqtwidxesstr, ',')
+                    idxes = tryparse.(Int, idxstrs)
+                    qtw.options.bindingqtwidxes[i] = idxes[findall(!isnothing, idxes)]
+                end
+                CImGui.PopID()
             end
         end
         if qtw.name != "_SameLine_" && CImGui.CollapsingHeader(mlstr("Color Options"))
@@ -1335,17 +1397,30 @@ end
 
 function trigselector!(qtw::QuantityWidget, insw::InstrWidget)
     if !isempty(qtw.options.bindingqtwidxes)
-        for bidx in qtw.options.bindingqtwidxes
-            ij = idxtoij(insw, bidx)
-            if !isnothing(ij)
-                i, j = ij
-                if i <= length(insw.qtws) && j <= length(insw.qtws[i])
-                    qtnm, type = only(
-                        [(qtnm, qt.type) for (qtnm, qt) in INSCONF[insw.instrnm].quantities if qt.alias == qtw.alias]
-                    )
-                    if type == insw.qtws[i][j].qtype
-                        insw.qtws[i][j].alias = qtw.alias
-                        insw.qtws[i][j].name = qtnm
+        for (gi, idxes) in enumerate(qtw.options.bindingqtwidxes)
+            if !isempty(idxes)
+                list = qtw.options.selectorlist[gi]
+                if !isempty(list)
+                    alias = list[min(qtw.options.selectedidx, length(list))]
+                    for idx in idxes
+                        ij = idxtoij(insw, idx)
+                        if !isnothing(ij)
+                            i, j = ij
+                            if i <= length(insw.qtws) && j <= length(insw.qtws[i])
+                                if insw.qtws[i][j].name == "_Panel_"
+                                    insw.qtws[i][j].alias = alias
+                                else
+                                    optv = [(qtnm, qt.type) for (qtnm, qt) in INSCONF[insw.instrnm].quantities if qt.alias == alias]
+                                    if !isempty(optv)
+                                        qtnm, type = only(optv)
+                                        if type == insw.qtws[i][j].qtype
+                                            insw.qtws[i][j].name = qtnm
+                                            insw.qtws[i][j].alias = alias
+                                        end
+                                    end
+                                end
+                            end
+                        end
                     end
                 end
             end
@@ -1353,9 +1428,13 @@ function trigselector!(qtw::QuantityWidget, insw::InstrWidget)
     end
     for qtwg in insw.qtws
         for qtw in filter(x -> x.name == "_QuantitySelector_", qtwg)
-            if !isempty(qtw.options.bindingqtwidxes)
-                ij = idxtoij(insw, qtw.options.bindingqtwidxes[1])
-                isnothing(ij) || (qtw.alias = insw.qtws[ij[1]][ij[2]].alias)
+            if !isempty(qtw.options.bindingqtwidxes) && !isempty(qtw.options.bindingqtwidxes[1])
+                ij = idxtoij(insw, qtw.options.bindingqtwidxes[1][1])
+                if !isnothing(ij)
+                    alias = insw.qtws[ij[1]][ij[2]].alias
+                    selectedidx = findfirst(==(alias), qtw.options.selectorlist[1])
+                    isnothing(selectedidx) || (qtw.options.selectedidx = selectedidx)
+                end
             end
         end
     end
