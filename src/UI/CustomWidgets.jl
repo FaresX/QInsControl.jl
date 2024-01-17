@@ -632,8 +632,8 @@ function BoxTextColored(
 end
 
 @kwdef mutable struct ResizeChild
-    regmin::CImGui.ImVec2 = (0, 0)
-    regmax::CImGui.ImVec2 = (200, 400)
+    posmin::CImGui.ImVec2 = (0, 0)
+    posmax::CImGui.ImVec2 = (200, 400)
     rszgripsize::Cfloat = 24
     limminsize::CImGui.ImVec2 = (0, 0)
     limmaxsize::CImGui.ImVec2 = (Inf, Inf)
@@ -642,12 +642,12 @@ end
 end
 
 function (rszcd::ResizeChild)(f, id, args...; kwargs...)
-    CImGui.BeginChild(id, rszcd.regmax .- rszcd.regmin, true)
+    CImGui.BeginChild(id, rszcd.posmax .- rszcd.posmin, true)
     f(args...; kwargs...)
     CImGui.EndChild()
     CImGui.AddTriangleFilled(
         CImGui.GetWindowDrawList(),
-        (rszcd.regmax.x - rszcd.rszgripsize, rszcd.regmax.y), rszcd.regmax, (rszcd.regmax.x, rszcd.regmax.y - rszcd.rszgripsize),
+        (rszcd.posmax.x - rszcd.rszgripsize, rszcd.posmax.y), rszcd.posmax, (rszcd.posmax.x, rszcd.posmax.y - rszcd.rszgripsize),
         if rszcd.hovered && rszcd.dragging
             CImGui.ColorConvertFloat4ToU32(CImGui.c_get(IMGUISTYLE.Colors, ImGuiCol_ResizeGripActive))
         elseif rszcd.hovered
@@ -656,14 +656,14 @@ function (rszcd::ResizeChild)(f, id, args...; kwargs...)
             CImGui.ColorConvertFloat4ToU32(CImGui.c_get(IMGUISTYLE.Colors, ImGuiCol_ResizeGrip))
         end
     )
-    rszcd.regmin = CImGui.GetItemRectMin()
-    rszcd.regmax = CImGui.GetItemRectMax()
-    mospos = CImGui.GetMousePos()
-    rszcd.hovered = inregion(mospos, rszcd.regmax .- rszcd.rszgripsize, rszcd.regmax)
-    rszcd.hovered &= -(mospos.x - rszcd.regmax.x + rszcd.rszgripsize) < mospos.y - rszcd.regmax.y
+    rszcd.posmin = CImGui.GetItemRectMin()
+    rszcd.posmax = CImGui.GetItemRectMax()
+    mspos = CImGui.GetMousePos()
+    rszcd.hovered = inregion(mspos, rszcd.posmax .- rszcd.rszgripsize, rszcd.posmax)
+    rszcd.hovered &= -(mspos.x - rszcd.posmax.x + rszcd.rszgripsize) < mspos.y - rszcd.posmax.y
     if rszcd.dragging
         if CImGui.IsMouseDown(0)
-            rszcd.regmax = cutoff(mospos, rszcd.regmin .+ rszcd.limminsize, rszcd.regmin .+ rszcd.limmaxsize) .+ rszcd.rszgripsize ./ 4
+            rszcd.posmax = cutoff(mspos, rszcd.posmin .+ rszcd.limminsize, rszcd.posmin .+ rszcd.limmaxsize) .+ rszcd.rszgripsize ./ 4
         else
             rszcd.dragging = false
         end
@@ -693,4 +693,120 @@ function (acd::AnimateChild)(f, id, border, flags, args...; kwargs...)
             gap[2] < abs(acd.rate[2]) ? acd.targetsize[2] : newsize[2]
         )
     end
+end
+
+@kwdef mutable struct DragPoint
+    pos::CImGui.ImVec2 = (0, 0)
+    limmin::CImGui.ImVec2 = (0, 0)
+    limmax::CImGui.ImVec2 = (Inf, Inf)
+    radius::Cfloat = 6
+    segments::Cint = 12
+    col::Vector{Cfloat} = [1, 1, 1, 0.6]
+    colh::Vector{Cfloat} = [1, 1, 1, 1]
+    cola::Vector{Cfloat} = [0, 1, 0, 1]
+    hovered::Bool = false
+    dragging::Bool = false
+end
+
+function draw(dp::DragPoint)
+    CImGui.AddCircleFilled(
+        CImGui.GetWindowDrawList(), dp.pos, dp.radius,
+        CImGui.ColorConvertFloat4ToU32(dp.dragging ? dp.cola : dp.hovered ? dp.colh : dp.col)
+    )
+end
+
+function update_state!(dp::DragPoint)
+    mspos = CImGui.GetMousePos()
+    dp.hovered = sum(abs2.(mspos .- dp.pos)) < abs2(dp.radius)
+    if dp.dragging
+        CImGui.IsMouseDown(0) ? dp.pos = cutoff(mspos, dp.limmin, dp.limmax) : dp.dragging = false
+    else
+        dp.hovered && CImGui.IsMouseDown(0) && CImGui.c_get(CImGui.GetIO().MouseDownDuration, 0) < 0.1 && (dp.dragging = true)
+    end
+end
+
+function edit(dp::DragPoint)
+    update_state!(dp)
+    draw(dp)
+end
+
+@kwdef mutable struct DragRect
+    posmin::CImGui.ImVec2 = (0, 0)
+    posmax::CImGui.ImVec2 = (100, 100)
+    dragpos::CImGui.ImVec2 = (0, 0)
+    rszgripsize::Cfloat = 24
+    limmin::CImGui.ImVec2 = (0, 0)
+    limmax::CImGui.ImVec2 = (Inf, Inf)
+    limminsize::CImGui.ImVec2 = (0, 0)
+    limmaxsize::CImGui.ImVec2 = (Inf, Inf)
+    rounding::Cfloat = 0
+    bdrounding::Cfloat = 0
+    thickness::Cfloat = 2
+    col::Vector{Cfloat} = [1, 1, 1, 0.6]
+    colh::Vector{Cfloat} = [1, 1, 1, 1]
+    cola::Vector{Cfloat} = [0, 1, 0, 1]
+    colbd::Vector{Cfloat} = [0, 0, 0, 1]
+    hovered::Bool = false
+    dragging::Bool = false
+    griphovered::Bool = false
+    gripdragging::Bool = false
+end
+
+function draw(dr::DragRect)
+    drawlist = CImGui.GetWindowDrawList()
+    CImGui.AddRectFilled(
+        drawlist, dr.posmin, dr.posmax,
+        CImGui.ColorConvertFloat4ToU32(dr.dragging ? dr.cola : dr.hovered && !dr.griphovered && !dr.gripdragging ? dr.colh : dr.col),
+        dr.rounding
+    )
+    CImGui.AddTriangleFilled(
+        drawlist,
+        (dr.posmax.x - dr.rszgripsize, dr.posmax.y), dr.posmax, (dr.posmax.x, dr.posmax.y - dr.rszgripsize),
+        CImGui.ColorConvertFloat4ToU32(
+            CImGui.c_get(
+                IMGUISTYLE.Colors,
+                dr.gripdragging ? ImGuiCol_ResizeGripActive : dr.griphovered ? ImGuiCol_ResizeGripHovered : ImGuiCol_ResizeGrip
+            )
+        )
+    )
+    CImGui.AddRect(
+        drawlist, dr.posmin, dr.posmax,
+        CImGui.ColorConvertFloat4ToU32(dr.colbd),
+        dr.bdrounding, ImDrawFlags_RoundCornersAll, dr.thickness
+    )
+end
+
+function update_state!(dr::DragRect)
+    mspos = CImGui.GetMousePos()
+    dr.griphovered = inregion(mspos, dr.posmax .- dr.rszgripsize, dr.posmax)
+    dr.griphovered &= -(mspos.x - dr.posmax.x + dr.rszgripsize) < mspos.y - dr.posmax.y
+    dr.hovered = inregion(mspos, dr.posmin, dr.posmax)
+    if dr.gripdragging
+        if CImGui.IsMouseDown(0)
+            dr.posmax = cutoff(mspos, dr.posmin .+ dr.limminsize, dr.posmin .+ dr.limmaxsize) .+ dr.rszgripsize ./ 4
+        else
+            dr.gripdragging = false
+        end
+    else
+        dr.griphovered && !dr.dragging && CImGui.IsMouseDown(0) && CImGui.c_get(CImGui.GetIO().MouseDownDuration, 0) < 0.1 && (dr.gripdragging = true)
+    end
+    if dr.dragging
+        if CImGui.IsMouseDown(0)
+            drsize = dr.posmax .- dr.posmin
+            dr.posmin = cutoff(mspos .- dr.dragpos, dr.limmin, dr.limmax .- drsize)
+            dr.posmax = dr.posmin .+ drsize
+        else
+            dr.dragging = false
+        end
+    else
+        if dr.hovered && !dr.gripdragging && CImGui.IsMouseDown(0) && CImGui.c_get(CImGui.GetIO().MouseDownDuration, 0) < 0.1
+            dr.dragging = true
+            dr.dragpos = mspos .- dr.posmin
+        end
+    end
+end
+
+function edit(dr::DragRect)
+    update_state!(dr)
+    draw(dr)
 end

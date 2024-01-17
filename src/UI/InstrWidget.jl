@@ -1,6 +1,6 @@
 @option mutable struct QuantityWidgetOption
     uitype::String = "none"
-    globaloptions::Bool = true
+    globaloptions::Bool = false
     allowoverlap::Bool = false
     useimage::Bool = false
     textsize::String = "normal"
@@ -18,6 +18,10 @@
     uv0::Vector{Cfloat} = [0, 0]
     uv1::Vector{Cfloat} = [1, 1]
     framepadding::Cfloat = -1
+    trianglea::Vector{Cfloat} = [0, 0]
+    triangleb::Vector{Cfloat} = [0, 0]
+    trianglec::Vector{Cfloat} = [0, 0]
+    circlesegments::Cint = 24
     starttext::String = "Start"
     stoptext::String = "Stop"
     bindingidx::Cint = 1
@@ -39,7 +43,7 @@
     offcolor::Vector{Cfloat} = [0.000, 0.000, 0.000, 0.400]
     hoveredcolor::Vector{Cfloat} = [0.260, 0.590, 0.980, 0.800]
     activecolor::Vector{Cfloat} = [0.260, 0.590, 0.980, 0.670]
-    rectcolor::Vector{Cfloat} = [0.000, 0.000, 0.000, 0.000]
+    bdcolor::Vector{Cfloat} = [0.000, 0.000, 0.000, 0.000]
     grabcolor::Vector{Cfloat} = [0.260, 0.590, 0.980, 0.780]
     grabactivecolor::Vector{Cfloat} = [0.460, 0.540, 0.800, 0.600]
 end
@@ -63,20 +67,22 @@ end
     bgtintcolor::Vector{Cfloat} = [1.000, 1.000, 1.000, 1.000]
     options::QuantityWidgetOption = QuantityWidgetOption()
     qtlist::Vector{String} = []
+    draggable::Bool = false
 end
 
 const INSWCONF = OrderedDict{String,Vector{InstrWidget}}() #仪器注册表
 
 function copyvars!(opts1, opts2)
     fnms = fieldnames(QuantityWidgetOption)
-    for fnm in fnms[1:28]
+    for fnm in fnms[1:32]
+        fnm == :uitype && continue
         setproperty!(opts1, fnm, getproperty(opts2, fnm))
     end
 end
 
 function copycolors!(opts1, opts2)
     fnms = fieldnames(QuantityWidgetOption)
-    for fnm in fnms[29:end]
+    for fnm in fnms[33:end]
         setproperty!(opts1, fnm, getproperty(opts2, fnm))
     end
 end
@@ -93,10 +99,12 @@ function edit(qtw::QuantityWidget, insbuf::InstrBuffer, instrnm, addr, gopts::Qu
         edit(opts, qt, instrnm, addr, Val(Symbol(qtw.options.uitype)))
     elseif qtw.name == "_Panel_"
         editPanel(qtw, opts)
+    elseif qtw.name == "_Shape_"
+        editShape(opts, Val(Symbol(qtw.options.uitype)))
     elseif qtw.name == "_Image_"
         editImage(qtw, opts)
     elseif qtw.name == "_QuantitySelector_"
-        editQuantitySelector(qtw, opts, instrnm, Val(Symbol(qtw.options.uitype)))
+        editQuantitySelector(qtw, opts, Val(Symbol(qtw.options.uitype)))
     elseif qtw.name == "_SameLine_"
         editSameLine(opts)
     else
@@ -127,11 +135,56 @@ function editPanel(qtw::QuantityWidget, opts::QuantityWidgetOption)
         colbth=opts.hoveredcolor,
         colbta=opts.activecolor,
         coltxt=opts.textcolor,
-        colrect=opts.rectcolor
+        colrect=opts.bdcolor
     )
     opts.textsize == "big" && CImGui.PopFont()
     CImGui.SetWindowFontScale(originscale)
     return trig
+end
+
+function editShape(opts::QuantityWidgetOption, ::Val{:rect})
+    drawlist = CImGui.GetWindowDrawList()
+    cspos = CImGui.GetCursorScreenPos()
+    b = cspos .+ opts.itemsize
+    CImGui.AddRectFilled(
+        drawlist, cspos, b, CImGui.ColorConvertFloat4ToU32(opts.bgcolor),
+        opts.rounding, ImDrawFlags_RoundCornersAll
+    )
+    CImGui.AddRect(
+        drawlist, cspos, b, CImGui.ColorConvertFloat4ToU32(opts.bdcolor),
+        opts.bdrounding, ImDrawFlags_RoundCornersAll, opts.bdthickness
+    )
+    return false
+end
+
+function editShape(opts::QuantityWidgetOption, ::Val{:triangle})
+    drawlist = CImGui.GetWindowDrawList()
+    cspos = CImGui.GetCursorScreenPos()
+    a = cspos .+ opts.trianglea
+    b = cspos .+ opts.triangleb
+    c = cspos .+ opts.trianglec
+    CImGui.AddTriangleFilled(drawlist, a, b, c, CImGui.ColorConvertFloat4ToU32(opts.bgcolor))
+    CImGui.AddTriangle(drawlist, a, b, c, CImGui.ColorConvertFloat4ToU32(opts.bdcolor), opts.bdthickness)
+    return false
+end
+
+function editShape(opts::QuantityWidgetOption, ::Val{:circle})
+    drawlist = CImGui.GetWindowDrawList()
+    cspos = CImGui.GetCursorScreenPos()
+    O = cspos .+ opts.itemsize ./ 2
+    r = min(opts.itemsize...) / 2
+    CImGui.AddCircleFilled(drawlist, O, r, CImGui.ColorConvertFloat4ToU32(opts.bgcolor), opts.circlesegments)
+    CImGui.AddCircle(drawlist, O, r, CImGui.ColorConvertFloat4ToU32(opts.bdcolor), opts.circlesegments, opts.bdthickness)
+    return false
+end
+
+function editShape(opts::QuantityWidgetOption, ::Val{:line})
+    drawlist = CImGui.GetWindowDrawList()
+    cspos = CImGui.GetCursorScreenPos()
+    a = cspos .+ opts.trianglea
+    b = cspos .+ opts.triangleb
+    CImGui.AddLine(drawlist, a, b, CImGui.ColorConvertFloat4ToU32(opts.bdcolor), opts.bdthickness)
+    return false
 end
 
 function editImage(qtw::QuantityWidget, opts::QuantityWidgetOption)
@@ -141,12 +194,12 @@ function editImage(qtw::QuantityWidget, opts::QuantityWidgetOption)
         uv0=opts.uv0,
         uv1=opts.uv1,
         tint_col=opts.imgtintcolor,
-        border_col=opts.rectcolor
+        border_col=opts.bdcolor
     )
     return false
 end
 
-function editQuantitySelector(qtw::QuantityWidget, opts::QuantityWidgetOption, _, ::Val{:combo})
+function editQuantitySelector(qtw::QuantityWidget, opts::QuantityWidgetOption, ::Val{:combo})
     opts.textsize == "big" && CImGui.PushFont(PLOTFONT)
     originscale = unsafe_load(CImGui.GetIO().FontGlobalScale)
     CImGui.SetWindowFontScale(opts.textscale)
@@ -162,7 +215,7 @@ function editQuantitySelector(qtw::QuantityWidget, opts::QuantityWidgetOption, _
         colfrma=opts.activecolor,
         colpopup=opts.popupcolor,
         coltxt=opts.textcolor,
-        colrect=opts.rectcolor
+        colrect=opts.bdcolor
     )
     trig && (opts.selectedidx = findfirst(==(qtw.alias), opts.selectorlabels))
     opts.textsize == "big" && CImGui.PopFont()
@@ -170,7 +223,7 @@ function editQuantitySelector(qtw::QuantityWidget, opts::QuantityWidgetOption, _
     return trig
 end
 
-function editQuantitySelector(qtw::QuantityWidget, opts::QuantityWidgetOption, _, ::Val{:slider})
+function editQuantitySelector(qtw::QuantityWidget, opts::QuantityWidgetOption, ::Val{:slider})
     opts.textsize == "big" && CImGui.PushFont(PLOTFONT)
     originscale = unsafe_load(CImGui.GetIO().FontGlobalScale)
     CImGui.SetWindowFontScale(opts.textscale)
@@ -189,7 +242,7 @@ function editQuantitySelector(qtw::QuantityWidget, opts::QuantityWidgetOption, _
         colfrmh=opts.hoveredcolor,
         colfrma=opts.activecolor,
         coltxt=opts.textcolor,
-        colrect=opts.rectcolor
+        colrect=opts.bdcolor
     )
     trig && (qtw.alias = opts.selectorlabels[opts.selectedidx])
     opts.textsize == "big" && CImGui.PopFont()
@@ -197,7 +250,7 @@ function editQuantitySelector(qtw::QuantityWidget, opts::QuantityWidgetOption, _
     return trig
 end
 
-function editQuantitySelector(qtw::QuantityWidget, opts::QuantityWidgetOption, _, ::Val{:vslider})
+function editQuantitySelector(qtw::QuantityWidget, opts::QuantityWidgetOption, ::Val{:vslider})
     opts.textsize == "big" && CImGui.PushFont(PLOTFONT)
     originscale = unsafe_load(CImGui.GetIO().FontGlobalScale)
     CImGui.SetWindowFontScale(opts.textscale)
@@ -216,7 +269,7 @@ function editQuantitySelector(qtw::QuantityWidget, opts::QuantityWidgetOption, _
         colfrmh=opts.hoveredcolor,
         colfrma=opts.activecolor,
         coltxt=opts.textcolor,
-        colrect=opts.rectcolor
+        colrect=opts.bdcolor
     )
     trig && (qtw.alias = opts.selectorlabels[opts.selectedidx])
     opts.textsize == "big" && CImGui.PopFont()
@@ -239,7 +292,7 @@ function edit(opts::QuantityWidgetOption, qt::AbstractQuantity, instrnm, addr, :
         colbth=opts.hoveredcolor,
         colbta=opts.activecolor,
         coltxt=opts.textcolor,
-        colrect=opts.rectcolor,
+        colrect=opts.bdcolor,
         rounding=opts.rounding,
         bdrounding=opts.bdrounding,
         thickness=opts.bdthickness
@@ -267,7 +320,7 @@ function edit(opts::QuantityWidgetOption, qt::AbstractQuantity, instrnm, addr, :
         colbth=opts.hoveredcolor,
         colbta=opts.activecolor,
         coltxt=opts.textcolor,
-        colrect=opts.rectcolor,
+        colrect=opts.bdcolor,
         rounding=opts.rounding,
         bdrounding=opts.bdrounding,
         thickness=opts.bdthickness
@@ -289,7 +342,7 @@ function edit(opts::QuantityWidgetOption, qt::AbstractQuantity, instrnm, addr, :
         colbth=opts.hoveredcolor,
         colbta=opts.activecolor,
         coltxt=opts.textcolor,
-        colrect=opts.rectcolor,
+        colrect=opts.bdcolor,
         rounding=opts.rounding,
         bdrounding=opts.bdrounding,
         thickness=opts.bdthickness
@@ -320,7 +373,7 @@ function edit(opts::QuantityWidgetOption, qt::SweepQuantity, _, _, ::Val{:inputs
         colfrm=opts.bgcolor,
         coltxt=opts.textcolor,
         colhint=opts.hintcolor,
-        colrect=opts.rectcolor
+        colrect=opts.bdcolor
     )
     opts.textsize == "big" && CImGui.PopFont()
     CImGui.SetWindowFontScale(originscale)
@@ -339,7 +392,7 @@ function edit(opts::QuantityWidgetOption, qt::SweepQuantity, _, _, ::Val{:inputs
         colfrm=opts.bgcolor,
         coltxt=opts.textcolor,
         colhint=opts.hintcolor,
-        colrect=opts.rectcolor
+        colrect=opts.bdcolor
     )
     opts.textsize == "big" && CImGui.PopFont()
     CImGui.SetWindowFontScale(originscale)
@@ -361,7 +414,7 @@ function edit(opts::QuantityWidgetOption, qt::SweepQuantity, _, _, ::Val{:dragde
         colfrmh=opts.hoveredcolor,
         colfrma=opts.activecolor,
         coltxt=opts.textcolor,
-        colrect=opts.rectcolor
+        colrect=opts.bdcolor
     )
     opts.textsize == "big" && CImGui.PopFont()
     CImGui.SetWindowFontScale(originscale)
@@ -383,7 +436,7 @@ function edit(opts::QuantityWidgetOption, qt::SweepQuantity, instrnm, addr, ::Va
         colbth=opts.hoveredcolor,
         colbta=opts.activecolor,
         coltxt=opts.textcolor,
-        colrect=opts.rectcolor,
+        colrect=opts.bdcolor,
     )
     trig && qt.issweeping && apply!(qt, instrnm, addr)
     opts.textsize == "big" && CImGui.PopFont()
@@ -404,7 +457,7 @@ function edit(opts::QuantityWidgetOption, qt::SetQuantity, _, _, ::Val{:inputset
         colfrm=opts.bgcolor,
         coltxt=opts.textcolor,
         colhint=opts.hintcolor,
-        colrect=opts.rectcolor
+        colrect=opts.bdcolor
     )
     opts.textsize == "big" && CImGui.PopFont()
     CImGui.SetWindowFontScale(originscale)
@@ -422,7 +475,7 @@ function edit(opts::QuantityWidgetOption, qt::SetQuantity, instrnm, addr, ::Val{
         colbth=opts.hoveredcolor,
         colbta=opts.activecolor,
         coltxt=opts.textcolor,
-        colrect=opts.rectcolor,
+        colrect=opts.bdcolor,
         rounding=opts.rounding,
         bdrounding=opts.bdrounding,
         thickness=opts.bdthickness
@@ -450,7 +503,7 @@ function edit(opts::QuantityWidgetOption, qt::SetQuantity, instrnm, addr, ::Val{
         colfrma=opts.activecolor,
         colpopup=opts.popupcolor,
         coltxt=opts.textcolor,
-        colrect=opts.rectcolor
+        colrect=opts.bdcolor
     )
     if trig
         qt.optedidx = findfirst(==(presentv), qt.optkeys)
@@ -476,7 +529,7 @@ function edit(opts::QuantityWidgetOption, qt::SetQuantity, instrnm, addr, ::Val{
         colfrmh=opts.hoveredcolor,
         colfrma=opts.activecolor,
         coltxt=opts.textcolor,
-        colrect=opts.rectcolor
+        colrect=opts.bdcolor
     )
     if trig
         qt.optedidx = opts.bindingidx
@@ -508,7 +561,7 @@ function edit(opts::QuantityWidgetOption, qt::SetQuantity, instrnm, addr, ::Val{
         colfrmh=opts.hoveredcolor,
         colfrma=opts.activecolor,
         coltxt=opts.textcolor,
-        colrect=opts.rectcolor
+        colrect=opts.bdcolor
     )
     if trig
         qt.set = qt.optvalues[qt.optedidx]
@@ -539,7 +592,7 @@ function edit(opts::QuantityWidgetOption, qt::SetQuantity, instrnm, addr, ::Val{
         colfrmh=opts.hoveredcolor,
         colfrma=opts.activecolor,
         coltxt=opts.textcolor,
-        colrect=opts.rectcolor
+        colrect=opts.bdcolor
     )
     if trig
         qt.set = qt.optvalues[qt.optedidx]
@@ -564,7 +617,7 @@ function edit(opts::QuantityWidgetOption, qt::SetQuantity, instrnm, addr, ::Val{
         colbth=opts.hoveredcolor,
         colbta=opts.activecolor,
         coltxt=opts.textcolor,
-        colrect=opts.rectcolor,
+        colrect=opts.bdcolor,
         rounding=opts.rounding,
         bdrounding=opts.bdrounding,
         thickness=opts.bdthickness
@@ -583,6 +636,7 @@ end
 let
     qtypes = ["sweep", "set", "read"]
     continuousuitypes = ["inputstep", "inputstop", "dragdelay", "inputset"]
+    draglayers = Dict{Tuple,Union{DragRect,Vector{DragPoint}}}()
     global function edit(insw::InstrWidget, insbuf::InstrBuffer, addr, p_open, id)
         scale = unsafe_load(CImGui.GetIO().FontGlobalScale)
         CImGui.SetNextWindowSize(insw.windowsize * scale)
@@ -595,6 +649,7 @@ let
             p_open,
             addr == "" ? CImGui.ImGuiWindowFlags_NoDocking : 0
         )
+            isanyitemdragging = false
             insw.usewallpaper && SetWindowBgImage(insw.wallpaperpath; tint_col=insw.bgtintcolor)
             CImGui.BeginChild(stcstr(insw.instrnm, " ", insw.name, " ", addr))
             for (i, qtwg) in enumerate(insw.qtws)
@@ -602,14 +657,104 @@ let
                 length(qtwg) == 1 || CImGui.BeginGroup()
                 for (j, qtw) in enumerate(qtwg)
                     CImGui.PushID(j)
+                    insw.draggable && igBeginDisabled(true)
                     if edit(qtw, insbuf, insw.instrnm, addr, insw.options)
                         qtw.qtype in qtypes && qtw.options.uitype ∉ continuousuitypes && Threads.@spawn refresh1(insw, addr)
                         qtw.name == "_QuantitySelector_" && (trigselector!(qtw, insw); Threads.@spawn refresh1(insw, addr))
                     end
+                    insw.draggable && igEndDisabled()
                     CImGui.PopID()
+                    if insw.draggable && qtw.name != "_SameLine_"
+                        if haskey(draglayers, (i, j))
+                            if qtw.name == "_Shape_"
+                                if qtw.options.uitype == "triangle"
+                                    if draglayers[(i, j)] isa Vector && length(draglayers[(i, j)]) == 3
+                                        cspos = CImGui.GetCursorScreenPos()
+                                        dps = draglayers[(i, j)]
+                                        dps[1].pos = cspos .+ qtw.options.trianglea
+                                        dps[2].pos = cspos .+ qtw.options.triangleb
+                                        dps[3].pos = cspos .+ qtw.options.trianglec
+                                        for dp in dps
+                                            isanyitemdragging && (dp.dragging = false)
+                                            edit(dp)
+                                            isanyitemdragging |= dp.dragging
+                                        end
+                                        qtw.options.trianglea .= dps[1].pos .- cspos
+                                        qtw.options.triangleb .= dps[2].pos .- cspos
+                                        qtw.options.trianglec .= dps[3].pos .- cspos
+                                    else
+                                        delete!(draglayers, (i, j))
+                                    end
+                                elseif qtw.options.uitype == "line"
+                                    if draglayers[(i, j)] isa Vector && length(draglayers[(i, j)]) == 2
+                                        cspos = CImGui.GetCursorScreenPos()
+                                        dps = draglayers[(i, j)]
+                                        dps[1].pos = cspos .+ qtw.options.trianglea
+                                        dps[2].pos = cspos .+ qtw.options.triangleb
+                                        for dp in dps
+                                            isanyitemdragging && (dp.dragging = false)
+                                            edit(dp)
+                                            isanyitemdragging |= dp.dragging
+                                        end
+                                        qtw.options.trianglea .= dps[1].pos .- cspos
+                                        qtw.options.triangleb .= dps[2].pos .- cspos
+                                    else
+                                        delete!(draglayers, (i, j))
+                                    end
+                                else
+                                    if draglayers[(i, j)] isa DragRect
+                                        cspos = CImGui.GetCursorScreenPos()
+                                        dr = draglayers[(i, j)]
+                                        dr.posmin = cspos
+                                        dr.posmax = cspos .+ qtw.options.itemsize
+                                        isanyitemdragging && (dr.dragging = false; dr.gripdragging = false)
+                                        edit(dr)
+                                        isanyitemdragging |= dr.dragging | dr.gripdragging
+                                        qtw.options.itemsize = dr.posmax .- dr.posmin
+                                        qtw.options.cursorscreenpos = qtw.options.cursorscreenpos .+ dr.posmin .- cspos
+                                    else
+                                        delete!(draglayers, (i, j))
+                                    end
+                                end
+                            else
+                                if draglayers[(i, j)] isa DragRect
+                                    posmin = CImGui.GetItemRectMin()
+                                    dr = draglayers[(i, j)]
+                                    dr.posmin = posmin
+                                    dr.posmax = CImGui.GetItemRectMax()
+                                    isanyitemdragging && (dr.dragging = false; dr.gripdragging = false)
+                                    edit(dr)
+                                    isanyitemdragging |= dr.dragging | dr.gripdragging
+                                    qtw.options.itemsize = dr.posmax .- dr.posmin
+                                    qtw.options.cursorscreenpos = qtw.options.cursorscreenpos .+ dr.posmin .- posmin
+                                else
+                                    delete!(draglayers, (i, j))
+                                end
+                            end
+                        else
+                            push!(
+                                draglayers,
+                                (i, j) => if qtw.name == "_Shape_"
+                                    if qtw.options.uitype == "triangle"
+                                        [DragPoint(), DragPoint(), DragPoint()]
+                                    elseif qtw.options.uitype == "line"
+                                        [DragPoint(), DragPoint()]
+                                    else
+                                        DragRect()
+                                    end
+                                else
+                                    DragRect()
+                                end
+                            )
+                        end
+                    end
                 end
                 length(qtwg) == 1 || CImGui.EndGroup()
                 CImGui.PopID()
+            end
+            if insw.draggable
+                CImGui.SetCursorPos(0, 0)
+                ColoredButton("##max"; size=(-1, -1), colbt=(0, 0, 0, 0), colbth=(0, 0, 0, 0), colbta=(0, 0, 0, 0))
             end
             CImGui.EndChild()
         end
@@ -629,6 +774,8 @@ function modify(qtw::QuantityWidget, id, showslnums, selectedqtw::Ref{Cint})
         else
             stcstr(showslnums ? id : "", " Text", " \n ", mlstr(qtw.alias), "###", id)
         end
+    elseif qtw.name == "_Shape_"
+        stcstr(showslnums ? stcstr(id, " ") : "", "Shape\n", qtw.options.uitype)
     elseif qtw.name == "_Image_"
         showslnums ? stcstr(id, " Image\n ") : " Image\n "
     elseif qtw.name == "_QuantitySelector_"
@@ -663,6 +810,8 @@ let
         CImGui.PushItemWidth(6CImGui.GetFontSize())
         @c ComBoS(mlstr("Dragging Mode"), &dragmode, mlstr.(dragmodes))
         CImGui.PopItemWidth()
+        CImGui.SameLine()
+        @c CImGui.Checkbox(mlstr("Draggable"), &insw.draggable)
         SeparatorTextColored(MORESTYLE.Colors.HighlightText, mlstr("Widgets"))
         for (i, qtwg) in enumerate(insw.qtws)
             CImGui.PushID(i)
@@ -686,7 +835,14 @@ let
                         copiedopts[] = deepcopy(qtw.options)
                     end
                     if CImGui.MenuItem(stcstr(MORESTYLE.Icons.Paste, " ", mlstr("Paste Options")))
-                        qtw.options = deepcopy(copiedopts[])
+                        copyvars!(qtw.options, copiedopts[])
+                        copycolors!(qtw.options, copiedopts[])
+                    end
+                    if CImGui.MenuItem(stcstr(MORESTYLE.Icons.Paste, " ", mlstr("Paste Colors")))
+                        copycolors!(qtw.options, copiedopts[])
+                    end
+                    if CImGui.MenuItem(stcstr(MORESTYLE.Icons.Paste, " ", mlstr("Paste Variables")))
+                        copyvars!(qtw.options, copiedopts[])
                     end
                     newqtw = addwidgetmenu(insw; mode=:before)
                     isnothing(newqtw) || (insertwidget!(insw, newqtw, i, j, :before); isbreak = true; break)
@@ -697,7 +853,7 @@ let
                     newqtw = addwidgetmenu(insw; mode=:afterg)
                     isnothing(newqtw) || (insertwidget!(insw, newqtw, i, j, :afterg); isbreak = true; break)
                     convertmenu(insw, i, j)
-                    if CImGui.MenuItem(stcstr(MORESTYLE.Icons.InsertDown, " ", mlstr("Merge Group Before")), C_NULL, false, i > 1)
+                    if CImGui.MenuItem(stcstr(MORESTYLE.Icons.InsertUp, " ", mlstr("Merge Group Before")), C_NULL, false, i > 1)
                         append!(insw.qtws[i-1], insw.qtws[i])
                         deleteat!(insw.qtws, i)
                         isbreak = true
@@ -710,7 +866,7 @@ let
                         break
                     end
                     if CImGui.MenuItem(
-                        stcstr(MORESTYLE.Icons.InsertDown, " ", mlstr("Split Group")), C_NULL, false, lqtwg != 1
+                        stcstr(MORESTYLE.Icons.InsertInside, " ", mlstr("Split Group")), C_NULL, false, lqtwg != 1
                     )
                         splitwidget!(insw, i, j)
                         isbreak = true
@@ -804,9 +960,12 @@ let
                 if selectedqtw[] == 0
                     optionsmenu(fakewidget, "")
                 else
-                    i, j = idxtoij(insw, selectedqtw[])
-                    optionsmenu(insw.qtws[i][j], insw.instrnm)
-                    fakewidget = insw.qtws[i][j]
+                    ij = idxtoij(insw, selectedqtw[])
+                    if !isnothing(ij)
+                        i, j = ij
+                        optionsmenu(insw.qtws[i][j], insw.instrnm)
+                        fakewidget = insw.qtws[i][j]
+                    end
                 end
                 CImGui.EndChild()
             end
@@ -939,6 +1098,13 @@ function addwidgetmenu(insw::InstrWidget; mode=:addlastg)
             newqtw = QuantityWidget(name="_Panel_", alias="")
             mode == :addlastg && push!(insw.qtws, [newqtw])
         end
+        if CImGui.MenuItem(mlstr("Shape"))
+            newqtw = QuantityWidget(name="_Shape_", alias="")
+            newqtw.options.globaloptions = false
+            newqtw.options.uitype = "rect"
+            newqtw.options.bdcolor = [0, 0, 0, 1]
+            mode == :addlastg && push!(insw.qtws, [newqtw])
+        end
         if CImGui.MenuItem(mlstr("Image"))
             newqtw = QuantityWidget(name="_Image_", alias="")
             mode == :addlastg && push!(insw.qtws, [newqtw])
@@ -1061,6 +1227,7 @@ let
     setuitypesno2opts = ["read", "unit", "readunit", "inputset", "ctrlset", "combo", "radio", "slider", "vslider"]
     readuitypes = ["read", "unit", "readunit"]
     otheruitypes = ["none"]
+    shapetypes = ["rect", "triangle", "circle", "line"]
     qtselectoruitypes = ["combo", "slider", "vslider"]
     # selectortypes = ["sweep", "set", "read"]
     textsizes = ["normal", "big"]
@@ -1082,6 +1249,8 @@ let
                     end
                 elseif qtw.qtype == "read"
                     readuitypes
+                elseif qtw.name == "_Shape_"
+                    shapetypes
                 elseif qtw.name == "_QuantitySelector_"
                     qtselectoruitypes
                 else
@@ -1119,6 +1288,18 @@ let
                 mlstr("No ArrowButton"), &qtw.options.comboflags, CImGui.ImGuiComboFlags_NoArrowButton
             )
             CImGui.DragFloat2(mlstr("Item Size"), qtw.options.itemsize)
+            if qtw.options.uitype == "triangle"
+                CImGui.DragFloat2(stcstr(mlstr("triangle"), " a"), qtw.options.trianglea)
+                CImGui.DragFloat2(stcstr(mlstr("triangle"), " b"), qtw.options.triangleb)
+                CImGui.DragFloat2(stcstr(mlstr("triangle"), " c"), qtw.options.trianglec)
+            elseif qtw.options.uitype == "circle"
+                @c CImGui.DragInt(
+                    mlstr("segments"), &qtw.options.circlesegments, 1, 6, 60, "%d", CImGui.ImGuiSliderFlags_AlwaysClamp
+                )
+            elseif qtw.options.uitype == "line"
+                CImGui.DragFloat2(stcstr(mlstr("line"), " a"), qtw.options.trianglea)
+                CImGui.DragFloat2(stcstr(mlstr("line"), " b"), qtw.options.triangleb)
+            end
             CImGui.DragFloat2(mlstr("CursorScreenPos"), qtw.options.cursorscreenpos)
             @c CImGui.DragFloat(
                 mlstr("Frame Rounding"),
@@ -1177,7 +1358,7 @@ let
         if qtw.name == "_QuantitySelector_" && CImGui.CollapsingHeader(mlstr("Selector Options"))
             # @c ComBoS(mlstr("Selector Type"), &qtw.options.selectortype, selectortypes)
             @c CImGui.DragInt(
-                mlstr("binging numbers"), &qtw.options.selectornum, 1, 1, 12, "%d",
+                mlstr("binding numbers"), &qtw.options.selectornum, 1, 1, 12, "%d",
                 CImGui.ImGuiSliderFlags_AlwaysClamp
             )
             llbs = length(qtw.options.selectorlabels)
@@ -1260,79 +1441,162 @@ let
             end
         end
         if qtw.name != "_SameLine_" && CImGui.CollapsingHeader(mlstr("Color Options"))
-            widgetcolormenu(qtw.options)
+            widgetcolormenu(qtw)
         end
+    end
+end
+
+function widgetcolormenu(qtw::QuantityWidget)
+    CImGui.ColorEdit4(
+        mlstr("Text Color"),
+        qtw.options.textcolor,
+        CImGui.ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_AlphaPreviewHalf
+    )
+    CImGui.ColorEdit4(
+        mlstr("Background Color"),
+        qtw.options.bgcolor,
+        CImGui.ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_AlphaPreviewHalf
+    )
+    CImGui.ColorEdit4(
+        mlstr("Border Color"),
+        qtw.options.bdcolor,
+        CImGui.ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_AlphaPreviewHalf
+    )
+    CImGui.ColorEdit4(
+        mlstr("Hovered Color"),
+        qtw.options.hoveredcolor,
+        CImGui.ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_AlphaPreviewHalf
+    )
+    CImGui.ColorEdit4(
+        mlstr("Actived Color"),
+        qtw.options.activecolor,
+        CImGui.ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_AlphaPreviewHalf
+    )
+    if qtw.options.uitype in ["inputstep", "inputstop", "inputset"]
+        CImGui.ColorEdit4(
+            mlstr("Hint Text Color"),
+            qtw.options.hintcolor,
+            CImGui.ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_AlphaPreviewHalf
+        )
+    end
+    if qtw.options.uitype == "combo"
+        CImGui.ColorEdit4(
+            mlstr("Combo Button Color"),
+            qtw.options.combobtcolor,
+            CImGui.ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_AlphaPreviewHalf
+        )
+        CImGui.ColorEdit4(
+            mlstr("Popup Background Color"),
+            qtw.options.popupcolor,
+            CImGui.ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_AlphaPreviewHalf
+        )
+    end
+    if qtw.name == "_Image_"
+        CImGui.ColorEdit4(
+            mlstr("Image Background Color"),
+            qtw.options.imgbgcolor,
+            CImGui.ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_AlphaPreviewHalf
+        )
+        CImGui.ColorEdit4(
+            mlstr("Image Tint Color"),
+            qtw.options.imgtintcolor,
+            CImGui.ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_AlphaPreviewHalf
+        )
+    end
+    if qtw.options.uitype == "toggle"
+        CImGui.ColorEdit4(
+            mlstr("Toggle-on Color"),
+            qtw.options.oncolor,
+            CImGui.ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_AlphaPreviewHalf
+        )
+        CImGui.ColorEdit4(
+            mlstr("Toggle-off Color"),
+            qtw.options.offcolor,
+            CImGui.ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_AlphaPreviewHalf
+        )
+    end
+    if qtw.options.uitype in ["slider", "vslider"]
+        CImGui.ColorEdit4(
+            mlstr("SliderGrab Color"),
+            qtw.options.grabcolor,
+            CImGui.ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_AlphaPreviewHalf
+        )
+        CImGui.ColorEdit4(
+            mlstr("Active SliderGrab Color"),
+            qtw.options.grabactivecolor,
+            CImGui.ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_AlphaPreviewHalf
+        )
     end
 end
 
 function widgetcolormenu(opts::QuantityWidgetOption)
     CImGui.ColorEdit4(
-        stcstr(mlstr("Text Color")),
+        mlstr("Text Color"),
         opts.textcolor,
         CImGui.ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_AlphaPreviewHalf
     )
     CImGui.ColorEdit4(
-        stcstr(mlstr("Hint Text Color")),
-        opts.hintcolor,
-        CImGui.ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_AlphaPreviewHalf
-    )
-    CImGui.ColorEdit4(
-        stcstr(mlstr("Background Color")),
+        mlstr("Background Color"),
         opts.bgcolor,
         CImGui.ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_AlphaPreviewHalf
     )
     CImGui.ColorEdit4(
-        stcstr(mlstr("Popup Background Color")),
-        opts.popupcolor,
+        mlstr("Border Color"),
+        opts.bdcolor,
         CImGui.ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_AlphaPreviewHalf
     )
     CImGui.ColorEdit4(
-        stcstr(mlstr("Image Background Color")),
-        opts.imgbgcolor,
-        CImGui.ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_AlphaPreviewHalf
-    )
-    CImGui.ColorEdit4(
-        stcstr(mlstr("Image Tint Color")),
-        opts.imgtintcolor,
-        CImGui.ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_AlphaPreviewHalf
-    )
-    CImGui.ColorEdit4(
-        stcstr(mlstr("Combo Button Color")),
-        opts.combobtcolor,
-        CImGui.ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_AlphaPreviewHalf
-    )
-    CImGui.ColorEdit4(
-        stcstr(mlstr("Toggle-on Color")),
-        opts.oncolor,
-        CImGui.ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_AlphaPreviewHalf
-    )
-    CImGui.ColorEdit4(
-        stcstr(mlstr("Toggle-off Color")),
-        opts.offcolor,
-        CImGui.ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_AlphaPreviewHalf
-    )
-    CImGui.ColorEdit4(
-        stcstr(mlstr("Hovered Button Color")),
+        mlstr("Hovered Color"),
         opts.hoveredcolor,
         CImGui.ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_AlphaPreviewHalf
     )
     CImGui.ColorEdit4(
-        stcstr(mlstr("Active Button Color")),
+        mlstr("Actived Color"),
         opts.activecolor,
         CImGui.ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_AlphaPreviewHalf
     )
     CImGui.ColorEdit4(
-        stcstr(mlstr("Border Color")),
-        opts.rectcolor,
+        mlstr("Hint Text Color"),
+        opts.hintcolor,
         CImGui.ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_AlphaPreviewHalf
     )
     CImGui.ColorEdit4(
-        stcstr(mlstr("SliderGrab Color")),
+        mlstr("Combo Button Color"),
+        opts.combobtcolor,
+        CImGui.ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_AlphaPreviewHalf
+    )
+    CImGui.ColorEdit4(
+        mlstr("Popup Background Color"),
+        opts.popupcolor,
+        CImGui.ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_AlphaPreviewHalf
+    )
+    CImGui.ColorEdit4(
+        mlstr("Image Background Color"),
+        opts.imgbgcolor,
+        CImGui.ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_AlphaPreviewHalf
+    )
+    CImGui.ColorEdit4(
+        mlstr("Image Tint Color"),
+        opts.imgtintcolor,
+        CImGui.ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_AlphaPreviewHalf
+    )
+    CImGui.ColorEdit4(
+        mlstr("Toggle-on Color"),
+        opts.oncolor,
+        CImGui.ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_AlphaPreviewHalf
+    )
+    CImGui.ColorEdit4(
+        mlstr("Toggle-off Color"),
+        opts.offcolor,
+        CImGui.ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_AlphaPreviewHalf
+    )
+    CImGui.ColorEdit4(
+        mlstr("SliderGrab Color"),
         opts.grabcolor,
         CImGui.ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_AlphaPreviewHalf
     )
     CImGui.ColorEdit4(
-        stcstr(mlstr("Active SliderGrab Color")),
+        mlstr("Active SliderGrab Color"),
         opts.grabactivecolor,
         CImGui.ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_AlphaPreviewHalf
     )
@@ -1348,6 +1612,7 @@ function idxtoij(insw, idx)
 end
 
 function initialize!(insw::InstrWidget, addr)
+    insw.draggable = false
     empty!(insw.qtlist)
     qtlist = []
     for qtwg in insw.qtws
@@ -1433,7 +1698,10 @@ function trigselector!(qtw::QuantityWidget, insw::InstrWidget)
                 if !isnothing(ij)
                     alias = insw.qtws[ij[1]][ij[2]].alias
                     selectedidx = findfirst(==(alias), qtw.options.selectorlist[1])
-                    isnothing(selectedidx) || (qtw.options.selectedidx = selectedidx)
+                    if !isnothing(selectedidx)
+                        qtw.options.selectedidx = selectedidx
+                        qtw.alias = qtw.options.selectorlabels[qtw.options.selectedidx]
+                    end
                 end
             end
         end

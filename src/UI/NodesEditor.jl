@@ -193,13 +193,18 @@ function draw(rszgrip::ResizeGrip)
     CImGui.AddTriangleFilled(
         CImGui.GetWindowDrawList(),
         (rszgrip.pos.x - rszgrip.size.x, rszgrip.pos.y), rszgrip.pos, (rszgrip.pos.x, rszgrip.pos.y - rszgrip.size.y),
-        if rszgrip.hovered && rszgrip.dragging
-            CImGui.ColorConvertFloat4ToU32(CImGui.c_get(IMGUISTYLE.Colors, ImGuiCol_ResizeGripActive))
-        elseif rszgrip.hovered
-            CImGui.ColorConvertFloat4ToU32(CImGui.c_get(IMGUISTYLE.Colors, ImGuiCol_ResizeGripHovered))
-        else
-            CImGui.ColorConvertFloat4ToU32(CImGui.c_get(IMGUISTYLE.Colors, ImGuiCol_ResizeGrip))
-        end
+        CImGui.ColorConvertFloat4ToU32(
+            CImGui.c_get(
+                IMGUISTYLE.Colors,
+                if rszgrip.hovered && rszgrip.dragging
+                    ImGuiCol_ResizeGripActive
+                elseif rszgrip.hovered
+                    ImGuiCol_ResizeGripHovered
+                else
+                    ImGuiCol_ResizeGrip
+                end
+            )
+        )
     )
 end
 
@@ -549,9 +554,9 @@ let
         )
         imnodes_EndNodeEditor()
         rszcd.limmaxsize = CImGui.GetItemRectSize()
-        rszcd.regmax = (
-            min(rszcd.regmin[1] + rszcd.limmaxsize[1], rszcd.regmax[1]),
-            min(rszcd.regmin[2] + rszcd.limmaxsize[2], rszcd.regmax[2])
+        rszcd.posmax = (
+            min(rszcd.posmin[1] + rszcd.limmaxsize[1], rszcd.posmax[1]),
+            min(rszcd.posmin[2] + rszcd.limmaxsize[2], rszcd.posmax[2])
         )
         nodeeditor.selectednodesnum = imnodes_NumSelectedNodes()
         resize!(nodeeditor.selectednodes, nodeeditor.selectednodesnum)
