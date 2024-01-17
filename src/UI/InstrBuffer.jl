@@ -1007,7 +1007,11 @@ function resolvedisablelist(qt::AbstractQuantity, instrnm, addr)
     end
     svconf = deepcopy(CONF)
     svconf.U = Dict(up.first => string.(up.second) for up in CONF.U)
-    to_toml(joinpath(ENV["QInsControlAssets"], "Necessity/conf.toml"), svconf)
+    try
+        to_toml(joinpath(ENV["QInsControlAssets"], "Necessity/conf.toml"), svconf)
+    catch e
+        @error "[$(now())]\n$(mlstr("saving configurations failed!!!"))" exception = e
+    end
 end
 
 function resolveunitlist(qt::AbstractQuantity, instrnm, addr)
@@ -1019,7 +1023,11 @@ function resolveunitlist(qt::AbstractQuantity, instrnm, addr)
         push!(unitlist, qt.name => qt.uindex)
         svconf = deepcopy(CONF)
         svconf.U = Dict(up.first => string.(up.second) for up in CONF.U)
-        to_toml(joinpath(ENV["QInsControlAssets"], "Necessity/conf.toml"), svconf)
+        try
+            to_toml(joinpath(ENV["QInsControlAssets"], "Necessity/conf.toml"), svconf)
+        catch e
+            @error "[$(now())]\n$(mlstr("saving configurations failed!!!"))" exception = e
+        end
     end
 end
 

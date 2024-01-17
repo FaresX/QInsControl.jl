@@ -17,7 +17,7 @@ let
             ftsz = CImGui.GetFontSize()
             CImGui.Text("")
             CImGui.Text("")
-            CImGui.SameLine((width-6ftsz)/2)
+            CImGui.SameLine((width - 6ftsz) / 2)
             CImGui.Image(Ptr{Cvoid}(ICONID), (6ftsz, 6ftsz))
             CImGui.Text("")
             CImGui.PushStyleVar(CImGui.ImGuiStyleVar_SelectableTextAlign, (0.5, 0.5))
@@ -41,7 +41,11 @@ let
             )
                 svconf = deepcopy(CONF)
                 svconf.U = Dict(up.first => string.(up.second) for up in CONF.U)
-                to_toml(joinpath(ENV["QInsControlAssets"], "Necessity/conf.toml"), svconf)
+                try
+                    to_toml(joinpath(ENV["QInsControlAssets"], "Necessity/conf.toml"), svconf)
+                catch e
+                    @error "[$(now())]\n$(mlstr("saving configurations failed!!!"))" exception = e
+                end
             end
             CImGui.NextColumn()
 
@@ -107,7 +111,7 @@ let
                     loadlanguage(CONF.Basic.languages[CONF.Basic.language])
                 end
                 CImGui.Text(" ")
-                
+
                 ### Communication ###
                 SeparatorTextColored(MORESTYLE.Colors.HighlightText, mlstr("Communication"))
                 visapath = CONF.Communication.visapath
@@ -139,7 +143,7 @@ let
                     CImGui.ImGuiSliderFlags_AlwaysClamp
                 )
                 CImGui.Text(" ")
-                
+
                 ###DAQ###
                 SeparatorTextColored(MORESTYLE.Colors.HighlightText, "DAQ")
                 @c CImGui.Checkbox(
@@ -188,7 +192,7 @@ let
                     CImGui.ImGuiSliderFlags_AlwaysClamp
                 )) && remotecall_wait(x -> (CONF.DAQ.retryconnecttimes = x), workers()[1], CONF.DAQ.retryconnecttimes)
                 CImGui.Text(" ")
-                
+
 
                 ###InsBuf###
                 SeparatorTextColored(MORESTYLE.Colors.HighlightText, mlstr("Instrument Settings and Status"))
@@ -206,7 +210,7 @@ let
                     CImGui.ImGuiSliderFlags_AlwaysClamp
                 )
                 CImGui.Text(" ")
-                
+
 
                 ###Fonts###
                 SeparatorTextColored(MORESTYLE.Colors.HighlightText, mlstr("Font"))
@@ -283,7 +287,7 @@ let
                     CImGui.ImGuiSliderFlags_AlwaysClamp
                 )
                 CImGui.Text(" ")
-                
+
 
                 ###Logs###
                 SeparatorTextColored(MORESTYLE.Colors.HighlightText, mlstr("Logger"))
@@ -314,7 +318,7 @@ let
                     CImGui.ImGuiSliderFlags_AlwaysClamp
                 )
                 CImGui.Text(" ")
-                
+
 
                 ###ComAddr###
                 SeparatorTextColored(MORESTYLE.Colors.HighlightText, mlstr("Common Address"))
@@ -328,7 +332,7 @@ let
                     end
                 end
                 CImGui.Text(" ")
-                
+
 
                 ###U###
                 CImGui.PushStyleColor(CImGui.ImGuiCol_Text, MORESTYLE.Colors.HighlightText)
