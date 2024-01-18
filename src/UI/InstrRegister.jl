@@ -24,7 +24,7 @@ let
             try
                 remotecall_wait(include, workers()[1], joinpath(ENV["QInsControlAssets"], "ExtraLoad/extraload.jl"))
             catch e
-                @error "reloading failed" exception = e
+                @error mlstr("reloading drivers failed") exception = e
             end
         end
         # optkeys = join(qtcf.optkeys, "\n")
@@ -299,6 +299,10 @@ let
                             for ibv in values(INSTRBUFFERVIEWERS[selectedins])
                                 push!(ibv.insbuf.quantities, qtname => quantity(qtname, deepcopy(editqt)))
                             end
+                            haskey(default_insbufs, selectedins) && push!(
+                                default_insbufs[selectedins].quantities,
+                                qtname => quantity(qtname, deepcopy(editqt))
+                            )
                         end
                         @c InputTextRSZ(mlstr("variable name"), &qtname)
                         edit(editqt, selectedins)
