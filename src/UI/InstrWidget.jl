@@ -1363,7 +1363,7 @@ function widgetcolormenu(qtw::QuantityWidget)
             CImGui.ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_AlphaPreviewHalf
         )
     end
-    if qtw.options.uitype == "toggle"
+    if qtw.options.uitype in ["toggle", "ctrlsweep"]
         CImGui.ColorEdit4(
             mlstr("Toggle-on"),
             qtw.options.oncolor,
