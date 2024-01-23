@@ -167,7 +167,7 @@ function edit(dft::DataFormatter, id)
         CImGui.SameLine()
         CImGui.Button(MORESTYLE.Icons.CloseFile) && (isempty(dft.data) || pop!(dft.data))
         CImGui.SameLine()
-        if ColoredButton(MORESTYLE.Icons.DataFormatter; colbt=MORESTYLE.Colors.ControlButton)
+        if CImGui.Button(MORESTYLE.Icons.DataFormatter)
             try
                 formatdata(dft.data)
             catch e
