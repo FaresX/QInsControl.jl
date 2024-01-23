@@ -14,7 +14,7 @@ end
 
 function ColoredCombo(
     label, preview_value::Ref{String}, item_list, flags=0;
-    width=0,
+    size=(0, 0),
     rounding=0,
     bdrounding=0,
     thickness=0,
@@ -33,10 +33,11 @@ function ColoredCombo(
     CImGui.PushStyleColor(CImGui.ImGuiCol_PopupBg, colpopup)
     CImGui.PushStyleColor(CImGui.ImGuiCol_Text, coltxt)
     CImGui.PushStyleVar(CImGui.ImGuiStyleVar_FrameRounding, rounding)
-    CImGui.PushItemWidth(width)
+    CImGui.PushStyleVar(CImGui.ImGuiStyleVar_FramePadding, (unsafe_load(IMGUISTYLE.FramePadding.x), (size[2] - CImGui.GetFontSize()) / 2))
+    CImGui.PushItemWidth(size[1])
     iscombo = ComBoS(label, preview_value, item_list, flags)
     CImGui.PopItemWidth()
-    CImGui.PopStyleVar()
+    CImGui.PopStyleVar(2)
     CImGui.PopStyleColor(6)
     rmin, rmax = CImGui.GetItemRectMin(), CImGui.GetItemRectMax()
     draw_list = CImGui.GetWindowDrawList()
@@ -746,6 +747,8 @@ end
     colh::Vector{Cfloat} = [1, 1, 1, 1]
     cola::Vector{Cfloat} = [0, 1, 0, 1]
     colbd::Vector{Cfloat} = [0, 0, 0, 1]
+    colbdh::Vector{Cfloat} = [0, 0, 0, 1]
+    colbda::Vector{Cfloat} = [0, 0, 0, 1]
     hovered::Bool = false
     dragging::Bool = false
     griphovered::Bool = false
@@ -771,7 +774,7 @@ function draw(dr::DragRect)
     )
     CImGui.AddRect(
         drawlist, dr.posmin, dr.posmax,
-        CImGui.ColorConvertFloat4ToU32(dr.colbd),
+        CImGui.ColorConvertFloat4ToU32(dr.dragging ? dr.colbda : dr.hovered && !dr.griphovered && !dr.gripdragging ? dr.colbdh : dr.colbd),
         dr.bdrounding, ImDrawFlags_RoundCornersAll, dr.thickness
     )
 end

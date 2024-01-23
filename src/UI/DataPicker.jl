@@ -46,9 +46,16 @@ let
             CImGui.ImGuiWindowFlags_NoTitleBar | CImGui.ImGuiWindowFlags_NoDocking
         )
             dtpk.update = false
-            CImGui.TextColored(MORESTYLE.Colors.HighlightText, MORESTYLE.Icons.Plot)
+            CImGui.PushStyleColor(CImGui.ImGuiCol_Button, (0, 0, 0, 0))
+            CImGui.PushStyleColor(CImGui.ImGuiCol_ButtonHovered, (0, 0, 0, 0))
+            CImGui.PushStyleColor(CImGui.ImGuiCol_ButtonActive, (0, 0, 0, 0))
+            CImGui.PushStyleColor(CImGui.ImGuiCol_Text, MORESTYLE.Colors.HighlightText)
+            # CImGui.TextColored(MORESTYLE.Colors.HighlightText, MORESTYLE.Icons.Plot)
+            CImGui.Button(MORESTYLE.Icons.Plot)
+            CImGui.PopStyleColor()
             CImGui.SameLine()
-            CImGui.Text(stcstr(" ", mlstr("Data Selecting")))
+            CImGui.Button(stcstr(" ", mlstr("Data Selecting")))
+            CImGui.PopStyleColor(3)
             CImGui.SameLine(CImGui.GetContentRegionAvailWidth() - holdsz)
             CImGui.Button(MORESTYLE.Icons.Update) && (dtpk.update = true)
             holdsz = CImGui.GetItemRectSize().x
@@ -59,7 +66,7 @@ let
             CImGui.Button(MORESTYLE.Icons.CloseFile) && (isempty(dtpk.series) || pop!(dtpk.series))
             holdsz += CImGui.GetItemRectSize().x + 2unsafe_load(IMGUISTYLE.ItemSpacing.x)
             CImGui.SameLine()
-            @c CImGui.Checkbox(mlstr("HOLD"), &dtpk.hold)
+            @c ToggleButton(MORESTYLE.Icons.HoldPin, &dtpk.hold)
             holdsz += CImGui.GetItemRectSize().x
             CImGui.BeginChild("Series")
             for (i, dtss) in enumerate(dtpk.series)

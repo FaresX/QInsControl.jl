@@ -356,7 +356,7 @@ let
                                     widgetcolormenu(widget.options)
                                     CImGui.EndChild()
                                 end
-                                modify(widget)
+                                view(widget)
                                 if !haskey(default_insbufs, selectedins)
                                     push!(default_insbufs, selectedins => InstrBuffer(selectedins))
                                     for (_, qt) in default_insbufs[selectedins].quantities

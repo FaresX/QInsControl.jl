@@ -3,7 +3,7 @@ let
     show_instr_register::Bool = false
     show_cpu_monitor::Bool = false
     show_instr_buffer::Bool = false
-    show_daq::Bool = false
+    # show_daq::Bool = false
 
     show_console::Bool = false
     show_metrics::Bool = false
@@ -49,7 +49,7 @@ let
         show_instr_register = false
         show_cpu_monitor = false
         show_instr_buffer = false
-        show_daq = false
+        # show_daq = false
 
         show_console = false
         show_metrics = false
@@ -78,14 +78,15 @@ let
             viewport = igGetMainViewport()
             CImGui.SetNextWindowPos(unsafe_load(viewport.WorkPos))
             CImGui.SetNextWindowSize(unsafe_load(viewport.WorkSize))
-            CImGui.PushStyleVar(CImGui.ImGuiStyleVar_WindowRounding, 0)
-            CImGui.PushStyleVar(CImGui.ImGuiStyleVar_WindowPadding, (0, 0))
             CImGui.Begin("Wallpaper", C_NULL, window_flags | CImGui.ImGuiWindowFlags_NoBringToFrontOnFocus)
-            Image(CONF.BGImage.path; size=unsafe_load(viewport.WorkSize), tint_col=MORESTYLE.Colors.BgImageTint)
+            # Image(CONF.BGImage.path; size=unsafe_load(viewport.WorkSize), tint_col=MORESTYLE.Colors.BgImageTint)
+            DAQ()
             CImGui.End()
 
             CImGui.SetNextWindowPos(unsafe_load(viewport.WorkPos))
             CImGui.SetNextWindowSize(unsafe_load(viewport.WorkSize))
+            CImGui.PushStyleVar(CImGui.ImGuiStyleVar_WindowRounding, 0)
+            CImGui.PushStyleVar(CImGui.ImGuiStyleVar_WindowPadding, (0, 0))
             CImGui.Begin("DockSpace", C_NULL, window_flags | CImGui.ImGuiWindowFlags_NoBackground)
             igDockSpace(CImGui.GetID("MainWindow"), CImGui.ImVec2(0, 0), ImGuiDockNodeFlags_PassthruCentralNode, C_NULL)
             CImGui.End()
@@ -124,7 +125,7 @@ let
                 end
             end
         end
-        show_daq && @c DAQ(&show_daq)
+        # show_daq && @c DAQ(&show_daq)
 
         show_console && @c ShowConsole(&show_console)
         show_metrics && @c CImGui.ShowMetricsWindow(&show_metrics)
@@ -288,11 +289,11 @@ let
                     end
                     CImGui.EndMenu()
                 end
-                @c CImGui.MenuItem(
-                    stcstr(MORESTYLE.Icons.InstrumentsDAQ, " ", mlstr("Data Acquiring")),
-                    C_NULL,
-                    &show_daq
-                )
+                # @c CImGui.MenuItem(
+                #     stcstr(MORESTYLE.Icons.InstrumentsDAQ, " ", mlstr("Data Acquiring")),
+                #     C_NULL,
+                #     &show_daq
+                # )
                 if CImGui.BeginMenu(
                     stcstr(MORESTYLE.Icons.InstrumentsSeach, " ", mlstr("Search Instruments")),
                     !SYNCSTATES[Int(IsDAQTaskRunning)]

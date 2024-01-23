@@ -10,7 +10,6 @@
     SweepQuantityTxt::Vector{Cfloat} = [1.000, 0.000, 0.000, 1.000]
     SetQuantityTxt::Vector{Cfloat} = [0.000, 1.000, 0.000, 1.000]
     ReadQuantityTxt::Vector{Cfloat} = [0.000, 0.000, 1.000, 1.000]
-    ControlButton::Vector{Cfloat} = [0.000, 0.000, 1.000, 1.000]
     ControlButtonPause::Vector{Cfloat} = [0.000, 0.000, 1.000, 1.000]
     StrideCodeBlockBorder::Vector{Cfloat} = [1.000, 0.000, 0.680, 1.000]
     SweepBlockBorder::Vector{Cfloat} = [1.000, 0.750, 0.000, 1.000]
@@ -35,6 +34,13 @@
     ItemBorder::Vector{Cfloat} = [1.000, 1.000, 1.000, 1.000]
     FormatDataBorder::Vector{Cfloat} = [1.000, 1.000, 1.000, 1.000]
     FormatDataGroupBorder::Vector{Cfloat} = [1.000, 1.000, 0.000, 1.000]
+    WidgetRect::Vector{Cfloat} = [1.000, 1.000, 1.000, 0.200]
+    WidgetRectHovered::Vector{Cfloat} = [1.000, 1.000, 1.000, 0.400]
+    WidgetRectDragging::Vector{Cfloat} = [1.000, 1.000, 1.000, 0.600]
+    WidgetBorder::Vector{Cfloat} = [0.000, 0.000, 0.000, 0.200]
+    WidgetBorderHovered::Vector{Cfloat} = [0.000, 0.000, 0.000, 0.400]
+    WidgetBorderDragging::Vector{Cfloat} = [0.000, 0.000, 0.000, 0.600]
+    ToolBarBg::Vector{Cfloat} = [0.000, 0.000, 0.000, 0.400]
 end
 
 @kwdef mutable struct MoreStyleIcon
@@ -65,6 +71,7 @@ end
     RunTask::String = ICONS.ICON_CIRCLE_PLAY
     BlockTask::String = ICONS.ICON_CIRCLE_PAUSE
     InterruptTask::String = ICONS.ICON_CIRCLE_STOP
+    View::String = ICONS.ICON_EYE
     Edit::String = ICONS.ICON_PEN
     Copy::String = ICONS.ICON_WINDOW_RESTORE
     Paste::String = ICONS.ICON_PASTE
@@ -73,14 +80,12 @@ end
     Undo::String = ICONS.ICON_ROTATE_LEFT
     Redo::String = ICONS.ICON_ROTATE_RIGHT
     Plot::String = ICONS.ICON_CHART_AREA
-    # PlotNumber::String = ICONS.ICON_CODE_BRANCH
     Datai::String = ICONS.ICON_CHART_COLUMN
     Update::String = ICONS.ICON_CLOUD_ARROW_UP
     InsertUp::String = ICONS.ICON_CIRCLE_ARROW_UP
     InsertDown::String = ICONS.ICON_CIRCLE_ARROW_DOWN
     InsertInside::String = ICONS.ICON_CIRCLE_ARROW_RIGHT
     Convert::String = ICONS.ICON_RIGHT_LEFT
-    ShowDisable::String = ICONS.ICON_EYE
 
     CodeBlock::String = ICONS.ICON_SITEMAP
     StrideCodeBlock::String = ICONS.ICON_RAINBOW
@@ -106,6 +111,8 @@ end
     InstrumentsRegister::String = ICONS.ICON_MICROSCOPE
     InstrumentsSeach::String = ICONS.ICON_GLOBE
     InstrumentsAutoDetect::String = ICONS.ICON_CLOCK
+
+    HoldPin::String = ICONS.ICON_TROWEL
 
     Help::String = ICONS.ICON_BOOK_TANAKH
     Console::String = ICONS.ICON_COMPUTER
