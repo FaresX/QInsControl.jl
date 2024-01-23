@@ -11,7 +11,6 @@ global SAVEPATH::String = ""
 const CFGBUF = Dict{String,Any}()
 
 let
-    holdsz::Cfloat = 0
     viewmode::Bool = false
     redolist::Dict{Int,LoopVector{Vector{AbstractBlock}}} = Dict()
     global function edit(daqtask::DAQTask, id, p_open::Ref{Bool})
@@ -25,13 +24,19 @@ let
             p_open,
             CImGui.ImGuiWindowFlags_NoTitleBar | CImGui.ImGuiWindowFlags_NoDocking
         )
-            CImGui.BeginChild("Blocks")
-            CImGui.TextColored(MORESTYLE.Colors.HighlightText, MORESTYLE.Icons.TaskButton)
+            ftsz = CImGui.GetFontSize()
+            # CImGui.TextColored(MORESTYLE.Colors.HighlightText, MORESTYLE.Icons.TaskButton)
+            CImGui.PushStyleColor(CImGui.ImGuiCol_Button, (0, 0, 0, 0))
+            CImGui.PushStyleColor(CImGui.ImGuiCol_ButtonHovered, (0, 0, 0, 0))
+            CImGui.PushStyleColor(CImGui.ImGuiCol_ButtonActive, (0, 0, 0, 0))
+            CImGui.PushStyleColor(CImGui.ImGuiCol_Text, MORESTYLE.Colors.HighlightText)
+            CImGui.Button(MORESTYLE.Icons.TaskButton)
+            CImGui.PopStyleColor()
             CImGui.SameLine()
-            CImGui.Text(stcstr(" ", mlstr("Edit queue: Task"), " ", id + OLDI, " ", daqtask.name))
-            CImGui.SameLine(CImGui.GetContentRegionAvailWidth() - holdsz)
-            @c CImGui.Checkbox(mlstr("HOLD"), &daqtask.hold)
-            holdsz = CImGui.GetItemRectSize().x
+            CImGui.Button(stcstr(" ", mlstr("Edit queue: Task"), " ", id + OLDI, " ", daqtask.name))
+            CImGui.PopStyleColor(3)
+            CImGui.SameLine(CImGui.GetContentRegionAvailWidth() - 3ftsz/2)
+            @c ToggleButton(MORESTYLE.Icons.HoldPin, &daqtask.hold)
             CImGui.Separator()
             SeparatorTextColored(MORESTYLE.Colors.HighlightText, mlstr("Experimental Records"))
             y = (1 + length(findall("\n", daqtask.explog))) * CImGui.GetTextLineHeight() +
@@ -53,8 +58,8 @@ let
                 CImGui.SameLine()
                 CImGui.TextColored(MORESTYLE.Colors.HighlightText, stcstr(mlstr("searching instruments"), "......"))
             end
-            CImGui.SameLine(CImGui.GetContentRegionAvailWidth() - holdsz)
-            @c CImGui.Checkbox(viewmode ? mlstr("View") : mlstr("Edit"), &viewmode)
+            CImGui.SameLine(CImGui.GetContentRegionAvailWidth() - 3ftsz/2)
+            CImGui.Button(viewmode ? MORESTYLE.Icons.View : MORESTYLE.Icons.Edit) && (viewmode ⊻= true)
             CImGui.PushID(id)
             dragblockmenu(id)
             CImGui.BeginChild("DAQTask.blocks")
@@ -94,7 +99,6 @@ let
                     daqtask.blocks = deepcopy(redolist[id][])
                 end
             end
-            CImGui.EndChild()
             isfocus &= CImGui.IsWindowFocused(CImGui.ImGuiFocusedFlags_ChildWindows)
         end
         CImGui.End()
