@@ -37,9 +37,11 @@
     WidgetRect::Vector{Cfloat} = [1.000, 1.000, 1.000, 0.200]
     WidgetRectHovered::Vector{Cfloat} = [1.000, 1.000, 1.000, 0.400]
     WidgetRectDragging::Vector{Cfloat} = [1.000, 1.000, 1.000, 0.600]
+    WidgetRectSelected::Vector{Cfloat} = [0.000, 0.000, 1.000, 0.600]
     WidgetBorder::Vector{Cfloat} = [0.000, 0.000, 0.000, 0.200]
     WidgetBorderHovered::Vector{Cfloat} = [0.000, 0.000, 0.000, 0.400]
     WidgetBorderDragging::Vector{Cfloat} = [0.000, 0.000, 0.000, 0.600]
+    WidgetBorderSelected::Vector{Cfloat} = [0.000, 1.000, 0.000, 1.000]
     ToolBarBg::Vector{Cfloat} = [0.000, 0.000, 0.000, 0.400]
 end
 

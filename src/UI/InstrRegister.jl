@@ -322,40 +322,7 @@ let
                                     CImGui.EndPopup()
                                 end
                                 CImGui.BeginChild(stcstr("Widget", i))
-                                if CImGui.CollapsingHeader(mlstr("Global Options"))
-                                    CImGui.BeginChild("global widget options", (Cfloat(0), CImGui.GetContentRegionAvail().y / 3))
-                                    @c InputTextRSZ(mlstr("Rename"), &widget.name)
-                                    @c CImGui.Checkbox(mlstr("Use Wallpaper"), &widget.usewallpaper)
-                                    if widget.usewallpaper
-                                        bgpath = widget.wallpaperpath
-                                        inputbgpath = @c InputTextRSZ("##wallpaper", &bgpath)
-                                        CImGui.SameLine()
-                                        selectbgpath = CImGui.Button(stcstr(MORESTYLE.Icons.SelectPath, "##wallpaper"))
-                                        selectbgpath && (bgpath = pick_file(abspath(bgpath); filterlist="png,jpg,jpeg,tif,bmp"))
-                                        CImGui.SameLine()
-                                        CImGui.Text(mlstr("Wallpaper"))
-                                        if inputbgpath || selectbgpath
-                                            if isfile(bgpath)
-                                                widget.wallpaperpath = bgpath
-                                            else
-                                                CImGui.SameLine()
-                                                CImGui.TextColored(MORESTYLE.Colors.LogError, mlstr("path does not exist!!!"))
-                                            end
-                                        end
-                                        CImGui.ColorEdit4(
-                                            stcstr(mlstr("Background Tint Color")),
-                                            widget.bgtintcolor,
-                                            CImGui.ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_AlphaPreviewHalf
-                                        )
-                                    end
-                                    CImGui.ColorEdit4(
-                                        stcstr(mlstr("Window Color")),
-                                        widget.windowbgcolor,
-                                        CImGui.ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_AlphaPreviewHalf
-                                    )
-                                    widgetcolormenu(widget.options)
-                                    CImGui.EndChild()
-                                end
+                                globalwidgetoptionsmenu(widget)
                                 view(widget)
                                 if !haskey(default_insbufs, selectedins)
                                     push!(default_insbufs, selectedins => InstrBuffer(selectedins))

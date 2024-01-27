@@ -120,7 +120,7 @@ let
                 ibv.p_open && edit(ibv)
                 if haskey(instrwidgets, addr)
                     for (wnm, insw) in instrwidgets[addr]
-                        insw[1][] ? edit(insw[2], ibv.insbuf, addr, insw[1], wnm) : delete!(instrwidgets[addr], wnm)
+                        insw[1][] ? edit(insw[2], ibv.insbuf, addr, insw[1], wnm; usingit=true) : delete!(instrwidgets[addr], wnm)
                     end
                 end
             end
