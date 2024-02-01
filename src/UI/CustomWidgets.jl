@@ -33,7 +33,10 @@ function ColoredCombo(
     CImGui.PushStyleColor(CImGui.ImGuiCol_PopupBg, colpopup)
     CImGui.PushStyleColor(CImGui.ImGuiCol_Text, coltxt)
     CImGui.PushStyleVar(CImGui.ImGuiStyleVar_FrameRounding, rounding)
-    CImGui.PushStyleVar(CImGui.ImGuiStyleVar_FramePadding, (unsafe_load(IMGUISTYLE.FramePadding.x), (size[2] - CImGui.GetFontSize()) / 2))
+    CImGui.PushStyleVar(
+        CImGui.ImGuiStyleVar_FramePadding,
+        (unsafe_load(IMGUISTYLE.FramePadding.x), (size[2] - CImGui.GetFontSize() * unsafe_load(CImGui.GetIO().FontGlobalScale)) / 2)
+    )
     CImGui.PushItemWidth(size[1])
     iscombo = ComBoS(label, preview_value, item_list, flags)
     CImGui.PopItemWidth()
@@ -560,7 +563,10 @@ function ColoredSlider(
     CImGui.PushStyleColor(CImGui.ImGuiCol_Text, coltxt)
     CImGui.PushStyleVar(CImGui.ImGuiStyleVar_FrameRounding, rounding)
     CImGui.PushStyleVar(CImGui.ImGuiStyleVar_GrabRounding, grabrounding)
-    CImGui.PushStyleVar(CImGui.ImGuiStyleVar_FramePadding, (unsafe_load(IMGUISTYLE.FramePadding.x), (size[2] - CImGui.GetFontSize()) / 2))
+    CImGui.PushStyleVar(
+        CImGui.ImGuiStyleVar_FramePadding,
+        (unsafe_load(IMGUISTYLE.FramePadding.x), (size[2] - CImGui.GetFontSize() * unsafe_load(CImGui.GetIO().FontGlobalScale)) / 2)
+    )
     CImGui.PushItemWidth(size[1])
     dragged = sliderfunc(label, v, v_min, v_max, format, flags)
     CImGui.PopStyleVar()
