@@ -488,7 +488,7 @@ function edit(insbuf::InstrBuffer, addr)
             )
             CImGui.PopItemWidth()
         end
-        CImGui.Text(stcstr(MORESTYLE.Icons.ShowCol, " ", mlstr("display columns")))
+        CImGui.Text(stcstr(MORESTYLE.Icons.ShowCol, " ", mlstr("Display Columns")))
         CImGui.SameLine()
         CImGui.PushItemWidth(3CImGui.GetFontSize() / 2)
         @c CImGui.DragInt(
@@ -497,7 +497,7 @@ function edit(insbuf::InstrBuffer, addr)
             CImGui.ImGuiSliderFlags_AlwaysClamp
         )
         CImGui.PopItemWidth()
-        CImGui.Text(stcstr(MORESTYLE.Icons.ShowDisable, " ", mlstr("Show Disabled")))
+        CImGui.Text(stcstr(MORESTYLE.Icons.View, " ", mlstr("Show Disabled")))
         CImGui.SameLine()
         @c CImGui.Checkbox("##show disabled", &insbuf.showdisable)
         CImGui.EndPopup()
