@@ -63,7 +63,6 @@ end
     bgtintcolor::Vector{Cfloat} = [1.000, 1.000, 1.000, 1.000]
     options::QuantityWidgetOption = QuantityWidgetOption()
     qtlist::Vector{String} = []
-    showcols::Cint = 6
 end
 
 const INSWCONF = OrderedDict{String,Vector{InstrWidget}}() #仪器注册表
@@ -93,10 +92,15 @@ end
 
 function edit(qtw::QuantityWidget, insbuf::InstrBuffer, instrnm, addr, gopts::QuantityWidgetOption)
     opts = qtw.options.globaloptions ? gopts : qtw.options
-    scale = unsafe_load(CImGui.GetIO().FontGlobalScale)
-    opts.itemsize *= scale
-    opts.vertices[1] *= scale
     qtw.options.globaloptions && copyglobal!(opts, qtw.options)
+    scale = unsafe_load(CImGui.GetIO().FontGlobalScale)
+    scaling = scale != 1
+    if scaling
+        itemsizeo = copy(opts.itemsize)
+        csposo = copy(opts.vertices[1])
+        opts.itemsize *= scale
+        opts.vertices[1] *= scale
+    end
     CImGui.SetCursorScreenPos(CImGui.GetWindowPos() .+ opts.vertices[1])
     trig = if haskey(insbuf.quantities, qtw.name)
         qt = insbuf.quantities[qtw.name]
@@ -113,8 +117,10 @@ function edit(qtw::QuantityWidget, insbuf::InstrBuffer, instrnm, addr, gopts::Qu
         false
     end
     opts.allowoverlap && CImGui.SetItemAllowOverlap()
-    opts.itemsize ./= scale
-    opts.vertices[1] ./= scale
+    if scaling
+        opts.itemsize = itemsizeo
+        opts.vertices[1] = csposo
+    end
     return trig
 end
 
@@ -661,12 +667,15 @@ let
     draglayers::Dict{Int,Union{DragRect,Vector{DragPoint}}} = Dict()
     qtwgroup::Vector{Cint} = []
     qtwgrouppos::Vector{Vector{Cfloat}} = []
-    qtwgroupoffset::Vector{Cfloat} = [0, 0]
+    qtwgroupposoffset::Vector{Cfloat} = [0, 0]
+    qtwgroupsize::Vector{Vector{Cfloat}} = []
+    qtwgroupsizeoffset::Vector{Cfloat} = [0, 0]
     copiedopts::Ref{QuantityWidgetOption} = QuantityWidgetOption()
     showslnums::Bool = false
     showpos::Bool = false
     dragmode::String = ""
     dragmodes::Vector{String} = ["swap", "before", "after"]
+    showcols::Cint = 6
     selectedqtw::Cint = 0
     acd::AnimateChild = AnimateChild(rate=(8, 12))
     fakewidget::QuantityWidget = QuantityWidget()
@@ -778,7 +787,7 @@ let
             end
             CImGui.EndChild()
         end
-        CImGui.IsWindowCollapsed() || (insw.windowsize .= CImGui.GetWindowSize() ./ scale)
+        usingit || CImGui.IsWindowCollapsed() || (insw.windowsize .= CImGui.GetWindowSize() ./ scale)
         CImGui.End()
         CImGui.PopStyleColor()
     end
@@ -803,12 +812,12 @@ let
     global function showlayer(insw::InstrWidget, qtw::QuantityWidget, dr::DragRect, i, isanyitemdragging::Ref{Bool}, ishovered::Ref{Bool})
         cspos = CImGui.GetWindowPos()
         dr.posmin = cspos .+ qtw.options.vertices[1]
-        dr.posmax = dr.posmin .+ qtw.options.itemsize
+        dr.posmax = dr.posmin .+ (qtw.name == "_Shape_" ? qtw.options.itemsize : CImGui.GetItemRectSize())
         (isanyitemdragging[] || qtw.hold) && (dr.dragging = false; dr.gripdragging = false)
         edit(dr)
         isanyitemdragging[] |= dr.dragging | dr.gripdragging
         if dr.dragging && i in qtwgroup
-            qtwgroupoffset .= dr.posmin .- cspos .- qtwgrouppos[findfirst(==(i), qtwgroup)]
+            qtwgroupposoffset .= dr.posmin .- cspos .- qtwgrouppos[findfirst(==(i), qtwgroup)]
             updategrouppos(insw)
         end
         if dr.dragging || dr.gripdragging
@@ -834,7 +843,7 @@ let
         ## 反同步位置
         if dps[1].dragging
             if i in qtwgroup
-                qtwgroupoffset .= dps[1].pos .- cspos .- qtwgrouppos[findfirst(==(i), qtwgroup)]
+                qtwgroupposoffset .= dps[1].pos .- cspos .- qtwgrouppos[findfirst(==(i), qtwgroup)]
                 updategrouppos(insw)
             else
                 qtw.options.vertices[1] .= dps[1].pos .- cspos
@@ -883,7 +892,7 @@ let
         SeparatorTextColored(MORESTYLE.Colors.HighlightText, mlstr("Options"))
         @c CImGui.Checkbox(mlstr("Show Serial Numbers"), &showslnums)
         CImGui.SameLine()
-        @c CImGui.Checkbox(mlstr("Show Position"), &showpos)
+        @c CImGui.Checkbox(mlstr("Show Positions"), &showpos)
         CImGui.SameLine()
         @c CImGui.Checkbox(mlstr("Draggable"), &draggable)
         CImGui.PushItemWidth(6CImGui.GetFontSize())
@@ -891,21 +900,29 @@ let
         CImGui.PopItemWidth()
         CImGui.SameLine()
         CImGui.PushItemWidth(6CImGui.GetFontSize())
-        @c CImGui.DragInt(mlstr("Display Columns"), &insw.showcols, 1, 2, 36, "%d", CImGui.ImGuiSliderFlags_AlwaysClamp)
+        @c CImGui.DragInt(mlstr("Display Columns"), &showcols, 1, 2, 36, "%d", CImGui.ImGuiSliderFlags_AlwaysClamp)
         CImGui.PopItemWidth()
         if isempty(qtwgroup)
-            qtwgroupoffset == [0, 0] || (qtwgroupoffset .= [0, 0])
+            qtwgroupposoffset == [0, 0] || (qtwgroupposoffset .= [0, 0])
+            qtwgroupsizeoffset == [0, 0] || (qtwgroupsizeoffset .= [0, 0])
         else
+            CImGui.BeginGroup()
             CImGui.DragFloat2(
-                mlstr("Offset"), qtwgroupoffset, 1, -6000, 6000, "%.1f", CImGui.ImGuiSliderFlags_AlwaysClamp
+                mlstr("Position Offset"), qtwgroupposoffset, 1, -6000, 6000, "%.1f", CImGui.ImGuiSliderFlags_AlwaysClamp
             ) && updategrouppos(insw)
+            CImGui.DragFloat2(
+                mlstr("Size Offset"), qtwgroupsizeoffset, 1, -6000, 6000, "%.1f", CImGui.ImGuiSliderFlags_AlwaysClamp
+            ) && updategroupsize(insw)
+            CImGui.EndGroup()
             CImGui.SameLine()
-            CImGui.Button(stcstr(MORESTYLE.Icons.CloseFile, "##emptygroup")) && (empty!(qtwgroup); empty!(qtwgrouppos))
+            h = CImGui.GetFrameHeightWithSpacing()
+            CImGui.Button(stcstr(MORESTYLE.Icons.CloseFile, "##emptygroup"), (2h, 2h)) && (empty!(qtwgroup); empty!(qtwgrouppos))
         end
         SeparatorTextColored(MORESTYLE.Colors.HighlightText, mlstr("Widgets"))
+        CImGui.BeginChild("view widgets", (0, 0), false, CImGui.ImGuiWindowFlags_HorizontalScrollbar)
         for (i, qtw) in enumerate(insw.qtws)
             CImGui.PushID(i)
-            i % insw.showcols == 1 || CImGui.SameLine()
+            i % showcols == 1 || CImGui.SameLine()
             view(qtw, i)
             if CImGui.BeginPopupContextItem()
                 SeparatorTextColored(MORESTYLE.Colors.HighlightText, stcstr("QT", " ", i))
@@ -968,6 +985,7 @@ let
         end
         CImGui.EndChild()
         CImGui.IsItemClicked() && (selectedqtw = 0)
+        CImGui.EndChild()
         if windowpos
             CImGui.SetCursorScreenPos(CImGui.GetItemRectMax() .- acd.presentsize)
         else
@@ -1070,15 +1088,23 @@ let
             idxes = findall(==(i), qtwgroup)
             deleteat!(qtwgroup, idxes)
             deleteat!(qtwgrouppos, idxes)
+            deleteat!(qtwgroupsize, idxes)
         else
             push!(qtwgroup, i)
-            push!(qtwgrouppos, qtw.options.vertices[1])
+            push!(qtwgrouppos, copy(qtw.options.vertices[1]))
+            push!(qtwgroupsize, copy(qtw.options.itemsize))
         end
     end
 
     global function updategrouppos(insw::InstrWidget)
         for (i, pos) in zip(qtwgroup, qtwgrouppos)
-            insw.qtws[i].options.vertices[1] .= pos .+ qtwgroupoffset
+            insw.qtws[i].options.vertices[1] .= pos .+ qtwgroupposoffset
+        end
+    end
+
+    global function updategroupsize(insw::InstrWidget)
+        for (i, sz) in zip(qtwgroup, qtwgroupsize)
+            insw.qtws[i].options.itemsize .= sz .+ qtwgroupsizeoffset
         end
     end
 end
@@ -1291,25 +1317,25 @@ let
                 0.1, 0.1, 2, "%.1f",
                 CImGui.ImGuiSliderFlags_AlwaysClamp
             )
-            qtw.options.uitype in ["slider", "vslider"] && @c CImGui.Checkbox("Text Inside", &qtw.options.textinside)
+            qtw.options.uitype in ["slider", "vslider"] && @c CImGui.Checkbox(mlstr("Text Inside"), &qtw.options.textinside)
             qtw.options.uitype == "combo" && @c CImGui.CheckboxFlags(
                 mlstr("No ArrowButton"), &qtw.options.comboflags, CImGui.ImGuiComboFlags_NoArrowButton
             )
             CImGui.DragFloat2(mlstr("Item Size"), qtw.options.itemsize)
             if qtw.options.uitype == "triangle"
-                CImGui.DragFloat2(stcstr(mlstr("triangle"), " a"), qtw.options.vertices[1])
-                CImGui.DragFloat2(stcstr(mlstr("triangle"), " b"), qtw.options.vertices[2])
-                CImGui.DragFloat2(stcstr(mlstr("triangle"), " c"), qtw.options.vertices[3])
+                CImGui.DragFloat2(stcstr(mlstr("Vertex"), " a"), qtw.options.vertices[1])
+                CImGui.DragFloat2(stcstr(mlstr("Vertex"), " b ", mlstr("from"), " a"), qtw.options.vertices[2])
+                CImGui.DragFloat2(stcstr(mlstr("Vertex"), " c ", mlstr("from"), " a"), qtw.options.vertices[3])
             elseif qtw.options.uitype == "circle"
-                CImGui.DragFloat2(mlstr("CursorScreenPos"), qtw.options.vertices[1])
+                CImGui.DragFloat2(mlstr("Cursor Position"), qtw.options.vertices[1])
                 @c CImGui.DragInt(
                     mlstr("segments"), &qtw.options.circlesegments, 1, 6, 60, "%d", CImGui.ImGuiSliderFlags_AlwaysClamp
                 )
             elseif qtw.options.uitype == "line"
-                CImGui.DragFloat2(stcstr(mlstr("line"), " a"), qtw.options.vertices[1])
-                CImGui.DragFloat2(stcstr(mlstr("line"), " b"), qtw.options.vertices[2])
+                CImGui.DragFloat2(stcstr(mlstr("Vertex"), " a"), qtw.options.vertices[1])
+                CImGui.DragFloat2(stcstr(mlstr("Vertex"), " b ", mlstr("from"), " a"), qtw.options.vertices[2])
             else
-                CImGui.DragFloat2(mlstr("CursorScreenPos"), qtw.options.vertices[1])
+                CImGui.DragFloat2(mlstr("Cursor Position"), qtw.options.vertices[1])
             end
             @c CImGui.DragFloat(
                 mlstr("Frame Rounding"),
@@ -1358,13 +1384,13 @@ let
             CImGui.DragFloat2(mlstr("uv1"), qtw.options.uv1)
         end
         if qtw.qtype == "set" && CImGui.CollapsingHeader(mlstr("Binding Options"))
-            @c CImGui.SliderInt("Binding Index to RadioButton", &qtw.options.bindingidx, 1, qtw.numoptvs)
-            CImGui.SliderInt2("Bingding Index to ON/OFF", qtw.options.bindingonoff, 1, qtw.numoptvs)
+            @c CImGui.SliderInt(mlstr("Binding Index to RadioButton"), &qtw.options.bindingidx, 1, qtw.numoptvs)
+            CImGui.SliderInt2(mlstr("Binding Index to ON/OFF"), qtw.options.bindingonoff, 1, qtw.numoptvs)
         end
         if qtw.name == "_QuantitySelector_" && CImGui.CollapsingHeader(mlstr("Selector Options"))
             # @c ComBoS(mlstr("Selector Type"), &qtw.options.selectortype, selectortypes)
             @c CImGui.DragInt(
-                mlstr("binding numbers"), &qtw.options.selectornum, 1, 1, 12, "%d",
+                mlstr("Binding Numbers"), &qtw.options.selectornum, 1, 1, 12, "%d",
                 CImGui.ImGuiSliderFlags_AlwaysClamp
             )
             llbs = length(qtw.options.selectorlabels)
@@ -1438,7 +1464,7 @@ let
                     j % CONF.InsBuf.showcol != 0 && j != length(group) && CImGui.SameLine()
                 end
                 bindingqtwidxesstr = join(qtw.options.bindingqtwidxes[i], ',')
-                if @c InputTextRSZ("Binding to Widgets", &bindingqtwidxesstr)
+                if @c InputTextRSZ(mlstr("Binding to Widgets"), &bindingqtwidxesstr)
                     idxstrs = split(bindingqtwidxesstr, ',')
                     idxes = tryparse.(Int, idxstrs)
                     qtw.options.bindingqtwidxes[i] = idxes[findall(!isnothing, idxes)]
@@ -1474,7 +1500,7 @@ function widgetcolormenu(qtw::QuantityWidget)
         CImGui.ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_AlphaPreviewHalf
     )
     CImGui.ColorEdit4(
-        mlstr("Actived"),
+        mlstr("Activated"),
         qtw.options.activecolor,
         CImGui.ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_AlphaPreviewHalf
     )
@@ -1591,7 +1617,7 @@ function globalwidgetoptionsmenu(insw::InstrWidget)
             CImGui.ImGuiSliderFlags_AlwaysClamp
         )
         CImGui.ColorEdit4(
-            mlstr("Window Color"),
+            mlstr("Window"),
             insw.windowbgcolor,
             CImGui.ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_AlphaPreviewHalf
         )
@@ -1616,7 +1642,7 @@ function globalwidgetoptionsmenu(insw::InstrWidget)
             CImGui.ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_AlphaPreviewHalf
         )
         CImGui.ColorEdit4(
-            mlstr("Actived"),
+            mlstr("Activated"),
             insw.options.activecolor,
             CImGui.ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_AlphaPreviewHalf
         )
