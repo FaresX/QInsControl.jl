@@ -107,11 +107,11 @@ let
             CImGui.PopStyleColor()
 
             CImGui.AddRectFilled(
-                    CImGui.GetWindowDrawList(),
-                    CImGui.GetCursorScreenPos(),
-                    CImGui.GetCursorScreenPos() .+ (CImGui.GetWindowContentRegionMax().x, CImGui.GetFrameHeight() + unsafe_load(IMGUISTYLE.ItemSpacing.y)),
-                    CImGui.ColorConvertFloat4ToU32(MORESTYLE.Colors.ToolBarBg)
-                )
+                CImGui.GetWindowDrawList(),
+                CImGui.GetCursorScreenPos(),
+                CImGui.GetCursorScreenPos() .+ (CImGui.GetWindowContentRegionMax().x, CImGui.GetFrameHeight() + unsafe_load(IMGUISTYLE.ItemSpacing.y)),
+                CImGui.ColorConvertFloat4ToU32(MORESTYLE.Colors.ToolBarBg)
+            )
             if menuidx == 0
                 CImGui.PushStyleColor(CImGui.ImGuiCol_Text, MORESTYLE.Colors.IconButton)
                 @c CImGui.Selectable(MORESTYLE.Icons.InstrumentsRegister, &show_instr_register, 0, sbsz)
