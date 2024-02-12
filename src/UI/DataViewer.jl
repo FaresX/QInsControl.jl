@@ -22,10 +22,12 @@ function edit(dtviewer::DataViewer, filetree::FileTree, isrename::Dict{String,Bo
 
         oldfile = filetree.selectedpath[]
         InputTextRSZ(stcstr(mlstr("Filter"), "##", id), filetree.filter)
+        CImGui.PushStyleColor(CImGui.ImGuiCol_ChildBg, MORESTYLE.Colors.ToolBarBg)
         CImGui.BeginChild("DataViewer-FileTree")
         edit(filetree, isrename)
         filetree.selectedpath[] == oldfile || loaddtviewer!(dtviewer, filetree.selectedpath[])
         CImGui.EndChild()
+        CImGui.PopStyleColor()
         filetree.rootpath_bnm != "" && !CImGui.IsAnyItemHovered() && CImGui.OpenPopupOnItemClick("File Menu")
         if CImGui.BeginPopup("File Menu")
             if CImGui.MenuItem(stcstr(MORESTYLE.Icons.InstrumentsAutoRef, " ", mlstr("Refresh")))
@@ -50,16 +52,11 @@ function edit(dtviewer::DataViewer, path, id)
         if CImGui.BeginTabItem(mlstr("Instrument Status"))
             if true in occursin.(r"instrbufferviewers/.*", keys(dtviewer.data))
                 if CImGui.BeginPopupContextItem()
-                    CImGui.Text(mlstr("display columns"))
-                    CImGui.SameLine()
-                    CImGui.PushItemWidth(2CImGui.GetFontSize())
-                    @c CImGui.DragInt(
-                        "##InsBuf col num",
-                        &CONF.InsBuf.showcol,
-                        1, 1, 6, "%d",
-                        CImGui.ImGuiSliderFlags_AlwaysClamp
-                    )
-                    CImGui.PopItemWidth()
+                    CImGui.Text(mlstr("Display Columns"))
+                    # CImGui.SameLine()
+                    # CImGui.PushItemWidth(2CImGui.GetFontSize())
+                    @c CImGui.SliderInt("##InsBuf col num", &CONF.InsBuf.showcol, 1, 6)
+                    # CImGui.PopItemWidth()
                     CImGui.EndPopup()
                 end
                 insbufkeys::Vector{String} = sort(
@@ -83,6 +80,14 @@ function edit(dtviewer::DataViewer, path, id)
             CImGui.EndTabItem()
         end
         if CImGui.BeginTabItem(mlstr("Actions"))
+            if CImGui.BeginPopupContextItem()
+                CImGui.Text(mlstr("Display Columns"))
+                # CImGui.SameLine()
+                # CImGui.PushItemWidth(2CImGui.GetFontSize())
+                @c CImGui.SliderInt("##InsBuf col num", &CONF.InsBuf.showcol, 1, 6)
+                # CImGui.PopItemWidth()
+                CImGui.EndPopup()
+            end
             haskey(dtviewer.data, "actions") ? viewactions(dtviewer.data["actions"]) : CImGui.Text(mlstr("No actions!"))
             CImGui.EndTabItem()
         end
@@ -135,10 +140,6 @@ function edit(dtviewer::DataViewer, path, id)
         end
         if CImGui.BeginTabItem(mlstr("Plots"))
             if haskey(dtviewer.data, "data")
-                if CImGui.Button(stcstr(MORESTYLE.Icons.SaveButton, " ", mlstr("Save")), (Cfloat(0), 2CImGui.GetFontSize()))
-                    saveqdt(dtviewer, path)
-                end
-                CImGui.SameLine()
                 if CImGui.Button(stcstr(MORESTYLE.Icons.NewFile, " ", mlstr("New Plot")), (Cfloat(-1), 2CImGui.GetFontSize()))
                     newplot!(dtviewer.dtp)
                 end
@@ -157,14 +158,8 @@ function edit(dtviewer::DataViewer, path, id)
             end
         )
         if CImGui.BeginTabItem(mlstr("Revision"))
-            if haskey(dtviewer.data, "daqtask") | haskey(dtviewer.data, "circuit")
+            if haskey(dtviewer.data, "daqtask") || haskey(dtviewer.data, "circuit")
                 if haskey(dtviewer.data, "revision")
-                    if CImGui.BeginPopupContextItem()
-                        if CImGui.MenuItem(stcstr(MORESTYLE.Icons.SaveButton, " ", mlstr("Save")))
-                            saveqdt(dtviewer, path)
-                        end
-                        CImGui.EndPopup()
-                    end
                     CImGui.TextColored(MORESTYLE.Colors.HighlightText, mlstr("Description"))
                     desp = dtviewer.data["revision"]["description"]
                     y = (1 + length(findall("\n", desp))) * CImGui.GetTextLineHeight() +
@@ -187,6 +182,14 @@ function edit(dtviewer::DataViewer, path, id)
                 CImGui.Text(mlstr("data not loaded or data format not supported!"))
             end
             CImGui.EndTabItem()
+        end
+        if igTabItemButton(stcstr(MORESTYLE.Icons.SaveButton, " ", mlstr("Save")), 0)
+            if isfile(path)
+                saveqdt(dtviewer, path)
+            else
+                savepath = save_file(; filterlist="qdt")
+                savepath == "" || saveqdt(dtviewer, savepath)
+            end
         end
         CImGui.PopStyleColor()
         CImGui.EndTabBar()
@@ -257,6 +260,7 @@ function saveqdt(dtviewer::DataViewer, path)
                         end
                         file["data"] = datafloat
                     end
+                    continue
                 end
                 file[key] = dtviewer.data[key]
             end

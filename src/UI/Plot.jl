@@ -20,6 +20,7 @@ end
     tickvalues::Vector{Cdouble} = []
     ticklabels::Vector{String} = []
     lims::Tuple{Cdouble,Cdouble} = (0, 1)
+    scale::ImPlot.ImPlotScale = 0
     hovered::Bool = false
 end
 
@@ -29,6 +30,7 @@ end
     tickvalues::Vector{Cdouble} = []
     ticklabels::Vector{String} = []
     lims::Tuple{Cdouble,Cdouble} = (0, 1)
+    scale::ImPlot.ImPlotScale = 0
     hovered::Bool = false
 end
 
@@ -39,6 +41,7 @@ end
     tickvalues::Vector{Cdouble} = []
     ticklabels::Vector{String} = []
     lims::Tuple{Cdouble,Cdouble} = (0, 1)
+    scale::UInt32 = 0
     hovered::Bool = false
     colormapscalesize::CImGui.ImVec2 = (0, 0)
 end
@@ -96,26 +99,6 @@ let
                 annbuf.offsetx, annbuf.offsety = openpopup_mspos
             end
             @c InputTextRSZ(mlstr("title"), &plt.title)
-            CImGui.BeginGroup()
-            for za in plt.zaxes
-                CImGui.Text(stcstr("Colormap ", za.axis))
-            end
-            CImGui.EndGroup()
-            CImGui.SameLine()
-            CImGui.BeginGroup()
-            for za in plt.zaxes
-                if ImPlot.ColormapButton(
-                    stcstr(unsafe_string(ImPlot.GetColormapName(za.colormap)), "##", za.axis),
-                    ImVec2(Cfloat(-0.1), Cfloat(0)),
-                    za.colormap
-                )
-                    za.colormap = (za.colormap + 1) % Cint(ImPlot.GetColormapCount())
-                    for pss in plt.series
-                        pss.axis.zaxis.axis == za.axis && (pss.axis.zaxis.colormap = za.colormap)
-                    end
-                end
-            end
-            CImGui.EndGroup()
             @c CImGui.Checkbox(mlstr("data tip"), &plt.showtooltip)
             if CImGui.BeginMenu(mlstr("Add Linecut"))
                 CImGui.MenuItem(mlstr("Horizontal Linecut")) && push!(plt.linecuts, Linecut(vline=false, pos=openpopup_mspos[2]))
@@ -148,6 +131,13 @@ let
                         pss.axis.xaxis.axis == pltxa.axis && (pss.axis.xaxis.label = pltxa.label)
                     end
                 end
+                scale = string(ImPlot.ImPlotScale_(pltxa.scale))
+                if @c ComBoS(mlstr("Axis Scale"), &scale, string.(instances(ImPlot.ImPlotScale_)))
+                    pltxa.scale = getproperty(ImPlot, Symbol(scale))
+                    for pss in plt.series
+                        pss.axis.xaxis.axis == pltxa.axis && (pss.axis.xaxis.scale = pltxa.scale)
+                    end
+                end
                 CImGui.EndPopup()
             end
         end
@@ -159,6 +149,13 @@ let
                         pss.axis.yaxis.axis == pltya.axis && (pss.axis.yaxis.label = pltya.label)
                     end
                 end
+                scale = string(ImPlot.ImPlotScale_(pltya.scale))
+                if @c ComBoS(mlstr("Axis Scale"), &scale, string.(instances(ImPlot.ImPlotScale_)))
+                    pltya.scale = getproperty(ImPlot, Symbol(scale))
+                    for pss in plt.series
+                        pss.axis.yaxis.axis == pltya.axis && (pss.axis.yaxis.scale = pltya.scale)
+                    end
+                end
                 CImGui.EndPopup()
             end
         end
@@ -168,6 +165,16 @@ let
                 if @c InputTextRSZ(stcstr("Z ", mlstr("label")), &pltza.label)
                     for pss in plt.series
                         pss.axis.zaxis.axis == pltza.axis && (pss.axis.zaxis.label = pltza.label)
+                    end
+                end
+                if ImPlot.ColormapButton(
+                    stcstr(unsafe_string(ImPlot.GetColormapName(pltza.colormap)), "##", pltza.axis),
+                    ImVec2(Cfloat(-0.1), Cfloat(0)),
+                    pltza.colormap
+                )
+                    pltza.colormap = (pltza.colormap + 1) % Cint(ImPlot.GetColormapCount())
+                    for pss in plt.series
+                        pss.axis.zaxis.axis == pltza.axis && (pss.axis.zaxis.colormap = pltza.colormap)
                     end
                 end
                 CImGui.EndPopup()
@@ -231,6 +238,8 @@ function Plot(plt::Plot; psize=CImGui.ImVec2(0, 0), flags=0)
         isempty(plt.yaxes) && mergeyaxes!(plt)
         map(xa -> ImPlot.SetupAxis(xa.axis, xa.label), plt.xaxes)
         map(ya -> ImPlot.SetupAxis(ya.axis, ya.label), plt.yaxes)
+        map(xa -> ImPlot.SetupAxisScale(xa.axis, xa.scale), plt.xaxes)
+        map(ya -> ImPlot.SetupAxisScale(ya.axis, ya.scale), plt.yaxes)
         map(xa -> xa.hovered = ImPlot.IsAxisHovered(xa.axis), plt.xaxes)
         map(ya -> ya.hovered = ImPlot.IsAxisHovered(ya.axis), plt.yaxes)
         for (i, pss) in enumerate(plt.series)

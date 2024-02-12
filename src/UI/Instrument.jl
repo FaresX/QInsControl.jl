@@ -1,5 +1,5 @@
 function autodetect()
-    addrs = remotecall_fetch(()->find_resources(CPU), workers()[1])
+    addrs = remotecall_fetch(() -> find_resources(CPU), workers()[1])
     for addr in addrs
         manualadd(addr)
     end
@@ -88,19 +88,21 @@ let
     time_old::Float64 = 0
     global function manualadd_from_others()
         @c ComBoS("##OthersIns", &addinstr, keys(INSTRBUFFERVIEWERS["Others"]))
-        if CImGui.Button(stcstr(MORESTYLE.Icons.NewFile, " ", mlstr("Add"), " "))
+        CImGui.SameLine()
+        if CImGui.Button(stcstr(MORESTYLE.Icons.NewFile))
             st = manualadd(addinstr)
             st && (addinstr = "")
             time_old = time()
         end
-        if time() - time_old < 2
-            CImGui.SameLine()
-            if st
-                CImGui.TextColored(MORESTYLE.Colors.HighlightText, mlstr("successfully added!"))
-            else
-                CImGui.TextColored(MORESTYLE.Colors.LogError, mlstr("addition failed!!!"))
-            end
-        end
+        # if time() - time_old < 2
+        #     CImGui.SameLine()
+        #     if st
+        #         CImGui.TextColored(MORESTYLE.Colors.HighlightText, mlstr("successfully added!"))
+        #     else
+        #         CImGui.TextColored(MORESTYLE.Colors.LogError, mlstr("addition failed!!!"))
+        #     end
+        # end
+        return time() - time_old < 2, st
     end
 end
 
@@ -108,36 +110,33 @@ let
     newinsaddr::String = ""
     st::Bool = false
     time_old::Float64 = 0
-    global function manualadd_ui()
-        if CImGui.CollapsingHeader(stcstr("\t\t\t", mlstr("Others"), "\t\t\t\t\t\t"))
-            manualadd_from_others()
+    global function manualadd_from_input()
+        @c InputTextWithHintRSZ("##manual input addr", mlstr("instrument address"), &newinsaddr)
+        if CImGui.BeginPopupContextItem()
+            isempty(CONF.ComAddr.addrs) && CImGui.TextColored(
+                MORESTYLE.Colors.HighlightText,
+                mlstr("unavailable options!")
+            )
+            for addr in CONF.ComAddr.addrs
+                addr == "" && continue
+                CImGui.MenuItem(addr) && (newinsaddr = addr)
+            end
+            CImGui.EndPopup()
         end
-        if CImGui.CollapsingHeader(stcstr("\t\t\t", mlstr("Manual Input"), "\t\t\t\t\t\t"))
-            @c InputTextWithHintRSZ("##manual input addr", mlstr("instrument address"), &newinsaddr)
-            if CImGui.BeginPopupContextItem()
-                isempty(CONF.ComAddr.addrs) && CImGui.TextColored(
-                    MORESTYLE.Colors.HighlightText,
-                    mlstr("unavailable options!")
-                )
-                for addr in CONF.ComAddr.addrs
-                    addr == "" && continue
-                    CImGui.MenuItem(addr) && (newinsaddr = addr)
-                end
-                CImGui.EndPopup()
-            end
-            if CImGui.Button(stcstr(MORESTYLE.Icons.NewFile, " ", mlstr("Add"), "##manual input addr"))
-                st = manualadd(newinsaddr)
-                st && (newinsaddr = "")
-                time_old = time()
-            end
-            if time() - time_old < 2
-                CImGui.SameLine()
-                if st
-                    CImGui.TextColored(MORESTYLE.Colors.HighlightText, mlstr("successfully added!"))
-                else
-                    CImGui.TextColored(MORESTYLE.Colors.LogError, mlstr("addition failed!!!"))
-                end
-            end
+        CImGui.SameLine()
+        if CImGui.Button(stcstr(MORESTYLE.Icons.NewFile, "##manual input addr"))
+            st = manualadd(newinsaddr)
+            st && (newinsaddr = "")
+            time_old = time()
         end
+        # if time() - time_old < 2
+        #     CImGui.SameLine()
+        #     if st
+        #         CImGui.TextColored(MORESTYLE.Colors.HighlightText, mlstr("successfully added!"))
+        #     else
+        #         CImGui.TextColored(MORESTYLE.Colors.LogError, mlstr("addition failed!!!"))
+        #     end
+        # end
+        return time() - time_old < 2, st
     end
 end

@@ -13,7 +13,7 @@ let
                     write(file, "\ninclude(\"$instrnm.jl\")")
                 end
             end
-            @async try
+            Threads.@spawn try
                 Base.run(Cmd([CONF.Basic.editor, driverfile]))
             catch e
                 @error "[$(now())]\n$(mlstr("error editing text!!!"))" exception = e
@@ -110,10 +110,10 @@ let
             SetWindowBgImage()
             CImGui.Columns(2)
             firsttime && (CImGui.SetColumnOffset(1, CImGui.GetWindowWidth() * 0.25); firsttime = false)
-            CImGui.BeginChild(
-                "InstrumentsOverview",
-                (Float32(0), -2CImGui.GetFrameHeight() - unsafe_load(IMGUISTYLE.ItemSpacing.y))
-            )
+            CImGui.PushStyleColor(CImGui.ImGuiCol_ChildBg, MORESTYLE.Colors.ToolBarBg)
+            CImGui.BeginChild("Toolbar")
+            CImGui.PopStyleColor()
+            CImGui.BeginChild("Instruments", (Cfloat(0), -2CImGui.GetFrameHeight() - 2unsafe_load(IMGUISTYLE.ItemSpacing.y)))
             CImGui.PushStyleVar(CImGui.ImGuiStyleVar_SelectableTextAlign, (0.5, 0.5))
             for (oldinsnm, inscf) in INSCONF
                 oldinsnm == "Others" && continue
@@ -129,6 +129,7 @@ let
                 )
                     selectedins = oldinsnm
                     selectedqt = ""
+                    emptygroup()
                 end
                 CImGui.PopItemWidth()
                 if !(newinsnm == "" || haskey(INSCONF, newinsnm))
@@ -173,25 +174,30 @@ let
             end
             CImGui.PopStyleVar()
             CImGui.EndChild()
-            wpad = unsafe_load(IMGUISTYLE.WindowPadding.x)
-            coloffset = CImGui.GetColumnOffset(1) - 2wpad - unsafe_load(IMGUISTYLE.ItemSpacing.x)
+            btwidth = CImGui.GetContentRegionAvailWidth() - unsafe_load(IMGUISTYLE.ItemSpacing.x)
+            CImGui.SetCursorPosY(
+                CImGui.GetWindowContentRegionMax().y - 2CImGui.GetFrameHeight() - unsafe_load(IMGUISTYLE.ItemSpacing.y)
+            )
+            CImGui.Separator()
+            CImGui.PushStyleColor(CImGui.ImGuiCol_Button, (0, 0, 0, 0))
             CImGui.Button(
                 stcstr(MORESTYLE.Icons.SaveButton, " ", mlstr("Save"), "##qtcf to toml"),
-                (coloffset / 2, 2CImGui.GetFrameHeight())
+                (btwidth / 2, 2CImGui.GetFrameHeight())
             ) && saveinsconf()
 
-            # CImGui.SameLine( - CImGui.GetItemRectSize().x - unsafe_load(IMGUISTYLE.WindowPadding.x))
             CImGui.SameLine()
 
             if CImGui.Button(
                 stcstr(MORESTYLE.Icons.NewFile, " ", mlstr("New")),
-                (coloffset / 2, 2CImGui.GetFrameHeight())
+                (btwidth / 2, 2CImGui.GetFrameHeight())
             )
                 synccall_wait([workers()[1]]) do
                     push!(INSCONF, "New Ins" => OneInsConf())
                 end
                 push!(INSTRBUFFERVIEWERS, "New Ins" => Dict{String,InstrBufferViewer}())
             end
+            CImGui.PopStyleColor()
+            CImGui.EndChild()
             CImGui.NextColumn()
 
             CImGui.BeginChild("edit qts")
@@ -210,7 +216,7 @@ let
                         width = CImGui.GetItemRectSize().x / 3
                         CImGui.TextColored(MORESTYLE.Colors.LogInfo, mlstr("interface"))
                         CImGui.BeginGroup()
-                        if CImGui.Button(stcstr(MORESTYLE.Icons.NewFile, " ", mlstr("input")))
+                        if CImGui.Button(stcstr(MORESTYLE.Icons.NewFile, " ", mlstr("input")), (width, Cfloat(0)))
                             push!(selectedinscf.conf.input_labels, string("Input ", length(selectedinscf.conf.input_labels) + 1))
                         end
                         for (i, input) in enumerate(selectedinscf.conf.input_labels)
@@ -229,7 +235,7 @@ let
                         CImGui.EndGroup()
                         CImGui.SameLine()
                         CImGui.BeginGroup()
-                        if CImGui.Button(stcstr(MORESTYLE.Icons.NewFile, " ", mlstr("output")))
+                        if CImGui.Button(stcstr(MORESTYLE.Icons.NewFile, " ", mlstr("output")), (width, Cfloat(0)))
                             push!(
                                 selectedinscf.conf.output_labels,
                                 string("Output ", length(selectedinscf.conf.output_labels) + 1)
@@ -273,8 +279,8 @@ let
                         CImGui.Text(" ") #空行
 
                         SeparatorTextColored(MORESTYLE.Colors.HighlightText, mlstr("Edit"))
-                        CImGui.SameLine()
-                        if CImGui.Button(stcstr(MORESTYLE.Icons.SaveButton, "##QuantityConf to INSCONF"))
+                        # CImGui.SameLine()
+                        if CImGui.Button(stcstr(MORESTYLE.Icons.SaveButton, " ", mlstr("Save"), "##QuantityConf to INSCONF"))
                             push!(selectedinscf.quantities, qtname => deepcopy(editqt))
                             remotecall_wait(workers()[1], selectedins, qtname, editqt) do selectedins, qtname, editqt
                                 push!(INSCONF[selectedins].quantities, qtname => editqt)
@@ -321,8 +327,7 @@ let
                                     end
                                     CImGui.EndPopup()
                                 end
-                                CImGui.BeginChild(stcstr("Widget", i))
-                                globalwidgetoptionsmenu(widget)
+                                # CImGui.BeginChild(stcstr("Widget", i))
                                 view(widget)
                                 if !haskey(default_insbufs, selectedins)
                                     push!(default_insbufs, selectedins => InstrBuffer(selectedins))
@@ -332,7 +337,7 @@ let
                                     end
                                 end
                                 edit(widget, default_insbufs[selectedins], "", C_NULL, i)
-                                CImGui.EndChild()
+                                # CImGui.EndChild()
                                 CImGui.EndTabItem()
                             end
                             ispreserve || CImGui.OpenPopup(stcstr("delete widget ", i))

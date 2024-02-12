@@ -614,9 +614,10 @@ end
 
 function SetWindowBgImage(path=CONF.BGImage.path; tint_col=MORESTYLE.Colors.BgImageTint)
     if CONF.BGImage.useall
-        co = CImGui.GetCursorScreenPos()
-        Image(path; size=CImGui.GetContentRegionAvail(), tint_col=tint_col)
-        CImGui.SetCursorScreenPos(co)
+        wpos = CImGui.GetWindowPos()
+        wsz = CImGui.GetWindowSize()
+        haskey(IMAGES, path) || createimage(path; showsize=wsz)
+        CImGui.AddImage(CImGui.GetWindowDrawList(), Ptr{Cvoid}(IMAGES[path]), wpos, wpos .+ wsz, (0, 0), (1, 1), CImGui.ColorConvertFloat4ToU32(tint_col))
     end
 end
 

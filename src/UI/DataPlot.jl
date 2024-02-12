@@ -78,14 +78,14 @@ function editmenu(dtp::DataPlot)
     length(dtp.showdtpks) == ldtpks || resize!(dtp.showdtpks, ldtpks)
     llink = length(dtp.linkidx)
     llink == ldtpks || (resize!(dtp.linkidx, ldtpks); llink < ldtpks && (dtp.linkidx[llink+1:end] .= 0))
-
-    dtp.layout.labels = MORESTYLE.Icons.Plot * " " .* string.(collect(eachindex(dtp.layout.labels)))
+    dtp.layout.labels = [stcstr(MORESTYLE.Icons.Plot, " ", mlstr("Plot"), " ", i) for i in eachindex(dtp.layout.labels)]
     edit(
         dtp.layout,
         (
             Cfloat(0),
-            CImGui.GetFrameHeightWithSpacing() * ceil(Int, length(dtp.layout.labels) / dtp.layout.showcol) -
-            unsafe_load(IMGUISTYLE.ItemSpacing.y) + 2unsafe_load(IMGUISTYLE.WindowPadding.y)
+            # CImGui.GetFrameHeightWithSpacing() * ceil(Int, length(dtp.layout.labels) / dtp.layout.showcol) -
+            # unsafe_load(IMGUISTYLE.ItemSpacing.y) + 2unsafe_load(IMGUISTYLE.WindowPadding.y)
+            Cfloat(0)
         );
         selectablesize=(Cfloat(0), CImGui.GetFrameHeight()-unsafe_load(IMGUISTYLE.ItemSpacing.y))
     ) do

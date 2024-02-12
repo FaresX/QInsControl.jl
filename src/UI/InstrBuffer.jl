@@ -257,78 +257,86 @@ function edit(ibv::InstrBufferViewer)
     CImGui.End()
 end
 
-let
-    firsttime::Bool = true
-    selectedins::String = ""
-    selectedaddr::String = ""
-    inputcmd::String = "*IDN?"
-    readstr::String = ""
-    default_insbufs = Dict{String,InstrBuffer}()
-    global function ShowInstrBuffer(p_open::Ref)
-        CImGui.SetNextWindowSize((800, 600), CImGui.ImGuiCond_Once)
-        if CImGui.Begin(
-            stcstr(MORESTYLE.Icons.InstrumentsOverview, "  ", mlstr("Instrument Settings and Status"), "###insbuf"),
-            p_open
-        )
-            SetWindowBgImage()
-            CImGui.Columns(2)
-            firsttime && (CImGui.SetColumnOffset(1, CImGui.GetWindowWidth() * 0.25); firsttime = false)
-            CImGui.BeginChild("instrument list")
-            CImGui.Selectable(
-                stcstr(MORESTYLE.Icons.InstrumentsOverview, " ", mlstr("Overview")),
-                selectedins == "", 0, (Cfloat(0), 2CImGui.GetFrameHeight())
-            ) && (selectedins = "")
-            for (ins, inses) in INSTRBUFFERVIEWERS
-                CImGui.Selectable(
-                    stcstr(INSCONF[ins].conf.icon, " ", ins), selectedins == ins,
-                    0, (Cfloat(0), 3CImGui.GetFrameHeight() / 2)
-                ) && (selectedins = ins)
-                CImGui.SameLine()
-                # CImGui.TextDisabled(stcstr("(", length(inses), ")"))
-                CImGui.PushStyleColor(CImGui.ImGuiCol_Text, CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_TextDisabled))
-                CImGui.Selectable(
-                    stcstr("(", length(inses), ")"), false, 0, (Cfloat(0), 3CImGui.GetFrameHeight() / 2)
-                )
-                CImGui.PopStyleColor()
-            end
-            CImGui.EndChild()
-            CImGui.NextColumn()
-            CImGui.BeginChild("setings")
-            haskey(INSTRBUFFERVIEWERS, selectedins) || (selectedins = "")
-            if selectedins == ""
-                for (ins, inses) in filter(x -> !isempty(x.second), INSTRBUFFERVIEWERS)
-                    CImGui.TextColored(MORESTYLE.Colors.HighlightText, stcstr(ins, ": "))
-                    for (addr, ibv) in inses
-                        CImGui.Text(stcstr("\t\t", addr, "\t\t"))
-                        CImGui.SameLine()
-                        @c CImGui.Checkbox(stcstr("##if auto refresh", addr), &ibv.insbuf.isautorefresh)
-                        if ins != "VirtualInstr"
-                            CImGui.SameLine()
-                            CImGui.Button(
-                                stcstr(MORESTYLE.Icons.CloseFile, "##delete ", addr)
-                            ) && delete!(inses, addr)
-                        end
-                    end
-                    CImGui.Separator()
-                end
-            else
-                showinslist::Set = @trypass keys(INSTRBUFFERVIEWERS[selectedins]) Set{String}()
-                CImGui.PushItemWidth(-CImGui.GetFontSize() * 2.5)
-                @c ComBoS(mlstr("address"), &selectedaddr, showinslist)
-                CImGui.PopItemWidth()
-                CImGui.Separator()
-                @c testcmd(selectedins, selectedaddr, &inputcmd, &readstr)
+# let
+#     firsttime::Bool = true
+#     selectedins::String = ""
+#     selectedaddr::String = ""
+#     inputcmd::String = "*IDN?"
+#     readstr::String = ""
+#     default_insbufs = Dict{String,InstrBuffer}()
+#     global function ShowInstrBuffer(p_open::Ref)
+#         CImGui.SetNextWindowSize((800, 600), CImGui.ImGuiCond_Once)
+#         if CImGui.Begin(
+#             stcstr(MORESTYLE.Icons.InstrumentsOverview, "  ", mlstr("Instrument Settings and Status"), "###insbuf"),
+#             p_open
+#         )
+#             SetWindowBgImage()
+#             CImGui.Columns(2)
+#             firsttime && (CImGui.SetColumnOffset(1, CImGui.GetWindowWidth() * 0.25); firsttime = false)
+#             CImGui.PushStyleColor(CImGui.ImGuiCol_ChildBg, MORESTYLE.Colors.ToolBarBg)
+#             CImGui.BeginChild("instrument list")
+#             CImGui.PopStyleColor()
+#             CImGui.PushStyleVar(CImGui.ImGuiStyleVar_SelectableTextAlign, (0.5, 0.5))
+#             CImGui.Selectable(
+#                 stcstr(MORESTYLE.Icons.InstrumentsOverview, " ", mlstr("Overview")),
+#                 selectedins == "", 0, (Cfloat(0), 2CImGui.GetFrameHeight())
+#             ) && (selectedins = "")
+#             CImGui.PopStyleVar()
+#             for (ins, inses) in INSTRBUFFERVIEWERS
+#                 CImGui.PushStyleVar(CImGui.ImGuiStyleVar_SelectableTextAlign, (0.5, 0.5))
+#                 CImGui.Selectable(
+#                     stcstr(INSCONF[ins].conf.icon, " ", ins), selectedins == ins,
+#                     0, (Cfloat(0), 3CImGui.GetFrameHeight() / 2)
+#                 ) && (selectedins = ins)
+                
+#                 CImGui.SameLine()
+#                 CImGui.PushStyleVar(CImGui.ImGuiStyleVar_SelectableTextAlign, (0.9, 0.5))
+#                 CImGui.PushStyleColor(CImGui.ImGuiCol_Text, CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_TextDisabled))
+#                 CImGui.Selectable(
+#                     stcstr("(", length(inses), ")"), false, 0, (Cfloat(0), 3CImGui.GetFrameHeight() / 2)
+#                 )
+#                 CImGui.PopStyleColor()
+#                 CImGui.PopStyleVar(2)
+#             end
+#             CImGui.EndChild()
+#             CImGui.NextColumn()
 
-                selectedaddr = haskey(INSTRBUFFERVIEWERS[selectedins], selectedaddr) ? selectedaddr : ""
-                haskey(default_insbufs, selectedins) || push!(default_insbufs, selectedins => InstrBuffer(selectedins))
-                insbuf = selectedaddr == "" ? default_insbufs[selectedins] : INSTRBUFFERVIEWERS[selectedins][selectedaddr].insbuf
-                edit(insbuf, selectedaddr)
-            end
-            CImGui.EndChild()
-        end
-        CImGui.End()
-    end
-end #let    
+#             CImGui.BeginChild("setings")
+#             haskey(INSTRBUFFERVIEWERS, selectedins) || (selectedins = "")
+#             if selectedins == ""
+#                 for (ins, inses) in filter(x -> !isempty(x.second), INSTRBUFFERVIEWERS)
+#                     CImGui.TextColored(MORESTYLE.Colors.HighlightText, stcstr(ins, ": "))
+#                     for (addr, ibv) in inses
+#                         CImGui.Text(stcstr("\t\t", addr, "\t\t"))
+#                         CImGui.SameLine()
+#                         @c CImGui.Checkbox(stcstr("##if auto refresh", addr), &ibv.insbuf.isautorefresh)
+#                         if ins != "VirtualInstr"
+#                             CImGui.SameLine()
+#                             CImGui.Button(
+#                                 stcstr(MORESTYLE.Icons.CloseFile, "##delete ", addr)
+#                             ) && delete!(inses, addr)
+#                         end
+#                     end
+#                     CImGui.Separator()
+#                 end
+#             else
+#                 showinslist::Set = @trypass keys(INSTRBUFFERVIEWERS[selectedins]) Set{String}()
+#                 CImGui.PushItemWidth(-CImGui.GetFontSize() * 2.5)
+#                 @c ComBoS(mlstr("address"), &selectedaddr, showinslist)
+#                 CImGui.PopItemWidth()
+#                 CImGui.Separator()
+#                 @c testcmd(selectedins, selectedaddr, &inputcmd, &readstr)
+
+#                 selectedaddr = haskey(INSTRBUFFERVIEWERS[selectedins], selectedaddr) ? selectedaddr : ""
+#                 haskey(default_insbufs, selectedins) || push!(default_insbufs, selectedins => InstrBuffer(selectedins))
+#                 insbuf = selectedaddr == "" ? default_insbufs[selectedins] : INSTRBUFFERVIEWERS[selectedins][selectedaddr].insbuf
+#                 edit(insbuf, selectedaddr)
+#             end
+#             CImGui.EndChild()
+#         end
+#         CImGui.End()
+#     end
+# end #let    
 
 function testcmd(ins, addr, inputcmd::Ref{String}, readstr::Ref{String})
     if CImGui.CollapsingHeader(stcstr("\t", mlstr("Command Test")))
@@ -424,7 +432,6 @@ function edit(insbuf::InstrBuffer, addr)
         &insbuf.filtervarname
     )) && update_passfilter!(insbuf)
     CImGui.BeginChild("InstrBuffer")
-    # CImGui.Columns(CONF.InsBuf.showcol, C_NULL, false)
     btsize = (CImGui.GetContentRegionAvailWidth() - unsafe_load(IMGUISTYLE.ItemSpacing.x) * (CONF.InsBuf.showcol - 1)) / CONF.InsBuf.showcol
     showi = 0
     for (i, qt) in enumerate(values(insbuf.quantities))
@@ -432,11 +439,9 @@ function edit(insbuf::InstrBuffer, addr)
         qt.passfilter || continue
         showi += 1
         CImGui.PushID(qt.name)
-        showi % CONF.InsBuf.showcol == 1 || showi == 1 || CImGui.SameLine()
+        CONF.InsBuf.showcol == 1 || showi % CONF.InsBuf.showcol == 1 || showi == 1 || CImGui.SameLine()
         edit(qt, insbuf.instrnm, addr; btsize=(btsize, Cfloat(0)))
-        # i % CONF.InsBuf.showcol == 0 && i != 1 && CImGui.SameLine()
         CImGui.PopID()
-        # CImGui.NextColumn()
         CImGui.Indent()
         if CImGui.BeginDragDropSource(0)
             @c CImGui.SetDragDropPayload("Swap DAQTask", &i, sizeof(Cint))
@@ -557,7 +562,7 @@ let
                     end
                 else
                     if CImGui.Button(
-                        mlstr(" Start "), (-0.1, 0.0)
+                        mlstr("Start"), (-0.1, 0.0)
                     ) || CImGui.IsKeyPressed(ImGuiKey_Enter, false)
                         apply!(qt, instrnm, addr)
                         closepopup = true
@@ -627,7 +632,7 @@ let
             if qt.enable
                 @c InputTextWithHintRSZ("##set", mlstr("set value"), &qt.set)
                 if CImGui.Button(
-                       mlstr(" Confirm "),
+                       mlstr("Confirm"),
                        (-Cfloat(0.1), Cfloat(0))
                    ) || triggerset || CImGui.IsKeyPressed(ImGuiKey_Enter, false)
                     triggerset && (qt.set = qt.optvalues[qt.optedidx])
@@ -1070,13 +1075,14 @@ function refresh1(log=false; instrlist=keys(INSTRBUFFERVIEWERS))
                     ct = REFRESHCTS[ins][addr]
                     try
                         login!(CPU, ct)
-                        for (qtnm, qt) in ibv.insbuf.quantities
-                            if (qt.isautorefresh && qt.enable) || (log && (CONF.DAQ.logall || qt.enable))
-                                getfunc = Symbol(ins, :_, qtnm, :_get) |> eval
-                                qt.read = ct(getfunc, CPU, Val(:read))
-                            elseif !qt.enable
-                                qt.read = ""
-                            end
+                        reflist = if log
+                            CONF.DAQ.logall ? ibv.insbuf.quantities : filter(x -> x.second.enable, ibv.insbuf.quantities)
+                        else
+                            filter(x -> (qt = x.second; qt.enable && qt.isautorefresh), ibv.insbuf.quantities)
+                        end
+                        for (qtnm, qt) in reflist
+                            getfunc = Symbol(ins, :_, qtnm, :_get) |> eval
+                            qt.read = ct(getfunc, CPU, Val(:read))
                         end
                     catch e
                         @error(

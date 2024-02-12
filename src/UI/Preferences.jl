@@ -6,20 +6,24 @@ let
         # CImGui.SetNextWindowPos((100, 100), CImGui.ImGuiCond_Once)
         CImGui.SetNextWindowSize((800, 600), CImGui.ImGuiCond_Once)
 
+        CImGui.PushStyleColor(CImGui.ImGuiCol_Separator, (0, 0, 0, 0))
         if CImGui.Begin(stcstr(MORESTYLE.Icons.Preferences, "  ", mlstr("Preferences"), "###pref"), p_open)
+            CImGui.PopStyleColor()
             SetWindowBgImage()
+
             CImGui.Columns(2)
             @cstatic firsttime::Bool = true begin
                 firsttime && (CImGui.SetColumnOffset(1, CImGui.GetWindowWidth() * 0.2); firsttime = false)
             end
-            CImGui.BeginChild("options", (Float32(0), -2CImGui.GetFrameHeight() - unsafe_load(IMGUISTYLE.ItemSpacing.y)))
+            CImGui.PushStyleColor(CImGui.ImGuiCol_ChildBg, MORESTYLE.Colors.ToolBarBg)
+            CImGui.BeginChild("Toolbar")
+            CImGui.PopStyleColor()
             width = CImGui.GetContentRegionAvailWidth()
             ftsz = CImGui.GetFontSize()
-            CImGui.Text("")
-            CImGui.Text("")
             CImGui.SameLine((width - 6ftsz) / 2)
+            CImGui.SetCursorPos((width - 6ftsz) / 2, ftsz)
             CImGui.Image(Ptr{Cvoid}(ICONID), (6ftsz, 6ftsz))
-            CImGui.Text("")
+            CImGui.BeginChild("Options", (Cfloat(0), -2CImGui.GetFrameHeight() - 2unsafe_load(IMGUISTYLE.ItemSpacing.y)))
             CImGui.PushStyleVar(CImGui.ImGuiStyleVar_SelectableTextAlign, (0.5, 0.5))
             CImGui.Selectable(
                 stcstr(MORESTYLE.Icons.CommonSetting, " ", mlstr("General")),
@@ -35,9 +39,14 @@ let
             ) && (selectedpref = "Style")
             CImGui.PopStyleVar()
             CImGui.EndChild()
+            CImGui.SetCursorPosY(
+                CImGui.GetWindowContentRegionMax().y - 2CImGui.GetFrameHeight() - unsafe_load(IMGUISTYLE.ItemSpacing.y)
+            )
+            CImGui.Separator()
+            CImGui.PushStyleColor(CImGui.ImGuiCol_Button, (0, 0, 0, 0))
             if CImGui.Button(
                 stcstr(MORESTYLE.Icons.SaveButton, " ", mlstr("Save")),
-                (CImGui.GetColumnOffset(1) - 2unsafe_load(IMGUISTYLE.WindowPadding.x), 2CImGui.GetFrameHeight())
+                (Cfloat(-1), 2CImGui.GetFrameHeight())
             )
                 svconf = deepcopy(CONF)
                 svconf.U = Dict(up.first => string.(up.second) for up in CONF.U)
@@ -47,6 +56,9 @@ let
                     @error "[$(now())]\n$(mlstr("saving configurations failed!!!"))" exception = e
                 end
             end
+            CImGui.PopStyleColor()
+            CImGui.EndChild()
+
             CImGui.NextColumn()
 
             CImGui.BeginChild("specific options")
@@ -146,10 +158,10 @@ let
 
                 ###DAQ###
                 SeparatorTextColored(MORESTYLE.Colors.HighlightText, "DAQ")
-                @c CImGui.Checkbox(
+                @c(CImGui.Checkbox(
                     CONF.DAQ.logall ? mlstr("log all quantities") : mlstr("log enabled quantities"),
                     &CONF.DAQ.logall
-                )
+                )) && remotecall_wait((logall) -> CONF.DAQ.logall = logall, workers()[1], CONF.DAQ.logall)
                 @c CImGui.Checkbox(
                     CONF.DAQ.equalstep ? mlstr("equal step sampling") : mlstr("fixed step sampling"),
                     &CONF.DAQ.equalstep
@@ -195,7 +207,7 @@ let
 
 
                 ###InsBuf###
-                SeparatorTextColored(MORESTYLE.Colors.HighlightText, mlstr("Instrument Settings and Status"))
+                SeparatorTextColored(MORESTYLE.Colors.HighlightText, mlstr("Instrument Control"))
                 @c CImGui.Checkbox(mlstr("show help"), &CONF.InsBuf.showhelp)
                 @c CImGui.DragInt(
                     mlstr("display columns"),
@@ -335,60 +347,62 @@ let
 
 
                 ###U###
-                CImGui.PushStyleColor(CImGui.ImGuiCol_Text, MORESTYLE.Colors.HighlightText)
-                showunitsetting = CImGui.CollapsingHeader(mlstr("Unit"))
-                CImGui.PopStyleColor()
-                if showunitsetting
-                    CImGui.BeginGroup()
-                    CImGui.Text(stcstr("     ", mlstr("type")))
-                    for (i, up) in enumerate(CONF.U)
-                        ut = up.first
-                        ut == "" && continue
-                        CImGui.PushID(i)
-                        CImGui.PushItemWidth(5ftsz)
-                        if @c InputTextRSZ("##Utype", &ut)
-                            if ut == "" || haskey(CONF.U, ut)
-                                ut = up.first
-                            else
-                                newkey!(CONF.U, up.first, ut)
-                            end
+                # CImGui.PushStyleColor(CImGui.ImGuiCol_Text, MORESTYLE.Colors.HighlightText)
+                # showunitsetting = CImGui.CollapsingHeader(mlstr("Unit"))
+                # CImGui.PopStyleColor()
+                # if showunitsetting
+                SeparatorTextColored(MORESTYLE.Colors.HighlightText, mlstr("Unit"))
+                CImGui.BeginGroup()
+                CImGui.Text(stcstr("     ", mlstr("type")))
+                for (i, up) in enumerate(CONF.U)
+                    ut = up.first
+                    ut == "" && continue
+                    CImGui.PushID(i)
+                    CImGui.PushItemWidth(5ftsz)
+                    if @c InputTextRSZ("##Utype", &ut)
+                        if ut == "" || haskey(CONF.U, ut)
+                            ut = up.first
+                        else
+                            newkey!(CONF.U, up.first, ut)
                         end
-                        CImGui.PopItemWidth()
-                        if CImGui.BeginPopupContextItem()
-                            CImGui.MenuItem(
-                                stcstr(MORESTYLE.Icons.CloseFile, " ", mlstr("Delete")),
-                                C_NULL, false, length(CONF.U) > 2
-                            ) && (pop!(CONF.U, ut); break)
-                            if CImGui.MenuItem(stcstr(MORESTYLE.Icons.NewFile, " ", mlstr("Add")))
-                                insert!(
-                                    CONF.U,
-                                    ut,
-                                    "NU" => Union{Unitful.FreeUnits,Unitful.MixedUnits}[u"m"];
-                                    after=true
-                                )
-                            end
-                            CImGui.EndPopup()
-                        end
-                        CImGui.SameLine()
-                        CImGui.Text("  =>  ")
-                        CImGui.PopID()
                     end
-                    CImGui.EndGroup()
+                    CImGui.PopItemWidth()
+                    if CImGui.BeginPopupContextItem()
+                        CImGui.MenuItem(
+                            stcstr(MORESTYLE.Icons.CloseFile, " ", mlstr("Delete")),
+                            C_NULL, false, length(CONF.U) > 2
+                        ) && (pop!(CONF.U, ut); break)
+                        if CImGui.MenuItem(stcstr(MORESTYLE.Icons.NewFile, " ", mlstr("Add")))
+                            insert!(
+                                CONF.U,
+                                ut,
+                                "NU" => Union{Unitful.FreeUnits,Unitful.MixedUnits}[u"m"];
+                                after=true
+                            )
+                        end
+                        CImGui.EndPopup()
+                    end
                     CImGui.SameLine()
-                    CImGui.BeginGroup()
-                    CImGui.Text(stcstr("   ", mlstr("unit set")))
-                    for (i, up) in enumerate(CONF.U)
-                        up.first == "" && continue
-                        CImGui.PushID(i)
-                        showonesetu(up)
-                        CImGui.PopID()
-                    end
-                    CImGui.EndGroup()
+                    CImGui.Text("  =>  ")
+                    CImGui.PopID()
                 end
+                CImGui.EndGroup()
+                CImGui.SameLine()
+                CImGui.BeginGroup()
+                CImGui.Text(stcstr("   ", mlstr("unit set")))
+                for (i, up) in enumerate(CONF.U)
+                    up.first == "" && continue
+                    CImGui.PushID(i)
+                    showonesetu(up)
+                    CImGui.PopID()
+                end
+                CImGui.EndGroup()
+                # end
             elseif selectedpref == "Style"
                 StyleEditor()
             end
             CImGui.EndChild()
+
         end
         CImGui.End()
     end

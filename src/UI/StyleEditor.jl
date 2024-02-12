@@ -43,6 +43,7 @@
     WidgetBorderDragging::Vector{Cfloat} = [0.000, 0.000, 0.000, 0.600]
     WidgetBorderSelected::Vector{Cfloat} = [0.000, 1.000, 0.000, 1.000]
     ToolBarBg::Vector{Cfloat} = [0.000, 0.000, 0.000, 0.400]
+    IconButton::Vector{Cfloat} = [0.000, 0.320, 0.574, 1.000]
 end
 
 @kwdef mutable struct MoreStyleIcon
@@ -59,9 +60,9 @@ end
     SaveButton::String = ICONS.ICON_FLOPPY_DISK
     SelectPath::String = ICONS.ICON_MAP
 
-    CPUMonitor::String = ICONS.ICON_MICROCHIP
+    CPUMonitor::String = ICONS.ICON_COMPUTER
 
-    Instrumets::String = ICONS.ICON_BIOHAZARD
+    Instruments::String = ICONS.ICON_BIOHAZARD
     InstrumentsSetting::String = ICONS.ICON_BOOK_JOURNAL_WHILLS
     InstrumentsManualRef::String = ICONS.ICON_ROTATE
     InstrumentsAutoRef::String = ICONS.ICON_REPEAT
@@ -112,7 +113,7 @@ end
 
     InstrumentsRegister::String = ICONS.ICON_MICROSCOPE
     InstrumentsSeach::String = ICONS.ICON_GLOBE
-    InstrumentsAutoDetect::String = ICONS.ICON_CLOCK
+    InstrumentsAutoDetect::String = ICONS.ICON_MAGNIFYING_GLASS
 
     HoldPin::String = ICONS.ICON_TROWEL
 
