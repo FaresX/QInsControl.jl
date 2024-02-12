@@ -46,19 +46,27 @@ function loadconf(precompile=false)
     end
     for file in readdir(joinpath(ENV["QInsControlAssets"], "Confs"), join=true)
         bnm = basename(file)
-        split(bnm, '.')[end] == "toml" && gen_insconf(file)
+        try
+            split(bnm, '.')[end] == "toml" && gen_insconf(file)
+        catch e
+            @error mlstr("loading file failed!!!") file = file excepiton = e
+        end
     end
 
     ###### generate INSWCONF ######
     for file in readdir(joinpath(ENV["QInsControlAssets"], "Widgets"), join=true)
         bnm = basename(file)
         instrnm, filetype = split(bnm, '.')
-        if filetype == "toml"
-            widgets = TOML.parsefile(file)
-            push!(INSWCONF, instrnm => [])
-            for (_, widget) in widgets
-                push!(INSWCONF[instrnm], from_dict(InstrWidget, widget))
+        try
+            if filetype == "toml"
+                widgets = TOML.parsefile(file)
+                push!(INSWCONF, instrnm => [])
+                for (_, widget) in widgets
+                    push!(INSWCONF[instrnm], from_dict(InstrWidget, widget))
+                end
             end
+        catch e
+            @error mlstr("loading file failed!!!") file = file exception = e
         end
     end
 
@@ -72,7 +80,11 @@ function loadconf(precompile=false)
         ###### load style_conf ######
         for file in readdir(CONF.Style.dir, join=true)
             bnm = basename(file)
-            split(bnm, '.')[end] == "sty" && merge!(STYLES, load(file))
+            try
+                split(bnm, '.')[end] == "sty" && merge!(STYLES, load(file))
+            catch e
+                @error mlstr("loading file failed!!!") file = file exception = e
+            end
         end
 
         ###### save conf.toml ######
