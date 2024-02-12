@@ -35,7 +35,9 @@ let
             CImGui.SameLine()
             CImGui.Button(stcstr(" ", mlstr("Edit queue: Task"), " ", id + OLDI, " ", daqtask.name))
             CImGui.PopStyleColor(3)
-            CImGui.SameLine(CImGui.GetContentRegionAvailWidth() - 3ftsz/2)
+            CImGui.SameLine(CImGui.GetContentRegionAvailWidth() - 3ftsz)
+            CImGui.Button(viewmode ? MORESTYLE.Icons.View : MORESTYLE.Icons.Edit, (3ftsz/2, Cfloat(0))) && (viewmode ⊻= true)
+            CImGui.SameLine()
             @c ToggleButton(MORESTYLE.Icons.HoldPin, &daqtask.hold)
             CImGui.Separator()
             SeparatorTextColored(MORESTYLE.Colors.HighlightText, mlstr("Experimental Records"))
@@ -47,19 +49,19 @@ let
                 CImGui.EndPopup()
             end
             SeparatorTextColored(MORESTYLE.Colors.HighlightText, mlstr("Script"))
-            CImGui.Button(
-                stcstr(MORESTYLE.Icons.InstrumentsAutoDetect, " ", mlstr("Refresh instrument list"))
-            ) && refresh_instrlist()
-            if CImGui.BeginPopupContextItem()
-                manualadd_ui()
-                CImGui.EndPopup()
-            end
+            # CImGui.Button(
+            #     stcstr(MORESTYLE.Icons.InstrumentsAutoDetect, " ", mlstr("Refresh instrument list"))
+            # ) && refresh_instrlist()
+            # if CImGui.BeginPopupContextItem()
+            #     manualadd_ui()
+            #     CImGui.EndPopup()
+            # end
             if SYNCSTATES[Int(AutoDetecting)]
                 CImGui.SameLine()
                 CImGui.TextColored(MORESTYLE.Colors.HighlightText, stcstr(mlstr("searching instruments"), "......"))
             end
-            CImGui.SameLine(CImGui.GetContentRegionAvailWidth() - 3ftsz/2)
-            CImGui.Button(viewmode ? MORESTYLE.Icons.View : MORESTYLE.Icons.Edit) && (viewmode ⊻= true)
+            # CImGui.SameLine(CImGui.GetContentRegionAvailWidth() - 3ftsz/2)
+            # CImGui.Button(viewmode ? MORESTYLE.Icons.View : MORESTYLE.Icons.Edit) && (viewmode ⊻= true)
             CImGui.PushID(id)
             dragblockmenu(id)
             CImGui.BeginChild("DAQTask.blocks")

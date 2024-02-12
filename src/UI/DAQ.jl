@@ -1,5 +1,4 @@
 let
-    firsttime::Bool = true
     show_daq_editors::Vector{Bool} = [false]
     show_circuit_editor::Bool = false
     isdeldaqtask::Bool = false
@@ -13,23 +12,19 @@ let
 
     projpath::String = ""
 
-    global function DAQ()
-        SetWindowBgImage()
-        global WORKPATH
-        global OLDI
-        CImGui.Columns(2, C_NULL, false)
-        ftsz = CImGui.GetFontSize()
-        CImGui.SetColumnOffset(1, 6ftsz)
+    global function DAQtoolbar()
+        # CImGui.Columns(2, C_NULL, false)
+        # CImGui.SetColumnOffset(1, 6ftsz)
         CImGui.PushStyleColor(CImGui.ImGuiCol_ChildBg, MORESTYLE.Colors.ToolBarBg)
-        CImGui.BeginChild("Toolbar")
-        CImGui.Text("")
-        CImGui.SameLine((CImGui.GetContentRegionAvailWidth() - 4ftsz) / 2)
-        CImGui.SetCursorPosY(ftsz)
-        CImGui.Image(Ptr{Cvoid}(ICONID), (4ftsz, 4ftsz))
-        CImGui.SetCursorPosY(CImGui.GetCursorPosY() + ftsz)
+        CImGui.PushStyleColor(CImGui.ImGuiCol_Text, MORESTYLE.Colors.IconButton)
         CImGui.PushFont(PLOTFONT)
+        ftsz = CImGui.GetFontSize()
+        CImGui.BeginChild("Toolbar", (3ftsz, Cfloat(0)))
+        CImGui.SetCursorPos(ftsz / 2, ftsz / 2)
+        CImGui.Image(Ptr{Cvoid}(ICONID), (2ftsz, 2ftsz))
+        CImGui.SetCursorPosY(CImGui.GetCursorPosY() + ftsz / 2)
         btwidth = Cfloat(CImGui.GetContentRegionAvailWidth() - unsafe_load(IMGUISTYLE.WindowPadding.x))
-        btheight = 4ftsz
+        btheight = 2ftsz
         CImGui.PushStyleColor(CImGui.ImGuiCol_Button, (0, 0, 0, 0))
         if SYNCSTATES[Int(IsBlocked)]
             CImGui.PushStyleColor(CImGui.ImGuiCol_Button, MORESTYLE.Colors.ControlButtonPause)
@@ -70,15 +65,20 @@ let
             (btwidth, btheight)
         ) && saveproject()
         CImGui.PopFont()
-        show_circuit_editor && @c edit(CIRCUIT, "Circuit Editor", &show_circuit_editor)
         CImGui.EndChild()
-        CImGui.PopStyleColor(2)
+        CImGui.PopStyleColor(3)
+        show_circuit_editor && @c edit(CIRCUIT, "Circuit Editor", &show_circuit_editor)
+    end
 
-        CImGui.NextColumn()
+    # CImGui.NextColumn()
+    global function DAQtasks()
+        global WORKPATH
+        global OLDI
+        ftsz = CImGui.GetFontSize()
         CImGui.BeginChild("queue")
         if ColoredButtonRect(
             stcstr(MORESTYLE.Icons.SelectPath, " ", mlstr("Workplace"));
-            size=(6ftsz, 4ftsz),
+            size=(6ftsz, 2CONF.Fonts.plotfontsize * unsafe_load(CImGui.GetIO().FontGlobalScale) + 2unsafe_load(IMGUISTYLE.ItemSpacing.y)),
             colbt=zeros(4),
             coltxt=MORESTYLE.Colors.HighlightText,
             colrect=MORESTYLE.Colors.ItemBorder
@@ -88,7 +88,7 @@ let
         CImGui.SameLine()
         TextRect(
             WORKPATH;
-            size=(Cfloat(0), 4ftsz),
+            size=(Cfloat(0), 2CONF.Fonts.plotfontsize * unsafe_load(CImGui.GetIO().FontGlobalScale) + 2unsafe_load(IMGUISTYLE.ItemSpacing.y)),
             coltxt=if WORKPATH == mlstr("no workplace selected!!!")
                 MORESTYLE.Colors.LogError
             else
@@ -106,11 +106,13 @@ let
         end
         igSeparatorText("")
         halfwidth = (CImGui.GetContentRegionAvailWidth() - unsafe_load(IMGUISTYLE.ItemSpacing.x)) / 2
+        CImGui.PushStyleColor(CImGui.ImGuiCol_Text, MORESTYLE.Colors.IconButton)
         CImGui.Button(stcstr(MORESTYLE.Icons.NewFile, " ", mlstr("New Task")), (halfwidth, 2ftsz)) && push!(daqtasks, DAQTask())
         CImGui.SameLine()
         if CImGui.Button(stcstr(MORESTYLE.Icons.NewFile, " ", mlstr("New Plot")), (halfwidth, 2CImGui.GetFontSize()))
             newplot!(DAQDATAPLOT)
         end
+        CImGui.PopStyleColor()
         length(show_daq_editors) == length(daqtasks) || resize!(show_daq_editors, length(daqtasks))
         length(torunstates) == length(daqtasks) || resize!(torunstates, length(daqtasks))
         daqtaskscdy = (length(daqtasks) + SYNCSTATES[Int(IsDAQTaskRunning)] * length(PROGRESSLIST)) *
@@ -120,7 +122,8 @@ let
         CImGui.BeginChild("scrobartask", (halfwidth, Cfloat(0)))
         CImGui.PushStyleColor(CImGui.ImGuiCol_Border, MORESTYLE.Colors.ItemBorder)
         CImGui.PushStyleVar(CImGui.ImGuiStyleVar_ChildBorderSize, 1)
-        CImGui.BeginChild("daqtasks", (halfwidth, daqtaskscdy), true)
+        # CImGui.BeginChild("daqtasks", (halfwidth, daqtaskscdy), true)
+        CImGui.BeginChild("daqtasks", (0, 0), true)
         for (i, task) in enumerate(daqtasks)
             CImGui.PushID(i)
             isrunning_i = SYNCSTATES[Int(IsDAQTaskRunning)] && i == running_i

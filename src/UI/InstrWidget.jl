@@ -3,6 +3,7 @@
     globaloptions::Bool = false
     allowoverlap::Bool = false
     useimage::Bool = false
+    autorefresh::Bool = false
     textsize::String = "normal"
     textscale::Cfloat = 1
     textinside::Bool = true
@@ -69,7 +70,7 @@ const INSWCONF = OrderedDict{String,Vector{InstrWidget}}() #仪器注册表
 
 function copyvars!(opts1, opts2)
     fnms = fieldnames(QuantityWidgetOption)
-    for fnm in fnms[1:27]
+    for fnm in fnms[1:28]
         fnm in [:uitype, :vertices] && continue
         setproperty!(opts1, fnm, getproperty(opts2, fnm))
     end
@@ -77,14 +78,14 @@ end
 
 function copycolors!(opts1, opts2)
     fnms = fieldnames(QuantityWidgetOption)
-    for fnm in fnms[28:end]
+    for fnm in fnms[29:end]
         setproperty!(opts1, fnm, getproperty(opts2, fnm))
     end
 end
 
 function copyglobal!(opts1, opts2)
     fnms = fieldnames(QuantityWidgetOption)
-    for fnm in fnms[1:27]
+    for fnm in fnms[1:28]
         fnm in [:rounding, :grabrounding, :bdrounding, :bdthickness] && continue
         setproperty!(opts1, fnm, getproperty(opts2, fnm))
     end
@@ -359,8 +360,8 @@ function edit(opts::QuantityWidgetOption, qt::AbstractQuantity, instrnm, addr, :
             isnothing(fetchdata) || (qt.read = fetchdata)
             updatefront!(qt)
         end
+        unsafe_load(CImGui.GetIO().KeyCtrl) && (qt.uindex += 1; getvalU!(qt); resolveunitlist(qt, instrnm, addr))
     end
-    CImGui.IsItemClicked(2) && (qt.uindex += 1; getvalU!(qt); resolveunitlist(qt, instrnm, addr))
     opts.textsize == "big" && CImGui.PopFont()
     CImGui.SetWindowFontScale(originscale)
     return trig
@@ -695,7 +696,7 @@ let
         )
             isanyitemdragging = false
             insw.usewallpaper && SetWindowBgImage(insw.wallpaperpath; tint_col=insw.bgtintcolor)
-            CImGui.BeginChild(stcstr(insw.instrnm, " ", insw.name, " ", addr))
+            CImGui.BeginChild("drawing area")
             for (i, qtw) in enumerate(insw.qtws)
                 CImGui.PushID(i)
                 !usingit && draggable && igBeginDisabled(true)
@@ -888,42 +889,16 @@ let
     global function view(insw::InstrWidget)
         openmodw = false
         dragmode == "" && (dragmode = mlstr("swap"))
-        CImGui.BeginChild(stcstr(insw.instrnm, insw.name), (0, 0), false, CImGui.ImGuiWindowFlags_HorizontalScrollbar)
-        SeparatorTextColored(MORESTYLE.Colors.HighlightText, mlstr("Options"))
-        @c CImGui.Checkbox(mlstr("Show Serial Numbers"), &showslnums)
-        CImGui.SameLine()
-        @c CImGui.Checkbox(mlstr("Show Positions"), &showpos)
-        CImGui.SameLine()
-        @c CImGui.Checkbox(mlstr("Draggable"), &draggable)
-        CImGui.PushItemWidth(6CImGui.GetFontSize())
-        @c ComBoS(mlstr("Dragging Mode"), &dragmode, mlstr.(dragmodes))
-        CImGui.PopItemWidth()
-        CImGui.SameLine()
-        CImGui.PushItemWidth(6CImGui.GetFontSize())
-        @c CImGui.DragInt(mlstr("Display Columns"), &showcols, 1, 2, 36, "%d", CImGui.ImGuiSliderFlags_AlwaysClamp)
-        CImGui.PopItemWidth()
-        if isempty(qtwgroup)
-            qtwgroupposoffset == [0, 0] || (qtwgroupposoffset .= [0, 0])
-            qtwgroupsizeoffset == [0, 0] || (qtwgroupsizeoffset .= [0, 0])
-        else
-            CImGui.BeginGroup()
-            CImGui.DragFloat2(
-                mlstr("Position Offset"), qtwgroupposoffset, 1, -6000, 6000, "%.1f", CImGui.ImGuiSliderFlags_AlwaysClamp
-            ) && updategrouppos(insw)
-            CImGui.DragFloat2(
-                mlstr("Size Offset"), qtwgroupsizeoffset, 1, -6000, 6000, "%.1f", CImGui.ImGuiSliderFlags_AlwaysClamp
-            ) && updategroupsize(insw)
-            CImGui.EndGroup()
-            CImGui.SameLine()
-            h = CImGui.GetFrameHeightWithSpacing()
-            CImGui.Button(stcstr(MORESTYLE.Icons.CloseFile, "##emptygroup"), (2h, 2h)) && (empty!(qtwgroup); empty!(qtwgrouppos))
-        end
+        # CImGui.BeginChild(stcstr(insw.instrnm, insw.name), (0, 0), false, CImGui.ImGuiWindowFlags_HorizontalScrollbar)
+        CImGui.BeginChild("view widgets all")
+        CImGui.Columns(2)
         SeparatorTextColored(MORESTYLE.Colors.HighlightText, mlstr("Widgets"))
         CImGui.BeginChild("view widgets", (0, 0), false, CImGui.ImGuiWindowFlags_HorizontalScrollbar)
+        btw = (CImGui.GetContentRegionAvailWidth() - unsafe_load(IMGUISTYLE.ItemSpacing.x) * (showcols - 1)) / showcols
         for (i, qtw) in enumerate(insw.qtws)
             CImGui.PushID(i)
-            i % showcols == 1 || CImGui.SameLine()
-            view(qtw, i)
+            showcols == 1 || i % showcols == 1 || CImGui.SameLine()
+            view(qtw, i; size=(btw, Cfloat(0)))
             if CImGui.BeginPopupContextItem()
                 SeparatorTextColored(MORESTYLE.Colors.HighlightText, stcstr("QT", " ", i))
                 draggable && @c CImGui.MenuItem(
@@ -947,7 +922,7 @@ let
                 addwidgetmenu(insw, i; mode=:after)
                 convertmenu(insw, i)
                 CImGui.MenuItem(stcstr(MORESTYLE.Icons.CloseFile, " ", mlstr("Delete"))) && (deleteat!(insw.qtws, i); break)
-                optionsmenu(qtw, insw.instrnm)
+                # optionsmenu(qtw, insw.instrnm)
                 CImGui.PopID()
                 CImGui.EndPopup()
             end
@@ -985,6 +960,31 @@ let
         end
         CImGui.EndChild()
         CImGui.IsItemClicked() && (selectedqtw = 0)
+
+        CImGui.NextColumn()
+        coloffsetminus = CImGui.GetWindowContentRegionWidth() - CImGui.GetColumnOffset(1)
+        CImGui.BeginChild("options")
+        SeparatorTextColored(MORESTYLE.Colors.HighlightText, mlstr("Options"))
+        @c CImGui.Checkbox(mlstr("Show Serial Numbers"), &showslnums)
+        @c CImGui.Checkbox(mlstr("Show Positions"), &showpos)
+        @c CImGui.Checkbox(mlstr("Draggable"), &draggable)
+        @c ComBoS(mlstr("Dragging Mode"), &dragmode, mlstr.(dragmodes))
+        @c CImGui.SliderInt(mlstr("Display Columns"), &showcols, 1, 12, "%d")
+        if isempty(qtwgroup)
+            qtwgroupposoffset == [0, 0] || (qtwgroupposoffset .= [0, 0])
+            qtwgroupsizeoffset == [0, 0] || (qtwgroupsizeoffset .= [0, 0])
+        else
+            CImGui.Button(stcstr(MORESTYLE.Icons.CloseFile, "##emptygroup"), (-1, 0)) && emptygroup()
+            CImGui.DragFloat2(
+                mlstr("Position Offset"), qtwgroupposoffset, 1, -6000, 6000, "%.1f", CImGui.ImGuiSliderFlags_AlwaysClamp
+            ) && updategrouppos(insw)
+            CImGui.DragFloat2(
+                mlstr("Size Offset"), qtwgroupsizeoffset, 1, -6000, 6000, "%.1f", CImGui.ImGuiSliderFlags_AlwaysClamp
+            ) && updategroupsize(insw)
+        end
+        optioncursor = CImGui.GetCursorScreenPos()
+        globalwidgetoptionsmenu(insw)
+        CImGui.EndChild()
         CImGui.EndChild()
         if windowpos
             CImGui.SetCursorScreenPos(CImGui.GetItemRectMax() .- acd.presentsize)
@@ -996,8 +996,8 @@ let
         if all(acd.targetsize .== (4, 6)) && all(acd.presentsize .== (4, 6))
             selectedqtw == 0 || (acd.targetsize = maxwindowsize)
         else
-            mainwindowsz = CImGui.GetItemRectSize()
-            acd.targetsize = (2mainwindowsz.x / 5, 4mainwindowsz.y / 5)
+            optionchildh = CImGui.GetWindowPos().y + CImGui.GetWindowSize().y - optioncursor.y
+            acd.targetsize = (coloffsetminus - unsafe_load(IMGUISTYLE.WindowPadding.x), optionchildh)
             acd.rate = acd.targetsize ./ 20 * 60 / unsafe_load(CImGui.GetIO().Framerate)
             selectedqtw == 0 && (acd.targetsize = (4, 6))
             CImGui.PushStyleColor(CImGui.ImGuiCol_ChildBg, CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_PopupBg))
@@ -1035,7 +1035,7 @@ let
         end
     end
 
-    global function view(qtw::QuantityWidget, id)
+    global function view(qtw::QuantityWidget, id; size=(0, 0))
         pos = if showpos
             stcstr(
                 mlstr("Position"), " ", "X : ",
@@ -1067,7 +1067,7 @@ let
             CImGui.ImGuiCol_Button,
             selectedqtw == id ? MORESTYLE.Colors.SelectedWidgetBt : MORESTYLE.Colors.WidgetRectSelected
         )
-        if CImGui.Button(label)
+        if CImGui.Button(label, size)
             unsafe_load(CImGui.GetIO().KeyCtrl) ? addtogroup(qtw, id) : selectedqtw = selectedqtw == id ? 0 : id
         end
         ispushstylecol && CImGui.PopStyleColor()
@@ -1094,6 +1094,12 @@ let
             push!(qtwgrouppos, copy(qtw.options.vertices[1]))
             push!(qtwgroupsize, copy(qtw.options.itemsize))
         end
+    end
+
+    global function emptygroup()
+        empty!(qtwgroup)
+        empty!(qtwgrouppos)
+        empty!(qtwgroupsize)
     end
 
     global function updategrouppos(insw::InstrWidget)
@@ -1257,7 +1263,6 @@ let
     otheruitypes = ["none"]
     shapetypes = ["rect", "triangle", "circle", "line"]
     qtselectoruitypes = ["combo", "slider", "vslider"]
-    # selectortypes = ["sweep", "set", "read"]
     textsizes = ["normal", "big"]
     manualinputalias::String = ""
     global function optionsmenu(qtw::QuantityWidget, instrnm)
@@ -1293,6 +1298,7 @@ let
             )
             qtw.name == "_QuantitySelector_" || @c CImGui.Checkbox(mlstr("Global Options"), &qtw.options.globaloptions)
             @c CImGui.Checkbox(mlstr("Allow Overlap"), &qtw.options.allowoverlap)
+            @c CImGui.Checkbox(mlstr("Auto Refresh"), &qtw.options.autorefresh)
             if qtw.name == "_Panel_"
                 @c CImGui.Checkbox(mlstr("Use ImageButton"), &qtw.options.useimage)
                 @c InputTextRSZ("##Text", &qtw.alias)
@@ -1562,149 +1568,177 @@ function widgetcolormenu(qtw::QuantityWidget)
 end
 
 function globalwidgetoptionsmenu(insw::InstrWidget)
-    if CImGui.CollapsingHeader(mlstr("Global Options"))
-        CImGui.BeginChild("global widget options", (Cfloat(0), CImGui.GetContentRegionAvail().y / 3))
-        @c InputTextRSZ(mlstr("Rename"), &insw.name)
-        @c CImGui.Checkbox(mlstr("Use Wallpaper"), &insw.usewallpaper)
-        if insw.usewallpaper
-            bgpath = insw.wallpaperpath
-            inputbgpath = @c InputTextRSZ("##wallpaper", &bgpath)
-            CImGui.SameLine()
-            selectbgpath = CImGui.Button(stcstr(MORESTYLE.Icons.SelectPath, "##wallpaper"))
-            selectbgpath && (bgpath = pick_file(abspath(bgpath); filterlist="png,jpg,jpeg,tif,bmp"))
-            CImGui.SameLine()
-            CImGui.Text(mlstr("Wallpaper"))
-            if inputbgpath || selectbgpath
-                if isfile(bgpath)
-                    insw.wallpaperpath = bgpath
-                else
-                    CImGui.SameLine()
-                    CImGui.TextColored(MORESTYLE.Colors.LogError, mlstr("path does not exist!!!"))
-                end
+    # if CImGui.CollapsingHeader(mlstr("Global Options"))
+    SeparatorTextColored(MORESTYLE.Colors.HighlightText, mlstr("Global Options"))
+    CImGui.BeginChild("global widget options")
+    @c InputTextRSZ(mlstr("Widget Name"), &insw.name)
+    @c CImGui.Checkbox(mlstr("Use Wallpaper"), &insw.usewallpaper)
+    if insw.usewallpaper
+        bgpath = insw.wallpaperpath
+        inputbgpath = @c InputTextRSZ("##wallpaper", &bgpath)
+        CImGui.SameLine()
+        selectbgpath = CImGui.Button(stcstr(MORESTYLE.Icons.SelectPath, "##wallpaper"))
+        selectbgpath && (bgpath = pick_file(abspath(bgpath); filterlist="png,jpg,jpeg,tif,bmp"))
+        CImGui.SameLine()
+        CImGui.Text(mlstr("Wallpaper"))
+        if inputbgpath || selectbgpath
+            if isfile(bgpath)
+                insw.wallpaperpath = bgpath
+            else
+                CImGui.SameLine()
+                CImGui.TextColored(MORESTYLE.Colors.LogError, mlstr("path does not exist!!!"))
             end
-            CImGui.ColorEdit4(
-                stcstr(mlstr("Background Tint Color")),
-                insw.bgtintcolor,
-                CImGui.ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_AlphaPreviewHalf
-            )
         end
-        CImGui.DragFloat2(
-            mlstr("Window Size"),
-            insw.windowsize, 1, 6, 6000, "%.1f", CImGui.ImGuiSliderFlags_AlwaysClamp
-        )
-        @c CImGui.DragFloat(
-            mlstr("Frame Rounding"),
-            &insw.options.rounding,
-            1, 0, 60, "%.3f",
-            CImGui.ImGuiSliderFlags_AlwaysClamp
-        )
-        @c CImGui.DragFloat(
-            mlstr("Grab Rounding"),
-            &insw.options.grabrounding,
-            1, 0, 60, "%.3f",
-            CImGui.ImGuiSliderFlags_AlwaysClamp
-        )
-        @c CImGui.DragFloat(
-            mlstr("Border Rounding"),
-            &insw.options.bdrounding,
-            1, 0, 60, "%.3f",
-            CImGui.ImGuiSliderFlags_AlwaysClamp
-        )
-        @c CImGui.DragFloat(
-            mlstr("Border Thickness"),
-            &insw.options.bdthickness,
-            1, 0, 60, "%.3f",
-            CImGui.ImGuiSliderFlags_AlwaysClamp
-        )
         CImGui.ColorEdit4(
-            mlstr("Window"),
-            insw.windowbgcolor,
+            stcstr(mlstr("Background Tint")),
+            insw.bgtintcolor,
             CImGui.ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_AlphaPreviewHalf
         )
-        CImGui.ColorEdit4(
-            mlstr("Text"),
-            insw.options.textcolor,
-            CImGui.ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_AlphaPreviewHalf
-        )
-        CImGui.ColorEdit4(
-            mlstr("Background"),
-            insw.options.bgcolor,
-            CImGui.ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_AlphaPreviewHalf
-        )
-        CImGui.ColorEdit4(
-            mlstr("Border"),
-            insw.options.bdcolor,
-            CImGui.ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_AlphaPreviewHalf
-        )
-        CImGui.ColorEdit4(
-            mlstr("Hovered"),
-            insw.options.hoveredcolor,
-            CImGui.ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_AlphaPreviewHalf
-        )
-        CImGui.ColorEdit4(
-            mlstr("Activated"),
-            insw.options.activecolor,
-            CImGui.ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_AlphaPreviewHalf
-        )
-        CImGui.ColorEdit4(
-            mlstr("Hint Text"),
-            insw.options.hintcolor,
-            CImGui.ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_AlphaPreviewHalf
-        )
-        CImGui.ColorEdit4(
-            mlstr("Combo Button"),
-            insw.options.combobtcolor,
-            CImGui.ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_AlphaPreviewHalf
-        )
-        CImGui.ColorEdit4(
-            mlstr("Popup Background"),
-            insw.options.popupcolor,
-            CImGui.ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_AlphaPreviewHalf
-        )
-        CImGui.ColorEdit4(
-            mlstr("Image Background"),
-            insw.options.imgbgcolor,
-            CImGui.ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_AlphaPreviewHalf
-        )
-        CImGui.ColorEdit4(
-            mlstr("Image Tint"),
-            insw.options.imgtintcolor,
-            CImGui.ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_AlphaPreviewHalf
-        )
-        CImGui.ColorEdit4(
-            mlstr("Toggle-on"),
-            insw.options.oncolor,
-            CImGui.ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_AlphaPreviewHalf
-        )
-        CImGui.ColorEdit4(
-            mlstr("Toggle-off"),
-            insw.options.offcolor,
-            CImGui.ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_AlphaPreviewHalf
-        )
-        CImGui.ColorEdit4(
-            mlstr("SliderGrab"),
-            insw.options.grabcolor,
-            CImGui.ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_AlphaPreviewHalf
-        )
-        CImGui.ColorEdit4(
-            mlstr("Active SliderGrab"),
-            insw.options.grabactivecolor,
-            CImGui.ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_AlphaPreviewHalf
-        )
-        CImGui.EndChild()
     end
+    CImGui.DragFloat2(
+        mlstr("Window Size"),
+        insw.windowsize, 1, 6, 6000, "%.1f", CImGui.ImGuiSliderFlags_AlwaysClamp
+    )
+    @c CImGui.DragFloat(
+        mlstr("Frame Rounding"),
+        &insw.options.rounding,
+        1, 0, 60, "%.3f",
+        CImGui.ImGuiSliderFlags_AlwaysClamp
+    )
+    @c CImGui.DragFloat(
+        mlstr("Grab Rounding"),
+        &insw.options.grabrounding,
+        1, 0, 60, "%.3f",
+        CImGui.ImGuiSliderFlags_AlwaysClamp
+    )
+    @c CImGui.DragFloat(
+        mlstr("Border Rounding"),
+        &insw.options.bdrounding,
+        1, 0, 60, "%.3f",
+        CImGui.ImGuiSliderFlags_AlwaysClamp
+    )
+    @c CImGui.DragFloat(
+        mlstr("Border Thickness"),
+        &insw.options.bdthickness,
+        1, 0, 60, "%.3f",
+        CImGui.ImGuiSliderFlags_AlwaysClamp
+    )
+    CImGui.ColorEdit4(
+        mlstr("Window"),
+        insw.windowbgcolor,
+        CImGui.ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_AlphaPreviewHalf
+    )
+    CImGui.ColorEdit4(
+        mlstr("Text"),
+        insw.options.textcolor,
+        CImGui.ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_AlphaPreviewHalf
+    )
+    CImGui.ColorEdit4(
+        mlstr("Background"),
+        insw.options.bgcolor,
+        CImGui.ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_AlphaPreviewHalf
+    )
+    CImGui.ColorEdit4(
+        mlstr("Border"),
+        insw.options.bdcolor,
+        CImGui.ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_AlphaPreviewHalf
+    )
+    CImGui.ColorEdit4(
+        mlstr("Hovered"),
+        insw.options.hoveredcolor,
+        CImGui.ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_AlphaPreviewHalf
+    )
+    CImGui.ColorEdit4(
+        mlstr("Activated"),
+        insw.options.activecolor,
+        CImGui.ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_AlphaPreviewHalf
+    )
+    CImGui.ColorEdit4(
+        mlstr("Hint Text"),
+        insw.options.hintcolor,
+        CImGui.ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_AlphaPreviewHalf
+    )
+    CImGui.ColorEdit4(
+        mlstr("Combo Button"),
+        insw.options.combobtcolor,
+        CImGui.ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_AlphaPreviewHalf
+    )
+    CImGui.ColorEdit4(
+        mlstr("Popup Background"),
+        insw.options.popupcolor,
+        CImGui.ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_AlphaPreviewHalf
+    )
+    CImGui.ColorEdit4(
+        mlstr("Image Background"),
+        insw.options.imgbgcolor,
+        CImGui.ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_AlphaPreviewHalf
+    )
+    CImGui.ColorEdit4(
+        mlstr("Image Tint"),
+        insw.options.imgtintcolor,
+        CImGui.ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_AlphaPreviewHalf
+    )
+    CImGui.ColorEdit4(
+        mlstr("Toggle-on"),
+        insw.options.oncolor,
+        CImGui.ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_AlphaPreviewHalf
+    )
+    CImGui.ColorEdit4(
+        mlstr("Toggle-off"),
+        insw.options.offcolor,
+        CImGui.ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_AlphaPreviewHalf
+    )
+    CImGui.ColorEdit4(
+        mlstr("SliderGrab"),
+        insw.options.grabcolor,
+        CImGui.ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_AlphaPreviewHalf
+    )
+    CImGui.ColorEdit4(
+        mlstr("Active SliderGrab"),
+        insw.options.grabactivecolor,
+        CImGui.ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_AlphaPreviewHalf
+    )
+    CImGui.EndChild()
+    # end
 end
 
 function initialize!(insw::InstrWidget, addr)
     empty!(insw.qtlist)
     qtlist = []
+    autoreflist = []
     for qtw in insw.qtws
         qtw.options.globaloptions && copycolors!(qtw.options, insw.options)
         qtw.options.globaloptions = false
-        qtw.qtype in ["sweep", "set", "read"] && push!(qtlist, qtw.name)
+        if qtw.qtype in ["sweep", "set", "read"]
+            push!(qtlist, qtw.name)
+            qtw.options.autorefresh && push!(autoreflist, qtw.name)
+        end
     end
     append!(insw.qtlist, Set(qtlist))
     refresh1(insw, addr)
+    if haskey(INSTRBUFFERVIEWERS, insw.instrnm) && haskey(INSTRBUFFERVIEWERS[insw.instrnm], addr)
+        if !isempty(autoreflist)
+            SYNCSTATES[Int(IsAutoRefreshing)] = true
+            INSTRBUFFERVIEWERS[insw.instrnm][addr].insbuf.isautorefresh = true
+            for (_, qt) in filter(x -> x.first in autoreflist, INSTRBUFFERVIEWERS[insw.instrnm][addr].insbuf.quantities)
+                qt.isautorefresh = true
+            end
+        end
+    end
+end
+
+function exit!(insw::InstrWidget, addr)
+    autoreflist = []
+    for qtw in insw.qtws
+        qtw.qtype in ["sweep", "set", "read"] && qtw.options.autorefresh && push!(autoreflist, qtw.name)
+    end
+    if haskey(INSTRBUFFERVIEWERS, insw.instrnm) && haskey(INSTRBUFFERVIEWERS[insw.instrnm], addr)
+        if !isempty(autoreflist)
+            for (_, qt) in filter(x -> x.first in autoreflist, INSTRBUFFERVIEWERS[insw.instrnm][addr].insbuf.quantities)
+                qt.isautorefresh = false
+            end
+        end
+    end
 end
 
 function refresh1(insw::InstrWidget, addr)
