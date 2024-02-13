@@ -183,6 +183,7 @@ function edit(dtviewer::DataViewer, path, id)
             end
             CImGui.EndTabItem()
         end
+        CImGui.PopStyleColor()
         if igTabItemButton(stcstr(MORESTYLE.Icons.SaveButton, " ", mlstr("Save")), 0)
             if isfile(path)
                 saveqdt(dtviewer, path)
@@ -191,7 +192,6 @@ function edit(dtviewer::DataViewer, path, id)
                 savepath == "" || saveqdt(dtviewer, savepath)
             end
         end
-        CImGui.PopStyleColor()
         CImGui.EndTabBar()
     end
     CImGui.EndChild()

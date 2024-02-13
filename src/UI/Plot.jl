@@ -167,12 +167,19 @@ let
                         pss.axis.zaxis.axis == pltza.axis && (pss.axis.zaxis.label = pltza.label)
                     end
                 end
+                cmap = unsafe_string(ImPlot.GetColormapName(pltza.colormap))
+                if @c ComBoS(mlstr("Colormap"), &cmap, unsafe_string.(ImPlot.GetColormapName.(0:ImPlot.GetColormapCount()-1)))
+                    pltza.colormap = ImPlot.GetColormapIndex(cmap)
+                    for pss in plt.series
+                        pss.axis.zaxis.axis == pltza.axis && (pss.axis.zaxis.colormap = pltza.colormap)
+                    end
+                end
                 if ImPlot.ColormapButton(
                     stcstr(unsafe_string(ImPlot.GetColormapName(pltza.colormap)), "##", pltza.axis),
                     ImVec2(Cfloat(-0.1), Cfloat(0)),
                     pltza.colormap
                 )
-                    pltza.colormap = (pltza.colormap + 1) % Cint(ImPlot.GetColormapCount())
+                    pltza.colormap = (pltza.colormap + 1) % ImPlot.GetColormapCount()
                     for pss in plt.series
                         pss.axis.zaxis.axis == pltza.axis && (pss.axis.zaxis.colormap = pltza.colormap)
                     end
@@ -263,6 +270,7 @@ function Plot(plt::Plot; psize=CImGui.ImVec2(0, 0), flags=0)
     CImGui.PushStyleVar(CImGui.ImGuiStyleVar_ItemSpacing, (0, 0))
     for za in plt.zaxes
         CImGui.SameLine()
+        za.colormap + 1 > ImPlot.GetColormapCount() && (za.colormap %= ImPlot.GetColormapCount())
         ImPlot.PushColormap(za.colormap)
         ImPlot.ColormapScale(stcstr(za.label, "###", plt.id, "-", za.axis), za.lims..., CImGui.ImVec2(Cfloat(0), psize.y))
         ImPlot.PopColormap()
@@ -310,6 +318,7 @@ Plot(pss::PlotSeries, plt::Plot, ::Val{:stairs}) = Plot2D(ImPlot.PlotStairs, pss
 Plot(pss::PlotSeries, plt::Plot, ::Val{:stems}) = Plot2D(ImPlot.PlotStems, pss, plt)
 
 function Plot(pss::PlotSeries, plt::Plot, ::Val{:heatmap})
+    pss.axis.zaxis.colormap + 1 > ImPlot.GetColormapCount() && (pss.axis.zaxis.colormap %= ImPlot.GetColormapCount())
     ImPlot.PushColormap(pss.axis.zaxis.colormap)
     ImPlot.PlotHeatmap(
         pss.legend, pss.z, reverse(size(pss.z))..., pss.axis.zaxis.lims..., "",
