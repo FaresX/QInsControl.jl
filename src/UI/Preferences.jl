@@ -23,6 +23,8 @@ let
             CImGui.SameLine((width - 6ftsz) / 2)
             CImGui.SetCursorPos((width - 6ftsz) / 2, ftsz)
             CImGui.Image(Ptr{Cvoid}(ICONID), (6ftsz, 6ftsz))
+            CImGui.SetCursorPosY(8ftsz)
+            
             CImGui.BeginChild("Options", (Cfloat(0), -2CImGui.GetFrameHeight() - 2unsafe_load(IMGUISTYLE.ItemSpacing.y)))
             CImGui.PushStyleVar(CImGui.ImGuiStyleVar_SelectableTextAlign, (0.5, 0.5))
             CImGui.Selectable(
@@ -39,6 +41,7 @@ let
             ) && (selectedpref = "Style")
             CImGui.PopStyleVar()
             CImGui.EndChild()
+
             CImGui.SetCursorPosY(
                 CImGui.GetWindowContentRegionMax().y - 2CImGui.GetFrameHeight() - unsafe_load(IMGUISTYLE.ItemSpacing.y)
             )
