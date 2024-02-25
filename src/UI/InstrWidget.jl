@@ -18,6 +18,7 @@
     framepadding::Cfloat = -1
     vertices::Vector{Vector{Cfloat}} = [[0, 0], [0, 0], [0, 0]]
     circlesegments::Cint = 24
+    ticknum::Cint = 6
     starttext::String = "Start"
     stoptext::String = "Stop"
     bindingidx::Cint = 1
@@ -70,7 +71,7 @@ const INSWCONF = OrderedDict{String,Vector{InstrWidget}}() #仪器注册表
 
 function copyvars!(opts1, opts2)
     fnms = fieldnames(QuantityWidgetOption)
-    for fnm in fnms[1:28]
+    for fnm in fnms[1:29]
         fnm in [:uitype, :vertices] && continue
         setproperty!(opts1, fnm, getproperty(opts2, fnm))
     end
@@ -78,14 +79,14 @@ end
 
 function copycolors!(opts1, opts2)
     fnms = fieldnames(QuantityWidgetOption)
-    for fnm in fnms[29:end]
+    for fnm in fnms[30:end]
         setproperty!(opts1, fnm, getproperty(opts2, fnm))
     end
 end
 
 function copyglobal!(opts1, opts2)
     fnms = fieldnames(QuantityWidgetOption)
-    for fnm in fnms[1:28]
+    for fnm in fnms[1:29]
         fnm in [:rounding, :grabrounding, :bdrounding, :bdthickness] && continue
         setproperty!(opts1, fnm, getproperty(opts2, fnm))
     end
@@ -365,6 +366,54 @@ function edit(opts::QuantityWidgetOption, qt::AbstractQuantity, instrnm, addr, :
     opts.textsize == "big" && CImGui.PopFont()
     CImGui.SetWindowFontScale(originscale)
     return trig
+end
+
+function edit(opts::QuantityWidgetOption, qt::AbstractQuantity, instrnm, addr, ::Val{:readdashboard})
+    opts.textsize == "big" && CImGui.PushFont(PLOTFONT)
+    originscale = unsafe_load(CImGui.GetIO().FontGlobalScale)
+    CImGui.SetWindowFontScale(opts.textscale)
+    val, mrange1, mrange2, start = parseforreaddashboard(qt)
+    DashBoardPanel(
+        stcstr(instrnm, addr, qt.name), val, [mrange1, mrange2], start;
+        size=opts.itemsize,
+        ruler=opts.ticknum,
+        rounding=opts.rounding,
+        bdrounding=opts.bdrounding,
+        thickness=opts.bdthickness,
+        num_segments=opts.circlesegments,
+        col=opts.bgcolor,
+        colon=opts.oncolor,
+        colbase=opts.grabcolor,
+        colind=opts.checkedcolor,
+        coltxt=opts.textcolor,
+        colrect=opts.bdcolor,
+    )
+    opts.textsize == "big" && CImGui.PopFont()
+    CImGui.SetWindowFontScale(originscale)
+    return false
+end
+function parseforreaddashboard(qt::AbstractQuantity)
+    readings = split(qt.showval, ',')
+    U, Us = @c getU(qt.utype, &qt.uindex)
+    if U == ""
+        return [0, 0, 400, true]
+    else
+        # @info readings qt.showval
+        if length(readings) == 4
+            val = tryparse(Float64, readings[1])
+            mrange1 = tryparse(Float64, readings[2])
+            mrange2 = tryparse(Float64, readings[3])
+            start = tryparse(Bool, readings[4])
+            if isnothing(val) || isnothing(mrange1) || isnothing(mrange2) || isnothing(start)
+                return [0, 0, 400, true]
+            else
+                Uchange::Float64 = Us[1] isa Unitful.FreeUnits ? ustrip(Us[1], 1U) : 1.0
+                return [val / Uchange, mrange1 / Uchange, mrange2 / Uchange, start]
+            end
+        else
+            return [0, 0, 400, true]
+        end
+    end
 end
 
 function edit(opts::QuantityWidgetOption, qt::SweepQuantity, _, _, ::Val{:inputstep})
@@ -813,7 +862,7 @@ let
     global function showlayer(insw::InstrWidget, qtw::QuantityWidget, dr::DragRect, i, isanyitemdragging::Ref{Bool}, ishovered::Ref{Bool})
         cspos = CImGui.GetWindowPos()
         dr.posmin = cspos .+ qtw.options.vertices[1]
-        dr.posmax = dr.posmin .+ (qtw.name == "_Shape_" ? qtw.options.itemsize : CImGui.GetItemRectSize())
+        dr.posmax = dr.posmin .+ (qtw.name == "_Shape_" || qtw.options.uitype == "readdashboard" ? qtw.options.itemsize : CImGui.GetItemRectSize())
         (isanyitemdragging[] || qtw.hold) && (dr.dragging = false; dr.gripdragging = false)
         edit(dr)
         isanyitemdragging[] |= dr.dragging | dr.gripdragging
@@ -1259,7 +1308,8 @@ let
     setuitypesall = ["read", "unit", "readunit", "inputset", "inputctrlset", "ctrlset", "combo", "radio", "slider", "vslider", "toggle"]
     setuitypesnoopts = ["read", "unit", "readunit", "inputset", "inputctrlset", "ctrlset"]
     setuitypesno2opts = ["read", "unit", "readunit", "inputset", "inputctrlset", "ctrlset", "combo", "radio", "slider", "vslider"]
-    readuitypes = ["read", "unit", "readunit"]
+    # readnumuitypes = ["read", "unit", "readunit", "readdashboard"]
+    readuitypes = ["read", "unit", "readunit", "readdashboard"]
     otheruitypes = ["none"]
     shapetypes = ["rect", "triangle", "circle", "line"]
     qtselectoruitypes = ["combo", "slider", "vslider"]
@@ -1335,13 +1385,21 @@ let
             elseif qtw.options.uitype == "circle"
                 CImGui.DragFloat2(mlstr("Cursor Position"), qtw.options.vertices[1])
                 @c CImGui.DragInt(
-                    mlstr("segments"), &qtw.options.circlesegments, 1, 6, 60, "%d", CImGui.ImGuiSliderFlags_AlwaysClamp
+                    mlstr("Segments"), &qtw.options.circlesegments, 1, 6, 60, "%d", CImGui.ImGuiSliderFlags_AlwaysClamp
                 )
             elseif qtw.options.uitype == "line"
                 CImGui.DragFloat2(stcstr(mlstr("Vertex"), " a"), qtw.options.vertices[1])
                 CImGui.DragFloat2(stcstr(mlstr("Vertex"), " b ", mlstr("from"), " a"), qtw.options.vertices[2])
             else
                 CImGui.DragFloat2(mlstr("Cursor Position"), qtw.options.vertices[1])
+            end
+            if qtw.options.uitype == "readdashboard"
+                @c CImGui.DragInt(
+                    mlstr("Segments"), &qtw.options.circlesegments, 1, 6, 60, "%d", CImGui.ImGuiSliderFlags_AlwaysClamp
+                )
+                @c CImGui.DragInt(
+                    mlstr("Ticks"), &qtw.options.ticknum, 1, 2, 36, "%d", CImGui.ImGuiSliderFlags_AlwaysClamp
+                )
             end
             @c CImGui.DragFloat(
                 mlstr("Frame Rounding"),
@@ -1500,16 +1558,18 @@ function widgetcolormenu(qtw::QuantityWidget)
         qtw.options.bdcolor,
         CImGui.ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_AlphaPreviewHalf
     )
-    CImGui.ColorEdit4(
-        mlstr("Hovered"),
-        qtw.options.hoveredcolor,
-        CImGui.ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_AlphaPreviewHalf
-    )
-    CImGui.ColorEdit4(
-        mlstr("Activated"),
-        qtw.options.activecolor,
-        CImGui.ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_AlphaPreviewHalf
-    )
+    if qtw.options.uitype != "readdashboard"
+        CImGui.ColorEdit4(
+            mlstr("Hovered"),
+            qtw.options.hoveredcolor,
+            CImGui.ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_AlphaPreviewHalf
+        )
+        CImGui.ColorEdit4(
+            mlstr("Activated"),
+            qtw.options.activecolor,
+            CImGui.ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_AlphaPreviewHalf
+        )
+    end
     if qtw.options.uitype in ["inputstep", "inputstop", "inputset"]
         CImGui.ColorEdit4(
             mlstr("Hint Text"),
@@ -1541,25 +1601,25 @@ function widgetcolormenu(qtw::QuantityWidget)
             CImGui.ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_AlphaPreviewHalf
         )
     end
-    if qtw.options.uitype in ["toggle", "ctrlsweep"]
+    if qtw.options.uitype in ["readdashboard", "toggle", "ctrlsweep"]
         CImGui.ColorEdit4(
             mlstr("Toggle-on"),
             qtw.options.oncolor,
             CImGui.ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_AlphaPreviewHalf
         )
-        CImGui.ColorEdit4(
+        qtw.options.uitype != "readdashboard" && CImGui.ColorEdit4(
             mlstr("Toggle-off"),
             qtw.options.offcolor,
             CImGui.ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_AlphaPreviewHalf
         )
     end
-    if qtw.options.uitype in ["slider", "vslider"]
+    if qtw.options.uitype in ["readdashboard", "slider", "vslider"]
         CImGui.ColorEdit4(
             mlstr("SliderGrab"),
             qtw.options.grabcolor,
             CImGui.ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_AlphaPreviewHalf
         )
-        CImGui.ColorEdit4(
+        qtw.options.uitype != "readdashboard" && CImGui.ColorEdit4(
             mlstr("Active SliderGrab"),
             qtw.options.grabactivecolor,
             CImGui.ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_AlphaPreviewHalf
