@@ -216,6 +216,19 @@ function Base.getindex(v::Union{ImVec2,ImPlot.ImPlotPoint}, i)
     end
 end
 Base.length(::Union{ImVec2,ImPlot.ImPlotPoint}) = 2
+function Base.getindex(v::ImVec4, i)
+    if i == 1
+        return v.x
+    elseif i == 2
+        return v.y
+    elseif i == 3
+        return v.z
+    elseif i == 4
+        return v.w
+    else
+        throw(BoundsError(v, i))
+    end
+end
 
 function Base.getproperty(x::Ptr{LibCImGui.ImNodesStyle}, f::Symbol)
     f === :GridSpacing && return Ptr{Cfloat}(x + 0)
