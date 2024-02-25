@@ -947,7 +947,7 @@ let
         for (i, qtw) in enumerate(insw.qtws)
             CImGui.PushID(i)
             showcols == 1 || i % showcols == 1 || CImGui.SameLine()
-            view(qtw, i; size=(btw, Cfloat(0)))
+            view(insw, qtw, i; size=(btw, Cfloat(0)))
             if CImGui.BeginPopupContextItem()
                 SeparatorTextColored(MORESTYLE.Colors.HighlightText, stcstr("QT", " ", i))
                 draggable && @c CImGui.MenuItem(
@@ -1084,7 +1084,7 @@ let
         end
     end
 
-    global function view(qtw::QuantityWidget, id; size=(0, 0))
+    global function view(insw::InstrWidget, qtw::QuantityWidget, id; size=(0, 0))
         pos = if showpos
             stcstr(
                 mlstr("Position"), " ", "X : ",
@@ -1117,7 +1117,25 @@ let
             selectedqtw == id ? MORESTYLE.Colors.SelectedWidgetBt : MORESTYLE.Colors.WidgetRectSelected
         )
         if CImGui.Button(label, size)
-            unsafe_load(CImGui.GetIO().KeyCtrl) ? addtogroup(qtw, id) : selectedqtw = selectedqtw == id ? 0 : id
+            if unsafe_load(CImGui.GetIO().KeyCtrl)
+                addtogroup(qtw, id)
+            elseif unsafe_load(CImGui.GetIO().KeyShift)
+                if selectedqtw == 0
+                    selectedqtw = id
+                elseif selectedqtw == id
+                    addtogroup(qtw, id)
+                elseif selectedqtw < id
+                    for i in selectedqtw:id
+                        addtogroup(insw.qtws[i], i)
+                    end
+                else
+                    for i in id:selectedqtw
+                        addtogroup(insw.qtws[i], i)
+                    end
+                end
+            else
+                selectedqtw = selectedqtw == id ? 0 : id
+            end
         end
         ispushstylecol && CImGui.PopStyleColor()
         if draggable && qtw.hold
