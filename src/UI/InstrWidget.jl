@@ -392,6 +392,61 @@ function edit(opts::QuantityWidgetOption, qt::AbstractQuantity, instrnm, addr, :
     CImGui.SetWindowFontScale(originscale)
     return false
 end
+function edit(opts::QuantityWidgetOption, qt::AbstractQuantity, instrnm, addr, ::Val{:readdashboarddigits})
+    opts.textsize == "big" && CImGui.PushFont(PLOTFONT)
+    originscale = unsafe_load(CImGui.GetIO().FontGlobalScale)
+    CImGui.SetWindowFontScale(opts.textscale)
+    trig = ColoredButtonRect(
+        @sprintf("%g", parseforreaddashboard(qt)[1]);
+        size=opts.itemsize,
+        colbt=opts.bgcolor,
+        colbth=opts.hoveredcolor,
+        colbta=opts.activecolor,
+        coltxt=opts.textcolor,
+        colrect=opts.bdcolor,
+        rounding=opts.rounding,
+        bdrounding=opts.bdrounding,
+        thickness=opts.bdthickness
+    )
+    if trig
+        if qt.enable && addr != ""
+            fetchdata = refresh_qt(instrnm, addr, qt.name)
+            isnothing(fetchdata) || (qt.read = fetchdata)
+            updatefront!(qt)
+        end
+    end
+    opts.textsize == "big" && CImGui.PopFont()
+    CImGui.SetWindowFontScale(originscale)
+    return trig
+end
+function edit(opts::QuantityWidgetOption, qt::AbstractQuantity, instrnm, addr, ::Val{:readdashboarddigitsunit})
+    opts.textsize == "big" && CImGui.PushFont(PLOTFONT)
+    originscale = unsafe_load(CImGui.GetIO().FontGlobalScale)
+    CImGui.SetWindowFontScale(opts.textscale)
+    trig = ColoredButtonRect(
+        stcstr(@sprintf("%g", parseforreaddashboard(qt)[1]), " ", qt.showU);
+        size=opts.itemsize,
+        colbt=opts.bgcolor,
+        colbth=opts.hoveredcolor,
+        colbta=opts.activecolor,
+        coltxt=opts.textcolor,
+        colrect=opts.bdcolor,
+        rounding=opts.rounding,
+        bdrounding=opts.bdrounding,
+        thickness=opts.bdthickness
+    )
+    if trig
+        if qt.enable && addr != ""
+            fetchdata = refresh_qt(instrnm, addr, qt.name)
+            isnothing(fetchdata) || (qt.read = fetchdata)
+            updatefront!(qt)
+        end
+        unsafe_load(CImGui.GetIO().KeyCtrl) && (qt.uindex += 1; getvalU!(qt); resolveunitlist(qt, instrnm, addr))
+    end
+    opts.textsize == "big" && CImGui.PopFont()
+    CImGui.SetWindowFontScale(originscale)
+    return trig
+end
 function parseforreaddashboard(qt::AbstractQuantity)
     readings = split(qt.showval, ',')
     U, Us = @c getU(qt.utype, &qt.uindex)
@@ -1327,7 +1382,7 @@ let
     setuitypesnoopts = ["read", "unit", "readunit", "inputset", "inputctrlset", "ctrlset"]
     setuitypesno2opts = ["read", "unit", "readunit", "inputset", "inputctrlset", "ctrlset", "combo", "radio", "slider", "vslider"]
     # readnumuitypes = ["read", "unit", "readunit", "readdashboard"]
-    readuitypes = ["read", "unit", "readunit", "readdashboard"]
+    readuitypes = ["read", "unit", "readunit", "readdashboard", "readdashboarddigits", "readdashboarddigitsunit"]
     otheruitypes = ["none"]
     shapetypes = ["rect", "triangle", "circle", "line"]
     qtselectoruitypes = ["combo", "slider", "vslider"]
