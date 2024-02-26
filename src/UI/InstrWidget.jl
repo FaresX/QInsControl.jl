@@ -1686,7 +1686,14 @@ function widgetcolormenu(qtw::QuantityWidget)
             CImGui.ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_AlphaPreviewHalf
         )
     end
-    if qtw.options.uitype in ["readdashboard", "slider", "vslider"]
+    if qtw.options.uitype == "readdashboard"
+        CImGui.ColorEdit4(
+            mlstr("Base"),
+            qtw.options.grabcolor,
+            CImGui.ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_AlphaPreviewHalf
+        )
+    end
+    if qtw.options.uitype in ["slider", "vslider"]
         CImGui.ColorEdit4(
             mlstr("SliderGrab"),
             qtw.options.grabcolor,
@@ -1695,6 +1702,20 @@ function widgetcolormenu(qtw::QuantityWidget)
         qtw.options.uitype != "readdashboard" && CImGui.ColorEdit4(
             mlstr("Active SliderGrab"),
             qtw.options.grabactivecolor,
+            CImGui.ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_AlphaPreviewHalf
+        )
+    end
+    if qtw.options.uitype == "readdashboard"
+        CImGui.ColorEdit4(
+            mlstr("Indicator"),
+            qtw.options.checkedcolor,
+            CImGui.ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_AlphaPreviewHalf
+        )
+    end
+    if qtw.options.uitype == "radio"
+        CImGui.ColorEdit4(
+            mlstr("Checked"),
+            qtw.options.checkedcolor,
             CImGui.ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_AlphaPreviewHalf
         )
     end
@@ -1829,6 +1850,11 @@ function globalwidgetoptionsmenu(insw::InstrWidget)
     CImGui.ColorEdit4(
         mlstr("Active SliderGrab"),
         insw.options.grabactivecolor,
+        CImGui.ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_AlphaPreviewHalf
+    )
+    CImGui.ColorEdit4(
+        mlstr("Checked"),
+        insw.options.checkedcolor,
         CImGui.ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_AlphaPreviewHalf
     )
     CImGui.EndChild()
