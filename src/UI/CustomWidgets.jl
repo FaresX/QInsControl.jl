@@ -892,7 +892,7 @@ LEDSTATE(STAT, POS, HCOLOR, LCOLOR; size=(40, 20)) = ExtDrawRectangleFill(POS, s
 
 function DrawSemicircleBox(window_width, y_offset, ruler, color; num_segments=24)
     DrawOffsetHigh = window_width * 0.5
-    CircleRadius = ImVec2(DrawOffsetHigh - unsafe_load(IMGUISTYLE.ItemSpacing.x), window_width * 0.32)
+    CircleRadius = ImVec2(DrawOffsetHigh - unsafe_load(IMGUISTYLE.ItemSpacing.x), window_width * 0.28)
 
     LineBeginInnerTemp = ImVec2(
         sin(IMFXC_DEGTORAD(SemicircleDeg[1])) * CircleRadius[1] + DrawOffsetHigh,
