@@ -242,7 +242,8 @@ let
         dtpk::DataPicker,
         datastr::Dict{String,Vector{String}},
         datafloat::Dict{String,VecOrMat{Cdouble}}=Dict{String,VecOrMat{Cdouble}}();
-        quiet=false
+        quiet=false,
+        force=false
     )
         haskey(synctasks, plt.id) || push!(synctasks, plt.id => Dict())
         lpltss = length(plt.series)
@@ -261,7 +262,7 @@ let
         for (i, dtss) in enumerate(dtpk.series)
             if dtpk.update || dtss.update || (dtss.isrealtime && waittime(stcstr("DataPicker", plt.id, "-", i), dtss.refreshrate))
                 if haskey(synctasks[plt.id], i)
-                    istaskdone(synctasks[plt.id][i]) ? delete!(synctasks[plt.id], i) : continue
+                    istaskdone(synctasks[plt.id][i]) ? delete!(synctasks[plt.id], i) : (force || continue)
                 end
                 pdtask = errormonitor(@async processdata(plt, plt.series[i], dtss, datastr, datafloat; quiet=quiet))
                 push!(synctasks[plt.id], i => pdtask)
