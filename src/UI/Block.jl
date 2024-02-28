@@ -378,7 +378,7 @@ macro gentrycatch(instrnm, addr, cmd, len=0)
                                 instrument = $(string(instrnm, ": ", addr)),
                                 exception = e
                             )
-                            @info stcstr(mlstr("retry sending command"), " ", tin)
+                            @warn stcstr("[", now(), "]\n", mlstr("retry sending command"), " ", tin)
                             return false, $(len == 0 ? "" : fill("", len))
                         end
                     end
@@ -390,7 +390,7 @@ macro gentrycatch(instrnm, addr, cmd, len=0)
                             connect!(CPU.resourcemanager, CPU.instrs[$addr])
                         catch
                         end
-                        @info stcstr(mlstr("retry reconnecting instrument"), " ", tout)
+                        @warn stcstr("[", now(), "]\n", mlstr("retry reconnecting instrument"), " ", tout)
                         return false, $(len == 0 ? "" : fill("", len))
                     end
                 end

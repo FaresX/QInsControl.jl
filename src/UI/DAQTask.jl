@@ -114,7 +114,7 @@ function interpret(blocks::Vector{AbstractBlock})
     codes = @trypasse quote
         $(tocodes.(blocks)...)
     end |> prettify @error "[$(now())]\n$(mlstr("interpreting blocks failed!!!"))"
-    return isnothing(codes) ? :nothing : (@info codes; codes)
+    return isnothing(codes) ? :nothing : (@info "[$(now())]\n$codes"; codes)
 end
 
 function run(daqtask::DAQTask)

@@ -453,7 +453,6 @@ function parseforreaddashboard(qt::AbstractQuantity)
     if U == ""
         return [0, 0, 400, true]
     else
-        # @info readings qt.showval
         if length(readings) == 4
             val = tryparse(Float64, readings[1])
             mrange1 = tryparse(Float64, readings[2])
