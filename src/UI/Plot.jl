@@ -11,6 +11,8 @@ end
 @kwdef mutable struct Linecut
     ptype::String = "line"
     vline::Bool = true
+    thickness::Cfloat = 0
+    color::CImGui.ImVec4 = (1.000, 1.000, 1.000, 1.000)
     pos::Cdouble = 0
 end
 
@@ -238,7 +240,7 @@ end
 function Plot(plt::Plot; psize=CImGui.ImVec2(0, 0), flags=0)
     if ImPlot.BeginPlot(
         stcstr(plt.title, "###", plt.id),
-        CImGui.ImVec2(CImGui.GetContentRegionAvailWidth() - sum(za.colormapscalesize.x for za in plt.zaxes; init=0), psize.y),
+        CImGui.ImVec2((psize.x > 0 ? psize.x : CImGui.GetContentRegionAvailWidth()) - sum(za.colormapscalesize.x for za in plt.zaxes; init=0), psize.y),
         flags
     )
         isempty(plt.xaxes) && mergexaxes!(plt)
@@ -278,9 +280,7 @@ function Plot(plt::Plot; psize=CImGui.ImVec2(0, 0), flags=0)
         za.hovered = CImGui.IsItemHovered()
     end
     CImGui.PopStyleVar()
-    for pss in plt.series
-        pss.ptype == "heatmap" && !isempty(pss.z) && renderlinecuts(plt.linecuts, pss, plt)
-    end
+    renderlinecuts(plt)
 end
 
 Plot(pss::PlotSeries, plt::Plot) = Plot(pss, plt, Val(Symbol(pss.ptype)))
@@ -471,26 +471,28 @@ function correct_offset(offset, halflabelsz)
 end
 
 function PlotLinecuts(linecuts::Vector{Linecut})
-    openpopup_i = 0
-    ishv = false
-    ImPlot.SetAxes(ImPlot.ImAxis_X1, ImPlot.ImAxis_Y1)
-    CImGui.PushFont(GLOBALFONT)
-    for (i, lc) in enumerate(linecuts)
-        if lc.vline
-            @c ImPlot.DragLineX(i, &lc.pos, CImGui.ImVec4(MORESTYLE.Colors.HighlightText...))
-            ishv |= isdraglinexhovered(lc.pos)
-        else
-            @c ImPlot.DragLineY(i, &lc.pos, CImGui.ImVec4(MORESTYLE.Colors.HighlightText...))
-            ishv |= isdraglineyhovered(lc.pos)
+    if !isempty(linecuts)
+        openpopup_i = 0
+        ishv = false
+        ImPlot.SetAxes(ImPlot.ImAxis_X1, ImPlot.ImAxis_Y1)
+        CImGui.PushFont(GLOBALFONT)
+        for (i, lc) in enumerate(linecuts)
+            if lc.vline
+                @c ImPlot.DragLineX(i, &lc.pos, CImGui.ImVec4(MORESTYLE.Colors.HighlightText...))
+                ishv |= isdraglinexhovered(lc.pos)
+            else
+                @c ImPlot.DragLineY(i, &lc.pos, CImGui.ImVec4(MORESTYLE.Colors.HighlightText...))
+                ishv |= isdraglineyhovered(lc.pos)
+            end
+            ishv && (openpopup_i = i)
+            if CImGui.BeginPopup(stcstr("linecut", i))
+                CImGui.MenuItem(stcstr(MORESTYLE.Icons.CloseFile, " ", mlstr("Delete"), "##", i)) && (deleteat!(linecuts, i); break)
+                CImGui.EndPopup()
+            end
         end
-        ishv && (openpopup_i = i)
-        if CImGui.BeginPopup(stcstr("linecut", i))
-            CImGui.MenuItem(stcstr(MORESTYLE.Icons.CloseFile, " ", mlstr("Delete"), "##", i)) && (deleteat!(linecuts, i); break)
-            CImGui.EndPopup()
-        end
+        CImGui.PopFont()
+        openpopup_i != 0 && CImGui.IsMouseClicked(1) && CImGui.OpenPopup(stcstr("linecut", openpopup_i))
     end
-    CImGui.PopFont()
-    openpopup_i != 0 && CImGui.IsMouseClicked(1) && CImGui.OpenPopup(stcstr("linecut", openpopup_i))
 end
 
 function isdraglinexhovered(x)
@@ -500,56 +502,133 @@ function isdraglineyhovered(y)
     !ImPlot.IsPlotHovered() && abs(ImPlot.PlotToPixels(ImPlot.GetPlotMousePos().x, y).y - CImGui.GetMousePos().y) < 4
 end
 
-function renderlinecuts(linecuts::Vector{Linecut}, pss::PlotSeries, plt::Plot)
-    if !isempty(linecuts)
+function renderlinecuts(plt::Plot)
+    if !isempty(plt.linecuts)
         p_open = Ref(true)
-        CImGui.SetNextWindowSize((600, 600), CImGui.ImGuiCond_Once)
-        if CImGui.Begin(
-            stcstr(plt.title, " ", mlstr("Linecuts"), " ", pss.legend, "###", plt.id, pss.legend),
+        CImGui.SetNextWindowSize((800, 400), CImGui.ImGuiCond_Once)
+        CImGui.PushFont(GLOBALFONT)
+        openlinecuts = CImGui.Begin(
+            stcstr(mlstr("Linecuts"), " ", plt.title, "###", plt.id),
             p_open,
             CImGui.ImGuiWindowFlags_NoDocking
         )
-            zsz = size(pss.z)
-            hlines = collect(filter(x -> !x.vline, linecuts))
-            vlines = collect(filter(x -> x.vline, linecuts))
-            if !isempty(hlines) && ImPlot.BeginPlot(
-                stcstr(plt.title, " ", mlstr("Horizontal Linecuts")),
-                CImGui.ImVec2(CImGui.GetContentRegionAvailWidth() / (1 + !isempty(vlines)), -1)
-            )
-                ImPlot.SetupAxis(pss.axis.xaxis.axis, pss.axis.xaxis.label)
-                ImPlot.SetupAxis(pss.axis.yaxis.axis, pss.axis.zaxis.label)
-                for lc in hlines
-                    xr = collect(range(pss.axis.xaxis.lims[1], pss.axis.xaxis.lims[2], length=zsz[1]))
-                    yr = collect(range(pss.axis.yaxis.lims[2], pss.axis.yaxis.lims[1], length=zsz[2]))
-                    yidx = argmin(abs.(yr .- lc.pos))
-                    if lc.ptype == "line"
-                        ImPlot.PlotLine("", xr, pss.z[:, yidx], zsz[1])
-                    elseif lc.ptype == "scatter"
-                        ImPlot.PlotScatter("", xr, pss.z[:, yidx], zsz[1])
-                    end
-                end
-                ImPlot.EndPlot()
-            end
+        CImGui.PopFont()
+        if openlinecuts
+            hms = length(Set([s.legend for s in plt.series if s.ptype == "heatmap"]))
+            w = CImGui.GetContentRegionAvailWidth() / 2
+            h = (CImGui.GetContentRegionAvail().y - (hms - 1) * unsafe_load(IMGUISTYLE.ItemSpacing.y)) / hms
+            CImGui.BeginChild("hlinecuts", (w, Cfloat(0)))
+            renderhlinecuts(plt, h)
+            CImGui.EndChild()
             CImGui.SameLine()
-            if !isempty(vlines) && ImPlot.BeginPlot(
-                stcstr(plt.title, " ", mlstr("Vertical Linecuts")), pss.axis.yaxis.label, pss.axis.zaxis.label,
-                CImGui.ImVec2(-1, -1)
-            )
-                for lc in vlines
-                    xr = collect(range(pss.axis.xaxis.lims[1], pss.axis.xaxis.lims[2], length=zsz[1]))
-                    yr = collect(range(pss.axis.yaxis.lims[1], pss.axis.yaxis.lims[2], length=zsz[2]))
-                    xidx = argmin(abs.(xr .- lc.pos))
-                    if lc.ptype == "line"
-                        ImPlot.PlotLine("", yr, reverse(pss.z[xidx, :]), zsz[2])
-                    elseif lc.ptype == "scatter"
-                        ImPlot.PlotScatter("", yr, reverse(pss.z[xidx, :]), zsz[2])
-                    end
-                end
-                ImPlot.EndPlot()
-            end
+            CImGui.BeginChild("vlinecuts", (w, Cfloat(0)))
+            rendervlinecuts(plt, h)
+            CImGui.EndChild()
         end
         CImGui.End()
-        p_open[] || empty!(linecuts)
+        p_open[] || empty!(plt.linecuts)
+    end
+end
+
+let
+    hlinecuts::Dict{String,Dict{String,Plot}} = Dict()
+    global function renderhlinecuts(plt::Plot, h)
+        if count(lc -> !lc.vline, plt.linecuts) == 0
+            delete!(hlinecuts, plt.id)
+        else
+            haskey(hlinecuts, plt.id) || push!(hlinecuts, plt.id => Dict())
+            for pss in filter(s -> s.ptype == "heatmap", plt.series)
+                if haskey(hlinecuts[plt.id], pss.legend)
+                    empty!(hlinecuts[plt.id][pss.legend].series)
+                else
+                    push!(
+                        hlinecuts[plt.id],
+                        pss.legend => Plot(title=stcstr(mlstr("Horizontal Linecuts"), " ", pss.legend))
+                    )
+                end
+            end
+            lgs = [s.legend for s in plt.series]
+            for lg in filter(lg -> lg ∉ lgs, keys(hlinecuts[plt.id]))
+                delete!(hlinecuts[plt.id], lg)
+            end
+            for pss in filter(s -> s.ptype == "heatmap", plt.series)
+                zsz = size(pss.z)
+                xr = collect(range(pss.axis.xaxis.lims[1], pss.axis.xaxis.lims[2], length=zsz[1]))
+                yr = collect(range(pss.axis.yaxis.lims[2], pss.axis.yaxis.lims[1], length=zsz[2]))
+                if !isempty(xr) && !isempty(yr) && !isempty(pss.z)
+                    empty!(hlinecuts[plt.id][pss.legend].xaxes)
+                    empty!(hlinecuts[plt.id][pss.legend].yaxes)
+                    for (i, lc) in enumerate(filter(lc -> !lc.vline, plt.linecuts))
+                        newseries = PlotSeries(
+                            ptype=lc.ptype,
+                            legend=stcstr("HL ", i),
+                            axis=Axis(
+                                xaxis=Xaxis(axis=pss.axis.xaxis.axis, label=pss.axis.xaxis.label),
+                                yaxis=Yaxis(axis=pss.axis.yaxis.axis, label=pss.axis.zaxis.label)
+                            )
+                        )
+                        push!(hlinecuts[plt.id][pss.legend].series, newseries)
+                        setupplotseries!(newseries, xr, pss.z[:, argmin(abs.(yr .- lc.pos))])
+                    end
+                end
+            end
+            for (i, hplt) in enumerate(values(hlinecuts[plt.id]))
+                CImGui.BeginChild(i, (Cfloat(0), h))
+                Plot(hplt; psize=CImGui.ImVec2(-1, -1))
+                CImGui.EndChild()
+            end
+        end
+    end
+end
+
+let
+    vlinecuts::Dict{String,Dict{String,Plot}} = Dict()
+    global function rendervlinecuts(plt::Plot, h)
+        if count(lc -> lc.vline, plt.linecuts) == 0
+            delete!(vlinecuts, plt.id)
+        else
+            haskey(vlinecuts, plt.id) || push!(vlinecuts, plt.id => Dict())
+            for pss in filter(s -> s.ptype == "heatmap", plt.series)
+                if haskey(vlinecuts[plt.id], pss.legend)
+                    empty!(vlinecuts[plt.id][pss.legend].series)
+                else
+                    push!(
+                        vlinecuts[plt.id],
+                        pss.legend => Plot(title=stcstr(mlstr("Vertical Linecuts"), " ", pss.legend))
+                    )
+                end
+            end
+            lgs = [s.legend for s in plt.series]
+            for lg in filter(lg -> lg ∉ lgs, keys(vlinecuts[plt.id]))
+                delete!(vlinecuts[plt.id], lg)
+            end
+            for pss in filter(s -> s.ptype == "heatmap", plt.series)
+                zsz = size(pss.z)
+                xr = collect(range(pss.axis.xaxis.lims[1], pss.axis.xaxis.lims[2], length=zsz[1]))
+                yr = collect(range(pss.axis.yaxis.lims[1], pss.axis.yaxis.lims[2], length=zsz[2]))
+                if !isempty(xr) && !isempty(yr) && !isempty(pss.z)
+                    empty!(vlinecuts[plt.id][pss.legend].xaxes)
+                    empty!(vlinecuts[plt.id][pss.legend].yaxes)
+                    for (i, lc) in enumerate(filter(lc -> lc.vline, plt.linecuts))
+                        newseries = PlotSeries(
+                            ptype=lc.ptype,
+                            legend=stcstr("VL ", i),
+                            axis=Axis(
+                                xaxis=Xaxis(axis=pss.axis.xaxis.axis, label=pss.axis.yaxis.label),
+                                yaxis=Yaxis(axis=pss.axis.yaxis.axis, label=pss.axis.zaxis.label)
+                            )
+                        )
+                        push!(vlinecuts[plt.id][pss.legend].series, newseries)
+                        setupplotseries!(newseries, yr, reverse(pss.z[argmin(abs.(xr .- lc.pos)), :]))
+                    end
+                end
+            end
+            for (i, vplt) in enumerate(values(vlinecuts[plt.id]))
+                CImGui.BeginChild(i, (Cfloat(0), h))
+                Plot(vplt; psize=CImGui.ImVec2(-1, -1))
+                CImGui.EndChild()
+            end
+        end
     end
 end
 
