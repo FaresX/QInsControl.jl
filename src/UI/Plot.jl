@@ -251,8 +251,10 @@ function Plot(plt::Plot; psize=CImGui.ImVec2(0, 0), flags=0)
         map(ya -> ImPlot.SetupAxisScale(ya.axis, ya.scale), plt.yaxes)
         map(xa -> xa.hovered = ImPlot.IsAxisHovered(xa.axis), plt.xaxes)
         map(ya -> ya.hovered = ImPlot.IsAxisHovered(ya.axis), plt.yaxes)
+        hasheatmap = false
         for (i, pss) in enumerate(plt.series)
             if pss.ptype == "heatmap"
+                hasheatmap = true
                 (isempty(pss.x) | isempty(pss.y) | isempty(pss.z)) && continue
             else
                 (isempty(pss.x) | isempty(pss.y)) && continue
@@ -264,6 +266,7 @@ function Plot(plt::Plot; psize=CImGui.ImVec2(0, 0), flags=0)
             end
         end
         PlotAnns(plt.anns)
+        hasheatmap && PlotLinecuts(plt.linecuts)
         plt.hovered = ImPlot.IsPlotHovered()
         ImPlot.EndPlot()
     end
@@ -346,7 +349,6 @@ function Plot(pss::PlotSeries, plt::Plot, ::Val{:heatmap})
         CImGui.PopTextWrapPos()
         CImGui.EndTooltip()
     end
-    PlotLinecuts(plt.linecuts)
 end
 
 function setupplotseries!(pss::PlotSeries, x::AbstractVector{Tx}, y) where {Tx<:AbstractString}
@@ -390,50 +392,52 @@ function setupplotseries!(pss::PlotSeries, x::AbstractVector{Tx}, y, z) where {T
 end
 
 function PlotAnns(anns::Vector{Annotation})
-    openpopup_i = 0
-    ishv = false
-    ImPlot.SetAxes(ImPlot.ImAxis_X1, ImPlot.ImAxis_Y1)
-    CImGui.PushFont(GLOBALFONT)
-    for (i, ann) in enumerate(anns)
-        offset = ImPlot.PlotToPixels(ann.offsetx, ann.offsety) .- ImPlot.PlotToPixels(ann.posx, ann.posy)
-        halflabelsz = CImGui.CalcTextSize(ann.label) ./ 2
-        ImPlot.AnnotationClamped(
-            ann.posx,
-            ann.posy,
-            CImGui.ImVec4(ann.color...),
-            correct_offset(offset, halflabelsz),
-            ann.label
-        )
-        CImGui.PushID(i)
-        @c ImPlot.DragPoint(i, &ann.posx, &ann.posy, CImGui.ImVec4(ann.color...), ann.possz)
-        ishv = isdragpointhovered(ann.posx, ann.posy, ann.possz)
-        @c ImPlot.DragPoint(
-            -i,
-            &ann.offsetx,
-            &ann.offsety,
-            CImGui.ImVec4(ann.color[1:3]..., 0.000),
-            halflabelsz[2] / 2
-        )
-        ishv |= isdragpointhovered(ann.offsetx, ann.offsety, halflabelsz[2])
-        ishv && (ItemTooltipNoHovered(ann.label); openpopup_i = i)
-        CImGui.PopID()
-        if CImGui.BeginPopup(stcstr("annotation", i))
-            @c InputTextRSZ(mlstr("content"), &ann.label)
-            pos = Cfloat[ann.posx, ann.posy]
-            CImGui.InputFloat2(mlstr("position"), pos)
-            ann.posx, ann.posy = pos
-            offset = Cfloat[ann.offsetx, ann.offsety]
-            CImGui.InputFloat2(mlstr("offset"), offset)
-            ann.offsetx, ann.offsety = offset
-            @c CImGui.DragFloat(mlstr("size"), &ann.possz, 1.0, 1, 60, "%.3f", CImGui.ImGuiSliderFlags_AlwaysClamp)
-            CImGui.ColorEdit4(mlstr("color"), ann.color, CImGui.ImGuiColorEditFlags_AlphaBar)
-            CImGui.SameLine()
-            CImGui.Button(stcstr(MORESTYLE.Icons.CloseFile, "##annotation")) && (deleteat!(anns, i); break)
-            CImGui.EndPopup()
+    if !isempty(anns)
+        openpopup_i = 0
+        ishv = false
+        ImPlot.SetAxes(ImPlot.ImAxis_X1, ImPlot.ImAxis_Y1)
+        CImGui.PushFont(GLOBALFONT)
+        for (i, ann) in enumerate(anns)
+            offset = ImPlot.PlotToPixels(ann.offsetx, ann.offsety) .- ImPlot.PlotToPixels(ann.posx, ann.posy)
+            halflabelsz = CImGui.CalcTextSize(ann.label) ./ 2
+            ImPlot.AnnotationClamped(
+                ann.posx,
+                ann.posy,
+                CImGui.ImVec4(ann.color...),
+                correct_offset(offset, halflabelsz),
+                ann.label
+            )
+            CImGui.PushID(i)
+            @c ImPlot.DragPoint(i, &ann.posx, &ann.posy, CImGui.ImVec4(ann.color...), ann.possz)
+            ishv = isdragpointhovered(ann.posx, ann.posy, ann.possz)
+            @c ImPlot.DragPoint(
+                -i,
+                &ann.offsetx,
+                &ann.offsety,
+                CImGui.ImVec4(ann.color[1:3]..., 0.000),
+                halflabelsz[2] / 2
+            )
+            ishv |= isdragpointhovered(ann.offsetx, ann.offsety, halflabelsz[2])
+            ishv && (ItemTooltipNoHovered(ann.label); openpopup_i = i)
+            CImGui.PopID()
+            if CImGui.BeginPopup(stcstr("annotation", i))
+                @c InputTextRSZ(mlstr("content"), &ann.label)
+                pos = Cfloat[ann.posx, ann.posy]
+                CImGui.InputFloat2(mlstr("position"), pos)
+                ann.posx, ann.posy = pos
+                offset = Cfloat[ann.offsetx, ann.offsety]
+                CImGui.InputFloat2(mlstr("offset"), offset)
+                ann.offsetx, ann.offsety = offset
+                @c CImGui.DragFloat(mlstr("size"), &ann.possz, 1.0, 1, 60, "%.3f", CImGui.ImGuiSliderFlags_AlwaysClamp)
+                CImGui.ColorEdit4(mlstr("color"), ann.color, CImGui.ImGuiColorEditFlags_AlphaBar)
+                CImGui.SameLine()
+                CImGui.Button(stcstr(MORESTYLE.Icons.CloseFile, "##annotation")) && (deleteat!(anns, i); break)
+                CImGui.EndPopup()
+            end
         end
+        CImGui.PopFont()
+        openpopup_i != 0 && CImGui.IsMouseClicked(1) && CImGui.OpenPopup(stcstr("annotation", openpopup_i))
     end
-    CImGui.PopFont()
-    openpopup_i != 0 && CImGui.IsMouseClicked(1) && CImGui.OpenPopup(stcstr("annotation", openpopup_i))
 end
 
 function isdragpointhovered(x, y, sz)
@@ -505,7 +509,7 @@ end
 function renderlinecuts(plt::Plot)
     if !isempty(plt.linecuts)
         p_open = Ref(true)
-        CImGui.SetNextWindowSize((800, 400), CImGui.ImGuiCond_Once)
+        CImGui.SetNextWindowSize((600, 400), CImGui.ImGuiCond_Once)
         CImGui.PushFont(GLOBALFONT)
         openlinecuts = CImGui.Begin(
             stcstr(mlstr("Linecuts"), " ", plt.title, "###", plt.id),
@@ -515,15 +519,22 @@ function renderlinecuts(plt::Plot)
         CImGui.PopFont()
         if openlinecuts
             hms = length(Set([s.legend for s in plt.series if s.ptype == "heatmap"]))
-            w = CImGui.GetContentRegionAvailWidth() / 2
+
+            num_h = count(lc -> !lc.vline, plt.linecuts)
+            num_v = length(plt.linecuts) - num_h
+            w = CImGui.GetContentRegionAvailWidth() / (2 - (num_h == 0 || num_v == 0))
             h = (CImGui.GetContentRegionAvail().y - (hms - 1) * unsafe_load(IMGUISTYLE.ItemSpacing.y)) / hms
-            CImGui.BeginChild("hlinecuts", (w, Cfloat(0)))
-            renderhlinecuts(plt, h)
-            CImGui.EndChild()
-            CImGui.SameLine()
-            CImGui.BeginChild("vlinecuts", (w, Cfloat(0)))
-            rendervlinecuts(plt, h)
-            CImGui.EndChild()
+            if num_h != 0
+                CImGui.BeginChild("hlinecuts", (w, Cfloat(0)))
+                renderhlinecuts(plt, h)
+                CImGui.EndChild()
+                CImGui.SameLine()
+            end
+            if num_v != 0
+                CImGui.BeginChild("vlinecuts", (w, Cfloat(0)))
+                rendervlinecuts(plt, h)
+                CImGui.EndChild()
+            end
         end
         CImGui.End()
         p_open[] || empty!(plt.linecuts)
