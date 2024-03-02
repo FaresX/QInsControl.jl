@@ -6,6 +6,7 @@ function autodetect()
 end
 
 function manualadd(addr)
+    addr == "VirtualAddress" && return true
     idn = "IDN"
     st = true
     if occursin("VIRTUAL", addr)
