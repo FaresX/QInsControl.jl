@@ -90,18 +90,18 @@ let
         @c ComBoS("##OthersIns", &addinstr, keys(INSTRBUFFERVIEWERS["Others"]))
         CImGui.SameLine()
         if CImGui.Button(stcstr(MORESTYLE.Icons.NewFile))
-            st = manualadd(addinstr)
-            st && (addinstr = "")
-            time_old = time()
+            errormonitor(
+                @async begin
+                    if !SYNCSTATES[Int(AutoDetecting)] && !SYNCSTATES[Int(AutoDetectDone)]
+                        SYNCSTATES[Int(AutoDetecting)] = true
+                        st = manualadd(addinstr)
+                        st && (addinstr = "")
+                        time_old = time()
+                        SYNCSTATES[Int(AutoDetecting)] = false
+                    end
+                end
+            )
         end
-        # if time() - time_old < 2
-        #     CImGui.SameLine()
-        #     if st
-        #         CImGui.TextColored(MORESTYLE.Colors.HighlightText, mlstr("successfully added!"))
-        #     else
-        #         CImGui.TextColored(MORESTYLE.Colors.LogError, mlstr("addition failed!!!"))
-        #     end
-        # end
         return time() - time_old < 2, st
     end
 end
@@ -125,18 +125,18 @@ let
         end
         CImGui.SameLine()
         if CImGui.Button(stcstr(MORESTYLE.Icons.NewFile, "##manual input addr"))
-            st = manualadd(newinsaddr)
-            st && (newinsaddr = "")
-            time_old = time()
+            errormonitor(
+                @async begin
+                    if !SYNCSTATES[Int(AutoDetecting)] && !SYNCSTATES[Int(AutoDetectDone)]
+                        SYNCSTATES[Int(AutoDetecting)] = true
+                        st = manualadd(newinsaddr)
+                        st && (newinsaddr = "")
+                        time_old = time()
+                        SYNCSTATES[Int(AutoDetecting)] = false
+                    end
+                end
+            )
         end
-        # if time() - time_old < 2
-        #     CImGui.SameLine()
-        #     if st
-        #         CImGui.TextColored(MORESTYLE.Colors.HighlightText, mlstr("successfully added!"))
-        #     else
-        #         CImGui.TextColored(MORESTYLE.Colors.LogError, mlstr("addition failed!!!"))
-        #     end
-        # end
         return time() - time_old < 2, st
     end
 end
