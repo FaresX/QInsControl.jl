@@ -569,7 +569,6 @@ function ColoredSlider(
     )
     CImGui.PushItemWidth(size[1])
     dragged = sliderfunc(label, v, v_min, v_max, format, flags)
-    CImGui.PopStyleVar()
     CImGui.PopItemWidth()
     CImGui.PopStyleVar(3)
     CImGui.PopStyleColor(6)

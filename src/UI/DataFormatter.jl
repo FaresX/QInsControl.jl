@@ -121,7 +121,6 @@ function edit(fdg::FormatDataGroup, id)
             CImGui.EndDragDropTarget()
         end
     end
-    CImGui.PopStyleVar()
     CImGui.EndChild()
     CImGui.PopStyleVar()
     CImGui.PopStyleColor()
