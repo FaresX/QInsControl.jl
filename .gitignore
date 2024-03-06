@@ -17,3 +17,5 @@ QInsControl.iss
 RestructConf.jl
 # Manifest.toml
 HelpPad.jl
+nircmd.exe
+QInsControl.cmd
