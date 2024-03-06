@@ -245,9 +245,13 @@ function draw(pin::ImagePin)
 end
 
 function draw(imgr::ImageRegion)
+    CImGui.PushStyleColor(CImGui.ImGuiCol_Button, (0, 0, 0, 0))
+    CImGui.PushStyleColor(CImGui.ImGuiCol_ButtonHovered, (0, 0, 0, 0))
+    CImGui.PushStyleColor(CImGui.ImGuiCol_ButtonActive, (0, 0, 0, 0))
     CImGui.PushStyleVar(CImGui.ImGuiStyleVar_FramePadding, (0, 0))
     CImGui.ImageButton("ImageRegion", Ptr{Cvoid}(imgr.id), imgr.posmax .- imgr.posmin)
     CImGui.PopStyleVar()
+    CImGui.PopStyleColor(3)
     imgr.posmin = CImGui.GetItemRectMin()
     imgr.posmax = CImGui.GetItemRectMax()
     imgr.rszgrip.pos = imgr.posmax
