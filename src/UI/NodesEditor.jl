@@ -162,12 +162,12 @@ function update_state!(pin::ImagePin)
     if pin.dragging_in
         CImGui.IsMouseDown(0) ? pin.pos = cutoff(mospos, pin.limmin, pin.limmax) : pin.dragging_in = false
     else
-        pin.hovered_in && !pin.dragging_out && CImGui.IsMouseDown(0) && (pin.dragging_in = true)
+        pin.hovered_in && !pin.dragging_out && CImGui.IsMouseDown(0) && CImGui.c_get(CImGui.GetIO().MouseDownDuration, 0) < 0.1 && (pin.dragging_in = true)
     end
     if pin.dragging_out
         CImGui.IsMouseDown(0) ? pin.radius = min(sqrt(sum(abs2.(mospos .- pin.pos))), 100) : pin.dragging_out = false
     else
-        pin.hovered_out && !pin.dragging_in && CImGui.IsMouseDown(0) && (pin.dragging_out = true)
+        pin.hovered_out && !pin.dragging_in && CImGui.IsMouseDown(0) && CImGui.c_get(CImGui.GetIO().MouseDownDuration, 0) < 0.1 && (pin.dragging_out = true)
     end
 end
 
