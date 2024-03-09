@@ -409,3 +409,11 @@ function imgsampling(x, y, z; num=100000)
         return x, y, z
     end
 end
+
+function inversesp(sp::Vector{Int})
+    spinv = zeros(Int, length(sp))
+    for (i, s) in enumerate(sp)
+        spinv[s] = i
+    end
+    return spinv
+end
