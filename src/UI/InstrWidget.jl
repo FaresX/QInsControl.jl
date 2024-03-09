@@ -942,6 +942,7 @@ let
         dr.posmin = cspos .+ qtw.options.vertices[1]
         dr.posmax = dr.posmin .+ (qtw.name == "_Shape_" || qtw.options.uitype == "readdashboard" ? qtw.options.itemsize : CImGui.GetItemRectSize())
         (isanyitemdragging[] || qtw.hold) && (dr.dragging = false; dr.gripdragging = false)
+        qtw.selected && (dr.gripdragging = false)
         edit(dr)
         isanyitemdragging[] |= dr.dragging | dr.gripdragging
         if dr.dragging && qtw.selected
@@ -1136,21 +1137,21 @@ let
             itemh = 2CImGui.GetFrameHeight()
             CImGui.DragFloat2(mlstr("Spacing"), spacing, 1, 0, 600, "%.1f", CImGui.ImGuiSliderFlags_AlwaysClamp)
             CImGui.PushStyleVar(CImGui.ImGuiStyleVar_ItemSpacing, (0, 0))
-            CImGui.Button(mlstr("Horizontal"), (itemw/2, Cfloat(0))) && autospacing!(insw, spacing[1], Val(:horizontal))
+            CImGui.Button(mlstr("Horizontal"), (itemw / 2, Cfloat(0))) && autospacing!(insw, selectedqtw, spacing[1], Val(:horizontal))
             CImGui.SameLine()
-            CImGui.Button(mlstr("Vertical"), (itemw/2, Cfloat(0))) && autospacing!(insw, spacing[2], Val(:vertical))
+            CImGui.Button(mlstr("Vertical"), (itemw / 2, Cfloat(0))) && autospacing!(insw, selectedqtw, spacing[2], Val(:vertical))
             CImGui.PopStyleVar()
             CImGui.SameLine()
             CImGui.Text(mlstr("Auto Spacing"))
             CImGui.PushStyleVar(CImGui.ImGuiStyleVar_ItemSpacing, (0, 0))
-            CImGui.Button(mlstr("Left"), (itemw/4, itemh)) && alignwidgets!(insw, insw.posoffset, Val(:left))
+            CImGui.Button(mlstr("Left"), (itemw / 4, itemh)) && alignwidgets!(insw, selectedqtw, Val(:left))
             CImGui.SameLine()
             CImGui.BeginGroup()
-            CImGui.Button(mlstr("Top"), (itemw/2, Cfloat(0))) && alignwidgets!(insw, insw.posoffset, Val(:up))
-            CImGui.Button(mlstr("Bottom"), (itemw/2, Cfloat(0))) && alignwidgets!(insw, insw.posoffset, Val(:down))
+            CImGui.Button(mlstr("Top"), (itemw / 2, Cfloat(0))) && alignwidgets!(insw, selectedqtw, Val(:up))
+            CImGui.Button(mlstr("Bottom"), (itemw / 2, Cfloat(0))) && alignwidgets!(insw, selectedqtw, Val(:down))
             CImGui.EndGroup()
             CImGui.SameLine()
-            CImGui.Button(mlstr("Right"), (itemw/4, itemh)) && alignwidgets!(insw, insw.posoffset, Val(:right))
+            CImGui.Button(mlstr("Right"), (itemw / 4, itemh)) && alignwidgets!(insw, selectedqtw, Val(:right))
             CImGui.PopStyleVar()
             CImGui.SameLine()
             CImGui.Text(mlstr("Auto Align"))
@@ -1242,7 +1243,7 @@ let
         )
         if CImGui.Button(label, size)
             if unsafe_load(CImGui.GetIO().KeyCtrl)
-                addtogroup!(qtw)
+                qtw.selected ⊻= true
             elseif unsafe_load(CImGui.GetIO().KeyShift)
                 if selectedqtw == 0
                     selectedqtw = id
@@ -1276,13 +1277,9 @@ let
 end
 
 function addtogroup!(qtw::QuantityWidget)
-    if qtw.selected
-        qtw.selected = false
-    else
-        qtw.selected = true
-        qtw.posbuf = copy(qtw.options.vertices[1])
-        qtw.sizebuf = copy(qtw.options.itemsize)
-    end
+    qtw.selected = true
+    qtw.posbuf = copy(qtw.options.vertices[1])
+    qtw.sizebuf = copy(qtw.options.itemsize)
 end
 
 function emptygroup!(insw::InstrWidget)
@@ -1303,49 +1300,65 @@ function updategroupsize!(insw::InstrWidget)
     end
 end
 
-function alignwidgets!(insw::InstrWidget, posoffset, ::Val{:left})
+function alignwidgets!(insw::InstrWidget, selectedqtw, ::Val{:left})
     qtws = filter(x -> x.selected, insw.qtws)
     poses = [qtw.posbuf for qtw in qtws]
-    minx = min([pos[1] for pos in poses]...)
+    hasbase = selectedqtw != 0 && insw.qtws[selectedqtw].selected
+    minx = hasbase ? insw.qtws[selectedqtw].posbuf[1] : min([pos[1] for pos in poses]...)
     for pos in poses
         pos[1] = minx
     end
     updategrouppos!(insw)
 end
 
-function alignwidgets!(insw::InstrWidget, posoffset, ::Val{:right})
+function alignwidgets!(insw::InstrWidget, selectedqtw, ::Val{:right})
     qtws = filter(x -> x.selected, insw.qtws)
     poses = [qtw.posbuf for qtw in qtws]
     sizes = [qtw.sizebuf for qtw in qtws]
-    maxx = max([pos[1] + sizes[i][1] for (i, pos) in enumerate(poses)]...)
+    hasbase = selectedqtw != 0 && insw.qtws[selectedqtw].selected
+    maxx = if hasbase
+        qtw = insw.qtws[selectedqtw]
+        qtw.posbuf[1] + qtw.sizebuf[1]
+    else
+        max([pos[1] + sizes[i][1] for (i, pos) in enumerate(poses)]...)
+    end
     for (i, pos) in enumerate(poses)
         pos[1] = maxx - sizes[i][1]
     end
     updategrouppos!(insw)
 end
 
-function alignwidgets!(insw::InstrWidget, posoffset, ::Val{:up})
+function alignwidgets!(insw::InstrWidget, selectedqtw, ::Val{:up})
     qtws = filter(x -> x.selected, insw.qtws)
     poses = [qtw.posbuf for qtw in qtws]
-    miny = min([pos[2] for pos in poses]...)
+    hasbase = selectedqtw != 0 && insw.qtws[selectedqtw].selected
+    miny = hasbase ? insw.qtws[selectedqtw].posbuf[2] : min([pos[2] for pos in poses]...)
     for pos in poses
         pos[2] = miny
     end
     updategrouppos!(insw)
 end
 
-function alignwidgets!(insw::InstrWidget, posoffset, ::Val{:down})
+function alignwidgets!(insw::InstrWidget, selectedqtw, ::Val{:down})
     qtws = filter(x -> x.selected, insw.qtws)
     poses = [qtw.posbuf for qtw in qtws]
     sizes = [qtw.sizebuf for qtw in qtws]
-    maxy = max([pos[2] + sizes[i][2] for (i, pos) in enumerate(poses)]...)
+    hasbase = selectedqtw != 0 && insw.qtws[selectedqtw].selected
+    maxy = if hasbase
+        qtw = insw.qtws[selectedqtw]
+        qtw.posbuf[2] + qtw.sizebuf[2]
+    else
+        max([pos[2] + sizes[i][2] for (i, pos) in enumerate(poses)]...)
+    end
     for (i, pos) in enumerate(poses)
         pos[2] = maxy - sizes[i][2]
     end
     updategrouppos!(insw)
 end
 
-function autospacing!(insw::InstrWidget, spacing, ::Val{:horizontal})
+function autospacing!(insw::InstrWidget, selectedqtw, spacing, ::Val{:horizontal})
+    hasbase = selectedqtw != 0 && insw.qtws[selectedqtw].selected
+    hasbase && (basepos = copy(insw.qtws[selectedqtw].posbuf))
     qtws = filter(x -> x.selected, insw.qtws)
     poses = [qtw.posbuf for qtw in qtws]
     sizes = [qtw.sizebuf for qtw in qtws]
@@ -1356,10 +1369,18 @@ function autospacing!(insw::InstrWidget, spacing, ::Val{:horizontal})
         sortedposes[i][1] = sortedposes[i-1][1] + sortedsizes[i-1][1] + spacing
     end
     poses .= sortedposes[inversesp(sp)]
+    if hasbase
+        δpos = insw.qtws[selectedqtw].posbuf .- basepos
+        for pos in poses
+            pos .-= δpos
+        end
+    end
     updategrouppos!(insw)
 end
 
-function autospacing!(insw::InstrWidget, spacing, ::Val{:vertical})
+function autospacing!(insw::InstrWidget, selectedqtw, spacing, ::Val{:vertical})
+    hasbase = selectedqtw != 0 && insw.qtws[selectedqtw].selected
+    hasbase && (basepos = copy(insw.qtws[selectedqtw].posbuf))
     qtws = filter(x -> x.selected, insw.qtws)
     poses = [qtw.posbuf for qtw in qtws]
     sizes = [qtw.sizebuf for qtw in qtws]
@@ -1370,6 +1391,12 @@ function autospacing!(insw::InstrWidget, spacing, ::Val{:vertical})
         sortedposes[i][2] = sortedposes[i-1][2] + sortedsizes[i-1][2] + spacing
     end
     poses .= sortedposes[inversesp(sp)]
+    if hasbase
+        δpos = insw.qtws[selectedqtw].posbuf .- basepos
+        for pos in poses
+            pos .-= δpos
+        end
+    end
     updategrouppos!(insw)
 end
 
