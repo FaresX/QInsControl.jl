@@ -129,7 +129,6 @@ let
                 )
                     selectedins = oldinsnm
                     selectedqt = ""
-                    emptygroup()
                 end
                 CImGui.PopItemWidth()
                 if !(newinsnm == "" || haskey(INSCONF, newinsnm))
