@@ -115,7 +115,7 @@ end
 function Base.isapprox(bk1::T1, bk2::T2) where {T1<:AbstractBlock} where {T2<:AbstractBlock}
     if T1 == T2
         return all(
-            fnm == :blocks ? getproperty(bk1, fnm) ≈ getproperty(bk2, fnm) : getproperty(bk1, fnm) == getproperty(bk2, fnm)
+            fnm == :blocks ? bk1.blocks ≈ bk2.blocks : getproperty(bk1, fnm) == getproperty(bk2, fnm)
             for fnm in fieldnames(T1)[1:end-2]
         )
     end
