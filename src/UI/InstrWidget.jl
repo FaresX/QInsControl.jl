@@ -58,6 +58,7 @@ end
     instrnm::String = "VirtualInstr"
     name::String = "widget 1"
     qtws::Vector{QuantityWidget} = []
+    windowflags::CImGui.ImGuiWindowFlags = 0
     windowsize::Vector{Cfloat} = [600, 600]
     usewallpaper::Bool = false
     wallpaperpath::String = ""
@@ -803,7 +804,7 @@ let
                 "###", insw.instrnm, addr, id
             ),
             p_open,
-            addr == "" ? CImGui.ImGuiWindowFlags_NoDocking : 0
+            insw.windowflags | (addr == "" ? CImGui.ImGuiWindowFlags_NoDocking : 0)
         )
             isanyitemdragging = false
             insw.usewallpaper && SetWindowBgImage(insw.wallpaperpath; tint_col=insw.bgtintcolor)
@@ -1758,6 +1759,10 @@ function globalwidgetoptionsmenu(insw::InstrWidget)
     SeparatorTextColored(MORESTYLE.Colors.HighlightText, mlstr("Global Options"))
     CImGui.BeginChild("global widget options")
     @c InputTextRSZ(mlstr("Widget Name"), &insw.name)
+    @c CImGui.CheckboxFlags(mlstr("No Titlebar"), &insw.windowflags, CImGui.ImGuiWindowFlags_NoTitleBar)
+    @c CImGui.CheckboxFlags(mlstr("No Resizing"), &insw.windowflags, CImGui.ImGuiWindowFlags_NoResize)
+    @c CImGui.CheckboxFlags(mlstr("No Collapsing"), &insw.windowflags, CImGui.ImGuiWindowFlags_NoCollapse)
+    @c CImGui.CheckboxFlags(mlstr("No Docking"), &insw.windowflags, CImGui.ImGuiWindowFlags_NoDocking)
     @c CImGui.Checkbox(mlstr("Use Wallpaper"), &insw.usewallpaper)
     if insw.usewallpaper
         bgpath = insw.wallpaperpath
