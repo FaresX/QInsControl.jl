@@ -52,6 +52,9 @@ end
     numoptvs::Cint = 0
     hold::Bool = false
     options::QuantityWidgetOption = QuantityWidgetOption()
+    selected::Bool = false
+    posbuf::Vector{Cfloat} = [0, 0]
+    sizebuf::Vector{Cfloat} = [0, 0]
 end
 
 @option mutable struct InstrWidget
@@ -66,13 +69,30 @@ end
     bgtintcolor::Vector{Cfloat} = [1.000, 1.000, 1.000, 1.000]
     options::QuantityWidgetOption = QuantityWidgetOption()
     qtlist::Vector{String} = []
+    posoffset::Vector{Cfloat} = [0, 0]
+    sizeoffset::Vector{Cfloat} = [0, 0]
 end
 
-function Base.isequal(qtw1::QuantityWidget, qtw2::QuantityWidget)
-    return all(getproperty(qtw1, fdnm) == getproperty(qtw2, fdnm) for fdnm in fieldnames(QuantityWidget))
+function Base.isapprox(insw1::InstrWidget, insw2::InstrWidget)
+    return all(
+        fdnm == :qtws ? insw1.qtws ≈ insw2.qtws : getproperty(insw1, fdnm) == getproperty(insw2, fdnm)
+        for fdnm in fieldnames(InstrWidget)
+    )
+end
+function Base.isapprox(qtws1::Vector{QuantityWidget}, qtws2::Vector{QuantityWidget})
+    return length(qtws1) == length(qtws2) && all(qtws1 .≈ qtws2)
+end
+function Base.isapprox(qtw1::QuantityWidget, qtw2::QuantityWidget)
+    return all(getproperty(qtw1, fdnm) == getproperty(qtw2, fdnm) for fdnm in fieldnames(QuantityWidget)[1:end-2])
 end
 function Base.isequal(opts1::QuantityWidgetOption, opts2::QuantityWidgetOption)
     return all(getproperty(opts1, fdnm) == getproperty(opts2, fdnm) for fdnm in fieldnames(QuantityWidgetOption))
+end
+
+function copyinsw!(insw1::InstrWidget, insw2::InstrWidget)
+    for fdnm in fieldnames(InstrWidget)
+        setproperty!(insw1, fdnm, getproperty(insw2, fdnm))
+    end
 end
 
 const INSWCONF = OrderedDict{String,Vector{InstrWidget}}() #仪器注册表
@@ -777,11 +797,6 @@ let
     continuousuitypes::Vector{String} = ["inputstep", "inputstop", "dragdelay", "inputset"]
     draggable::Bool = false
     draglayers::Dict{Int,Union{DragRect,Vector{DragPoint}}} = Dict()
-    qtwgroup::Vector{Cint} = []
-    qtwgrouppos::Vector{Vector{Cfloat}} = []
-    qtwgroupposoffset::Vector{Cfloat} = [0, 0]
-    qtwgroupsize::Vector{Vector{Cfloat}} = []
-    qtwgroupsizeoffset::Vector{Cfloat} = [0, 0]
     copiedopts::Ref{QuantityWidgetOption} = QuantityWidgetOption()
     showslnums::Bool = false
     showpos::Bool = false
@@ -793,7 +808,8 @@ let
     fakewidget::QuantityWidget = QuantityWidget()
     maxwindowsize::CImGui.ImVec2 = (400, 600)
     windowpos::Bool = true # false left true right
-    redolist::Dict{InstrWidget,LoopVector{Vector{QuantityWidget}}} = Dict()
+    redolist::Dict{InstrWidget,LoopVector{InstrWidget}} = Dict()
+    spacing::Vector{Cfloat} = [0, 0]
     global function edit(insw::InstrWidget, insbuf::InstrBuffer, addr, p_open, id; usingit=false)
         scale = unsafe_load(CImGui.GetIO().FontGlobalScale)
         CImGui.SetNextWindowSize(insw.windowsize * scale)
@@ -820,8 +836,7 @@ let
                 if !usingit
                     if haskey(draglayers, i)
                         isselected = selectedqtw == i
-                        ingroup = i in qtwgroup
-                        isselectedoringroup = isselected || ingroup
+                        isselectedoringroup = isselected || qtw.selected
                         if draggable
                             if isselectedoringroup
                                 if draglayers[i] isa Vector
@@ -847,7 +862,7 @@ let
                                 end
                             end
                         else
-                            if ingroup
+                            if qtw.selected
                                 drawlist = CImGui.GetWindowDrawList()
                                 wpos = CImGui.GetWindowPos()
                                 if qtw.name == "_Shape_" && qtw.options.uitype in ["triangle", "line"]
@@ -913,25 +928,25 @@ let
             (qtw.options.uitype == "line" && dl isa Vector && length(dl) == 2) ||
             (qtw.options.uitype in ["rect", "circle"] && dl isa DragRect)
         )) || (qtw.name != "_Shape_" && dl isa DragRect)
-            @c showlayer(insw, qtw, dl, i, isanyitemdragging, &ishovered)
+            @c showlayer(insw, qtw, dl, isanyitemdragging, &ishovered)
         else
             delete!(draglayers, i)
         end
         if ishovered && CImGui.IsMouseClicked(0)
-            unsafe_load(CImGui.GetIO().KeyCtrl) ? addtogroup(qtw, i) : selectedqtw = i
+            unsafe_load(CImGui.GetIO().KeyCtrl) ? addtogroup!(qtw) : selectedqtw = i
         end
     end
 
-    global function showlayer(insw::InstrWidget, qtw::QuantityWidget, dr::DragRect, i, isanyitemdragging::Ref{Bool}, ishovered::Ref{Bool})
+    global function showlayer(insw::InstrWidget, qtw::QuantityWidget, dr::DragRect, isanyitemdragging::Ref{Bool}, ishovered::Ref{Bool})
         cspos = CImGui.GetWindowPos()
         dr.posmin = cspos .+ qtw.options.vertices[1]
         dr.posmax = dr.posmin .+ (qtw.name == "_Shape_" || qtw.options.uitype == "readdashboard" ? qtw.options.itemsize : CImGui.GetItemRectSize())
         (isanyitemdragging[] || qtw.hold) && (dr.dragging = false; dr.gripdragging = false)
         edit(dr)
         isanyitemdragging[] |= dr.dragging | dr.gripdragging
-        if dr.dragging && i in qtwgroup
-            qtwgroupposoffset .= dr.posmin .- cspos .- qtwgrouppos[findfirst(==(i), qtwgroup)]
-            updategrouppos(insw)
+        if dr.dragging && qtw.selected
+            insw.posoffset .= dr.posmin .- cspos .- qtw.posbuf
+            updategrouppos!(insw)
         end
         if dr.dragging || dr.gripdragging
             qtw.options.itemsize = dr.posmax .- dr.posmin
@@ -940,7 +955,7 @@ let
         ishovered[] = dr.hovered || dr.griphovered
     end
 
-    global function showlayer(insw::InstrWidget, qtw::QuantityWidget, dps::Vector{DragPoint}, i, isanyitemdragging::Ref{Bool}, ishovered::Ref{Bool})
+    global function showlayer(insw::InstrWidget, qtw::QuantityWidget, dps::Vector{DragPoint}, isanyitemdragging::Ref{Bool}, ishovered::Ref{Bool})
         ### 同步位置
         cspos = CImGui.GetWindowPos()
         dps[1].pos = cspos .+ qtw.options.vertices[1]
@@ -955,9 +970,9 @@ let
         end
         ## 反同步位置
         if dps[1].dragging
-            if i in qtwgroup
-                qtwgroupposoffset .= dps[1].pos .- cspos .- qtwgrouppos[findfirst(==(i), qtwgroup)]
-                updategrouppos(insw)
+            if qtw.selected
+                insw.posoffset .= dps[1].pos .- cspos .- qtw.posbuf
+                updategrouppos!(insw)
             else
                 qtw.options.vertices[1] .= dps[1].pos .- cspos
             end
@@ -1002,19 +1017,19 @@ let
         openmodw = false
         dragmode == "" && (dragmode = mlstr("swap"))
         if !haskey(redolist, insw)
-            push!(redolist, insw => LoopVector(fill(QuantityWidget[], CONF.Register.historylen)))
-            redolist[insw][] = deepcopy.(insw.qtws)
+            push!(redolist, insw => LoopVector(fill(InstrWidget(), CONF.Register.historylen)))
+            redolist[insw][] = deepcopy(insw)
         end
         if !CImGui.IsMouseDown(0)
-            redolist[insw][] == insw.qtws || (move!(redolist[insw]); redolist[insw][] = deepcopy.(insw.qtws))
+            redolist[insw][] ≈ insw || (move!(redolist[insw]); redolist[insw][] = deepcopy(insw))
         end
         if unsafe_load(CImGui.GetIO().KeyCtrl)
-            if CImGui.IsKeyPressed(ImGuiKey_Z, false) && !isempty(redolist[insw][-1])
+            if CImGui.IsKeyPressed(ImGuiKey_Z, false) && !isempty(redolist[insw][-1].qtws)
                 move!(redolist[insw], -1)
-                insw.qtws = deepcopy.(redolist[insw][])
-            elseif CImGui.IsKeyPressed(ImGuiKey_Y, false) && !isempty(redolist[insw][1])
+                copyinsw!(insw, deepcopy(redolist[insw][]))
+            elseif CImGui.IsKeyPressed(ImGuiKey_Y, false) && !isempty(redolist[insw][1].qtws)
                 move!(redolist[insw])
-                insw.qtws = deepcopy.(redolist[insw][])
+                copyinsw!(insw, deepcopy(redolist[insw][]))
             end
         end
         CImGui.BeginChild("view widgets all")
@@ -1049,7 +1064,6 @@ let
                 addwidgetmenu(insw, i; mode=:after)
                 convertmenu(insw, i)
                 CImGui.MenuItem(stcstr(MORESTYLE.Icons.CloseFile, " ", mlstr("Delete"))) && (deleteat!(insw.qtws, i); break)
-                # optionsmenu(qtw, insw.instrnm)
                 CImGui.PopID()
                 CImGui.EndPopup()
             end
@@ -1093,31 +1107,53 @@ let
         CImGui.BeginChild("options")
         SeparatorTextColored(MORESTYLE.Colors.HighlightText, mlstr("Options"))
         stbw = CImGui.GetContentRegionAvailWidth() / 2
-        if CImGui.Button(stcstr(MORESTYLE.Icons.Undo, " ", mlstr("Undo"))) && !isempty(redolist[insw][-1])
+        if CImGui.Button(stcstr(MORESTYLE.Icons.Undo, " ", mlstr("Undo"))) && !isempty(redolist[insw][-1].qtws)
             move!(redolist[insw], -1)
-            insw.qtws = deepcopy.(redolist[insw][])
+            copyinsw!(insw, deepcopy(redolist[insw][]))
         end
         CImGui.SameLine()
-        if CImGui.Button(stcstr(MORESTYLE.Icons.Redo, " ", mlstr("Redo"))) && !isempty(redolist[insw][1])
+        if CImGui.Button(stcstr(MORESTYLE.Icons.Redo, " ", mlstr("Redo"))) && !isempty(redolist[insw][1].qtws)
             move!(redolist[insw])
-            insw.qtws = deepcopy.(redolist[insw][])
+            copyinsw!(insw, deepcopy(redolist[insw][]))
         end
         @c CImGui.Checkbox(mlstr("Show Serial Numbers"), &showslnums)
         @c CImGui.Checkbox(mlstr("Show Positions"), &showpos)
         @c CImGui.Checkbox(mlstr("Draggable"), &draggable)
         @c ComBoS(mlstr("Dragging Mode"), &dragmode, mlstr.(dragmodes))
         @c CImGui.SliderInt(mlstr("Display Columns"), &showcols, 1, 12, "%d")
-        if isempty(qtwgroup)
-            qtwgroupposoffset == [0, 0] || (qtwgroupposoffset .= [0, 0])
-            qtwgroupsizeoffset == [0, 0] || (qtwgroupsizeoffset .= [0, 0])
+        if all(!qtw.selected for qtw in insw.qtws)
+            insw.posoffset == [0, 0] || (insw.posoffset .= [0, 0])
+            insw.sizeoffset == [0, 0] || (insw.sizeoffset .= [0, 0])
         else
-            CImGui.Button(stcstr(MORESTYLE.Icons.CloseFile, "##emptygroup"), (-1, 0)) && emptygroup()
+            CImGui.Button(stcstr(MORESTYLE.Icons.CloseFile, "##emptygroup"), (-1, 0)) && emptygroup!(insw)
             CImGui.DragFloat2(
-                mlstr("Position Offset"), qtwgroupposoffset, 1, -6000, 6000, "%.1f", CImGui.ImGuiSliderFlags_AlwaysClamp
-            ) && updategrouppos(insw)
+                mlstr("Position Offset"), insw.posoffset, 1, -6000, 6000, "%.1f", CImGui.ImGuiSliderFlags_AlwaysClamp
+            ) && updategrouppos!(insw)
             CImGui.DragFloat2(
-                mlstr("Size Offset"), qtwgroupsizeoffset, 1, -6000, 6000, "%.1f", CImGui.ImGuiSliderFlags_AlwaysClamp
-            ) && updategroupsize(insw)
+                mlstr("Size Offset"), insw.sizeoffset, 1, -6000, 6000, "%.1f", CImGui.ImGuiSliderFlags_AlwaysClamp
+            ) && updategroupsize!(insw)
+            itemw = CImGui.CalcItemWidth()
+            itemh = 2CImGui.GetFrameHeight()
+            CImGui.DragFloat2(mlstr("Spacing"), spacing, 1, 0, 600, "%.1f", CImGui.ImGuiSliderFlags_AlwaysClamp)
+            CImGui.PushStyleVar(CImGui.ImGuiStyleVar_ItemSpacing, (0, 0))
+            CImGui.Button(mlstr("Horizontal"), (itemw/2, Cfloat(0))) && autospacing!(insw, spacing[1], Val(:horizontal))
+            CImGui.SameLine()
+            CImGui.Button(mlstr("Vertical"), (itemw/2, Cfloat(0))) && autospacing!(insw, spacing[2], Val(:vertical))
+            CImGui.PopStyleVar()
+            CImGui.SameLine()
+            CImGui.Text(mlstr("Auto Spacing"))
+            CImGui.PushStyleVar(CImGui.ImGuiStyleVar_ItemSpacing, (0, 0))
+            CImGui.Button(mlstr("Left"), (itemw/4, itemh)) && alignwidgets!(insw, insw.posoffset, Val(:left))
+            CImGui.SameLine()
+            CImGui.BeginGroup()
+            CImGui.Button(mlstr("Top"), (itemw/2, Cfloat(0))) && alignwidgets!(insw, insw.posoffset, Val(:up))
+            CImGui.Button(mlstr("Bottom"), (itemw/2, Cfloat(0))) && alignwidgets!(insw, insw.posoffset, Val(:down))
+            CImGui.EndGroup()
+            CImGui.SameLine()
+            CImGui.Button(mlstr("Right"), (itemw/4, itemh)) && alignwidgets!(insw, insw.posoffset, Val(:right))
+            CImGui.PopStyleVar()
+            CImGui.SameLine()
+            CImGui.Text(mlstr("Auto Align"))
         end
         optioncursor = CImGui.GetCursorScreenPos()
         globalwidgetoptionsmenu(insw)
@@ -1199,26 +1235,26 @@ let
         else
             stcstr(showslnums ? stcstr(id, " ") : "", qtw.alias, "\n", qtw.options.uitype, '\n', pos)
         end
-        ispushstylecol = selectedqtw == id || id in qtwgroup
+        ispushstylecol = selectedqtw == id || qtw.selected
         ispushstylecol && CImGui.PushStyleColor(
             CImGui.ImGuiCol_Button,
             selectedqtw == id ? MORESTYLE.Colors.SelectedWidgetBt : MORESTYLE.Colors.WidgetRectSelected
         )
         if CImGui.Button(label, size)
             if unsafe_load(CImGui.GetIO().KeyCtrl)
-                addtogroup(qtw, id)
+                addtogroup!(qtw)
             elseif unsafe_load(CImGui.GetIO().KeyShift)
                 if selectedqtw == 0
                     selectedqtw = id
                 elseif selectedqtw == id
-                    addtogroup(qtw, id)
+                    addtogroup!(qtw)
                 elseif selectedqtw < id
                     for i in selectedqtw:id
-                        addtogroup(insw.qtws[i], i)
+                        addtogroup!(insw.qtws[i])
                     end
                 else
                     for i in id:selectedqtw
-                        addtogroup(insw.qtws[i], i)
+                        addtogroup!(insw.qtws[i])
                     end
                 end
             else
@@ -1237,37 +1273,104 @@ let
             )
         end
     end
+end
 
-    global function addtogroup(qtw, i)
-        if i in qtwgroup
-            idxes = findall(==(i), qtwgroup)
-            deleteat!(qtwgroup, idxes)
-            deleteat!(qtwgrouppos, idxes)
-            deleteat!(qtwgroupsize, idxes)
-        else
-            push!(qtwgroup, i)
-            push!(qtwgrouppos, copy(qtw.options.vertices[1]))
-            push!(qtwgroupsize, copy(qtw.options.itemsize))
-        end
+function addtogroup!(qtw::QuantityWidget)
+    if qtw.selected
+        qtw.selected = false
+    else
+        qtw.selected = true
+        qtw.posbuf = copy(qtw.options.vertices[1])
+        qtw.sizebuf = copy(qtw.options.itemsize)
     end
+end
 
-    global function emptygroup()
-        empty!(qtwgroup)
-        empty!(qtwgrouppos)
-        empty!(qtwgroupsize)
+function emptygroup!(insw::InstrWidget)
+    for qtw in insw.qtws
+        qtw.selected = false
     end
+end
 
-    global function updategrouppos(insw::InstrWidget)
-        for (i, pos) in zip(qtwgroup, qtwgrouppos)
-            insw.qtws[i].options.vertices[1] .= pos .+ qtwgroupposoffset
-        end
+function updategrouppos!(insw::InstrWidget)
+    for qtw in filter(x -> x.selected, insw.qtws)
+        qtw.options.vertices[1] .= qtw.posbuf .+ insw.posoffset
     end
+end
 
-    global function updategroupsize(insw::InstrWidget)
-        for (i, sz) in zip(qtwgroup, qtwgroupsize)
-            insw.qtws[i].options.itemsize .= sz .+ qtwgroupsizeoffset
-        end
+function updategroupsize!(insw::InstrWidget)
+    for qtw in filter(x -> x.selected, insw.qtws)
+        qtw.options.itemsize .= qtw.sizebuf .+ insw.sizeoffset
     end
+end
+
+function alignwidgets!(insw::InstrWidget, posoffset, ::Val{:left})
+    qtws = filter(x -> x.selected, insw.qtws)
+    poses = [qtw.posbuf for qtw in qtws]
+    minx = min([pos[1] for pos in poses]...)
+    for pos in poses
+        pos[1] = minx
+    end
+    updategrouppos!(insw)
+end
+
+function alignwidgets!(insw::InstrWidget, posoffset, ::Val{:right})
+    qtws = filter(x -> x.selected, insw.qtws)
+    poses = [qtw.posbuf for qtw in qtws]
+    sizes = [qtw.sizebuf for qtw in qtws]
+    maxx = max([pos[1] + sizes[i][1] for (i, pos) in enumerate(poses)]...)
+    for (i, pos) in enumerate(poses)
+        pos[1] = maxx - sizes[i][1]
+    end
+    updategrouppos!(insw)
+end
+
+function alignwidgets!(insw::InstrWidget, posoffset, ::Val{:up})
+    qtws = filter(x -> x.selected, insw.qtws)
+    poses = [qtw.posbuf for qtw in qtws]
+    miny = min([pos[2] for pos in poses]...)
+    for pos in poses
+        pos[2] = miny
+    end
+    updategrouppos!(insw)
+end
+
+function alignwidgets!(insw::InstrWidget, posoffset, ::Val{:down})
+    qtws = filter(x -> x.selected, insw.qtws)
+    poses = [qtw.posbuf for qtw in qtws]
+    sizes = [qtw.sizebuf for qtw in qtws]
+    maxy = max([pos[2] + sizes[i][2] for (i, pos) in enumerate(poses)]...)
+    for (i, pos) in enumerate(poses)
+        pos[2] = maxy - sizes[i][2]
+    end
+    updategrouppos!(insw)
+end
+
+function autospacing!(insw::InstrWidget, spacing, ::Val{:horizontal})
+    qtws = filter(x -> x.selected, insw.qtws)
+    poses = [qtw.posbuf for qtw in qtws]
+    sizes = [qtw.sizebuf for qtw in qtws]
+    sp = sortperm([pos[1] for pos in poses])
+    sortedposes = poses[sp]
+    sortedsizes = sizes[sp]
+    for i in eachindex(sortedposes)[2:end]
+        sortedposes[i][1] = sortedposes[i-1][1] + sortedsizes[i-1][1] + spacing
+    end
+    poses .= sortedposes[inversesp(sp)]
+    updategrouppos!(insw)
+end
+
+function autospacing!(insw::InstrWidget, spacing, ::Val{:vertical})
+    qtws = filter(x -> x.selected, insw.qtws)
+    poses = [qtw.posbuf for qtw in qtws]
+    sizes = [qtw.sizebuf for qtw in qtws]
+    sp = sortperm([pos[2] for pos in poses])
+    sortedposes = poses[sp]
+    sortedsizes = sizes[sp]
+    for i in eachindex(sortedposes)[2:end]
+        sortedposes[i][2] = sortedposes[i-1][2] + sortedsizes[i-1][2] + spacing
+    end
+    poses .= sortedposes[inversesp(sp)]
+    updategrouppos!(insw)
 end
 
 function addwidgetmenu(insw::InstrWidget, i=0; mode=:addlast)
