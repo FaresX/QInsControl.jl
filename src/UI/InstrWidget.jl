@@ -843,11 +843,22 @@ let
                                     for dp in draglayers[i]
                                         dp.col = MORESTYLE.Colors.WidgetRectSelected
                                     end
-                                    isselected && (draglayers[i][1].col = MORESTYLE.Colors.SelectedWidgetBt)
+                                    draglayers[i][1].col = if isselected && !qtw.selected
+                                        MORESTYLE.Colors.SelectedWidgetBt
+                                    elseif !isselected && qtw.selected
+                                        MORESTYLE.Colors.WidgetRectSelected
+                                    else
+                                        (MORESTYLE.Colors.SelectedWidgetBt .+ MORESTYLE.Colors.WidgetRectSelected) ./ 2
+                                    end
                                 else
-                                    draglayers[i].col = MORESTYLE.Colors.WidgetRectSelected
                                     draglayers[i].colbd = MORESTYLE.Colors.WidgetBorderSelected
-                                    isselected && (draglayers[i].col = MORESTYLE.Colors.SelectedWidgetBt)
+                                    draglayers[i].col = if isselected && !qtw.selected
+                                        MORESTYLE.Colors.SelectedWidgetBt
+                                    elseif !isselected && qtw.selected
+                                        MORESTYLE.Colors.WidgetRectSelected
+                                    else
+                                        (MORESTYLE.Colors.SelectedWidgetBt .+ MORESTYLE.Colors.WidgetRectSelected) ./ 2
+                                    end
                                 end
                             end
                             @c showlayer(insw, qtw, i, &isanyitemdragging)
@@ -933,7 +944,14 @@ let
             delete!(draglayers, i)
         end
         if ishovered && CImGui.IsMouseClicked(0)
-            unsafe_load(CImGui.GetIO().KeyCtrl) ? addtogroup!(qtw) : selectedqtw = i
+            if unsafe_load(CImGui.GetIO().KeyCtrl)
+                if !qtw.hold
+                    qtw.selected ⊻= true
+                    qtw.selected && addtogroup!(qtw)
+                end
+            else
+                selectedqtw = i
+            end
         end
     end
 
@@ -1239,11 +1257,18 @@ let
         ispushstylecol = selectedqtw == id || qtw.selected
         ispushstylecol && CImGui.PushStyleColor(
             CImGui.ImGuiCol_Button,
-            selectedqtw == id ? MORESTYLE.Colors.SelectedWidgetBt : MORESTYLE.Colors.WidgetRectSelected
+            if selectedqtw == id && !qtw.selected
+                MORESTYLE.Colors.SelectedWidgetBt
+            elseif selectedqtw != id && qtw.selected
+                MORESTYLE.Colors.WidgetRectSelected
+            else
+                (MORESTYLE.Colors.SelectedWidgetBt .+ MORESTYLE.Colors.WidgetRectSelected) ./ 2
+            end
         )
         if CImGui.Button(label, size)
             if unsafe_load(CImGui.GetIO().KeyCtrl)
                 qtw.selected ⊻= true
+                qtw.selected && addtogroup!(qtw)
             elseif unsafe_load(CImGui.GetIO().KeyShift)
                 if selectedqtw == 0
                     selectedqtw = id
@@ -1368,7 +1393,6 @@ function autospacing!(insw::InstrWidget, selectedqtw, spacing, ::Val{:horizontal
     for i in eachindex(sortedposes)[2:end]
         sortedposes[i][1] = sortedposes[i-1][1] + sortedsizes[i-1][1] + spacing
     end
-    poses .= sortedposes[inversesp(sp)]
     if hasbase
         δpos = insw.qtws[selectedqtw].posbuf .- basepos
         for pos in poses
@@ -1390,7 +1414,6 @@ function autospacing!(insw::InstrWidget, selectedqtw, spacing, ::Val{:vertical})
     for i in eachindex(sortedposes)[2:end]
         sortedposes[i][2] = sortedposes[i-1][2] + sortedsizes[i-1][2] + spacing
     end
-    poses .= sortedposes[inversesp(sp)]
     if hasbase
         δpos = insw.qtws[selectedqtw].posbuf .- basepos
         for pos in poses
