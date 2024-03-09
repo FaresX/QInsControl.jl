@@ -67,6 +67,13 @@ end
     qtlist::Vector{String} = []
 end
 
+function Base.isequal(qtw1::QuantityWidget, qtw2::QuantityWidget)
+    return all(getproperty(qtw1, fdnm) == getproperty(qtw2, fdnm) for fdnm in fieldnames(QuantityWidget))
+end
+function Base.isequal(opts1::QuantityWidgetOption, opts2::QuantityWidgetOption)
+    return all(getproperty(opts1, fdnm) == getproperty(opts2, fdnm) for fdnm in fieldnames(QuantityWidgetOption))
+end
+
 const INSWCONF = OrderedDict{String,Vector{InstrWidget}}() #仪器注册表
 
 function copyvars!(opts1, opts2)
@@ -785,6 +792,7 @@ let
     fakewidget::QuantityWidget = QuantityWidget()
     maxwindowsize::CImGui.ImVec2 = (400, 600)
     windowpos::Bool = true # false left true right
+    redolist::Dict{InstrWidget,LoopVector{Vector{QuantityWidget}}} = Dict()
     global function edit(insw::InstrWidget, insbuf::InstrBuffer, addr, p_open, id; usingit=false)
         scale = unsafe_load(CImGui.GetIO().FontGlobalScale)
         CImGui.SetNextWindowSize(insw.windowsize * scale)
@@ -992,7 +1000,22 @@ let
     global function view(insw::InstrWidget)
         openmodw = false
         dragmode == "" && (dragmode = mlstr("swap"))
-        # CImGui.BeginChild(stcstr(insw.instrnm, insw.name), (0, 0), false, CImGui.ImGuiWindowFlags_HorizontalScrollbar)
+        if !haskey(redolist, insw)
+            push!(redolist, insw => LoopVector(fill(QuantityWidget[], CONF.Register.historylen)))
+            redolist[insw][] = deepcopy.(insw.qtws)
+        end
+        if !CImGui.IsMouseDown(0)
+            redolist[insw][] == insw.qtws || (move!(redolist[insw]); redolist[insw][] = deepcopy.(insw.qtws))
+        end
+        if unsafe_load(CImGui.GetIO().KeyCtrl)
+            if CImGui.IsKeyPressed(ImGuiKey_Z, false) && !isempty(redolist[insw][-1])
+                move!(redolist[insw], -1)
+                insw.qtws = deepcopy.(redolist[insw][])
+            elseif CImGui.IsKeyPressed(ImGuiKey_Y, false) && !isempty(redolist[insw][1])
+                move!(redolist[insw])
+                insw.qtws = deepcopy.(redolist[insw][])
+            end
+        end
         CImGui.BeginChild("view widgets all")
         CImGui.Columns(2)
         SeparatorTextColored(MORESTYLE.Colors.HighlightText, mlstr("Widgets"))
@@ -1068,6 +1091,16 @@ let
         coloffsetminus = CImGui.GetWindowContentRegionWidth() - CImGui.GetColumnOffset(1)
         CImGui.BeginChild("options")
         SeparatorTextColored(MORESTYLE.Colors.HighlightText, mlstr("Options"))
+        stbw = CImGui.GetContentRegionAvailWidth() / 2
+        if CImGui.Button(stcstr(MORESTYLE.Icons.Undo, " ", mlstr("Undo"))) && !isempty(redolist[insw][-1])
+            move!(redolist[insw], -1)
+            insw.qtws = deepcopy.(redolist[insw][])
+        end
+        CImGui.SameLine()
+        if CImGui.Button(stcstr(MORESTYLE.Icons.Redo, " ", mlstr("Redo"))) && !isempty(redolist[insw][1])
+            move!(redolist[insw])
+            insw.qtws = deepcopy.(redolist[insw][])
+        end
         @c CImGui.Checkbox(mlstr("Show Serial Numbers"), &showslnums)
         @c CImGui.Checkbox(mlstr("Show Positions"), &showpos)
         @c CImGui.Checkbox(mlstr("Draggable"), &draggable)

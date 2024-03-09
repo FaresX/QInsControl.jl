@@ -191,7 +191,7 @@ let
                 @c CImGui.DragInt(
                     stcstr(mlstr("history blocks"), "##DAQ"),
                     &CONF.DAQ.historylen,
-                    1.0, 6, 60, "%d",
+                    1.0, 6, 1200, "%d",
                     CImGui.ImGuiSliderFlags_AlwaysClamp
                 )
                 @c(CImGui.DragInt(
@@ -226,6 +226,15 @@ let
                 )
                 CImGui.Text(" ")
 
+                ###Register###
+                SeparatorTextColored(MORESTYLE.Colors.HighlightText, mlstr("Instrument Registration"))
+                @c CImGui.DragInt(
+                    stcstr(mlstr("history widgets"), "##Register"),
+                    &CONF.Register.historylen,
+                    1.0, 6, 1200, "%d",
+                    CImGui.ImGuiSliderFlags_AlwaysClamp
+                )
+                CImGui.Text(" ")
 
                 ###Fonts###
                 SeparatorTextColored(MORESTYLE.Colors.HighlightText, mlstr("Font"))

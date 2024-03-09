@@ -42,6 +42,10 @@ end
     unitlist::Dict{String,Dict{String,Dict{String,Int}}} = Dict()
 end
 
+@option mutable struct OptRegister
+    historylen::Cint = 120
+end
+
 @option mutable struct OptFonts
     dir::String = ""
     size::Cint = 18
@@ -89,6 +93,7 @@ end
     DtViewer::OptDtViewer = OptDtViewer()
     DAQ::OptDAQ = OptDAQ()
     InsBuf::OptInsBuf = OptInsBuf()
+    Register::OptRegister = OptRegister()
     Fonts::OptFonts = OptFonts()
     # Icons::OptIcons = OptIcons()
     Console::OptConsole = OptConsole()
