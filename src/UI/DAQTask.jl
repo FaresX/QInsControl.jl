@@ -25,7 +25,6 @@ let
             CImGui.ImGuiWindowFlags_NoTitleBar | CImGui.ImGuiWindowFlags_NoDocking
         )
             ftsz = CImGui.GetFontSize()
-            # CImGui.TextColored(MORESTYLE.Colors.HighlightText, MORESTYLE.Icons.TaskButton)
             CImGui.PushStyleColor(CImGui.ImGuiCol_Button, (0, 0, 0, 0))
             CImGui.PushStyleColor(CImGui.ImGuiCol_ButtonHovered, (0, 0, 0, 0))
             CImGui.PushStyleColor(CImGui.ImGuiCol_ButtonActive, (0, 0, 0, 0))
@@ -36,7 +35,7 @@ let
             CImGui.Button(stcstr(" ", mlstr("Edit queue: Task"), " ", id + OLDI, " ", daqtask.name))
             CImGui.PopStyleColor(3)
             CImGui.SameLine(CImGui.GetContentRegionAvailWidth() - 3ftsz)
-            CImGui.Button(viewmode ? MORESTYLE.Icons.View : MORESTYLE.Icons.Edit, (3ftsz/2, Cfloat(0))) && (viewmode ⊻= true)
+            CImGui.Button(viewmode ? MORESTYLE.Icons.View : MORESTYLE.Icons.Edit, (3ftsz / 2, Cfloat(0))) && (viewmode ⊻= true)
             CImGui.SameLine()
             @c ToggleButton(MORESTYLE.Icons.HoldPin, &daqtask.hold)
             CImGui.Separator()
@@ -49,19 +48,10 @@ let
                 CImGui.EndPopup()
             end
             SeparatorTextColored(MORESTYLE.Colors.HighlightText, mlstr("Script"))
-            # CImGui.Button(
-            #     stcstr(MORESTYLE.Icons.InstrumentsAutoDetect, " ", mlstr("Refresh instrument list"))
-            # ) && refresh_instrlist()
-            # if CImGui.BeginPopupContextItem()
-            #     manualadd_ui()
-            #     CImGui.EndPopup()
-            # end
             if SYNCSTATES[Int(AutoDetecting)]
                 CImGui.SameLine()
                 CImGui.TextColored(MORESTYLE.Colors.HighlightText, stcstr(mlstr("searching instruments"), "......"))
             end
-            # CImGui.SameLine(CImGui.GetContentRegionAvailWidth() - 3ftsz/2)
-            # CImGui.Button(viewmode ? MORESTYLE.Icons.View : MORESTYLE.Icons.Edit) && (viewmode ⊻= true)
             CImGui.PushID(id)
             dragblockmenu(id)
             CImGui.BeginChild("DAQTask.blocks")
@@ -71,8 +61,13 @@ let
             CImGui.PopStyleVar()
             CImGui.PopStyleColor()
             CImGui.EndChild()
-            haskey(redolist, id) || (push!(redolist, id => LoopVector(fill(AbstractBlock[], 10))); redolist[id][] = deepcopy(daqtask.blocks))
-            redolist[id][] ≈ daqtask.blocks || (move!(redolist[id]); redolist[id][] = deepcopy(daqtask.blocks))
+            if !haskey(redolist, id)
+                push!(redolist, id => LoopVector(fill(AbstractBlock[], CONF.DAQ.historylen)))
+                redolist[id][] = deepcopy(daqtask.blocks)
+            end
+            if !CImGui.IsMouseDown(0)
+                redolist[id][] ≈ daqtask.blocks || (move!(redolist[id]); redolist[id][] = deepcopy(daqtask.blocks))
+            end
             all(.!mousein.(daqtask.blocks, true)) && CImGui.OpenPopupOnItemClick("add new Block")
             if CImGui.BeginPopup("add new Block")
                 if CImGui.BeginMenu(stcstr(MORESTYLE.Icons.NewFile, " ", mlstr("Add")))
@@ -81,11 +76,11 @@ let
                     CImGui.EndMenu()
                 end
                 CImGui.Separator()
-                if CImGui.MenuItem(stcstr(MORESTYLE.Icons.Undo, " ", mlstr("Undo")))
+                if CImGui.MenuItem(stcstr(MORESTYLE.Icons.Undo, " ", mlstr("Undo"))) && !isempty(redolist[id][-1])
                     move!(redolist[id], -1)
                     daqtask.blocks = deepcopy(redolist[id][])
                 end
-                if CImGui.MenuItem(stcstr(MORESTYLE.Icons.Redo, " ", mlstr("Redo")))
+                if CImGui.MenuItem(stcstr(MORESTYLE.Icons.Redo, " ", mlstr("Redo"))) && !isempty(redolist[id][1])
                     move!(redolist[id])
                     daqtask.blocks = deepcopy(redolist[id][])
                 end
@@ -93,10 +88,10 @@ let
                 CImGui.EndPopup()
             end
             if unsafe_load(CImGui.GetIO().KeyCtrl)
-                if CImGui.IsKeyPressed(ImGuiKey_Z, false)
+                if CImGui.IsKeyPressed(ImGuiKey_Z, false) && !isempty(redolist[id][-1])
                     move!(redolist[id], -1)
                     daqtask.blocks = deepcopy(redolist[id][])
-                elseif CImGui.IsKeyPressed(ImGuiKey_Y, false)
+                elseif CImGui.IsKeyPressed(ImGuiKey_Y, false) && !isempty(redolist[id][1])
                     move!(redolist[id])
                     daqtask.blocks = deepcopy(redolist[id][])
                 end
