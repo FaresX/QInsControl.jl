@@ -172,7 +172,7 @@ function showdtpks(
                 dtp.showdtpks[i] = isshowdtpk
                 if true in [
                     dtss.update ||
-                    (dtss.isrealtime && waittime(stcstr("DataPicker", dtp.plots[i].id, "-", j), dtss.refreshrate))
+                    (dtss.isrealtime && waittime(stcstr("DataPicker-link", dtp.plots[i].id, "-", j), dtss.refreshrate))
                     for (j, dtss) in enumerate(dtpk.series)
                 ]
                     linkeddata = Dict{String,VecOrMat{Cdouble}}()

@@ -301,7 +301,7 @@ let
                 syncplotdata(DAQDATAPLOT.plots[i], DAQDATAPLOT.dtpks[i], DATABUF, DATABUFPARSED)
             else
                 if true in [
-                    dtss.isrealtime && waittime(stcstr("DAQ", i, "-", j), dtss.refreshrate)
+                    dtss.isrealtime && waittime(stcstr("DataPicker-link", DAQDATAPLOT.plots[i].id, "-", j), dtss.refreshrate)
                     for (j, dtss) in enumerate(DAQDATAPLOT.dtpks[i].series)
                 ]
                     pltlink = DAQDATAPLOT.plots[DAQDATAPLOT.linkidx[i]]
