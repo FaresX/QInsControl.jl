@@ -904,7 +904,7 @@ function DrawSemicircleBox(window_width, y_offset, ruler, color; num_segments=24
     )
     RulerDrawCount = [0.0, 1.0]
 
-    CImGui.PathArcTo(CImGui.GetWindowDrawList(), CImGui.GetCursorScreenPos().+(DrawOffsetHigh, y_offset), CircleRadius[1], -5π/4, π/4, 2num_segments)
+    CImGui.PathArcTo(CImGui.GetWindowDrawList(), CImGui.GetCursorScreenPos() .+ (DrawOffsetHigh, y_offset), CircleRadius[1], -5π / 4, π / 4, 2num_segments)
     CImGui.PathStroke(CImGui.GetWindowDrawList(), CImGui.ColorConvertFloat4ToU32(color), false, 0.01window_width)
     for i in SemicircleDeg[1]:0.15:SemicircleDeg[2]
 
@@ -934,7 +934,7 @@ function DrawSemicircleBox(window_width, y_offset, ruler, color; num_segments=24
         LineBeginInnerTemp = LineEndInnerTemp
     end
 
-    CImGui.PathArcTo(CImGui.GetWindowDrawList(), CImGui.GetCursorScreenPos().+(DrawOffsetHigh, y_offset), CircleRadius[2], -5π/4, π/4, round(Int, 3num_segments/2))
+    CImGui.PathArcTo(CImGui.GetWindowDrawList(), CImGui.GetCursorScreenPos() .+ (DrawOffsetHigh, y_offset), CircleRadius[2], -5π / 4, π / 4, round(Int, 3num_segments / 2))
     CImGui.PathStroke(CImGui.GetWindowDrawList(), CImGui.ColorConvertFloat4ToU32(color), false, 0.03window_width)
 
     ExtDrawLine(
@@ -1003,7 +1003,7 @@ function DrawIndicator(
         cos(IMFXC_DEGTORAD(SemicircleDeg[2] - SemicircleDegLen * ValueProportion) + IWL) * DrawOffsetHigh * 0.85 - unsafe_load(IMGUISTYLE.ItemSpacing.x) + y_offset
     )
 
-    ExtDrawCircleFill(CenterPoint, 8linewidth, [colbase[1:3]...; colbase[4]*0.6]; num_segments=num_segments)
+    ExtDrawCircleFill(CenterPoint, 8linewidth, [colbase[1:3]...; colbase[4] * 0.6]; num_segments=num_segments)
     ExtDrawLine(LineBeginTemp, CenterPoint, colind, linewidth)
     ExtDrawCircleFill(CenterPoint, 6linewidth, colbase; num_segments=num_segments)
 end
@@ -1049,6 +1049,8 @@ function DrawDashboardWindow(
     ledsz = (40, 20) .* (size[1] / 600)
     posl = ImVec2(unsafe_load(IMGUISTYLE.ItemSpacing.x), unsafe_load(IMGUISTYLE.ItemSpacing.x))
     posr = ImVec2(ledsz[1] + unsafe_load(IMGUISTYLE.ItemSpacing.x) * 2.0, unsafe_load(IMGUISTYLE.ItemSpacing.x))
+    ExtDrawRectangleFill((0, 0), size, colbg; rounding=rounding)
+    ExtDrawRectangle((0, 0), size, colbd; thickness=thickness, rounding=bdrounding)
     LEDSTATE(
         db.start && db.selfinspstatusflag,
         posl,
@@ -1067,8 +1069,6 @@ function DrawDashboardWindow(
     #     mousein(CImGui.GetCursorScreenPos() .+ posl, CImGui.GetCursorScreenPos() .+ posl .+ (40, 20)) && (db.start = false)
     #     mousein(CImGui.GetCursorScreenPos() .+ posr, CImGui.GetCursorScreenPos() .+ posr .+ (40, 20)) && (db.start = true)
     # end
-    ExtDrawRectangleFill((0, 0), size, colbg; rounding=rounding)
-    ExtDrawRectangle((0, 0), size, colbd; thickness=thickness, rounding=bdrounding)
     DrawSemicircleBox(size[1], size[2] * 0.6, ruler, ExtColorBrightnesScale(colpanel, db.colorsub[2]); num_segments=num_segments)
     DrawRulerscaleValue(size[1], size[2] * 0.6, ruler, db.limit, ExtColorBrightnesScale(coltxt, db.colorsub[2]))
     DrawIndicator(
