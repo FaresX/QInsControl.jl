@@ -64,11 +64,11 @@ let
             CImGui.EndChild()
             @c InputTextMultilineRSZ("##input cmd", &buffer, (Cfloat(0), lineheigth))
             if CImGui.IsItemHovered() && !CImGui.IsItemActive()
-                if CImGui.IsKeyReleased(ImGuiKey_UpArrow)
+                if CImGui.IsKeyReleased(ImGuiKey_UpArrow) && historycmd[-1] != ""
                     move!(historycmd, -1)
                     historycmd_max += 1
                     buffer = historycmd[]
-                elseif CImGui.IsKeyReleased(ImGuiKey_DownArrow)
+                elseif CImGui.IsKeyReleased(ImGuiKey_DownArrow) && historycmd[1] != ""
                     move!(historycmd)
                     historycmd_max -= 1
                     buffer = historycmd[]
@@ -79,21 +79,22 @@ let
                unsafe_load(CImGui.GetIO().KeyCtrl) && CImGui.IsKeyDown(ImGuiKey_Enter)
                 if buffer != ""
                     writetoiofile(iofile, buffer)
-                    historycmd[1+historycmd_max] = buffer
-                    move!(historycmd, 1 + historycmd_max)
+                    move!(historycmd, historycmd_max)
+                    historycmd[] = buffer
+                    move!(historycmd)
                     historycmd_max = 0
                     buffer = ""
                     newmsg = true
                 end
             end
             CImGui.SameLine()
-            if CImGui.Button(ICONS.ICON_CARET_LEFT)
+            if CImGui.Button(ICONS.ICON_CARET_LEFT) && historycmd[-1] != ""
                 move!(historycmd, -1)
                 historycmd_max += 1
                 buffer = historycmd[]
             end
             CImGui.SameLine()
-            if CImGui.Button(ICONS.ICON_CARET_RIGHT)
+            if CImGui.Button(ICONS.ICON_CARET_RIGHT) && historycmd[1] != ""
                 move!(historycmd)
                 historycmd_max -= 1
                 buffer = historycmd[]
