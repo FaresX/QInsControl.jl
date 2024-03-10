@@ -154,8 +154,6 @@ let
             CImGui.PopStyleColor(2)
 
             CImGui.OpenPopupOnItemClick(stcstr("edit queue menu", i))
-            isrunning_i && ShowProgressBar()
-            # if !SYNCSTATES[Int(IsDAQTaskRunning)]
             CImGui.Indent()
             if CImGui.BeginDragDropSource(0)
                 @c CImGui.SetDragDropPayload("Swap DAQTask", &i, sizeof(Cint))
@@ -172,7 +170,7 @@ let
                         deleteat!(daqtasks, payload_i < i ? payload_i : payload_i + 1)
                         deleteat!(torunstates, payload_i < i ? payload_i : payload_i + 1)
                         if running_i == payload_i
-                            running_i = i
+                            running_i = payload_i < i ? i - 1 : i
                             isrunning_i = SYNCSTATES[Int(IsDAQTaskRunning)] && i == running_i
                         elseif payload_i < running_i < i
                             running_i -= 1
@@ -186,7 +184,7 @@ let
                 CImGui.EndDragDropTarget()
             end
             CImGui.Unindent()
-            # end
+            isrunning_i && ShowProgressBar()
 
             if CImGui.BeginPopup(stcstr("edit queue menu", i))
                 if CImGui.MenuItem(
