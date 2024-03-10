@@ -335,6 +335,7 @@ let
                         torunstates[running_i] = false
                         SYNCSTATES[Int(IsInterrupted)] && (SYNCSTATES[Int(IsInterrupted)] = false; break)
                     end
+                    saveproject(projpath)
                 end
                 errormonitor(runalltask)
                 DAQDATAPLOT.showdtpks .= false
