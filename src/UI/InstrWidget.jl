@@ -7,7 +7,7 @@
     textsize::String = "normal"
     textscale::Cfloat = 1
     textinside::Bool = true
-    itemsize::Vector{Cfloat} = [0, 0]
+    itemsize::Vector{Cfloat} = [60, 60]
     rounding::Cfloat = 4
     grabrounding::Cfloat = 6
     bdrounding::Cfloat = 0
