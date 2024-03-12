@@ -314,6 +314,8 @@ Base.setindex!(lv::LoopVector, x, i=0) = (lv.data[__find_index(lv, i)] = x)
 
 move!(lv::LoopVector, i=1) = (lv.index += i)
 
+Base.push!(lv::LoopVector, x) = push!(lv.data, x)
+
 function waittofetch(f, timeout=2; pollint=0.001)
     waittask = errormonitor(@async fetch(f))
     isok = timedwait(() -> istaskdone(waittask), timeout; pollint=pollint)
