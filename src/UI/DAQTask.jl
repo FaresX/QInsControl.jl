@@ -87,7 +87,7 @@ let
                 CImGui.MenuItem(stcstr(MORESTYLE.Icons.Convert, " ", mlstr("Interpret"))) && interpret(daqtask.blocks)
                 CImGui.EndPopup()
             end
-            if unsafe_load(CImGui.GetIO().KeyCtrl)
+            if unsafe_load(CImGui.GetIO().KeyCtrl) && CImGui.IsWindowFocused(CImGui.ImGuiFocusedFlags_ChildWindows)
                 if CImGui.IsKeyPressed(ImGuiKey_Z, false) && !isempty(redolist[id][-1])
                     move!(redolist[id], -1)
                     daqtask.blocks = deepcopy(redolist[id][])
