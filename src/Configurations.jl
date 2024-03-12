@@ -75,6 +75,7 @@ end
 
 @option mutable struct OptBGImage
     path::String = ""
+    rate::Cint = 1
     useall::Bool = true
 end
 
