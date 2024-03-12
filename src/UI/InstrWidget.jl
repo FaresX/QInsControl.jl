@@ -4,6 +4,8 @@
     allowoverlap::Bool = false
     useimage::Bool = false
     autorefresh::Bool = false
+    pathes::Vector{String} = []
+    rate::Cint = 1
     textsize::String = "normal"
     textscale::Cfloat = 1
     textinside::Bool = true
@@ -15,7 +17,7 @@
     comboflags::Cint = 0
     uv0::Vector{Cfloat} = [0, 0]
     uv1::Vector{Cfloat} = [1, 1]
-    framepadding::Cfloat = -1
+    framepadding::Vector{Cfloat} = [6, 6]
     vertices::Vector{Vector{Cfloat}} = [[0, 0], [0, 0], [0, 0]]
     circlesegments::Cint = 24
     ticknum::Cint = 6
@@ -65,6 +67,7 @@ end
     windowsize::Vector{Cfloat} = [600, 600]
     usewallpaper::Bool = false
     wallpaperpath::String = ""
+    rate::Cint = 1
     windowbgcolor::Vector{Cfloat} = [1.000, 1.000, 1.000, 1.000]
     bgtintcolor::Vector{Cfloat} = [1.000, 1.000, 1.000, 1.000]
     options::QuantityWidgetOption = QuantityWidgetOption()
@@ -99,7 +102,7 @@ const INSWCONF = OrderedDict{String,Vector{InstrWidget}}() #仪器注册表
 
 function copyvars!(opts1, opts2)
     fnms = fieldnames(QuantityWidgetOption)
-    for fnm in fnms[1:29]
+    for fnm in fnms[1:30]
         fnm in [:uitype, :vertices] && continue
         setproperty!(opts1, fnm, getproperty(opts2, fnm))
     end
@@ -107,14 +110,14 @@ end
 
 function copycolors!(opts1, opts2)
     fnms = fieldnames(QuantityWidgetOption)
-    for fnm in fnms[30:end]
+    for fnm in fnms[31:end]
         setproperty!(opts1, fnm, getproperty(opts2, fnm))
     end
 end
 
 function copyglobal!(opts1, opts2)
     fnms = fieldnames(QuantityWidgetOption)
-    for fnm in fnms[1:29]
+    for fnm in fnms[1:30]
         fnm in [:rounding, :grabrounding, :bdrounding, :bdthickness] && continue
         setproperty!(opts1, fnm, getproperty(opts2, fnm))
     end
@@ -158,9 +161,11 @@ function editPanel(qtw::QuantityWidget, opts::QuantityWidgetOption)
     opts.textsize == "big" && CImGui.PushFont(PLOTFONT)
     originscale = unsafe_load(CImGui.GetIO().FontGlobalScale)
     CImGui.SetWindowFontScale(opts.textscale)
+    isempty(opts.pathes) && push!(opts.pathes, "")
     trig = ImageColoredButtonRect(
-        mlstr(qtw.alias), qtw.alias, opts.useimage;
+        mlstr(qtw.alias), opts.pathes[1], opts.useimage;
         size=opts.itemsize,
+        rate=opts.rate,
         uv0=opts.uv0,
         uv1=opts.uv1,
         frame_padding=opts.framepadding,
@@ -225,10 +230,12 @@ function editShape(opts::QuantityWidgetOption, ::Val{:line})
     return false
 end
 
-function editImage(qtw::QuantityWidget, opts::QuantityWidgetOption)
+function editImage(::QuantityWidget, opts::QuantityWidgetOption)
+    isempty(opts.pathes) && push!(opts.pathes, "")
     Image(
-        qtw.alias;
+        opts.pathes[1];
         size=opts.itemsize,
+        rate=opts.rate,
         uv0=opts.uv0,
         uv1=opts.uv1,
         tint_col=opts.imgtintcolor,
@@ -823,7 +830,7 @@ let
             insw.windowflags | (addr == "" ? CImGui.ImGuiWindowFlags_NoDocking : 0)
         )
             isanyitemdragging = false
-            insw.usewallpaper && SetWindowBgImage(insw.wallpaperpath; tint_col=insw.bgtintcolor)
+            SetWindowBgImage(insw.wallpaperpath; rate=insw.rate, use=insw.usewallpaper, tint_col=insw.bgtintcolor)
             CImGui.BeginChild("drawing area")
             for (i, qtw) in enumerate(insw.qtws)
                 CImGui.PushID(i)
@@ -1609,7 +1616,7 @@ let
             @c CImGui.Checkbox(mlstr("Allow Overlap"), &qtw.options.allowoverlap)
             @c CImGui.Checkbox(mlstr("Auto Refresh"), &qtw.options.autorefresh)
             if qtw.name == "_Panel_"
-                @c CImGui.Checkbox(mlstr("Use ImageButton"), &qtw.options.useimage)
+                @c CImGui.Checkbox(mlstr("Use Image"), &qtw.options.useimage)
                 @c InputTextRSZ("##Text", &qtw.alias)
                 CImGui.SameLine()
                 iconstr = MORESTYLE.Icons.CopyIcon
@@ -1686,23 +1693,27 @@ let
             )
         end
         if (qtw.name == "_Image_" || (qtw.name == "_Panel_" && qtw.options.useimage)) && CImGui.CollapsingHeader(mlstr("Image Options"))
-            imgpath = qtw.alias
+            imgpath = qtw.options.pathes[1]
             inputimgpath = @c InputTextRSZ("##ImagePath", &imgpath)
             CImGui.SameLine()
             selectimgpath = CImGui.Button(stcstr(MORESTYLE.Icons.SelectPath, "##ImagePath"))
-            selectimgpath && (imgpath = pick_file(abspath(imgpath); filterlist="png,jpg,jpeg,tif,bmp"))
+            selectimgpath && (imgpath = pick_file(abspath(imgpath); filterlist="png,jpg,jpeg,tif,bmp,gif"))
             CImGui.SameLine()
-            CImGui.Text(mlstr("Image Path"))
+            CImGui.Text(mlstr("Path"))
             if inputimgpath || selectimgpath
                 if isfile(imgpath)
-                    qtw.alias = imgpath
+                    qtw.options.pathes[1] = imgpath
                 else
                     CImGui.SameLine()
                     CImGui.TextColored(MORESTYLE.Colors.LogError, mlstr("path does not exist!!!"))
                 end
             end
-            # CImGui.DragFloat2(mlstr("Image Size"), qtw.options.itemsize)
-            @c CImGui.DragFloat(mlstr("Frame Padding"), &qtw.options.framepadding)
+            @c CImGui.DragInt(mlstr("Rate"), &qtw.options.rate, 1, 1, 120, "%d", CImGui.ImGuiSliderFlags_AlwaysClamp)
+            @c CImGui.DragFloat2(
+                mlstr("Frame Padding"),
+                qtw.options.framepadding, 1, 0, min(qtw.options.itemsize...) / 2, "%.1f",
+                CImGui.ImGuiSliderFlags_AlwaysClamp
+            )
             CImGui.DragFloat2(mlstr("uv0"), qtw.options.uv0)
             CImGui.DragFloat2(mlstr("uv1"), qtw.options.uv1)
         end
@@ -1922,7 +1933,7 @@ function globalwidgetoptionsmenu(insw::InstrWidget)
         inputbgpath = @c InputTextRSZ("##wallpaper", &bgpath)
         CImGui.SameLine()
         selectbgpath = CImGui.Button(stcstr(MORESTYLE.Icons.SelectPath, "##wallpaper"))
-        selectbgpath && (bgpath = pick_file(abspath(bgpath); filterlist="png,jpg,jpeg,tif,bmp"))
+        selectbgpath && (bgpath = pick_file(abspath(bgpath); filterlist="png,jpg,jpeg,tif,bmp,gif"))
         CImGui.SameLine()
         CImGui.Text(mlstr("Wallpaper"))
         if inputbgpath || selectbgpath
@@ -1933,6 +1944,7 @@ function globalwidgetoptionsmenu(insw::InstrWidget)
                 CImGui.TextColored(MORESTYLE.Colors.LogError, mlstr("path does not exist!!!"))
             end
         end
+        @c CImGui.DragInt(mlstr("Rate"), &insw.rate, 1, 1, 120, "%d", CImGui.ImGuiSliderFlags_AlwaysClamp)
         CImGui.ColorEdit4(
             stcstr(mlstr("Background Tint")),
             insw.bgtintcolor,

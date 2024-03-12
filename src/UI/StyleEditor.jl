@@ -597,7 +597,7 @@ let
         CImGui.PopItemWidth()
         CImGui.SameLine()
         selectbgpath = CImGui.Button(stcstr(MORESTYLE.Icons.SelectPath, "##BGImage-path"))
-        selectbgpath && (bgpath = pick_file(abspath(bgpath); filterlist="png,jpg,jpeg,tif,bmp"))
+        selectbgpath && (bgpath = pick_file(abspath(bgpath); filterlist="png,jpg,jpeg,tif,bmp,gif"))
         CImGui.SameLine()
         @c CImGui.Checkbox("##useall", &CONF.BGImage.useall)
         ItemTooltip("apply to all the windows ?")
@@ -610,6 +610,9 @@ let
                 CImGui.SameLine()
                 CImGui.TextColored(MORESTYLE.Colors.LogError, mlstr("path does not exist!!!"))
             end
+        end
+        if CONF.BGImage.useall
+            @c CImGui.DragInt("Rate", &CONF.BGImage.rate, 1, 1, 120, "%d", CImGui.ImGuiSliderFlags_AlwaysClamp)
         end
 
         CImGui.PushItemWidth(ws / 2)

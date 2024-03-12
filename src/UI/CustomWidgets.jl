@@ -350,31 +350,51 @@ function RenameSelectable(str_id, isrename::Ref{Bool}, label::Ref, selected::Boo
     trig
 end
 
-const IMAGES::Dict{String,Int} = Dict()
-function Image(path; size=(100, 100), uv0=(0, 0), uv1=(1, 1), tint_col=[1, 1, 1, 1], border_col=[0, 0, 0, 0])
+const IMAGES::Dict{String,LoopVector{Int}} = Dict()
+
+function Image(path; size=(100, 100), rate=1, uv0=(0, 0), uv1=(1, 1), tint_col=[1, 1, 1, 1], border_col=[0, 0, 0, 0])
     haskey(IMAGES, path) || createimage(path; showsize=size)
-    CImGui.Image(Ptr{Cvoid}(IMAGES[path]), size, uv0, uv1, tint_col, border_col)
+    length(IMAGES[path]) > 1 && CImGui.GetFrameCount() % rate == 0 && move!(IMAGES[path])
+    CImGui.Image(Ptr{Cvoid}(IMAGES[path][]), size, uv0, uv1, tint_col, border_col)
 end
 
 function createimage(path; showsize=(100, 100))
+    push!(IMAGES, path => LoopVector(Int[]))
     if isfile(path)
         try
-            img = RGBA.(collect(transpose(FileIO.load(path))))
-            imgsize = size(img)
-            push!(IMAGES, path => ImGui_ImplOpenGL3_CreateImageTexture(imgsize...))
-            ImGui_ImplOpenGL3_UpdateImageTexture(IMAGES[path], img, imgsize...)
+            imgload = FileIO.load(path)
+            if ndims(imgload) == 2
+                img = RGBA.(collect(transpose(imgload)))
+                imgsize = size(img)
+                push!(IMAGES[path], ImGui_ImplOpenGL3_CreateImageTexture(imgsize...))
+                ImGui_ImplOpenGL3_UpdateImageTexture(IMAGES[path][], img, imgsize...)
+            elseif ndims(imgload) == 3
+                imgs = permutedims(imgload, (2, 1, 3))
+                imgsize = size(imgs)[1:2]
+                for i in axes(imgs, 3)
+                    img = RGBA.(imgs[:, :, i])
+                    push!(IMAGES[path], ImGui_ImplOpenGL3_CreateImageTexture(imgsize...))
+                    ImGui_ImplOpenGL3_UpdateImageTexture(IMAGES[path].data[end], img, imgsize...)
+                end
+            else
+                push!(IMAGES[path], ImGui_ImplOpenGL3_CreateImageTexture(showsize...))
+            end
         catch e
             @error "[$(now())]\n$(mlstr("loading image failed!!!"))" exception = e
-            push!(IMAGES, path => ImGui_ImplOpenGL3_CreateImageTexture(showsize...))
+            push!(IMAGES[path], ImGui_ImplOpenGL3_CreateImageTexture(showsize...))
         end
     else
-        push!(IMAGES, path => ImGui_ImplOpenGL3_CreateImageTexture(showsize...))
+        push!(IMAGES[path], ImGui_ImplOpenGL3_CreateImageTexture(showsize...))
     end
 end
 
-function ImageButton(path; size=(40, 40), uv0=(0, 0), uv1=(1, 1), frame_padding=-1, bg_col=[0, 0, 0, 0], tint_col=[1, 1, 1, 1])
+function ImageButton(label, path; size=(40, 40), rate=1, frame_padding=(6, 6), uv0=(0, 0), uv1=(1, 1), bg_col=[0, 0, 0, 0], tint_col=[1, 1, 1, 1])
     haskey(IMAGES, path) || createimage(path; showsize=size)
-    CImGui.ImageButton(Ptr{Cvoid}(IMAGES[path]), size, uv0, uv1, frame_padding, bg_col, tint_col)
+    length(IMAGES[path]) > 1 && CImGui.GetFrameCount() % rate == 0 && move!(IMAGES[path])
+    CImGui.PushStyleVar(CImGui.ImGuiStyleVar_FramePadding, frame_padding)
+    clicked = CImGui.ImageButton(label, Ptr{Cvoid}(IMAGES[path][]), size .- 2frame_padding, uv0, uv1, bg_col, tint_col)
+    CImGui.PopStyleVar()
+    return clicked
 end
 
 function ColoredButton(
@@ -416,11 +436,12 @@ function ColoredButtonRect(
 end
 
 function ImageButtonRect(
-    path;
+    label, path;
     size=(40, 40),
     uv0=(0, 0),
     uv1=(1, 1),
-    frame_padding=-1,
+    rate=1,
+    frame_padding=(6, 6),
     bg_col=[0, 0, 0, 0],
     tint_col=[1, 1, 1, 1],
     rounding=0.0,
@@ -435,7 +456,7 @@ function ImageButtonRect(
     CImGui.PushStyleColor(CImGui.ImGuiCol_ButtonHovered, colbth)
     CImGui.PushStyleColor(CImGui.ImGuiCol_ButtonActive, colbta)
     CImGui.PushStyleVar(CImGui.ImGuiStyleVar_FrameRounding, rounding)
-    clicked = ImageButton(path; size=size, uv0=uv0, uv1=uv1, frame_padding=frame_padding, bg_col=bg_col, tint_col=tint_col)
+    clicked = ImageButton(label, path; size=size, rate=rate, frame_padding=frame_padding, uv0=uv0, uv1=uv1, bg_col=bg_col, tint_col=tint_col)
     CImGui.PopStyleVar()
     CImGui.PopStyleColor(3)
     rmin, rmax = CImGui.GetItemRectMin(), CImGui.GetItemRectMax()
@@ -447,9 +468,10 @@ end
 function ImageColoredButtonRect(
     label, path, useimage=false;
     size=(40, 40),
+    rate=1,
     uv0=(0, 0),
     uv1=(1, 1),
-    frame_padding=-1,
+    frame_padding=(6, 6),
     rounding=0.0,
     bdrounding=0.0,
     thickness=0,
@@ -463,8 +485,8 @@ function ImageColoredButtonRect(
 )
     return if useimage
         ImageButtonRect(
-            path;
-            size=size, uv0=uv0, uv1=uv1, frame_padding=frame_padding, bg_col=bg_col, tint_col=tint_col,
+            label, path;
+            size=size, rate=rate, frame_padding=frame_padding, uv0=uv0, uv1=uv1, bg_col=bg_col, tint_col=tint_col,
             rounding=rounding, bdrounding=bdrounding, thickness=thickness,
             colbt=colbt, colbth=colbth, colbta=colbta, colrect=colrect
         )
@@ -611,12 +633,19 @@ function ColoredVSlider(
     return dragged
 end
 
-function SetWindowBgImage(path=CONF.BGImage.path; tint_col=MORESTYLE.Colors.BgImageTint)
-    if CONF.BGImage.useall
+function SetWindowBgImage(
+    path=CONF.BGImage.path;
+    rate=CONF.BGImage.rate, use=CONF.BGImage.useall, tint_col=MORESTYLE.Colors.BgImageTint
+)
+    if use
         wpos = CImGui.GetWindowPos()
         wsz = CImGui.GetWindowSize()
         haskey(IMAGES, path) || createimage(path; showsize=wsz)
-        CImGui.AddImage(CImGui.GetWindowDrawList(), Ptr{Cvoid}(IMAGES[path]), wpos, wpos .+ wsz, (0, 0), (1, 1), CImGui.ColorConvertFloat4ToU32(tint_col))
+        length(IMAGES[path]) > 1 && CImGui.GetFrameCount() % rate == 0 && move!(IMAGES[path])
+        CImGui.AddImage(
+            CImGui.GetWindowDrawList(), Ptr{Cvoid}(IMAGES[path][]), wpos, wpos .+ wsz, (0, 0), (1, 1),
+            CImGui.ColorConvertFloat4ToU32(tint_col)
+        )
     end
 end
 
