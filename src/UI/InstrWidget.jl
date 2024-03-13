@@ -933,7 +933,7 @@ let
             end
             CImGui.EndChild()
         end
-        usingit || CImGui.IsWindowCollapsed() || (insw.windowsize .= CImGui.GetWindowSize() ./ scale)
+        CImGui.IsWindowCollapsed() || (insw.windowsize .= CImGui.GetWindowSize() ./ scale)
         CImGui.End()
         CImGui.PopStyleColor()
     end
