@@ -597,7 +597,7 @@ let
         CImGui.PopItemWidth()
         CImGui.SameLine()
         selectbgpath = CImGui.Button(stcstr(MORESTYLE.Icons.SelectPath, "##BGImage-path"))
-        selectbgpath && (bgpath = pick_file(abspath(bgpath); filterlist="png,jpg,jpeg,tif,bmp,gif"))
+        selectbgpath && (bgpath = pick_file(abspath(bgpath); filterlist="png,jpg,jpeg,tif,bmp;gif"))
         CImGui.SameLine()
         @c CImGui.Checkbox("##useall", &CONF.BGImage.useall)
         ItemTooltip("apply to all the windows ?")

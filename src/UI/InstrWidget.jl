@@ -1697,7 +1697,7 @@ let
             inputimgpath = @c InputTextRSZ("##ImagePath", &imgpath)
             CImGui.SameLine()
             selectimgpath = CImGui.Button(stcstr(MORESTYLE.Icons.SelectPath, "##ImagePath"))
-            selectimgpath && (imgpath = pick_file(abspath(imgpath); filterlist="png,jpg,jpeg,tif,bmp,gif"))
+            selectimgpath && (imgpath = pick_file(abspath(imgpath); filterlist="png,jpg,jpeg,tif,bmp;gif"))
             CImGui.SameLine()
             CImGui.Text(mlstr("Path"))
             if inputimgpath || selectimgpath
@@ -1933,7 +1933,7 @@ function globalwidgetoptionsmenu(insw::InstrWidget)
         inputbgpath = @c InputTextRSZ("##wallpaper", &bgpath)
         CImGui.SameLine()
         selectbgpath = CImGui.Button(stcstr(MORESTYLE.Icons.SelectPath, "##wallpaper"))
-        selectbgpath && (bgpath = pick_file(abspath(bgpath); filterlist="png,jpg,jpeg,tif,bmp,gif"))
+        selectbgpath && (bgpath = pick_file(abspath(bgpath); filterlist="png,jpg,jpeg,tif,bmp;gif"))
         CImGui.SameLine()
         CImGui.Text(mlstr("Wallpaper"))
         if inputbgpath || selectbgpath
