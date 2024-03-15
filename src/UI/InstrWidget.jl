@@ -1145,7 +1145,7 @@ let
         @c CImGui.Checkbox(mlstr("Show Serial Numbers"), &showslnums)
         @c CImGui.Checkbox(mlstr("Show Positions"), &showpos)
         @c CImGui.Checkbox(mlstr("Draggable"), &draggable)
-        @c ComBoS(mlstr("Dragging Mode"), &dragmode, mlstr.(dragmodes))
+        @c ComboS(mlstr("Dragging Mode"), &dragmode, mlstr.(dragmodes))
         @c CImGui.SliderInt(mlstr("Display Columns"), &showcols, 1, 12, "%d")
         if all(!qtw.selected for qtw in insw.qtws)
             insw.posoffset == [0, 0] || (insw.posoffset .= [0, 0])
@@ -1589,7 +1589,7 @@ let
         CImGui.SameLine()
         CImGui.Text(stcstr(qtw.options.vertices[1][2], "    ", qtw.options.vertices[1][2] + qtw.options.itemsize[2]))
         if CImGui.CollapsingHeader(mlstr("Variable Options"))
-            @c ComBoS(
+            @c ComboS(
                 mlstr("UI type"),
                 &qtw.options.uitype,
                 if qtw.qtype == "sweep"
@@ -1632,7 +1632,7 @@ let
                 iconstr = MORESTYLE.Icons.CopyIcon
                 @c(IconSelector(mlstr("Stop"), &iconstr)) && (qtw.options.stoptext *= iconstr)
             end
-            @c ComBoS(mlstr("Text Size"), &qtw.options.textsize, textsizes)
+            @c ComboS(mlstr("Text Size"), &qtw.options.textsize, textsizes)
             @c CImGui.DragFloat(
                 mlstr("Text Scale"),
                 &qtw.options.textscale,
@@ -1722,7 +1722,7 @@ let
             CImGui.SliderInt2(mlstr("Binding Index to ON/OFF"), qtw.options.bindingonoff, 1, qtw.numoptvs)
         end
         if qtw.name == "_QuantitySelector_" && CImGui.CollapsingHeader(mlstr("Selector Options"))
-            # @c ComBoS(mlstr("Selector Type"), &qtw.options.selectortype, selectortypes)
+            # @c ComboS(mlstr("Selector Type"), &qtw.options.selectortype, selectortypes)
             @c CImGui.DragInt(
                 mlstr("Binding Numbers"), &qtw.options.selectornum, 1, 1, 12, "%d",
                 CImGui.ImGuiSliderFlags_AlwaysClamp

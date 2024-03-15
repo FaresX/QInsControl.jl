@@ -134,7 +134,7 @@ let
                     end
                 end
                 scale = string(ImPlot.ImPlotScale_(pltxa.scale))
-                if @c ComBoS(mlstr("Axis Scale"), &scale, string.(instances(ImPlot.ImPlotScale_)))
+                if @c ComboS(mlstr("Axis Scale"), &scale, string.(instances(ImPlot.ImPlotScale_)))
                     pltxa.scale = getproperty(ImPlot, Symbol(scale))
                     for pss in plt.series
                         pss.axis.xaxis.axis == pltxa.axis && (pss.axis.xaxis.scale = pltxa.scale)
@@ -152,7 +152,7 @@ let
                     end
                 end
                 scale = string(ImPlot.ImPlotScale_(pltya.scale))
-                if @c ComBoS(mlstr("Axis Scale"), &scale, string.(instances(ImPlot.ImPlotScale_)))
+                if @c ComboS(mlstr("Axis Scale"), &scale, string.(instances(ImPlot.ImPlotScale_)))
                     pltya.scale = getproperty(ImPlot, Symbol(scale))
                     for pss in plt.series
                         pss.axis.yaxis.axis == pltya.axis && (pss.axis.yaxis.scale = pltya.scale)
@@ -170,7 +170,7 @@ let
                     end
                 end
                 cmap = unsafe_string(ImPlot.GetColormapName(pltza.colormap))
-                if @c ComBoS(mlstr("Colormap"), &cmap, unsafe_string.(ImPlot.GetColormapName.(0:ImPlot.GetColormapCount()-1)))
+                if @c ComboS(mlstr("Colormap"), &cmap, unsafe_string.(ImPlot.GetColormapName.(0:ImPlot.GetColormapCount()-1)))
                     pltza.colormap = ImPlot.GetColormapIndex(cmap)
                     for pss in plt.series
                         pss.axis.zaxis.axis == pltza.axis && (pss.axis.zaxis.colormap = pltza.colormap)

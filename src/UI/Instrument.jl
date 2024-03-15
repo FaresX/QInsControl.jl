@@ -88,7 +88,7 @@ let
     st::Bool = false
     time_old::Float64 = 0
     global function manualadd_from_others()
-        @c ComBoS("##OthersIns", &addinstr, keys(INSTRBUFFERVIEWERS["Others"]))
+        @c ComboS("##OthersIns", &addinstr, keys(INSTRBUFFERVIEWERS["Others"]))
         CImGui.SameLine()
         if CImGui.Button(stcstr(MORESTYLE.Icons.NewFile))
             errormonitor(

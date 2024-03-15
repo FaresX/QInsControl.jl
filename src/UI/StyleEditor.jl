@@ -195,7 +195,7 @@ let
     filter::String = ""
     alpha_flags::CImGui.ImGuiColorEditFlags = 0
     global function ShowStyleEditor(style_ref::ImNodesStyle)
-        if @c ComBoS("Colors", &colors, ["Dark", "Light", "Classic"])
+        if @c ComboS("Colors", &colors, ["Dark", "Light", "Classic"])
             if colors == "Dark"
                 imnodes_StyleColorsDark(IMNODESSTYLE)
             elseif colors == "Light"
@@ -377,11 +377,11 @@ let
                     1, 0, 60, "%.1f", CImGui.ImGuiSliderFlags_AlwaysClamp
                 )
                 inpin = string(LibCImGui.ImNodesPinShape_(MORESTYLE.Variables.PinShapeInput))
-                if @c ComBoS("Input PinShape", &inpin, string.(instances(LibCImGui.ImNodesPinShape_)))
+                if @c ComboS("Input PinShape", &inpin, string.(instances(LibCImGui.ImNodesPinShape_)))
                     MORESTYLE.Variables.PinShapeInput = getproperty(LibCImGui, Symbol(inpin))
                 end
                 outpin = string(LibCImGui.ImNodesPinShape_(MORESTYLE.Variables.PinShapeOutput))
-                if @c ComBoS("Output PinShape", &outpin, string.(instances(LibCImGui.ImNodesPinShape_)))
+                if @c ComboS("Output PinShape", &outpin, string.(instances(LibCImGui.ImNodesPinShape_)))
                     MORESTYLE.Variables.PinShapeOutput = getproperty(LibCImGui, Symbol(outpin))
                 end
                 selectedmarker = unsafe_string(ImPlot.GetMarkerName(MORESTYLE.Variables.ImPlotMarker))
@@ -393,10 +393,10 @@ let
                     CImGui.ImGuiSliderFlags_AlwaysClamp
                 )
                 minimaplocation = string(LibCImGui.ImNodesMiniMapLocation_(MORESTYLE.Variables.MiniMapLocation))
-                if @c ComBoS("Minimap Location", &minimaplocation, string.(instances(LibCImGui.ImNodesMiniMapLocation_)))
+                if @c ComboS("Minimap Location", &minimaplocation, string.(instances(LibCImGui.ImNodesMiniMapLocation_)))
                     MORESTYLE.Variables.MiniMapLocation = getproperty(LibCImGui, Symbol(minimaplocation))
                 end
-                if @c ComBoS("ImPlotMarker", &selectedmarker, implotmarkerlist)
+                if @c ComboS("ImPlotMarker", &selectedmarker, implotmarkerlist)
                     MORESTYLE.Variables.ImPlotMarker = findfirst(==(selectedmarker), implotmarkerlist) - 1
                     IMPLOTSTYLE.Marker = MORESTYLE.Variables.ImPlotMarker
                 end
@@ -617,7 +617,7 @@ let
 
         CImGui.PushItemWidth(ws / 2)
         selected_style == "" && haskey(STYLES, CONF.Style.default) && (selected_style = CONF.Style.default; ustyle = STYLES[selected_style])
-        if @c ComBoS("##Style Selecting", &selected_style, keys(STYLES))
+        if @c ComboS("##Style Selecting", &selected_style, keys(STYLES))
             if selected_style != ""
                 ustyle = STYLES[selected_style]
                 style_name = selected_style

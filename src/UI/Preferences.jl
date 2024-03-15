@@ -118,11 +118,11 @@ let
                     2.0, 100, 4000, "%d",
                     CImGui.ImGuiSliderFlags_AlwaysClamp
                 )
-                @c ComBoS(mlstr("system encoding"), &CONF.Basic.encoding, ecds)
+                @c ComboS(mlstr("system encoding"), &CONF.Basic.encoding, ecds)
                 editor = CONF.Basic.editor
                 @c InputTextRSZ(mlstr("text editor"), &editor)
                 editor == "" || (CONF.Basic.editor = editor)
-                if @c ComBoS(mlstr("language"), &CONF.Basic.language, keys(CONF.Basic.languages))
+                if @c ComboS(mlstr("language"), &CONF.Basic.language, keys(CONF.Basic.languages))
                     loadlanguage(CONF.Basic.languages[CONF.Basic.language])
                 end
                 CImGui.Text(" ")
@@ -169,7 +169,7 @@ let
                     CONF.DAQ.equalstep ? mlstr("equal step sampling") : mlstr("fixed step sampling"),
                     &CONF.DAQ.equalstep
                 )
-                @c ComBoS(mlstr("stored data type"), &CONF.DAQ.savetype, datatypes)
+                @c ComboS(mlstr("stored data type"), &CONF.DAQ.savetype, datatypes)
                 @c CImGui.DragInt(
                     mlstr("saving time"),
                     &CONF.DAQ.savetime,

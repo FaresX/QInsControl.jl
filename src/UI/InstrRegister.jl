@@ -2,7 +2,7 @@ let
     edithelp::Bool = false
     global function edit(qtcf::QuantityConf, instrnm)
         @c InputTextRSZ(mlstr("alias"), &qtcf.alias)
-        @c ComBoS(mlstr("unit type"), &qtcf.U, keys(CONF.U))
+        @c ComboS(mlstr("unit type"), &qtcf.U, keys(CONF.U))
         @c InputTextRSZ(mlstr("command"), &qtcf.cmdheader)
         width = CImGui.GetItemRectSize().x / 2 - 2CImGui.CalcTextSize(" =>  ").x
         CImGui.SameLine()
@@ -72,7 +72,7 @@ let
         CImGui.PopID()
         CImGui.SameLine()
         CImGui.Text(mlstr("optional values"))
-        @c ComBoS(mlstr("variable type"), &qtcf.type, ["sweep", "set", "read"])
+        @c ComboS(mlstr("variable type"), &qtcf.type, ["sweep", "set", "read"])
         CImGui.TextColored(MORESTYLE.Colors.LogInfo, mlstr("help document"))
         if edithelp
             lines = split(qtcf.help, '\n')
@@ -211,7 +211,7 @@ let
                         if @c InputTextRSZ(mlstr("identification string"), &selectedinscf.conf.idn)
                             lstrip(selectedinscf.conf.idn) == "" && (selectedinscf.conf.idn = selectedins)
                         end
-                        @c ComBoS(mlstr("command type"), &selectedinscf.conf.cmdtype, ["scpi", "tsp", ""])
+                        @c ComboS(mlstr("command type"), &selectedinscf.conf.cmdtype, ["scpi", "tsp", ""])
                         width = CImGui.GetItemRectSize().x / 3
                         CImGui.TextColored(MORESTYLE.Colors.LogInfo, mlstr("interface"))
                         CImGui.BeginGroup()
@@ -258,7 +258,7 @@ let
 
                         ###quantities###
                         SeparatorTextColored(MORESTYLE.Colors.HighlightText, mlstr("Variables"))
-                        if @c ComBoS(mlstr("variables"), &selectedqt, keys(selectedinscf.quantities))
+                        if @c ComboS(mlstr("variables"), &selectedqt, keys(selectedinscf.quantities))
                             if selectedqt != "" && haskey(selectedinscf.quantities, selectedqt)
                                 qtname = selectedqt
                                 editqt = deepcopy(selectedinscf.quantities[selectedqt])
