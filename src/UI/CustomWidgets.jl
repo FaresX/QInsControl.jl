@@ -1,4 +1,4 @@
-function ComBoS(label, preview_value::Ref, item_list, flags=0)
+function ComboS(label, preview_value::Ref, item_list, flags=0)
     iscombo = CImGui.BeginCombo(label, preview_value.x, flags)
     isselect = false
     if iscombo
@@ -10,6 +10,27 @@ function ComBoS(label, preview_value::Ref, item_list, flags=0)
         CImGui.EndCombo()
     end
     iscombo && isselect
+end
+
+let
+    filterlist::Dict{String,Ref{String}} = Dict()
+    global function ComboSFiltered(label, preview_value::Ref, item_list, flags=0)
+        iscombo = CImGui.BeginCombo(label, preview_value.x, flags)
+        isselect = false
+        if iscombo
+            haskey(filterlist, label) || push!(filterlist, label => "")
+            InputTextWithHintRSZ(stcstr(label, "##hide"), mlstr("Filter"), filterlist[label])
+            for item in item_list
+                filter = filterlist[label][]
+                (filter == "" || !isvalid(filter) || occursin(lowercase(filter), lowercase(item))) || continue
+                selected = preview_value.x == item
+                CImGui.Selectable(item, selected) && (preview_value.x = item; isselect = true)
+                selected && CImGui.SetItemDefaultFocus()
+            end
+            CImGui.EndCombo()
+        end
+        iscombo && isselect
+    end
 end
 
 function ColoredCombo(
@@ -38,7 +59,7 @@ function ColoredCombo(
         (unsafe_load(IMGUISTYLE.FramePadding.x), (size[2] - CImGui.GetFontSize() * unsafe_load(CImGui.GetIO().FontGlobalScale)) / 2)
     )
     CImGui.PushItemWidth(size[1])
-    iscombo = ComBoS(label, preview_value, item_list, flags)
+    iscombo = ComboS(label, preview_value, item_list, flags)
     CImGui.PopItemWidth()
     CImGui.PopStyleVar(2)
     CImGui.PopStyleColor(6)
