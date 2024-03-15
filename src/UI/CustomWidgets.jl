@@ -385,22 +385,16 @@ function createimage(path; showsize=(100, 100))
         try
             imgload = FileIO.load(path)
             if ndims(imgload) == 2
-                img = collect(transpose(imgload))
+                img = RGBA.(collect(transpose(imgload)))
                 imgsize = size(img)
                 push!(IMAGES[path], ImGui_ImplOpenGL3_CreateImageTexture(imgsize...))
-                ImGui_ImplOpenGL3_UpdateImageTexture(
-                    IMAGES[path][], img, imgsize...;
-                    format=eltype(img) <: RGBA ? GL_RGBA : GL_RGB
-                )
+                ImGui_ImplOpenGL3_UpdateImageTexture(IMAGES[path][], img, imgsize...)
             elseif ndims(imgload) == 3
-                imgs = permutedims(imgload, (2, 1, 3))
+                imgs = permutedims(RGBA.(imgload), (2, 1, 3))
                 imgsize = size(imgs)[1:2]
                 for img in eachslice(imgs; dims=3)
                     push!(IMAGES[path], ImGui_ImplOpenGL3_CreateImageTexture(imgsize...))
-                    ImGui_ImplOpenGL3_UpdateImageTexture(
-                        IMAGES[path].data[end], img, imgsize...;
-                        format=eltype(img) <: RGBA ? GL_RGBA : GL_RGB
-                    )
+                    ImGui_ImplOpenGL3_UpdateImageTexture(IMAGES[path].data[end], img, imgsize...)
                 end
             else
                 push!(IMAGES[path], ImGui_ImplOpenGL3_CreateImageTexture(showsize...))
