@@ -137,7 +137,7 @@ let
                 showwhat = 1
                 CImGui.PushStyleColor(CImGui.ImGuiCol_Button, (0, 0, 0, 0))
                 CImGui.PushStyleColor(CImGui.ImGuiCol_Text, MORESTYLE.Colors.IconButton)
-                isopenfiles = CImGui.Button(MORESTYLE.Icons.File, sbsz)
+                isopenfiles = CImGui.Button(stcstr(MORESTYLE.Icons.File, "##openfiles"), sbsz)
                 CImGui.PopStyleColor(2)
                 CImGui.PushFont(GLOBALFONT)
                 ItemTooltip(mlstr("Open Files"))
