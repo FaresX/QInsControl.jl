@@ -373,10 +373,16 @@ end
 
 const IMAGES::Dict{String,LoopVector{Int}} = Dict()
 
-function Image(path; size=(100, 100), rate=1, uv0=(0, 0), uv1=(1, 1), tint_col=[1, 1, 1, 1], border_col=[0, 0, 0, 0])
-    haskey(IMAGES, path) || createimage(path; showsize=size)
-    length(IMAGES[path]) > 1 && CImGui.GetFrameCount() % rate == 0 && move!(IMAGES[path])
-    CImGui.Image(Ptr{Cvoid}(IMAGES[path][]), size, uv0, uv1, tint_col, border_col)
+let
+    framecount::Cint = 0
+    global function Image(path; size=(100, 100), rate=1, uv0=(0, 0), uv1=(1, 1), tint_col=[1, 1, 1, 1], border_col=[0, 0, 0, 0])
+        haskey(IMAGES, path) || createimage(path; showsize=size)
+        if length(IMAGES[path]) > 1 && framecount != CImGui.GetFrameCount()
+            framecount = CImGui.GetFrameCount()
+            framecount % rate == 0 && move!(IMAGES[path])
+        end
+        CImGui.Image(Ptr{Cvoid}(IMAGES[path][]), size, uv0, uv1, tint_col, border_col)
+    end
 end
 
 function createimage(path; showsize=(100, 100))
@@ -408,13 +414,19 @@ function createimage(path; showsize=(100, 100))
     end
 end
 
-function ImageButton(label, path; size=(40, 40), rate=1, frame_padding=(6, 6), uv0=(0, 0), uv1=(1, 1), bg_col=[0, 0, 0, 0], tint_col=[1, 1, 1, 1])
-    haskey(IMAGES, path) || createimage(path; showsize=size)
-    length(IMAGES[path]) > 1 && CImGui.GetFrameCount() % rate == 0 && move!(IMAGES[path])
-    CImGui.PushStyleVar(CImGui.ImGuiStyleVar_FramePadding, frame_padding)
-    clicked = CImGui.ImageButton(label, Ptr{Cvoid}(IMAGES[path][]), size .- 2frame_padding, uv0, uv1, bg_col, tint_col)
-    CImGui.PopStyleVar()
-    return clicked
+let
+    framecount::Cint = 0
+    global function ImageButton(label, path; size=(40, 40), rate=1, frame_padding=(6, 6), uv0=(0, 0), uv1=(1, 1), bg_col=[0, 0, 0, 0], tint_col=[1, 1, 1, 1])
+        haskey(IMAGES, path) || createimage(path; showsize=size)
+        if length(IMAGES[path]) > 1 && framecount != CImGui.GetFrameCount()
+            framecount = CImGui.GetFrameCount()
+            framecount % rate == 0 && move!(IMAGES[path])
+        end
+        CImGui.PushStyleVar(CImGui.ImGuiStyleVar_FramePadding, frame_padding)
+        clicked = CImGui.ImageButton(label, Ptr{Cvoid}(IMAGES[path][]), size .- 2frame_padding, uv0, uv1, bg_col, tint_col)
+        CImGui.PopStyleVar()
+        return clicked
+    end
 end
 
 function ColoredButton(
@@ -653,19 +665,25 @@ function ColoredVSlider(
     return dragged
 end
 
-function SetWindowBgImage(
-    path=CONF.BGImage.path;
-    rate=CONF.BGImage.rate, use=CONF.BGImage.useall, tint_col=MORESTYLE.Colors.BgImageTint
-)
-    if use
-        wpos = CImGui.GetWindowPos()
-        wsz = CImGui.GetWindowSize()
-        haskey(IMAGES, path) || createimage(path; showsize=wsz)
-        length(IMAGES[path]) > 1 && CImGui.GetFrameCount() % rate == 0 && move!(IMAGES[path])
-        CImGui.AddImage(
-            CImGui.GetWindowDrawList(), Ptr{Cvoid}(IMAGES[path][]), wpos, wpos .+ wsz, (0, 0), (1, 1),
-            CImGui.ColorConvertFloat4ToU32(tint_col)
-        )
+let
+    framecount::Cint = 0
+    global function SetWindowBgImage(
+        path=CONF.BGImage.path;
+        rate=CONF.BGImage.rate, use=CONF.BGImage.useall, tint_col=MORESTYLE.Colors.BgImageTint
+    )
+        if use
+            wpos = CImGui.GetWindowPos()
+            wsz = CImGui.GetWindowSize()
+            haskey(IMAGES, path) || createimage(path; showsize=wsz)
+            if length(IMAGES[path]) > 1 && framecount != CImGui.GetFrameCount()
+                framecount = CImGui.GetFrameCount()
+                framecount % rate == 0 && move!(IMAGES[path])
+            end
+            CImGui.AddImage(
+                CImGui.GetWindowDrawList(), Ptr{Cvoid}(IMAGES[path][]), wpos, wpos .+ wsz, (0, 0), (1, 1),
+                CImGui.ColorConvertFloat4ToU32(tint_col)
+            )
+        end
     end
 end
 
