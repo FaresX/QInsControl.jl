@@ -836,7 +836,7 @@ let
                 CImGui.PushID(i)
                 !usingit && draggable && igBeginDisabled(true)
                 if edit(qtw, insbuf, insw.instrnm, addr, insw.options)
-                    qtw.qtype in qtypes && qtw.options.uitype ∉ continuousuitypes && Threads.@spawn refresh1(insw, addr)
+                    qtw.qtype in qtypes && qtw.options.uitype ∉ continuousuitypes && Threads.@spawn refresh1(insw, addr; blacklist=[qtw.name])
                     qtw.name == "_QuantitySelector_" && (trigselector!(qtw, insw); Threads.@spawn refresh1(insw, addr))
                 end
                 !usingit && draggable && igEndDisabled()
@@ -2102,7 +2102,7 @@ function exit!(insw::InstrWidget, addr)
     end
 end
 
-function refresh1(insw::InstrWidget, addr)
+function refresh1(insw::InstrWidget, addr; blacklist=[])
     if haskey(INSTRBUFFERVIEWERS, insw.instrnm) && haskey(INSTRBUFFERVIEWERS[insw.instrnm], addr)
         fetchibvs = wait_remotecall_fetch(
             workers()[1], INSTRBUFFERVIEWERS, insw.instrnm, addr, insw.qtlist; timeout=120
@@ -2112,7 +2112,10 @@ function refresh1(insw::InstrWidget, addr)
             ct = Controller(ins, addr)
             try
                 login!(CPU, ct)
-                for (qtnm, qt) in filter(x -> x.first in qtlist, INSTRBUFFERVIEWERS[ins][addr].insbuf.quantities)
+                for (qtnm, qt) in filter(
+                    x -> x.first in qtlist && x.first ∉ blacklist,
+                    INSTRBUFFERVIEWERS[ins][addr].insbuf.quantities
+                )
                     getfunc = Symbol(ins, :_, qtnm, :_get) |> eval
                     qt.read = ct(getfunc, CPU, Val(:read))
                 end
