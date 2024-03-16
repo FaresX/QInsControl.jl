@@ -247,6 +247,14 @@ function Plot(plt::Plot; psize=CImGui.ImVec2(0, 0), flags=0)
         isempty(plt.yaxes) && mergeyaxes!(plt)
         map(xa -> ImPlot.SetupAxis(xa.axis, xa.label), plt.xaxes)
         map(ya -> ImPlot.SetupAxis(ya.axis, ya.label), plt.yaxes)
+        map(plt.xaxes) do xa
+            if !isempty(xa.ticklabels)
+                ticksmaxlen = max([CImGui.CalcTextSize(tick).x for tick in xa.ticklabels]...)
+                num = min(floor(Int, plt.plotsize[1] / ticksmaxlen), length(xa.ticklabels))
+                xaseries = [pss for pss in plt.series if pss.axis.xaxis.axis == xa.axis]
+                isempty(xaseries) || ImPlot.SetupAxisTicks(xa.axis, extrema(xaseries[1].x)..., num, xa.ticklabels)
+            end
+        end
         map(xa -> ImPlot.SetupAxisScale(xa.axis, xa.scale), plt.xaxes)
         map(ya -> ImPlot.SetupAxisScale(ya.axis, ya.scale), plt.yaxes)
         map(xa -> xa.hovered = ImPlot.IsAxisHovered(xa.axis), plt.xaxes)
@@ -290,7 +298,6 @@ Plot(pss::PlotSeries, plt::Plot) = Plot(pss, plt, Val(Symbol(pss.ptype)))
 
 function Plot2D(plotfunc, pss::PlotSeries, plt::Plot)
     ImPlot.SetAxes(pss.axis.xaxis.axis, pss.axis.yaxis.axis)
-    ImPlot.SetupAxisTicks(pss.axis.xaxis.axis, pss.axis.xaxis.tickvalues, length(pss.axis.xaxis.tickvalues), pss.axis.xaxis.ticklabels)
     plotfunc(pss.legend, pss.x, pss.y, length(pss.x))
     pss.legendhovered = ImPlot.IsLegendEntryHovered(pss.legend)
     xl, xr = extrema(pss.x)
