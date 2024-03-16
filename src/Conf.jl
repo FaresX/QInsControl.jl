@@ -62,7 +62,7 @@ function loadconf(precompile=false)
                 widgets = TOML.parsefile(file)
                 push!(INSWCONF, instrnm => [])
                 for (_, widget) in widgets
-                    push!(INSWCONF[instrnm], from_dict(InstrWidget, widget))
+                    push!(INSWCONF[instrnm], try_from_dict(InstrWidget, widget))
                 end
             end
         catch e
