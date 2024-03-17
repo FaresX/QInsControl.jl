@@ -76,6 +76,7 @@ end
     hovered::Bool = false
     showtooltip::Bool = true
     mspos::ImPlot.ImPlotPoint = ImPlot.ImPlotPoint(0, 0)
+    plotlims::Vector{ImPlot.ImPlotRange} = fill(ImPlot.ImPlotRange(0, 1), 6)
     plotpos::CImGui.ImVec2 = (0, 0)
     plotsize::CImGui.ImVec2 = (0, 0)
 end
@@ -249,10 +250,29 @@ function Plot(plt::Plot; psize=CImGui.ImVec2(0, 0), flags=0)
         map(ya -> ImPlot.SetupAxis(ya.axis, ya.label), plt.yaxes)
         map(plt.xaxes) do xa
             if !isempty(xa.ticklabels)
-                ticksmaxlen = max([CImGui.CalcTextSize(tick).x for tick in xa.ticklabels]...)
-                num = min(floor(Int, plt.plotsize[1] / ticksmaxlen), length(xa.ticklabels))
                 xaseries = [pss for pss in plt.series if pss.axis.xaxis.axis == xa.axis]
-                isempty(xaseries) || ImPlot.SetupAxisTicks(xa.axis, extrema(xaseries[1].x)..., num, xa.ticklabels)
+                if !isempty(xaseries)
+                    pltxlims = plt.plotlims[xa.axis+1]
+                    seriesxlims = extrema(xaseries[1].x)
+                    pickrange = [max(pltxlims.Min, seriesxlims[1]), min(pltxlims.Max, seriesxlims[2])]
+                    pickvalues, picklabels = if pickrange[2] < seriesxlims[1] || pickrange[1] > seriesxlims[2]
+                        [], []
+                    else
+                        idxl = argmin(abs.(pickrange[1] .- xaseries[1].x))
+                        idxr = argmin(abs.(pickrange[2] .- xaseries[1].x))
+                        xaseries[1].x[idxl:idxr], xa.ticklabels[idxl:idxr]
+                    end
+                    if !isempty(picklabels)
+                        ticksmaxlen = max([CImGui.CalcTextSize(tick).x for tick in picklabels]...)
+                        rate = (pickrange[2] - pickrange[1]) / (pltxlims.Max - pltxlims.Min)
+                        num = min(floor(Int, plt.plotsize[1] * rate / ticksmaxlen), length(picklabels))
+                        if num != 0
+                            ll = length(picklabels)
+                            showidxes = num == 1 ? [(ll + 1)÷2] : round.(Int, range(1, ll, length=num))
+                            ImPlot.SetupAxisTicks(xa.axis, pickvalues[showidxes], num, picklabels[showidxes])
+                        end
+                    end
+                end
             end
         end
         map(xa -> ImPlot.SetupAxisScale(xa.axis, xa.scale), plt.xaxes)
@@ -275,6 +295,11 @@ function Plot(plt::Plot; psize=CImGui.ImVec2(0, 0), flags=0)
         end
         PlotAnns(plt.anns)
         hasheatmap && PlotLinecuts(plt.linecuts)
+        for i in 0:2
+            xylims = ImPlot.GetPlotLimits(ImPlot.ImAxis_(i), ImPlot.ImAxis_(i + 3))
+            plt.plotlims[i+1] = xylims.X
+            plt.plotlims[i+4] = xylims.Y
+        end
         plt.hovered = ImPlot.IsPlotHovered()
         ImPlot.EndPlot()
     end
