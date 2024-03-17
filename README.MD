@@ -7,7 +7,7 @@
 
 QInsControl is designed for controling instruments and data acquiring, which is based on the NI VISA and provides a 
 friendly GUI and a flexible script written mannar to keep both the convenience and universality. 
-See [docs](https://FaresX.github.io/QInsControl.jl/dev/) here.
+See [docs](https://FaresX.github.io/QInsControl.jl/dev/) here or 视频【QInsControl.jl 开源的可编程仪器控制和数据采集工具】 https://www.bilibili.com/video/BV1Y2421N75d/?share_source=copy_web&vd_source=9bb5f2e2197b605d0d141ae8f55c67c7
 
 ## install
 Before installation, make sure you have NI VISA installed!
