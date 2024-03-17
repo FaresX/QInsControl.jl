@@ -3,7 +3,7 @@
 Assets
 imgui.ini
 docs/build
-# docs/Manifest.toml
+docs/Manifest.toml
 src/*.mem
 src/UI/*.mem
 src/QInsControlCore/*.mem
@@ -15,7 +15,7 @@ precompile.jl
 compile.jl
 QInsControl.iss
 RestructConf.jl
-# Manifest.toml
+Manifest.toml
 HelpPad.jl
 nircmd.exe
 QInsControl.cmd
