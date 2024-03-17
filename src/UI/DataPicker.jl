@@ -264,7 +264,7 @@ let
                 if haskey(synctasks[plt.id], i)
                     istaskdone(synctasks[plt.id][i]) ? delete!(synctasks[plt.id], i) : (force || continue)
                 end
-                pdtask = errormonitor(@async processdata(plt, plt.series[i], dtss, datastr, datafloat; quiet=quiet))
+                pdtask = errormonitor(@async processdata(plt, plt.series[i], dtss, datastr, datafloat; quiet=quiet, force=force))
                 push!(synctasks[plt.id], i => pdtask)
             end
         end
@@ -276,7 +276,8 @@ let
         dtss::DataSeries,
         datastr::Dict{String,Vector{String}},
         datafloat::Dict{String,VecOrMat{Cdouble}};
-        quiet=false
+        quiet=false,
+        force=false
     )
         dtss.isrunning = true
         dtss.runtime = 0
@@ -290,7 +291,7 @@ let
                 end
             end
         )
-        forcesync = pss.ptype != dtss.ptype
+        forcesync = force || pss.ptype != dtss.ptype
         forcesync && (pss.ptype = dtss.ptype)
         xbuf = dtss.xtype ? loaddata(datastr, datafloat, dtss.x) : haskey(datastr, dtss.x) ? copy(datastr[dtss.x]) : String[]
         ybuf = loaddata(datastr, datafloat, dtss.y)
