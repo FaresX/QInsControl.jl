@@ -228,8 +228,14 @@ function Base.empty!(dtp::DataPlot)
         empty!(plt.zaxes)
         for pss in plt.series
             empty!(pss.x)
+            empty!(pss.axis.xaxis.ticklabels)
+            empty!(pss.axis.xaxis.tickvalues)
             empty!(pss.y)
+            empty!(pss.axis.yaxis.ticklabels)
+            empty!(pss.axis.yaxis.tickvalues)
             pss.z = Matrix{eltype(pss.z)}(undef, 0, 0)
+            empty!(pss.axis.zaxis.ticklabels)
+            empty!(pss.axis.zaxis.tickvalues)
         end
     end
     return dtp
