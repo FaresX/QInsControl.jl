@@ -27,6 +27,7 @@ end
     logall::Bool = false
     equalstep::Bool = true
     savetime::Cint = 60
+    cuttingfile::Cint = 2000000
     channel_size::Cint = 512
     packsize::Cint = 6
     historylen::Cint = 120

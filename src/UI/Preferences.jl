@@ -177,6 +177,12 @@ let
                     CImGui.ImGuiSliderFlags_AlwaysClamp
                 )
                 @c CImGui.DragInt(
+                    mlstr("file-cutting length"),
+                    &CONF.DAQ.cuttingfile,
+                    100, 100, 10000000, "%d",
+                    CImGui.ImGuiSliderFlags_AlwaysClamp
+                )
+                @c CImGui.DragInt(
                     mlstr("channel size"),
                     &CONF.DAQ.channel_size,
                     1.0, 4, 2048, "%d",

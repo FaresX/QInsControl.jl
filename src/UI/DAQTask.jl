@@ -236,6 +236,29 @@ function saveqdt()
             file[key] = val
         end
     end
+    if sum(length(data) for data in values(DATABUF); init=0) > CONF.DAQ.cuttingfile
+        dir, file = splitdir(SAVEPATH)
+        cuttingnum = find_cutting_i(dir, file)
+        if cuttingnum != 1
+            savepathhead = chop(file, tail=cuttingnum == 2 ? 4 : 7+length(string(cuttingnum)))
+            global SAVEPATH = joinpath(dir, string(savepathhead, " [", cuttingnum, "].qdt"))
+            empty!(DATABUF)
+            empty!(DATABUFPARSED)
+        end
+    end
+end
+
+function find_cutting_i(dir, file)
+    if isfile(joinpath(dir, file))
+        m = match(r"[\w.]* \[([0-9]+)\].qdt", file)
+        return if isnothing(m)
+            2
+        else
+            old_i = tryparse(Int, m[1])
+            isnothing(old_i) ? 2 : old_i + 1
+        end
+    end
+    return 1
 end
 
 function update_data()
