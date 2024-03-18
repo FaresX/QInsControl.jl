@@ -133,9 +133,11 @@ function run(daqtask::DAQTask)
     end
     run_remote(daqtask)
     wait(
-        Threads.@spawn while update_all()
-            yield()
-        end
+        errormonitor(
+            @async while update_all()
+                yield()
+            end
+        )
     )
 end
 
@@ -240,7 +242,7 @@ function saveqdt()
         dir, file = splitdir(SAVEPATH)
         cuttingnum = find_cutting_i(dir, file)
         if cuttingnum != 1
-            savepathhead = chop(file, tail=cuttingnum == 2 ? 4 : 7+length(string(cuttingnum)))
+            savepathhead = chop(file, tail=cuttingnum == 2 ? 4 : 7 + length(string(cuttingnum)))
             global SAVEPATH = joinpath(dir, string(savepathhead, " [", cuttingnum, "].qdt"))
             empty!(DATABUF)
             empty!(DATABUFPARSED)

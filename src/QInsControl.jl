@@ -137,10 +137,6 @@ function julia_main()::Cint
             @eval const REFRESHCTS = Dict{String,Dict{String,Controller}}()
         end
         global AUTOREFRESHTASK = autorefresh()
-        if CONF.Basic.remoteprocessdata && nprocs() == 2
-            ENV["JULIA_NUM_THREADS"] = CONF.Basic.nthreads_3
-            addprocs(1)
-        end
         @info "[$(now())]\n$(mlstr("successfully started!"))"
         if !isinteractive()
             wait(uitask)

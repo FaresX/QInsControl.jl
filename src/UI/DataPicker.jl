@@ -264,7 +264,7 @@ let
                 if haskey(synctasks[plt.id], i)
                     istaskdone(synctasks[plt.id][i]) ? delete!(synctasks[plt.id], i) : (force || continue)
                 end
-                pdtask = errormonitor(@async processdata(plt, plt.series[i], dtss, datastr, datafloat; quiet=quiet, force=force))
+                pdtask = errormonitor(Threads.@spawn processdata(plt, plt.series[i], dtss, datastr, datafloat; quiet=quiet, force=force))
                 push!(synctasks[plt.id], i => pdtask)
             end
         end
@@ -311,23 +311,7 @@ let
             end
         end
         try
-            nx, ny, nz = if CONF.Basic.remoteprocessdata && nprocs() > 2
-                f = if dtss.isrealtime
-                    @eval Main QInsControl.remotecall(
-                        () -> try
-                            eval($ex)
-                        catch
-                        end, QInsControl.workers()[2]
-                    )
-                else
-                    @eval Main QInsControl.remotecall(() -> eval($ex), QInsControl.workers()[2])
-                end
-                waittask = errormonitor(@async fetch(f))
-                wait(waittask)
-                fetch(waittask)
-            else
-                eval(ex)
-            end
+            nx, ny, nz = CONF.DAQ.externaleval ? @eval(Main, $ex) : eval(ex)
             if pss.ptype == "heatmap"
                 dropexeption!(nz)
                 if nz isa Matrix

@@ -4,8 +4,8 @@
     viewportenable::Bool = true
     scale::Bool = false
     hidewindow::Bool = false
+    nthreads::Cint = 2
     nthreads_2::Cint = 1
-    nthreads_3::Cint = 1
     samplingthreshold::Cint = 200000
     windowsize::Vector{Cint} = [960, 540]
     encoding::String = "GBK"
@@ -26,6 +26,7 @@ end
     savetype::String = "String"
     logall::Bool = false
     equalstep::Bool = true
+    externaleval::Bool = false
     savetime::Cint = 60
     cuttingfile::Cint = 2000000
     channel_size::Cint = 512

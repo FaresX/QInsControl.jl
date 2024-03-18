@@ -88,15 +88,15 @@ let
                 # if unsafe_load(CImGui.GetIO().ConfigFlags) & CImGui.ImGuiConfigFlags_ViewportsEnable == CImGui.ImGuiConfigFlags_ViewportsEnable
                 #     @c CImGui.Checkbox(mlstr("hide window"), &CONF.Basic.hidewindow)
                 # end
-                # @c CImGui.DragInt(
-                #     mlstr("DAQ threads"),
-                #     &CONF.Basic.nthreads_2,
-                #     1, 1, 100, "%d",
-                #     CImGui.ImGuiSliderFlags_AlwaysClamp
-                # )
                 @c CImGui.DragInt(
-                    mlstr("data processing threads"),
-                    &CONF.Basic.nthreads_3,
+                    mlstr("threads"),
+                    &CONF.Basic.nthreads,
+                    1, 1, 100, "%d",
+                    CImGui.ImGuiSliderFlags_AlwaysClamp
+                )
+                @c CImGui.DragInt(
+                    mlstr("DAQ threads"),
+                    &CONF.Basic.nthreads_2,
                     1, 1, 100, "%d",
                     CImGui.ImGuiSliderFlags_AlwaysClamp
                 )
@@ -162,12 +162,16 @@ let
                 ###DAQ###
                 SeparatorTextColored(MORESTYLE.Colors.HighlightText, "DAQ")
                 @c(CImGui.Checkbox(
-                    CONF.DAQ.logall ? mlstr("log all quantities") : mlstr("log enabled quantities"),
+                    mlstr(CONF.DAQ.logall ? "log all quantities" : "log enabled quantities"),
                     &CONF.DAQ.logall
                 )) && remotecall_wait((logall) -> CONF.DAQ.logall = logall, workers()[1], CONF.DAQ.logall)
                 @c CImGui.Checkbox(
-                    CONF.DAQ.equalstep ? mlstr("equal step sampling") : mlstr("fixed step sampling"),
+                    mlstr(CONF.DAQ.equalstep ? "equal step sampling" : "fixed step sampling"),
                     &CONF.DAQ.equalstep
+                )
+                @c CImGui.Checkbox(
+                    mlstr(CONF.DAQ.externaleval ? "eval in Main" : "eval in QInsControl"),
+                    &CONF.DAQ.externaleval
                 )
                 @c ComboS(mlstr("stored data type"), &CONF.DAQ.savetype, datatypes)
                 @c CImGui.DragInt(
