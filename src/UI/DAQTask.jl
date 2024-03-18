@@ -244,6 +244,11 @@ function saveqdt()
             global SAVEPATH = joinpath(dir, string(savepathhead, " [", cuttingnum, "].qdt"))
             empty!(DATABUF)
             empty!(DATABUFPARSED)
+            try
+                log_instrbufferviewers()
+            catch e
+                @error "[($now())]\n$(mlstr("instrument logging error, program terminates!!!"))" exception = e
+            end
         end
     end
 end
