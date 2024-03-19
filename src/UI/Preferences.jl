@@ -24,7 +24,7 @@ let
             CImGui.SetCursorPos((width - 6ftsz) / 2, ftsz)
             CImGui.Image(Ptr{Cvoid}(ICONID), (6ftsz, 6ftsz))
             CImGui.SetCursorPosY(8ftsz)
-            
+
             CImGui.BeginChild("Options", (Cfloat(0), -2CImGui.GetFrameHeight() - 2unsafe_load(IMGUISTYLE.ItemSpacing.y)))
             CImGui.PushStyleVar(CImGui.ImGuiStyleVar_SelectableTextAlign, (0.5, 0.5))
             CImGui.Selectable(
@@ -55,6 +55,9 @@ let
                 svconf.U = Dict(up.first => string.(up.second) for up in CONF.U)
                 try
                     to_toml(joinpath(ENV["QInsControlAssets"], "Necessity/conf.toml"), svconf)
+                    !isinteractive() && open(joinpath(ENV["QInsControlAssets"], "Necessity/threads.cmd"), "w") do file
+                        write(file, "set JULIA_NUM_THREADS=$(CONF.Basic.nthreads)")
+                    end
                 catch e
                     @error "[$(now())]\n$(mlstr("saving configurations failed!!!"))" exception = e
                 end
@@ -88,12 +91,12 @@ let
                 # if unsafe_load(CImGui.GetIO().ConfigFlags) & CImGui.ImGuiConfigFlags_ViewportsEnable == CImGui.ImGuiConfigFlags_ViewportsEnable
                 #     @c CImGui.Checkbox(mlstr("hide window"), &CONF.Basic.hidewindow)
                 # end
-                @c CImGui.DragInt(
+                !isinteractive() && @c(CImGui.DragInt(
                     mlstr("threads"),
                     &CONF.Basic.nthreads,
                     1, 1, 100, "%d",
                     CImGui.ImGuiSliderFlags_AlwaysClamp
-                )
+                ))
                 @c CImGui.DragInt(
                     mlstr("DAQ threads"),
                     &CONF.Basic.nthreads_2,
@@ -139,12 +142,14 @@ let
                 CImGui.Text(mlstr("visa path"))
                 selectvisapath && (visapath = pick_file(abspath(visapath)))
                 autovisapath && (visapath = QInsControlCore.find_visa())
-                (inputvisapath || selectvisapath || autovisapath) && isvalidpath(visapath) && (CONF.Communication.visapath = visapath)
-                if isfile(CONF.Communication.visapath)
-                    QInsControlCore.Instruments.libvisa = CONF.Communication.visapath
-                    remotecall_wait(workers()[1], CONF.Communication.visapath) do visapath
-                        CONF.Communication.visapath = visapath
-                        QInsControlCore.Instruments.libvisa = visapath
+                if inputvisapath || selectvisapath || autovisapath
+                    isvalidpath(visapath) && (CONF.Communication.visapath = visapath)
+                    if isfile(CONF.Communication.visapath)
+                        QInsControlCore.Instruments.libvisa = CONF.Communication.visapath
+                        remotecall_wait(workers()[1], CONF.Communication.visapath) do visapath
+                            CONF.Communication.visapath = visapath
+                            QInsControlCore.Instruments.libvisa = visapath
+                        end
                     end
                 end
                 CImGui.Text(" ")
