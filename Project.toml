@@ -6,7 +6,6 @@ version = "0.1.0"
 [deps]
 BinDeps = "9e28174c-4ba2-5203-b857-d8d62c4213ee"
 CImGui = "5d785b6c-b76f-510e-a07c-3070796c7e87"
-CairoMakie = "13f3f980-e62b-5c42-98c6-ff1f3baf88f0"
 ColorTypes = "3da002f7-5984-5a60-b8a6-cbb66c0b333f"
 Configurations = "5218b696-f38b-4ac9-8b61-a12ec717816d"
 DataInterpolations = "82cc6244-b520-54b8-b5a6-8a565e85f1d0"
