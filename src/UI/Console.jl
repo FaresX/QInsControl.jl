@@ -31,6 +31,7 @@ let
                 for (i, s) in enumerate(allmsg[end-limitline+1:end])
                     occursin(markerlist[1], s) && (textc = ImVec4(MORESTYLE.Colors.HighlightText...))
                     occursin(markerlist[2], s) && (textc = ImVec4(MORESTYLE.Colors.LogInfo...))
+                    length(s) > CONF.Console.showiolength && (s = s[1:CONF.Console.showiolength])
                     if occursin("[End]", s)
                         isinblock || (iomsg *= "\n")
                         push!(iomsgshow, (textc, iomsg))

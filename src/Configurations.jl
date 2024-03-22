@@ -65,6 +65,7 @@ end
     dir::String = ""
     refreshrate::Cfloat = 60
     showioline::Cint = 100
+    showiolength::Cint = 1000
     historylen::Cint = 120
 end
 
