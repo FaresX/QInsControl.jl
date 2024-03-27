@@ -328,7 +328,7 @@ function gencodes_read(bk::Union{ReadingBlock,QueryBlock,ReadBlock})
         else
             [string(mark, "_", bk.instrnm, "[", ind, "]", "_", bk.addr) for (mark, ind) in zip(marks, index)]
         end
-        separator = INSCONF[bk.instrnm].quantities[bk.quantity].separator
+        separator = bk isa ReadingBlock ? INSCONF[bk.instrnm].quantities[bk.quantity].separator : ","
         separator == "" && (separator = ",")
         getcmd = if bk isa ReadingBlock
             :(string.(split(controllers[$instr]($getfunc, CPU, Val(:read)), $separator)[collect($index)]))
