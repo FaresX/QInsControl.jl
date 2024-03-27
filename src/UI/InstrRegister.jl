@@ -263,7 +263,7 @@ let
 
                         ###quantities###
                         SeparatorTextColored(MORESTYLE.Colors.HighlightText, mlstr("Variables"))
-                        if @c ComboS(mlstr("variables"), &selectedqt, keys(selectedinscf.quantities))
+                        if @c ComboS(mlstr("variables"), &selectedqt, sort(collect(keys(selectedinscf.quantities))))
                             if selectedqt != "" && haskey(selectedinscf.quantities, selectedqt)
                                 qtname = selectedqt
                                 editqt = deepcopy(selectedinscf.quantities[selectedqt])
