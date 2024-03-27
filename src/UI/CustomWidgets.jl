@@ -316,7 +316,8 @@ function TextRect(
 )
     draw_list = CImGui.GetWindowDrawList()
     availwidth = CImGui.GetContentRegionAvailWidth()
-    nochild || CImGui.BeginChild("TextRect", size)
+    nochild || CImGui.SetCursorScreenPos(CImGui.GetCursorScreenPos() .+ padding)
+    nochild || CImGui.BeginChild("TextRect", size .- 2padding, true)
     CImGui.SetCursorScreenPos(CImGui.GetCursorScreenPos() .+ padding .+ thickness)
     CImGui.PushTextWrapPos(nochild ? availwidth - padding[1] : 0)
     CImGui.PushStyleColor(CImGui.ImGuiCol_Text, coltxt)
@@ -326,8 +327,8 @@ function TextRect(
     nochild || CImGui.EndChild()
     rmin, rmax = CImGui.GetItemRectMin(), CImGui.GetItemRectMax()
     nochild && ColoredButton(""; size=(Cfloat(0), thickness + padding[2]), colbt=[0, 0, 0, 0], colbth=[0, 0, 0, 0], colbta=[0, 0, 0, 0])
-    recta = nochild ? rmin .- padding : rmin .+ thickness
-    rectb = nochild ? CImGui.ImVec2(rmin.x + availwidth .- 2padding[1] .- 2thickness, rmax.y + padding[2]) : rmax .- thickness
+    recta = nochild ? rmin .- padding : rmin .- padding .+ thickness
+    rectb = nochild ? CImGui.ImVec2(rmin.x + availwidth .- 2padding[1] .- 2thickness, rmax.y + padding[2]) : rmax .+ padding .- thickness
     CImGui.AddRect(
         draw_list,
         recta, rectb,
