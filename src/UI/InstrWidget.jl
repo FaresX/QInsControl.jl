@@ -52,6 +52,7 @@ end
     alias::String = ""
     qtype::String = "none"
     numoptvs::Cint = 0
+    numread::Cint = 1
     hold::Bool = false
     options::QuantityWidgetOption = QuantityWidgetOption()
     selected::Bool = false
@@ -329,7 +330,7 @@ function edit(opts::QuantityWidgetOption, qt::AbstractQuantity, instrnm, addr, :
     originscale = unsafe_load(CImGui.GetIO().FontGlobalScale)
     CImGui.SetWindowFontScale(opts.textscale)
     trig = ColoredButtonRect(
-        qt.showval;
+        qt.showval[opts.bindingidx];
         size=opts.itemsize,
         colbt=opts.bgcolor,
         colbth=opts.hoveredcolor,
@@ -379,7 +380,7 @@ function edit(opts::QuantityWidgetOption, qt::AbstractQuantity, instrnm, addr, :
     originscale = unsafe_load(CImGui.GetIO().FontGlobalScale)
     CImGui.SetWindowFontScale(opts.textscale)
     trig = ColoredButtonRect(
-        stcstr(qt.showval, " ", qt.showU);
+        stcstr(qt.showval[opts.bindingidx], " ", qt.showU);
         size=opts.itemsize,
         colbt=opts.bgcolor,
         colbth=opts.hoveredcolor,
@@ -483,16 +484,15 @@ function edit(opts::QuantityWidgetOption, qt::AbstractQuantity, instrnm, addr, :
     return trig
 end
 function parseforreaddashboard(qt::AbstractQuantity)
-    readings = split(qt.showval, ',')
     U, Us = @c getU(qt.utype, &qt.uindex)
     if U == ""
         return [0, 0, 400, true]
     else
-        if length(readings) == 4
-            val = tryparse(Float64, readings[1])
-            mrange1 = tryparse(Float64, readings[2])
-            mrange2 = tryparse(Float64, readings[3])
-            start = tryparse(Bool, readings[4])
+        if length(qt.showval) == 4
+            val = tryparse(Float64, qt.showval[1])
+            mrange1 = tryparse(Float64, qt.showval[2])
+            mrange2 = tryparse(Float64, qt.showval[3])
+            start = tryparse(Bool, qt.showval[4])
             if isnothing(val) || isnothing(mrange1) || isnothing(mrange2) || isnothing(start)
                 return [0, 0, 400, true]
             else
@@ -1467,7 +1467,7 @@ function addwidgetmenu(insw::InstrWidget, i=0; mode=:addlast)
                 for (qtnm, qt) in INSCONF[insw.instrnm].quantities
                     qt.type == "sweep" || continue
                     if CImGui.MenuItem(qt.alias)
-                        newqtw = QuantityWidget(name=qtnm, alias=qt.alias, qtype="sweep")
+                        newqtw = QuantityWidget(name=qtnm, alias=qt.alias, qtype="sweep", numread=qt.numread)
                         newqtw.options.uitype = "read"
                     end
                 end
@@ -1479,7 +1479,9 @@ function addwidgetmenu(insw::InstrWidget, i=0; mode=:addlast)
                 for (qtnm, qt) in INSCONF[insw.instrnm].quantities
                     qt.type == "set" || continue
                     if CImGui.MenuItem(qt.alias)
-                        newqtw = QuantityWidget(name=qtnm, alias=qt.alias, qtype="set", numoptvs=length(qt.optvalues))
+                        newqtw = QuantityWidget(
+                            name=qtnm, alias=qt.alias, qtype="set", numoptvs=length(qt.optvalues), numread=qt.numread
+                        )
                         newqtw.options.uitype = "read"
                     end
                 end
@@ -1491,7 +1493,7 @@ function addwidgetmenu(insw::InstrWidget, i=0; mode=:addlast)
                 for (qtnm, qt) in INSCONF[insw.instrnm].quantities
                     qt.type == "read" || continue
                     if CImGui.MenuItem(qt.alias)
-                        newqtw = QuantityWidget(name=qtnm, alias=qt.alias, qtype="read")
+                        newqtw = QuantityWidget(name=qtnm, alias=qt.alias, qtype="read", numread=qt.numread)
                         newqtw.options.uitype = "read"
                     end
                 end
@@ -1525,6 +1527,7 @@ function convertmenu(insw::InstrWidget, i)
                             name=qtnm,
                             alias=qt.alias,
                             qtype="sweep",
+                            numread=qt.numread,
                             options=insw.qtws[i].options
                         )
                     end
@@ -1542,6 +1545,7 @@ function convertmenu(insw::InstrWidget, i)
                             alias=qt.alias,
                             qtype="set",
                             numoptvs=length(qt.optvalues),
+                            numread=qt.numread,
                             options=insw.qtws[i].options
                         )
                     end
@@ -1558,6 +1562,7 @@ function convertmenu(insw::InstrWidget, i)
                             name=qtnm,
                             alias=qt.alias,
                             qtype="read",
+                            numread=qt.numread,
                             options=insw.qtws[i].options
                         )
                     end
@@ -1720,6 +1725,9 @@ let
         if qtw.qtype == "set" && CImGui.CollapsingHeader(mlstr("Binding Options"))
             @c CImGui.SliderInt(mlstr("Binding Index to RadioButton"), &qtw.options.bindingidx, 1, qtw.numoptvs)
             CImGui.SliderInt2(mlstr("Binding Index to ON/OFF"), qtw.options.bindingonoff, 1, qtw.numoptvs)
+        end
+        if qtw.qtype == "read" && CImGui.CollapsingHeader(mlstr("Binding Options"))
+            @c CImGui.SliderInt(mlstr("Reading Index"), &qtw.options.bindingidx, 1, qtw.numread)
         end
         if qtw.name == "_QuantitySelector_" && CImGui.CollapsingHeader(mlstr("Selector Options"))
             # @c ComboS(mlstr("Selector Type"), &qtw.options.selectortype, selectortypes)

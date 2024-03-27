@@ -317,8 +317,8 @@ function gencodes_read(bk::Union{ReadingBlock,QueryBlock,ReadBlock})
         for (i, v) in enumerate(split(bk.mark, ","))
             marks[i] = v
         end
-        for i in index
-            marks[i] == "" && (marks[i] = "mark$i")
+        for (i, idx) in enumerate(index)
+            marks[i] == "" && (marks[i] = "mark$idx")
         end
         keyall = if bk isa ReadingBlock
             [
@@ -328,12 +328,14 @@ function gencodes_read(bk::Union{ReadingBlock,QueryBlock,ReadBlock})
         else
             [string(mark, "_", bk.instrnm, "[", ind, "]", "_", bk.addr) for (mark, ind) in zip(marks, index)]
         end
+        separator = INSCONF[bk.instrnm].quantities[bk.quantity].separator
+        separator == "" && (separator = ",")
         getcmd = if bk isa ReadingBlock
-            :(string.(split(controllers[$instr]($getfunc, CPU, Val(:read)), ",")[collect($index)]))
+            :(string.(split(controllers[$instr]($getfunc, CPU, Val(:read)), $separator)[collect($index)]))
         elseif bk isa QueryBlock
-            :(string.(split(controllers[$instr](query, CPU, $cmd, Val(:query)), ",")[collect($index)]))
+            :(string.(split(controllers[$instr](query, CPU, $cmd, Val(:query)), $separator)[collect($index)]))
         elseif bk isa ReadBlock
-            :(string.(split(controllers[$instr](read, CPU, Val(:read)), ",")[collect($index)]))
+            :(string.(split(controllers[$instr](read, CPU, Val(:read)), $separator)[collect($index)]))
         end
         getdata = bk.istrycatch ? :(@gentrycatch $(bk.instrnm) $(bk.addr) $getcmd $(length(index))) : getcmd
         if bk.isobserve
@@ -719,12 +721,8 @@ let
         @c ComboS("##ReadingBlock address", &bk.addr, addrlist, CImGui.ImGuiComboFlags_NoArrowButton)
         CImGui.PopItemWidth()
         CImGui.SameLine()
-
-        showqt = if haskey(INSCONF, bk.instrnm) && haskey(INSCONF[bk.instrnm].quantities, bk.quantity)
-            INSCONF[bk.instrnm].quantities[bk.quantity].alias
-        else
-            mlstr("read")
-        end
+        hasqt = haskey(INSCONF, bk.instrnm) && haskey(INSCONF[bk.instrnm].quantities, bk.quantity)
+        showqt = hasqt ? INSCONF[bk.instrnm].quantities[bk.quantity].alias : mlstr("read")
         CImGui.PushItemWidth(width)
         if CImGui.BeginCombo("##ReadingBlock read", showqt, CImGui.ImGuiComboFlags_NoArrowButton)
             qtlist = haskey(INSCONF, bk.instrnm) ? keys(INSCONF[bk.instrnm].quantities) : Set{String}()
@@ -742,9 +740,11 @@ let
         CImGui.PopItemWidth()
         CImGui.SameLine()
 
+        igBeginDisabled((!hasqt || (hasqt && INSCONF[bk.instrnm].quantities[bk.quantity].numread == 1)))
         CImGui.PushItemWidth(width * 2 / 3)
         @c InputTextWithHintRSZ("##ReadingBlock index", mlstr("index"), &bk.index)
         CImGui.PopItemWidth()
+        igEndDisabled()
         CImGui.SameLine()
 
         markc = if bk.isobserve

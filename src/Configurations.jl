@@ -146,6 +146,8 @@ BasicConf(conf::Dict) = BasicConf(
     optkeys::Vector{String} = []
     optvalues::Vector{String} = []
     type::String = "set"
+    separator::String = ""
+    numread::Cint = 1
     help::String = ""
 end
 QuantityConf(qt::Dict) = QuantityConf(
@@ -155,6 +157,8 @@ QuantityConf(qt::Dict) = QuantityConf(
     qt["optkeys"],
     qt["optvalues"],
     qt["type"],
+    qt["separator"],
+    qt["numread"],
     qt["help"]
 )
 
@@ -177,6 +181,8 @@ todict(qtcf::QuantityConf) = Dict(
     "optkeys" => qtcf.optkeys,
     "optvalues" => qtcf.optvalues,
     "type" => qtcf.type,
+    "separator" => qtcf.separator,
+    "numread" => qtcf.numread,
     "help" => qtcf.help
 )
 function todict(oneinscf::OneInsConf)

@@ -10,11 +10,13 @@ abstract type AbstractQuantity end
     read::String = ""
     utype::String = ""
     uindex::Int = 1
+    separator::String = ""
+    numread::Cint = 1
     help::String = ""
     isautorefresh::Bool = false
     issweeping::Bool = false
     # front end
-    showval::String = ""
+    showval::Vector{String} = []
     showU::String = ""
     show_edit::String = ""
     show_view::String = ""
@@ -33,10 +35,12 @@ end
     read::String = ""
     utype::String = ""
     uindex::Int = 1
+    separator::String = ""
+    numread::Cint = 1
     help::String = ""
     isautorefresh::Bool = false
     # front end
-    showval::String = ""
+    showval::Vector{String} = []
     showU::String = ""
     show_edit::String = ""
     show_view::String = ""
@@ -51,10 +55,12 @@ end
     read::String = ""
     utype::String = ""
     uindex::Int = 1
+    separator::String = ""
+    numread::Cint = 1
     help::String = ""
     isautorefresh::Bool = false
     # front end
-    showval::String = ""
+    showval::Vector{String} = []
     showU::String = ""
     show_edit::String = ""
     show_view::String = ""
@@ -70,7 +76,7 @@ function Base.show(io::IO, qt::SweepQuantity)
                 step : $(qt.step)
                 stop : $(qt.stop)
                delay : $(qt.delay)
-                read : $(qt.showval) $(qt.showU)
+                read : $(join(qt.showval, qt.separator)) $(qt.showU)
         auto-refresh : $(qt.isautorefresh)
             sweeping : $(qt.issweeping)
     """
@@ -84,7 +90,7 @@ function Base.show(io::IO, qt::SetQuantity)
                 name : $(qt.name)
                alias : $(qt.alias)
                 set : $(qt.set)
-                read : $(qt.showval) $(qt.showU)
+                read : $(join(qt.showval, qt.separator)) $(qt.showU)
         auto-refresh : $(qt.isautorefresh)
     """
     print(io, str)
@@ -96,7 +102,7 @@ function Base.show(io::IO, qt::ReadQuantity)
     SweepQuantity :
                 name : $(qt.name)
                alias : $(qt.alias)
-                read : $(qt.showval) $(qt.showU)
+                read : $(join(qt.showval, qt.separator)) $(qt.showU)
         auto-refresh : $(qt.isautorefresh)
     """
     print(io, str)
@@ -104,26 +110,41 @@ end
 
 function quantity(name, qtcf::QuantityConf)
     return if qtcf.type == "sweep"
-        SweepQuantity(name=name, alias=qtcf.alias, utype=qtcf.U, help=qtcf.help)
+        SweepQuantity(
+            name=name, alias=qtcf.alias, utype=qtcf.U,
+            separator=qtcf.separator, numread=qtcf.numread, help=qtcf.help, showval=fill("", qtcf.numread)
+        )
     elseif qtcf.type == "set"
         SetQuantity(
-            name=name, alias=qtcf.alias, optkeys=qtcf.optkeys, optvalues=qtcf.optvalues, utype=qtcf.U, help=qtcf.help
+            name=name, alias=qtcf.alias, optkeys=qtcf.optkeys, optvalues=qtcf.optvalues, utype=qtcf.U,
+            separator=qtcf.separator, numread=qtcf.numread, help=qtcf.help, showval=fill("", qtcf.numread)
         )
     elseif qtcf.type == "read"
-        ReadQuantity(name=name, alias=qtcf.alias, utype=qtcf.U, help=qtcf.help)
+        ReadQuantity(
+            name=name, alias=qtcf.alias, utype=qtcf.U,
+            separator=qtcf.separator, numread=qtcf.numread, help=qtcf.help, showval=fill("", qtcf.numread)
+        )
     end
 end
 
 function getvalU!(qt::AbstractQuantity)
     U, Us = @c getU(qt.utype, &qt.uindex)
     U == "" || (Uchange::Float64 = Us[1] isa Unitful.FreeUnits ? ustrip(Us[1], 1U) : 1.0)
-    qt.showval = U == "" ? qt.read : @trypass @sprintf("%g", parse(Float64, qt.read) / Uchange) qt.read
+    if qt.separator == ""
+        length(qt.showval) == qt.numread || resizefill!(qt.showval, qt.numread)
+        qt.showval[1] = U == "" ? qt.read : @trypass @sprintf("%g", parse(Float64, qt.read) / Uchange) qt.read
+    else
+        # splitread = split(qt.read, qt.separator)
+        # qt.showval = U == "" ? splitread : [@trypass @sprintf("%g", parse(Float64, r) / Uchange) r for r in splitread]
+        qt.showval = split(qt.read, qt.separator)
+        length(qt.showval) == qt.numread || resizefill!(qt.showval, qt.numread)
+    end
     qt.showU = string(U)
 end
 
 function updatefront!(qt::SweepQuantity)
     getvalU!(qt)
-    content = string("\n", qt.alias, "\n \n", qt.showval, " ", qt.showU, "\n ") |> centermultiline
+    content = string("\n", qt.alias, "\n \n", join(qt.showval, qt.separator), " ", qt.showU, "\n ") |> centermultiline
     qt.show_edit = string(content, "###for refresh")
 end
 
@@ -131,7 +152,8 @@ function updateoptvalue!(qt::SetQuantity)
     if qt.showU == ""
         if qt.read in qt.optvalues
             qt.optedidx = findfirst(==(qt.read), qt.optvalues)
-            qt.showval = string(qt.optkeys[qt.optedidx], " => ", qt.read)
+            length(qt.showval) == qt.numread || resizefill!(qt.showval, qt.numread)
+            qt.showval[1] = string(qt.optkeys[qt.optedidx], " => ", qt.read)
         end
     else
         floatread = tryparse(Float64, qt.read)
@@ -139,7 +161,8 @@ function updateoptvalue!(qt::SetQuantity)
             floatoptvalues = replace(tryparse.(Float64, qt.optvalues), nothing => NaN)
             if true in Bool.(floatread .≈ floatoptvalues)
                 qt.optedidx = findfirst(floatread .≈ floatoptvalues)
-                qt.showval = string(qt.optkeys[qt.optedidx], " => ", qt.showval)
+                length(qt.showval) == qt.numread || resizefill!(qt.showval, qt.numread)
+                qt.showval[1] = string(qt.optkeys[qt.optedidx], " => ", qt.showval[1])
             end
         end
     end
@@ -148,13 +171,13 @@ end
 function updatefront!(qt::SetQuantity)
     getvalU!(qt)
     updateoptvalue!(qt)
-    content = string("\n", qt.alias, "\n \n", qt.showval, " ", qt.showU, "\n ") |> centermultiline
+    content = string("\n", qt.alias, "\n \n", join(qt.showval, qt.separator), " ", qt.showU, "\n ") |> centermultiline
     qt.show_edit = string(content, "###for refresh")
 end
 
 function updatefront!(qt::ReadQuantity)
     getvalU!(qt)
-    content = string("\n", qt.alias, "\n \n", qt.showval, " ", qt.showU, "\n ") |> centermultiline
+    content = string("\n", qt.alias, "\n \n", join(qt.showval, qt.separator), " ", qt.showU, "\n ") |> centermultiline
     qt.show_edit = string(content, "###for refresh")
 end
 
@@ -164,7 +187,7 @@ function updatefront!(qt::AbstractQuantity; show_edit=true)
     else
         getvalU!(qt)
         qt isa SetQuantity && updateoptvalue!(qt)
-        qt.show_view = string(qt.alias, "\n", qt.showval, " ", qt.showU) |> centermultiline
+        qt.show_view = string(qt.alias, "\n", join(qt.showval, qt.separator), " ", qt.showU) |> centermultiline
     end
 end
 
@@ -190,8 +213,10 @@ function InstrBuffer(instrnm)
         optvalues = INSCONF[instrnm].quantities[qt].optvalues
         utype = INSCONF[instrnm].quantities[qt].U
         type = INSCONF[instrnm].quantities[qt].type
+        separator = INSCONF[instrnm].quantities[qt].separator
+        numread = INSCONF[instrnm].quantities[qt].numread
         help = replace(INSCONF[instrnm].quantities[qt].help, "\\\n" => "")
-        newqt = quantity(qt, QuantityConf(alias, utype, "", optkeys, optvalues, type, help))
+        newqt = quantity(qt, QuantityConf(alias, utype, "", optkeys, optvalues, type, separator, numread, help))
         push!(instrqts, qt => newqt)
     end
     InstrBuffer(instrnm=instrnm, quantities=instrqts)

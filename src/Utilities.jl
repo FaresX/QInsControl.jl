@@ -411,3 +411,10 @@ function imgsampling(x, y, z; num=100000)
         return x, y, z
     end
 end
+
+function resizefill!(sv::Vector{String}, n; fillv="")
+    resize!(sv, n)
+    for i in eachindex(sv)
+        isassigned(sv, i) || (sv[i] = fillv)
+    end
+end

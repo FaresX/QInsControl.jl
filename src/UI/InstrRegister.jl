@@ -6,7 +6,7 @@ let
         @c InputTextRSZ(mlstr("command"), &qtcf.cmdheader)
         width = CImGui.GetItemRectSize().x / 2 - 2CImGui.CalcTextSize(" =>  ").x
         CImGui.SameLine()
-        if CImGui.Button("Driver")
+        if CImGui.Button(mlstr("Drivers"))
             driverfile = joinpath(ENV["QInsControlAssets"], "ExtraLoad/$instrnm.jl") |> abspath
             if !isfile(driverfile)
                 open(joinpath(ENV["QInsControlAssets"], "ExtraLoad/extraload.jl"), "a+") do file
@@ -73,6 +73,11 @@ let
         CImGui.SameLine()
         CImGui.Text(mlstr("optional values"))
         @c ComboS(mlstr("variable type"), &qtcf.type, ["sweep", "set", "read"])
+        CImGui.PushItemWidth((CImGui.CalcItemWidth() - unsafe_load(IMGUISTYLE.ItemSpacing.x)) / 2)
+        @c InputTextRSZ(mlstr("##separator"), &qtcf.separator)
+        CImGui.SameLine()
+        @c CImGui.DragInt(mlstr("separator"), &qtcf.numread, 1, 1, 36, "%d", CImGui.ImGuiSliderFlags_AlwaysClamp)
+        CImGui.PopItemWidth()
         CImGui.TextColored(MORESTYLE.Colors.LogInfo, mlstr("help document"))
         if edithelp
             lines = split(qtcf.help, '\n')
@@ -98,7 +103,7 @@ let
     deldialog::Bool = false
     isrename::Dict{String,Bool} = Dict()
     qtname::String = ""
-    editqt::QuantityConf = QuantityConf("", "", "", [], [], "set", "")
+    editqt::QuantityConf = QuantityConf()
     default_insbufs = Dict{String,InstrBuffer}()
     global function InstrRegister(p_open::Ref)
         CImGui.SetNextWindowSize((800, 600), CImGui.ImGuiCond_Once)

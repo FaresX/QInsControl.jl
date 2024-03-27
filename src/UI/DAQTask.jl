@@ -283,9 +283,22 @@ function update_data()
             else
                 continue
             end
-            occursin(r"\[.*\]", qt) && continue
             insbuf = INSTRBUFFERVIEWERS[instrnm][addr].insbuf
-            insbuf.quantities[qt].read = data[2]
+            if occursin(r"\[.*\]", qt)
+                splitqt = split(qt, '[')
+                qt = splitqt[1]
+                idx = parse(Int, splitqt[2][1:end-1])
+                splitread = split(insbuf.quantities[qt].read, insbuf.quantities[qt].separator)
+                if idx > length(splitread)
+                    insbuf.quantities[qt].read *= repeat(insbuf.quantities[qt].separator, idx - length(splitread))
+                    insbuf.quantities[qt].read *= data[2]
+                else
+                    splitread[idx] = data[2]
+                    insbuf.quantities[qt].read = join(splitread, insbuf.quantities[qt].separator)
+                end
+            else
+                insbuf.quantities[qt].read = data[2]
+            end
             updatefront!(insbuf.quantities[qt])
         end
         if waittime("savedatabuf", CONF.DAQ.savetime)
