@@ -8,11 +8,6 @@ let
         CImGui.SameLine()
         if CImGui.Button(mlstr("Drivers"))
             driverfile = joinpath(ENV["QInsControlAssets"], "ExtraLoad/$instrnm.jl") |> abspath
-            if !isfile(driverfile)
-                open(joinpath(ENV["QInsControlAssets"], "ExtraLoad/extraload.jl"), "a+") do file
-                    write(file, "\ninclude(\"$instrnm.jl\")")
-                end
-            end
             Threads.@spawn try
                 Base.run(Cmd([CONF.Basic.editor, driverfile]))
             catch e
@@ -21,10 +16,12 @@ let
         end
         CImGui.SameLine()
         if CImGui.Button(MORESTYLE.Icons.InstrumentsManualRef)
-            try
-                remotecall_wait(include, workers()[1], joinpath(ENV["QInsControlAssets"], "ExtraLoad/extraload.jl"))
-            catch e
-                @error mlstr("reloading drivers failed") exception = e
+            for file in readdir(joinpath(ENV["QInsControlAssets"], "ExtraLoad"), join=true)
+                try
+                    split(basename(file), '.')[end] == "jl" && remotecall_wait(include, workers()[1], file)
+                catch e
+                    @error mlstr("reloading drivers failed") exception = e file = file
+                end
             end
         end
         # optkeys = join(qtcf.optkeys, "\n")

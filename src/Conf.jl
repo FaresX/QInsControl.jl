@@ -39,10 +39,12 @@ function loadconf(precompile=false)
     haskey(CONF.Basic.languages, CONF.Basic.language) && loadlanguage(CONF.Basic.languages[CONF.Basic.language])
 
     ###### generate INSCONF ######
-    try
-        include(joinpath(ENV["QInsControlAssets"], "ExtraLoad/extraload.jl"))
-    catch e
-        @error mlstr("loading drivers failed!!!") exception = e
+    for file in readdir(joinpath(ENV["QInsControlAssets"], "ExtraLoad"), join=true)
+        try
+            split(basename(file), '.')[end] == "jl" && include(file)
+        catch e
+            @error mlstr("loading drivers failed!!!") exception = e file = file
+        end
     end
     for file in readdir(joinpath(ENV["QInsControlAssets"], "Confs"), join=true)
         bnm = basename(file)
