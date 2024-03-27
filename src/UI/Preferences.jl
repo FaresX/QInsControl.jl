@@ -76,10 +76,6 @@ let
                 #     CONF.Basic.isremote ? mlstr("dual core") : mlstr("single core"),
                 #     &CONF.Basic.isremote
                 # )
-                @c CImGui.Checkbox(
-                    mlstr("remote processing data"),
-                    &CONF.Basic.remoteprocessdata
-                )
                 @c(CImGui.Checkbox(
                     CONF.Basic.viewportenable ? mlstr("multi-viewport mode on") : mlstr("multi-viewport mode off"),
                     &CONF.Basic.viewportenable
