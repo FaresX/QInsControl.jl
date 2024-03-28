@@ -1186,3 +1186,27 @@ let
         # CImGui.AddRect(draw_list, rmin, rmax, CImGui.ColorConvertFloat4ToU32(colrect), bdrounding, 0, thickness)
     end
 end
+
+function ColoredProgressBarRect(
+    fraction, label;
+    size=(0, 0),
+    rounding=0.0,
+    bdrounding=0.0,
+    thickness=0,
+    colbar=CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_FrameBg),
+    colbara=CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_PlotHistogram),
+    coltxt=CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_Text),
+    colrect=MORESTYLE.Colors.ShowTextRect
+)
+    CImGui.PushStyleColor(CImGui.ImGuiCol_FrameBg, colbar)
+    CImGui.PushStyleColor(CImGui.ImGuiCol_PlotHistogram, colbara)
+    CImGui.PushStyleColor(CImGui.ImGuiCol_Text, coltxt)
+    CImGui.PushStyleVar(CImGui.ImGuiStyleVar_FrameRounding, rounding)
+    CImGui.ProgressBar(fraction, size, label)
+    CImGui.PopStyleVar()
+    CImGui.PopStyleColor(3)
+    rmin, rmax = CImGui.GetItemRectMin(), CImGui.GetItemRectMax()
+    draw_list = CImGui.GetWindowDrawList()
+    CImGui.AddRect(draw_list, rmin, rmax, CImGui.ColorConvertFloat4ToU32(colrect), bdrounding, 0, thickness)
+    return false
+end
