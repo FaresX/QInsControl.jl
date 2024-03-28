@@ -222,7 +222,7 @@ end
 function mergezaxes!(plt::Plot)
     empty!(plt.zaxes)
     for pss in plt.series
-        zlims = isempty(pss.z) ? (0, 1) : extrema(pss.z)
+        zlims = extrema(pss.z; init=(0, 1))
         zlims[1] == zlims[2] && (zlims = (0, 1))
         pss.axis.zaxis.lims = zlims
     end
@@ -253,7 +253,7 @@ function Plot(plt::Plot; psize=CImGui.ImVec2(0, 0), flags=0)
                 xaseries = [pss for pss in plt.series if pss.axis.xaxis.axis == xa.axis]
                 if !isempty(xaseries)
                     pltxlims = plt.plotlims[xa.axis+1]
-                    seriesxlims = extrema(xaseries[1].x)
+                    seriesxlims = extrema(xaseries[1].x; init=(0, 1))
                     pickrange = [max(pltxlims.Min, seriesxlims[1]), min(pltxlims.Max, seriesxlims[2])]
                     pickvalues, picklabels = if pickrange[2] < seriesxlims[1] || pickrange[1] > seriesxlims[2]
                         [], []
@@ -268,7 +268,7 @@ function Plot(plt::Plot; psize=CImGui.ImVec2(0, 0), flags=0)
                         num = min(floor(Int, plt.plotsize[1] * rate / ticksmaxlen), length(picklabels))
                         if num != 0
                             ll = length(picklabels)
-                            showidxes = num == 1 ? [(ll + 1)÷2] : round.(Int, range(1, ll, length=num))
+                            showidxes = num == 1 ? [(ll + 1) ÷ 2] : round.(Int, range(1, ll, length=num))
                             ImPlot.SetupAxisTicks(xa.axis, pickvalues[showidxes], num, picklabels[showidxes])
                         end
                     end
@@ -325,7 +325,7 @@ function Plot2D(plotfunc, pss::PlotSeries, plt::Plot)
     ImPlot.SetAxes(pss.axis.xaxis.axis, pss.axis.yaxis.axis)
     plotfunc(pss.legend, pss.x, pss.y, length(pss.x))
     pss.legendhovered = ImPlot.IsLegendEntryHovered(pss.legend)
-    xl, xr = extrema(pss.x)
+    xl, xr = extrema(pss.x; init=(0, 1))
     plt.mspos = ImPlot.GetPlotMousePos()
     if plt.showtooltip && plt.hovered && xl <= plt.mspos.x <= xr
         minx = pss.x[argmin(abs.(pss.x .- plt.mspos.x))]

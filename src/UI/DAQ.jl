@@ -59,7 +59,7 @@ let
         # CImGui.SameLine()
         CImGui.Button(
             stcstr(MORESTYLE.Icons.Load, "##Load Project"), (btwidth, btheight)
-        ) && Threads.@spawn loadproject(pick_file(filterlist="daq;qdt"))
+        ) && loadproject(pick_file(filterlist="daq;qdt"))
         CImGui.Button(
             stcstr(MORESTYLE.Icons.SaveButton, "##Save Project"),
             (btwidth, btheight)
@@ -83,7 +83,7 @@ let
             coltxt=MORESTYLE.Colors.HighlightText,
             colrect=MORESTYLE.Colors.ItemBorder
         )
-            Threads.@spawn WORKPATH = pick_folder()
+            WORKPATH = pick_folder()
         end
         CImGui.SameLine()
         TextRect(
@@ -205,13 +205,13 @@ let
                     i < running_i && (running_i += 1)
                 end
                 if CImGui.MenuItem(stcstr(MORESTYLE.Icons.SaveButton, " ", mlstr("Save")))
-                    Threads.@spawn begin
+                    begin
                         confsvpath = save_file(filterlist="cfg")
                         isempty(confsvpath) || jldsave(confsvpath; daqtask=task)
                     end
                 end
                 if CImGui.MenuItem(stcstr(MORESTYLE.Icons.Load, " ", mlstr("Load")))
-                    Threads.@spawn begin
+                    begin
                         confldpath = pick_file(filterlist="cfg,qdt")
                         if isfile(confldpath)
                             loadcfg = @trypass load(confldpath, "daqtask") begin
@@ -278,7 +278,7 @@ let
             CImGui.MenuItem(stcstr(MORESTYLE.Icons.NewFile, " ", mlstr("New Task"))) && push!(daqtasks, DAQTask())
             CImGui.MenuItem(stcstr(MORESTYLE.Icons.NewFile, " ", mlstr("New Plot"))) && newplot!(DAQDATAPLOT)
             if CImGui.MenuItem(stcstr(MORESTYLE.Icons.Load, " ", mlstr("Load")))
-                Threads.@spawn begin
+                begin
                     confldpath = pick_file(filterlist="cfg")
                     if isfile(confldpath)
                         newdaqtask = @trypasse load(confldpath, "daqtask") begin
@@ -292,7 +292,7 @@ let
             CImGui.MenuItem(stcstr(MORESTYLE.Icons.SaveButton, " ", mlstr("Save Project"))) && saveproject()
             CImGui.MenuItem(
                 stcstr(MORESTYLE.Icons.Load, " ", mlstr("Load Project"))
-            ) && Threads.@spawn loadproject(pick_file(filterlist="daq;qdt"))
+            ) && loadproject(pick_file(filterlist="daq;qdt"))
             CImGui.EndPopup()
         end
         if !CImGui.IsAnyItemHovered() && CImGui.IsWindowHovered(CImGui.ImGuiHoveredFlags_ChildWindows)
@@ -350,7 +350,7 @@ let
     end
 
     global function saveproject(daqsvpath="")
-        Threads.@spawn begin
+        begin
             daqsvpath == "" && (daqsvpath = save_file(filterlist="daq"))
             if daqsvpath != ""
                 projpath = daqsvpath

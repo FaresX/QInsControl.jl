@@ -125,7 +125,7 @@ function centermultiline(s)
     for (i, line) in enumerate(ss)
         line == "" && continue
         ns = (ml - lengthpr(line)) ÷ 2spacel
-        ss[i] = " "^(isnan(ns) ? 0 : round(Int, ns)) * line
+        ss[i] = " "^(isnan(ns) || ns < 0 ? 0 : round(Int, ns)) * line
     end
     join(ss, '\n')
 end
