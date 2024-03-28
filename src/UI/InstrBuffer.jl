@@ -21,6 +21,9 @@ abstract type AbstractQuantity end
     show_edit::String = ""
     show_view::String = ""
     passfilter::Bool = true
+    nstep::Int = 0
+    presenti::Int = 0
+    elapsedtime::Float64 = 0
 end
 
 @kwdef mutable struct SetQuantity <: AbstractQuantity
@@ -769,9 +772,14 @@ function apply!(qt::SweepQuantity, instrnm, addr)
                 ct = Controller(instrnm, addr)
                 sweep_c = Channel{Vector{String}}(CONF.DAQ.channel_size)
                 sweep_rc = RemoteChannel(() -> sweep_c)
+                idxbuf = SharedVector{Int}(1)
+                timebuf = SharedVector{Float64}(1)
+                qt.nstep = length(sweeplist)
+                qt.presenti = 0
+                qt.elapsedtime = 0
                 sweepcalltask = @async remotecall_wait(
-                    workers()[1], ct, sweeplist, sweep_rc, qt.name, qt.delay
-                ) do ct, sweeplist, sweep_rc, qtnm, delay
+                    workers()[1], ct, sweeplist, sweep_rc, qt.name, qt.delay, idxbuf, timebuf
+                ) do ct, sweeplist, sweep_rc, qtnm, delay, idxbuf, timebuf
                     push!(SWEEPCTS, ct.id => (Ref(true), ct))
                     sweep_lc = Channel{String}(CONF.DAQ.channel_size)
                     login!(CPU, ct)
@@ -781,11 +789,14 @@ function apply!(qt::SweepQuantity, instrnm, addr)
                         @sync begin
                             sweeptask = errormonitor(
                                 @async begin
-                                    for sv in sweeplist
+                                    tstart = time()
+                                    for (i, sv) in enumerate(sweeplist)
                                         SWEEPCTS[ct.id][1][] || break
                                         sleep(delay)
                                         SWEEPCTS[ct.id][2](setfunc, CPU, string(sv), Val(:write))
                                         put!(sweep_lc, SWEEPCTS[ct.id][2](getfunc, CPU, Val(:read)))
+                                        idxbuf[1] = i
+                                        timebuf[1] = time() - tstart
                                     end
                                 end
                             )
@@ -813,6 +824,8 @@ function apply!(qt::SweepQuantity, instrnm, addr)
                     qt.issweeping || remotecall_wait(ctid -> SWEEPCTS[ctid][1][] = false, workers()[1], ct.id)
                     isready(sweep_rc) && for val in take!(sweep_rc)
                         qt.read = val
+                        qt.presenti = idxbuf[1]
+                        qt.elapsedtime = timebuf[1]
                         updatefront!(qt)
                     end
                     sleep(qt.delay / 10)
