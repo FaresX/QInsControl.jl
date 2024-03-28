@@ -7,9 +7,8 @@ macro progress(exfor)
             $pgi = 0
             put!(progress_lc, ($pgid, $pgi, $pgn, 0))
             $tn = time()
-            for $(exfor.args[1].args[1]) in $(exfor.args[1].args[2])
+            for ($pgi, $(exfor.args[1].args[1])) in enumerate($(exfor.args[1].args[2]))
                 $(exfor.args[2])
-                $pgi += 1
                 put!(progress_lc, ($pgid, $pgi, $pgn, time() - $tn))
             end
         end
@@ -41,11 +40,23 @@ end
 
 function ShowProgressBar(; size=(-1, 0))
     for pgb in values(PROGRESSLIST)
-        pgmark = string(pgb[2], "/", pgb[3], "(", tohms(pgb[4]), "/", tohms(pgb[3] * pgb[4] / pgb[2]), ")")
         if pgb[2] == pgb[3]
             delete!(PROGRESSLIST, pgb[1])
         else
-            CImGui.ProgressBar(pgb[2] / pgb[3], size, pgmark)
+            CImGui.ProgressBar(calcfraction(pgb[2], pgb[3]), size, progressmark(pgb[2:4]...))
         end
+    end
+end
+
+calcfraction(i, n) = n == 0 ? 0 : i / n
+function progressmark(i, n, t; notimes=false, notime=false)
+    if notimes && !notime
+        string(tohms(t), "/", tohms(n * t / i))
+    elseif !notimes && notime
+        string(i, "/", n)
+    elseif notimes && notime
+        ""
+    else
+        string(i, "/", n, "(", tohms(t), "/", tohms(n * t / i), ")")
     end
 end
