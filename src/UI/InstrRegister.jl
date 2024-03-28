@@ -334,6 +334,11 @@ let
                                     push!(default_insbufs, selectedins => InstrBuffer(selectedins))
                                     for (_, qt) in default_insbufs[selectedins].quantities
                                         qt.read = "123456.7890"
+                                        if qt isa SweepQuantity
+                                            qt.nstep = 100
+                                            qt.presenti = 60
+                                            qt.elapsedtime = 66.6
+                                        end
                                         updatefront!(qt)
                                     end
                                 end
