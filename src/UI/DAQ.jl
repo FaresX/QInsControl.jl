@@ -59,7 +59,7 @@ let
         # CImGui.SameLine()
         CImGui.Button(
             stcstr(MORESTYLE.Icons.Load, "##Load Project"), (btwidth, btheight)
-        ) && loadproject(pick_file(filterlist="daq;qdt"))
+        ) && Threads.@spawn loadproject(pick_file(filterlist="daq;qdt"))
         CImGui.Button(
             stcstr(MORESTYLE.Icons.SaveButton, "##Save Project"),
             (btwidth, btheight)
@@ -83,7 +83,7 @@ let
             coltxt=MORESTYLE.Colors.HighlightText,
             colrect=MORESTYLE.Colors.ItemBorder
         )
-            WORKPATH = pick_folder()
+            Threads.@spawn WORKPATH = pick_folder()
         end
         CImGui.SameLine()
         TextRect(
@@ -205,16 +205,20 @@ let
                     i < running_i && (running_i += 1)
                 end
                 if CImGui.MenuItem(stcstr(MORESTYLE.Icons.SaveButton, " ", mlstr("Save")))
-                    confsvpath = save_file(filterlist="cfg")
-                    isempty(confsvpath) || jldsave(confsvpath; daqtask=task)
+                    Threads.@spawn begin
+                        confsvpath = save_file(filterlist="cfg")
+                        isempty(confsvpath) || jldsave(confsvpath; daqtask=task)
+                    end
                 end
                 if CImGui.MenuItem(stcstr(MORESTYLE.Icons.Load, " ", mlstr("Load")))
-                    confldpath = pick_file(filterlist="cfg,qdt")
-                    if isfile(confldpath)
-                        loadcfg = @trypass load(confldpath, "daqtask") begin
-                            @error mlstr("unsupported file!!!") filepath = confldpath
+                    Threads.@spawn begin
+                        confldpath = pick_file(filterlist="cfg,qdt")
+                        if isfile(confldpath)
+                            loadcfg = @trypass load(confldpath, "daqtask") begin
+                                @error mlstr("unsupported file!!!") filepath = confldpath
+                            end
+                            daqtasks[i] = isnothing(loadcfg) ? task : loadcfg
                         end
-                        daqtasks[i] = isnothing(loadcfg) ? task : loadcfg
                     end
                 end
                 CImGui.Separator()
@@ -274,19 +278,21 @@ let
             CImGui.MenuItem(stcstr(MORESTYLE.Icons.NewFile, " ", mlstr("New Task"))) && push!(daqtasks, DAQTask())
             CImGui.MenuItem(stcstr(MORESTYLE.Icons.NewFile, " ", mlstr("New Plot"))) && newplot!(DAQDATAPLOT)
             if CImGui.MenuItem(stcstr(MORESTYLE.Icons.Load, " ", mlstr("Load")))
-                confldpath = pick_file(filterlist="cfg")
-                if isfile(confldpath)
-                    newdaqtask = @trypasse load(confldpath, "daqtask") begin
-                        @error mlstr("unsupported file!!!") filepath = confldpath
+                Threads.@spawn begin
+                    confldpath = pick_file(filterlist="cfg")
+                    if isfile(confldpath)
+                        newdaqtask = @trypasse load(confldpath, "daqtask") begin
+                            @error mlstr("unsupported file!!!") filepath = confldpath
+                        end
+                        isnothing(newdaqtask) || push!(daqtasks, newdaqtask)
                     end
-                    isnothing(newdaqtask) || push!(daqtasks, newdaqtask)
                 end
             end
             CImGui.Separator()
             CImGui.MenuItem(stcstr(MORESTYLE.Icons.SaveButton, " ", mlstr("Save Project"))) && saveproject()
             CImGui.MenuItem(
                 stcstr(MORESTYLE.Icons.Load, " ", mlstr("Load Project"))
-            ) && loadproject(pick_file(filterlist="daq;qdt"))
+            ) && Threads.@spawn loadproject(pick_file(filterlist="daq;qdt"))
             CImGui.EndPopup()
         end
         if !CImGui.IsAnyItemHovered() && CImGui.IsWindowHovered(CImGui.ImGuiHoveredFlags_ChildWindows)
@@ -344,14 +350,16 @@ let
     end
 
     global function saveproject(daqsvpath="")
-        daqsvpath == "" && (daqsvpath = save_file(filterlist="daq"))
-        if daqsvpath != ""
-            projpath = daqsvpath
-            jldsave(daqsvpath;
-                daqtasks=daqtasks,
-                circuit=CIRCUIT,
-                dataplot=empty!(deepcopy(DAQDATAPLOT))
-            )
+        Threads.@spawn begin
+            daqsvpath == "" && (daqsvpath = save_file(filterlist="daq"))
+            if daqsvpath != ""
+                projpath = daqsvpath
+                jldsave(daqsvpath;
+                    daqtasks=daqtasks,
+                    circuit=CIRCUIT,
+                    dataplot=empty!(deepcopy(DAQDATAPLOT))
+                )
+            end
         end
     end
 
