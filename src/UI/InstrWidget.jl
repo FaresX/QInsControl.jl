@@ -9,6 +9,8 @@
     textsize::String = "normal"
     textscale::Cfloat = 1
     textinside::Bool = true
+    notimes::Bool = false
+    notime::Bool = false
     itemsize::Vector{Cfloat} = [60, 60]
     rounding::Cfloat = 4
     grabrounding::Cfloat = 6
@@ -558,6 +560,27 @@ function edit(opts::QuantityWidgetOption, qt::SweepQuantity, _, _, ::Val{:dragde
         colfrm=opts.bgcolor,
         colfrmh=opts.hoveredcolor,
         colfrma=opts.activecolor,
+        coltxt=opts.textcolor,
+        colrect=opts.bdcolor
+    )
+    opts.textsize == "big" && CImGui.PopFont()
+    CImGui.SetWindowFontScale(originscale)
+    return trig
+end
+
+function edit(opts::QuantityWidgetOption, qt::SweepQuantity, _, _, ::Val{:progressbar})
+    opts.textsize == "big" && CImGui.PushFont(PLOTFONT)
+    originscale = unsafe_load(CImGui.GetIO().FontGlobalScale)
+    CImGui.SetWindowFontScale(opts.textscale)
+    trig = ColoredProgressBarRect(
+        calcfraction(qt.presenti, qt.nstep),
+        progressmark(qt.presenti, qt.nstep, qt.elapsedtime; opts.notimes, opts.notime);
+        size=opts.itemsize,
+        rounding=opts.rounding,
+        bdrounding=opts.bdrounding,
+        thickness=opts.bdthickness,
+        colbar=opts.bgcolor,
+        colbara=opts.activecolor,
         coltxt=opts.textcolor,
         colrect=opts.bdcolor
     )
@@ -1575,7 +1598,7 @@ function convertmenu(insw::InstrWidget, i)
 end
 
 let
-    sweepuitypes = ["read", "unit", "readunit", "inputstep", "inputstop", "dragdelay", "ctrlsweep"]
+    sweepuitypes = ["read", "unit", "readunit", "inputstep", "inputstop", "dragdelay", "progressbar", "ctrlsweep"]
     setuitypesall = ["read", "unit", "readunit", "inputset", "inputctrlset", "ctrlset", "combo", "radio", "slider", "vslider", "toggle"]
     setuitypesnoopts = ["read", "unit", "readunit", "inputset", "inputctrlset", "ctrlset"]
     setuitypesno2opts = ["read", "unit", "readunit", "inputset", "inputctrlset", "ctrlset", "combo", "radio", "slider", "vslider"]
@@ -1648,6 +1671,10 @@ let
             qtw.options.uitype == "combo" && @c CImGui.CheckboxFlags(
                 mlstr("No ArrowButton"), &qtw.options.comboflags, CImGui.ImGuiComboFlags_NoArrowButton
             )
+            if qtw.options.uitype == "progressbar"
+                @c CImGui.Checkbox(mlstr("No Times"), &qtw.options.notimes)
+                @c CImGui.Checkbox(mlstr("No Time"), &qtw.options.notime)
+            end
             CImGui.DragFloat2(mlstr("Item Size"), qtw.options.itemsize)
             if qtw.options.uitype == "triangle"
                 CImGui.DragFloat2(stcstr(mlstr("Vertex"), " a"), qtw.options.vertices[1])
