@@ -124,7 +124,8 @@ function centermultiline(s)
     spacel = CImGui.CalcTextSize(" ").x / CImGui.GetFontSize()
     for (i, line) in enumerate(ss)
         line == "" && continue
-        ss[i] = " "^Int((ml - lengthpr(line)) ÷ 2spacel) * line
+        ns = (ml - lengthpr(line)) ÷ 2spacel
+        ss[i] = " "^(isnan(ns) ? 0 : round(Int, ns)) * line
     end
     join(ss, '\n')
 end
