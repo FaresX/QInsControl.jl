@@ -464,31 +464,37 @@ let
         CImGui.PushStyleColor(CImGui.ImGuiCol_Text, MORESTYLE.Colors.SweepQuantityTxt)
         CImGui.PushStyleColor(
             CImGui.ImGuiCol_ButtonHovered,
-            if qt.isautorefresh || qt.issweeping
-                MORESTYLE.Colors.DAQTaskRunning
-            else
-                CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_ButtonHovered)
-            end
+            qt.isautorefresh ? MORESTYLE.Colors.DAQTaskRunning : CImGui.c_get(
+                IMGUISTYLE.Colors, CImGui.ImGuiCol_ButtonHovered
+            )
         )
         qt.show_edit == "" && updatefront!(qt)
         # CImGui.PushFont(PLOTFONT)
-        if ColoredButton(
+        ColoredButton(
             qt.show_edit;
             size=btsize,
             colbt=if qt.enable
-                if qt.isautorefresh || qt.issweeping
-                    MORESTYLE.Colors.DAQTaskRunning
-                else
-                    MORESTYLE.Colors.SweepQuantityBt
-                end
+                qt.isautorefresh ? MORESTYLE.Colors.DAQTaskRunning : MORESTYLE.Colors.SweepQuantityBt
             else
                 MORESTYLE.Colors.LogError
             end
-        )
-            if qt.enable && addr != ""
-                fetchdata = refresh_qt(instrnm, addr, qt.name)
-                isnothing(fetchdata) || (qt.read = fetchdata)
-                updatefront!(qt)
+        ) && getread(qt, instrnm, addr)
+        if qt.issweeping
+            rmin = CImGui.GetItemRectMin()
+            rsz = CImGui.GetItemRectSize()
+            frac = Cfloat(calcfraction(qt.presenti, qt.nstep))
+            phcol = CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_PlotHistogram)
+            pgcol = [phcol.x, phcol.y, phcol.z, min(0.6, phcol.w)]
+            CImGui.AddRectFilled(
+                CImGui.GetWindowDrawList(), rmin, (rmin.x + frac * rsz.x, rmin.y + rsz.y),
+                CImGui.ColorConvertFloat4ToU32(pgcol), unsafe_load(IMGUISTYLE.FrameRounding)
+            )
+            if CImGui.IsItemHovered() && CImGui.BeginTooltip()
+                CImGui.ProgressBar(
+                    calcfraction(qt.presenti, qt.nstep), (0, 0),
+                    progressmark(qt.presenti, qt.nstep, qt.elapsedtime)
+                )
+                CImGui.EndTooltip()
             end
         end
         # CImGui.PopFont()
@@ -549,7 +555,7 @@ let
         )
         qt.show_edit == "" && updatefront!(qt)
         # CImGui.PushFont(PLOTFONT)
-        if ColoredButton(
+        ColoredButton(
             qt.show_edit;
             size=btsize,
             colbt=if qt.enable
@@ -557,13 +563,7 @@ let
             else
                 MORESTYLE.Colors.LogError
             end
-        )
-            if qt.enable && addr != ""
-                fetchdata = refresh_qt(instrnm, addr, qt.name)
-                isnothing(fetchdata) || (qt.read = fetchdata)
-                updatefront!(qt)
-            end
-        end
+        ) && getread(qt, instrnm, addr)
         # CImGui.PopFont()
         CImGui.PopStyleColor(2)
         if CONF.InsBuf.showhelp && CImGui.IsItemHovered() && qt.help != ""
@@ -638,7 +638,7 @@ let
         )
         qt.show_edit == "" && updatefront!(qt)
         # CImGui.PushFont(PLOTFONT)
-        if ColoredButton(
+        ColoredButton(
             qt.show_edit;
             size=btsize,
             colbt=if qt.enable
@@ -646,13 +646,7 @@ let
             else
                 MORESTYLE.Colors.LogError
             end
-        )
-            if qt.enable && addr != ""
-                fetchdata = refresh_qt(instrnm, addr, qt.name)
-                isnothing(fetchdata) || (qt.read = fetchdata)
-                updatefront!(qt)
-            end
-        end
+        ) && getread(qt, instrnm, addr)
         # CImGui.PopFont()
         CImGui.PopStyleColor(2)
         if CONF.InsBuf.showhelp && CImGui.IsItemHovered() && qt.help != ""
@@ -990,6 +984,14 @@ function resolveunitlist(qt::AbstractQuantity, instrnm, addr)
         catch e
             @error "[$(now())]\n$(mlstr("saving configurations failed!!!"))" exception = e
         end
+    end
+end
+
+function getread(qt::AbstractQuantity, instrnm, addr)
+    if qt.enable && addr != ""
+        fetchdata = refresh_qt(instrnm, addr, qt.name)
+        isnothing(fetchdata) || (qt.read = fetchdata)
+        updatefront!(qt)
     end
 end
 
