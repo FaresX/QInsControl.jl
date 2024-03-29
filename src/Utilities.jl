@@ -380,11 +380,9 @@ end
 function imgsampling(x, y; num=100000)
     if num > 1000
         xl, yl = length(x), length(y)
-        xmin, xmax = extrema(x)
-        xinterp = xl == yl ? x : range(xmin, xmax, length=yl)
-        nx = range(xmin, xmax, length=num)
-        ny = LinearInterpolation(y, xinterp).(nx)
-        return nx, ny
+        xidxleft = round.(Int, range(1, xl, length=min(num, xl)))
+        yidxleft = round.(Int, range(1, yl, length=min(num, yl)))
+        return x[xidxleft], y[yidxleft]
     else
         return x, y
     end

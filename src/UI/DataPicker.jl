@@ -328,16 +328,24 @@ let
                 dtss.vflipz && reverse!(pss.z, dims=2)
                 dtss.hflipz && reverse!(pss.z, dims=1)
                 setupplotseries!(pss, nx, ny, pss.z)
-                pss.x, pss.y, pss.z = imgsampling(
-                    pss.x, pss.y, pss.z;
-                    num=dtss.sampling ? min(dtss.samplingnum, CONF.Basic.samplingthreshold) : 0
-                )
+                if dtss.sampling
+                    pss.x, pss.y, pss.z = imgsampling(
+                        pss.x, pss.y, pss.z; num=min(dtss.samplingnum, CONF.Basic.samplingthreshold)
+                    )
+                else
+                    if length(pss.z) > CONF.Basic.samplingthreshold
+                        pss.x, pss.y, pss.z = imgsampling(pss.x, pss.y, pss.z; num=CONF.Basic.samplingthreshold)
+                    end
+                end
             else
                 setupplotseries!(pss, nx, ny)
-                pss.x, pss.y = imgsampling(
-                    pss.x, pss.y;
-                    num=dtss.sampling ? min(dtss.samplingnum, CONF.Basic.samplingthreshold) : 0
-                )
+                if dtss.sampling
+                    pss.x, pss.y = imgsampling(pss.x, pss.y; num=min(dtss.samplingnum, CONF.Basic.samplingthreshold))
+                else
+                    if length(pss.x) > CONF.Basic.samplingthreshold && length(pss.y) > CONF.Basic.samplingthreshold
+                        pss.x, pss.y = imgsampling(pss.x, pss.y; num=CONF.Basic.samplingthreshold)
+                    end
+                end
             end
             syncaxes(plt, pss, dtss; force=forcesync)
             (dtss.isrealtime | quiet) || @info "[$(now())]" data_processing = prettify(innercodes)
