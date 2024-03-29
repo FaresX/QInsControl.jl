@@ -32,6 +32,7 @@
     selectorlist::Vector{Vector{String}} = []
     bindingqtwidxes::Vector{Vector{Cint}} = []
     bindingonoff::Vector{Cint} = [1, 2]
+    readorinput::Bool = true
     textcolor::Vector{Cfloat} = [0.000, 0.000, 0.000, 1.000]
     hintcolor::Vector{Cfloat} = [0.600, 0.600, 0.600, 1.000]
     checkedcolor::Vector{Cfloat} = [0.260, 0.590, 0.980, 1.000]
@@ -105,7 +106,7 @@ const INSWCONF = OrderedDict{String,Vector{InstrWidget}}() #仪器注册表
 
 function copyvars!(opts1, opts2)
     fnms = fieldnames(QuantityWidgetOption)
-    for fnm in fnms[1:30]
+    for fnm in fnms[1:34]
         fnm in [:uitype, :vertices] && continue
         setproperty!(opts1, fnm, getproperty(opts2, fnm))
     end
@@ -113,14 +114,14 @@ end
 
 function copycolors!(opts1, opts2)
     fnms = fieldnames(QuantityWidgetOption)
-    for fnm in fnms[31:end]
+    for fnm in fnms[35:end]
         setproperty!(opts1, fnm, getproperty(opts2, fnm))
     end
 end
 
 function copyglobal!(opts1, opts2)
     fnms = fieldnames(QuantityWidgetOption)
-    for fnm in fnms[1:30]
+    for fnm in fnms[1:34]
         fnm in [:rounding, :grabrounding, :bdrounding, :bdthickness] && continue
         setproperty!(opts1, fnm, getproperty(opts2, fnm))
     end
@@ -617,7 +618,7 @@ function edit(opts::QuantityWidgetOption, qt::SetQuantity, _, _, ::Val{:inputset
     opts.textsize == "big" && CImGui.PushFont(PLOTFONT)
     originscale = unsafe_load(CImGui.GetIO().FontGlobalScale)
     CImGui.SetWindowFontScale(opts.textscale)
-    trig = @c ColoredInputTextWithHintRSZ("##set", mlstr("set"), &qt.set;
+    trig = @c ColoredInputTextWithHintRSZ("##set", mlstr(opts.starttext), &qt.set;
         size=opts.itemsize,
         rounding=opts.rounding,
         bdrounding=opts.bdrounding,
@@ -627,27 +628,6 @@ function edit(opts::QuantityWidgetOption, qt::SetQuantity, _, _, ::Val{:inputset
         colhint=opts.hintcolor,
         colrect=opts.bdcolor
     )
-    opts.textsize == "big" && CImGui.PopFont()
-    CImGui.SetWindowFontScale(originscale)
-    return trig
-end
-
-function edit(opts::QuantityWidgetOption, qt::SetQuantity, instrnm, addr, ::Val{:inputctrlset})
-    opts.textsize == "big" && CImGui.PushFont(PLOTFONT)
-    originscale = unsafe_load(CImGui.GetIO().FontGlobalScale)
-    CImGui.SetWindowFontScale(opts.textscale)
-    @c ColoredInputTextWithHintRSZ("##set", mlstr("set"), &qt.set;
-        size=opts.itemsize,
-        rounding=opts.rounding,
-        bdrounding=opts.bdrounding,
-        thickness=opts.bdthickness,
-        colfrm=opts.bgcolor,
-        coltxt=opts.textcolor,
-        colhint=opts.hintcolor,
-        colrect=opts.bdcolor
-    )
-    trig = CImGui.IsItemDeactivated()
-    trig && (apply!(qt, instrnm, addr); updatefront!(qt))
     opts.textsize == "big" && CImGui.PopFont()
     CImGui.SetWindowFontScale(originscale)
     return trig
@@ -672,6 +652,38 @@ function edit(opts::QuantityWidgetOption, qt::SetQuantity, instrnm, addr, ::Val{
     trig && (apply!(qt, instrnm, addr); updatefront!(qt))
     opts.textsize == "big" && CImGui.PopFont()
     CImGui.SetWindowFontScale(originscale)
+    return trig
+end
+
+function edit(opts::QuantityWidgetOption, qt::SetQuantity, instrnm, addr, ::Val{:inputctrlset})
+    opts.textsize == "big" && CImGui.PushFont(PLOTFONT)
+    originscale = unsafe_load(CImGui.GetIO().FontGlobalScale)
+    CImGui.SetWindowFontScale(opts.textscale)
+    @c ColoredInputTextWithHintRSZ("##set", mlstr(opts.starttext), &qt.set;
+        size=opts.itemsize,
+        rounding=opts.rounding,
+        bdrounding=opts.bdrounding,
+        thickness=opts.bdthickness,
+        colfrm=opts.bgcolor,
+        coltxt=opts.textcolor,
+        colhint=opts.hintcolor,
+        colrect=opts.bdcolor
+    )
+    trig = CImGui.IsItemDeactivatedAfterChange()
+    trig && (apply!(qt, instrnm, addr); updatefront!(qt))
+    opts.textsize == "big" && CImGui.PopFont()
+    CImGui.SetWindowFontScale(originscale)
+    return trig
+end
+
+function edit(opts::QuantityWidgetOption, qt::SetQuantity, instrnm, addr, ::Val{:readinputctrlset})
+    if opts.readorinput
+        trig = edit(opts, qt, instrnm, addr, Val(:read))
+        CImGui.IsItemHovered() && CImGui.IsMouseDoubleClicked(0) && (opts.readorinput = false)
+    else
+        trig = edit(opts, qt, instrnm, addr, Val(:inputctrlset))
+        CImGui.IsItemDeactivated() && (opts.readorinput = true)
+    end
     return trig
 end
 
@@ -1600,7 +1612,7 @@ end
 let
     sweepuitypes = ["read", "unit", "readunit", "inputstep", "inputstop", "dragdelay", "progressbar", "ctrlsweep"]
     setuitypesall = ["read", "unit", "readunit", "inputset", "inputctrlset", "ctrlset", "combo", "radio", "slider", "vslider", "toggle"]
-    setuitypesnoopts = ["read", "unit", "readunit", "inputset", "inputctrlset", "ctrlset"]
+    setuitypesnoopts = ["read", "unit", "readunit", "inputset", "ctrlset", "inputctrlset", "readinputctrlset"]
     setuitypesno2opts = ["read", "unit", "readunit", "inputset", "inputctrlset", "ctrlset", "combo", "radio", "slider", "vslider"]
     # readnumuitypes = ["read", "unit", "readunit", "readdashboard"]
     readuitypes = ["read", "unit", "readunit", "readdashboard", "readdashboarddigits", "readdashboarddigitsunit"]
@@ -1650,11 +1662,15 @@ let
                 iconstr = MORESTYLE.Icons.CopyIcon
                 @c(IconSelector(mlstr("Text"), &iconstr)) && (qtw.alias *= iconstr)
             end
-            if qtw.options.uitype in ["ctrlsweep", "ctrlset"]
+            if qtw.options.uitype in ["ctrlsweep", "ctrlset", "inputctrlset", "readinputctrlset"]
                 @c InputTextRSZ("##Start", &qtw.options.starttext)
                 CImGui.SameLine()
                 iconstr = MORESTYLE.Icons.CopyIcon
-                @c(IconSelector(mlstr("Start"), &iconstr)) && (qtw.options.starttext *= iconstr)
+                if @c IconSelector(mlstr(qtw.options.uitype == "ctrlsweep" ? "Start" : "Set"), &iconstr)
+                    qtw.options.starttext *= iconstr
+                end
+            end
+            if qtw.options.uitype == "ctrlsweep"
                 @c InputTextRSZ("##Stop", &qtw.options.stoptext)
                 CImGui.SameLine()
                 iconstr = MORESTYLE.Icons.CopyIcon
@@ -2174,30 +2190,32 @@ function refresh1(insw::InstrWidget, addr; blacklist=[])
     end
 end
 
-function trigselector!(qtw::QuantityWidget, insw::InstrWidget)
-    isempty(qtw.options.bindingqtwidxes) && return
-    for (gi, idxes) in enumerate(qtw.options.bindingqtwidxes)
-        if !isempty(idxes)
-            list = qtw.options.selectorlist[gi]
-            if !isempty(list)
-                alias = list[min(qtw.options.selectedidx, length(list))]
-                for i in idxes
-                    if 0 < i <= length(insw.qtws)
-                        if insw.qtws[i].name == "_Panel_"
-                            insw.qtws[i].alias = alias
-                        else
-                            optv = [(qtnm, qt) for (qtnm, qt) in INSCONF[insw.instrnm].quantities if qt.alias == alias]
-                            if !isempty(optv)
-                                qtnm, qt = only(optv)
-                                if qt.type == insw.qtws[i].qtype
-                                    if qt.type == "set"
-                                        uitype = insw.qtws[i].options.uitype
-                                        noopts = ["read", "unit", "readunit", "inputset", "inputctrlset", "ctrlset"]
-                                        lopts = length(qt.optkeys)
-                                        ((uitype == "toggle" && lopts != 2) || (uitype ∉ noopts && lopts == 0)) && break
+let
+    noopts = ["read", "unit", "readunit", "inputset", "ctrlset", "inputctrlset", "readinputctrlset"]
+    global function trigselector!(qtw::QuantityWidget, insw::InstrWidget)
+        isempty(qtw.options.bindingqtwidxes) && return
+        for (gi, idxes) in enumerate(qtw.options.bindingqtwidxes)
+            if !isempty(idxes)
+                list = qtw.options.selectorlist[gi]
+                if !isempty(list)
+                    alias = list[min(qtw.options.selectedidx, length(list))]
+                    for i in idxes
+                        if 0 < i <= length(insw.qtws)
+                            if insw.qtws[i].name == "_Panel_"
+                                insw.qtws[i].alias = alias
+                            else
+                                optv = [(qtnm, qt) for (qtnm, qt) in INSCONF[insw.instrnm].quantities if qt.alias == alias]
+                                if !isempty(optv)
+                                    qtnm, qt = only(optv)
+                                    if qt.type == insw.qtws[i].qtype
+                                        if qt.type == "set"
+                                            uitype = insw.qtws[i].options.uitype
+                                            lopts = length(qt.optkeys)
+                                            ((uitype == "toggle" && lopts != 2) || (uitype ∉ noopts && lopts == 0)) && break
+                                        end
+                                        insw.qtws[i].name = qtnm
+                                        insw.qtws[i].alias = alias
                                     end
-                                    insw.qtws[i].name = qtnm
-                                    insw.qtws[i].alias = alias
                                 end
                             end
                         end
@@ -2205,15 +2223,15 @@ function trigselector!(qtw::QuantityWidget, insw::InstrWidget)
                 end
             end
         end
-    end
-    for qtw in filter(x -> x.name == "_QuantitySelector_", insw.qtws)
-        if !isempty(qtw.options.bindingqtwidxes[1])
-            if 0 < qtw.options.bindingqtwidxes[1][1] <= length(insw.qtws)
-                alias = insw.qtws[qtw.options.bindingqtwidxes[1][1]].alias
-                selectedidx = findfirst(==(alias), qtw.options.selectorlist[1])
-                if !isnothing(selectedidx)
-                    qtw.options.selectedidx = selectedidx
-                    qtw.alias = qtw.options.selectorlabels[qtw.options.selectedidx]
+        for qtw in filter(x -> x.name == "_QuantitySelector_", insw.qtws)
+            if !isempty(qtw.options.bindingqtwidxes[1])
+                if 0 < qtw.options.bindingqtwidxes[1][1] <= length(insw.qtws)
+                    alias = insw.qtws[qtw.options.bindingqtwidxes[1][1]].alias
+                    selectedidx = findfirst(==(alias), qtw.options.selectorlist[1])
+                    if !isnothing(selectedidx)
+                        qtw.options.selectedidx = selectedidx
+                        qtw.alias = qtw.options.selectorlabels[qtw.options.selectedidx]
+                    end
                 end
             end
         end
