@@ -249,28 +249,25 @@ function Plot(plt::Plot; psize=CImGui.ImVec2(0, 0), flags=0)
         map(xa -> ImPlot.SetupAxis(xa.axis, xa.label), plt.xaxes)
         map(ya -> ImPlot.SetupAxis(ya.axis, ya.label), plt.yaxes)
         map(plt.xaxes) do xa
-            if !isempty(xa.ticklabels)
-                xaseries = [pss for pss in plt.series if pss.axis.xaxis.axis == xa.axis]
-                if !isempty(xaseries)
-                    pltxlims = plt.plotlims[xa.axis+1]
-                    seriesxlims = extrema(xaseries[1].x; init=(0, 1))
-                    pickrange = [max(pltxlims.Min, seriesxlims[1]), min(pltxlims.Max, seriesxlims[2])]
-                    pickvalues, picklabels = if pickrange[2] < seriesxlims[1] || pickrange[1] > seriesxlims[2]
-                        [], []
-                    else
-                        idxl = argmin(abs.(pickrange[1] .- xaseries[1].x))
-                        idxr = argmin(abs.(pickrange[2] .- xaseries[1].x))
-                        xaseries[1].x[idxl:idxr], xa.ticklabels[idxl:idxr]
-                    end
-                    if !isempty(picklabels)
-                        ticksmaxlen = max([CImGui.CalcTextSize(tick).x for tick in picklabels]...)
-                        rate = (pickrange[2] - pickrange[1]) / (pltxlims.Max - pltxlims.Min)
-                        num = min(floor(Int, plt.plotsize[1] * rate / ticksmaxlen), length(picklabels))
-                        if num != 0
-                            ll = length(picklabels)
-                            showidxes = num == 1 ? [(ll + 1) ÷ 2] : round.(Int, range(1, ll, length=num))
-                            ImPlot.SetupAxisTicks(xa.axis, pickvalues[showidxes], num, picklabels[showidxes])
-                        end
+            if !isempty(xa.ticklabels) && length(xa.tickvalues) == length(xa.ticklabels)
+                pltxlims = plt.plotlims[xa.axis+1]
+                seriesxlims = extrema(xa.tickvalues; init=(0, 1))
+                pickrange = [max(pltxlims.Min, seriesxlims[1]), min(pltxlims.Max, seriesxlims[2])]
+                pickvalues, picklabels = if pickrange[2] < seriesxlims[1] || pickrange[1] > seriesxlims[2]
+                    [], []
+                else
+                    idxl = argmin(abs.(pickrange[1] .- xa.tickvalues))
+                    idxr = argmin(abs.(pickrange[2] .- xa.tickvalues))
+                    xa.tickvalues[idxl:idxr], xa.ticklabels[idxl:idxr]
+                end
+                if !isempty(picklabels)
+                    ticksmaxlen = max([CImGui.CalcTextSize(tick).x for tick in picklabels]...)
+                    rate = (pickrange[2] - pickrange[1]) / (pltxlims.Max - pltxlims.Min)
+                    num = min(floor(Int, plt.plotsize[1] * rate / ticksmaxlen), length(picklabels))
+                    if num != 0
+                        ll = length(picklabels)
+                        showidxes = num == 1 ? [(ll + 1) ÷ 2] : round.(Int, range(1, ll, length=num))
+                        ImPlot.SetupAxisTicks(xa.axis, pickvalues[showidxes], num, picklabels[showidxes])
                     end
                 end
             end
@@ -388,9 +385,12 @@ function setupplotseries!(pss::PlotSeries, x::AbstractVector{Tx}, y) where {Tx<:
     pss.y = y
     lx, ly = length(x), length(y)
     pss.axis.xaxis.ticklabels = lx < ly ? append!(copy(x), fill("", ly - lx)) : x[1:ly]
+    pss.axis.xaxis.tickvalues = 1:length(pss.axis.xaxis.ticklabels)
 end
 function setupplotseries!(pss::PlotSeries, x::AbstractVector{Tx}, y) where {Tx<:Real}
     pss.x, pss.y = isempty(x) ? (1:length(y), y) : trunc(x, y)
+    empty!(pss.axis.xaxis.tickvalues)
+    empty!(pss.axis.xaxis.ticklabels)
 end
 function setupplotseries!(pss::PlotSeries, x::AbstractVector{Tx}, y, z) where {Tx<:Real}
     pss.z = z
