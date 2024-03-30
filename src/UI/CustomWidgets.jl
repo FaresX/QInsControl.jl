@@ -220,14 +220,42 @@ function ShowUnit(id, utype, ui::Ref{Int}, flags=CImGui.ImGuiComboFlags_NoArrowB
     return begincombo
 end
 
-function MultiSelectable(
-    rightclickmenu,
-    id,
-    labels,
-    states,
-    n,
-    idxing=Ref(1),
-    size=(Cfloat(0), CImGui.GetFrameHeight() * ceil(Int, length(labels) / n));
+# function MultiSelectable(
+#     rightclickmenu,
+#     id,
+#     labels,
+#     states,
+#     n,
+#     idxing=Ref(1),
+#     size=(Cfloat(0), CImGui.GetFrameHeight() * ceil(Int, length(labels) / n));
+#     border=false,
+#     selectableflags=0,
+#     selectablesize=(0, 0)
+# )
+#     l = length(labels)
+#     length(states) == l || resize!(states, l)
+#     size = l == 0 ? (Cfloat(0), CImGui.GetFrameHeightWithSpacing()) : size
+#     CImGui.BeginChild(stcstr("MultiSelectable##", id), size, border)
+#     CImGui.Columns(n, C_NULL, false)
+#     for i in 1:l
+#         if i == 1
+#             ccpos = CImGui.GetCursorScreenPos()
+#             CImGui.SetCursorScreenPos(ccpos.x, ccpos.y + unsafe_load(IMGUISTYLE.ItemSpacing.y) / 2)
+#         end
+#         CImGui.PushStyleVar(CImGui.ImGuiStyleVar_SelectableTextAlign, (0.5, 0.5))
+#         CImGui.Selectable(labels[i], states[i], selectableflags, selectablesize) && (states[i] ⊻= true)
+#         CImGui.PopStyleVar()
+#         i == l || CImGui.Spacing()
+#         rightclickmenu() && (idxing[] = i)
+#         CImGui.NextColumn()
+#     end
+#     CImGui.EndChild()
+# end
+
+function DragMultiSelectable(
+    rightclickmenu, id, labels, states, n, idxing, args...;
+    action=(si, ti, args...)->(),
+    size=(Cfloat(0), CImGui.GetFrameHeight() * ceil(Int, length(labels) / n)),
     border=false,
     selectableflags=0,
     selectablesize=(0, 0)
@@ -235,7 +263,7 @@ function MultiSelectable(
     l = length(labels)
     length(states) == l || resize!(states, l)
     size = l == 0 ? (Cfloat(0), CImGui.GetFrameHeightWithSpacing()) : size
-    CImGui.BeginChild(stcstr("MultiSelectable##", id), size, border)
+    CImGui.BeginChild(stcstr("DragMultiS##", id), size, border)
     CImGui.Columns(n, C_NULL, false)
     for i in 1:l
         if i == 1
@@ -246,30 +274,6 @@ function MultiSelectable(
         CImGui.Selectable(labels[i], states[i], selectableflags, selectablesize) && (states[i] ⊻= true)
         CImGui.PopStyleVar()
         i == l || CImGui.Spacing()
-        rightclickmenu() && (idxing[] = i)
-        CImGui.NextColumn()
-    end
-    CImGui.EndChild()
-end
-
-function DragMultiSelectable(
-    rightclickmenu,
-    id,
-    labels,
-    states,
-    n,
-    idxing=Ref(1),
-    size=(Cfloat(0), CImGui.GetFrameHeight() * ceil(Int, length(labels) / n))
-)
-    l = length(labels)
-    length(states) == l || resize!(states, l)
-    size = l == 0 ? (Cfloat(0), CImGui.GetFrameHeightWithSpacing()) : size
-    CImGui.BeginChild(stcstr("DragMultiS##", id), size)
-    CImGui.Columns(n, C_NULL, false)
-    for i in 1:l
-        CImGui.PushStyleVar(CImGui.ImGuiStyleVar_SelectableTextAlign, (0.5, 0.5))
-        CImGui.Selectable(labels[i], states[i]) && (states[i] ⊻= true)
-        CImGui.PopStyleVar()
         rightclickmenu() && (idxing[] = i)
         CImGui.Indent()
         if CImGui.BeginDragDropSource()
@@ -282,8 +286,13 @@ function DragMultiSelectable(
             if payload != C_NULL && unsafe_load(payload).DataSize == sizeof(Cint)
                 payload_i = unsafe_load(Ptr{Cint}(unsafe_load(payload).Data))
                 if i != payload_i
-                    labels[i], labels[payload_i] = labels[payload_i], labels[i]
-                    states[i], states[payload_i] = states[payload_i], states[i]
+                    # labels[i], labels[payload_i] = labels[payload_i], labels[i]
+                    # states[i], states[payload_i] = states[payload_i], states[i]
+                    # insert!(labels, i, labels[payload_i])
+                    # insert!(states, i, states[payload_i])
+                    # deleteat!(labels, payload_i < i ? payload_i : payload_i + 1)
+                    # deleteat!(states, payload_i < i ? payload_i : payload_i + 1)
+                    action(payload_i, i, args...)
                 end
             end
             CImGui.EndDragDropTarget()

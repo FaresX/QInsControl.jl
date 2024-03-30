@@ -13,9 +13,9 @@ end
 labeltoidx!(lo::Layout) = lo.selectedidx = [lo.labeltoidx[lb] for lb in lo.selectedlabels]
 
 function edit(
-    rightclickmenu,
-    lo::Layout,
-    size=(Cfloat(0), CImGui.GetTextLineHeight() * ceil(Int, length(lo.labels) / lo.showcol));
+    rightclickmenu, lo::Layout, args...;
+    action=(si, ti, args...) -> (),
+    size=(Cfloat(0), CImGui.GetTextLineHeight() * ceil(Int, length(lo.labels) / lo.showcol)),
     showlayout=false,
     selectableflags=0,
     selectablesize=(0, 0)
@@ -23,9 +23,9 @@ function edit(
     states_old = copy(lo.states)
     marks_old = copy(lo.marks)
     editlabels = @. lo.labels * " " * lo.marks * "###for rename" * lo.labels
-    @c MultiSelectable(
-        rightclickmenu, lo.id, editlabels, lo.states, lo.showcol, &lo.idxing, size;
-        border=true, selectableflags=selectableflags, selectablesize=selectablesize
+    @c DragMultiSelectable(
+        rightclickmenu, lo.id, editlabels, lo.states, lo.showcol, &lo.idxing, args...;
+        action=action, size=size, border=true, selectableflags=selectableflags, selectablesize=selectablesize
     )
     if lo.states != states_old || lo.marks != marks_old
         editlabels = @. lo.labels * " " * lo.marks
@@ -37,13 +37,7 @@ function edit(
         CImGui.Separator()
         CImGui.Text(mlstr("layout"))
         selectedlabels_old = copy(lo.selectedlabels)
-        DragMultiSelectable(
-            () -> false,
-            lo.id,
-            lo.selectedlabels,
-            trues(length(lo.selectedlabels)),
-            lo.showcol
-        )
+        DragMultiSelectable(() -> false, lo.id, lo.selectedlabels, trues(length(lo.selectedlabels)), lo.showcol, Ref(1))
         lo.selectedlabels == selectedlabels_old || labeltoidx!(lo)
     end
 end
@@ -80,7 +74,8 @@ function editmenu(dtp::DataPlot)
     llink == ldtpks || (resize!(dtp.linkidx, ldtpks); llink < ldtpks && (dtp.linkidx[llink+1:end] .= 0))
     dtp.layout.labels = [stcstr(MORESTYLE.Icons.Plot, " ", mlstr("Plot"), " ", i) for i in eachindex(dtp.layout.labels)]
     edit(
-        dtp.layout, (0, 0);
+        dtp.layout, dtp;
+        action=insertplotbefore!, size=(0, 0),
         selectablesize=(Cfloat(0), CImGui.GetFrameHeight() - unsafe_load(IMGUISTYLE.ItemSpacing.y))
     ) do
         openright = CImGui.BeginPopupContextItem()
@@ -126,6 +121,23 @@ function newplot!(dtp::DataPlot)
     push!(dtp.plots, Plot())
     push!(dtp.dtpks, DataPicker())
     push!(dtp.linkidx, 0)
+end
+
+function insertplotbefore!(si, ti, dtp::DataPlot)
+    insert!(dtp.layout.labels, ti, dtp.layout.labels[si])
+    insert!(dtp.layout.marks, ti, dtp.layout.marks[si])
+    insert!(dtp.layout.states, ti, dtp.layout.states[si])
+    insert!(dtp.plots, ti, dtp.plots[si])
+    insert!(dtp.dtpks, ti, dtp.dtpks[si])
+    insert!(dtp.linkidx, ti, dtp.linkidx[si])
+    insert!(dtp.showdtpks, ti, dtp.showdtpks[si])
+    deleteat!(dtp.layout.labels, si < ti ? si : si + 1)
+    deleteat!(dtp.layout.marks, si < ti ? si : si + 1)
+    deleteat!(dtp.layout.states, si < ti ? si : si + 1)
+    deleteat!(dtp.plots, si < ti ? si : si + 1)
+    deleteat!(dtp.dtpks, si < ti ? si : si + 1)
+    deleteat!(dtp.linkidx, si < ti ? si : si + 1)
+    deleteat!(dtp.showdtpks, si < ti ? si : si + 1)
 end
 
 function showdtpks(
