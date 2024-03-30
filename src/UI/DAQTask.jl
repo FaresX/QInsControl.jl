@@ -329,6 +329,8 @@ function extract_controllers(bkch::Vector{AbstractBlock})
             bk.instrnm == "VirtualInstr" && bk.addr != "VirtualAddress" && return controllers, false
             ct = Controller(bk.instrnm, bk.addr)
             try
+                @assert haskey(INSTRBUFFERVIEWERS, bk.instrnm) mlstr("$(bk.instrnm) has not been added")
+                @assert haskey(INSTRBUFFERVIEWERS[bk.instrnm], bk.addr) mlstr("$(bk.addr) has not been added")
                 login!(CPU, ct)
                 ct(query, CPU, "*IDN?", Val(:query))
                 logout!(CPU, ct)

@@ -262,15 +262,15 @@ function tocodes(bk::FeedbackBlock)
         for cttask in values(SWEEPCTS)
             cttask[2].instrnm == $(bk.instrnm) && cttask[2].addr == $(bk.addr) && (cttask[1][] = false)
         end
-        if $(bk.action) == mlstr("Pause")
+        if $(bk.action) == mlstr("Interrupt")
+            SYNCSTATES[Int(IsInterrupted)] = true
+            @warn "[$(now())]\n$(mlstr("interrupt!"))" FeedbackBlock = $instr
+            return nothing
+        elseif $(bk.action) == mlstr("Pause")
             SYNCSTATES[Int(IsBlocked)] = true
             @warn "[$(now())]\n$(mlstr("pause!"))" FeedbackBlock = $instr
             lock(() -> wait(BLOCK), BLOCK)
             @info "[$(now())]\n$(mlstr("continue!"))" FeedbackBlock = $instr
-        elseif $(bk.action) == mlstr("Interrupt")
-            SYNCSTATES[Int(IsInterrupted)] = true
-            @warn "[$(now())]\n$(mlstr("interrupt!"))" FeedbackBlock = $instr
-            return nothing
         end
     end
 end
@@ -405,13 +405,13 @@ end
 macro gencontroller(key, val)
     esc(
         quote
-            if SYNCSTATES[Int(IsBlocked)]
+            if SYNCSTATES[Int(IsInterrupted)]
+                @warn "[$(now())]\n$(mlstr("interrupt!"))" $key = $val
+                return nothing
+            elseif SYNCSTATES[Int(IsBlocked)]
                 @warn "[$(now())]\n$(mlstr("pause!"))" $key = $val
                 lock(() -> wait(BLOCK), BLOCK)
                 @info "[$(now())]\n$(mlstr("continue!"))" $key = $val
-            elseif SYNCSTATES[Int(IsInterrupted)]
-                @warn "[$(now())]\n$(mlstr("interrupt!"))" $key = $val
-                return nothing
             end
         end
     )

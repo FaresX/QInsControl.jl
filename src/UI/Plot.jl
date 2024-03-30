@@ -262,6 +262,7 @@ function Plot(plt::Plot; psize=CImGui.ImVec2(0, 0), flags=0)
                 end
                 if !isempty(picklabels)
                     ticksmaxlen = max([CImGui.CalcTextSize(tick).x for tick in picklabels]...)
+                    ticksmaxlen == 0 && (ticksmaxlen = 1)
                     rate = (pickrange[2] - pickrange[1]) / (pltxlims.Max - pltxlims.Min)
                     num = min(floor(Int, plt.plotsize[1] * rate / ticksmaxlen), length(picklabels))
                     if num != 0
