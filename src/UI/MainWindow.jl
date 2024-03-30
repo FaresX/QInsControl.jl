@@ -243,36 +243,36 @@ let
                                 if SYNCSTATES[Int(IsAutoRefreshing)] && isrefreshingdict[addr]
                                     CImGui.PopStyleColor()
                                 end
-                                if addrnode
-                                    @c CImGui.MenuItem(mlstr("Common"), C_NULL, &ibv.p_open)
-                                    if CImGui.BeginPopupContextItem()
-                                        if CImGui.MenuItem(
-                                            stcstr(MORESTYLE.Icons.CloseFile, " ", mlstr("Delete")),
-                                            C_NULL,
-                                            false,
-                                            ins != "VirtualInstr"
-                                        )
-                                            synccall_wait(workers()[1], ins, addr) do ins, addr
-                                                delete!(INSTRBUFFERVIEWERS[ins], addr)
-                                            end
+                                if CImGui.BeginPopupContextItem()
+                                    if CImGui.MenuItem(
+                                        stcstr(MORESTYLE.Icons.CloseFile, " ", mlstr("Delete")),
+                                        C_NULL,
+                                        false,
+                                        ins != "VirtualInstr"
+                                    )
+                                        synccall_wait(workers()[1], ins, addr) do ins, addr
+                                            delete!(INSTRBUFFERVIEWERS[ins], addr)
                                         end
-                                        if CImGui.BeginMenu(
-                                            stcstr(MORESTYLE.Icons.NewFile, " ", mlstr("Add to")),
-                                            ins == "Others"
-                                        )
-                                            for (cfins, cf) in INSCONF
-                                                cfins in ["Others", "VirtualInstr"] && continue
-                                                if CImGui.MenuItem(stcstr(cf.conf.icon, " ", cfins))
-                                                    synccall_wait(workers()[1], ins, addr, cfins) do ins, addr, cfins
-                                                        delete!(INSTRBUFFERVIEWERS[ins], addr)
-                                                        get!(INSTRBUFFERVIEWERS[cfins], addr, InstrBufferViewer(cfins, addr))
-                                                    end
+                                    end
+                                    if CImGui.BeginMenu(
+                                        stcstr(MORESTYLE.Icons.NewFile, " ", mlstr("Add to")),
+                                        ins == "Others"
+                                    )
+                                        for (cfins, cf) in INSCONF
+                                            cfins in ["Others", "VirtualInstr"] && continue
+                                            if CImGui.MenuItem(stcstr(cf.conf.icon, " ", cfins))
+                                                synccall_wait(workers()[1], ins, addr, cfins) do ins, addr, cfins
+                                                    delete!(INSTRBUFFERVIEWERS[ins], addr)
+                                                    get!(INSTRBUFFERVIEWERS[cfins], addr, InstrBufferViewer(cfins, addr))
                                                 end
                                             end
-                                            CImGui.EndMenu()
                                         end
-                                        CImGui.EndPopup()
+                                        CImGui.EndMenu()
                                     end
+                                    CImGui.EndPopup()
+                                end
+                                if addrnode
+                                    @c CImGui.MenuItem(mlstr("Common"), C_NULL, &ibv.p_open)
                                     if haskey(INSWCONF, ins)
                                         haskey(instrwidgets, addr) || push!(instrwidgets, addr => Dict())
                                         for w in INSWCONF[ins]
