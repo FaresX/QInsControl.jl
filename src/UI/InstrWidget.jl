@@ -871,8 +871,8 @@ let
                 CImGui.PushID(i)
                 !usingit && draggable && igBeginDisabled(true)
                 if edit(qtw, insbuf, insw.instrnm, addr, insw.options)
-                    qtw.qtype in qtypes && qtw.options.uitype ∉ continuousuitypes && @async refresh1(insw, addr; blacklist=[qtw.name])
-                    qtw.name == "_QuantitySelector_" && (trigselector!(qtw, insw); @async refresh1(insw, addr))
+                    qtw.qtype in qtypes && qtw.options.uitype ∉ continuousuitypes && Threads.@spawn refresh1(insw, addr; blacklist=[qtw.name])
+                    qtw.name == "_QuantitySelector_" && (trigselector!(qtw, insw); Threads.@spawn refresh1(insw, addr))
                 end
                 !usingit && draggable && igEndDisabled()
                 if !usingit
@@ -2181,12 +2181,14 @@ function refresh1(insw::InstrWidget, addr; blacklist=[])
             end
             return INSTRBUFFERVIEWERS
         end
-        @async if !isnothing(fetchibvs)
-            for (qtnm, qt) in filter(x -> x.first in insw.qtlist, INSTRBUFFERVIEWERS[insw.instrnm][addr].insbuf.quantities)
-                qt.read = fetchibvs[insw.instrnm][addr].insbuf.quantities[qtnm].read
-                updatefront!(qt)
+        errormonitor(
+            Threads.@spawn if !isnothing(fetchibvs)
+                for (qtnm, qt) in filter(x -> x.first in insw.qtlist, INSTRBUFFERVIEWERS[insw.instrnm][addr].insbuf.quantities)
+                    qt.read = fetchibvs[insw.instrnm][addr].insbuf.quantities[qtnm].read
+                    sendtoupdatefront(qt)
+                end
             end
-        end
+        )
     end
 end
 

@@ -134,7 +134,7 @@ function run(daqtask::DAQTask)
     run_remote(daqtask)
     wait(
         errormonitor(
-            @async while update_all()
+            Threads.@spawn while update_all()
                 yield()
             end
         )
@@ -299,7 +299,7 @@ function update_data()
             else
                 insbuf.quantities[qt].read = data[2]
             end
-            updatefront!(insbuf.quantities[qt])
+            sendtoupdatefront(insbuf.quantities[qt])
         end
         if waittime("savedatabuf", CONF.DAQ.savetime)
             saveqdt()

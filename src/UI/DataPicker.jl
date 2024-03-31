@@ -207,7 +207,7 @@ let
             CImGui.SameLine()
             dtss.alsz = CImGui.GetItemRectSize().x
             CImGui.PushItemWidth(2CImGui.GetFontSize())
-            @c CImGui.DragFloat("s", &dtss.refreshrate, 0.01, 0.03, 6, "%.2f", CImGui.ImGuiSliderFlags_AlwaysClamp)
+            @c CImGui.DragFloat("s", &dtss.refreshrate, 0.01, 0.01, 60, "%.2f", CImGui.ImGuiSliderFlags_AlwaysClamp)
             CImGui.SameLine()
             CImGui.PopItemWidth()
             dtss.alsz += CImGui.GetItemRectSize().x + unsafe_load(IMGUISTYLE.ItemSpacing.x)
@@ -282,7 +282,7 @@ let
         dtss.isrunning = true
         dtss.runtime = 0
         errormonitor(
-            @async begin
+            Threads.@spawn begin
                 t1 = time()
                 while dtss.isrunning
                     dtss.runtime = round(time() - t1; digits=1)

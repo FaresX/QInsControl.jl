@@ -137,6 +137,7 @@ function julia_main()::Cint
             @eval const REFRESHCTS = Dict{String,Dict{String,Controller}}()
         end
         global AUTOREFRESHTASK = autorefresh()
+        global UPDATEFRONTTASK = updatefronttask()
         @info "[$(now())]\n$(mlstr("successfully started!"))"
         if !isinteractive()
             wait(uitask)
