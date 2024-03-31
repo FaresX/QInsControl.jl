@@ -282,7 +282,7 @@ let
                                             if CImGui.MenuItem(w.name, C_NULL, instrwidgets[addr][w.name][1])
                                                 if instrwidgets[addr][w.name][1][]
                                                     push!(instrwidgets[addr][w.name][2], deepcopy(w))
-                                                    Threads.@spawn initialize!(only(instrwidgets[addr][w.name][2]), addr)
+                                                    initialize!(only(instrwidgets[addr][w.name][2]), addr)
                                                 end
                                             end
                                         end
