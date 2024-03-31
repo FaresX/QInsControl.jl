@@ -127,7 +127,7 @@ function run(daqtask::DAQTask)
     try
         log_instrbufferviewers()
     catch e
-        @error "[($now())]\n$(mlstr("instrument logging error, program terminates!!!"))" exception = e
+        @error "[$(now())]\n$(mlstr("instrument logging error, program terminates!!!"))" exception = e
         SYNCSTATES[Int(IsDAQTaskRunning)] = false
         return nothing
     end
@@ -249,7 +249,7 @@ function saveqdt()
             try
                 log_instrbufferviewers()
             catch e
-                @error "[($now())]\n$(mlstr("instrument logging error, program terminates!!!"))" exception = e
+                @error "[$(now())]\n$(mlstr("instrument logging error, program terminates!!!"))" exception = e
             end
         end
     end
