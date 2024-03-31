@@ -4,6 +4,7 @@
     allowoverlap::Bool = false
     useimage::Bool = false
     autorefresh::Bool = false
+    refreshrate::Cfloat = 1
     pathes::Vector{String} = []
     rate::Cint = 1
     textsize::String = "normal"
@@ -106,7 +107,7 @@ const INSWCONF = OrderedDict{String,Vector{InstrWidget}}() #仪器注册表
 
 function copyvars!(opts1, opts2)
     fnms = fieldnames(QuantityWidgetOption)
-    for fnm in fnms[1:34]
+    for fnm in fnms[1:35]
         fnm in [:uitype, :vertices] && continue
         setproperty!(opts1, fnm, getproperty(opts2, fnm))
     end
@@ -114,14 +115,14 @@ end
 
 function copycolors!(opts1, opts2)
     fnms = fieldnames(QuantityWidgetOption)
-    for fnm in fnms[35:end]
+    for fnm in fnms[36:end]
         setproperty!(opts1, fnm, getproperty(opts2, fnm))
     end
 end
 
 function copyglobal!(opts1, opts2)
     fnms = fieldnames(QuantityWidgetOption)
-    for fnm in fnms[1:34]
+    for fnm in fnms[1:35]
         fnm in [:rounding, :grabrounding, :bdrounding, :bdthickness] && continue
         setproperty!(opts1, fnm, getproperty(opts2, fnm))
     end
@@ -1619,6 +1620,7 @@ let
     otheruitypes = ["none"]
     shapetypes = ["rect", "triangle", "circle", "line"]
     qtselectoruitypes = ["combo", "slider", "vslider"]
+    qtypes = ["sweep", "set", "read"]
     textsizes = ["normal", "big"]
     manualinputalias::String = ""
     global function optionsmenu(qtw::QuantityWidget, instrnm)
@@ -1654,7 +1656,18 @@ let
             )
             qtw.name == "_QuantitySelector_" || @c CImGui.Checkbox(mlstr("Global Options"), &qtw.options.globaloptions)
             @c CImGui.Checkbox(mlstr("Allow Overlap"), &qtw.options.allowoverlap)
-            @c CImGui.Checkbox(mlstr("Auto Refresh"), &qtw.options.autorefresh)
+            if qtw.qtype in qtypes
+                if qtw.options.autorefresh
+                    CImGui.PushItemWidth(6CImGui.GetFontSize())
+                    @c CImGui.DragFloat(
+                        "##refreshrate", &qtw.options.refreshrate, 0.1, 0.1, 360, "%.1f",
+                        CImGui.ImGuiSliderFlags_AlwaysClamp
+                    )
+                    CImGui.PopItemWidth()
+                    CImGui.SameLine()
+                end
+                @c CImGui.Checkbox(mlstr("Auto Refresh"), &qtw.options.autorefresh)
+            end
             if qtw.name == "_Panel_"
                 @c CImGui.Checkbox(mlstr("Use Image"), &qtw.options.useimage)
                 @c InputTextRSZ("##Text", &qtw.alias)
@@ -2117,26 +2130,28 @@ end
 function initialize!(insw::InstrWidget, addr)
     empty!(insw.qtlist)
     qtlist = []
-    autoreflist = []
+    autoreflist = Dict()
     for qtw in insw.qtws
         qtw.options.globaloptions && copycolors!(qtw.options, insw.options)
         qtw.options.globaloptions = false
         if qtw.qtype in ["sweep", "set", "read"]
             push!(qtlist, qtw.name)
-            qtw.options.autorefresh && push!(autoreflist, qtw.name)
+            qtw.options.autorefresh && push!(autoreflist, qtw.name => qtw.options.refreshrate)
         end
     end
     append!(insw.qtlist, Set(qtlist))
-    refresh1(insw, addr)
     if haskey(INSTRBUFFERVIEWERS, insw.instrnm) && haskey(INSTRBUFFERVIEWERS[insw.instrnm], addr)
         if !isempty(autoreflist)
             SYNCSTATES[Int(IsAutoRefreshing)] = true
             INSTRBUFFERVIEWERS[insw.instrnm][addr].insbuf.isautorefresh = true
-            for (_, qt) in filter(x -> x.first in autoreflist, INSTRBUFFERVIEWERS[insw.instrnm][addr].insbuf.quantities)
+            qts = INSTRBUFFERVIEWERS[insw.instrnm][addr].insbuf.quantities
+            for (qtnm, qt) in filter(x -> x.first in keys(autoreflist), qts)
                 qt.isautorefresh = true
+                qt.refreshrate = autoreflist[qtnm]
             end
         end
     end
+    Threads.@spawn refresh1(insw, addr)
 end
 
 function exit!(insw::InstrWidget, addr)
@@ -2153,42 +2168,47 @@ function exit!(insw::InstrWidget, addr)
     end
 end
 
-function refresh1(insw::InstrWidget, addr; blacklist=[])
-    if haskey(INSTRBUFFERVIEWERS, insw.instrnm) && haskey(INSTRBUFFERVIEWERS[insw.instrnm], addr)
-        fetchibvs = wait_remotecall_fetch(
-            workers()[1], INSTRBUFFERVIEWERS, insw.instrnm, addr, insw.qtlist; timeout=120
-        ) do ibvs, ins, addr, qtlist
-            empty!(INSTRBUFFERVIEWERS)
-            merge!(INSTRBUFFERVIEWERS, ibvs)
-            ct = Controller(ins, addr)
-            try
-                login!(CPU, ct)
-                for (qtnm, qt) in filter(
-                    x -> x.first in qtlist && x.first ∉ blacklist,
-                    INSTRBUFFERVIEWERS[ins][addr].insbuf.quantities
-                )
-                    getfunc = Symbol(ins, :_, qtnm, :_get) |> eval
-                    qt.read = ct(getfunc, CPU, Val(:read))
+let
+    lk::Threads.Condition = Threads.Condition()
+    global function refresh1(insw::InstrWidget, addr; blacklist=[])
+        lock(lk) do
+            if haskey(INSTRBUFFERVIEWERS, insw.instrnm) && haskey(INSTRBUFFERVIEWERS[insw.instrnm], addr)
+                fetchibvs = wait_remotecall_fetch(
+                    workers()[1], INSTRBUFFERVIEWERS, insw.instrnm, addr, insw.qtlist; timeout=120
+                ) do ibvs, ins, addr, qtlist
+                    empty!(INSTRBUFFERVIEWERS)
+                    merge!(INSTRBUFFERVIEWERS, ibvs)
+                    ct = Controller(ins, addr)
+                    try
+                        login!(CPU, ct)
+                        for (qtnm, qt) in filter(
+                            x -> x.first in qtlist && x.first ∉ blacklist,
+                            INSTRBUFFERVIEWERS[ins][addr].insbuf.quantities
+                        )
+                            getfunc = Symbol(ins, :_, qtnm, :_get) |> eval
+                            qt.read = ct(getfunc, CPU, Val(:read))
+                        end
+                    catch e
+                        @error(
+                            "[$(now())]\n$(mlstr("instrument communication failed!!!"))",
+                            instrument = string(ins, ": ", addr),
+                            exception = e
+                        )
+                    finally
+                        logout!(CPU, ct)
+                    end
+                    return INSTRBUFFERVIEWERS
                 end
-            catch e
-                @error(
-                    "[$(now())]\n$(mlstr("instrument communication failed!!!"))",
-                    instrument = string(ins, ": ", addr),
-                    exception = e
+                errormonitor(
+                    @async if !isnothing(fetchibvs)
+                        for (qtnm, qt) in filter(x -> x.first in insw.qtlist, INSTRBUFFERVIEWERS[insw.instrnm][addr].insbuf.quantities)
+                            qt.read = fetchibvs[insw.instrnm][addr].insbuf.quantities[qtnm].read
+                            sendtoupdatefront(qt)
+                        end
+                    end
                 )
-            finally
-                logout!(CPU, ct)
             end
-            return INSTRBUFFERVIEWERS
         end
-        errormonitor(
-            Threads.@spawn if !isnothing(fetchibvs)
-                for (qtnm, qt) in filter(x -> x.first in insw.qtlist, INSTRBUFFERVIEWERS[insw.instrnm][addr].insbuf.quantities)
-                    qt.read = fetchibvs[insw.instrnm][addr].insbuf.quantities[qtnm].read
-                    sendtoupdatefront(qt)
-                end
-            end
-        )
     end
 end
 
