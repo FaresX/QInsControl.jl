@@ -165,7 +165,8 @@ end
 function (ct::Controller)(f::Function, cpu::Processor, val::String, ::Val{:write}; timeout=6, pollint=0.001)
     @assert haskey(cpu.controllers, ct.id) "Controller is not logged in"
     @assert cpu.running[] "Processor is not running"
-    i = findfirst(ct.available)
+    isok = timedwait(() -> true in ct.available, timeout; pollint=pollint)
+    isok == :ok ? i = findfirst(ct.available) : error("timeout without available buffer")
     ct.available[i] = false
     ct.ready[i] = false
     push!(cpu.cmdchannel, (ct, i, f, val, Val(:write)))
@@ -177,7 +178,8 @@ end
 function (ct::Controller)(f::Function, cpu::Processor, ::Val{:read}; timeout=6, pollint=0.001)
     @assert haskey(cpu.controllers, ct.id) "Controller is not logged in"
     @assert cpu.running[] "Processor is not running"
-    i = findfirst(ct.available)
+    isok = timedwait(() -> true in ct.available, timeout; pollint=pollint)
+    isok == :ok ? i = findfirst(ct.available) : error("timeout without available buffer")
     ct.available[i] = false
     ct.ready[i] = false
     push!(cpu.cmdchannel, (ct, i, f, "", Val(:read)))
@@ -188,7 +190,8 @@ end
 function (ct::Controller)(f::Function, cpu::Processor, val::String, ::Val{:query}; timeout=6, pollint=0.001)
     @assert haskey(cpu.controllers, ct.id) "Controller is not logged in"
     @assert cpu.running[] "Processor is not running"
-    i = findfirst(ct.available)
+    isok = timedwait(() -> true in ct.available, timeout; pollint=pollint)
+    isok == :ok ? i = findfirst(ct.available) : error("timeout without available buffer")
     ct.available[i] = false
     ct.ready[i] = false
     push!(cpu.cmdchannel, (ct, i, f, val, Val(:query)))
