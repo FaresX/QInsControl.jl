@@ -100,7 +100,7 @@ find_resources(cpu::Processor) = Instruments.find_resources(cpu.resourcemanager[
 
 log the Controller in the Processor which can be done before and after the cpu started.
 """
-function login!(cpu::Processor, ct::Controller)
+function login!(cpu::Processor, ct::Controller; quiet=true)
     push!(cpu.controllers, ct.id => ct)
     if cpu.running[]
         # @warn "cpu($(cpu.id)) is running!"
@@ -119,6 +119,7 @@ function login!(cpu::Processor, ct::Controller)
     else
         haskey(cpu.instrs, ct.addr) || push!(cpu.instrs, ct.addr => instrument(ct.instrnm, ct.addr))
     end
+    quiet || @info "[$(now())]\ncontroller $(ct.id) has logged in"
     return nothing
 end
 
@@ -131,7 +132,7 @@ log the Controller out the Processor.
 
 log all the Controllers that control the instrument with address addr out the Processor.
 """
-function logout!(cpu::Processor, ct::Controller)
+function logout!(cpu::Processor, ct::Controller; quiet=true)
     popct = pop!(cpu.controllers, ct.id, 1)
     popct == 1 && return nothing
     if popct.addr ∉ map(ct -> ct.addr, values(cpu.controllers))
@@ -150,11 +151,12 @@ function logout!(cpu::Processor, ct::Controller)
             disconnect!(popinstr)
         end
     end
+    quiet || @info "[$(now())]\ncontroller $(ct.id) has logged out"
     return nothing
 end
-function logout!(cpu::Processor, addr::String)
+function logout!(cpu::Processor, addr::String; quiet=true)
     for ct in values(cpu.controllers)
-        ct.addr == addr && logout!(cpu, ct)
+        ct.addr == addr && logout!(cpu, ct; quiet=quiet)
     end
 end
 
