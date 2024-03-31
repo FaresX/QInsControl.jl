@@ -259,8 +259,8 @@ tocodes(bk::ReadBlock) = gencodes_read(bk)
 function tocodes(bk::FeedbackBlock)
     instr = string(bk.instrnm, "_", bk.addr)
     quote
-        for cttask in values(SWEEPCTS)
-            cttask[2].instrnm == $(bk.instrnm) && cttask[2].addr == $(bk.addr) && (cttask[1][] = false)
+        if haskey(SWEEPCTS, $(bk.instrnm)) && haskey(SWEEPCTS[$(bk.instrnm)], $(bk.addr))
+            SWEEPCTS[$(bk.instrnm)][$(bk.addr)][1][] = false
         end
         if $(bk.action) == mlstr("Interrupt")
             SYNCSTATES[Int(IsInterrupted)] = true

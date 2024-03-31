@@ -759,11 +759,10 @@ function apply!(qt::SweepQuantity, instrnm, addr)
     if !(isnothing(start) | isnothing(step) | isnothing(stop))
         sweeplist = gensweeplist(start, step, stop)
         errormonitor(
-            Threads.@spawn begin
+            @async begin
                 qt.issweeping = true
                 @info "[$(now())]\nBefore sweeping" instrument = instrnm address = addr quantity = qt
                 SYNCSTATES[Int(IsDAQTaskRunning)] && (actionidx = logaction(qt, instrnm, addr))
-                ct = Controller(instrnm, addr)
                 sweep_c = Channel{Vector{String}}(CONF.DAQ.channel_size)
                 sweep_rc = RemoteChannel(() -> sweep_c)
                 idxbuf = SharedVector{Int}(1)
@@ -772,23 +771,28 @@ function apply!(qt::SweepQuantity, instrnm, addr)
                 qt.presenti = 0
                 qt.elapsedtime = 0
                 sweepcalltask = @async remotecall_wait(
-                    workers()[1], ct, sweeplist, sweep_rc, qt.name, qt.delay, idxbuf, timebuf
-                ) do ct, sweeplist, sweep_rc, qtnm, delay, idxbuf, timebuf
-                    push!(SWEEPCTS, ct.id => (Ref(true), ct))
+                    workers()[1], instrnm, addr, sweeplist, sweep_rc, qt.name, qt.delay, idxbuf, timebuf
+                ) do instrnm, addr, sweeplist, sweep_rc, qtnm, delay, idxbuf, timebuf
+                    haskey(SWEEPCTS, instrnm) || push!(SWEEPCTS, instrnm => Dict())
+                    if haskey(SWEEPCTS[instrnm], addr)
+                        SWEEPCTS[instrnm][addr][1][] = true
+                    else
+                        push!(SWEEPCTS[instrnm], addr => (Ref(true), Controller(instrnm, addr)))
+                    end
                     sweep_lc = Channel{String}(CONF.DAQ.channel_size)
-                    login!(CPU, ct)
+                    login!(CPU, SWEEPCTS[instrnm][addr][2]; quiet=false)
                     try
-                        setfunc = Symbol(ct.instrnm, :_, qtnm, :_set) |> eval
-                        getfunc = Symbol(ct.instrnm, :_, qtnm, :_get) |> eval
+                        setfunc = Symbol(instrnm, :_, qtnm, :_set) |> eval
+                        getfunc = Symbol(instrnm, :_, qtnm, :_get) |> eval
                         @sync begin
                             sweeptask = errormonitor(
                                 @async begin
                                     tstart = time()
                                     for (i, sv) in enumerate(sweeplist)
-                                        SWEEPCTS[ct.id][1][] || break
+                                        SWEEPCTS[instrnm][addr][1][] || break
                                         sleep(delay)
-                                        SWEEPCTS[ct.id][2](setfunc, CPU, string(sv), Val(:write))
-                                        put!(sweep_lc, SWEEPCTS[ct.id][2](getfunc, CPU, Val(:read)))
+                                        SWEEPCTS[instrnm][addr][2](setfunc, CPU, string(sv), Val(:write))
+                                        put!(sweep_lc, SWEEPCTS[instrnm][addr][2](getfunc, CPU, Val(:read)))
                                         idxbuf[1] = i
                                         timebuf[1] = time() - tstart
                                     end
@@ -805,17 +809,21 @@ function apply!(qt::SweepQuantity, instrnm, addr)
                     catch e
                         @error(
                             "[$(now())]\n$(mlstr("instrument communication failed!!!"))",
-                            instrument = string(ct.instrnm, ": ", ct.addr),
+                            instrument = string(instrnm, ": ", addr),
                             quantity = qtnm,
                             exception = e
                         )
                     finally
-                        logout!(CPU, SWEEPCTS[ct.id][2])
-                        SWEEPCTS[ct.id][1][] = false
+                        logout!(CPU, SWEEPCTS[instrnm][addr][2]; quiet=false)
+                        SWEEPCTS[instrnm][addr][1][] = false
                     end
                 end
+                errormonitor(sweepcalltask)
+                ## local
                 while !istaskdone(sweepcalltask) || isready(sweep_rc)
-                    qt.issweeping || remotecall_wait(ctid -> SWEEPCTS[ctid][1][] = false, workers()[1], ct.id)
+                    qt.issweeping || remotecall_wait(workers()[1], instrnm, addr) do instrnm, addr
+                        SWEEPCTS[instrnm][addr][1][] = false
+                    end
                     isready(sweep_rc) && for val in take!(sweep_rc)
                         qt.read = val
                         qt.presenti = idxbuf[1]
@@ -826,7 +834,6 @@ function apply!(qt::SweepQuantity, instrnm, addr)
                     yield()
                 end
                 qt.issweeping = false
-                remotecall_wait(ctid -> delete!(SWEEPCTS, ctid), workers()[1], ct.id)
                 @info "[$(now())]\nAfter sweeping" instrument = instrnm address = addr quantity = qt
                 SYNCSTATES[Int(IsDAQTaskRunning)] && logaction(qt, instrnm, addr, actionidx)
             end
@@ -1057,7 +1064,7 @@ function refresh1(log=false; instrlist=keys(INSTRBUFFERVIEWERS))
         end
         return INSTRBUFFERVIEWERS
     end
-    Threads.@spawn if !isnothing(fetchibvs)
+    @async if !isnothing(fetchibvs)
         for (ins, inses) in filter(x -> !isempty(x.second), INSTRBUFFERVIEWERS)
             for (addr, ibv) in filter(x -> x.second.insbuf.isautorefresh || log, inses)
                 for (qtnm, qt) in filter(x -> x.second.isautorefresh || log, ibv.insbuf.quantities)
@@ -1071,7 +1078,7 @@ end
 
 function autorefresh()
     errormonitor(
-        Threads.@spawn while true
+        @async while true
             t1 = time()
             timedwait(() -> time() - t1 > CONF.InsBuf.refreshrate, 60; pollint=0.05)
             SYNCSTATES[Int(IsAutoRefreshing)] && refresh1()

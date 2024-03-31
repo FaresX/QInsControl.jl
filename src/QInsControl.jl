@@ -133,7 +133,7 @@ function julia_main()::Cint
         end
         remotecall_wait(workers()[1]) do
             start!(CPU)
-            @eval const SWEEPCTS = Dict{UUID,Tuple{Ref{Bool},Controller}}()
+            @eval const SWEEPCTS = Dict{String,Dict{String,Tuple{Ref{Bool},Controller}}}()
             @eval const REFRESHCTS = Dict{String,Dict{String,Controller}}()
         end
         global AUTOREFRESHTASK = autorefresh()
