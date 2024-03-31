@@ -29,15 +29,17 @@ struct Controller
     id::UUID
     instrnm::String
     addr::String
-    databuf::Dict{UUID,String}
-    Controller(instrnm, addr) = new(uuid4(), instrnm, addr, Dict())
+    databuf::Vector{String}
+    available::Vector{Bool}
+    ready::Vector{Bool}
+    Controller(instrnm, addr; buflen=64) = new(uuid4(), instrnm, addr, fill("", buflen), trues(buflen), falses(buflen))
 end
 function Base.show(io::IO, ct::Controller)
     str = """
             id : $(ct.id)
        instrnm : $(ct.instrnm)
        address : $(ct.addr)
-        buffer : $(ct.databuf)
+        buffer : $(ct.databuf[])
     """
     print(io, str)
 end
@@ -50,8 +52,8 @@ construct a Processor to deal with the commands sended into by Controllers.
 struct Processor
     id::UUID
     controllers::Dict{UUID,Controller}
-    cmdchannel::Vector{Tuple{UUID,UUID,Function,String,Val}}
-    exechannels::Dict{String,Vector{Tuple{UUID,UUID,Function,String,Val}}}
+    cmdchannel::Vector{Tuple{Controller,Int,Function,String,Val}}
+    exechannels::Dict{String,Vector{Tuple{Controller,Int,Function,String,Val}}}
     tasks::Dict{String,Task}
     taskhandlers::Dict{String,Bool}
     resourcemanager::Ref{UInt32}
@@ -163,43 +165,51 @@ end
 function (ct::Controller)(f::Function, cpu::Processor, val::String, ::Val{:write}; timeout=6, pollint=0.001)
     @assert haskey(cpu.controllers, ct.id) "Controller is not logged in"
     @assert cpu.running[] "Processor is not running"
-    cmdid = uuid4()
-    push!(cpu.cmdchannel, (ct.id, cmdid, f, val, Val(:write)))
-    isok = timedwait(() -> haskey(ct.databuf, cmdid), timeout; pollint=pollint)
-    return isok == :ok ? pop!(ct.databuf, cmdid) : error("timeout")
+    i = findfirst(ct.available)
+    ct.available[i] = false
+    ct.ready[i] = false
+    push!(cpu.cmdchannel, (ct, i, f, val, Val(:write)))
+    isok = timedwait(() -> ct.ready[i], timeout; pollint=pollint)
+    ct.available[i] = true
+    return isok == :ok ? ct.databuf[i] : error("timeout")
 end
 
 function (ct::Controller)(f::Function, cpu::Processor, ::Val{:read}; timeout=6, pollint=0.001)
     @assert haskey(cpu.controllers, ct.id) "Controller is not logged in"
     @assert cpu.running[] "Processor is not running"
-    cmdid = uuid4()
-    push!(cpu.cmdchannel, (ct.id, cmdid, f, "", Val(:read)))
-    isok = timedwait(() -> haskey(ct.databuf, cmdid), timeout; pollint=pollint)
-    return isok == :ok ? pop!(ct.databuf, cmdid) : error("timeout")
+    i = findfirst(ct.available)
+    ct.available[i] = false
+    ct.ready[i] = false
+    push!(cpu.cmdchannel, (ct, i, f, "", Val(:read)))
+    isok = timedwait(() -> ct.ready[i], timeout; pollint=pollint)
+    ct.available[i] = true
+    return isok == :ok ? ct.databuf[i] : error("timeout")
 end
 function (ct::Controller)(f::Function, cpu::Processor, val::String, ::Val{:query}; timeout=6, pollint=0.001)
     @assert haskey(cpu.controllers, ct.id) "Controller is not logged in"
     @assert cpu.running[] "Processor is not running"
-    cmdid = uuid4()
-    push!(cpu.cmdchannel, (ct.id, cmdid, f, val, Val(:query)))
-    isok = timedwait(() -> haskey(ct.databuf, cmdid), timeout; pollint=pollint)
-    return isok == :ok ? pop!(ct.databuf, cmdid) : error("timeout")
+    i = findfirst(ct.available)
+    ct.available[i] = false
+    ct.ready[i] = false
+    push!(cpu.cmdchannel, (ct, i, f, val, Val(:query)))
+    isok = timedwait(() -> ct.ready[i], timeout; pollint=pollint)
+    ct.available[i] = true
+    return isok == :ok ? ct.databuf[i] : error("timeout")
 end
 
-function runcmd(cpu::Processor, ctid::UUID, cmdid::UUID, f::Function, val::String, ::Val{:write})
-    ct = cpu.controllers[ctid]
+function runcmd(cpu::Processor, ct::Controller, i::Int, f::Function, val::String, ::Val{:write})
     f(cpu.instrs[ct.addr], val)
-    push!(ct.databuf, cmdid => "done")
+    ct.ready[i] = true
     return nothing
 end
-function runcmd(cpu::Processor, ctid::UUID, cmdid::UUID, f::Function, ::String, ::Val{:read})
-    ct = cpu.controllers[ctid]
-    push!(ct.databuf, cmdid => f(cpu.instrs[ct.addr]))
+function runcmd(cpu::Processor, ct::Controller, i::Int, f::Function, ::String, ::Val{:read})
+    ct.databuf[i] = f(cpu.instrs[ct.addr])
+    ct.ready[i] = true
     return nothing
 end
-function runcmd(cpu::Processor, ctid::UUID, cmdid::UUID, f::Function, val::String, ::Val{:query})
-    ct = cpu.controllers[ctid]
-    push!(ct.databuf, cmdid => f(cpu.instrs[ct.addr], val))
+function runcmd(cpu::Processor, ct::Controller, i::Int, f::Function, val::String, ::Val{:query})
+    ct.databuf[i] = f(cpu.instrs[ct.addr], val)
+    ct.ready[i] = true
     return nothing
 end
 
@@ -236,8 +246,8 @@ function run!(cpu::Processor)
         errormonitor(
             @async while cpu.running[]
                 if !isempty(cpu.cmdchannel)
-                    ctid, cmdid, f, val, type = popfirst!(cpu.cmdchannel)
-                    push!(cpu.exechannels[cpu.controllers[ctid].addr], (ctid, cmdid, f, val, type))
+                    cmd = popfirst!(cpu.cmdchannel)
+                    push!(cpu.exechannels[cmd[1].addr], cmd)
                 end
                 cpu.fast[] || sleep(0.001)
                 yield()
