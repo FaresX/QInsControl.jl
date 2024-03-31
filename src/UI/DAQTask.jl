@@ -172,7 +172,7 @@ function run_remote(daqtask::DAQTask)
                     remotedotask = errormonitor(@async begin
                         remotecall_wait(() -> (start!(CPU); fast!(CPU)), workers()[1])
                         for ct in values(controllers)
-                            login!(CPU, ct)
+                            login!(CPU, ct; quiet=false)
                         end
                         remote_sweep_block(controllers, databuf_lc, progress_lc, SYNCSTATES)
                     end)
@@ -192,7 +192,7 @@ function run_remote(daqtask::DAQTask)
                 @error "[$(now())]\n$(mlstr("task failed!!!"))" exeption = e
             finally
                 for ct in values(controllers)
-                    logout!(CPU, ct)
+                    logout!(CPU, ct; quiet=false)
                 end
                 slow!(CPU)
             end
