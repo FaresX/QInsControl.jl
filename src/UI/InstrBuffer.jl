@@ -13,6 +13,7 @@ abstract type AbstractQuantity end
     separator::String = ""
     numread::Cint = 1
     help::String = ""
+    refreshrate::Cfloat = 1
     isautorefresh::Bool = false
     issweeping::Bool = false
     # front end
@@ -21,6 +22,7 @@ abstract type AbstractQuantity end
     show_edit::String = ""
     show_view::String = ""
     passfilter::Bool = true
+    lastrefresh::Float64 = 0
     nstep::Int = 0
     presenti::Int = 0
     elapsedtime::Float64 = 0
@@ -41,6 +43,7 @@ end
     separator::String = ""
     numread::Cint = 1
     help::String = ""
+    refreshrate::Cfloat = 1
     isautorefresh::Bool = false
     # front end
     showval::Vector{String} = []
@@ -48,6 +51,7 @@ end
     show_edit::String = ""
     show_view::String = ""
     passfilter::Bool = true
+    lastrefresh::Float64 = 0
 end
 
 @kwdef mutable struct ReadQuantity <: AbstractQuantity
@@ -61,6 +65,7 @@ end
     separator::String = ""
     numread::Cint = 1
     help::String = ""
+    refreshrate::Cfloat = 1
     isautorefresh::Bool = false
     # front end
     showval::Vector{String} = []
@@ -68,6 +73,7 @@ end
     show_edit::String = ""
     show_view::String = ""
     passfilter::Bool = true
+    lastrefresh::Float64 = 0
 end
 
 function Base.show(io::IO, qt::SweepQuantity)
@@ -80,7 +86,7 @@ function Base.show(io::IO, qt::SweepQuantity)
                 stop : $(qt.stop)
                delay : $(qt.delay)
                 read : $(join(qt.showval, qt.separator)) $(qt.showU)
-        auto-refresh : $(qt.isautorefresh)
+        auto-refresh : $(qt.refreshrate) $(qt.isautorefresh)
             sweeping : $(qt.issweeping)
     """
     print(io, str)
@@ -92,9 +98,9 @@ function Base.show(io::IO, qt::SetQuantity)
     SweepQuantity :
                 name : $(qt.name)
                alias : $(qt.alias)
-                set : $(qt.set)
+                 set : $(qt.set)
                 read : $(join(qt.showval, qt.separator)) $(qt.showU)
-        auto-refresh : $(qt.isautorefresh)
+        auto-refresh : $(qt.refreshrate) $(qt.isautorefresh)
     """
     print(io, str)
 end
@@ -106,7 +112,7 @@ function Base.show(io::IO, qt::ReadQuantity)
                 name : $(qt.name)
                alias : $(qt.alias)
                 read : $(join(qt.showval, qt.separator)) $(qt.showU)
-        auto-refresh : $(qt.isautorefresh)
+        auto-refresh : $(qt.refreshrate) $(qt.isautorefresh)
     """
     print(io, str)
 end
@@ -194,6 +200,22 @@ function updatefront!(qt::AbstractQuantity; show_edit=true)
     end
 end
 
+let
+    tobeupdated::Channel{AbstractQuantity} = Channel{AbstractQuantity}(64)
+    global function updatefronttask()
+        errormonitor(
+            @async while true
+                if isready(tobeupdated)
+                    qt = take!(tobeupdated)
+                    updatefront!(qt)
+                end
+                yield()
+            end
+        )
+    end
+    global sendtoupdatefront(qt::AbstractQuantity) = put!(tobeupdated, qt)
+end
+
 @kwdef mutable struct InstrBuffer
     instrnm::String = ""
     quantities::OrderedDict{String,AbstractQuantity} = OrderedDict()
@@ -264,7 +286,7 @@ end
 const INSTRBUFFERVIEWERS::Dict{String,Dict{String,InstrBufferViewer}} = Dict()
 
 function updatefrontall!()
-    for (ins, inses) in filter(x -> !isempty(x.second), INSTRBUFFERVIEWERS)
+    for (_, inses) in filter(x -> !isempty(x.second), INSTRBUFFERVIEWERS)
         for (_, ibv) in inses
             for (_, qt) in ibv.insbuf.quantities
                 updatefront!(qt)
@@ -427,19 +449,6 @@ function edit(insbuf::InstrBuffer, addr)
         @c CImGui.Checkbox("##auto refresh", &isautoref)
         SYNCSTATES[Int(IsAutoRefreshing)] = isautoref
         insbuf.isautorefresh = SYNCSTATES[Int(IsAutoRefreshing)]
-        if isautoref
-            CImGui.SameLine()
-            CImGui.Text(" ")
-            CImGui.SameLine()
-            CImGui.PushItemWidth(CImGui.GetFontSize() * 2)
-            @c CImGui.DragFloat(
-                "##auto refresh",
-                &CONF.InsBuf.refreshrate,
-                0.1, 0.1, 60, "%.1f",
-                CImGui.ImGuiSliderFlags_AlwaysClamp
-            )
-            CImGui.PopItemWidth()
-        end
         CImGui.Text(stcstr(MORESTYLE.Icons.ShowCol, " ", mlstr("Display Columns")))
         CImGui.SameLine()
         CImGui.PushItemWidth(3CImGui.GetFontSize() / 2)
@@ -504,18 +513,36 @@ let
         end
         if CImGui.BeginPopupContextItem()
             if qt.enable
+                ftsz = CImGui.GetFontSize()
+                itemw = CImGui.CalcItemWidth()
+                CImGui.BeginGroup()
+                CImGui.PushItemWidth(2itemw / 3)
+                CImGui.PushStyleVar(CImGui.ImGuiStyleVar_ItemSpacing, (Cfloat(0), Cfloat(0)))
                 @c InputTextWithHintRSZ("##step", mlstr("step"), &qt.step)
+                CImGui.PopStyleVar()
+                CImGui.PushStyleVar(CImGui.ImGuiStyleVar_ItemSpacing, (Cfloat(0), unsafe_load(IMGUISTYLE.ItemSpacing.y)))
                 @c InputTextWithHintRSZ("##stop", mlstr("stop"), &qt.stop)
+                CImGui.PopItemWidth()
+                CImGui.EndGroup()
+                CImGui.SameLine()
+                CImGui.PushStyleVar(
+                    CImGui.ImGuiStyleVar_FramePadding,
+                    (unsafe_load(IMGUISTYLE.FramePadding.x), CImGui.GetFrameHeight() - ftsz / 2)
+                )
+                CImGui.PushItemWidth(itemw / 3)
+                @c(ShowUnit("##insbuf", qt.utype, &qt.uindex)) && (updatefront!(qt); resolveunitlist(qt, instrnm, addr))
+                CImGui.PopItemWidth()
+                CImGui.PopStyleVar(2)
                 @c CImGui.DragFloat("##delay", &qt.delay, 1.0, 0.01, 60, "%.3f", CImGui.ImGuiSliderFlags_AlwaysClamp)
                 if qt.issweeping
                     if CImGui.Button(
-                        mlstr(" Stop "), (-0.1, 0.0)
+                        mlstr(" Stop "), (itemw, Cfloat(0))
                     ) || CImGui.IsKeyPressed(ImGuiKey_Enter, false)
                         qt.issweeping = false
                     end
                 else
                     if CImGui.Button(
-                        mlstr("Start"), (-0.1, 0.0)
+                        mlstr("Start"), (itemw, Cfloat(0))
                     ) || CImGui.IsKeyPressed(ImGuiKey_Enter, false)
                         apply!(qt, instrnm, addr)
                         closepopup = true
@@ -526,12 +553,14 @@ let
                     closepopup = false
                 end
             end
-            CImGui.Text(stcstr(mlstr("unit"), " "))
-            CImGui.SameLine()
-            CImGui.PushItemWidth(6CImGui.GetFontSize())
-            @c(ShowUnit("##insbuf", qt.utype, &qt.uindex)) && (updatefront!(qt); resolveunitlist(qt, instrnm, addr))
-            CImGui.PopItemWidth()
-            CImGui.SameLine()
+            if qt.isautorefresh
+                CImGui.PushItemWidth(4CImGui.GetFontSize())
+                @c CImGui.DragFloat(
+                    "##refreshrate", &qt.refreshrate, 0.1, 0.1, 360, "%.1f", CImGui.ImGuiSliderFlags_AlwaysClamp
+                )
+                CImGui.PopItemWidth()
+                CImGui.SameLine()
+            end
             @c CImGui.Checkbox(mlstr("refresh"), &qt.isautorefresh)
             CImGui.SameLine()
             if @c CImGui.Checkbox(qt.enable ? mlstr("Enable") : mlstr("Disable"), &qt.enable)
@@ -577,10 +606,19 @@ let
         !popup_now && popup_before && (popup_before_list[instrnm][addr][qt.name] = false)
         if popup_now
             if qt.enable
+                ftsz = CImGui.GetFontSize()
+                itemw = CImGui.CalcItemWidth()
+                CImGui.PushStyleVar(CImGui.ImGuiStyleVar_ItemSpacing, (Cfloat(0), unsafe_load(IMGUISTYLE.ItemSpacing.y)))
+                CImGui.PushItemWidth(2itemw / 3)
                 @c InputTextWithHintRSZ("##set", mlstr("set value"), &qt.set)
+                CImGui.PopItemWidth()
+                CImGui.SameLine()
+                CImGui.PushItemWidth(itemw / 3)
+                @c(ShowUnit("##insbuf", qt.utype, &qt.uindex)) && (updatefront!(qt); resolveunitlist(qt, instrnm, addr))
+                CImGui.PopItemWidth()
+                CImGui.PopStyleVar()
                 if CImGui.Button(
-                       mlstr("Confirm"),
-                       (-Cfloat(0.1), Cfloat(0))
+                       mlstr("Confirm"), (itemw, Cfloat(0))
                    ) || triggerset || CImGui.IsKeyPressed(ImGuiKey_Enter, false)
                     triggerset && (qt.set = qt.optvalues[qt.optedidx])
                     apply!(qt, instrnm, addr, triggerset)
@@ -611,12 +649,14 @@ let
                 end
                 CImGui.EndGroup()
             end
-            CImGui.Text(stcstr(mlstr("unit"), " "))
-            CImGui.SameLine()
-            CImGui.PushItemWidth(6CImGui.GetFontSize())
-            @c(ShowUnit("##insbuf", qt.utype, &qt.uindex)) && (updatefront!(qt); resolveunitlist(qt, instrnm, addr))
-            CImGui.PopItemWidth()
-            CImGui.SameLine()
+            if qt.isautorefresh
+                CImGui.PushItemWidth(4CImGui.GetFontSize())
+                @c CImGui.DragFloat(
+                    "##refreshrate", &qt.refreshrate, 0.1, 0.1, 360, "%.1f", CImGui.ImGuiSliderFlags_AlwaysClamp
+                )
+                CImGui.PopItemWidth()
+                CImGui.SameLine()
+            end
             @c CImGui.Checkbox(mlstr("refresh"), &qt.isautorefresh)
             CImGui.SameLine()
             if @c CImGui.Checkbox(qt.enable ? mlstr("Enable") : mlstr("Disable"), &qt.enable)
@@ -655,8 +695,14 @@ let
         if CImGui.BeginPopupContextItem()
             CImGui.Text(stcstr(mlstr("unit"), " "))
             CImGui.SameLine()
-            CImGui.PushItemWidth(6CImGui.GetFontSize())
+            CImGui.PushItemWidth(4CImGui.GetFontSize())
             @c(ShowUnit("##insbuf", qt.utype, &qt.uindex)) && (updatefront!(qt); resolveunitlist(qt, instrnm, addr))
+            CImGui.PopItemWidth()
+            CImGui.SameLine()
+            CImGui.PushItemWidth(2CImGui.GetFontSize())
+            qt.isautorefresh && @c CImGui.DragFloat(
+                "##refreshrate", &qt.refreshrate, 0.1, 0.1, 360, "%.1f", CImGui.ImGuiSliderFlags_AlwaysClamp
+            )
             CImGui.PopItemWidth()
             CImGui.SameLine()
             @c CImGui.Checkbox(mlstr("refresh"), &qt.isautorefresh)
@@ -759,7 +805,7 @@ function apply!(qt::SweepQuantity, instrnm, addr)
     if !(isnothing(start) | isnothing(step) | isnothing(stop))
         sweeplist = gensweeplist(start, step, stop)
         errormonitor(
-            @async begin
+            Threads.@spawn begin
                 qt.issweeping = true
                 @info "[$(now())]\nBefore sweeping" instrument = instrnm address = addr quantity = qt
                 SYNCSTATES[Int(IsDAQTaskRunning)] && (actionidx = logaction(qt, instrnm, addr))
@@ -828,7 +874,7 @@ function apply!(qt::SweepQuantity, instrnm, addr)
                         qt.read = val
                         qt.presenti = idxbuf[1]
                         qt.elapsedtime = timebuf[1]
-                        updatefront!(qt)
+                        sendtoupdatefront(qt)
                     end
                     sleep(qt.delay / 10)
                     yield()
@@ -937,24 +983,6 @@ function viewaction(action::Tuple{DateTime,String,String,AbstractQuantity}, tota
     CImGui.PushStyleVar(CImGui.ImGuiStyleVar_ItemSpacing, (0, 0))
     CImGui.Button(string(action[1]), (Cfloat(-1), 2CImGui.GetFontSize()))
     view(action[4], (Cfloat(-1), totalheight - CImGui.GetItemRectSize().y))
-    # qt = action[4]
-    # qt.show_view == "" && updatefront!(qt; show_edit=false)
-    # CImGui.Button(
-    #     qt.show_view, (Cfloat(-1), totalheight - CImGui.GetItemRectSize().y)
-    # ) && (qt.uindex += 1; updatefront!(qt; show_edit=false))
-    # if CImGui.IsItemHovered() && !(qt isa ReadQuantity)
-    #     CImGui.BeginTooltip()
-    #     CImGui.PushTextWrapPos(CImGui.GetFontSize() * 36.0)
-    #     if qt isa SweepQuantity
-    #         CImGui.Text(stcstr("step: ", qt.step))
-    #         CImGui.Text(stcstr("stop: ", qt.stop))
-    #         CImGui.Text(stcstr("delay: ", qt.delay))
-    #     elseif qt isa SetQuantity
-    #         CImGui.Text(stcstr("set: ", qt.set))
-    #     end
-    #     CImGui.PopTextWrapPos()
-    #     CImGui.EndTooltip()
-    # end
     CImGui.PopStyleVar()
     CImGui.EndGroup()
 end
@@ -1036,51 +1064,60 @@ function refresh1(log=false; instrlist=keys(INSTRBUFFERVIEWERS))
             ins == "Others" && continue
             haskey(REFRESHCTS, ins) || push!(REFRESHCTS, ins => Dict())
             for (addr, ibv) in inses
-                @async if ibv.insbuf.isautorefresh || log
-                    haskey(REFRESHCTS[ins], addr) || push!(REFRESHCTS[ins], addr => Controller(ins, addr))
-                    ct = REFRESHCTS[ins][addr]
-                    try
-                        login!(CPU, ct)
-                        reflist = if log
-                            CONF.DAQ.logall ? ibv.insbuf.quantities : filter(x -> x.second.enable, ibv.insbuf.quantities)
-                        else
-                            filter(x -> (qt = x.second; qt.enable && qt.isautorefresh), ibv.insbuf.quantities)
+                errormonitor(
+                    @async if ibv.insbuf.isautorefresh || log
+                        haskey(REFRESHCTS[ins], addr) || push!(REFRESHCTS[ins], addr => Controller(ins, addr))
+                        ct = REFRESHCTS[ins][addr]
+                        try
+                            login!(CPU, ct)
+                            reflist = if log
+                                CONF.DAQ.logall ? ibv.insbuf.quantities : filter(x -> x.second.enable, ibv.insbuf.quantities)
+                            else
+                                filter(ibv.insbuf.quantities) do qtpair
+                                    qt = qtpair.second
+                                    t = time()
+                                    δt = t - qt.lastrefresh
+                                    δt > qt.refreshrate ? (qt.lastrefresh = t; qt.enable && qt.isautorefresh) : false
+                                end
+                            end
+                            for (qtnm, qt) in reflist
+                                getfunc = Symbol(ins, :_, qtnm, :_get) |> eval
+                                qt.read = ct(getfunc, CPU, Val(:read))
+                            end
+                        catch e
+                            @error(
+                                "[$(now())]\n$(mlstr("instrument communication failed!!!"))",
+                                instrument = string(ins, ": ", addr),
+                                exception = e
+                            )
+                        finally
+                            logout!(CPU, ct)
                         end
-                        for (qtnm, qt) in reflist
-                            getfunc = Symbol(ins, :_, qtnm, :_get) |> eval
-                            qt.read = ct(getfunc, CPU, Val(:read))
-                        end
-                    catch e
-                        @error(
-                            "[$(now())]\n$(mlstr("instrument communication failed!!!"))",
-                            instrument = string(ins, ": ", addr),
-                            exception = e
-                        )
-                    finally
-                        logout!(CPU, ct)
                     end
-                end
+                )
             end
         end
         return INSTRBUFFERVIEWERS
     end
-    @async if !isnothing(fetchibvs)
-        for (ins, inses) in filter(x -> !isempty(x.second), INSTRBUFFERVIEWERS)
-            for (addr, ibv) in filter(x -> x.second.insbuf.isautorefresh || log, inses)
-                for (qtnm, qt) in filter(x -> x.second.isautorefresh || log, ibv.insbuf.quantities)
-                    qt.read = fetchibvs[ins][addr].insbuf.quantities[qtnm].read
-                    updatefront!(qt)
+    errormonitor(
+        @async if !isnothing(fetchibvs)
+            for (ins, inses) in filter(x -> !isempty(x.second), INSTRBUFFERVIEWERS)
+                for (addr, ibv) in filter(x -> x.second.insbuf.isautorefresh || log, inses)
+                    for (qtnm, qt) in filter(x -> x.second.isautorefresh || log, ibv.insbuf.quantities)
+                        qt.read = fetchibvs[ins][addr].insbuf.quantities[qtnm].read
+                        qt.lastrefresh = fetchibvs[ins][addr].insbuf.quantities[qtnm].lastrefresh
+                        sendtoupdatefront(qt)
+                    end
                 end
             end
         end
-    end
+    )
 end
 
 function autorefresh()
     errormonitor(
-        @async while true
-            t1 = time()
-            timedwait(() -> time() - t1 > CONF.InsBuf.refreshrate, 60; pollint=0.05)
+        Threads.@spawn while true
+            sleep(0.01)
             SYNCSTATES[Int(IsAutoRefreshing)] && refresh1()
             yield()
         end

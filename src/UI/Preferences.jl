@@ -229,12 +229,6 @@ let
                     1.0, 1, 6, "%d",
                     CImGui.ImGuiSliderFlags_AlwaysClamp
                 )
-                @c CImGui.DragFloat(
-                    mlstr("refresh rate"),
-                    &CONF.InsBuf.refreshrate,
-                    0.01, 0.01, 60, "%.2f",
-                    CImGui.ImGuiSliderFlags_AlwaysClamp
-                )
                 CImGui.Text(" ")
 
                 ###Register###
