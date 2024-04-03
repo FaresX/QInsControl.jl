@@ -222,11 +222,16 @@ let
                     isempty(inses) && CImGui.PushStyleColor(
                         CImGui.ImGuiCol_Text, CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_TextDisabled)
                     )
-                    isrefreshingdict = Dict(
-                        addr => ibv.insbuf.isautorefresh && true in [
-                            qt.isautorefresh for qt in values(ibv.insbuf.quantities)
-                        ] for (addr, ibv) in inses
-                    )
+                    isrefreshingdict = Dict()
+                    for (addr, ibv) in inses
+                        hasref = false
+                        for qt in values(ibv.insbuf.quantities)
+                            SYNCSTATES[Int(IsAutoRefreshing)] && ibv.insbuf.isautorefresh && (hasref |= qt.isautorefresh)
+                            qt isa SweepQuantity && (hasref |= qt.issweeping)
+                            hasref && break
+                        end
+                        push!(isrefreshingdict, addr => hasref)
+                    end
                     hasrefreshing = !isempty(inses) && SYNCSTATES[Int(IsAutoRefreshing)] && (|)(values(isrefreshingdict)...)
                     hasrefreshing && CImGui.PushStyleColor(CImGui.ImGuiCol_Text, MORESTYLE.Colors.DAQTaskRunning)
                     insnode = CImGui.TreeNode(stcstr(INSCONF[ins].conf.icon, " ", ins, "  ", "(", length(inses), ")"))
@@ -236,13 +241,11 @@ let
                             CImGui.TextDisabled(stcstr("(", mlstr("Null"), ")"))
                         else
                             for (addr, ibv) in inses
-                                if SYNCSTATES[Int(IsAutoRefreshing)] && isrefreshingdict[addr]
-                                    CImGui.PushStyleColor(CImGui.ImGuiCol_Text, MORESTYLE.Colors.DAQTaskRunning)
-                                end
+                                isrefreshingdict[addr] && CImGui.PushStyleColor(
+                                    CImGui.ImGuiCol_Text, MORESTYLE.Colors.DAQTaskRunning
+                                )
                                 addrnode = CImGui.TreeNode(addr)
-                                if SYNCSTATES[Int(IsAutoRefreshing)] && isrefreshingdict[addr]
-                                    CImGui.PopStyleColor()
-                                end
+                                isrefreshingdict[addr] && CImGui.PopStyleColor()
                                 if CImGui.BeginPopupContextItem()
                                     if CImGui.MenuItem(
                                         stcstr(MORESTYLE.Icons.CloseFile, " ", mlstr("Delete")),
