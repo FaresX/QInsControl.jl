@@ -166,10 +166,10 @@ let
                     mlstr(CONF.DAQ.logall ? "log all quantities" : "log enabled quantities"),
                     &CONF.DAQ.logall
                 )) && remotecall_wait((logall) -> CONF.DAQ.logall = logall, workers()[1], CONF.DAQ.logall)
-                @c CImGui.Checkbox(
+                @c(CImGui.Checkbox(
                     mlstr(CONF.DAQ.equalstep ? "equal step sampling" : "fixed step sampling"),
                     &CONF.DAQ.equalstep
-                )
+                )) && remotecall_wait((x) -> CONF.DAQ.equalstep = x, workers()[1], CONF.DAQ.equalstep)
                 @c CImGui.Checkbox(
                     mlstr(CONF.DAQ.externaleval ? "eval in Main" : "eval in QInsControl"),
                     &CONF.DAQ.externaleval
@@ -187,18 +187,24 @@ let
                     100, 100, 10000000, "%d",
                     CImGui.ImGuiSliderFlags_AlwaysClamp
                 )
-                @c CImGui.DragInt(
+                @c(CImGui.DragInt(
                     mlstr("channel size"),
-                    &CONF.DAQ.channel_size,
+                    &CONF.DAQ.channelsize,
                     1.0, 4, 2048, "%d",
                     CImGui.ImGuiSliderFlags_AlwaysClamp
-                )
-                @c CImGui.DragInt(
+                )) && remotecall_wait(x -> (CONF.DAQ.channelsize = x), workers()[1], CONF.DAQ.channelsize)
+                @c(CImGui.DragInt(
                     mlstr("packing size"),
                     &CONF.DAQ.packsize,
-                    1.0, 6, 120, "%d",
+                    1.0, 6, 2048, "%d",
                     CImGui.ImGuiSliderFlags_AlwaysClamp
-                )
+                )) && remotecall_wait(x -> (CONF.DAQ.packsize = x), workers()[1], CONF.DAQ.packsize)
+                @c(CImGui.DragInt(
+                    mlstr("controller buffer size"),
+                    &CONF.DAQ.ctbuflen,
+                    1.0, 1, 1024, "%d",
+                    CImGui.ImGuiSliderFlags_AlwaysClamp
+                )) && remotecall_wait(x -> (CONF.DAQ.ctbuflen = x), workers()[1], CONF.DAQ.ctbuflen)
                 @c CImGui.DragInt(
                     stcstr(mlstr("history blocks"), "##DAQ"),
                     &CONF.DAQ.historylen,
