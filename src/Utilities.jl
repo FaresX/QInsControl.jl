@@ -47,9 +47,16 @@ end
 
 function packtake!(c, n=12)
     buf = eltype(c)[]
-    for _ in 1:n
-        isready(c) && push!(buf, take!(c))
-    end
+    taking = true
+    t = errormonitor(
+        @async while taking
+            isready(c) && push!(buf, take!(c))
+            yield()
+        end
+    )
+    timedwait(() -> length(buf) > n, 0.01; pollint=0.001)
+    taking = false
+    wait(t)
     buf
 end
 
