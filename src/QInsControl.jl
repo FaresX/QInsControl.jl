@@ -97,8 +97,8 @@ include("Conf.jl")
 function julia_main()::Cint
     try
         loadconf()
-        databuf_c::Channel{Vector{Tuple{String,String}}} = Channel{Vector{NTuple{2,String}}}(CONF.DAQ.channel_size)
-        progress_c::Channel{Vector{Tuple{UUID,Int,Int,Float64}}} = Channel{Vector{Tuple{UUID,Int,Int,Float64}}}(CONF.DAQ.channel_size)
+        databuf_c::Channel{Vector{Tuple{String,String}}} = Channel{Vector{NTuple{2,String}}}(CONF.DAQ.channelsize)
+        progress_c::Channel{Vector{Tuple{UUID,Int,Int,Float64}}} = Channel{Vector{Tuple{UUID,Int,Int,Float64}}}(CONF.DAQ.channelsize)
         global SYNCSTATES = SharedVector{Bool}(8)
         global DATABUFRC = RemoteChannel(() -> databuf_c)
         global PROGRESSRC = RemoteChannel(() -> progress_c)
