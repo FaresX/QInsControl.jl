@@ -204,14 +204,11 @@ function updatefront!(qt::AbstractQuantity; show_edit=true)
 end
 
 let
-    tobeupdated::Channel{AbstractQuantity} = Channel{AbstractQuantity}(64)
+    tobeupdated::Channel{AbstractQuantity} = Channel{AbstractQuantity}(1024)
     global function updatefronttask()
         errormonitor(
             @async while true
-                if isready(tobeupdated)
-                    qt = take!(tobeupdated)
-                    updatefront!(qt)
-                end
+                isready(tobeupdated) ? updatefront!(take!(tobeupdated)) : sleep(0.001)
                 yield()
             end
         )
@@ -326,7 +323,7 @@ function testcmd(ins, addr, inputcmd::Ref{String}, readstr::Ref{String})
         if CImGui.Button(stcstr(MORESTYLE.Icons.WriteBlock, "  ", mlstr("Write")), (-1, 0))
             if addr != ""
                 remote_do(workers()[1], ins, addr, inputcmd[]) do ins, addr, inputcmd
-                    ct = Controller(ins, addr)
+                    ct = Controller(ins, addr; buflen=CONF.DAQ.ctbuflen)
                     try
                         login!(CPU, ct)
                         ct(write, CPU, inputcmd, Val(:write))
@@ -346,7 +343,7 @@ function testcmd(ins, addr, inputcmd::Ref{String}, readstr::Ref{String})
         if CImGui.Button(stcstr(MORESTYLE.Icons.QueryBlock, "  ", mlstr("Query")), (-1, 0))
             if addr != ""
                 fetchdata = wait_remotecall_fetch(workers()[1], ins, addr, inputcmd[]) do ins, addr, inputcmd
-                    ct = Controller(ins, addr)
+                    ct = Controller(ins, addr; buflen=CONF.DAQ.ctbuflen)
                     try
                         login!(CPU, ct)
                         readstr = ct(query, CPU, inputcmd, Val(:query))
@@ -368,7 +365,7 @@ function testcmd(ins, addr, inputcmd::Ref{String}, readstr::Ref{String})
         if CImGui.Button(stcstr(MORESTYLE.Icons.ReadBlock, "  ", mlstr("Read")), (-1, 0))
             if addr != ""
                 fetchdata = wait_remotecall_fetch(workers()[1], ins, addr) do ins, addr
-                    ct = Controller(ins, addr)
+                    ct = Controller(ins, addr; buflen=CONF.DAQ.ctbuflen)
                     try
                         login!(CPU, ct)
                         readstr = ct(read, CPU, Val(:read))
@@ -783,7 +780,7 @@ function apply!(qt::SweepQuantity, instrnm, addr)
     U, Us = @c getU(qt.utype, &qt.uindex)
     U == "" || (Uchange::Float64 = Us[1] isa Unitful.FreeUnits ? ustrip(Us[1], 1U) : 1.0)
     start = wait_remotecall_fetch(workers()[1], instrnm, addr) do instrnm, addr
-        ct = Controller(instrnm, addr)
+        ct = Controller(instrnm, addr; buflen=CONF.DAQ.ctbuflen)
         try
             getfunc = Symbol(instrnm, :_, qt.name, :_get) |> eval
             login!(CPU, ct)
@@ -812,7 +809,7 @@ function apply!(qt::SweepQuantity, instrnm, addr)
                 qt.issweeping = true
                 @info "[$(now())]\nBefore sweeping" instrument = instrnm address = addr quantity = qt
                 SYNCSTATES[Int(IsDAQTaskRunning)] && (actionidx = logaction(qt, instrnm, addr))
-                sweep_c = Channel{Vector{String}}(CONF.DAQ.channel_size)
+                sweep_c = Channel{Vector{String}}(CONF.DAQ.channelsize)
                 sweep_rc = RemoteChannel(() -> sweep_c)
                 idxbuf = SharedVector{Int}(1)
                 timebuf = SharedVector{Float64}(1)
@@ -826,9 +823,9 @@ function apply!(qt::SweepQuantity, instrnm, addr)
                     if haskey(SWEEPCTS[instrnm], addr)
                         SWEEPCTS[instrnm][addr][1][] = true
                     else
-                        push!(SWEEPCTS[instrnm], addr => (Ref(true), Controller(instrnm, addr)))
+                        push!(SWEEPCTS[instrnm], addr => (Ref(true), Controller(instrnm, addr; buflen=CONF.DAQ.ctbuflen)))
                     end
-                    sweep_lc = Channel{String}(CONF.DAQ.channel_size)
+                    sweep_lc = Channel{String}(CONF.DAQ.channelsize)
                     login!(CPU, SWEEPCTS[instrnm][addr][2]; quiet=false)
                     try
                         setfunc = Symbol(instrnm, :_, qtnm, :_set) |> eval
@@ -882,6 +879,7 @@ function apply!(qt::SweepQuantity, instrnm, addr)
                     sleep(qt.delay / 10)
                     yield()
                 end
+                @info istaskfailed(sweepcalltask)
                 qt.issweeping = false
                 @info "[$(now())]\nAfter sweeping" instrument = instrnm address = addr quantity = qt
                 SYNCSTATES[Int(IsDAQTaskRunning)] && logaction(qt, instrnm, addr, actionidx)
@@ -903,7 +901,7 @@ function apply!(qt::SetQuantity, instrnm, addr, byoptvalues=false)
         @info "[$(now())]\nBefore setting" instrument = instrnm address = addr quantity = qt
         SYNCSTATES[Int(IsDAQTaskRunning)] && (actionidx = logaction(qt, instrnm, addr))
         fetchdata = wait_remotecall_fetch(workers()[1], instrnm, addr, sv) do instrnm, addr, sv
-            ct = Controller(instrnm, addr)
+            ct = Controller(instrnm, addr; buflen=CONF.DAQ.ctbuflen)
             try
                 setfunc = Symbol(instrnm, :_, qt.name, :_set) |> eval
                 getfunc = Symbol(instrnm, :_, qt.name, :_get) |> eval
@@ -1035,7 +1033,7 @@ end
 
 function refresh_qt(instrnm, addr, qtnm)
     wait_remotecall_fetch(workers()[1], instrnm, addr) do instrnm, addr
-        ct = Controller(instrnm, addr)
+        ct = Controller(instrnm, addr; buflen=CONF.DAQ.ctbuflen)
         try
             getfunc = Symbol(instrnm, :_, qtnm, :_get) |> eval
             login!(CPU, ct)
@@ -1072,7 +1070,9 @@ let
                         errormonitor(
                             @async if ibv.insbuf.isautorefresh || log
                                 haskey(REFRESHCTS, ins) || push!(REFRESHCTS, ins => Dict())
-                                haskey(REFRESHCTS[ins], addr) || push!(REFRESHCTS[ins], addr => Controller(ins, addr))
+                                haskey(REFRESHCTS[ins], addr) || push!(
+                                    REFRESHCTS[ins], addr => Controller(ins, addr; buflen=CONF.DAQ.ctbuflen)
+                                )
                                 ct = REFRESHCTS[ins][addr]
                                 try
                                     login!(CPU, ct)
