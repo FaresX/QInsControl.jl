@@ -28,8 +28,9 @@ end
     externaleval::Bool = false
     savetime::Cint = 60
     cuttingfile::Cint = 2000000
-    channel_size::Cint = 512
+    channelsize::Cint = 512
     packsize::Cint = 6
+    ctbuflen::Cint = 4
     historylen::Cint = 120
     retrysendtimes::Cint = 3
     retryconnecttimes::Cint = 3
