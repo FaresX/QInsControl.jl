@@ -166,8 +166,8 @@ function run_remote(daqtask::DAQTask)
         function remote_do_block(databuf_rc, progress_rc, SYNCSTATES, rn)
             controllers = $controllers
             try
-                databuf_lc = Channel{Tuple{String,String}}(CONF.DAQ.channel_size)
-                progress_lc = Channel{Tuple{UUID,Int,Int,Float64}}(CONF.DAQ.channel_size)
+                databuf_lc = Channel{Tuple{String,String}}(CONF.DAQ.channelsize)
+                progress_lc = Channel{Tuple{UUID,Int,Int,Float64}}(CONF.DAQ.channelsize)
                 @sync begin
                     remotedotask = errormonitor(@async begin
                         remotecall_wait(() -> (start!(CPU); fast!(CPU)), workers()[1])
@@ -327,7 +327,7 @@ function extract_controllers(bkch::Vector{AbstractBlock})
     for bk in bkch
         if typeof(bk) in [SettingBlock, SweepBlock, ReadingBlock, WriteBlock, QueryBlock, ReadBlock]
             bk.instrnm == "VirtualInstr" && bk.addr != "VirtualAddress" && return controllers, false
-            ct = Controller(bk.instrnm, bk.addr)
+            ct = Controller(bk.instrnm, bk.addr; buflen=CONF.DAQ.ctbuflen)
             try
                 @assert haskey(INSTRBUFFERVIEWERS, bk.instrnm) mlstr("$(bk.instrnm) has not been added")
                 @assert haskey(INSTRBUFFERVIEWERS[bk.instrnm], bk.addr) mlstr("$(bk.addr) has not been added")
