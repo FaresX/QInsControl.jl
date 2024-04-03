@@ -209,7 +209,6 @@ let
         errormonitor(
             @async while true
                 isready(tobeupdated) ? updatefront!(take!(tobeupdated)) : sleep(0.001)
-                yield()
             end
         )
     end
@@ -846,9 +845,7 @@ function apply!(qt::SweepQuantity, instrnm, addr)
                             )
                             errormonitor(
                                 @async while !istaskdone(sweeptask) || isready(sweep_lc)
-                                    isready(sweep_lc) && put!(sweep_rc, packtake!(sweep_lc, CONF.DAQ.packsize))
-                                    sleep(delay / 10)
-                                    yield()
+                                    isready(sweep_lc) ? put!(sweep_rc, packtake!(sweep_lc, CONF.DAQ.packsize)) : sleep(delay / 10)
                                 end
                             )
                         end
@@ -870,14 +867,12 @@ function apply!(qt::SweepQuantity, instrnm, addr)
                     qt.issweeping || remotecall_wait(workers()[1], instrnm, addr) do instrnm, addr
                         SWEEPCTS[instrnm][addr][1][] = false
                     end
-                    isready(sweep_rc) && for val in take!(sweep_rc)
+                    isready(sweep_rc) ? for val in take!(sweep_rc)
                         qt.read = val
                         qt.presenti = idxbuf[1]
                         qt.elapsedtime = timebuf[1]
                         sendtoupdatefront(qt)
-                    end
-                    sleep(qt.delay / 10)
-                    yield()
+                    end : sleep(qt.delay / 10)
                 end
                 @info istaskfailed(sweepcalltask)
                 qt.issweeping = false
@@ -1136,9 +1131,8 @@ end
 function autorefresh()
     errormonitor(
         Threads.@spawn while true
-            sleep(0.01)
             SYNCSTATES[Int(IsAutoRefreshing)] && refresh1()
-            yield()
+            sleep(0.01)
         end
     )
 end

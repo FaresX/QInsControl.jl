@@ -351,7 +351,6 @@ function gencodes_read(bk::Union{ReadingBlock,QueryBlock,ReadBlock})
                 return quote
                     @async for data in zip($keyall, $getdata)
                         put!(databuf_lc, data)
-                        yield()
                     end
                 end
             else

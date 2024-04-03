@@ -287,7 +287,6 @@ let
                 while dtss.isrunning
                     dtss.runtime = round(time() - t1; digits=1)
                     sleep(0.05)
-                    yield()
                 end
             end
         )

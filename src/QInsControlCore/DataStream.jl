@@ -110,7 +110,7 @@ function login!(cpu::Processor, ct::Controller; quiet=true)
                 cpu.tasks, ct.addr => errormonitor(
                     @async while cpu.taskhandlers[ct.addr]
                         if isempty(cpu.exechannels[ct.addr])
-                            cpu.fast[] ? yield() : sleep(0.01)
+                            cpu.fast[] ? yield() : sleep(0.001)
                         else
                             runcmd(cpu, popfirst!(cpu.exechannels[ct.addr])...)
                         end
@@ -291,47 +291,47 @@ function run!(cpu::Processor)
             @info "[$(now())]\ntask(address: $addr) has been created"
             push!(cpu.tasks, addr => errormonitor(t))
         end
-        # errormonitor(
-        #     @async while cpu.running[]
-        #         try
-        #             if istaskfailed(cpu.processtask[])
-        #                 @warn "[$(now())]\nprocessing task failed, recreating..."
-        #                 cpu.processtask[] = errormonitor(
-        #                     @async while cpu.running[]
-        #                         if isempty(cpu.cmdchannel)
-        #                             cpu.fast[] ? yield() : sleep(0.001)
-        #                         else
-        #                             cmd = popfirst!(cpu.cmdchannel)
-        #                             push!(cpu.exechannels[cmd[1].addr], cmd)
-        #                         end
-        #                     end
-        #                 )
-        #                 @info "[$(now())]\nprocessing task has been recreated"
-        #             end
-        #             for (addr, t) in cpu.tasks
-        #                 if istaskfailed(t) && haskey(cpu.exechannels, addr) && haskey(cpu.taskhandlers, addr)
-        #                     @warn "[$(now())]\ntask(address: $addr) failed, recreating..."
-        #                     push!(
-        #                         cpu.tasks,
-        #                         addr => errormonitor(
-        #                             @async while cpu.taskhandlers[addr]
-        #                                 if isempty(cpu.exechannels[addr])
-        #                                     cpu.fast[] ? yield() : sleep(0.001)
-        #                                 else
-        #                                     runcmd(cpu, popfirst!(cpu.exechannels[addr])...)
-        #                                 end
-        #                             end
-        #                         )
-        #                     )
-        #                     @info "[$(now())]\ntask(address: $addr) has been recreated"
-        #                 end
-        #             end
-        #         catch e
-        #             @error "[$(now())]\nan error occurs during task monitoring"
-        #         end
-        #         sleep(0.01)
-        #     end
-        # )
+        errormonitor(
+            @async while cpu.running[]
+                try
+                    if istaskfailed(cpu.processtask[])
+                        @warn "[$(now())]\nprocessing task failed, recreating..."
+                        cpu.processtask[] = errormonitor(
+                            @async while cpu.running[]
+                                if isempty(cpu.cmdchannel)
+                                    cpu.fast[] ? yield() : sleep(0.001)
+                                else
+                                    cmd = popfirst!(cpu.cmdchannel)
+                                    push!(cpu.exechannels[cmd[1].addr], cmd)
+                                end
+                            end
+                        )
+                        @info "[$(now())]\nprocessing task has been recreated"
+                    end
+                    for (addr, t) in cpu.tasks
+                        if istaskfailed(t) && haskey(cpu.exechannels, addr) && haskey(cpu.taskhandlers, addr)
+                            @warn "[$(now())]\ntask(address: $addr) failed, recreating..."
+                            push!(
+                                cpu.tasks,
+                                addr => errormonitor(
+                                    @async while cpu.taskhandlers[addr]
+                                        if isempty(cpu.exechannels[addr])
+                                            cpu.fast[] ? yield() : sleep(0.001)
+                                        else
+                                            runcmd(cpu, popfirst!(cpu.exechannels[addr])...)
+                                        end
+                                    end
+                                )
+                            )
+                            @info "[$(now())]\ntask(address: $addr) has been recreated"
+                        end
+                    end
+                catch e
+                    @error "[$(now())]\nan error occurs during task monitoring"
+                end
+                sleep(0.01)
+            end
+        )
     end
     return nothing
 end

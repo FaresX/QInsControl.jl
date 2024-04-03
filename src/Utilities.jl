@@ -50,8 +50,7 @@ function packtake!(c, n=12)
     taking = true
     t = errormonitor(
         @async while taking
-            isready(c) && push!(buf, take!(c))
-            yield()
+            isready(c) ? push!(buf, take!(c)) : yield()
         end
     )
     timedwait(() -> length(buf) > n, 0.01; pollint=0.001)

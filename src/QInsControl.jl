@@ -142,7 +142,7 @@ function julia_main()::Cint
         if !isinteractive()
             wait(uitask)
             while SYNCSTATES[Int(IsDAQTaskRunning)]
-                yield()
+                sleep(0.1)
             end
             sleep(0.1)
             exit()

@@ -77,7 +77,6 @@ function poll_autodetect()
                     break
                 end
                 sleep(0.001)
-                yield()
             end
         end
     )
