@@ -286,8 +286,8 @@ const INSTRBUFFERVIEWERS::Dict{String,Dict{String,InstrBufferViewer}} = Dict()
 
 function updatefrontall!()
     for (_, inses) in filter(x -> !isempty(x.second), INSTRBUFFERVIEWERS)
-        for (_, ibv) in inses
-            for (_, qt) in ibv.insbuf.quantities
+        for ibv in values(inses)
+            for qt in values(ibv.insbuf.quantities)
                 updatefront!(qt)
             end
         end
@@ -316,10 +316,11 @@ function testcmd(ins, addr, inputcmd::Ref{String}, readstr::Ref{String})
             CImGui.EndPopup()
         end
         TextRect(stcstr(readstr[], "\n "); size=(Cfloat(0), 4CImGui.GetFontSize()))
-        CImGui.BeginChild("align buttons", (Float32(0), CImGui.GetFrameHeightWithSpacing()))
-        CImGui.PushStyleVar(CImGui.ImGuiStyleVar_FrameRounding, 12)
-        CImGui.Columns(3, C_NULL, false)
-        if CImGui.Button(stcstr(MORESTYLE.Icons.WriteBlock, "  ", mlstr("Write")), (-1, 0))
+        CImGui.Spacing()
+        CImGui.PushStyleVar(CImGui.ImGuiStyleVar_FrameRounding, 24)
+        btw = (CImGui.GetContentRegionAvailWidth() - 2unsafe_load(IMGUISTYLE.ItemSpacing.x)) / 3
+        bth = 2CImGui.GetFrameHeight()
+        if CImGui.Button(stcstr(MORESTYLE.Icons.WriteBlock, "  ", mlstr("Write")), (btw, bth))
             if addr != ""
                 remote_do(workers()[1], ins, addr, inputcmd[]) do ins, addr, inputcmd
                     ct = Controller(ins, addr; buflen=CONF.DAQ.ctbuflen)
@@ -338,8 +339,8 @@ function testcmd(ins, addr, inputcmd::Ref{String}, readstr::Ref{String})
                 end
             end
         end
-        CImGui.NextColumn()
-        if CImGui.Button(stcstr(MORESTYLE.Icons.QueryBlock, "  ", mlstr("Query")), (-1, 0))
+        CImGui.SameLine()
+        if CImGui.Button(stcstr(MORESTYLE.Icons.QueryBlock, "  ", mlstr("Query")), (btw, bth))
             if addr != ""
                 fetchdata = wait_remotecall_fetch(workers()[1], ins, addr, inputcmd[]) do ins, addr, inputcmd
                     ct = Controller(ins, addr; buflen=CONF.DAQ.ctbuflen)
@@ -360,8 +361,8 @@ function testcmd(ins, addr, inputcmd::Ref{String}, readstr::Ref{String})
                 isnothing(fetchdata) || (readstr[] = fetchdata)
             end
         end
-        CImGui.NextColumn()
-        if CImGui.Button(stcstr(MORESTYLE.Icons.ReadBlock, "  ", mlstr("Read")), (-1, 0))
+        CImGui.SameLine()
+        if CImGui.Button(stcstr(MORESTYLE.Icons.ReadBlock, "  ", mlstr("Read")), (btw, bth))
             if addr != ""
                 fetchdata = wait_remotecall_fetch(workers()[1], ins, addr) do ins, addr
                     ct = Controller(ins, addr; buflen=CONF.DAQ.ctbuflen)
@@ -382,9 +383,7 @@ function testcmd(ins, addr, inputcmd::Ref{String}, readstr::Ref{String})
                 isnothing(fetchdata) || (readstr[] = fetchdata)
             end
         end
-        CImGui.NextColumn()
         CImGui.PopStyleVar()
-        CImGui.EndChild()
         CImGui.Separator()
     end
 end
@@ -835,8 +834,8 @@ function apply!(qt::SweepQuantity, instrnm, addr)
                                     tstart = time()
                                     for (i, sv) in enumerate(sweeplist)
                                         SWEEPCTS[instrnm][addr][1][] || break
-                                        sleep(delay)
                                         SWEEPCTS[instrnm][addr][2](setfunc, CPU, string(sv), Val(:write))
+                                        sleep(delay)
                                         put!(sweep_lc, SWEEPCTS[instrnm][addr][2](getfunc, CPU, Val(:read)))
                                         idxbuf[1] = i
                                         timebuf[1] = time() - tstart
@@ -1020,9 +1019,13 @@ end
 
 function getread(qt::AbstractQuantity, instrnm, addr)
     if qt.enable && addr != ""
-        fetchdata = refresh_qt(instrnm, addr, qt.name)
-        isnothing(fetchdata) || (qt.read = fetchdata)
-        updatefront!(qt)
+        errormonitor(
+            Threads.@spawn begin
+                fetchdata = refresh_qt(instrnm, addr, qt.name)
+                isnothing(fetchdata) || (qt.read = fetchdata)
+                sendtoupdatefront(qt)
+            end
+        )
     end
 end
 
