@@ -164,14 +164,6 @@ function logout!(cpu::Processor, addr::String; quiet=true)
     end
 end
 
-function timedwhile(f::Function, timeout::Real)
-    t = time()
-    while time() - t < timeout
-        f() && return true
-        yield()
-    end
-    return false
-end
 function (ct::Controller)(f::Function, cpu::Processor, val::String, ::Val{:write}; timeout=6)
     @assert ct in cpu.controllers "[$(now())]\nController is not logged in"
     @assert cpu.running[] "[$(now())]\nProcessor is not running"

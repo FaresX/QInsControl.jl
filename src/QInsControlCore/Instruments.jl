@@ -36,7 +36,7 @@ function instrument(name, addr)
         return GPIBInstr(name, addr, GenericInstrument())
     elseif occursin("ASRL", addr)
         return SerialInstr(name, addr, GenericInstrument())
-    elseif occursin("TCPIP", addr) && occursin("SOCKET", addr)
+    elseif occursin("TCPIP", addr)
         try
             _, ipstr, portstr, _ = split(addr, "::")
             port = parse(Int, portstr)
@@ -126,22 +126,22 @@ Base.read(::VirtualInstr) = "read"
 
 query the instrument with some message string.
 """
-function _query_(instr::Instruments.GenericInstrument, msg; delay=0, pollint=0.001, timeout=6, errormsg="time out")
+function _query_(instr::Instruments.GenericInstrument, msg; delay=0, timeout=6, errormsg="time out")
     Instruments.write(instr, msg)
-    sleep(delay)
+    delay < 0.001 || sleep(delay)
     t = @async Instruments.read(instr)
-    isok = timedwait(() -> istaskdone(t), timeout; pollint=pollint)
+    isok = timedwhile(() -> istaskdone(t), timeout)
     return isok == :ok ? fetch(t) : error(errormsg)
 end
 query(instr::GPIBInstr, msg::AbstractString) = _query_(instr.geninstr, msg; errormsg="$(instr.addr) time out")
 function query(instr::SerialInstr, msg::AbstractString; termchar='\n')
     _query_(instr.geninstr, string(msg, termchar); errormsg="$(instr.addr) time out")
 end
-function query(instr::TCPIPInstr, msg::AbstractString; delay=0, pollint=0.001, timeout=6)
+function query(instr::TCPIPInstr, msg::AbstractString; delay=0, timeout=6)
     println(instr.sock[], msg)
-    sleep(delay)
+    delay < 0.001 || sleep(delay)
     t = @async readline(instr.sock[])
-    isok = timedwait(() -> istaskdone(t), timeout; pollint=pollint)
+    isok = timedwhile(() -> istaskdone(t), timeout)
     return isok == :ok ? fetch(t) : error("$(instr.addr) time out")
 end
 query(::VirtualInstr, ::AbstractString; delay=0) = "query"
