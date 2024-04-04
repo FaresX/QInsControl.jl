@@ -1336,9 +1336,18 @@ let
             posmax = CImGui.GetItemRectMax()
             ftsz = CImGui.GetFontSize()
             CImGui.AddText(
-                CImGui.GetWindowDrawList(), GLOBALFONT, ftsz, (posmax.x - ftsz / 2, posmin.y - ftsz / 2),
+                CImGui.GetWindowDrawList(), GLOBALFONT, ftsz, (posmax.x - ftsz, posmin.y),
                 CImGui.ColorConvertFloat4ToU32(CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_Text)),
                 MORESTYLE.Icons.HoldPin
+            )
+        end
+        if qtw.options.autorefresh
+            posmin = CImGui.GetItemRectMin()
+            ftsz = CImGui.GetFontSize()
+            CImGui.AddText(
+                CImGui.GetWindowDrawList(), GLOBALFONT, ftsz, posmin,
+                CImGui.ColorConvertFloat4ToU32(CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_Text)),
+                MORESTYLE.Icons.InstrumentsAutoRef
             )
         end
     end
@@ -1563,9 +1572,11 @@ function convertmenu(insw::InstrWidget, i)
                             name=qtnm,
                             alias=qt.alias,
                             qtype="sweep",
+                            numoptvs = length(qt.optvalues),
                             numread=qt.numread,
                             options=insw.qtws[i].options
                         )
+                        insw.qtws[i].options.selectedidx = 1
                     end
                 end
             end
@@ -1584,6 +1595,7 @@ function convertmenu(insw::InstrWidget, i)
                             numread=qt.numread,
                             options=insw.qtws[i].options
                         )
+                        insw.qtws[i].options.selectedidx = 1
                     end
                 end
             end
@@ -1598,9 +1610,11 @@ function convertmenu(insw::InstrWidget, i)
                             name=qtnm,
                             alias=qt.alias,
                             qtype="read",
+                            numoptvs = length(qt.optvalues),
                             numread=qt.numread,
                             options=insw.qtws[i].options
                         )
+                        insw.qtws[i].options.selectedidx = 1
                     end
                 end
             end
