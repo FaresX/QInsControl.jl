@@ -31,7 +31,10 @@ struct Controller
     databuf::Vector{String}
     available::Vector{Bool}
     ready::Vector{Bool}
-    Controller(instrnm, addr; buflen=16) = new(instrnm, addr, fill("", buflen), trues(buflen), falses(buflen))
+    timeout::Float64
+    Controller(instrnm, addr; buflen=16, timeout=6) = new(
+        instrnm, addr, fill("", buflen), trues(buflen), falses(buflen), timeout
+    )
 end
 function Base.show(io::IO, ct::Controller)
     str = """
@@ -164,73 +167,73 @@ function logout!(cpu::Processor, addr::String; quiet=true)
     end
 end
 
-function (ct::Controller)(f::Function, cpu::Processor, val::String, ::Val{:write}; timeout=6)
+function (ct::Controller)(f::Function, cpu::Processor, val::String, ::Val{:write})
     @assert ct in cpu.controllers "[$(now())]\nController is not logged in"
     @assert cpu.running[] "[$(now())]\nProcessor is not running"
     availi = Ref{Int}(0)
-    isok = timedwhile(timeout) do
+    isok = timedwhile(ct.timeout) do
         for (i, avail) in enumerate(ct.available)
             avail && (ct.available[i] = false; availi[] = i; return true)
         end
         return false
     end
     isok || error("[$(now())]\ntimeout without available buffer")
-    i = availi[] 
+    i = availi[]
     ct.ready[i] = false
     push!(cpu.cmdchannel, (ct, i, f, val, Val(:write)))
-    isok = timedwhile(() -> ct.ready[i], timeout)
+    isok = timedwhile(() -> ct.ready[i], ct.timeout)
     ct.available[i] = true
     return isok ? ct.databuf[i] : error("[$(now())]\ntimeout")
 end
-function (ct::Controller)(f::Function, cpu::Processor, ::Val{:read}; timeout=6)
+function (ct::Controller)(f::Function, cpu::Processor, ::Val{:read})
     @assert ct in cpu.controllers "[$(now())]\nController is not logged in"
     @assert cpu.running[] "[$(now())]\nProcessor is not running"
     availi = Ref{Int}(0)
-    isok = timedwhile(timeout) do
+    isok = timedwhile(ct.timeout) do
         for (i, avail) in enumerate(ct.available)
             avail && (ct.available[i] = false; availi[] = i; return true)
         end
         return false
     end
     isok || error("[$(now())]\ntimeout without available buffer")
-    i = availi[] 
+    i = availi[]
     ct.ready[i] = false
     push!(cpu.cmdchannel, (ct, i, f, "", Val(:read)))
-    isok = timedwhile(() -> ct.ready[i], timeout)
+    isok = timedwhile(() -> ct.ready[i], ct.timeout)
     ct.available[i] = true
     return isok ? ct.databuf[i] : error("[$(now())]\ntimeout")
 end
-function (ct::Controller)(f::Function, cpu::Processor, val::String, ::Val{:query}; timeout=6)
+function (ct::Controller)(f::Function, cpu::Processor, val::String, ::Val{:query})
     @assert ct in cpu.controllers "[$(now())]\nController is not logged in"
     @assert cpu.running[] "[$(now())]\nProcessor is not running"
     availi = Ref{Int}(0)
-    isok = timedwhile(timeout) do
+    isok = timedwhile(ct.timeout) do
         for (i, avail) in enumerate(ct.available)
             avail && (ct.available[i] = false; availi[] = i; return true)
         end
         return false
     end
     isok || error("[$(now())]\ntimeout without available buffer")
-    i = availi[] 
+    i = availi[]
     ct.ready[i] = false
     push!(cpu.cmdchannel, (ct, i, f, val, Val(:query)))
-    isok = timedwhile(() -> ct.ready[i], timeout)
+    isok = timedwhile(() -> ct.ready[i], ct.timeout)
     ct.available[i] = true
     return isok ? ct.databuf[i] : error("[$(now())]\ntimeout")
 end
 
 function runcmd(cpu::Processor, ct::Controller, i::Int, f::Function, val::String, ::Val{:write})
-    f(cpu.instrs[ct.addr], val)
+    wait(Threads.@spawn f(cpu.instrs[ct.addr], val))
     ct.ready[i] = true
     return nothing
 end
 function runcmd(cpu::Processor, ct::Controller, i::Int, f::Function, ::String, ::Val{:read})
-    ct.databuf[i] = f(cpu.instrs[ct.addr])
+    ct.databuf[i] = fetch(Threads.@spawn f(cpu.instrs[ct.addr]))
     ct.ready[i] = true
     return nothing
 end
 function runcmd(cpu::Processor, ct::Controller, i::Int, f::Function, val::String, ::Val{:query})
-    ct.databuf[i] = f(cpu.instrs[ct.addr], val)
+    ct.databuf[i] = fetch(Threads.@spawn f(cpu.instrs[ct.addr], val))
     ct.ready[i] = true
     return nothing
 end
