@@ -2192,7 +2192,7 @@ let
                 ) do ibvs, ins, addr, qtlist
                     empty!(INSTRBUFFERVIEWERS)
                     merge!(INSTRBUFFERVIEWERS, ibvs)
-                    ct = Controller(ins, addr)
+                    ct = Controller(ins, addr; ctbuflen=CONF.DAQ.ctbuflen, timeout=CONF.DAQ.cttimeout)
                     try
                         login!(CPU, ct)
                         for (qtnm, qt) in filter(

@@ -327,7 +327,7 @@ function extract_controllers(bkch::Vector{AbstractBlock})
     for bk in bkch
         if typeof(bk) in [SettingBlock, SweepBlock, ReadingBlock, WriteBlock, QueryBlock, ReadBlock]
             bk.instrnm == "VirtualInstr" && bk.addr != "VirtualAddress" && return controllers, false
-            ct = Controller(bk.instrnm, bk.addr; buflen=CONF.DAQ.ctbuflen)
+            ct = Controller(bk.instrnm, bk.addr; buflen=CONF.DAQ.ctbuflen, timeout=CONF.DAQ.cttimeout)
             try
                 @assert haskey(INSTRBUFFERVIEWERS, bk.instrnm) mlstr("$(bk.instrnm) has not been added")
                 @assert haskey(INSTRBUFFERVIEWERS[bk.instrnm], bk.addr) mlstr("$(bk.addr) has not been added")
