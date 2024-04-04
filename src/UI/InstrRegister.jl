@@ -18,7 +18,7 @@ let
         if CImGui.Button(MORESTYLE.Icons.InstrumentsManualRef)
             for file in readdir(joinpath(ENV["QInsControlAssets"], "ExtraLoad"), join=true)
                 try
-                    split(basename(file), '.')[end] == "jl" && remotecall_wait(include, workers()[1], file)
+                    endswith(basename(file), ".jl") && remotecall_wait(include, workers()[1], file)
                 catch e
                     @error mlstr("reloading drivers failed") exception = e file = file
                 end

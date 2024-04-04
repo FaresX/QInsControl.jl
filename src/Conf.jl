@@ -41,7 +41,7 @@ function loadconf(precompile=false)
     ###### generate INSCONF ######
     for file in readdir(joinpath(ENV["QInsControlAssets"], "ExtraLoad"), join=true)
         try
-            split(basename(file), '.')[end] == "jl" && include(file)
+            endswith(basename(file), ".jl") && include(file)
         catch e
             @error mlstr("loading drivers failed!!!") exception = e file = file
         end
@@ -49,7 +49,7 @@ function loadconf(precompile=false)
     for file in readdir(joinpath(ENV["QInsControlAssets"], "Confs"), join=true)
         bnm = basename(file)
         try
-            split(bnm, '.')[end] == "toml" && gen_insconf(file)
+            endswith(bnm, ".toml") && gen_insconf(file)
         catch e
             @error mlstr("loading file failed!!!") file = file excepiton = e
         end
@@ -83,7 +83,7 @@ function loadconf(precompile=false)
         for file in readdir(CONF.Style.dir, join=true)
             bnm = basename(file)
             try
-                split(bnm, '.')[end] == "sty" && merge!(STYLES, load(file))
+                endswith(bnm, ".sty") && merge!(STYLES, load(file))
             catch e
                 @error mlstr("loading file failed!!!") file = file exception = e
             end
