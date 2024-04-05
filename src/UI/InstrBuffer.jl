@@ -284,16 +284,6 @@ end
 
 const INSTRBUFFERVIEWERS::Dict{String,Dict{String,InstrBufferViewer}} = Dict()
 
-function updatefrontall!()
-    for (_, inses) in filter(x -> !isempty(x.second), INSTRBUFFERVIEWERS)
-        for ibv in values(inses)
-            for qt in values(ibv.insbuf.quantities)
-                updatefront!(qt)
-            end
-        end
-    end
-end
-
 function edit(ibv::InstrBufferViewer)
     CImGui.SetNextWindowSize((800, 600), CImGui.ImGuiCond_Once)
     ins, addr = ibv.instrnm, ibv.addr
@@ -301,7 +291,7 @@ function edit(ibv::InstrBufferViewer)
         SetWindowBgImage()
         @c testcmd(ins, addr, &ibv.inputcmd, &ibv.readstr)
         edit(ibv.insbuf, addr)
-        CImGui.IsKeyPressed(ImGuiKey_F5, false) && (refresh1(true); updatefrontall!())
+        CImGui.IsKeyPressed(ImGuiKey_F5, false) && refresh1(true)
     end
     CImGui.End()
 end
@@ -439,7 +429,6 @@ function edit(insbuf::InstrBuffer, addr)
         if CImGui.MenuItem(stcstr(MORESTYLE.Icons.InstrumentsManualRef, " ", mlstr("Manual Refresh")), "F5")
             insbuf.isautorefresh = true
             refresh1(true)
-            updatefrontall!()
         end
         CImGui.Text(stcstr(MORESTYLE.Icons.InstrumentsAutoRef, " ", mlstr("Auto Refresh")))
         CImGui.SameLine()
@@ -461,7 +450,7 @@ function edit(insbuf::InstrBuffer, addr)
         @c CImGui.Checkbox("##show disabled", &insbuf.showdisable)
         CImGui.EndPopup()
     end
-    CImGui.IsKeyPressed(ImGuiKey_F5, false) && (refresh1(true); updatefrontall!())
+    CImGui.IsKeyPressed(ImGuiKey_F5, false) && refresh1(true)
 end
 
 let
@@ -762,11 +751,11 @@ function view(qt::AbstractQuantity, size=(-1, 0))
         CImGui.PushTextWrapPos(CImGui.GetFontSize() * 36.0)
         U, _ = @c getU(qt.utype, &qt.uindex)
         if qt isa SweepQuantity
-            CImGui.Text(stcstr("step: ", qt.step, U))
-            CImGui.Text(stcstr("stop: ", qt.stop, U))
-            CImGui.Text(stcstr("delay: ", qt.delay, "s"))
+            CImGui.Text(stcstr(mlstr("step"), mlstr(": "), qt.step, U))
+            CImGui.Text(stcstr(mlstr("stop"), mlstr(": "), qt.stop, U))
+            CImGui.Text(stcstr(mlstr("delay"), mlstr(": "), qt.delay, "s"))
         elseif qt isa SetQuantity
-            CImGui.Text(stcstr("set: ", qt.set, U))
+            CImGui.Text(stcstr(mlstr("set"), mlstr(": "), qt.set, U))
         end
         CImGui.PopTextWrapPos()
         CImGui.EndTooltip()
@@ -806,6 +795,7 @@ function apply!(qt::SweepQuantity, instrnm, addr)
             Threads.@spawn begin
                 qt.issweeping = true
                 @info "[$(now())]\nBefore sweeping" instrument = instrnm address = addr quantity = qt
+                actionidx = 1
                 SYNCSTATES[Int(IsDAQTaskRunning)] && (actionidx = logaction(qt, instrnm, addr))
                 sweep_c = Channel{Vector{String}}(CONF.DAQ.channelsize)
                 sweep_rc = RemoteChannel(() -> sweep_c)
@@ -898,6 +888,7 @@ function apply!(qt::SetQuantity, instrnm, addr, byoptvalues=false)
     sv = string(lstrip(rstrip(sv)))
     if (U == "" && sv != "") || !isnothing(tryparse(Float64, sv))
         @info "[$(now())]\nBefore setting" instrument = instrnm address = addr quantity = qt
+        actionidx = 1
         SYNCSTATES[Int(IsDAQTaskRunning)] && (actionidx = logaction(qt, instrnm, addr))
         fetchdata = wait_remotecall_fetch(workers()[1], instrnm, addr, sv) do instrnm, addr, sv
             ct = Controller(instrnm, addr; buflen=CONF.DAQ.ctbuflen, timeout=CONF.DAQ.cttimeout)
@@ -934,7 +925,16 @@ function logaction(qt::AbstractQuantity, instrnm, addr)
     push!(CFGBUF["actions"][end], (now(), instrnm, addr, deepcopy(qt)))
     return length(CFGBUF["actions"])
 end
-logaction(qt::AbstractQuantity, instrnm, addr, idx) = push!(CFGBUF["actions"][idx], (now(), instrnm, addr, deepcopy(qt)))
+function logaction(qt::AbstractQuantity, instrnm, addr, idx)
+    haskey(CFGBUF, "actions") || push!(CFGBUF, "actions" => Vector{Tuple{DateTime,String,String,AbstractQuantity}}[])
+    if idx > length(CFGBUF["actions"])
+        push!(CFGBUF["actions"], Tuple{DateTime,String,String,AbstractQuantity}[])
+        push!(CFGBUF["actions"][end], (DateTime(0), instrnm, addr, deepcopy(qt)))
+        push!(CFGBUF["actions"][end], (now(), instrnm, addr, deepcopy(qt)))
+    else
+        push!(CFGBUF["actions"][idx], (now(), instrnm, addr, deepcopy(qt)))
+    end
+end
 
 function viewactions(actions::Vector{Vector{Tuple{DateTime,String,String,AbstractQuantity}}})
     CImGui.BeginChild("viewactions")
@@ -979,12 +979,16 @@ function viewactions(actions::Vector{Tuple{DateTime,String,String,AbstractQuanti
     CImGui.PopStyleColor()
 end
 function viewaction(action::Tuple{DateTime,String,String,AbstractQuantity}, totalheight)
-    CImGui.BeginGroup()
-    CImGui.PushStyleVar(CImGui.ImGuiStyleVar_ItemSpacing, (0, 0))
-    CImGui.Button(string(action[1]), (Cfloat(-1), 2CImGui.GetFontSize()))
-    view(action[4], (Cfloat(-1), totalheight - CImGui.GetItemRectSize().y))
-    CImGui.PopStyleVar()
-    CImGui.EndGroup()
+    if action[1] == DateTime(0)
+        CImGui.Button(mlstr("Unrecorded"), (Cfloat(-1), totalheight))
+    else
+        CImGui.BeginGroup()
+        CImGui.PushStyleVar(CImGui.ImGuiStyleVar_ItemSpacing, (0, 0))
+        CImGui.Button(string(action[1]), (Cfloat(-1), 2CImGui.GetFontSize()))
+        view(action[4], (Cfloat(-1), totalheight - CImGui.GetItemRectSize().y))
+        CImGui.PopStyleVar()
+        CImGui.EndGroup()
+    end
 end
 
 function resolvedisablelist(qt::AbstractQuantity, instrnm, addr)
@@ -1056,7 +1060,7 @@ function refresh_qt(instrnm, addr, qtnm)
 end
 
 function log_instrbufferviewers()
-    refresh1(true)
+    wait(refresh1(true))
     push!(CFGBUF, "instrbufferviewers/[$(now())]" => deepcopy(INSTRBUFFERVIEWERS))
 end
 
