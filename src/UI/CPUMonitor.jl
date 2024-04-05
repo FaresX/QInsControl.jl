@@ -48,7 +48,7 @@ function CPUMonitor()
             push!(instrtocontrollers[ct.instrnm][ct.addr], ct)
         end
         for (ins, inses) in instrtocontrollers
-            CImGui.TextColored(MORESTYLE.Colors.HighlightText, stcstr(mlstr("Instrument"), " : ", ins))
+            CImGui.TextColored(MORESTYLE.Colors.HighlightText, stcstr(mlstr("Instrument"), " ", mlstr(": "), ins))
             CImGui.Indent()
             for (addr, cts) in inses
                 CImGui.Text(addr)
@@ -57,7 +57,7 @@ function CPUMonitor()
                     cpuinfo[:isconnected][addr] ? MORESTYLE.Colors.LogInfo : MORESTYLE.Colors.LogError,
                     mlstr(cpuinfo[:isconnected][addr] ? "Connected" : "Unconnected")
                 )
-                CImGui.Text(stcstr(mlstr("Status"), "："))
+                CImGui.Text(stcstr(mlstr("Status"), mlstr(": ")))
                 CImGui.SameLine()
                 CImGui.TextColored(
                     cpuinfo[:taskhandlers][addr] ? MORESTYLE.Colors.LogInfo : MORESTYLE.Colors.LogError,
