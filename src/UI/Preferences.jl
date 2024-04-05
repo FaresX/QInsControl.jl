@@ -150,7 +150,7 @@ let
                 end
                 @c(CImGui.Checkbox(
                     mlstr(CONF.Communication.async ? "asynchronous" : "synchronous"), &CONF.Communication.async
-                )) && remotecall_wait(x -> CONF.Communication.async = x, workers()[1], CONF.Communication.async)
+                )) && remotecall_wait(x -> QInsControlCore.VIASYNC = x, workers()[1], CONF.Communication.async)
                 CImGui.Text(" ")
 
                 ### DtViewer ###
