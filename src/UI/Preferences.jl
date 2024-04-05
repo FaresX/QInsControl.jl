@@ -148,6 +148,9 @@ let
                         end
                     end
                 end
+                @c(CImGui.Checkbox(
+                    mlstr(CONF.Communication.async ? "asynchronous" : "synchronous"), &CONF.Communication.async
+                )) && remotecall_wait(x -> CONF.Communication.async = x, workers()[1], CONF.Communication.async)
                 CImGui.Text(" ")
 
                 ### DtViewer ###
@@ -165,11 +168,11 @@ let
                 @c(CImGui.Checkbox(
                     mlstr(CONF.DAQ.logall ? "log all quantities" : "log enabled quantities"),
                     &CONF.DAQ.logall
-                )) && remotecall_wait((logall) -> CONF.DAQ.logall = logall, workers()[1], CONF.DAQ.logall)
+                )) && remotecall_wait(x -> CONF.DAQ.logall = x, workers()[1], CONF.DAQ.logall)
                 @c(CImGui.Checkbox(
                     mlstr(CONF.DAQ.equalstep ? "equal step sampling" : "fixed step sampling"),
                     &CONF.DAQ.equalstep
-                )) && remotecall_wait((x) -> CONF.DAQ.equalstep = x, workers()[1], CONF.DAQ.equalstep)
+                )) && remotecall_wait(x -> CONF.DAQ.equalstep = x, workers()[1], CONF.DAQ.equalstep)
                 @c CImGui.Checkbox(
                     mlstr(CONF.DAQ.externaleval ? "eval in Main" : "eval in QInsControl"),
                     &CONF.DAQ.externaleval

@@ -15,6 +15,7 @@ end
 
 @option mutable struct OptCommunication
     visapath::String = ""
+    async::Bool = false
 end
 
 @option mutable struct OptDtViewer
