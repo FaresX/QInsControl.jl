@@ -338,8 +338,6 @@ stop the Processor.
 """
 function stop!(cpu::Processor)
     if cpu.running[]
-        cpu.running[] = false
-        cpu.fast[] = false
         for addr in keys(cpu.taskhandlers)
             cpu.taskhandlers[addr] = false
         end
@@ -349,6 +347,13 @@ function stop!(cpu::Processor)
             catch e
                 @error "[$(now())]\nan error occurs during stopping Processor:\n$cpu" exception = e
             end
+        end
+        cpu.running[] = false
+        cpu.fast[] = false
+        try
+            wait(cpu.processtask[])
+        catch e
+            @error "[$(now())]\nan error occurs during stopping Processor:\n$cpu" exception = e
         end
         for instr in values(cpu.instrs)
             disconnect!(instr)
