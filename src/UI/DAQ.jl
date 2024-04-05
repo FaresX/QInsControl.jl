@@ -191,7 +191,7 @@ let
                     stcstr(MORESTYLE.Icons.RunTask, " ", mlstr(torunstates[i] ? "Cancel" : "Run")),
                     C_NULL,
                     false,
-                    !isrunning_i
+                    !isrunning_i && !SYNCSTATES[Int(AutoDetecting)]
                 )
                     torunstates[i] ⊻= true
                     torunstates[i] && (SYNCSTATES[Int(IsDAQTaskRunning)] || rundaqtasks())

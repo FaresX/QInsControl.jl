@@ -203,7 +203,11 @@ let
                 CImGui.PushStyleVar(CImGui.ImGuiStyleVar_ChildBorderSize, 1)
                 CImGui.BeginChild("border1", (Cfloat(0), btw + 2unsafe_load(IMGUISTYLE.WindowPadding.y)), true)
                 showst |= SYNCSTATES[Int(AutoDetecting)]
-                showst && CImGui.PushStyleColor(CImGui.ImGuiCol_Button, SYNCSTATES[Int(AutoDetecting)] ? MORESTYLE.Colors.LogInfo : st ? MORESTYLE.Colors.HighlightText : MORESTYLE.Colors.LogError)
+                showst && CImGui.PushStyleColor(
+                    CImGui.ImGuiCol_Button,
+                    SYNCSTATES[Int(AutoDetecting)] ? MORESTYLE.Colors.LogInfo : st ? MORESTYLE.Colors.HighlightText : MORESTYLE.Colors.LogError
+                )
+                igBeginDisabled(SYNCSTATES[Int(IsDAQTaskRunning)])
                 CImGui.Button(MORESTYLE.Icons.InstrumentsAutoDetect, (btw, btw)) && refresh_instrlist()
                 showst && CImGui.PopStyleColor()
                 CImGui.SameLine()
@@ -215,6 +219,7 @@ let
                 st = st1 || st2
                 CImGui.PopItemWidth()
                 CImGui.EndGroup()
+                igEndDisabled()
                 CImGui.EndChild()
 
                 CImGui.BeginChild("border2", (0, 0), true)
@@ -251,7 +256,7 @@ let
                                         stcstr(MORESTYLE.Icons.CloseFile, " ", mlstr("Delete")),
                                         C_NULL,
                                         false,
-                                        ins != "VirtualInstr"
+                                        ins != "VirtualInstr" && !SYNCSTATES[Int(IsDAQTaskRunning)]
                                     )
                                         synccall_wait(workers()[1], ins, addr) do ins, addr
                                             delete!(INSTRBUFFERVIEWERS[ins], addr)
@@ -259,7 +264,7 @@ let
                                     end
                                     if CImGui.BeginMenu(
                                         stcstr(MORESTYLE.Icons.NewFile, " ", mlstr("Add to")),
-                                        ins == "Others"
+                                        ins == "Others" && !SYNCSTATES[Int(IsDAQTaskRunning)]
                                     )
                                         for (cfins, cf) in INSCONF
                                             cfins in ["Others", "VirtualInstr"] && continue
