@@ -101,13 +101,15 @@ function disconnect!(instr::TCPIPInstr)
 end
 disconnect!(::VirtualInstr) = nothing
 
+global VIASYNC::Bool = false
+
 """
     write(instr, msg)
 
 write some message string to the instrument.
 """
-Base.write(instr::GPIBInstr, msg::AbstractString) = Instruments.write(instr.geninstr, msg)
-Base.write(instr::SerialInstr, msg::AbstractString) = Instruments.write(instr.geninstr, string(msg, "\n"))
+Base.write(instr::GPIBInstr, msg::AbstractString) = (VIASYNC ? writeasync : Instruments.write)(instr.geninstr, msg)
+Base.write(instr::SerialInstr, msg::AbstractString) = (VIASYNC ? writeasync : Instruments.write)(instr.geninstr, string(msg, "\n"))
 Base.write(instr::TCPIPInstr, msg::AbstractString) = println(instr.sock[], msg)
 Base.write(::VirtualInstr, ::AbstractString) = nothing
 
@@ -116,8 +118,8 @@ Base.write(::VirtualInstr, ::AbstractString) = nothing
 
 read the instrument.
 """
-Base.read(instr::GPIBInstr) = Instruments.read(instr.geninstr)
-Base.read(instr::SerialInstr) = Instruments.read(instr.geninstr)
+Base.read(instr::GPIBInstr) = (VIASYNC ? readasync : Instruments.read)(instr.geninstr)
+Base.read(instr::SerialInstr) = (VIASYNC ? readasync : Instruments.read)(instr.geninstr)
 Base.read(instr::TCPIPInstr) = readline(instr.sock[])
 Base.read(::VirtualInstr) = "read"
 
@@ -131,18 +133,24 @@ function _query_(instr::Instruments.GenericInstrument, msg; delay=0, timeout=6, 
     delay < 0.001 || sleep(delay)
     t = @async Instruments.read(instr)
     isok = timedwhile(() -> istaskdone(t), timeout)
-    return isok == :ok ? fetch(t) : error(errormsg)
+    return isok ? fetch(t) : error(errormsg)
 end
-query(instr::GPIBInstr, msg::AbstractString) = _query_(instr.geninstr, msg; errormsg="$(instr.addr) time out")
+function query(instr::GPIBInstr, msg::AbstractString)
+    VIASYNC ? queryasync(instr.geninstr, msg) : _query_(instr.geninstr, msg; errormsg="$(instr.addr) time out")
+end
 function query(instr::SerialInstr, msg::AbstractString; termchar='\n')
-    _query_(instr.geninstr, string(msg, termchar); errormsg="$(instr.addr) time out")
+    if VIASYNC
+        queryasync(instr.geninstr, string(msg, termchar))
+    else
+        _query_(instr.geninstr, string(msg, termchar); errormsg="$(instr.addr) time out")
+    end
 end
 function query(instr::TCPIPInstr, msg::AbstractString; delay=0, timeout=6)
     println(instr.sock[], msg)
     delay < 0.001 || sleep(delay)
     t = @async readline(instr.sock[])
     isok = timedwhile(() -> istaskdone(t), timeout)
-    return isok == :ok ? fetch(t) : error("$(instr.addr) time out")
+    return isok ? fetch(t) : error("$(instr.addr) time out")
 end
 query(::VirtualInstr, ::AbstractString; delay=0) = "query"
 
@@ -155,11 +163,3 @@ isconnected(instr::GPIBInstr) = instr.geninstr.connected
 isconnected(instr::SerialInstr) = instr.geninstr.connected
 isconnected(instr::TCPIPInstr) = instr.connected[]
 isconnected(::VirtualInstr) = true
-
-function find_visa()
-    BinDeps.@setup
-    visa = library_dependency("visa", aliases=["visa64", "VISA", "/Library/Frameworks/VISA.framework/VISA", "librsvisa"])
-    # librsvisa is the specific Rohde & Schwarz VISA library name
-    visa_path_found = BinDeps._find_library(visa)
-    return isempty(visa_path_found) ? "" : visa_path_found[1][end]
-end

@@ -19,6 +19,7 @@ function timedwhile(f::Function, timeout::Real)
     return false
 end
 
+include("VISA.jl")
 include("Instruments.jl")
 include("DataStream.jl")
 end # module QInsControlCore
