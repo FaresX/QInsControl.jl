@@ -278,22 +278,14 @@ function DragMultiSelectable(
         CImGui.Indent()
         if CImGui.BeginDragDropSource()
             @c CImGui.SetDragDropPayload(stcstr("DragMultiS##", id), &i, sizeof(Cint))
-            CImGui.Text(labels[i])
+            CImGui.Text(replace(labels[i], r"##.*" => ""))
             CImGui.EndDragDropSource()
         end
         if CImGui.BeginDragDropTarget()
             payload = CImGui.AcceptDragDropPayload(stcstr("DragMultiS##", id))
             if payload != C_NULL && unsafe_load(payload).DataSize == sizeof(Cint)
                 payload_i = unsafe_load(Ptr{Cint}(unsafe_load(payload).Data))
-                if i != payload_i
-                    # labels[i], labels[payload_i] = labels[payload_i], labels[i]
-                    # states[i], states[payload_i] = states[payload_i], states[i]
-                    # insert!(labels, i, labels[payload_i])
-                    # insert!(states, i, states[payload_i])
-                    # deleteat!(labels, payload_i < i ? payload_i : payload_i + 1)
-                    # deleteat!(states, payload_i < i ? payload_i : payload_i + 1)
-                    action(payload_i, i, args...)
-                end
+                i == payload_i || action(payload_i, i, args...)
             end
             CImGui.EndDragDropTarget()
         end
