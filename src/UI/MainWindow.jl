@@ -190,10 +190,6 @@ let
 
             CImGui.PopStyleVar(2)
             CImGui.PopFont()
-            CImGui.SetCursorPosY(
-                2CONF.Fonts.plotfontsize * unsafe_load(CImGui.GetIO().FontGlobalScale) +
-                2unsafe_load(IMGUISTYLE.ItemSpacing.y) + unsafe_load(IMGUISTYLE.WindowPadding.y)
-            )
             igSeparatorText("")
 
 
