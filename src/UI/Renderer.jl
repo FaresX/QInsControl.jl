@@ -12,6 +12,7 @@ function UI(breakdown=false; precompile=false)
     CONF.Basic.viewportenable || (CONF.Basic.hidewindow = false)
     window = glfwCreateWindow(CONF.Basic.windowsize..., "QInsControl", C_NULL, C_NULL)
     @assert window != C_NULL
+    precompile && glfwHideWindow(window)
     glfwMakeContextCurrent(window)
     glfwSwapInterval(1)  # enable vsync
     CONF.Basic.hidewindow && glfwHideWindow(window)
