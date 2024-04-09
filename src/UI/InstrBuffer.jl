@@ -1084,20 +1084,21 @@ let
                                 ct = REFRESHCTS[ins][addr]
                                 try
                                     login!(CPU, ct)
-                                    reflist = if log
-                                        CONF.DAQ.logall ? ibv.insbuf.quantities : filter(x -> x.second.enable, ibv.insbuf.quantities)
-                                    else
-                                        filter(ibv.insbuf.quantities) do qtpair
-                                            qt = qtpair.second
+                                    for (qtnm, qt) in ibv.insbuf.quantities
+                                        if log && (CONF.DAQ.logall || qt.enable)
+                                            getfunc = Symbol(ins, :_, qtnm, :_get) |> eval
+                                            qt.read = ct(getfunc, CPU, Val(:read))
+                                            qt.refreshed = true
+                                        elseif qt.enable && qt.isautorefresh
                                             t = time()
                                             δt = t - qt.lastrefresh
-                                            δt > qt.refreshrate ? (qt.lastrefresh = t; qt.enable && qt.isautorefresh) : false
+                                            if δt > qt.refreshrate - 0.005
+                                                qt.lastrefresh = t
+                                                getfunc = Symbol(ins, :_, qtnm, :_get) |> eval
+                                                qt.read = ct(getfunc, CPU, Val(:read))
+                                                qt.refreshed = true
+                                            end
                                         end
-                                    end
-                                    for (qtnm, qt) in reflist
-                                        getfunc = Symbol(ins, :_, qtnm, :_get) |> eval
-                                        qt.read = ct(getfunc, CPU, Val(:read))
-                                        qt.refreshed = true
                                     end
                                 catch e
                                     @error(
@@ -1144,8 +1145,20 @@ end
 function autorefresh()
     errormonitor(
         Threads.@spawn while true
-            SYNCSTATES[Int(IsAutoRefreshing)] && refresh1()
+            SYNCSTATES[Int(IsAutoRefreshing)] && checkrefresh() && refresh1()
             sleep(0.01)
         end
     )
+end
+
+function checkrefresh()
+    for (ins, inses) in INSTRBUFFERVIEWERS
+        ins == "Others" && continue
+        for ibv in values(inses)
+            for qt in values(ibv.insbuf.quantities)
+                qt.enable && qt.isautorefresh && time() - qt.lastrefresh > qt.refreshrate - 0.005 && return true
+            end
+        end
+    end
+    return false
 end
