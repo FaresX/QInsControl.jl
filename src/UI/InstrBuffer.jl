@@ -241,7 +241,7 @@ function InstrBuffer(instrnm)
         numread = INSCONF[instrnm].quantities[qt].numread
         help = replace(INSCONF[instrnm].quantities[qt].help, "\\\n" => "")
         newqt = quantity(qt, QuantityConf(alias, utype, "", optkeys, optvalues, type, separator, numread, help))
-        push!(instrqts, qt => newqt)
+        instrqts[qt] = newqt
     end
     InstrBuffer(instrnm=instrnm, quantities=instrqts)
 end
@@ -297,87 +297,257 @@ function edit(ibv::InstrBufferViewer)
 end
 
 function testcmd(ins, addr, inputcmd::Ref{String}, readstr::Ref{String})
-    if CImGui.CollapsingHeader(stcstr("\t", mlstr("Command Test")))
-        y = (1 + length(findall("\n", inputcmd[]))) * CImGui.GetTextLineHeight() +
-            2unsafe_load(IMGUISTYLE.FramePadding.y)
-        InputTextMultilineRSZ("##input cmd", inputcmd, (Float32(-1), y))
-        if CImGui.BeginPopupContextItem()
-            CImGui.MenuItem(mlstr("clear")) && (inputcmd[] = "")
-            CImGui.EndPopup()
-        end
-        TextRect(stcstr(readstr[], "\n "); size=(Cfloat(0), 4CImGui.GetFontSize()))
-        CImGui.Spacing()
-        CImGui.PushStyleVar(CImGui.ImGuiStyleVar_FrameRounding, 24)
-        btw = (CImGui.GetContentRegionAvailWidth() - 2unsafe_load(IMGUISTYLE.ItemSpacing.x)) / 3
-        bth = 2CImGui.GetFrameHeight()
-        if CImGui.Button(stcstr(MORESTYLE.Icons.WriteBlock, "  ", mlstr("Write")), (btw, bth))
-            if addr != ""
-                remote_do(workers()[1], ins, addr, inputcmd[]) do ins, addr, inputcmd
-                    ct = Controller(ins, addr; buflen=CONF.DAQ.ctbuflen, timeout=CONF.DAQ.cttimeout)
-                    try
-                        login!(CPU, ct)
-                        ct(write, CPU, inputcmd, Val(:write))
-                        logout!(CPU, ct)
-                    catch e
-                        @error(
-                            "[$(now())]\n$(mlstr("instrument communication failed!!!"))",
-                            instrument = string(ins, ": ", addr),
-                            exception = e
-                        )
-                        logout!(CPU, ct)
+    if CImGui.CollapsingHeader(stcstr("\t", mlstr("Communication Test")))
+        if CImGui.BeginTabBar("communication")
+            if CImGui.BeginTabItem(mlstr("Command Test"))
+                y = (1 + length(findall("\n", inputcmd[]))) * CImGui.GetTextLineHeight() +
+                    2unsafe_load(IMGUISTYLE.FramePadding.y)
+                InputTextMultilineRSZ("##input cmd", inputcmd, (Cfloat(0), y))
+                if CImGui.BeginPopupContextItem()
+                    CImGui.MenuItem(mlstr("Clear")) && (inputcmd[] = "")
+                    CImGui.EndPopup()
+                end
+                CImGui.SameLine()
+                CImGui.Button(mlstr("Clear History")) && (readstr[] = "")
+                TextRect(stcstr(readstr[], "\n "); size=(Cfloat(0), 12CImGui.GetFontSize()))
+                CImGui.Spacing()
+                CImGui.PushStyleVar(CImGui.ImGuiStyleVar_FrameRounding, 24)
+                btw = (CImGui.GetContentRegionAvailWidth() - 2unsafe_load(IMGUISTYLE.ItemSpacing.x)) / 3
+                bth = 2CImGui.GetFrameHeight()
+                if CImGui.Button(stcstr(MORESTYLE.Icons.WriteBlock, "  ", mlstr("Write")), (btw, bth))
+                    if addr != ""
+                        readstr[] *= string("Write: ", inputcmd[], "\n\n")
+                        remote_do(workers()[1], ins, addr, inputcmd[]) do ins, addr, inputcmd
+                            ct = Controller(ins, addr; buflen=CONF.DAQ.ctbuflen, timeout=CONF.DAQ.cttimeout)
+                            try
+                                login!(CPU, ct; attr=getattr(addr))
+                                ct(write, CPU, inputcmd, Val(:write))
+                                logout!(CPU, ct)
+                            catch e
+                                @error(
+                                    "[$(now())]\n$(mlstr("instrument communication failed!!!"))",
+                                    instrument = string(ins, ": ", addr),
+                                    exception = e
+                                )
+                                logout!(CPU, ct)
+                            end
+                        end
                     end
                 end
-            end
-        end
-        CImGui.SameLine()
-        if CImGui.Button(stcstr(MORESTYLE.Icons.QueryBlock, "  ", mlstr("Query")), (btw, bth))
-            if addr != ""
-                fetchdata = wait_remotecall_fetch(workers()[1], ins, addr, inputcmd[]) do ins, addr, inputcmd
-                    ct = Controller(ins, addr; buflen=CONF.DAQ.ctbuflen, timeout=CONF.DAQ.cttimeout)
-                    try
-                        login!(CPU, ct)
-                        readstr = ct(query, CPU, inputcmd, Val(:query))
-                        logout!(CPU, ct)
-                        return readstr
-                    catch e
-                        @error(
-                            "[$(now())]\n$(mlstr("instrument communication failed!!!"))",
-                            instrument = string(ins, ": ", addr),
-                            exception = e
-                        )
-                        logout!(CPU, ct)
+                CImGui.SameLine()
+                if CImGui.Button(stcstr(MORESTYLE.Icons.QueryBlock, "  ", mlstr("Query")), (btw, bth))
+                    if addr != ""
+                        readstr[] *= string("Write: ", inputcmd[], "\n")
+                        fetchdata = wait_remotecall_fetch(workers()[1], ins, addr, inputcmd[]) do ins, addr, inputcmd
+                            ct = Controller(ins, addr; buflen=CONF.DAQ.ctbuflen, timeout=CONF.DAQ.cttimeout)
+                            try
+                                login!(CPU, ct; attr=getattr(addr))
+                                readstr = ct(query, CPU, inputcmd, Val(:query))
+                                logout!(CPU, ct)
+                                return readstr
+                            catch e
+                                @error(
+                                    "[$(now())]\n$(mlstr("instrument communication failed!!!"))",
+                                    instrument = string(ins, ": ", addr),
+                                    exception = e
+                                )
+                                logout!(CPU, ct)
+                            end
+                        end
+                        isnothing(fetchdata) || (readstr[] *= string("Read: \n\t\t", fetchdata, "\n\n"))
                     end
                 end
-                isnothing(fetchdata) || (readstr[] = fetchdata)
-            end
-        end
-        CImGui.SameLine()
-        if CImGui.Button(stcstr(MORESTYLE.Icons.ReadBlock, "  ", mlstr("Read")), (btw, bth))
-            if addr != ""
-                fetchdata = wait_remotecall_fetch(workers()[1], ins, addr) do ins, addr
-                    ct = Controller(ins, addr; buflen=CONF.DAQ.ctbuflen, timeout=CONF.DAQ.cttimeout)
-                    try
-                        login!(CPU, ct)
-                        readstr = ct(read, CPU, Val(:read))
-                        logout!(CPU, ct)
-                        return readstr
-                    catch e
-                        @error(
-                            "[$(now())]\n$(mlstr("instrument communication failed!!!"))",
-                            instrument = string(ins, ": ", addr),
-                            exception = e
-                        )
-                        logout!(CPU, ct)
+                CImGui.SameLine()
+                if CImGui.Button(stcstr(MORESTYLE.Icons.ReadBlock, "  ", mlstr("Read")), (btw, bth))
+                    if addr != ""
+                        fetchdata = wait_remotecall_fetch(workers()[1], ins, addr) do ins, addr
+                            ct = Controller(ins, addr; buflen=CONF.DAQ.ctbuflen, timeout=CONF.DAQ.cttimeout)
+                            try
+                                login!(CPU, ct; attr=getattr(addr))
+                                readstr = ct(read, CPU, Val(:read))
+                                logout!(CPU, ct)
+                                return readstr
+                            catch e
+                                @error(
+                                    "[$(now())]\n$(mlstr("instrument communication failed!!!"))",
+                                    instrument = string(ins, ": ", addr),
+                                    exception = e
+                                )
+                                logout!(CPU, ct)
+                            end
+                        end
+                        isnothing(fetchdata) || (readstr[] *= string("Read: \n\t\t", fetchdata, "\n\n"))
                     end
                 end
-                isnothing(fetchdata) || (readstr[] = fetchdata)
+                CImGui.PopStyleVar()
+                CImGui.EndTabItem()
             end
+            if CImGui.BeginTabItem(mlstr("Settings"))
+                comsettings(addr)
+                CImGui.EndTabItem()
+            end
+            CImGui.EndTabBar()
         end
-        CImGui.PopStyleVar()
         CImGui.Separator()
     end
 end
 
+let
+    spattrs::Dict{String,SerialInstrAttr} = Dict()
+    tcpipattrs::Dict{String,TCPIPInstrAttr} = Dict()
+    virtualattrs::Dict{String,VirtualInstrAttr} = Dict()
+    visaattrs::Dict{String,VISAInstrAttr} = Dict()
+    global function comsettings(addr)
+        if addr != "VirtualAddress"
+            if occursin("SERIAL", addr)
+                haskey(spattrs, addr) || (spattrs[addr] = SerialInstrAttr())
+                serialsettings(spattrs[addr])
+            elseif occursin("TCPIP", addr)
+                haskey(tcpipattrs, addr) || (tcpipattrs[addr] = TCPIPInstrAttr())
+                tcpipsettings(tcpipattrs[addr])
+            elseif occursin("VIRTUAL", split(addr, "::")[1])
+                haskey(virtualattrs, addr) || (virtualattrs[addr] = VirtualInstrAttr())
+                virtualsettings(virtualattrs[addr])
+            else
+                haskey(visaattrs, addr) || (visaattrs[addr] = VISAInstrAttr())
+                visasettings(visaattrs[addr])
+            end
+        end
+    end
+
+    global function getattr(addr)
+        if myid() == 1
+            return if occursin("SERIAL", addr)
+                haskey(spattrs, addr) ? deepcopy(spattrs[addr]) : nothing
+            elseif occursin("TCPIP", addr)
+                haskey(tcpipattrs, addr) ? deepcopy(tcpipattrs[addr]) : nothing
+            elseif occursin("VIRTUAL", split(addr, "::")[1])
+                haskey(virtualattrs, addr) ? deepcopy(virtualattrs[addr]) : nothing
+            else
+                haskey(visaattrs, addr) ? deepcopy(visaattrs[addr]) : nothing
+            end
+        else
+            return remotecall_fetch(getattr, 1, addr)
+        end
+    end
+
+    global function loadattr(addr)
+        if haskey(CONF.Communication.attrlist, addr)
+            attr = attrfromdict(CONF.Communication.attrlist[addr])
+            attr isa SerialInstrAttr && (spattrs[addr] = attr)
+            attr isa TCPIPInstrAttr && (tcpipattrs[addr] = attr)
+            attr isa VirtualInstrAttr && (virtualattrs[addr] = attr)
+            attr isa VISAInstrAttr && (visaattrs[addr] = attr)
+        end
+    end
+end
+function saveattr(addr)
+    CONF.Communication.attrlist[addr] = attrtodict(getattr(addr))
+    saveconf()
+end
+
+function attrtodict(attr)
+    attrdict = Dict("attrtype" => typeof(attr))
+    for fdnm in fieldnames(typeof(attr))
+        attrdict[string(fdnm)] = getproperty(attr, fdnm)
+    end
+end
+
+function attrfromdict(attrdict)
+    type = Symbol(attrdict["attrtype"]) |> eval
+    attr = type()
+    for fdnm in fieldnames(type)
+        haskey(attrdict, string(fdnm)) && setproperty!(attr, fdnm, attrdict[string(fdnm)])
+    end
+    attr
+end
+
+function serialsettings(attr::SerialInstrAttr)
+    baudrate = Cint(attr.baudrate)
+    @c(CImGui.InputInt(mlstr("Baud Rate"), &baudrate)) && baudrate > 0 && (attr.baudrate = baudrate)
+    mode = string(attr.mode)
+    @c(ComboS(mlstr("Mode"), &mode, string.(instances(SPMode)))) && (attr.mode = getproperty(LibSerialPort, Symbol(mode)))
+    ndatabits = Cint(attr.ndatabits)
+    @c(igSliderInt(mlstr("Data Bits"), &ndatabits, 5, 8, "%d", 0)) && (attr.ndatabits = ndatabits)
+    parity = string(attr.parity)
+    @c(ComboS(mlstr("Parity"), &parity, string.(instances(SPParity)))) && (attr.parity = getproperty(LibSerialPort, Symbol(parity)))
+    nstopbits = Cint(attr.nstopbits)
+    @c(igSliderInt(mlstr("Stop Bits"), &nstopbits, 1, 2, "%d", 0)) && (attr.nstopbits = nstopbits)
+    rts = string(attr.rts)
+    @c(ComboS(mlstr("Ready to Send"), &rts, string.(instances(SPrts)))) && (attr.rts = getproperty(LibSerialPort, Symbol(rts)))
+    cts = string(attr.cts)
+    @c(ComboS(mlstr("Clear to Send"), &cts, string.(instances(SPcts)))) && (attr.cts = getproperty(LibSerialPort, Symbol(cts)))
+    dtr = string(attr.dtr)
+    @c(ComboS(mlstr("Data Terminal Ready"), &dtr, string.(instances(SPdtr)))) && (attr.dtr = getproperty(LibSerialPort, Symbol(dtr)))
+    dsr = string(attr.dsr)
+    @c(ComboS(mlstr("Data Set Ready"), &dsr, string.(instances(SPdsr)))) && (attr.dsr = getproperty(LibSerialPort, Symbol(dsr)))
+    xonxoff = string(attr.xonxoff)
+    @c(ComboS(mlstr("XON/XOFF"), &xonxoff, string.(instances(SPXonXoff)))) && (attr.xonxoff = getproperty(LibSerialPort, Symbol(xonxoff)))
+    timeoutw = Cfloat(attr.timeoutw)
+    @c(CImGui.DragFloat(
+        stcstr(mlstr("Write Timeout"), " (s)"), &timeoutw,
+        1, 0.1, 360, "%.1f", CImGui.ImGuiSliderFlags_AlwaysClamp)
+    ) && (attr.timeoutw = timeoutw)
+    timeoutr = Cfloat(attr.timeoutr)
+    @c(CImGui.DragFloat(
+        stcstr(mlstr("Read Timeout"), " (s)"), &timeoutr,
+        1, 0.1, 360, "%.1f", CImGui.ImGuiSliderFlags_AlwaysClamp)
+    ) && (attr.timeoutr = timeoutr)
+    timeoutq = Cfloat(attr.timeoutq)
+    @c(CImGui.DragFloat(
+        stcstr(mlstr("Query Timeout"), " (s)"), &timeoutq,
+        1, 0.1, 360, "%.1f", CImGui.ImGuiSliderFlags_AlwaysClamp)
+    ) && (attr.timeoutq = timeoutq)
+    querydelay = Cfloat(attr.querydelay)
+    @c(CImGui.DragFloat(
+        stcstr(mlstr("Query Delay"), " (s)"), &querydelay,
+        1, 0.1, 360, "%.1f", CImGui.ImGuiSliderFlags_AlwaysClamp)
+    ) && (attr.querydelay = querydelay)
+    termchar = attr.termchar == '\r' ? "\\r" : "\\n"
+    @c(ComboS(mlstr("Termination Character"), &termchar, ["\\r", "\\n"])) && (attr.termchar = termchar == "\\r" ? '\r' : '\n')
+end
+function tcpipsettings(attr::TCPIPInstrAttr)
+    timeoutq = Cfloat(attr.timeoutq)
+    @c(CImGui.DragFloat(
+        stcstr(mlstr("Query Timeout"), " (s)"), &timeoutq,
+        1, 0.1, 360, "%.1f", CImGui.ImGuiSliderFlags_AlwaysClamp)
+    ) && (attr.timeoutq = timeoutq)
+    querydelay = Cfloat(attr.querydelay)
+    @c(CImGui.DragFloat(
+        stcstr(mlstr("Query Delay"), " (s)"), &querydelay,
+        1, 0.1, 360, "%.1f", CImGui.ImGuiSliderFlags_AlwaysClamp)
+    ) && (attr.querydelay = querydelay)
+    termchar = attr.termchar == '\r' ? "\\r" : "\\n"
+    @c(ComboS(mlstr("Termination Character"), &termchar, ["\\r", "\\n"])) && (attr.termchar = termchar == "\\r" ? '\r' : '\n')
+end
+function virtualsettings(attr::VirtualInstrAttr)
+    timeoutq = Cfloat(attr.timeoutq)
+    @c(CImGui.DragFloat(
+        stcstr(mlstr("Query Timeout"), " (s)"), &timeoutq,
+        1, 0.1, 360, "%.1f", CImGui.ImGuiSliderFlags_AlwaysClamp)
+    ) && (attr.timeoutq = timeoutq)
+    querydelay = Cfloat(attr.querydelay)
+    @c(CImGui.DragFloat(
+        stcstr(mlstr("Query Delay"), " (s)"), &querydelay,
+        1, 0.1, 360, "%.1f", CImGui.ImGuiSliderFlags_AlwaysClamp)
+    ) && (attr.querydelay = querydelay)
+    termchar = attr.termchar == '\r' ? "\\r" : "\\n"
+    @c(ComboS(mlstr("Termination Character"), &termchar, ["\\r", "\\n"])) && (attr.termchar = termchar == "\\r" ? '\r' : '\n')
+end
+function visasettings(attr::VISAInstrAttr)
+    timeoutq = Cfloat(attr.timeoutq)
+    @c(CImGui.DragFloat(
+        stcstr(mlstr("Query Timeout"), " (s)"), &timeoutq,
+        1, 0.1, 360, "%.1f", CImGui.ImGuiSliderFlags_AlwaysClamp)
+    ) && (attr.timeoutq = timeoutq)
+    querydelay = Cfloat(attr.querydelay)
+    @c(CImGui.DragFloat(
+        stcstr(mlstr("Query Delay"), " (s)"), &querydelay,
+        1, 0.1, 360, "%.1f", CImGui.ImGuiSliderFlags_AlwaysClamp)
+    ) && (attr.querydelay = querydelay)
+    termchar = attr.termchar == '\r' ? "\\r" : "\\n"
+    @c(ComboS(mlstr("Termination Character"), &termchar, ["\\r", "\\n"])) && (attr.termchar = termchar == "\\r" ? '\r' : '\n')
+end
 
 function edit(insbuf::InstrBuffer, addr)
     CImGui.PushID(insbuf.instrnm)
@@ -548,7 +718,7 @@ let
                 CImGui.PopItemWidth()
                 CImGui.SameLine()
             end
-            @c CImGui.Checkbox(mlstr("refresh"), &qt.isautorefresh)
+            @c CImGui.Checkbox(stcstr(mlstr("refresh"), qt.isautorefresh ? " (s)" : ""), &qt.isautorefresh)
             CImGui.SameLine()
             if @c CImGui.Checkbox(qt.enable ? mlstr("Enable") : mlstr("Disable"), &qt.enable)
                 resolvedisablelist(qt, instrnm, addr)
@@ -585,9 +755,9 @@ let
         if CONF.InsBuf.showhelp && CImGui.IsItemHovered() && qt.help != ""
             ItemTooltip(qt.help)
         end
-        haskey(popup_before_list, instrnm) || push!(popup_before_list, instrnm => Dict())
-        haskey(popup_before_list[instrnm], addr) || push!(popup_before_list[instrnm], addr => Dict())
-        haskey(popup_before_list[instrnm][addr], qt.name) || push!(popup_before_list[instrnm][addr], qt.name => false)
+        haskey(popup_before_list, instrnm) || (popup_before_list[instrnm] = Dict())
+        haskey(popup_before_list[instrnm], addr) || (popup_before_list[instrnm][addr] = Dict())
+        haskey(popup_before_list[instrnm][addr], qt.name) || (popup_before_list[instrnm][addr][qt.name] = false)
         popup_now = CImGui.BeginPopupContextItem()
         popup_before = popup_before_list[instrnm][addr][qt.name]
         !popup_now && popup_before && (popup_before_list[instrnm][addr][qt.name] = false)
@@ -644,7 +814,7 @@ let
                 CImGui.PopItemWidth()
                 CImGui.SameLine()
             end
-            @c CImGui.Checkbox(mlstr("refresh"), &qt.isautorefresh)
+            @c CImGui.Checkbox(stcstr(mlstr("refresh"), qt.isautorefresh ? " (s)" : ""), &qt.isautorefresh)
             CImGui.SameLine()
             if @c CImGui.Checkbox(qt.enable ? mlstr("Enable") : mlstr("Disable"), &qt.enable)
                 resolvedisablelist(qt, instrnm, addr)
@@ -692,7 +862,7 @@ let
             )
             CImGui.PopItemWidth()
             CImGui.SameLine()
-            @c CImGui.Checkbox(mlstr("refresh"), &qt.isautorefresh)
+            @c CImGui.Checkbox(stcstr(mlstr("refresh"), qt.isautorefresh ? " (s)" : ""), &qt.isautorefresh)
             CImGui.SameLine()
             if @c CImGui.Checkbox(qt.enable ? mlstr("Enable") : mlstr("Disable"), &qt.enable)
                 resolvedisablelist(qt, instrnm, addr)
@@ -770,7 +940,7 @@ function apply!(qt::SweepQuantity, instrnm, addr)
         ct = Controller(instrnm, addr; buflen=CONF.DAQ.ctbuflen, timeout=CONF.DAQ.cttimeout)
         try
             getfunc = Symbol(instrnm, :_, qt.name, :_get) |> eval
-            login!(CPU, ct)
+            login!(CPU, ct; attr=getattr(addr))
             readstr = ct(getfunc, CPU, Val(:read))
             logout!(CPU, ct)
             return parse(Float64, readstr)
@@ -807,19 +977,17 @@ function apply!(qt::SweepQuantity, instrnm, addr)
                 sweepcalltask = @async remotecall_wait(
                     workers()[1], instrnm, addr, sweeplist, sweep_rc, qt.name, qt.delay, idxbuf, timebuf
                 ) do instrnm, addr, sweeplist, sweep_rc, qtnm, delay, idxbuf, timebuf
-                    haskey(SWEEPCTS, instrnm) || push!(SWEEPCTS, instrnm => Dict())
+                    haskey(SWEEPCTS, instrnm) || (SWEEPCTS[instrnm] = Dict())
                     if haskey(SWEEPCTS[instrnm], addr)
                         SWEEPCTS[instrnm][addr][1][] = true
                     else
-                        push!(
-                            SWEEPCTS[instrnm], addr => (
-                                Ref(true),
-                                Controller(instrnm, addr; buflen=CONF.DAQ.ctbuflen, timeout=CONF.DAQ.cttimeout)
-                            )
+                        SWEEPCTS[instrnm][addr] = (
+                            Ref(true),
+                            Controller(instrnm, addr; buflen=CONF.DAQ.ctbuflen, timeout=CONF.DAQ.cttimeout)
                         )
                     end
                     sweep_lc = Channel{String}(CONF.DAQ.channelsize)
-                    login!(CPU, SWEEPCTS[instrnm][addr][2]; quiet=false)
+                    login!(CPU, SWEEPCTS[instrnm][addr][2]; quiet=false, attr=getattr(addr))
                     try
                         setfunc = Symbol(instrnm, :_, qtnm, :_set) |> eval
                         getfunc = Symbol(instrnm, :_, qtnm, :_get) |> eval
@@ -895,7 +1063,7 @@ function apply!(qt::SetQuantity, instrnm, addr, byoptvalues=false)
             try
                 setfunc = Symbol(instrnm, :_, qt.name, :_set) |> eval
                 getfunc = Symbol(instrnm, :_, qt.name, :_get) |> eval
-                login!(CPU, ct)
+                login!(CPU, ct; attr=getattr(addr))
                 ct(setfunc, CPU, sv, Val(:write))
                 readstr = ct(getfunc, CPU, Val(:read))
                 logout!(CPU, ct)
@@ -920,13 +1088,13 @@ function apply!(qt::SetQuantity, instrnm, addr, byoptvalues=false)
 end
 
 function logaction(qt::AbstractQuantity, instrnm, addr)
-    haskey(CFGBUF, "actions") || push!(CFGBUF, "actions" => Vector{Tuple{DateTime,String,String,AbstractQuantity}}[])
+    haskey(CFGBUF, "actions") || (CFGBUF["actions"] = Vector{Tuple{DateTime,String,String,AbstractQuantity}}[])
     push!(CFGBUF["actions"], Tuple{DateTime,String,String,AbstractQuantity}[])
     push!(CFGBUF["actions"][end], (now(), instrnm, addr, deepcopy(qt)))
     return length(CFGBUF["actions"])
 end
 function logaction(qt::AbstractQuantity, instrnm, addr, idx)
-    haskey(CFGBUF, "actions") || push!(CFGBUF, "actions" => Vector{Tuple{DateTime,String,String,AbstractQuantity}}[])
+    haskey(CFGBUF, "actions") || (CFGBUF["actions"] = Vector{Tuple{DateTime,String,String,AbstractQuantity}}[])
     if idx > length(CFGBUF["actions"])
         push!(CFGBUF["actions"], Tuple{DateTime,String,String,AbstractQuantity}[])
         push!(CFGBUF["actions"][end], (DateTime(0), instrnm, addr, deepcopy(qt)))
@@ -992,38 +1160,23 @@ function viewaction(action::Tuple{DateTime,String,String,AbstractQuantity}, tota
 end
 
 function resolvedisablelist(qt::AbstractQuantity, instrnm, addr)
-    haskey(CONF.InsBuf.disablelist, instrnm) || push!(CONF.InsBuf.disablelist, instrnm => Dict())
-    haskey(CONF.InsBuf.disablelist[instrnm], addr) || push!(CONF.InsBuf.disablelist[instrnm], addr => [])
+    haskey(CONF.InsBuf.disablelist, instrnm) || (CONF.InsBuf.disablelist[instrnm] = Dict())
+    haskey(CONF.InsBuf.disablelist[instrnm], addr) || (CONF.InsBuf.disablelist[instrnm][addr] = [])
     disablelist = CONF.InsBuf.disablelist[instrnm][addr]
     if qt.enable
         qt.name in disablelist && deleteat!(disablelist, findfirst(==(qt.name), disablelist))
     else
         qt.name in disablelist || push!(disablelist, qt.name)
     end
-    svconf = deepcopy(CONF)
-    svconf.U = Dict(up.first => string.(up.second) for up in CONF.U)
-    try
-        to_toml(joinpath(ENV["QInsControlAssets"], "Necessity/conf.toml"), svconf)
-    catch e
-        @error "[$(now())]\n$(mlstr("saving configurations failed!!!"))" exception = e
-    end
+    saveconf()
 end
 
 function resolveunitlist(qt::AbstractQuantity, instrnm, addr)
-    haskey(CONF.InsBuf.unitlist, instrnm) || push!(CONF.InsBuf.unitlist, instrnm => Dict())
-    haskey(CONF.InsBuf.unitlist[instrnm], addr) || push!(CONF.InsBuf.unitlist[instrnm], addr => Dict())
+    haskey(CONF.InsBuf.unitlist, instrnm) || (CONF.InsBuf.unitlist[instrnm] = Dict())
+    haskey(CONF.InsBuf.unitlist[instrnm], addr) || (CONF.InsBuf.unitlist[instrnm][addr] = Dict())
     unitlist = CONF.InsBuf.unitlist[instrnm][addr]
-    haskey(unitlist, qt.name) || push!(unitlist, qt.name => qt.uindex)
-    if unitlist[qt.name] != qt.uindex
-        push!(unitlist, qt.name => qt.uindex)
-        svconf = deepcopy(CONF)
-        svconf.U = Dict(up.first => string.(up.second) for up in CONF.U)
-        try
-            to_toml(joinpath(ENV["QInsControlAssets"], "Necessity/conf.toml"), svconf)
-        catch e
-            @error "[$(now())]\n$(mlstr("saving configurations failed!!!"))" exception = e
-        end
-    end
+    haskey(unitlist, qt.name) || (unitlist[qt.name] = qt.uindex)
+    unitlist[qt.name] != qt.uindex && (unitlist[qt.name] = qt.uindex; saveconf())
 end
 
 function getread(qt::AbstractQuantity, instrnm, addr)
@@ -1043,7 +1196,7 @@ function refresh_qt(instrnm, addr, qtnm)
         ct = Controller(instrnm, addr; buflen=CONF.DAQ.ctbuflen, timeout=CONF.DAQ.cttimeout)
         try
             getfunc = Symbol(instrnm, :_, qtnm, :_get) |> eval
-            login!(CPU, ct)
+            login!(CPU, ct; attr=getattr(addr))
             readstr = ct(getfunc, CPU, Val(:read))
             logout!(CPU, ct)
             return readstr
@@ -1061,7 +1214,7 @@ end
 
 function log_instrbufferviewers()
     wait(refresh1(true))
-    push!(CFGBUF, "instrbufferviewers/[$(now())]" => deepcopy(INSTRBUFFERVIEWERS))
+    CFGBUF["instrbufferviewers/[$(now())]"] = deepcopy(INSTRBUFFERVIEWERS)
 end
 
 let
@@ -1076,14 +1229,14 @@ let
                     for (addr, ibv) in inses
                         errormonitor(
                             @async if ibv.insbuf.isautorefresh || log
-                                haskey(REFRESHCTS, ins) || push!(REFRESHCTS, ins => Dict())
-                                haskey(REFRESHCTS[ins], addr) || push!(
-                                    REFRESHCTS[ins],
-                                    addr => Controller(ins, addr; buflen=CONF.DAQ.ctbuflen, timeout=CONF.DAQ.cttimeout)
+                                haskey(REFRESHCTS, ins) || (REFRESHCTS[ins] = Dict())
+                                haskey(REFRESHCTS[ins], addr) || (REFRESHCTS[ins][addr] = Controller(
+                                    ins, addr; buflen=CONF.DAQ.ctbuflen, timeout=CONF.DAQ.cttimeout
+                                )
                                 )
                                 ct = REFRESHCTS[ins][addr]
                                 try
-                                    login!(CPU, ct)
+                                    login!(CPU, ct; attr=getattr(addr))
                                     for (qtnm, qt) in ibv.insbuf.quantities
                                         if log && (CONF.DAQ.logall || qt.enable)
                                             getfunc = Symbol(ins, :_, qtnm, :_get) |> eval
