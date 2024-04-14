@@ -179,7 +179,7 @@ let
                 )
                 @c ComboS(mlstr("stored data type"), &CONF.DAQ.savetype, datatypes)
                 @c CImGui.DragInt(
-                    mlstr("saving time"),
+                    stcstr(mlstr("saving time"), " (s)"),
                     &CONF.DAQ.savetime,
                     1.0, 1, 180, "%d",
                     CImGui.ImGuiSliderFlags_AlwaysClamp
@@ -209,7 +209,7 @@ let
                     CImGui.ImGuiSliderFlags_AlwaysClamp
                 )) && remotecall_wait(x -> (CONF.DAQ.ctbuflen = x), workers()[1], CONF.DAQ.ctbuflen)
                 @c(CImGui.DragFloat(
-                    mlstr("controller timeout"),
+                    stcstr(mlstr("controller timeout"), " (s)"),
                     &CONF.DAQ.cttimeout,
                     0.1, 0.1, 240, "%.1f",
                     CImGui.ImGuiSliderFlags_AlwaysClamp
@@ -313,7 +313,7 @@ let
                 selectiodir && (iodir = pick_folder(abspath(iodir)))
                 (inputiodir || selectiodir) && isvalidpath(iodir; file=false) && (CONF.Console.dir = iodir)
                 @c CImGui.DragFloat(
-                    stcstr(mlstr("refresh rate"), "##Console"),
+                    stcstr(mlstr("refresh rate"), " (s)##Console"),
                     &CONF.Console.refreshrate,
                     1.0, 0.1, 60, "%.1f",
                     CImGui.ImGuiSliderFlags_AlwaysClamp
@@ -350,7 +350,7 @@ let
                 selectlogdir && (logdir = pick_folder(abspath(logdir)))
                 (inputlogdir || selectlogdir) && isvalidpath(logdir; file=false) && (CONF.Logs.dir = logdir)
                 @c CImGui.DragFloat(
-                    stcstr(mlstr("refresh rate"), "##Logs"),
+                    stcstr(mlstr("refresh rate"), " (s)##Logs"),
                     &CONF.Logs.refreshrate,
                     1.0, 0.1, 60, "%.1f",
                     CImGui.ImGuiSliderFlags_AlwaysClamp
