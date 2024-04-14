@@ -562,8 +562,8 @@ let
         label, value, range, start;
         size=(400, 400),
         ruler=6,
-        rounding=0,
-        bdrounding=0,
+        rounding=unsafe_load(IMGUISTYLE.FrameRounding),
+        bdrounding=unsafe_load(IMGUISTYLE.FrameRounding),
         thickness=0,
         num_segments=24,
         col=CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_ChildBg),

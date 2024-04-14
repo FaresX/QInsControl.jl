@@ -165,8 +165,8 @@ end
 function ColoredButtonRect(
     label;
     size=(0, 0),
-    rounding=0.0,
-    bdrounding=0.0,
+    rounding=unsafe_load(IMGUISTYLE.FrameRounding),
+    bdrounding=unsafe_load(IMGUISTYLE.FrameRounding),
     thickness=0,
     colbt=CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_Button),
     colbth=CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_ButtonHovered),
@@ -192,8 +192,8 @@ function ImageButtonRect(
     frame_padding=(6, 6),
     bg_col=[0, 0, 0, 0],
     tint_col=[1, 1, 1, 1],
-    rounding=0.0,
-    bdrounding=0.0,
+    rounding=unsafe_load(IMGUISTYLE.FrameRounding),
+    bdrounding=unsafe_load(IMGUISTYLE.FrameRounding),
     thickness=0,
     colbt=CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_Button),
     colbth=CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_ButtonHovered),
@@ -220,8 +220,8 @@ function ImageColoredButtonRect(
     uv0=(0, 0),
     uv1=(1, 1),
     frame_padding=(6, 6),
-    rounding=0.0,
-    bdrounding=0.0,
+    rounding=unsafe_load(IMGUISTYLE.FrameRounding),
+    bdrounding=unsafe_load(IMGUISTYLE.FrameRounding),
     thickness=0,
     bg_col=[0, 0, 0, 0],
     tint_col=[1, 1, 1, 1],
@@ -266,8 +266,8 @@ function ToggleButtonRect(
     label,
     v::Ref{Bool};
     size=(0, 0),
-    rounding=0.0,
-    bdrounding=0.0,
+    rounding=unsafe_load(IMGUISTYLE.FrameRounding),
+    bdrounding=unsafe_load(IMGUISTYLE.FrameRounding),
     thickness=1.0,
     colon=MORESTYLE.Colors.ToggleButtonOn,
     coloff=MORESTYLE.Colors.ToggleButtonOff,
@@ -287,7 +287,7 @@ end
 
 function ColoredRadioButton(
     label, v::Ref, v_button::Integer;
-    bdrounding=0,
+    bdrounding=unsafe_load(IMGUISTYLE.FrameRounding),
     thickness=0,
     colckm=CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_CheckMark),
     colfrm=CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_FrameBg),
@@ -312,8 +312,8 @@ end
 function ColoredProgressBarRect(
     fraction, label;
     size=(0, 0),
-    rounding=0.0,
-    bdrounding=0.0,
+    rounding=unsafe_load(IMGUISTYLE.FrameRounding),
+    bdrounding=unsafe_load(IMGUISTYLE.FrameRounding),
     thickness=0,
     colbar=CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_FrameBg),
     colbara=CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_PlotHistogram),

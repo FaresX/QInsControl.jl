@@ -36,8 +36,8 @@ end
 function ColoredCombo(
     label, preview_value::Ref{String}, item_list, flags=0;
     size=(0, 0),
-    rounding=0,
-    bdrounding=0,
+    rounding=unsafe_load(IMGUISTYLE.FrameRounding),
+    bdrounding=unsafe_load(IMGUISTYLE.FrameRounding),
     thickness=0,
     colbt=CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_Button),
     colfrm=CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_FrameBg),
