@@ -7,7 +7,7 @@ function languageinfo()
     for file in readdir(joinpath(ENV["QInsControlAssets"], "Languages"); join=true)
         bnm = basename(file)
         if endswith(bnm, ".toml") && bnm != "default.toml"
-            push!(languages, TOML.parsefile(file)["__language_name"] => file)
+            languages[TOML.parsefile(file)["__language_name"]] = file
         end
     end
     return languages

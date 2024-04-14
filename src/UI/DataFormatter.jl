@@ -235,25 +235,23 @@ function edit(dft::DataFormatter, id)
 end
 
 function loaddtviewer!(fdg::FormatDataGroup)
-    haskey(fdg.dtviewer.data, "data") || push!(fdg.dtviewer.data, "data" => Dict{String,Vector{String}}())
+    haskey(fdg.dtviewer.data, "data") || (fdg.dtviewer.data["data"] = Dict{String,Vector{String}}())
     for (i, fd) in enumerate(fdg.data)
         if isfile(fd.path)
             data = @trypasse load(fd.path, "data") Dict{String,Vector{String}}()
             if !isempty(data)
                 datai = Dict{String,Vector{String}}()
                 for (k, val) in data
-                    push!(datai, string(i, " - ", k) => val)
+                    datai[string(i, " - ", k)] = val
                 end
                 merge!(fdg.dtviewer.data["data"], datai)
             end
         end
     end
-    push!(fdg.dtviewer.data, "dataplot" => empty!(deepcopy(fdg.dtviewer.dtp)))
-    push!(
-        fdg.dtviewer.data, "daqtask" => DAQTask(
-            explog=join([string("Data ", i, '\n', fd.path) for (i, fd) in enumerate(fdg.data)], '\n'),
-            blocks=[]
-        )
+    fdg.dtviewer.data["dataplot"] = empty!(deepcopy(fdg.dtviewer.dtp))
+    fdg.dtviewer.data["daqtask"] = DAQTask(
+        explog=join([string("Data ", i, '\n', fd.path) for (i, fd) in enumerate(fdg.data)], '\n'),
+        blocks=[]
     )
 end
 

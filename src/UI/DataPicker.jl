@@ -245,7 +245,7 @@ let
         quiet=false,
         force=false
     )
-        haskey(synctasks, plt.id) || push!(synctasks, plt.id => Dict())
+        haskey(synctasks, plt.id) || (synctasks[plt.id] = Dict())
         lpltss = length(plt.series)
         ldtpkss = length(dtpk.series)
         if lpltss < ldtpkss
@@ -265,7 +265,7 @@ let
                     istaskdone(synctasks[plt.id][i]) ? delete!(synctasks[plt.id], i) : (force || continue)
                 end
                 pdtask = errormonitor(Threads.@spawn processdata(plt, plt.series[i], dtss, datastr, datafloat; quiet=quiet, force=force))
-                push!(synctasks[plt.id], i => pdtask)
+                synctasks[plt.id][i] = pdtask
             end
         end
     end

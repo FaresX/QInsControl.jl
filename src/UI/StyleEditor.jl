@@ -559,7 +559,7 @@ let
         end
         if CImGui.Button(MORESTYLE.Icons.SaveButton * " Save to File  ")
             if rstrip(style_name, ' ') != ""
-                push!(STYLES, style_name => ustyle)
+                STYLES[style_name] = ustyle
                 # jldsave(conf.Style.path, styles=styles)
                 jldopen(joinpath(CONF.Style.dir, "$style_name.sty"), "w") do file
                     file[style_name] = STYLES[style_name]

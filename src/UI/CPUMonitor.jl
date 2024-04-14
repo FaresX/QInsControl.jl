@@ -43,8 +43,8 @@ function CPUMonitor()
     else
         instrtocontrollers = Dict()
         for ct in cpuinfo[:controllers]
-            haskey(instrtocontrollers, ct.instrnm) || push!(instrtocontrollers, ct.instrnm => Dict())
-            haskey(instrtocontrollers[ct.instrnm], ct.addr) || push!(instrtocontrollers[ct.instrnm], ct.addr => [])
+            haskey(instrtocontrollers, ct.instrnm) || (instrtocontrollers[ct.instrnm] = Dict())
+            haskey(instrtocontrollers[ct.instrnm], ct.addr) || (instrtocontrollers[ct.instrnm][ct.addr] = [])
             push!(instrtocontrollers[ct.instrnm][ct.addr], ct)
         end
         for (ins, inses) in instrtocontrollers

@@ -18,7 +18,7 @@ let
         iscombo = CImGui.BeginCombo(label, preview_value.x, flags)
         isselect = false
         if iscombo
-            haskey(filterlist, label) || push!(filterlist, label => "")
+            haskey(filterlist, label) || (filterlist[label] = "")
             InputTextWithHintRSZ(stcstr(label, "##hide"), mlstr("Filter"), filterlist[label])
             for item in item_list
                 filter = filterlist[label][]
@@ -388,7 +388,7 @@ let
 end
 
 function createimage(path; showsize=(100, 100))
-    push!(IMAGES, path => LoopVector(Int[]))
+    IMAGES[path] = LoopVector(Int[])
     if isfile(path)
         try
             imgload = FileIO.load(path)
@@ -1172,7 +1172,7 @@ let
         coltxt=CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_Text),
         colrect=MORESTYLE.Colors.ShowTextRect
     )
-        haskey(dashboardlist, label) || push!(dashboardlist, label => DashBoard())
+        haskey(dashboardlist, label) || (dashboardlist[label] = DashBoard())
         db = dashboardlist[label]
         db.start = start
         all(range .≈ db.limit) || SetDashboardValueLimit!(db, range)

@@ -231,7 +231,7 @@ let
                             qt isa SweepQuantity && (hasref |= qt.issweeping)
                             hasref && break
                         end
-                        push!(isrefreshingdict, addr => hasref)
+                        isrefreshingdict[addr] = hasref
                     end
                     hasrefreshing = !isempty(inses) && SYNCSTATES[Int(IsAutoRefreshing)] && (|)(values(isrefreshingdict)...)
                     hasrefreshing && CImGui.PushStyleColor(CImGui.ImGuiCol_Text, MORESTYLE.Colors.DAQTaskRunning)
@@ -278,10 +278,10 @@ let
                                 if addrnode
                                     @c CImGui.MenuItem(mlstr("Common"), C_NULL, &ibv.p_open)
                                     if haskey(INSWCONF, ins)
-                                        haskey(instrwidgets, addr) || push!(instrwidgets, addr => Dict())
+                                        haskey(instrwidgets, addr) || (instrwidgets[addr] = Dict())
                                         for w in INSWCONF[ins]
                                             if !haskey(instrwidgets[addr], w.name)
-                                                push!(instrwidgets[addr], w.name => (Ref(false), []))
+                                                instrwidgets[addr][w.name] = (Ref(false), [])
                                             end
                                             if CImGui.MenuItem(w.name, C_NULL, instrwidgets[addr][w.name][1])
                                                 if instrwidgets[addr][w.name][1][]

@@ -16,6 +16,7 @@ end
 @option mutable struct OptCommunication
     visapath::String = ""
     async::Bool = false
+    attrlist::Dict{String,Dict} = Dict()
 end
 
 @option mutable struct OptDtViewer
@@ -189,7 +190,7 @@ todict(qtcf::QuantityConf) = Dict(
 function todict(oneinscf::OneInsConf)
     dict = Dict{String,Dict{String,Any}}("conf" => todict(oneinscf.conf))
     for (qt, qtcf) in oneinscf.quantities
-        push!(dict, qt => todict(qtcf))
+        dict[qt] = todict(qtcf)
     end
     dict
 end

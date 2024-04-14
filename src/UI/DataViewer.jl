@@ -169,12 +169,9 @@ function edit(dtviewer::DataViewer, path, id)
                     edit(dtviewer.data["revision"]["circuit"])
                 else
                     if CImGui.Button(stcstr(MORESTYLE.Icons.NewFile, "##new revision"), (-1, -1))
-                        push!(
-                            dtviewer.data,
-                            "revision" => Dict(
-                                "description" => "",
-                                "circuit" => deepcopy(dtviewer.data["circuit"])
-                            )
+                        dtviewer.data["revision"] = Dict(
+                            "description" => "",
+                            "circuit" => deepcopy(dtviewer.data["circuit"])
                         )
                     end
                 end
@@ -202,7 +199,7 @@ function loaddtviewer!(dtviewer::DataViewer, path)
     if split(basename(path), '.')[end] in ["qdt", "cfg"]
         dtviewer.data = @trypasse load(path) Dict()
         if haskey(dtviewer.data, "data") && !(dtviewer.data["data"] isa Dict{String,Vector{String}})
-            push!(dtviewer.data, "data" => Dict(key => string.(val) for (key, val) in dtviewer.data["data"]))
+            dtviewer.data["data"] = Dict(key => string.(val) for (key, val) in dtviewer.data["data"])
         end
         if haskey(dtviewer.data, "dataplot")
             dtviewer.dtp = dtviewer.data["dataplot"]
@@ -256,7 +253,7 @@ function saveqdt(dtviewer::DataViewer, path)
                         datafloat = Dict()
                         for (key, val) in dtviewer.data["data"]
                             dataparsed = tryparse.(savetype, val)
-                            push!(datafloat, key => true in isnothing.(dataparsed) ? val : dataparsed)
+                            datafloat[key] = true in isnothing.(dataparsed) ? val : dataparsed
                         end
                         file["data"] = datafloat
                     end
@@ -280,7 +277,7 @@ let
     pagei::Dict = Dict()
     global function showdata(data, id)
         lmax = max_with_empty(length.(values(data)))
-        haskey(pagei, id) || push!(pagei, id => 1)
+        haskey(pagei, id) || (pagei[id] = 1)
         pages = ceil(Int, lmax / CONF.DtViewer.showdatarow)
         pagei[id] > pages && (pagei[id] = 1)
         showpagewidth = CImGui.CalcTextSize(stcstr(" ", pagei[id], " / ", pages, " ")).x

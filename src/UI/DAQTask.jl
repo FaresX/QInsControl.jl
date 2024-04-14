@@ -62,7 +62,7 @@ let
             CImGui.PopStyleColor()
             CImGui.EndChild()
             if !haskey(redolist, id)
-                push!(redolist, id => LoopVector(fill(AbstractBlock[], CONF.DAQ.historylen)))
+                redolist[id] = LoopVector(fill(AbstractBlock[], CONF.DAQ.historylen))
                 redolist[id][] = deepcopy(daqtask.blocks)
             end
             if !CImGui.IsMouseDown(0)
@@ -123,7 +123,7 @@ function run(daqtask::DAQTask)
     cfgsvdir = joinpath(WORKPATH, string(year(date)), string(year(date), "-", month(date)), string(date))
     ispath(cfgsvdir) || mkpath(cfgsvdir)
     SAVEPATH = joinpath(cfgsvdir, replace("[$(now())] $(mlstr("Task")) $(1+OLDI) $(daqtask.name).qdt", ':' => '.'))
-    push!(CFGBUF, "daqtask" => deepcopy(daqtask))
+    CFGBUF["daqtask"] = deepcopy(daqtask)
     try
         log_instrbufferviewers()
     catch e
@@ -172,7 +172,7 @@ function run_remote(daqtask::DAQTask)
                     remotedotask = errormonitor(@async begin
                         remotecall_wait(() -> (start!(CPU); fast!(CPU)), workers()[1])
                         for ct in values(controllers)
-                            login!(CPU, ct; quiet=false)
+                            login!(CPU, ct; quiet=false, attr=getattr(ct.addr))
                         end
                         remote_sweep_block(controllers, databuf_lc, progress_lc, SYNCSTATES)
                     end)
@@ -228,7 +228,7 @@ function saveqdt()
             datafloat = Dict()
             for (key, val) in DATABUF
                 dataparsed = tryparse.(savetype, val)
-                push!(datafloat, key => true in isnothing.(dataparsed) ? val : dataparsed)
+                datafloat[key] = true in isnothing.(dataparsed) ? val : dataparsed
             end
             file["data"] = datafloat
         end
@@ -272,8 +272,8 @@ function update_data()
     if isready(DATABUFRC)
         packdata = take!(DATABUFRC)
         for data in packdata
-            haskey(DATABUF, data[1]) || push!(DATABUF, data[1] => String[])
-            haskey(DATABUFPARSED, data[1]) || push!(DATABUFPARSED, data[1] => Float64[])
+            haskey(DATABUF, data[1]) || (DATABUF[data[1]] = String[])
+            haskey(DATABUFPARSED, data[1]) || (DATABUFPARSED[data[1]] = Float64[])
             push!(DATABUF[data[1]], data[2])
             parsed_data = tryparse(Float64, data[2])
             push!(DATABUFPARSED[data[1]], isnothing(parsed_data) ? NaN : parsed_data)
@@ -331,10 +331,10 @@ function extract_controllers(bkch::Vector{AbstractBlock})
             try
                 @assert haskey(INSTRBUFFERVIEWERS, bk.instrnm) mlstr("$(bk.instrnm) has not been added")
                 @assert haskey(INSTRBUFFERVIEWERS[bk.instrnm], bk.addr) mlstr("$(bk.addr) has not been added")
-                login!(CPU, ct)
+                login!(CPU, ct; attr=getattr(bk.addr))
                 ct(query, CPU, "*IDN?", Val(:query))
                 logout!(CPU, ct)
-                push!(controllers, string(bk.instrnm, "_", bk.addr) => ct)
+                controllers[string(bk.instrnm, "_", bk.addr)] = ct
             catch e
                 @error(
                     "[$(now())]\n$(mlstr("incorrect instrument settings!!!"))",

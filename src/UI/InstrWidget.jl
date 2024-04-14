@@ -1072,14 +1072,14 @@ let
             newlayer.colbdh = MORESTYLE.Colors.WidgetBorderHovered
             newlayer.colbda = MORESTYLE.Colors.WidgetBorderDragging
         end
-        push!(draglayers, i => newlayer)
+        draglayers[i] = newlayer
     end
 
     global function view(insw::InstrWidget)
         openmodw = false
         dragmode == "" && (dragmode = mlstr("swap"))
         if !haskey(redolist, insw)
-            push!(redolist, insw => LoopVector(fill(InstrWidget(), CONF.Register.historylen)))
+            redolist[insw] = LoopVector(fill(InstrWidget(), CONF.Register.historylen))
             redolist[insw][] = deepcopy(insw)
         end
         if !CImGui.IsMouseDown(0)
@@ -1680,7 +1680,7 @@ let
                     CImGui.PopItemWidth()
                     CImGui.SameLine()
                 end
-                @c CImGui.Checkbox(mlstr("Auto Refresh"), &qtw.options.autorefresh)
+                @c CImGui.Checkbox(stcstr(mlstr("Auto Refresh"), qtw.options.autorefresh ? " (s)" : ""), &qtw.options.autorefresh)
             end
             if qtw.name == "_Panel_"
                 @c CImGui.Checkbox(mlstr("Use Image"), &qtw.options.useimage)
@@ -2150,7 +2150,7 @@ function initialize!(insw::InstrWidget, addr)
         qtw.options.globaloptions = false
         if qtw.qtype in ["sweep", "set", "read"]
             push!(qtlist, qtw.name)
-            qtw.options.autorefresh && push!(autoreflist, qtw.name => qtw.options.refreshrate)
+            qtw.options.autorefresh && (autoreflist[qtw.name] = qtw.options.refreshrate)
         end
     end
     append!(insw.qtlist, Set(qtlist))
@@ -2194,7 +2194,7 @@ let
                     merge!(INSTRBUFFERVIEWERS, ibvs)
                     ct = Controller(ins, addr; ctbuflen=CONF.DAQ.ctbuflen, timeout=CONF.DAQ.cttimeout)
                     try
-                        login!(CPU, ct)
+                        login!(CPU, ct; attr=getattr(addr))
                         for (qtnm, qt) in filter(
                             x -> x.first in qtlist && x.first ∉ blacklist,
                             INSTRBUFFERVIEWERS[ins][addr].insbuf.quantities

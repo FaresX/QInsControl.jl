@@ -32,7 +32,7 @@ function update_progress()
     if isready(PROGRESSRC)
         packpb = take!(PROGRESSRC)
         for pb in packpb
-            haskey(PROGRESSLIST, pb[1]) || push!(PROGRESSLIST, pb[1] => pb)
+            haskey(PROGRESSLIST, pb[1]) || (PROGRESSLIST[pb[1]] = pb)
             PROGRESSLIST[pb[1]] = pb
         end
     end

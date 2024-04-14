@@ -119,7 +119,7 @@ let
             CImGui.PushStyleVar(CImGui.ImGuiStyleVar_SelectableTextAlign, (0.5, 0.5))
             for (oldinsnm, inscf) in INSCONF
                 oldinsnm == "Others" && continue
-                haskey(isrename, oldinsnm) || push!(isrename, oldinsnm => false)
+                haskey(isrename, oldinsnm) || (isrename[oldinsnm] = false)
                 renamei = isrename[oldinsnm]
                 CImGui.PushID(oldinsnm)
                 newinsnm = oldinsnm
@@ -139,7 +139,7 @@ let
                         remotecall_wait(workers()[1], oldinsnm, newinsnm, inscf) do oldinsnm, newinsnm, inscf
                             setvalue!(INSCONF, oldinsnm, newinsnm => inscf)
                         end
-                        push!(INSTRBUFFERVIEWERS, newinsnm => pop!(INSTRBUFFERVIEWERS, oldinsnm))
+                        INSTRBUFFERVIEWERS[newinsnm] = pop!(INSTRBUFFERVIEWERS, oldinsnm)
                         selectedins = newinsnm
                         isrename[newinsnm] = renamei
                     else
@@ -193,9 +193,9 @@ let
                 (btwidth / 2, 2CImGui.GetFrameHeight())
             )
                 synccall_wait([workers()[1]]) do
-                    push!(INSCONF, "New Ins" => OneInsConf())
+                    INSCONF["New Ins"] = OneInsConf()
                 end
-                push!(INSTRBUFFERVIEWERS, "New Ins" => Dict{String,InstrBufferViewer}())
+                INSTRBUFFERVIEWERS["New Ins"] = Dict{String,InstrBufferViewer}()
             end
             CImGui.PopStyleColor()
             CImGui.EndChild()
@@ -282,9 +282,9 @@ let
                         SeparatorTextColored(MORESTYLE.Colors.HighlightText, mlstr("Edit"))
                         # CImGui.SameLine()
                         if CImGui.Button(stcstr(MORESTYLE.Icons.SaveButton, " ", mlstr("Save"), "##QuantityConf to INSCONF"))
-                            push!(selectedinscf.quantities, qtname => deepcopy(editqt))
+                            selectedinscf.quantities[qtname] = deepcopy(editqt)
                             remotecall_wait(workers()[1], selectedins, qtname, editqt) do selectedins, qtname, editqt
-                                push!(INSCONF[selectedins].quantities, qtname => editqt)
+                                INSCONF[selectedins].quantities[qtname] = editqt
                             end
                             cmdtype = Symbol("@", INSCONF[selectedins].conf.cmdtype)
                             synccall_wait([workers()[1]], selectedins, cmdtype, qtname, editqt.cmdheader) do instrnm, cmdtype, qtname, cmd
@@ -304,11 +304,10 @@ let
                                 end
                             end
                             for ibv in values(INSTRBUFFERVIEWERS[selectedins])
-                                push!(ibv.insbuf.quantities, qtname => quantity(qtname, deepcopy(editqt)))
+                                ibv.insbuf.quantities[qtname] = quantity(qtname, deepcopy(editqt))
                             end
-                            haskey(default_insbufs, selectedins) && push!(
-                                default_insbufs[selectedins].quantities,
-                                qtname => quantity(qtname, deepcopy(editqt))
+                            haskey(default_insbufs, selectedins) && (
+                                default_insbufs[selectedins].quantities[qtname] = quantity(qtname, deepcopy(editqt))
                             )
                         end
                         @c InputTextRSZ(mlstr("variable name"), &qtname)
@@ -331,7 +330,7 @@ let
                                 # CImGui.BeginChild(stcstr("Widget", i))
                                 view(widget)
                                 if !haskey(default_insbufs, selectedins)
-                                    push!(default_insbufs, selectedins => InstrBuffer(selectedins))
+                                    default_insbufs[selectedins] = InstrBuffer(selectedins)
                                     for (_, qt) in default_insbufs[selectedins].quantities
                                         qt.read = "123456.7890"
                                         if qt isa SweepQuantity
@@ -357,7 +356,7 @@ let
                         end
                     end
                     if igTabItemButton(MORESTYLE.Icons.NewFile, ImGuiTabItemFlags_Trailing | ImGuiTabItemFlags_NoTooltip)
-                        haskey(INSWCONF, selectedins) || push!(INSWCONF, selectedins => [])
+                        haskey(INSWCONF, selectedins) || (INSWCONF[selectedins] = [])
                         newwnm = "new widget $(length(INSWCONF[selectedins])+1)"
                         push!(INSWCONF[selectedins], InstrWidget(instrnm=selectedins, name=newwnm))
                     end
