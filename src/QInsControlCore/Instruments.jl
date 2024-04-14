@@ -1,15 +1,53 @@
 abstract type Instrument end
+abstract type InstrAttr end
 
-struct GPIBInstr <: Instrument
+@kwdef mutable struct VISAInstrAttr <: InstrAttr
+    timeoutq::Real = 6
+    querydelay::Real = 0
+    termchar::Char = '\n'
+end
+
+@kwdef mutable struct SerialInstrAttr <: InstrAttr
+    baudrate::Integer = 9600
+    mode::SPMode = SP_MODE_READ_WRITE
+    ndatabits::Integer = 8
+    parity::SPParity = SP_PARITY_NONE
+    nstopbits::Integer = 1
+    rts::SPrts = SP_RTS_OFF
+    cts::SPcts = SP_CTS_IGNORE
+    dtr::SPdtr = SP_DTR_OFF
+    dsr::SPdsr = SP_DSR_IGNORE
+    xonxoff::SPXonXoff = SP_XONXOFF_DISABLED
+    timeoutw::Real = 6
+    timeoutr::Real = 6
+    timeoutq::Real = 6
+    querydelay::Real = 0
+    termchar::Char = '\n'
+end
+
+@kwdef mutable struct TCPIPInstrAttr <: InstrAttr
+    timeoutq::Real = 6
+    querydelay::Real = 0
+    termchar::Char = '\n'
+end
+
+@kwdef mutable struct VirtualInstrAttr <: InstrAttr
+end
+
+struct VISAInstr <: Instrument
     name::String
     addr::String
     geninstr::GenericInstrument
+    attr::VISAInstrAttr
 end
 
 struct SerialInstr <: Instrument
     name::String
     addr::String
-    geninstr::GenericInstrument
+    port::String
+    sp::SerialPort
+    connected::Ref{Bool}
+    attr::SerialInstrAttr
 end
 
 struct TCPIPInstr <: Instrument
@@ -19,11 +57,13 @@ struct TCPIPInstr <: Instrument
     port::Int
     sock::Ref{TCPSocket}
     connected::Ref{Bool}
+    attr::TCPIPInstrAttr
 end
 
-Base.@kwdef struct VirtualInstr <: Instrument
+@kwdef struct VirtualInstr <: Instrument
     name::String = "VirtualInstr"
     addr::String = "VirtualAddress"
+    attr::VirtualInstrAttr = VirtualInstrAttr()
 end
 
 """
@@ -31,11 +71,17 @@ end
 
 generate an instrument with (name, addr) which automatically determines the type of this instrument.
 """
-function instrument(name, addr)
-    if occursin("GPIB", addr)
-        return GPIBInstr(name, addr, GenericInstrument())
-    elseif occursin("ASRL", addr)
-        return SerialInstr(name, addr, GenericInstrument())
+function instrument(name, addr; attr=nothing)
+    if occursin("SERIAL", addr)
+        try
+            _, portstr = split(addr, "::")
+            setattr = isnothing(attr) || !isa(attr, SerialInstrAttr) ? SerialInstrAttr() : attr
+            return SerialInstr(name, addr, portstr, SerialPort(portstr), false, setattr)
+        catch e
+            @error "address $addr is not valid" execption = e
+            setattr = isnothing(attr) || !isa(attr, VISAInstrAttr) ? VISAInstrAttr() : attr
+            return VISAInstr(name, addr, GenericInstrument(), setattr)
+        end
     elseif occursin("TCPIP", addr)
         try
             _, ipstr, portstr, _ = split(addr, "::")
@@ -49,20 +95,25 @@ function instrument(name, addr)
             catch
             end)
             return if isnothing(ip)
-                GPIBInstr(name, addr, GenericInstrument())
+                setattr = isnothing(attr) || !isa(attr, VISAInstrAttr) ? VISAInstrAttr() : attr
+                VISAInstr(name, addr, GenericInstrument(), setattr)
             else
-                TCPIPInstr(name, addr, ip, port, TCPSocket(), false)
+                setattr = isnothing(attr) || !isa(attr, TCPIPInstrAttr) ? TCPIPInstrAttr() : attr
+                TCPIPInstr(name, addr, ip, port, TCPSocket(), false, setattr)
             end
         catch e
-            @error "address is not valid" execption = e
-            return GPIBInstr(name, addr, GenericInstrument())
+            @error "address $addr is not valid" execption = e
+            setattr = isnothing(attr) || !isa(attr, VISAInstrAttr) ? VISAInstrAttr() : attr
+            return VISAInstr(name, addr, GenericInstrument(), setattr)
         end
     elseif name == "VirtualInstr"
         return VirtualInstr()
     elseif occursin("VIRTUAL", split(addr, "::")[1])
-        return VirtualInstr(split(addr, "::")[end], addr)
+        setattr = isnothing(attr) || !isa(attr, VirtualInstrAttr) ? VirtualInstrAttr() : attr
+        return VirtualInstr(split(addr, "::")[end], addr, setattr)
     else
-        return GPIBInstr(name, addr, GenericInstrument())
+        setattr = isnothing(attr) || !isa(attr, VISAInstrAttr) ? VISAInstrAttr() : attr
+        return VISAInstr(name, addr, GenericInstrument(), setattr)
     end
 end
 
@@ -75,8 +126,19 @@ connect to an instrument with given ResourceManager rm.
 
 same but with auto-generated ResourceManager.
 """
-connect!(rm, instr::GPIBInstr) = Instruments.connect!(rm, instr.geninstr, instr.addr)
-connect!(rm, instr::SerialInstr) = Instruments.connect!(rm, instr.geninstr, instr.addr)
+connect!(rm, instr::VISAInstr) = Instruments.connect!(rm, instr.geninstr, instr.addr)
+function connect!(_, instr::SerialInstr)
+    set_speed(instr.sp, instr.attr.baudrate)
+    set_frame(instr.sp; ndatabits=instr.attr.ndatabits, parity=instr.attr.parity, nstopbits=instr.attr.nstopbits)
+    set_flow_control(
+        instr.sp;
+        rts=instr.attr.rts, cts=instr.attr.cts, dtr=instr.attr.dtr, dst=instr.attr.dst, xonxoff=instr.attr.xonxoff
+    )
+    set_write_timeout(instr.sp, instr.attr.timeoutw)
+    set_read_timeout(instr.sp, instr.attr.timeoutr)
+    LibSerialPort.open(instr.sp; mode=instr.attr.mode)
+    instr.connected[] = true
+end
 function connect!(_, instr::TCPIPInstr)
     if !instr.connected[]
         instr.sock[] = Sockets.connect(instr.ip, instr.port)
@@ -91,8 +153,13 @@ connect!(instr::Instrument) = connect!(ResourceManager(), instr)
 
 disconnect the instrument.
 """
-disconnect!(instr::GPIBInstr) = Instruments.disconnect!(instr.geninstr)
-disconnect!(instr::SerialInstr) = Instruments.disconnect!(instr.geninstr)
+disconnect!(instr::VISAInstr) = Instruments.disconnect!(instr.geninstr)
+function disconnect!(instr::SerialInstr)
+    if instr.connected[]
+        close(instr.sp)
+        instr.connected[] = false
+    end
+end
 function disconnect!(instr::TCPIPInstr)
     if instr.connected[]
         close(instr.sock[])
@@ -108,9 +175,9 @@ global VIASYNC::Bool = false
 
 write some message string to the instrument.
 """
-Base.write(instr::GPIBInstr, msg::AbstractString) = (VIASYNC ? writeasync : Instruments.write)(instr.geninstr, msg)
-Base.write(instr::SerialInstr, msg::AbstractString) = (VIASYNC ? writeasync : Instruments.write)(instr.geninstr, string(msg, "\n"))
-Base.write(instr::TCPIPInstr, msg::AbstractString) = println(instr.sock[], msg)
+Base.write(instr::VISAInstr, msg::AbstractString) = (VIASYNC ? writeasync : Instruments.write)(instr.geninstr, string(msg, instr.attr.termchar))
+Base.write(instr::SerialInstr, msg::AbstractString) = write(instr.sp, string(msg, instr.attr.termchar))
+Base.write(instr::TCPIPInstr, msg::AbstractString) = println(instr.sock[], string(msg, instr.attr.termchar))
 Base.write(::VirtualInstr, ::AbstractString) = nothing
 
 """
@@ -118,8 +185,8 @@ Base.write(::VirtualInstr, ::AbstractString) = nothing
 
 read the instrument.
 """
-Base.read(instr::GPIBInstr) = (VIASYNC ? readasync : Instruments.read)(instr.geninstr)
-Base.read(instr::SerialInstr) = (VIASYNC ? readasync : Instruments.read)(instr.geninstr)
+Base.read(instr::VISAInstr) = (VIASYNC ? readasync : Instruments.read)(instr.geninstr)
+Base.read(instr::SerialInstr) = rstrip(read(instr.sp, String), ['\r', '\n'])
 Base.read(instr::TCPIPInstr) = readline(instr.sock[])
 Base.read(::VirtualInstr) = "read"
 
@@ -129,37 +196,44 @@ Base.read(::VirtualInstr) = "read"
 query the instrument with some message string.
 """
 function _query_(instr::Instruments.GenericInstrument, msg; delay=0, timeout=6, errormsg="time out")
-    Instruments.write(instr, msg)
+    write(instr, msg)
     delay < 0.001 || sleep(delay)
-    t = @async Instruments.read(instr)
+    t = @async read(instr)
     isok = timedwhile(() -> istaskdone(t), timeout)
     return isok ? fetch(t) : error(errormsg)
 end
-function query(instr::GPIBInstr, msg::AbstractString)
-    VIASYNC ? queryasync(instr.geninstr, msg) : _query_(instr.geninstr, msg; errormsg="$(instr.addr) time out")
-end
-function query(instr::SerialInstr, msg::AbstractString; termchar='\n')
+function query(instr::VISAInstr, msg::AbstractString)
     if VIASYNC
-        queryasync(instr.geninstr, string(msg, termchar))
+        queryasync(instr.geninstr, msg)
     else
-        _query_(instr.geninstr, string(msg, termchar); errormsg="$(instr.addr) time out")
+        _query_(
+            instr.geninstr, msg;
+            delay=instr.attr.querydelay, timeout=instr.attr.timeoutq, errormsg="$(instr.addr) time out"
+        )
     end
 end
-function query(instr::TCPIPInstr, msg::AbstractString; delay=0, timeout=6)
-    println(instr.sock[], msg)
-    delay < 0.001 || sleep(delay)
-    t = @async readline(instr.sock[])
-    isok = timedwhile(() -> istaskdone(t), timeout)
+function query(instr::SerialInstr, msg::AbstractString)
+    write(instr, msg)
+    instr.attr.querydelay < 0.001 || sleep(instr.attr.querydelay)
+    t = @async read(instr)
+    isok = timedwhile(() -> istaskdone(t), instr.attr.timeoutq)
     return isok ? fetch(t) : error("$(instr.addr) time out")
 end
-query(::VirtualInstr, ::AbstractString; delay=0) = "query"
+function query(instr::TCPIPInstr, msg::AbstractString)
+    write(instr, msg)
+    instr.attr.querydelay < 0.001 || sleep(instr.attr.querydelay)
+    t = @async read(instr)
+    isok = timedwhile(() -> istaskdone(t), instr.attr.timeoutq)
+    return isok ? fetch(t) : error("$(instr.addr) time out")
+end
+query(::VirtualInstr, ::AbstractString) = "query"
 
 """
     isconnected(instr)
 
 determine if the instrument is connected.
 """
-isconnected(instr::GPIBInstr) = instr.geninstr.connected
-isconnected(instr::SerialInstr) = instr.geninstr.connected
+isconnected(instr::VISAInstr) = instr.geninstr.connected
+isconnected(instr::SerialInstr) = instr.connected[]
 isconnected(instr::TCPIPInstr) = instr.connected[]
 isconnected(::VirtualInstr) = true

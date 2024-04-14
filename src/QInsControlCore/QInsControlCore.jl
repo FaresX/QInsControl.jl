@@ -1,7 +1,7 @@
 module QInsControlCore
 using BinDeps
-using Dates
 using Instruments
+using LibSerialPort
 using Sockets
 using UUIDs
 
