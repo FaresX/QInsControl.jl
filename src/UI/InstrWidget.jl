@@ -1,6 +1,6 @@
 @option mutable struct QuantityWidgetOption
     uitype::String = "none"
-    globaloptions::Bool = false
+    globaloptions::Bool = true
     allowoverlap::Bool = false
     useimage::Bool = false
     autorefresh::Bool = false
@@ -75,7 +75,7 @@ end
     rate::Cint = 1
     windowbgcolor::Vector{Cfloat} = [1.000, 1.000, 1.000, 1.000]
     bgtintcolor::Vector{Cfloat} = [1.000, 1.000, 1.000, 1.000]
-    options::QuantityWidgetOption = QuantityWidgetOption()
+    globaloptions::Bool = true
     qtlist::Vector{String} = []
     posoffset::Vector{Cfloat} = [0, 0]
     sizeoffset::Vector{Cfloat} = [0, 0]
@@ -120,17 +120,8 @@ function copycolors!(opts1, opts2)
     end
 end
 
-function copyglobal!(opts1, opts2)
-    fnms = fieldnames(QuantityWidgetOption)
-    for fnm in fnms[1:35]
-        fnm in [:rounding, :grabrounding, :bdrounding, :bdthickness] && continue
-        setproperty!(opts1, fnm, getproperty(opts2, fnm))
-    end
-end
-
-function edit(qtw::QuantityWidget, insbuf::InstrBuffer, instrnm, addr, gopts::QuantityWidgetOption)
-    opts = qtw.options.globaloptions ? gopts : qtw.options
-    qtw.options.globaloptions && copyglobal!(opts, qtw.options)
+function edit(qtw::QuantityWidget, insbuf::InstrBuffer, instrnm, addr)
+    opts = qtw.options
     scale = unsafe_load(CImGui.GetIO().FontGlobalScale)
     scaling = scale != 1
     if scaling
@@ -167,24 +158,28 @@ function editPanel(qtw::QuantityWidget, opts::QuantityWidgetOption)
     originscale = unsafe_load(CImGui.GetIO().FontGlobalScale)
     CImGui.SetWindowFontScale(opts.textscale)
     isempty(opts.pathes) && push!(opts.pathes, "")
-    trig = ImageColoredButtonRect(
-        mlstr(qtw.alias), opts.pathes[1], opts.useimage;
-        size=opts.itemsize,
-        rate=opts.rate,
-        uv0=opts.uv0,
-        uv1=opts.uv1,
-        frame_padding=opts.framepadding,
-        rounding=opts.rounding,
-        bdrounding=opts.bdrounding,
-        thickness=opts.bdthickness,
-        bg_col=opts.imgbgcolor,
-        tint_col=opts.imgtintcolor,
-        colbt=opts.bgcolor,
-        colbth=opts.hoveredcolor,
-        colbta=opts.activecolor,
-        coltxt=opts.textcolor,
-        colrect=opts.bdcolor
-    )
+    trig = if opts.globaloptions
+        ImageColoredButtonRect(mlstr(qtw.alias), opts.pathes[1], opts.useimage; size=opts.itemsize, rate=opts.rate)
+    else
+        ImageColoredButtonRect(
+            mlstr(qtw.alias), opts.pathes[1], opts.useimage;
+            size=opts.itemsize,
+            rate=opts.rate,
+            uv0=opts.uv0,
+            uv1=opts.uv1,
+            frame_padding=opts.framepadding,
+            rounding=opts.rounding,
+            bdrounding=opts.bdrounding,
+            thickness=opts.bdthickness,
+            bg_col=opts.imgbgcolor,
+            tint_col=opts.imgtintcolor,
+            colbt=opts.bgcolor,
+            colbth=opts.hoveredcolor,
+            colbta=opts.activecolor,
+            coltxt=opts.textcolor,
+            colrect=opts.bdcolor
+        )
+    end
     opts.textsize == "big" && CImGui.PopFont()
     CImGui.SetWindowFontScale(originscale)
     return trig
@@ -237,15 +232,19 @@ end
 
 function editImage(::QuantityWidget, opts::QuantityWidgetOption)
     isempty(opts.pathes) && push!(opts.pathes, "")
-    Image(
-        opts.pathes[1];
-        size=opts.itemsize,
-        rate=opts.rate,
-        uv0=opts.uv0,
-        uv1=opts.uv1,
-        tint_col=opts.imgtintcolor,
-        border_col=opts.bdcolor
-    )
+    if opts.globaloptions
+        Image(opts.pathes[1]; size=opts.itemsize, rate=opts.rate)
+    else
+        Image(
+            opts.pathes[1];
+            size=opts.itemsize,
+            rate=opts.rate,
+            uv0=opts.uv0,
+            uv1=opts.uv1,
+            tint_col=opts.imgtintcolor,
+            border_col=opts.bdcolor
+        )
+    end
     return false
 end
 
@@ -253,20 +252,26 @@ function editQuantitySelector(qtw::QuantityWidget, opts::QuantityWidgetOption, :
     opts.textsize == "big" && CImGui.PushFont(PLOTFONT)
     originscale = unsafe_load(CImGui.GetIO().FontGlobalScale)
     CImGui.SetWindowFontScale(opts.textscale)
-    trig = @c ColoredCombo(
-        stcstr("##selector", qtw.alias), &qtw.alias, opts.selectorlabels, opts.comboflags;
-        size=opts.itemsize,
-        rounding=opts.rounding,
-        bdrounding=opts.bdrounding,
-        thickness=opts.bdthickness,
-        colbt=opts.combobtcolor,
-        colfrm=opts.bgcolor,
-        colfrmh=opts.hoveredcolor,
-        colfrma=opts.activecolor,
-        colpopup=opts.popupcolor,
-        coltxt=opts.textcolor,
-        colrect=opts.bdcolor
-    )
+    trig = if opts.globaloptions
+        @c ColoredCombo(
+            stcstr("##selector", qtw.alias), &qtw.alias, opts.selectorlabels, opts.comboflags; size=opts.itemsize
+        )
+    else
+        @c ColoredCombo(
+            stcstr("##selector", qtw.alias), &qtw.alias, opts.selectorlabels, opts.comboflags;
+            size=opts.itemsize,
+            rounding=opts.rounding,
+            bdrounding=opts.bdrounding,
+            thickness=opts.bdthickness,
+            colbt=opts.combobtcolor,
+            colfrm=opts.bgcolor,
+            colfrmh=opts.hoveredcolor,
+            colfrma=opts.activecolor,
+            colpopup=opts.popupcolor,
+            coltxt=opts.textcolor,
+            colrect=opts.bdcolor
+        )
+    end
     trig && (opts.selectedidx = findfirst(==(qtw.alias), opts.selectorlabels))
     opts.textsize == "big" && CImGui.PopFont()
     CImGui.SetWindowFontScale(originscale)
@@ -277,23 +282,32 @@ function editQuantitySelector(qtw::QuantityWidget, opts::QuantityWidgetOption, :
     opts.textsize == "big" && CImGui.PushFont(PLOTFONT)
     originscale = unsafe_load(CImGui.GetIO().FontGlobalScale)
     CImGui.SetWindowFontScale(opts.textscale)
-    trig = @c ColoredSlider(
-        CImGui.SliderInt,
-        stcstr(opts.textinside ? "##" : "", qtw.alias),
-        &opts.selectedidx, 1, opts.selectornum, opts.textinside ? qtw.alias : "";
-        size=opts.itemsize,
-        rounding=opts.rounding,
-        grabrounding=opts.grabrounding,
-        bdrounding=opts.bdrounding,
-        thickness=opts.bdthickness,
-        colgrab=opts.grabcolor,
-        colgraba=opts.grabactivecolor,
-        colfrm=opts.bgcolor,
-        colfrmh=opts.hoveredcolor,
-        colfrma=opts.activecolor,
-        coltxt=opts.textcolor,
-        colrect=opts.bdcolor
-    )
+    trig = if opts.globaloptions
+        @c ColoredSlider(
+            CImGui.SliderInt,
+            stcstr(opts.textinside ? "##" : "", qtw.alias),
+            &opts.selectedidx, 1, opts.selectornum, opts.textinside ? qtw.alias : "";
+            size=opts.itemsize
+        )
+    else
+        @c ColoredSlider(
+            CImGui.SliderInt,
+            stcstr(opts.textinside ? "##" : "", qtw.alias),
+            &opts.selectedidx, 1, opts.selectornum, opts.textinside ? qtw.alias : "";
+            size=opts.itemsize,
+            rounding=opts.rounding,
+            grabrounding=opts.grabrounding,
+            bdrounding=opts.bdrounding,
+            thickness=opts.bdthickness,
+            colgrab=opts.grabcolor,
+            colgraba=opts.grabactivecolor,
+            colfrm=opts.bgcolor,
+            colfrmh=opts.hoveredcolor,
+            colfrma=opts.activecolor,
+            coltxt=opts.textcolor,
+            colrect=opts.bdcolor
+        )
+    end
     trig && (qtw.alias = opts.selectorlabels[opts.selectedidx])
     opts.textsize == "big" && CImGui.PopFont()
     CImGui.SetWindowFontScale(originscale)
@@ -304,23 +318,32 @@ function editQuantitySelector(qtw::QuantityWidget, opts::QuantityWidgetOption, :
     opts.textsize == "big" && CImGui.PushFont(PLOTFONT)
     originscale = unsafe_load(CImGui.GetIO().FontGlobalScale)
     CImGui.SetWindowFontScale(opts.textscale)
-    trig = @c ColoredVSlider(
-        CImGui.VSliderInt,
-        stcstr(opts.textinside ? "##" : "", qtw.alias),
-        &opts.selectedidx, 1, opts.selectornum, opts.textinside ? qtw.alias : "";
-        size=opts.itemsize,
-        rounding=opts.rounding,
-        grabrounding=opts.grabrounding,
-        bdrounding=opts.bdrounding,
-        thickness=opts.bdthickness,
-        colgrab=opts.grabcolor,
-        colgraba=opts.grabactivecolor,
-        colfrm=opts.bgcolor,
-        colfrmh=opts.hoveredcolor,
-        colfrma=opts.activecolor,
-        coltxt=opts.textcolor,
-        colrect=opts.bdcolor
-    )
+    trig = if opts.globaloptions
+        @c ColoredVSlider(
+            CImGui.VSliderInt,
+            stcstr(opts.textinside ? "##" : "", qtw.alias),
+            &opts.selectedidx, 1, opts.selectornum, opts.textinside ? qtw.alias : "";
+            size=opts.itemsize
+        )
+    else
+        @c ColoredVSlider(
+            CImGui.VSliderInt,
+            stcstr(opts.textinside ? "##" : "", qtw.alias),
+            &opts.selectedidx, 1, opts.selectornum, opts.textinside ? qtw.alias : "";
+            size=opts.itemsize,
+            rounding=opts.rounding,
+            grabrounding=opts.grabrounding,
+            bdrounding=opts.bdrounding,
+            thickness=opts.bdthickness,
+            colgrab=opts.grabcolor,
+            colgraba=opts.grabactivecolor,
+            colfrm=opts.bgcolor,
+            colfrmh=opts.hoveredcolor,
+            colfrma=opts.activecolor,
+            coltxt=opts.textcolor,
+            colrect=opts.bdcolor
+        )
+    end
     trig && (qtw.alias = opts.selectorlabels[opts.selectedidx])
     opts.textsize == "big" && CImGui.PopFont()
     CImGui.SetWindowFontScale(originscale)
@@ -333,18 +356,22 @@ function edit(opts::QuantityWidgetOption, qt::AbstractQuantity, instrnm, addr, :
     opts.textsize == "big" && CImGui.PushFont(PLOTFONT)
     originscale = unsafe_load(CImGui.GetIO().FontGlobalScale)
     CImGui.SetWindowFontScale(opts.textscale)
-    trig = ColoredButtonRect(
-        qt.showval[opts.bindingidx];
-        size=opts.itemsize,
-        colbt=opts.bgcolor,
-        colbth=opts.hoveredcolor,
-        colbta=opts.activecolor,
-        coltxt=opts.textcolor,
-        colrect=opts.bdcolor,
-        rounding=opts.rounding,
-        bdrounding=opts.bdrounding,
-        thickness=opts.bdthickness
-    )
+    trig = if opts.globaloptions
+        ColoredButtonRect(qt.showval[opts.bindingidx]; size=opts.itemsize)
+    else
+        ColoredButtonRect(
+            qt.showval[opts.bindingidx];
+            size=opts.itemsize,
+            colbt=opts.bgcolor,
+            colbth=opts.hoveredcolor,
+            colbta=opts.activecolor,
+            coltxt=opts.textcolor,
+            colrect=opts.bdcolor,
+            rounding=opts.rounding,
+            bdrounding=opts.bdrounding,
+            thickness=opts.bdthickness
+        )
+    end
     if trig
         if qt.enable && addr != ""
             fetchdata = refresh_qt(instrnm, addr, qt.name)
@@ -361,18 +388,22 @@ function edit(opts::QuantityWidgetOption, qt::AbstractQuantity, instrnm, addr, :
     opts.textsize == "big" && CImGui.PushFont(PLOTFONT)
     originscale = unsafe_load(CImGui.GetIO().FontGlobalScale)
     CImGui.SetWindowFontScale(opts.textscale)
-    trig = ColoredButtonRect(
-        qt.showU;
-        size=opts.itemsize,
-        colbt=opts.bgcolor,
-        colbth=opts.hoveredcolor,
-        colbta=opts.activecolor,
-        coltxt=opts.textcolor,
-        colrect=opts.bdcolor,
-        rounding=opts.rounding,
-        bdrounding=opts.bdrounding,
-        thickness=opts.bdthickness
-    )
+    trig = if opts.globaloptions
+        ColoredButtonRect(qt.showU; size=opts.itemsize)
+    else
+        ColoredButtonRect(
+            qt.showU;
+            size=opts.itemsize,
+            colbt=opts.bgcolor,
+            colbth=opts.hoveredcolor,
+            colbta=opts.activecolor,
+            coltxt=opts.textcolor,
+            colrect=opts.bdcolor,
+            rounding=opts.rounding,
+            bdrounding=opts.bdrounding,
+            thickness=opts.bdthickness
+        )
+    end
     trig && (qt.uindex += 1; getvalU!(qt); resolveunitlist(qt, instrnm, addr))
     opts.textsize == "big" && CImGui.PopFont()
     CImGui.SetWindowFontScale(originscale)
@@ -383,18 +414,22 @@ function edit(opts::QuantityWidgetOption, qt::AbstractQuantity, instrnm, addr, :
     opts.textsize == "big" && CImGui.PushFont(PLOTFONT)
     originscale = unsafe_load(CImGui.GetIO().FontGlobalScale)
     CImGui.SetWindowFontScale(opts.textscale)
-    trig = ColoredButtonRect(
-        stcstr(qt.showval[opts.bindingidx], " ", qt.showU);
-        size=opts.itemsize,
-        colbt=opts.bgcolor,
-        colbth=opts.hoveredcolor,
-        colbta=opts.activecolor,
-        coltxt=opts.textcolor,
-        colrect=opts.bdcolor,
-        rounding=opts.rounding,
-        bdrounding=opts.bdrounding,
-        thickness=opts.bdthickness
-    )
+    trig = if opts.globaloptions
+        ColoredButtonRect(stcstr(qt.showval[opts.bindingidx], " ", qt.showU); size=opts.itemsize)
+    else
+        ColoredButtonRect(
+            stcstr(qt.showval[opts.bindingidx], " ", qt.showU);
+            size=opts.itemsize,
+            colbt=opts.bgcolor,
+            colbth=opts.hoveredcolor,
+            colbta=opts.activecolor,
+            coltxt=opts.textcolor,
+            colrect=opts.bdcolor,
+            rounding=opts.rounding,
+            bdrounding=opts.bdrounding,
+            thickness=opts.bdthickness
+        )
+    end
     if trig
         if qt.enable && addr != ""
             fetchdata = refresh_qt(instrnm, addr, qt.name)
@@ -413,21 +448,25 @@ function edit(opts::QuantityWidgetOption, qt::AbstractQuantity, instrnm, addr, :
     originscale = unsafe_load(CImGui.GetIO().FontGlobalScale)
     CImGui.SetWindowFontScale(opts.textscale)
     val, mrange1, mrange2, start = parseforreaddashboard(qt)
-    DashBoardPanel(
-        stcstr(instrnm, addr, qt.name), val, [mrange1, mrange2], start;
-        size=opts.itemsize,
-        ruler=opts.ticknum,
-        rounding=opts.rounding,
-        bdrounding=opts.bdrounding,
-        thickness=opts.bdthickness,
-        num_segments=opts.circlesegments,
-        col=opts.bgcolor,
-        colon=opts.oncolor,
-        colbase=opts.grabcolor,
-        colind=opts.checkedcolor,
-        coltxt=opts.textcolor,
-        colrect=opts.bdcolor,
-    )
+    if opts.globaloptions
+        DashBoardPanel(stcstr(instrnm, addr, qt.name), val, [mrange1, mrange2], start; size=opts.itemsize)
+    else
+        DashBoardPanel(
+            stcstr(instrnm, addr, qt.name), val, [mrange1, mrange2], start;
+            size=opts.itemsize,
+            ruler=opts.ticknum,
+            rounding=opts.rounding,
+            bdrounding=opts.bdrounding,
+            thickness=opts.bdthickness,
+            num_segments=opts.circlesegments,
+            col=opts.bgcolor,
+            colon=opts.oncolor,
+            colbase=opts.grabcolor,
+            colind=opts.checkedcolor,
+            coltxt=opts.textcolor,
+            colrect=opts.bdcolor,
+        )
+    end
     opts.textsize == "big" && CImGui.PopFont()
     CImGui.SetWindowFontScale(originscale)
     return false
@@ -436,18 +475,22 @@ function edit(opts::QuantityWidgetOption, qt::AbstractQuantity, instrnm, addr, :
     opts.textsize == "big" && CImGui.PushFont(PLOTFONT)
     originscale = unsafe_load(CImGui.GetIO().FontGlobalScale)
     CImGui.SetWindowFontScale(opts.textscale)
-    trig = ColoredButtonRect(
-        @sprintf("%g", parseforreaddashboard(qt)[1]);
-        size=opts.itemsize,
-        colbt=opts.bgcolor,
-        colbth=opts.hoveredcolor,
-        colbta=opts.activecolor,
-        coltxt=opts.textcolor,
-        colrect=opts.bdcolor,
-        rounding=opts.rounding,
-        bdrounding=opts.bdrounding,
-        thickness=opts.bdthickness
-    )
+    trig = if opts.globaloptions
+        ColoredButtonRect(@sprintf("%g", parseforreaddashboard(qt)[1]); size=opts.itemsize)
+    else
+        ColoredButtonRect(
+            @sprintf("%g", parseforreaddashboard(qt)[1]);
+            size=opts.itemsize,
+            colbt=opts.bgcolor,
+            colbth=opts.hoveredcolor,
+            colbta=opts.activecolor,
+            coltxt=opts.textcolor,
+            colrect=opts.bdcolor,
+            rounding=opts.rounding,
+            bdrounding=opts.bdrounding,
+            thickness=opts.bdthickness
+        )
+    end
     if trig
         if qt.enable && addr != ""
             fetchdata = refresh_qt(instrnm, addr, qt.name)
@@ -463,18 +506,22 @@ function edit(opts::QuantityWidgetOption, qt::AbstractQuantity, instrnm, addr, :
     opts.textsize == "big" && CImGui.PushFont(PLOTFONT)
     originscale = unsafe_load(CImGui.GetIO().FontGlobalScale)
     CImGui.SetWindowFontScale(opts.textscale)
-    trig = ColoredButtonRect(
-        stcstr(@sprintf("%g", parseforreaddashboard(qt)[1]), " ", qt.showU);
-        size=opts.itemsize,
-        colbt=opts.bgcolor,
-        colbth=opts.hoveredcolor,
-        colbta=opts.activecolor,
-        coltxt=opts.textcolor,
-        colrect=opts.bdcolor,
-        rounding=opts.rounding,
-        bdrounding=opts.bdrounding,
-        thickness=opts.bdthickness
-    )
+    trig = if opts.globaloptions
+        ColoredButtonRect(stcstr(@sprintf("%g", parseforreaddashboard(qt)[1]), " ", qt.showU); size=opts.itemsize)
+    else
+        ColoredButtonRect(
+            stcstr(@sprintf("%g", parseforreaddashboard(qt)[1]), " ", qt.showU);
+            size=opts.itemsize,
+            colbt=opts.bgcolor,
+            colbth=opts.hoveredcolor,
+            colbta=opts.activecolor,
+            coltxt=opts.textcolor,
+            colrect=opts.bdcolor,
+            rounding=opts.rounding,
+            bdrounding=opts.bdrounding,
+            thickness=opts.bdthickness
+        )
+    end
     if trig
         if qt.enable && addr != ""
             fetchdata = refresh_qt(instrnm, addr, qt.name)
@@ -513,17 +560,21 @@ function edit(opts::QuantityWidgetOption, qt::SweepQuantity, _, _, ::Val{:inputs
     opts.textsize == "big" && CImGui.PushFont(PLOTFONT)
     originscale = unsafe_load(CImGui.GetIO().FontGlobalScale)
     CImGui.SetWindowFontScale(opts.textscale)
-    trig = @c ColoredInputTextWithHintRSZ(
-        "##step", mlstr("step"), &qt.step;
-        size=opts.itemsize,
-        rounding=opts.rounding,
-        bdrounding=opts.bdrounding,
-        thickness=opts.bdthickness,
-        colfrm=opts.bgcolor,
-        coltxt=opts.textcolor,
-        colhint=opts.hintcolor,
-        colrect=opts.bdcolor
-    )
+    trig = if opts.globaloptions
+        @c ColoredInputTextWithHintRSZ("##step", mlstr("step"), &qt.step; size=opts.itemsize)
+    else
+        @c ColoredInputTextWithHintRSZ(
+            "##step", mlstr("step"), &qt.step;
+            size=opts.itemsize,
+            rounding=opts.rounding,
+            bdrounding=opts.bdrounding,
+            thickness=opts.bdthickness,
+            colfrm=opts.bgcolor,
+            coltxt=opts.textcolor,
+            colhint=opts.hintcolor,
+            colrect=opts.bdcolor
+        )
+    end
     opts.textsize == "big" && CImGui.PopFont()
     CImGui.SetWindowFontScale(originscale)
     return trig
@@ -533,16 +584,21 @@ function edit(opts::QuantityWidgetOption, qt::SweepQuantity, _, _, ::Val{:inputs
     opts.textsize == "big" && CImGui.PushFont(PLOTFONT)
     originscale = unsafe_load(CImGui.GetIO().FontGlobalScale)
     CImGui.SetWindowFontScale(opts.textscale)
-    trig = @c ColoredInputTextWithHintRSZ("##stop", mlstr("stop"), &qt.stop;
-        size=opts.itemsize,
-        rounding=opts.rounding,
-        bdrounding=opts.bdrounding,
-        thickness=opts.bdthickness,
-        colfrm=opts.bgcolor,
-        coltxt=opts.textcolor,
-        colhint=opts.hintcolor,
-        colrect=opts.bdcolor
-    )
+    trig = if opts.globaloptions
+        @c ColoredInputTextWithHintRSZ("##stop", mlstr("stop"), &qt.stop; size=opts.itemsize)
+    else
+        @c ColoredInputTextWithHintRSZ(
+            "##stop", mlstr("stop"), &qt.stop;
+            size=opts.itemsize,
+            rounding=opts.rounding,
+            bdrounding=opts.bdrounding,
+            thickness=opts.bdthickness,
+            colfrm=opts.bgcolor,
+            coltxt=opts.textcolor,
+            colhint=opts.hintcolor,
+            colrect=opts.bdcolor
+        )
+    end
     opts.textsize == "big" && CImGui.PopFont()
     CImGui.SetWindowFontScale(originscale)
     return trig
@@ -552,19 +608,27 @@ function edit(opts::QuantityWidgetOption, qt::SweepQuantity, _, _, ::Val{:dragde
     opts.textsize == "big" && CImGui.PushFont(PLOTFONT)
     originscale = unsafe_load(CImGui.GetIO().FontGlobalScale)
     CImGui.SetWindowFontScale(opts.textscale)
-    trig = @c ColoredDragWidget(
-        CImGui.DragFloat,
-        "##delay", &qt.delay, 0.01, 0.01, 60, "%.3f", CImGui.ImGuiSliderFlags_AlwaysClamp;
-        size=opts.itemsize,
-        rounding=opts.rounding,
-        bdrounding=opts.bdrounding,
-        thickness=opts.bdthickness,
-        colfrm=opts.bgcolor,
-        colfrmh=opts.hoveredcolor,
-        colfrma=opts.activecolor,
-        coltxt=opts.textcolor,
-        colrect=opts.bdcolor
-    )
+    trig = if opts.globaloptions
+        @c ColoredDragWidget(
+            CImGui.DragFloat,
+            "##delay", &qt.delay, 0.01, 0.01, 60, "%.3f", CImGui.ImGuiSliderFlags_AlwaysClamp;
+            size=opts.itemsize
+        )
+    else
+        @c ColoredDragWidget(
+            CImGui.DragFloat,
+            "##delay", &qt.delay, 0.01, 0.01, 60, "%.3f", CImGui.ImGuiSliderFlags_AlwaysClamp;
+            size=opts.itemsize,
+            rounding=opts.rounding,
+            bdrounding=opts.bdrounding,
+            thickness=opts.bdthickness,
+            colfrm=opts.bgcolor,
+            colfrmh=opts.hoveredcolor,
+            colfrma=opts.activecolor,
+            coltxt=opts.textcolor,
+            colrect=opts.bdcolor
+        )
+    end
     opts.textsize == "big" && CImGui.PopFont()
     CImGui.SetWindowFontScale(originscale)
     return trig
@@ -574,18 +638,26 @@ function edit(opts::QuantityWidgetOption, qt::SweepQuantity, _, _, ::Val{:progre
     opts.textsize == "big" && CImGui.PushFont(PLOTFONT)
     originscale = unsafe_load(CImGui.GetIO().FontGlobalScale)
     CImGui.SetWindowFontScale(opts.textscale)
-    trig = ColoredProgressBarRect(
-        calcfraction(qt.presenti, qt.nstep),
-        progressmark(qt.presenti, qt.nstep, qt.elapsedtime; opts.notimes, opts.notime);
-        size=opts.itemsize,
-        rounding=opts.rounding,
-        bdrounding=opts.bdrounding,
-        thickness=opts.bdthickness,
-        colbar=opts.bgcolor,
-        colbara=opts.activecolor,
-        coltxt=opts.textcolor,
-        colrect=opts.bdcolor
-    )
+    trig = if opts.globaloptions
+        ColoredProgressBarRect(
+            calcfraction(qt.presenti, qt.nstep),
+            progressmark(qt.presenti, qt.nstep, qt.elapsedtime; opts.notimes, opts.notime);
+            size=opts.itemsize
+        )
+    else
+        ColoredProgressBarRect(
+            calcfraction(qt.presenti, qt.nstep),
+            progressmark(qt.presenti, qt.nstep, qt.elapsedtime; opts.notimes, opts.notime);
+            size=opts.itemsize,
+            rounding=opts.rounding,
+            bdrounding=opts.bdrounding,
+            thickness=opts.bdthickness,
+            colbar=opts.bgcolor,
+            colbara=opts.activecolor,
+            coltxt=opts.textcolor,
+            colrect=opts.bdcolor
+        )
+    end
     opts.textsize == "big" && CImGui.PopFont()
     CImGui.SetWindowFontScale(originscale)
     return trig
@@ -595,19 +667,23 @@ function edit(opts::QuantityWidgetOption, qt::SweepQuantity, instrnm, addr, ::Va
     opts.textsize == "big" && CImGui.PushFont(PLOTFONT)
     originscale = unsafe_load(CImGui.GetIO().FontGlobalScale)
     CImGui.SetWindowFontScale(opts.textscale)
-    trig = @c ToggleButtonRect(
-        mlstr(qt.issweeping ? opts.stoptext : opts.starttext), &qt.issweeping;
-        size=opts.itemsize,
-        rounding=opts.rounding,
-        bdrounding=opts.bdrounding,
-        thickness=opts.bdthickness,
-        colon=opts.oncolor,
-        coloff=opts.offcolor,
-        colbth=opts.hoveredcolor,
-        colbta=opts.activecolor,
-        coltxt=opts.textcolor,
-        colrect=opts.bdcolor,
-    )
+    trig = if opts.globaloptions
+        @c ToggleButtonRect(mlstr(qt.issweeping ? opts.stoptext : opts.starttext), &qt.issweeping; size=opts.itemsize)
+    else
+        @c ToggleButtonRect(
+            mlstr(qt.issweeping ? opts.stoptext : opts.starttext), &qt.issweeping;
+            size=opts.itemsize,
+            rounding=opts.rounding,
+            bdrounding=opts.bdrounding,
+            thickness=opts.bdthickness,
+            colon=opts.oncolor,
+            coloff=opts.offcolor,
+            colbth=opts.hoveredcolor,
+            colbta=opts.activecolor,
+            coltxt=opts.textcolor,
+            colrect=opts.bdcolor,
+        )
+    end
     trig && qt.issweeping && apply!(qt, instrnm, addr)
     opts.textsize == "big" && CImGui.PopFont()
     CImGui.SetWindowFontScale(originscale)
@@ -619,16 +695,20 @@ function edit(opts::QuantityWidgetOption, qt::SetQuantity, _, _, ::Val{:inputset
     opts.textsize == "big" && CImGui.PushFont(PLOTFONT)
     originscale = unsafe_load(CImGui.GetIO().FontGlobalScale)
     CImGui.SetWindowFontScale(opts.textscale)
-    trig = @c ColoredInputTextWithHintRSZ("##set", mlstr(opts.starttext), &qt.set;
-        size=opts.itemsize,
-        rounding=opts.rounding,
-        bdrounding=opts.bdrounding,
-        thickness=opts.bdthickness,
-        colfrm=opts.bgcolor,
-        coltxt=opts.textcolor,
-        colhint=opts.hintcolor,
-        colrect=opts.bdcolor
-    )
+    trig = if opts.globaloptions
+        @c ColoredInputTextWithHintRSZ("##set", mlstr(opts.starttext), &qt.set; size=opts.itemsize)
+    else
+        @c ColoredInputTextWithHintRSZ("##set", mlstr(opts.starttext), &qt.set;
+            size=opts.itemsize,
+            rounding=opts.rounding,
+            bdrounding=opts.bdrounding,
+            thickness=opts.bdthickness,
+            colfrm=opts.bgcolor,
+            coltxt=opts.textcolor,
+            colhint=opts.hintcolor,
+            colrect=opts.bdcolor
+        )
+    end
     opts.textsize == "big" && CImGui.PopFont()
     CImGui.SetWindowFontScale(originscale)
     return trig
@@ -638,18 +718,22 @@ function edit(opts::QuantityWidgetOption, qt::SetQuantity, instrnm, addr, ::Val{
     opts.textsize == "big" && CImGui.PushFont(PLOTFONT)
     originscale = unsafe_load(CImGui.GetIO().FontGlobalScale)
     CImGui.SetWindowFontScale(opts.textscale)
-    trig = ColoredButtonRect(
-        mlstr(opts.starttext);
-        size=opts.itemsize,
-        colbt=opts.bgcolor,
-        colbth=opts.hoveredcolor,
-        colbta=opts.activecolor,
-        coltxt=opts.textcolor,
-        colrect=opts.bdcolor,
-        rounding=opts.rounding,
-        bdrounding=opts.bdrounding,
-        thickness=opts.bdthickness
-    )
+    trig = if opts.globaloptions
+        ColoredButtonRect(mlstr(opts.starttext); size=opts.itemsize)
+    else
+        ColoredButtonRect(
+            mlstr(opts.starttext);
+            size=opts.itemsize,
+            colbt=opts.bgcolor,
+            colbth=opts.hoveredcolor,
+            colbta=opts.activecolor,
+            coltxt=opts.textcolor,
+            colrect=opts.bdcolor,
+            rounding=opts.rounding,
+            bdrounding=opts.bdrounding,
+            thickness=opts.bdthickness
+        )
+    end
     trig && (apply!(qt, instrnm, addr); updatefront!(qt))
     opts.textsize == "big" && CImGui.PopFont()
     CImGui.SetWindowFontScale(originscale)
@@ -660,16 +744,21 @@ function edit(opts::QuantityWidgetOption, qt::SetQuantity, instrnm, addr, ::Val{
     opts.textsize == "big" && CImGui.PushFont(PLOTFONT)
     originscale = unsafe_load(CImGui.GetIO().FontGlobalScale)
     CImGui.SetWindowFontScale(opts.textscale)
-    @c ColoredInputTextWithHintRSZ("##set", mlstr(opts.starttext), &qt.set;
-        size=opts.itemsize,
-        rounding=opts.rounding,
-        bdrounding=opts.bdrounding,
-        thickness=opts.bdthickness,
-        colfrm=opts.bgcolor,
-        coltxt=opts.textcolor,
-        colhint=opts.hintcolor,
-        colrect=opts.bdcolor
-    )
+    if opts.globaloptions
+        @c ColoredInputTextWithHintRSZ("##set", mlstr(opts.starttext), &qt.set; size=opts.itemsize)
+    else
+        @c ColoredInputTextWithHintRSZ(
+            "##set", mlstr(opts.starttext), &qt.set;
+            size=opts.itemsize,
+            rounding=opts.rounding,
+            bdrounding=opts.bdrounding,
+            thickness=opts.bdthickness,
+            colfrm=opts.bgcolor,
+            coltxt=opts.textcolor,
+            colhint=opts.hintcolor,
+            colrect=opts.bdcolor
+        )
+    end
     trig = CImGui.IsItemDeactivatedAfterChange()
     trig && (apply!(qt, instrnm, addr); updatefront!(qt))
     opts.textsize == "big" && CImGui.PopFont()
@@ -693,20 +782,24 @@ function edit(opts::QuantityWidgetOption, qt::SetQuantity, instrnm, addr, ::Val{
     opts.textsize == "big" && CImGui.PushFont(PLOTFONT)
     originscale = unsafe_load(CImGui.GetIO().FontGlobalScale)
     CImGui.SetWindowFontScale(opts.textscale)
-    trig = @c ColoredCombo(
-        stcstr("##", qt.alias), &presentv, qt.optkeys, opts.comboflags;
-        size=opts.itemsize,
-        rounding=opts.rounding,
-        bdrounding=opts.bdrounding,
-        thickness=opts.bdthickness,
-        colbt=opts.combobtcolor,
-        colfrm=opts.bgcolor,
-        colfrmh=opts.hoveredcolor,
-        colfrma=opts.activecolor,
-        colpopup=opts.popupcolor,
-        coltxt=opts.textcolor,
-        colrect=opts.bdcolor
-    )
+    trig = if opts.globaloptions
+        @c ColoredCombo(stcstr("##", qt.alias), &presentv, qt.optkeys, opts.comboflags; size=opts.itemsize)
+    else
+        @c ColoredCombo(
+            stcstr("##", qt.alias), &presentv, qt.optkeys, opts.comboflags;
+            size=opts.itemsize,
+            rounding=opts.rounding,
+            bdrounding=opts.bdrounding,
+            thickness=opts.bdthickness,
+            colbt=opts.combobtcolor,
+            colfrm=opts.bgcolor,
+            colfrmh=opts.hoveredcolor,
+            colfrma=opts.activecolor,
+            colpopup=opts.popupcolor,
+            coltxt=opts.textcolor,
+            colrect=opts.bdcolor
+        )
+    end
     if trig
         qt.optedidx = findfirst(==(presentv), qt.optkeys)
         qt.set = qt.optvalues[qt.optedidx]
@@ -722,17 +815,21 @@ function edit(opts::QuantityWidgetOption, qt::SetQuantity, instrnm, addr, ::Val{
     opts.textsize == "big" && CImGui.PushFont(PLOTFONT)
     originscale = unsafe_load(CImGui.GetIO().FontGlobalScale)
     CImGui.SetWindowFontScale(opts.textscale)
-    trig = @c ColoredRadioButton(
-        qt.optkeys[opts.bindingidx], &qt.optedidx, opts.bindingidx;
-        bdrounding=opts.bdrounding,
-        thickness=opts.bdthickness,
-        colckm=opts.checkedcolor,
-        colfrm=opts.bgcolor,
-        colfrmh=opts.hoveredcolor,
-        colfrma=opts.activecolor,
-        coltxt=opts.textcolor,
-        colrect=opts.bdcolor
-    )
+    trig = if opts.globaloptions
+        @c ColoredRadioButton(qt.optkeys[opts.bindingidx], &qt.optedidx, opts.bindingidx)
+    else
+        @c ColoredRadioButton(
+            qt.optkeys[opts.bindingidx], &qt.optedidx, opts.bindingidx;
+            bdrounding=opts.bdrounding,
+            thickness=opts.bdthickness,
+            colckm=opts.checkedcolor,
+            colfrm=opts.bgcolor,
+            colfrmh=opts.hoveredcolor,
+            colfrma=opts.activecolor,
+            coltxt=opts.textcolor,
+            colrect=opts.bdcolor
+        )
+    end
     if trig
         qt.optedidx = opts.bindingidx
         qt.set = qt.optvalues[qt.optedidx]
@@ -748,23 +845,32 @@ function edit(opts::QuantityWidgetOption, qt::SetQuantity, instrnm, addr, ::Val{
     opts.textsize == "big" && CImGui.PushFont(PLOTFONT)
     originscale = unsafe_load(CImGui.GetIO().FontGlobalScale)
     CImGui.SetWindowFontScale(opts.textscale)
-    trig = @c ColoredSlider(
-        CImGui.SliderInt,
-        stcstr(opts.textinside ? "##" : "", qt.optkeys[qt.optedidx]),
-        &qt.optedidx, 1, length(qt.optvalues), opts.textinside ? qt.optkeys[qt.optedidx] : "";
-        size=opts.itemsize,
-        rounding=opts.rounding,
-        grabrounding=opts.grabrounding,
-        bdrounding=opts.bdrounding,
-        thickness=opts.bdthickness,
-        colgrab=opts.grabcolor,
-        colgraba=opts.grabactivecolor,
-        colfrm=opts.bgcolor,
-        colfrmh=opts.hoveredcolor,
-        colfrma=opts.activecolor,
-        coltxt=opts.textcolor,
-        colrect=opts.bdcolor
-    )
+    trig = if opts.globaloptions
+        @c ColoredSlider(
+            CImGui.SliderInt,
+            stcstr(opts.textinside ? "##" : "", qt.optkeys[qt.optedidx]),
+            &qt.optedidx, 1, length(qt.optvalues), opts.textinside ? qt.optkeys[qt.optedidx] : "";
+            size=opts.itemsize
+        )
+    else
+        @c ColoredSlider(
+            CImGui.SliderInt,
+            stcstr(opts.textinside ? "##" : "", qt.optkeys[qt.optedidx]),
+            &qt.optedidx, 1, length(qt.optvalues), opts.textinside ? qt.optkeys[qt.optedidx] : "";
+            size=opts.itemsize,
+            rounding=opts.rounding,
+            grabrounding=opts.grabrounding,
+            bdrounding=opts.bdrounding,
+            thickness=opts.bdthickness,
+            colgrab=opts.grabcolor,
+            colgraba=opts.grabactivecolor,
+            colfrm=opts.bgcolor,
+            colfrmh=opts.hoveredcolor,
+            colfrma=opts.activecolor,
+            coltxt=opts.textcolor,
+            colrect=opts.bdcolor
+        )
+    end
     if trig
         qt.set = qt.optvalues[qt.optedidx]
         apply!(qt, instrnm, addr, true)
@@ -779,23 +885,32 @@ function edit(opts::QuantityWidgetOption, qt::SetQuantity, instrnm, addr, ::Val{
     opts.textsize == "big" && CImGui.PushFont(PLOTFONT)
     originscale = unsafe_load(CImGui.GetIO().FontGlobalScale)
     CImGui.SetWindowFontScale(opts.textscale)
-    trig = @c ColoredVSlider(
-        CImGui.VSliderInt,
-        stcstr(opts.textinside ? "##" : "", qt.optkeys[qt.optedidx]),
-        &qt.optedidx, 1, length(qt.optvalues), opts.textinside ? qt.optkeys[qt.optedidx] : "";
-        size=opts.itemsize,
-        rounding=opts.rounding,
-        grabrounding=opts.grabrounding,
-        bdrounding=opts.bdrounding,
-        thickness=opts.bdthickness,
-        colgrab=opts.grabcolor,
-        colgraba=opts.grabactivecolor,
-        colfrm=opts.bgcolor,
-        colfrmh=opts.hoveredcolor,
-        colfrma=opts.activecolor,
-        coltxt=opts.textcolor,
-        colrect=opts.bdcolor
-    )
+    trig = if opts.globaloptions
+        @c ColoredVSlider(
+            CImGui.VSliderInt,
+            stcstr(opts.textinside ? "##" : "", qt.optkeys[qt.optedidx]),
+            &qt.optedidx, 1, length(qt.optvalues), opts.textinside ? qt.optkeys[qt.optedidx] : "";
+            size=opts.itemsize
+        )
+    else
+        @c ColoredVSlider(
+            CImGui.VSliderInt,
+            stcstr(opts.textinside ? "##" : "", qt.optkeys[qt.optedidx]),
+            &qt.optedidx, 1, length(qt.optvalues), opts.textinside ? qt.optkeys[qt.optedidx] : "";
+            size=opts.itemsize,
+            rounding=opts.rounding,
+            grabrounding=opts.grabrounding,
+            bdrounding=opts.bdrounding,
+            thickness=opts.bdthickness,
+            colgrab=opts.grabcolor,
+            colgraba=opts.grabactivecolor,
+            colfrm=opts.bgcolor,
+            colfrmh=opts.hoveredcolor,
+            colfrma=opts.activecolor,
+            coltxt=opts.textcolor,
+            colrect=opts.bdcolor
+        )
+    end
     if trig
         qt.set = qt.optvalues[qt.optedidx]
         apply!(qt, instrnm, addr, true)
@@ -811,19 +926,23 @@ function edit(opts::QuantityWidgetOption, qt::SetQuantity, instrnm, addr, ::Val{
     opts.textsize == "big" && CImGui.PushFont(PLOTFONT)
     originscale = unsafe_load(CImGui.GetIO().FontGlobalScale)
     CImGui.SetWindowFontScale(opts.textscale)
-    trig = @c ToggleButtonRect(
-        qt.optkeys[opts.bindingonoff[ison ? 1 : 2]], &ison;
-        size=opts.itemsize,
-        colon=opts.oncolor,
-        coloff=opts.offcolor,
-        colbth=opts.hoveredcolor,
-        colbta=opts.activecolor,
-        coltxt=opts.textcolor,
-        colrect=opts.bdcolor,
-        rounding=opts.rounding,
-        bdrounding=opts.bdrounding,
-        thickness=opts.bdthickness
-    )
+    trig = if opts.globaloptions
+        @c ToggleButtonRect(qt.optkeys[opts.bindingonoff[ison ? 1 : 2]], &ison; size=opts.itemsize)
+    else
+        @c ToggleButtonRect(
+            qt.optkeys[opts.bindingonoff[ison ? 1 : 2]], &ison;
+            size=opts.itemsize,
+            colon=opts.oncolor,
+            coloff=opts.offcolor,
+            colbth=opts.hoveredcolor,
+            colbta=opts.activecolor,
+            coltxt=opts.textcolor,
+            colrect=opts.bdcolor,
+            rounding=opts.rounding,
+            bdrounding=opts.bdrounding,
+            thickness=opts.bdthickness
+        )
+    end
     if trig
         qt.optedidx = opts.bindingonoff[ison ? 1 : 2]
         qt.set = qt.optvalues[qt.optedidx]
@@ -856,7 +975,10 @@ let
     global function edit(insw::InstrWidget, insbuf::InstrBuffer, addr, p_open, id; usingit=false)
         scale = unsafe_load(CImGui.GetIO().FontGlobalScale)
         CImGui.SetNextWindowSize(insw.windowsize * scale)
-        CImGui.PushStyleColor(CImGui.ImGuiCol_WindowBg, insw.windowbgcolor)
+        CImGui.PushStyleColor(
+            CImGui.ImGuiCol_WindowBg,
+            insw.globaloptions ? CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_WindowBg) : insw.windowbgcolor
+        )
         if CImGui.Begin(
             stcstr(
                 INSCONF[insw.instrnm].conf.icon, " ", insw.instrnm, " ", addr, " ", insw.name,
@@ -866,12 +988,16 @@ let
             insw.windowflags | (addr == "" ? CImGui.ImGuiWindowFlags_NoDocking : 0)
         )
             isanyitemdragging = false
-            SetWindowBgImage(insw.wallpaperpath; rate=insw.rate, use=insw.usewallpaper, tint_col=insw.bgtintcolor)
+            if insw.globaloptions
+                SetWindowBgImage()
+            else
+                SetWindowBgImage(insw.wallpaperpath; rate=insw.rate, use=insw.usewallpaper, tint_col=insw.bgtintcolor)
+            end
             CImGui.BeginChild("drawing area")
             for (i, qtw) in enumerate(insw.qtws)
                 CImGui.PushID(i)
                 !usingit && draggable && igBeginDisabled(true)
-                if edit(qtw, insbuf, insw.instrnm, addr, insw.options)
+                if edit(qtw, insbuf, insw.instrnm, addr)
                     qtw.qtype in qtypes && qtw.options.uitype ∉ continuousuitypes && Threads.@spawn refresh1(insw, addr; blacklist=[qtw.name])
                     qtw.name == "_QuantitySelector_" && (trigselector!(qtw, insw); Threads.@spawn refresh1(insw, addr))
                 end
@@ -1496,7 +1622,6 @@ function addwidgetmenu(insw::InstrWidget, i=0; mode=:addlast)
         end
         if CImGui.MenuItem(mlstr("Shape"))
             newqtw = QuantityWidget(name="_Shape_", alias="")
-            newqtw.options.globaloptions = false
             newqtw.options.uitype = "rect"
             newqtw.options.bdcolor = [0, 0, 0, 1]
         end
@@ -1572,7 +1697,7 @@ function convertmenu(insw::InstrWidget, i)
                             name=qtnm,
                             alias=qt.alias,
                             qtype="sweep",
-                            numoptvs = length(qt.optvalues),
+                            numoptvs=length(qt.optvalues),
                             numread=qt.numread,
                             options=insw.qtws[i].options
                         )
@@ -1610,7 +1735,7 @@ function convertmenu(insw::InstrWidget, i)
                             name=qtnm,
                             alias=qt.alias,
                             qtype="read",
-                            numoptvs = length(qt.optvalues),
+                            numoptvs=length(qt.optvalues),
                             numread=qt.numread,
                             options=insw.qtws[i].options
                         )
@@ -1668,7 +1793,7 @@ let
                     otheruitypes
                 end
             )
-            qtw.name == "_QuantitySelector_" || @c CImGui.Checkbox(mlstr("Global Options"), &qtw.options.globaloptions)
+            @c CImGui.Checkbox(mlstr("Global Options"), &qtw.options.globaloptions)
             @c CImGui.Checkbox(mlstr("Allow Overlap"), &qtw.options.allowoverlap)
             if qtw.qtype in qtypes
                 if qtw.options.autorefresh
@@ -1997,7 +2122,6 @@ function widgetcolormenu(qtw::QuantityWidget)
 end
 
 function globalwidgetoptionsmenu(insw::InstrWidget)
-    # if CImGui.CollapsingHeader(mlstr("Global Options"))
     SeparatorTextColored(MORESTYLE.Colors.HighlightText, mlstr("Global Options"))
     CImGui.BeginChild("global widget options")
     @c InputTextRSZ(mlstr("Widget Name"), &insw.name)
@@ -2005,6 +2129,11 @@ function globalwidgetoptionsmenu(insw::InstrWidget)
     @c CImGui.CheckboxFlags(mlstr("No Resizing"), &insw.windowflags, CImGui.ImGuiWindowFlags_NoResize)
     @c CImGui.CheckboxFlags(mlstr("No Collapsing"), &insw.windowflags, CImGui.ImGuiWindowFlags_NoCollapse)
     @c CImGui.CheckboxFlags(mlstr("No Docking"), &insw.windowflags, CImGui.ImGuiWindowFlags_NoDocking)
+    @c CImGui.Checkbox(mlstr("Global Options"), &insw.globaloptions)
+    CImGui.DragFloat2(
+        mlstr("Window Size"),
+        insw.windowsize, 1, 6, 6000, "%.1f", CImGui.ImGuiSliderFlags_AlwaysClamp
+    )
     @c CImGui.Checkbox(mlstr("Use Wallpaper"), &insw.usewallpaper)
     if insw.usewallpaper
         bgpath = insw.wallpaperpath
@@ -2029,112 +2158,9 @@ function globalwidgetoptionsmenu(insw::InstrWidget)
             CImGui.ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_AlphaPreviewHalf
         )
     end
-    CImGui.DragFloat2(
-        mlstr("Window Size"),
-        insw.windowsize, 1, 6, 6000, "%.1f", CImGui.ImGuiSliderFlags_AlwaysClamp
-    )
-    @c CImGui.DragFloat(
-        mlstr("Frame Rounding"),
-        &insw.options.rounding,
-        1, 0, 60, "%.3f",
-        CImGui.ImGuiSliderFlags_AlwaysClamp
-    )
-    @c CImGui.DragFloat(
-        mlstr("Grab Rounding"),
-        &insw.options.grabrounding,
-        1, 0, 60, "%.3f",
-        CImGui.ImGuiSliderFlags_AlwaysClamp
-    )
-    @c CImGui.DragFloat(
-        mlstr("Border Rounding"),
-        &insw.options.bdrounding,
-        1, 0, 60, "%.3f",
-        CImGui.ImGuiSliderFlags_AlwaysClamp
-    )
-    @c CImGui.DragFloat(
-        mlstr("Border Thickness"),
-        &insw.options.bdthickness,
-        1, 0, 60, "%.3f",
-        CImGui.ImGuiSliderFlags_AlwaysClamp
-    )
     CImGui.ColorEdit4(
         mlstr("Window"),
         insw.windowbgcolor,
-        CImGui.ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_AlphaPreviewHalf
-    )
-    CImGui.ColorEdit4(
-        mlstr("Text"),
-        insw.options.textcolor,
-        CImGui.ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_AlphaPreviewHalf
-    )
-    CImGui.ColorEdit4(
-        mlstr("Background"),
-        insw.options.bgcolor,
-        CImGui.ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_AlphaPreviewHalf
-    )
-    CImGui.ColorEdit4(
-        mlstr("Border"),
-        insw.options.bdcolor,
-        CImGui.ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_AlphaPreviewHalf
-    )
-    CImGui.ColorEdit4(
-        mlstr("Hovered"),
-        insw.options.hoveredcolor,
-        CImGui.ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_AlphaPreviewHalf
-    )
-    CImGui.ColorEdit4(
-        mlstr("Activated"),
-        insw.options.activecolor,
-        CImGui.ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_AlphaPreviewHalf
-    )
-    CImGui.ColorEdit4(
-        mlstr("Hint Text"),
-        insw.options.hintcolor,
-        CImGui.ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_AlphaPreviewHalf
-    )
-    CImGui.ColorEdit4(
-        mlstr("Combo Button"),
-        insw.options.combobtcolor,
-        CImGui.ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_AlphaPreviewHalf
-    )
-    CImGui.ColorEdit4(
-        mlstr("Popup Background"),
-        insw.options.popupcolor,
-        CImGui.ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_AlphaPreviewHalf
-    )
-    CImGui.ColorEdit4(
-        mlstr("Image Background"),
-        insw.options.imgbgcolor,
-        CImGui.ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_AlphaPreviewHalf
-    )
-    CImGui.ColorEdit4(
-        mlstr("Image Tint"),
-        insw.options.imgtintcolor,
-        CImGui.ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_AlphaPreviewHalf
-    )
-    CImGui.ColorEdit4(
-        mlstr("Toggle-on"),
-        insw.options.oncolor,
-        CImGui.ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_AlphaPreviewHalf
-    )
-    CImGui.ColorEdit4(
-        mlstr("Toggle-off"),
-        insw.options.offcolor,
-        CImGui.ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_AlphaPreviewHalf
-    )
-    CImGui.ColorEdit4(
-        mlstr("SliderGrab"),
-        insw.options.grabcolor,
-        CImGui.ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_AlphaPreviewHalf
-    )
-    CImGui.ColorEdit4(
-        mlstr("Active SliderGrab"),
-        insw.options.grabactivecolor,
-        CImGui.ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_AlphaPreviewHalf
-    )
-    CImGui.ColorEdit4(
-        mlstr("Checked"),
-        insw.options.checkedcolor,
         CImGui.ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_AlphaPreviewHalf
     )
     CImGui.EndChild()
@@ -2146,8 +2172,6 @@ function initialize!(insw::InstrWidget, addr)
     qtlist = []
     autoreflist = Dict()
     for qtw in insw.qtws
-        qtw.options.globaloptions && copycolors!(qtw.options, insw.options)
-        qtw.options.globaloptions = false
         if qtw.qtype in ["sweep", "set", "read"]
             push!(qtlist, qtw.name)
             qtw.options.autorefresh && (autoreflist[qtw.name] = qtw.options.refreshrate)
