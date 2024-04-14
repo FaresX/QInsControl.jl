@@ -102,30 +102,28 @@ find_resources(cpu::Processor) = Instruments.find_resources(cpu.resourcemanager[
 
 log the Controller in the Processor which can be done before and after the cpu started.
 """
-function login!(cpu::Processor, ct::Controller; quiet=true)
+function login!(cpu::Processor, ct::Controller; quiet=true, attr=nothing)
     ct in cpu.controllers || push!(cpu.controllers, ct)
     if cpu.running[]
         if !haskey(cpu.instrs, ct.addr)
-            push!(cpu.instrs, ct.addr => instrument(ct.instrnm, ct.addr))
-            push!(cpu.exechannels, ct.addr => [])
-            push!(cpu.taskhandlers, ct.addr => true)
-            push!(
-                cpu.tasks, ct.addr => errormonitor(
-                    @async while cpu.taskhandlers[ct.addr]
-                        if isempty(cpu.exechannels[ct.addr])
-                            cpu.fast[] ? yield() : sleep(0.001)
-                        else
-                            runcmd(cpu, popfirst!(cpu.exechannels[ct.addr])...)
-                        end
+            cpu.instrs[ct.addr] = instrument(ct.instrnm, ct.addr; attr=attr)
+            cpu.exechannels[ct.addr] = []
+            cpu.taskhandlers[ct.addr] = true
+            cpu.tasks[ct.addr] = errormonitor(
+                @async while cpu.taskhandlers[ct.addr]
+                    if isempty(cpu.exechannels[ct.addr])
+                        cpu.fast[] ? yield() : sleep(0.001)
+                    else
+                        runcmd(cpu, popfirst!(cpu.exechannels[ct.addr])...)
                     end
-                )
+                end
             )
             connect!(cpu.resourcemanager[], cpu.instrs[ct.addr])
         end
     else
-        haskey(cpu.instrs, ct.addr) || push!(cpu.instrs, ct.addr => instrument(ct.instrnm, ct.addr))
+        haskey(cpu.instrs, ct.addr) || (cpu.instrs[ct.addr] = instrument(ct.instrnm, ct.addr; attr=attr))
     end
-    quiet || @info "[$(now())]\ncontroller $(findfirst(==(ct), cpu.controllers)) has logged in"
+    quiet || @info "controller $(findfirst(==(ct), cpu.controllers)) has logged in"
     return nothing
 end
 
@@ -147,7 +145,7 @@ function logout!(cpu::Processor, ct::Controller; quiet=true)
                 try
                     haskey(cpu.tasks, popinstr.addr) && wait(cpu.tasks[popinstr.addr])
                 catch e
-                    @error "[$(now())]\nan error occurs during logging out" exception = e
+                    @error "an error occurs during logging out" exception = e
                 end
                 delete!(cpu.taskhandlers, popinstr.addr)
                 delete!(cpu.tasks, popinstr.addr)
@@ -157,7 +155,7 @@ function logout!(cpu::Processor, ct::Controller; quiet=true)
         end
         idx = findfirst(==(ct), cpu.controllers)
         deleteat!(cpu.controllers, idx)
-        quiet || @info "[$(now())]\ncontroller $idx has logged out"
+        quiet || @info "controller $idx has logged out"
     end
     return nothing
 end
@@ -168,8 +166,8 @@ function logout!(cpu::Processor, addr::String; quiet=true)
 end
 
 function (ct::Controller)(f::Function, cpu::Processor, val::String, ::Val{:write})
-    @assert ct in cpu.controllers "[$(now())]\nController is not logged in"
-    @assert cpu.running[] "[$(now())]\nProcessor is not running"
+    @assert ct in cpu.controllers "Controller is not logged in"
+    @assert cpu.running[] "Processor is not running"
     availi = Ref{Int}(0)
     isok = timedwhile(ct.timeout) do
         for (i, avail) in enumerate(ct.available)
@@ -177,17 +175,17 @@ function (ct::Controller)(f::Function, cpu::Processor, val::String, ::Val{:write
         end
         return false
     end
-    isok || error("[$(now())]\ntimeout without available buffer")
+    isok || error("timeout without available buffer")
     i = availi[]
     ct.ready[i] = false
     push!(cpu.cmdchannel, (ct, i, f, val, Val(:write)))
     isok = timedwhile(() -> ct.ready[i], ct.timeout)
     ct.available[i] = true
-    return isok ? ct.databuf[i] : error("[$(now())]\ntimeout")
+    return isok ? ct.databuf[i] : error("timeout")
 end
 function (ct::Controller)(f::Function, cpu::Processor, ::Val{:read})
-    @assert ct in cpu.controllers "[$(now())]\nController is not logged in"
-    @assert cpu.running[] "[$(now())]\nProcessor is not running"
+    @assert ct in cpu.controllers "Controller is not logged in"
+    @assert cpu.running[] "Processor is not running"
     availi = Ref{Int}(0)
     isok = timedwhile(ct.timeout) do
         for (i, avail) in enumerate(ct.available)
@@ -195,17 +193,17 @@ function (ct::Controller)(f::Function, cpu::Processor, ::Val{:read})
         end
         return false
     end
-    isok || error("[$(now())]\ntimeout without available buffer")
+    isok || error("timeout without available buffer")
     i = availi[]
     ct.ready[i] = false
     push!(cpu.cmdchannel, (ct, i, f, "", Val(:read)))
     isok = timedwhile(() -> ct.ready[i], ct.timeout)
     ct.available[i] = true
-    return isok ? ct.databuf[i] : error("[$(now())]\ntimeout")
+    return isok ? ct.databuf[i] : error("timeout")
 end
 function (ct::Controller)(f::Function, cpu::Processor, val::String, ::Val{:query})
-    @assert ct in cpu.controllers "[$(now())]\nController is not logged in"
-    @assert cpu.running[] "[$(now())]\nProcessor is not running"
+    @assert ct in cpu.controllers "Controller is not logged in"
+    @assert cpu.running[] "Processor is not running"
     availi = Ref{Int}(0)
     isok = timedwhile(ct.timeout) do
         for (i, avail) in enumerate(ct.available)
@@ -213,13 +211,13 @@ function (ct::Controller)(f::Function, cpu::Processor, val::String, ::Val{:query
         end
         return false
     end
-    isok || error("[$(now())]\ntimeout without available buffer")
+    isok || error("timeout without available buffer")
     i = availi[]
     ct.ready[i] = false
     push!(cpu.cmdchannel, (ct, i, f, val, Val(:query)))
     isok = timedwhile(() -> ct.ready[i], ct.timeout)
     ct.available[i] = true
-    return isok ? ct.databuf[i] : error("[$(now())]\ntimeout")
+    return isok ? ct.databuf[i] : error("timeout")
 end
 
 function runcmd(cpu::Processor, ct::Controller, i::Int, f::Function, val::String, ::Val{:write})
@@ -248,17 +246,17 @@ function init!(cpu::Processor)
         cpu.resourcemanager[] = try
             ResourceManager()
         catch e
-            @error "[$(now())]\ncreating resourcemanager failed!!!" exception = e
+            @error "creating resourcemanager failed!!!" exception = e
             1
         end
         for (addr, instr) in cpu.instrs
             try
                 connect!(cpu.resourcemanager[], instr)
             catch e
-                @error "[$(now())]\nconnecting to $addr failed" exception = e
+                @error "connecting to $addr failed" exception = e
             end
-            push!(cpu.exechannels, addr => [])
-            push!(cpu.taskhandlers, addr => false)
+            cpu.exechannels[addr] = []
+            cpu.taskhandlers[addr] = false
         end
         cpu.running[] = false
     end
@@ -283,14 +281,14 @@ function run!(cpu::Processor)
             t = @async while cpu.taskhandlers[addr]
                 isempty(exec) ? (cpu.fast[] ? yield() : sleep(0.001)) : runcmd(cpu, popfirst!(exec)...)
             end
-            @info "[$(now())]\ntask(address: $addr) has been created"
-            push!(cpu.tasks, addr => errormonitor(t))
+            @info "task(address: $addr) has been created"
+            cpu.tasks[addr] = errormonitor(t)
         end
         errormonitor(
             @async while cpu.running[]
                 try
                     if istaskfailed(cpu.processtask[])
-                        @warn "[$(now())]\nprocessing task failed, recreating..."
+                        @warn "processing task failed, recreating..."
                         cpu.processtask[] = errormonitor(
                             @async while cpu.running[]
                                 if isempty(cpu.cmdchannel)
@@ -301,28 +299,25 @@ function run!(cpu::Processor)
                                 end
                             end
                         )
-                        @info "[$(now())]\nprocessing task has been recreated"
+                        @info "processing task has been recreated"
                     end
                     for (addr, t) in cpu.tasks
                         if istaskfailed(t) && haskey(cpu.exechannels, addr) && haskey(cpu.taskhandlers, addr)
-                            @warn "[$(now())]\ntask(address: $addr) failed, recreating..."
-                            push!(
-                                cpu.tasks,
-                                addr => errormonitor(
-                                    @async while cpu.taskhandlers[addr]
-                                        if isempty(cpu.exechannels[addr])
-                                            cpu.fast[] ? yield() : sleep(0.001)
-                                        else
-                                            runcmd(cpu, popfirst!(cpu.exechannels[addr])...)
-                                        end
+                            @warn "task(address: $addr) failed, recreating..."
+                            cpu.tasks[addr] = errormonitor(
+                                @async while cpu.taskhandlers[addr]
+                                    if isempty(cpu.exechannels[addr])
+                                        cpu.fast[] ? yield() : sleep(0.001)
+                                    else
+                                        runcmd(cpu, popfirst!(cpu.exechannels[addr])...)
                                     end
-                                )
+                                end
                             )
-                            @info "[$(now())]\ntask(address: $addr) has been recreated"
+                            @info "task(address: $addr) has been recreated"
                         end
                     end
                 catch e
-                    @error "[$(now())]\nan error occurs during task monitoring"
+                    @error "an error occurs during task monitoring"
                 end
                 sleep(0.01)
             end
@@ -345,7 +340,7 @@ function stop!(cpu::Processor)
             try
                 wait(t)
             catch e
-                @error "[$(now())]\nan error occurs during stopping Processor:\n$cpu" exception = e
+                @error "an error occurs during stopping Processor:\n$cpu" exception = e
             end
         end
         cpu.running[] = false
@@ -353,7 +348,7 @@ function stop!(cpu::Processor)
         try
             wait(cpu.processtask[])
         catch e
-            @error "[$(now())]\nan error occurs during stopping Processor:\n$cpu" exception = e
+            @error "an error occurs during stopping Processor:\n$cpu" exception = e
         end
         for instr in values(cpu.instrs)
             disconnect!(instr)
