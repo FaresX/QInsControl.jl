@@ -9,13 +9,14 @@ function manualadd(addr)
     addr == "VirtualAddress" && return true
     idn = "IDN"
     st = true
+    loadattr(addr)
     if occursin("VIRTUAL", addr)
         idn = split(addr, "::")[end]
     else
         idnr = wait_remotecall_fetch(workers()[1], addr) do addr
             ct = Controller("", addr; buflen=1 , timeout=CONF.DAQ.cttimeout)
             try
-                login!(CPU, ct)
+                login!(CPU, ct; attr=getattr(addr))
                 retstr = ct(query, CPU, "*IDN?", Val(:query))
                 logout!(CPU, ct)
                 return retstr
@@ -42,7 +43,7 @@ function manualadd(addr)
             end
         end
     end
-    addr == "" || push!(INSTRBUFFERVIEWERS["Others"], addr => InstrBufferViewer("Others", addr))
+    addr == "" || (INSTRBUFFERVIEWERS["Others"][addr] = InstrBufferViewer("Others", addr))
     return st
 end
 
