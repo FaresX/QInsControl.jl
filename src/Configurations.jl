@@ -54,7 +54,7 @@ end
     dir::String = ""
     size::Cint = 18
     plotfontsize::Cint = 30
-    first::String = "ZaoZiGongFangShangHeiG0v1ChangGuiTi-1.otf"
+    first::String = "msyh.ttc"
     second::String = "arial.ttf"
     plotfont::String = "arial.ttf"
 end
