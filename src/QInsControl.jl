@@ -36,7 +36,7 @@ using UUIDs
 include("QInsControlCore/QInsControlCore.jl")
 using .QInsControlCore
 using .QInsControlCore.LibSerialPort
-import .QInsControlCore: VISAInstrAttr, SerialInstrAttr, TCPIPInstrAttr, VirtualInstrAttr
+import .QInsControlCore: VISAInstrAttr, SerialInstrAttr, TCPSocketInstrAttr, VirtualInstrAttr
 
 @enum SyncStatesIndex begin
     AutoDetecting = 1 #是否正在自动查询仪器
@@ -104,12 +104,12 @@ function julia_main()::Cint
         global SYNCSTATES = SharedVector{Bool}(8)
         global DATABUFRC = RemoteChannel(() -> databuf_c)
         global PROGRESSRC = RemoteChannel(() -> progress_c)
-        # global LOGIO = IOBuffer()
-        # global_logger(SimpleLogger(LOGIO))
-        # errormonitor(@async while true
-        #     sleep(1)
-        #     update_log()
-        # end)
+        global LOGIO = IOBuffer()
+        global_logger(SimpleLogger(LOGIO))
+        errormonitor(@async while true
+            sleep(1)
+            update_log()
+        end)
         jlverinfobuf = IOBuffer()
         versioninfo(jlverinfobuf)
         global JLVERINFO = wrapmultiline(String(take!(jlverinfobuf)), 48)
@@ -125,12 +125,12 @@ function julia_main()::Cint
             global PROGRESSRC = RemoteChannel(() -> progress_c)
             remotecall_wait(workers()[1], SYNCSTATES) do syncstates
                 loadconf()
-                # global LOGIO = IOBuffer()
-                # global_logger(SimpleLogger(LOGIO))
-                # errormonitor(@async while true
-                #     sleep(1)
-                #     update_log(syncstates)
-                # end)
+                global LOGIO = IOBuffer()
+                global_logger(SimpleLogger(LOGIO))
+                errormonitor(@async while true
+                    sleep(1)
+                    update_log(syncstates)
+                end)
             end
         end
         remotecall_wait(workers()[1]) do

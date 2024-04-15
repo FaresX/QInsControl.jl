@@ -385,6 +385,7 @@ function testcmd(ins, addr, inputcmd::Ref{String}, readstr::Ref{String})
             if CImGui.BeginTabItem(mlstr("Settings"))
                 comsettings(addr)
                 CImGui.EndTabItem()
+                igTabItemButton(mlstr("Save"), 0) && saveattr(addr)
             end
             CImGui.EndTabBar()
         end
@@ -394,7 +395,7 @@ end
 
 let
     spattrs::Dict{String,SerialInstrAttr} = Dict()
-    tcpipattrs::Dict{String,TCPIPInstrAttr} = Dict()
+    tcpipattrs::Dict{String,TCPSocketInstrAttr} = Dict()
     virtualattrs::Dict{String,VirtualInstrAttr} = Dict()
     visaattrs::Dict{String,VISAInstrAttr} = Dict()
     global function comsettings(addr)
@@ -402,8 +403,8 @@ let
             if occursin("SERIAL", addr)
                 haskey(spattrs, addr) || (spattrs[addr] = SerialInstrAttr())
                 serialsettings(spattrs[addr])
-            elseif occursin("TCPIP", addr)
-                haskey(tcpipattrs, addr) || (tcpipattrs[addr] = TCPIPInstrAttr())
+            elseif occursin("TCPSOCKET", addr)
+                haskey(tcpipattrs, addr) || (tcpipattrs[addr] = TCPSocketInstrAttr())
                 tcpipsettings(tcpipattrs[addr])
             elseif occursin("VIRTUAL", split(addr, "::")[1])
                 haskey(virtualattrs, addr) || (virtualattrs[addr] = VirtualInstrAttr())
@@ -419,7 +420,7 @@ let
         if myid() == 1
             return if occursin("SERIAL", addr)
                 haskey(spattrs, addr) ? deepcopy(spattrs[addr]) : nothing
-            elseif occursin("TCPIP", addr)
+            elseif occursin("TCPSOCKET", addr)
                 haskey(tcpipattrs, addr) ? deepcopy(tcpipattrs[addr]) : nothing
             elseif occursin("VIRTUAL", split(addr, "::")[1])
                 haskey(virtualattrs, addr) ? deepcopy(virtualattrs[addr]) : nothing
@@ -435,31 +436,52 @@ let
         if haskey(CONF.Communication.attrlist, addr)
             attr = attrfromdict(CONF.Communication.attrlist[addr])
             attr isa SerialInstrAttr && (spattrs[addr] = attr)
-            attr isa TCPIPInstrAttr && (tcpipattrs[addr] = attr)
+            attr isa TCPSocketInstrAttr && (tcpipattrs[addr] = attr)
             attr isa VirtualInstrAttr && (virtualattrs[addr] = attr)
             attr isa VISAInstrAttr && (visaattrs[addr] = attr)
         end
     end
 end
+
 function saveattr(addr)
     CONF.Communication.attrlist[addr] = attrtodict(getattr(addr))
     saveconf()
 end
 
 function attrtodict(attr)
-    attrdict = Dict("attrtype" => typeof(attr))
+    attrdict = Dict{String,Any}("attrtype" => split(string(typeof(attr)), '.')[end])
     for fdnm in fieldnames(typeof(attr))
-        attrdict[string(fdnm)] = getproperty(attr, fdnm)
+        val = getproperty(attr, fdnm)
+        if val isa Number
+            attrdict[string(fdnm, "::Number")] = val
+        elseif val isa AbstractString
+            attrdict[string(fdnm, "::String")] = string(val)
+        elseif val isa AbstractChar
+            attrdict[string(fdnm, "::Char")] = string(val)
+        else
+            attrdict[string(fdnm, "::Any")] = string(val)
+        end
     end
+    return attrdict
 end
 
 function attrfromdict(attrdict)
     type = Symbol(attrdict["attrtype"]) |> eval
     attr = type()
-    for fdnm in fieldnames(type)
-        haskey(attrdict, string(fdnm)) && setproperty!(attr, fdnm, attrdict[string(fdnm)])
+    for (key, val) in attrdict
+        key == "attrtype" && continue
+        fdnm, ftype = split(key, "::")
+        if hasfield(type, Symbol(fdnm))
+            if ftype in ["Number", "String"]
+                setproperty!(attr, Symbol(fdnm), val)
+            elseif ftype == "Char"
+                setproperty!(attr, Symbol(fdnm), val[1])
+            elseif ftype == "Any"
+                setproperty!(attr, Symbol(fdnm), eval(Meta.parse(val)))
+            end
+        end
     end
-    attr
+    return attr
 end
 
 function serialsettings(attr::SerialInstrAttr)
@@ -506,7 +528,7 @@ function serialsettings(attr::SerialInstrAttr)
     termchar = attr.termchar == '\r' ? "\\r" : "\\n"
     @c(ComboS(mlstr("Termination Character"), &termchar, ["\\r", "\\n"])) && (attr.termchar = termchar == "\\r" ? '\r' : '\n')
 end
-function tcpipsettings(attr::TCPIPInstrAttr)
+function tcpipsettings(attr::TCPSocketInstrAttr)
     timeoutq = Cfloat(attr.timeoutq)
     @c(CImGui.DragFloat(
         stcstr(mlstr("Query Timeout"), " (s)"), &timeoutq,

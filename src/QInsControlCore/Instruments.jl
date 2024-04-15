@@ -25,7 +25,7 @@ end
     termchar::Char = '\n'
 end
 
-@kwdef mutable struct TCPIPInstrAttr <: InstrAttr
+@kwdef mutable struct TCPSocketInstrAttr <: InstrAttr
     timeoutq::Real = 6
     querydelay::Real = 0
     termchar::Char = '\n'
@@ -50,14 +50,14 @@ struct SerialInstr <: Instrument
     attr::SerialInstrAttr
 end
 
-struct TCPIPInstr <: Instrument
+struct TCPSocketInstr <: Instrument
     name::String
     addr::String
     ip::IPv4
     port::Int
     sock::Ref{TCPSocket}
     connected::Ref{Bool}
-    attr::TCPIPInstrAttr
+    attr::TCPSocketInstrAttr
 end
 
 @kwdef struct VirtualInstr <: Instrument
@@ -82,7 +82,7 @@ function instrument(name, addr; attr=nothing)
             setattr = isnothing(attr) || !isa(attr, VISAInstrAttr) ? VISAInstrAttr() : attr
             return VISAInstr(name, addr, GenericInstrument(), setattr)
         end
-    elseif occursin("TCPIP", addr)
+    elseif occursin("TCPSOCKET", addr)
         try
             _, ipstr, portstr, _ = split(addr, "::")
             port = parse(Int, portstr)
@@ -98,8 +98,8 @@ function instrument(name, addr; attr=nothing)
                 setattr = isnothing(attr) || !isa(attr, VISAInstrAttr) ? VISAInstrAttr() : attr
                 VISAInstr(name, addr, GenericInstrument(), setattr)
             else
-                setattr = isnothing(attr) || !isa(attr, TCPIPInstrAttr) ? TCPIPInstrAttr() : attr
-                TCPIPInstr(name, addr, ip, port, TCPSocket(), false, setattr)
+                setattr = isnothing(attr) || !isa(attr, TCPSocketInstrAttr) ? TCPSocketInstrAttr() : attr
+                TCPSocketInstr(name, addr, ip, port, TCPSocket(), false, setattr)
             end
         catch e
             @error "address $addr is not valid" execption = e
@@ -139,7 +139,7 @@ function connect!(_, instr::SerialInstr)
     LibSerialPort.open(instr.sp; mode=instr.attr.mode)
     instr.connected[] = true
 end
-function connect!(_, instr::TCPIPInstr)
+function connect!(_, instr::TCPSocketInstr)
     if !instr.connected[]
         instr.sock[] = Sockets.connect(instr.ip, instr.port)
         instr.connected[] = true
@@ -160,7 +160,7 @@ function disconnect!(instr::SerialInstr)
         instr.connected[] = false
     end
 end
-function disconnect!(instr::TCPIPInstr)
+function disconnect!(instr::TCPSocketInstr)
     if instr.connected[]
         close(instr.sock[])
         instr.connected[] = false
@@ -177,7 +177,7 @@ write some message string to the instrument.
 """
 Base.write(instr::VISAInstr, msg::AbstractString) = (VIASYNC ? writeasync : Instruments.write)(instr.geninstr, string(msg, instr.attr.termchar))
 Base.write(instr::SerialInstr, msg::AbstractString) = write(instr.sp, string(msg, instr.attr.termchar))
-Base.write(instr::TCPIPInstr, msg::AbstractString) = println(instr.sock[], string(msg, instr.attr.termchar))
+Base.write(instr::TCPSocketInstr, msg::AbstractString) = println(instr.sock[], string(msg, instr.attr.termchar))
 Base.write(::VirtualInstr, ::AbstractString) = nothing
 
 """
@@ -187,7 +187,7 @@ read the instrument.
 """
 Base.read(instr::VISAInstr) = (VIASYNC ? readasync : Instruments.read)(instr.geninstr)
 Base.read(instr::SerialInstr) = rstrip(read(instr.sp, String), ['\r', '\n'])
-Base.read(instr::TCPIPInstr) = readline(instr.sock[])
+Base.read(instr::TCPSocketInstr) = readline(instr.sock[])
 Base.read(::VirtualInstr) = "read"
 
 """
@@ -219,7 +219,7 @@ function query(instr::SerialInstr, msg::AbstractString)
     isok = timedwhile(() -> istaskdone(t), instr.attr.timeoutq)
     return isok ? fetch(t) : error("$(instr.addr) time out")
 end
-function query(instr::TCPIPInstr, msg::AbstractString)
+function query(instr::TCPSocketInstr, msg::AbstractString)
     write(instr, msg)
     instr.attr.querydelay < 0.001 || sleep(instr.attr.querydelay)
     t = @async read(instr)
@@ -235,5 +235,5 @@ determine if the instrument is connected.
 """
 isconnected(instr::VISAInstr) = instr.geninstr.connected
 isconnected(instr::SerialInstr) = instr.connected[]
-isconnected(instr::TCPIPInstr) = instr.connected[]
+isconnected(instr::TCPSocketInstr) = instr.connected[]
 isconnected(::VirtualInstr) = true
