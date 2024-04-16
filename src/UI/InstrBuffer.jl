@@ -1291,29 +1291,27 @@ let
                 return INSTRBUFFERVIEWERS
             end
         end
-        errormonitor(
-            @async if !isnothing(fetchibvs)
-                for (ins, inses) in filter(x -> !isempty(x.second), INSTRBUFFERVIEWERS)
-                    for (addr, ibv) in filter(x -> x.second.insbuf.isautorefresh || log, inses)
-                        reflist = if log
-                            CONF.DAQ.logall ? ibv.insbuf.quantities : filter(x -> x.second.enable, ibv.insbuf.quantities)
-                        else
-                            filter(ibv.insbuf.quantities) do qtpair
-                                qt = qtpair.second
-                                fetchqt = fetchibvs[ins][addr].insbuf.quantities[qtpair.first]
-                                fetchqt.refreshed && (qt.refreshed = false)
-                                qt.enable && qt.isautorefresh && fetchqt.refreshed
-                            end
+        if !isnothing(fetchibvs)
+            for (ins, inses) in filter(x -> !isempty(x.second), INSTRBUFFERVIEWERS)
+                for (addr, ibv) in filter(x -> x.second.insbuf.isautorefresh || log, inses)
+                    reflist = if log
+                        CONF.DAQ.logall ? ibv.insbuf.quantities : filter(x -> x.second.enable, ibv.insbuf.quantities)
+                    else
+                        filter(ibv.insbuf.quantities) do qtpair
+                            qt = qtpair.second
+                            fetchqt = fetchibvs[ins][addr].insbuf.quantities[qtpair.first]
+                            fetchqt.refreshed && (qt.refreshed = false)
+                            qt.enable && qt.isautorefresh && fetchqt.refreshed
                         end
-                        for (qtnm, qt) in reflist
-                            qt.read = fetchibvs[ins][addr].insbuf.quantities[qtnm].read
-                            qt.lastrefresh = fetchibvs[ins][addr].insbuf.quantities[qtnm].lastrefresh
-                            sendtoupdatefront(qt)
-                        end
+                    end
+                    for (qtnm, qt) in reflist
+                        qt.read = fetchibvs[ins][addr].insbuf.quantities[qtnm].read
+                        qt.lastrefresh = fetchibvs[ins][addr].insbuf.quantities[qtnm].lastrefresh
+                        sendtoupdatefront(qt)
                     end
                 end
             end
-        )
+        end
     end
 end
 

@@ -2178,15 +2178,13 @@ function initialize!(insw::InstrWidget, addr)
         end
     end
     append!(insw.qtlist, Set(qtlist))
-    if haskey(INSTRBUFFERVIEWERS, insw.instrnm) && haskey(INSTRBUFFERVIEWERS[insw.instrnm], addr)
-        if !isempty(autoreflist)
-            SYNCSTATES[Int(IsAutoRefreshing)] = true
-            INSTRBUFFERVIEWERS[insw.instrnm][addr].insbuf.isautorefresh = true
-            qts = INSTRBUFFERVIEWERS[insw.instrnm][addr].insbuf.quantities
-            for (qtnm, qt) in filter(x -> x.first in keys(autoreflist), qts)
-                qt.isautorefresh = true
-                qt.refreshrate = autoreflist[qtnm]
-            end
+    if haskey(INSTRBUFFERVIEWERS, insw.instrnm) && haskey(INSTRBUFFERVIEWERS[insw.instrnm], addr) && !isempty(autoreflist)
+        SYNCSTATES[Int(IsAutoRefreshing)] = true
+        INSTRBUFFERVIEWERS[insw.instrnm][addr].insbuf.isautorefresh = true
+        qts = INSTRBUFFERVIEWERS[insw.instrnm][addr].insbuf.quantities
+        for (qtnm, qt) in filter(x -> x.first in keys(autoreflist), qts)
+            qt.isautorefresh = true
+            qt.refreshrate = autoreflist[qtnm]
         end
     end
     Threads.@spawn refresh1(insw, addr)
@@ -2197,11 +2195,9 @@ function exit!(insw::InstrWidget, addr)
     for qtw in insw.qtws
         qtw.qtype in ["sweep", "set", "read"] && qtw.options.autorefresh && push!(autoreflist, qtw.name)
     end
-    if haskey(INSTRBUFFERVIEWERS, insw.instrnm) && haskey(INSTRBUFFERVIEWERS[insw.instrnm], addr)
-        if !isempty(autoreflist)
-            for (_, qt) in filter(x -> x.first in autoreflist, INSTRBUFFERVIEWERS[insw.instrnm][addr].insbuf.quantities)
-                qt.isautorefresh = false
-            end
+    if haskey(INSTRBUFFERVIEWERS, insw.instrnm) && haskey(INSTRBUFFERVIEWERS[insw.instrnm], addr) && !isempty(autoreflist)
+        for (_, qt) in filter(x -> x.first in autoreflist, INSTRBUFFERVIEWERS[insw.instrnm][addr].insbuf.quantities)
+            qt.isautorefresh = false
         end
     end
 end
@@ -2212,11 +2208,11 @@ let
         lock(lk) do
             if haskey(INSTRBUFFERVIEWERS, insw.instrnm) && haskey(INSTRBUFFERVIEWERS[insw.instrnm], addr)
                 fetchibvs = wait_remotecall_fetch(
-                    workers()[1], INSTRBUFFERVIEWERS, insw.instrnm, addr, insw.qtlist; timeout=120
-                ) do ibvs, ins, addr, qtlist
+                    workers()[1], INSTRBUFFERVIEWERS, insw.instrnm, addr, insw.qtlist, blacklist; timeout=120
+                ) do ibvs, ins, addr, qtlist, blacklist
                     empty!(INSTRBUFFERVIEWERS)
                     merge!(INSTRBUFFERVIEWERS, ibvs)
-                    ct = Controller(ins, addr; ctbuflen=CONF.DAQ.ctbuflen, timeout=CONF.DAQ.cttimeout)
+                    ct = Controller(ins, addr; buflen=CONF.DAQ.ctbuflen, timeout=CONF.DAQ.cttimeout)
                     try
                         login!(CPU, ct; attr=getattr(addr))
                         for (qtnm, qt) in filter(
@@ -2237,14 +2233,15 @@ let
                     end
                     return INSTRBUFFERVIEWERS
                 end
-                errormonitor(
-                    @async if !isnothing(fetchibvs)
-                        for (qtnm, qt) in filter(x -> x.first in insw.qtlist, INSTRBUFFERVIEWERS[insw.instrnm][addr].insbuf.quantities)
-                            qt.read = fetchibvs[insw.instrnm][addr].insbuf.quantities[qtnm].read
-                            sendtoupdatefront(qt)
-                        end
+                if !isnothing(fetchibvs)
+                    for (qtnm, qt) in filter(
+                        x -> x.first in insw.qtlist,
+                        INSTRBUFFERVIEWERS[insw.instrnm][addr].insbuf.quantities
+                    )
+                        qt.read = fetchibvs[insw.instrnm][addr].insbuf.quantities[qtnm].read
+                        sendtoupdatefront(qt)
                     end
-                )
+                end
             end
         end
     end

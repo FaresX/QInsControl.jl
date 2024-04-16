@@ -97,33 +97,37 @@ auto-detect available instruments.
 """
 find_resources(cpu::Processor) = Instruments.find_resources(cpu.resourcemanager[])
 
+const LOGLOCK = Threads.Condition()
+
 """
     login!(cpu::Processor, ct::Controller)
 
 log the Controller in the Processor which can be done before and after the cpu started.
 """
 function login!(cpu::Processor, ct::Controller; quiet=true, attr=nothing)
-    ct in cpu.controllers || push!(cpu.controllers, ct)
-    if cpu.running[]
-        if !haskey(cpu.instrs, ct.addr)
-            cpu.instrs[ct.addr] = instrument(ct.instrnm, ct.addr; attr=attr)
-            cpu.exechannels[ct.addr] = []
-            cpu.taskhandlers[ct.addr] = true
-            cpu.tasks[ct.addr] = errormonitor(
-                @async while cpu.taskhandlers[ct.addr]
-                    if isempty(cpu.exechannels[ct.addr])
-                        cpu.fast[] ? yield() : sleep(0.001)
-                    else
-                        runcmd(cpu, popfirst!(cpu.exechannels[ct.addr])...)
+    lock(LOGLOCK) do
+        ct in cpu.controllers || push!(cpu.controllers, ct)
+        if cpu.running[]
+            if !haskey(cpu.instrs, ct.addr)
+                cpu.instrs[ct.addr] = instrument(ct.instrnm, ct.addr; attr=attr)
+                cpu.exechannels[ct.addr] = []
+                cpu.taskhandlers[ct.addr] = true
+                cpu.tasks[ct.addr] = errormonitor(
+                    @async while cpu.taskhandlers[ct.addr]
+                        if isempty(cpu.exechannels[ct.addr])
+                            cpu.fast[] ? yield() : sleep(0.001)
+                        else
+                            runcmd(cpu, popfirst!(cpu.exechannels[ct.addr])...)
+                        end
                     end
-                end
-            )
-            connect!(cpu.resourcemanager[], cpu.instrs[ct.addr])
+                )
+                connect!(cpu.resourcemanager[], cpu.instrs[ct.addr])
+            end
+        else
+            haskey(cpu.instrs, ct.addr) || (cpu.instrs[ct.addr] = instrument(ct.instrnm, ct.addr; attr=attr))
         end
-    else
-        haskey(cpu.instrs, ct.addr) || (cpu.instrs[ct.addr] = instrument(ct.instrnm, ct.addr; attr=attr))
+        quiet || @info "controller $(findfirst(==(ct), cpu.controllers)) has logged in"
     end
-    quiet || @info "controller $(findfirst(==(ct), cpu.controllers)) has logged in"
     return nothing
 end
 
@@ -137,25 +141,27 @@ log the Controller out the Processor.
 log all the Controllers that control the instrument with address addr out the Processor.
 """
 function logout!(cpu::Processor, ct::Controller; quiet=true)
-    if ct in cpu.controllers
-        if ct.addr ∉ [c.addr for c in cpu.controllers if c != ct]
-            popinstr = pop!(cpu.instrs, ct.addr)
-            if cpu.running[]
-                cpu.taskhandlers[popinstr.addr] = false
-                try
-                    haskey(cpu.tasks, popinstr.addr) && wait(cpu.tasks[popinstr.addr])
-                catch e
-                    @error "an error occurs during logging out" exception = e
+    lock(LOGLOCK) do
+        if ct in cpu.controllers
+            if ct.addr ∉ [c.addr for c in cpu.controllers if c != ct]
+                popinstr = pop!(cpu.instrs, ct.addr)
+                if cpu.running[]
+                    cpu.taskhandlers[popinstr.addr] = false
+                    try
+                        haskey(cpu.tasks, popinstr.addr) && wait(cpu.tasks[popinstr.addr])
+                    catch e
+                        @error "an error occurs during logging out" exception = e
+                    end
+                    delete!(cpu.taskhandlers, popinstr.addr)
+                    delete!(cpu.tasks, popinstr.addr)
+                    delete!(cpu.exechannels, popinstr.addr)
+                    disconnect!(popinstr)
                 end
-                delete!(cpu.taskhandlers, popinstr.addr)
-                delete!(cpu.tasks, popinstr.addr)
-                delete!(cpu.exechannels, popinstr.addr)
-                disconnect!(popinstr)
             end
+            idx = findfirst(==(ct), cpu.controllers)
+            deleteat!(cpu.controllers, idx)
+            quiet || @info "controller $idx has logged out"
         end
-        idx = findfirst(==(ct), cpu.controllers)
-        deleteat!(cpu.controllers, idx)
-        quiet || @info "controller $idx has logged out"
     end
     return nothing
 end
