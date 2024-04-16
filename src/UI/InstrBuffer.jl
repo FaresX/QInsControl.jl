@@ -1235,7 +1235,7 @@ function refresh_qt(instrnm, addr, qtnm)
 end
 
 function log_instrbufferviewers()
-    wait(refresh1(true))
+    refresh1(true)
     CFGBUF["instrbufferviewers/[$(now())]"] = deepcopy(INSTRBUFFERVIEWERS)
 end
 

@@ -1,15 +1,17 @@
 function CPUMonitor()
     cpuinfo = remotecall_fetch(workers()[1]) do
-        Dict(
-            :running => CPU.running[],
-            :taskfailed => istaskfailed(CPU.processtask[]),
-            :fast => CPU.fast[],
-            :resourcemanager => CPU.resourcemanager[],
-            :isconnected => Dict(addr => QInsControlCore.isconnected(instr) for (addr, instr) in CPU.instrs),
-            :controllers => CPU.controllers,
-            :taskhandlers => CPU.taskhandlers,
-            :tasksfailed => Dict(addr => istaskfailed(task) for (addr, task) in CPU.tasks)
-        )
+        lock(QInsControlCore.LOGLOCK) do
+            Dict(
+                :running => CPU.running[],
+                :taskfailed => istaskfailed(CPU.processtask[]),
+                :fast => CPU.fast[],
+                :resourcemanager => CPU.resourcemanager[],
+                :isconnected => Dict(addr => QInsControlCore.isconnected(instr) for (addr, instr) in CPU.instrs),
+                :controllers => CPU.controllers,
+                :taskhandlers => CPU.taskhandlers,
+                :tasksfailed => Dict(addr => istaskfailed(task) for (addr, task) in CPU.tasks)
+            )
+        end
     end
     SeparatorTextColored(MORESTYLE.Colors.HighlightText, mlstr("Processor"))
     CImGui.Indent()
