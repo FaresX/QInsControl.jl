@@ -208,8 +208,6 @@ function _query_(instr::Instrument, msg::AbstractString)
     return isok ? fetch(t) : error("$(instr.addr) time out")
 end
 query(instr::VISAInstr, msg::AbstractString) = (VIASYNC ? queryasync(instr.geninstr, msg) : _query_(instr, msg))
-query(instr::SerialInstr, msg::AbstractString) = _query_(instr, msg)
-query(instr::TCPSocketInstr, msg::AbstractString) = _query_(instr, msg)
 query(::VirtualInstr, ::AbstractString) = "query"
 
 """
@@ -217,7 +215,6 @@ query(::VirtualInstr, ::AbstractString) = "query"
 
 determine if the instrument is connected.
 """
+isconnected(instr::Instrument) = instr.connected[]
 isconnected(instr::VISAInstr) = instr.geninstr.connected
-isconnected(instr::SerialInstr) = instr.connected[]
-isconnected(instr::TCPSocketInstr) = instr.connected[]
 isconnected(::VirtualInstr) = true
