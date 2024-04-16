@@ -2,6 +2,7 @@ abstract type Instrument end
 abstract type InstrAttr end
 
 @kwdef mutable struct VISAInstrAttr <: InstrAttr
+    async::Bool = false
     timeoutq::Real = 6
     querydelay::Real = 0
     termchar::Char = '\n'
@@ -173,14 +174,12 @@ function disconnect!(instr::TCPSocketInstr)
 end
 disconnect!(::VirtualInstr) = nothing
 
-global VIASYNC::Bool = false
-
 """
     write(instr, msg)
 
 write some message string to the instrument.
 """
-Base.write(instr::VISAInstr, msg::AbstractString) = (VIASYNC ? writeasync : Instruments.write)(instr.geninstr, string(msg, instr.attr.termchar))
+Base.write(instr::VISAInstr, msg::AbstractString) = (instr.attr.async ? writeasync : Instruments.write)(instr.geninstr, string(msg, instr.attr.termchar))
 Base.write(instr::SerialInstr, msg::AbstractString) = write(instr.sp, string(msg, instr.attr.termchar))
 Base.write(instr::TCPSocketInstr, msg::AbstractString) = write(instr.sock[], string(msg, instr.attr.termchar))
 Base.write(::VirtualInstr, ::AbstractString) = nothing
@@ -190,7 +189,7 @@ Base.write(::VirtualInstr, ::AbstractString) = nothing
 
 read the instrument.
 """
-Base.read(instr::VISAInstr) = (VIASYNC ? readasync : Instruments.read)(instr.geninstr)
+Base.read(instr::VISAInstr) = (instr.attr.async ? readasync : Instruments.read)(instr.geninstr)
 Base.read(instr::SerialInstr) = rstrip(read(instr.sp, String), ['\r', '\n'])
 Base.read(instr::TCPSocketInstr) = rstrip(read(instr.sock[], String), ['\r', '\n'])
 Base.read(::VirtualInstr) = "read"
@@ -207,7 +206,9 @@ function _query_(instr::Instrument, msg::AbstractString)
     isok = timedwhile(() -> istaskdone(t), instr.attr.timeoutq)
     return isok ? fetch(t) : error("$(instr.addr) time out")
 end
-query(instr::VISAInstr, msg::AbstractString) = (VIASYNC ? queryasync(instr.geninstr, msg) : _query_(instr, msg))
+query(instr::VISAInstr, msg::AbstractString) = (instr.attr.async ? queryasync(instr.geninstr, msg) : _query_(instr, msg))
+query(instr::SerialInstr, msg::AbstractString) = _query_(instr, msg)
+query(instr::TCPSocketInstr, msg::AbstractString) = _query_(instr, msg)
 query(::VirtualInstr, ::AbstractString) = "query"
 
 """

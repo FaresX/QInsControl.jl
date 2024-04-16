@@ -382,7 +382,7 @@ function testcmd(ins, addr, inputcmd::Ref{String}, readstr::Ref{String})
                 CImGui.PopStyleVar()
                 CImGui.EndTabItem()
             end
-            if CImGui.BeginTabItem(mlstr("Settings"))
+            if ins != "VirtualInstr" && CImGui.BeginTabItem(mlstr("Settings"))
                 comsettings(addr)
                 CImGui.EndTabItem()
                 igTabItemButton(mlstr("Save"), 0) && saveattr(addr)
@@ -557,6 +557,7 @@ function virtualsettings(attr::VirtualInstrAttr)
     @c(ComboS(mlstr("Termination Character"), &termchar, ["\\r", "\\n"])) && (attr.termchar = termchar == "\\r" ? '\r' : '\n')
 end
 function visasettings(attr::VISAInstrAttr)
+    @c CImGui.Checkbox(mlstr(attr.async ? "Asynchronous" : "Synchronous"), &attr.async)
     timeoutq = Cfloat(attr.timeoutq)
     @c(CImGui.DragFloat(
         stcstr(mlstr("Query Timeout"), " (s)"), &timeoutq,

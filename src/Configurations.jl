@@ -15,7 +15,6 @@ end
 
 @option mutable struct OptCommunication
     visapath::String = ""
-    async::Bool = false
     attrlist::Dict{String,Dict} = Dict()
 end
 
