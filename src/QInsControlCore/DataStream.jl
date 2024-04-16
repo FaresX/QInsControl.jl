@@ -138,7 +138,7 @@ log all the Controllers that control the instrument with address addr out the Pr
 """
 function logout!(cpu::Processor, ct::Controller; quiet=true)
     if ct in cpu.controllers
-        if ct.addr ∉ [ct.addr for ct in cpu.controllers]
+        if ct.addr ∉ [c.addr for c in cpu.controllers if c != ct]
             popinstr = pop!(cpu.instrs, ct.addr)
             if cpu.running[]
                 cpu.taskhandlers[popinstr.addr] = false

@@ -126,18 +126,23 @@ connect to an instrument with given ResourceManager rm.
 
 same but with auto-generated ResourceManager.
 """
-connect!(rm, instr::VISAInstr) = Instruments.connect!(rm, instr.geninstr, instr.addr)
+function connect!(rm, instr::VISAInstr)
+    Instruments.connect!(rm, instr.geninstr, instr.addr)
+    if occursin("ASRL", instr.addr)
+        Instruments.viSetAttribute(instr.geninstr.handle, Instruments.VI_ATTR_TERMCHAR, UInt(instr.attr.termchar))
+    end
+end
 function connect!(_, instr::SerialInstr)
+    LibSerialPort.open(instr.sp; mode=instr.attr.mode)
+    instr.connected[] = true
     set_speed(instr.sp, instr.attr.baudrate)
     set_frame(instr.sp; ndatabits=instr.attr.ndatabits, parity=instr.attr.parity, nstopbits=instr.attr.nstopbits)
     set_flow_control(
         instr.sp;
-        rts=instr.attr.rts, cts=instr.attr.cts, dtr=instr.attr.dtr, dst=instr.attr.dst, xonxoff=instr.attr.xonxoff
+        rts=instr.attr.rts, cts=instr.attr.cts, dtr=instr.attr.dtr, dsr=instr.attr.dsr, xonxoff=instr.attr.xonxoff
     )
     set_write_timeout(instr.sp, instr.attr.timeoutw)
     set_read_timeout(instr.sp, instr.attr.timeoutr)
-    LibSerialPort.open(instr.sp; mode=instr.attr.mode)
-    instr.connected[] = true
 end
 function connect!(_, instr::TCPSocketInstr)
     if !instr.connected[]
@@ -177,7 +182,7 @@ write some message string to the instrument.
 """
 Base.write(instr::VISAInstr, msg::AbstractString) = (VIASYNC ? writeasync : Instruments.write)(instr.geninstr, string(msg, instr.attr.termchar))
 Base.write(instr::SerialInstr, msg::AbstractString) = write(instr.sp, string(msg, instr.attr.termchar))
-Base.write(instr::TCPSocketInstr, msg::AbstractString) = println(instr.sock[], string(msg, instr.attr.termchar))
+Base.write(instr::TCPSocketInstr, msg::AbstractString) = write(instr.sock[], string(msg, instr.attr.termchar))
 Base.write(::VirtualInstr, ::AbstractString) = nothing
 
 """
@@ -187,7 +192,7 @@ read the instrument.
 """
 Base.read(instr::VISAInstr) = (VIASYNC ? readasync : Instruments.read)(instr.geninstr)
 Base.read(instr::SerialInstr) = rstrip(read(instr.sp, String), ['\r', '\n'])
-Base.read(instr::TCPSocketInstr) = readline(instr.sock[])
+Base.read(instr::TCPSocketInstr) = rstrip(read(instr.sock[], String), ['\r', '\n'])
 Base.read(::VirtualInstr) = "read"
 
 """
@@ -195,37 +200,16 @@ Base.read(::VirtualInstr) = "read"
 
 query the instrument with some message string.
 """
-function _query_(instr::Instruments.GenericInstrument, msg; delay=0, timeout=6, errormsg="time out")
-    write(instr, msg)
-    delay < 0.001 || sleep(delay)
-    t = @async read(instr)
-    isok = timedwhile(() -> istaskdone(t), timeout)
-    return isok ? fetch(t) : error(errormsg)
-end
-function query(instr::VISAInstr, msg::AbstractString)
-    if VIASYNC
-        queryasync(instr.geninstr, msg)
-    else
-        _query_(
-            instr.geninstr, msg;
-            delay=instr.attr.querydelay, timeout=instr.attr.timeoutq, errormsg="$(instr.addr) time out"
-        )
-    end
-end
-function query(instr::SerialInstr, msg::AbstractString)
+function _query_(instr::Instrument, msg::AbstractString)
     write(instr, msg)
     instr.attr.querydelay < 0.001 || sleep(instr.attr.querydelay)
     t = @async read(instr)
     isok = timedwhile(() -> istaskdone(t), instr.attr.timeoutq)
     return isok ? fetch(t) : error("$(instr.addr) time out")
 end
-function query(instr::TCPSocketInstr, msg::AbstractString)
-    write(instr, msg)
-    instr.attr.querydelay < 0.001 || sleep(instr.attr.querydelay)
-    t = @async read(instr)
-    isok = timedwhile(() -> istaskdone(t), instr.attr.timeoutq)
-    return isok ? fetch(t) : error("$(instr.addr) time out")
-end
+query(instr::VISAInstr, msg::AbstractString) = (VIASYNC ? queryasync(instr.geninstr, msg) : _query_(instr, msg))
+query(instr::SerialInstr, msg::AbstractString) = _query_(instr, msg)
+query(instr::TCPSocketInstr, msg::AbstractString) = _query_(instr, msg)
 query(::VirtualInstr, ::AbstractString) = "query"
 
 """
