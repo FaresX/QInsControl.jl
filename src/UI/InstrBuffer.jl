@@ -296,100 +296,108 @@ function edit(ibv::InstrBufferViewer)
     CImGui.End()
 end
 
-function testcmd(ins, addr, inputcmd::Ref{String}, readstr::Ref{String})
-    if CImGui.CollapsingHeader(stcstr("\t", mlstr("Communication Test")))
-        if CImGui.BeginTabBar("communication")
-            if CImGui.BeginTabItem(mlstr("Command Test"))
-                y = (1 + length(findall("\n", inputcmd[]))) * CImGui.GetTextLineHeight() +
-                    2unsafe_load(IMGUISTYLE.FramePadding.y)
-                InputTextMultilineRSZ("##input cmd", inputcmd, (Cfloat(0), y))
-                if CImGui.BeginPopupContextItem()
-                    CImGui.MenuItem(mlstr("Clear")) && (inputcmd[] = "")
-                    CImGui.EndPopup()
-                end
-                CImGui.SameLine()
-                CImGui.Button(mlstr("Clear History")) && (readstr[] = "")
-                TextRect(stcstr(readstr[], "\n "); size=(Cfloat(0), 12CImGui.GetFontSize()))
-                CImGui.Spacing()
-                CImGui.PushStyleVar(CImGui.ImGuiStyleVar_FrameRounding, 24)
-                btw = (CImGui.GetContentRegionAvailWidth() - 2unsafe_load(IMGUISTYLE.ItemSpacing.x)) / 3
-                bth = 2CImGui.GetFrameHeight()
-                if CImGui.Button(stcstr(MORESTYLE.Icons.WriteBlock, "  ", mlstr("Write")), (btw, bth))
-                    if addr != ""
-                        readstr[] *= string("Write: ", inputcmd[], "\n\n")
-                        remote_do(workers()[1], ins, addr, inputcmd[]) do ins, addr, inputcmd
-                            ct = Controller(ins, addr; buflen=CONF.DAQ.ctbuflen, timeout=CONF.DAQ.cttimeout)
-                            try
-                                login!(CPU, ct; attr=getattr(addr))
-                                ct(write, CPU, inputcmd, Val(:write))
-                                logout!(CPU, ct)
-                            catch e
-                                @error(
-                                    "[$(now())]\n$(mlstr("instrument communication failed!!!"))",
-                                    instrument = string(ins, ": ", addr),
-                                    exception = e
-                                )
-                                logout!(CPU, ct)
+let
+    newcmd::Ref{Tuple{String,Bool}} = ("", false)
+    global function testcmd(ins, addr, inputcmd::Ref{String}, readstr::Ref{String})
+        if CImGui.CollapsingHeader(stcstr("\t", mlstr("Communication Test")))
+            if CImGui.BeginTabBar("communication")
+                if CImGui.BeginTabItem(mlstr("Command Test"))
+                    y = (1 + length(findall("\n", inputcmd[]))) * CImGui.GetTextLineHeight() +
+                        2unsafe_load(IMGUISTYLE.FramePadding.y)
+                    InputTextMultilineRSZ("##input cmd", inputcmd, (Cfloat(0), y))
+                    if CImGui.BeginPopupContextItem()
+                        CImGui.MenuItem(mlstr("Clear")) && (inputcmd[] = "")
+                        CImGui.EndPopup()
+                    end
+                    CImGui.SameLine()
+                    CImGui.Button(mlstr("Clear History")) && (readstr[] = "")
+                    updatecontent = newcmd[][1] == addr ? newcmd[][2] : false
+                    updatecontent && (newcmd[] = ("", false))
+                    TextRect(stcstr(readstr[], "\n "), updatecontent; size=(Cfloat(0), 12CImGui.GetFontSize()))
+                    CImGui.Spacing()
+                    CImGui.PushStyleVar(CImGui.ImGuiStyleVar_FrameRounding, 24)
+                    btw = (CImGui.GetContentRegionAvailWidth() - 2unsafe_load(IMGUISTYLE.ItemSpacing.x)) / 3
+                    bth = 2CImGui.GetFrameHeight()
+                    if CImGui.Button(stcstr(MORESTYLE.Icons.WriteBlock, "  ", mlstr("Write")), (btw, bth))
+                        if addr != ""
+                            readstr[] *= string("Write: ", inputcmd[], "\n\n")
+                            remote_do(workers()[1], ins, addr, inputcmd[]) do ins, addr, inputcmd
+                                ct = Controller(ins, addr; buflen=CONF.DAQ.ctbuflen, timeout=CONF.DAQ.cttimeout)
+                                try
+                                    login!(CPU, ct; attr=getattr(addr))
+                                    ct(write, CPU, inputcmd, Val(:write))
+                                    logout!(CPU, ct)
+                                catch e
+                                    @error(
+                                        "[$(now())]\n$(mlstr("instrument communication failed!!!"))",
+                                        instrument = string(ins, ": ", addr),
+                                        exception = e
+                                    )
+                                    logout!(CPU, ct)
+                                end
                             end
+                            newcmd[] = (addr, true)
                         end
                     end
-                end
-                CImGui.SameLine()
-                if CImGui.Button(stcstr(MORESTYLE.Icons.QueryBlock, "  ", mlstr("Query")), (btw, bth))
-                    if addr != ""
-                        readstr[] *= string("Write: ", inputcmd[], "\n")
-                        fetchdata = wait_remotecall_fetch(workers()[1], ins, addr, inputcmd[]) do ins, addr, inputcmd
-                            ct = Controller(ins, addr; buflen=CONF.DAQ.ctbuflen, timeout=CONF.DAQ.cttimeout)
-                            try
-                                login!(CPU, ct; attr=getattr(addr))
-                                readstr = ct(query, CPU, inputcmd, Val(:query))
-                                logout!(CPU, ct)
-                                return readstr
-                            catch e
-                                @error(
-                                    "[$(now())]\n$(mlstr("instrument communication failed!!!"))",
-                                    instrument = string(ins, ": ", addr),
-                                    exception = e
-                                )
-                                logout!(CPU, ct)
+                    CImGui.SameLine()
+                    if CImGui.Button(stcstr(MORESTYLE.Icons.QueryBlock, "  ", mlstr("Query")), (btw, bth))
+                        if addr != ""
+                            readstr[] *= string("Write: ", inputcmd[], "\n")
+                            fetchdata = wait_remotecall_fetch(workers()[1], ins, addr, inputcmd[]) do ins, addr, inputcmd
+                                ct = Controller(ins, addr; buflen=CONF.DAQ.ctbuflen, timeout=CONF.DAQ.cttimeout)
+                                try
+                                    login!(CPU, ct; attr=getattr(addr))
+                                    readstr = ct(query, CPU, inputcmd, Val(:query))
+                                    logout!(CPU, ct)
+                                    return readstr
+                                catch e
+                                    @error(
+                                        "[$(now())]\n$(mlstr("instrument communication failed!!!"))",
+                                        instrument = string(ins, ": ", addr),
+                                        exception = e
+                                    )
+                                    logout!(CPU, ct)
+                                end
                             end
+                            isnothing(fetchdata) || (readstr[] *= string("Read: \n\t\t", fetchdata, "\n\n"))
+                            newcmd[] = (addr, true)
                         end
-                        isnothing(fetchdata) || (readstr[] *= string("Read: \n\t\t", fetchdata, "\n\n"))
                     end
-                end
-                CImGui.SameLine()
-                if CImGui.Button(stcstr(MORESTYLE.Icons.ReadBlock, "  ", mlstr("Read")), (btw, bth))
-                    if addr != ""
-                        fetchdata = wait_remotecall_fetch(workers()[1], ins, addr) do ins, addr
-                            ct = Controller(ins, addr; buflen=CONF.DAQ.ctbuflen, timeout=CONF.DAQ.cttimeout)
-                            try
-                                login!(CPU, ct; attr=getattr(addr))
-                                readstr = ct(read, CPU, Val(:read))
-                                logout!(CPU, ct)
-                                return readstr
-                            catch e
-                                @error(
-                                    "[$(now())]\n$(mlstr("instrument communication failed!!!"))",
-                                    instrument = string(ins, ": ", addr),
-                                    exception = e
-                                )
-                                logout!(CPU, ct)
+                    CImGui.SameLine()
+                    if CImGui.Button(stcstr(MORESTYLE.Icons.ReadBlock, "  ", mlstr("Read")), (btw, bth))
+                        if addr != ""
+                            fetchdata = wait_remotecall_fetch(workers()[1], ins, addr) do ins, addr
+                                ct = Controller(ins, addr; buflen=CONF.DAQ.ctbuflen, timeout=CONF.DAQ.cttimeout)
+                                try
+                                    login!(CPU, ct; attr=getattr(addr))
+                                    readstr = ct(read, CPU, Val(:read))
+                                    logout!(CPU, ct)
+                                    return readstr
+                                catch e
+                                    @error(
+                                        "[$(now())]\n$(mlstr("instrument communication failed!!!"))",
+                                        instrument = string(ins, ": ", addr),
+                                        exception = e
+                                    )
+                                    logout!(CPU, ct)
+                                end
                             end
+                            isnothing(fetchdata) || (readstr[] *= string("Read: \n\t\t", fetchdata, "\n\n"))
+                            newcmd[] = (addr, true)
                         end
-                        isnothing(fetchdata) || (readstr[] *= string("Read: \n\t\t", fetchdata, "\n\n"))
                     end
+                    CImGui.PopStyleVar()
+                    CImGui.EndTabItem()
                 end
-                CImGui.PopStyleVar()
-                CImGui.EndTabItem()
+                if ins != "VirtualInstr" && CImGui.BeginTabItem(mlstr("Settings"))
+                    comsettings(addr)
+                    CImGui.EndTabItem()
+                    igTabItemButton(mlstr("Save"), 0) && saveattr(addr)
+                end
+                CImGui.EndTabBar()
             end
-            if ins != "VirtualInstr" && CImGui.BeginTabItem(mlstr("Settings"))
-                comsettings(addr)
-                CImGui.EndTabItem()
-                igTabItemButton(mlstr("Save"), 0) && saveattr(addr)
-            end
-            CImGui.EndTabBar()
+            CImGui.Separator()
         end
-        CImGui.Separator()
     end
 end
 
@@ -523,12 +531,23 @@ function serialsettings(attr::SerialInstrAttr)
     querydelay = Cfloat(attr.querydelay)
     @c(CImGui.DragFloat(
         stcstr(mlstr("Query Delay"), " (s)"), &querydelay,
-        1, 0.1, 360, "%.1f", CImGui.ImGuiSliderFlags_AlwaysClamp)
+        1, 0, 360, "%.1f", CImGui.ImGuiSliderFlags_AlwaysClamp)
     ) && (attr.querydelay = querydelay)
     termchar = attr.termchar == '\r' ? "\\r" : "\\n"
     @c(ComboS(mlstr("Termination Character"), &termchar, ["\\r", "\\n"])) && (attr.termchar = termchar == "\\r" ? '\r' : '\n')
 end
 function tcpipsettings(attr::TCPSocketInstrAttr)
+    timeoutw = Cfloat(attr.timeoutw)
+    @c(CImGui.DragFloat(
+        stcstr(mlstr("Write Timeout"), " (s)"), &timeoutw,
+        1, 0.1, 360, "%.1f", CImGui.ImGuiSliderFlags_AlwaysClamp)
+    ) && (attr.timeoutw = timeoutw)
+    timeoutr = Cfloat(attr.timeoutr)
+    @c(CImGui.DragFloat(
+        stcstr(mlstr("Read Timeout"), " (s)"), &timeoutr,
+        1, 0.1, 360, "%.1f", CImGui.ImGuiSliderFlags_AlwaysClamp)
+    ) && (attr.timeoutr = timeoutr)
+    timeoutq = Cfloat(attr.timeoutq)
     timeoutq = Cfloat(attr.timeoutq)
     @c(CImGui.DragFloat(
         stcstr(mlstr("Query Timeout"), " (s)"), &timeoutq,
@@ -537,7 +556,7 @@ function tcpipsettings(attr::TCPSocketInstrAttr)
     querydelay = Cfloat(attr.querydelay)
     @c(CImGui.DragFloat(
         stcstr(mlstr("Query Delay"), " (s)"), &querydelay,
-        1, 0.1, 360, "%.1f", CImGui.ImGuiSliderFlags_AlwaysClamp)
+        1, 0, 360, "%.1f", CImGui.ImGuiSliderFlags_AlwaysClamp)
     ) && (attr.querydelay = querydelay)
     termchar = attr.termchar == '\r' ? "\\r" : "\\n"
     @c(ComboS(mlstr("Termination Character"), &termchar, ["\\r", "\\n"])) && (attr.termchar = termchar == "\\r" ? '\r' : '\n')
@@ -551,7 +570,7 @@ function virtualsettings(attr::VirtualInstrAttr)
     querydelay = Cfloat(attr.querydelay)
     @c(CImGui.DragFloat(
         stcstr(mlstr("Query Delay"), " (s)"), &querydelay,
-        1, 0.1, 360, "%.1f", CImGui.ImGuiSliderFlags_AlwaysClamp)
+        1, 0, 360, "%.1f", CImGui.ImGuiSliderFlags_AlwaysClamp)
     ) && (attr.querydelay = querydelay)
     termchar = attr.termchar == '\r' ? "\\r" : "\\n"
     @c(ComboS(mlstr("Termination Character"), &termchar, ["\\r", "\\n"])) && (attr.termchar = termchar == "\\r" ? '\r' : '\n')
@@ -566,7 +585,7 @@ function visasettings(attr::VISAInstrAttr)
     querydelay = Cfloat(attr.querydelay)
     @c(CImGui.DragFloat(
         stcstr(mlstr("Query Delay"), " (s)"), &querydelay,
-        1, 0.1, 360, "%.1f", CImGui.ImGuiSliderFlags_AlwaysClamp)
+        1, 0, 360, "%.1f", CImGui.ImGuiSliderFlags_AlwaysClamp)
     ) && (attr.querydelay = querydelay)
     termchar = attr.termchar == '\r' ? "\\r" : "\\n"
     @c(ComboS(mlstr("Termination Character"), &termchar, ["\\r", "\\n"])) && (attr.termchar = termchar == "\\r" ? '\r' : '\n')

@@ -37,7 +37,7 @@ function YesNoDialog(id, msg, flags=0)::Bool
 end
 
 function TextRect(
-    str;
+    str, update=false;
     size=(0, 0),
     nochild=false,
     bdrounding=MORESTYLE.Variables.TextRectRounding,
@@ -55,6 +55,7 @@ function TextRect(
     CImGui.TextUnformatted(str)
     CImGui.PopStyleColor()
     CImGui.PopTextWrapPos()
+    nochild || (update && CImGui.SetScrollHereY(1))
     nochild || CImGui.EndChild()
     rmin, rmax = CImGui.GetItemRectMin(), CImGui.GetItemRectMax()
     nochild && ColoredButton(""; size=(Cfloat(0), thickness + padding[2]), colbt=[0, 0, 0, 0], colbth=[0, 0, 0, 0], colbta=[0, 0, 0, 0])
