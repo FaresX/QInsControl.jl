@@ -27,6 +27,8 @@ end
 end
 
 @kwdef mutable struct TCPSocketInstrAttr <: InstrAttr
+    timeoutw::Real = 6
+    timeoutr::Real = 6
     timeoutq::Real = 6
     querydelay::Real = 0
     termchar::Char = '\n'
@@ -189,9 +191,13 @@ Base.write(::VirtualInstr, ::AbstractString) = nothing
 
 read the instrument.
 """
+function _read_(port, timeout, errmsg)
+    isok = timedwhile(() -> bytesavailable(port) > 0, timeout)
+    return isok ? rstrip(read(port, String), ['\r', '\n']) : error(errmsg)
+end
 Base.read(instr::VISAInstr) = (instr.attr.async ? readasync : Instruments.read)(instr.geninstr)
-Base.read(instr::SerialInstr) = rstrip(read(instr.sp, String), ['\r', '\n'])
-Base.read(instr::TCPSocketInstr) = rstrip(read(instr.sock[], String), ['\r', '\n'])
+Base.read(instr::SerialInstr) = _read_(instr.sp, instr.attr.timeoutr, "read $(instr.addr) time out")
+Base.read(instr::TCPSocketInstr) = _read_(instr.sock[], instr.attr.timeoutr, "read $(instr.addr) time out")
 Base.read(::VirtualInstr) = "read"
 
 """
@@ -204,7 +210,7 @@ function _query_(instr::Instrument, msg::AbstractString)
     instr.attr.querydelay < 0.001 || sleep(instr.attr.querydelay)
     t = @async read(instr)
     isok = timedwhile(() -> istaskdone(t), instr.attr.timeoutq)
-    return isok ? fetch(t) : error("$(instr.addr) time out")
+    return isok ? fetch(t) : error("query $(instr.addr) time out")
 end
 query(instr::VISAInstr, msg::AbstractString) = (instr.attr.async ? queryasync(instr.geninstr, msg) : _query_(instr, msg))
 query(instr::SerialInstr, msg::AbstractString) = _query_(instr, msg)
