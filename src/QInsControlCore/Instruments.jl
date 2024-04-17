@@ -197,7 +197,7 @@ read the instrument.
 """
 function Base.read(instr::Instrument)
     isok = timedwhile(() -> bytesavailable(instr.handle) > 0, instr.attr.timeoutr)
-    return isok ? rstrip(read(instr.handle, String), ['\r', '\n']) : error("read $(instr.addr) time out")
+    return isok ? readuntil(instr.handle, instr.attr.termchar) : error("read $(instr.addr) time out")
 end
 Base.read(instr::VISAInstr) = (instr.attr.async ? readasync : Instruments.read)(instr.handle)
 Base.read(::VirtualInstr) = "read"
