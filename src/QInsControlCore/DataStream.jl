@@ -40,7 +40,7 @@ function Base.show(io::IO, ct::Controller)
     str = """
        instrnm : $(ct.instrnm)
        address : $(ct.addr)
-        buffer : $(ct.databuf[])
+        buffer : $(ct.databuf)
     """
     print(io, str)
 end
