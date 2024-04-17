@@ -135,6 +135,7 @@ same but with auto-generated ResourceManager.
 function connect!(rm, instr::VISAInstr)
     if !instr.connected[]
         Instruments.connect!(rm, instr.handle, instr.addr)
+        instr.connected[] = instr.handle.connected
         if occursin("ASRL", instr.addr)
             Instruments.viSetAttribute(instr.handle.handle, Instruments.VI_ATTR_TERMCHAR, UInt(instr.attr.termchar))
         end
@@ -177,7 +178,7 @@ function disconnect!(instr::Instrument)
     end
     return instr.connected[]
 end
-disconnect!(instr::VISAInstr) = (Instruments.disconnect!(instr.handle); instr.connected[])
+disconnect!(instr::VISAInstr) = (Instruments.disconnect!(instr.handle); instr.connected[] = instr.handle.connected)
 disconnect!(instr::VirtualInstr) = instr.connected[] = false
 
 """
