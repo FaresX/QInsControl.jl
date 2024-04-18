@@ -2210,7 +2210,6 @@ let
                 fetchibvs = wait_remotecall_fetch(
                     workers()[1], INSTRBUFFERVIEWERS, insw.instrnm, addr, insw.qtlist, blacklist; timeout=120
                 ) do ibvs, ins, addr, qtlist, blacklist
-                    empty!(INSTRBUFFERVIEWERS)
                     merge!(INSTRBUFFERVIEWERS, ibvs)
                     ct = Controller(ins, addr; buflen=CONF.DAQ.ctbuflen, timeout=CONF.DAQ.cttimeout)
                     try

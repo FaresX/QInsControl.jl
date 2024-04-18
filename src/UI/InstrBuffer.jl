@@ -264,7 +264,7 @@ end
     instrnm::String = ""
     addr::String = ""
     inputcmd::String = "*IDN?"
-    readstr::String = ""
+    reading::String = ""
     p_open::Bool = false
     insbuf::InstrBuffer = InstrBuffer()
 end
@@ -289,7 +289,7 @@ function edit(ibv::InstrBufferViewer)
     ins, addr = ibv.instrnm, ibv.addr
     if @c CImGui.Begin(stcstr(INSCONF[ins].conf.icon, "  ", ins, "  ", addr), &ibv.p_open)
         SetWindowBgImage()
-        @c testcmd(ins, addr, &ibv.inputcmd, &ibv.readstr)
+        @c testcmd(ins, addr, &ibv.inputcmd, &ibv.reading)
         edit(ibv.insbuf, addr)
         CImGui.IsKeyPressed(ImGuiKey_F5, false) && refresh1(true)
     end
@@ -298,7 +298,7 @@ end
 
 let
     newcmd::Ref{Tuple{String,Bool}} = ("", false)
-    global function testcmd(ins, addr, inputcmd::Ref{String}, readstr::Ref{String})
+    global function testcmd(ins, addr, inputcmd::Ref{String}, reading::Ref{String})
         if CImGui.CollapsingHeader(stcstr("\t", mlstr("Communication Test")))
             if CImGui.BeginTabBar("communication")
                 if CImGui.BeginTabItem(mlstr("Command Test"))
@@ -310,17 +310,17 @@ let
                         CImGui.EndPopup()
                     end
                     CImGui.SameLine()
-                    CImGui.Button(mlstr("Clear History")) && (readstr[] = "")
+                    CImGui.Button(mlstr("Clear History")) && (reading[] = "")
                     updatecontent = newcmd[][1] == addr ? newcmd[][2] : false
                     updatecontent && (newcmd[] = ("", false))
-                    TextRect(stcstr(readstr[], "\n "), updatecontent; size=(Cfloat(0), 12CImGui.GetFontSize()))
+                    TextRect(stcstr(reading[], "\n "), updatecontent; size=(Cfloat(0), 12CImGui.GetFontSize()))
                     CImGui.Spacing()
                     CImGui.PushStyleVar(CImGui.ImGuiStyleVar_FrameRounding, 24)
                     btw = (CImGui.GetContentRegionAvailWidth() - 2unsafe_load(IMGUISTYLE.ItemSpacing.x)) / 3
                     bth = 2CImGui.GetFrameHeight()
                     if CImGui.Button(stcstr(MORESTYLE.Icons.WriteBlock, "  ", mlstr("Write")), (btw, bth))
                         if addr != ""
-                            readstr[] *= string("Write: ", inputcmd[], "\n\n")
+                            reading[] *= string("Write: ", inputcmd[], "\n\n")
                             remote_do(workers()[1], ins, addr, inputcmd[]) do ins, addr, inputcmd
                                 ct = Controller(ins, addr; buflen=CONF.DAQ.ctbuflen, timeout=CONF.DAQ.cttimeout)
                                 try
@@ -342,7 +342,7 @@ let
                     CImGui.SameLine()
                     if CImGui.Button(stcstr(MORESTYLE.Icons.QueryBlock, "  ", mlstr("Query")), (btw, bth))
                         if addr != ""
-                            readstr[] *= string("Write: ", inputcmd[], "\n")
+                            reading[] *= string("Write: ", inputcmd[], "\n")
                             fetchdata = wait_remotecall_fetch(workers()[1], ins, addr, inputcmd[]) do ins, addr, inputcmd
                                 ct = Controller(ins, addr; buflen=CONF.DAQ.ctbuflen, timeout=CONF.DAQ.cttimeout)
                                 try
@@ -359,7 +359,7 @@ let
                                     logout!(CPU, ct)
                                 end
                             end
-                            isnothing(fetchdata) || (readstr[] *= string("Read: \n\t\t", fetchdata, "\n\n"))
+                            isnothing(fetchdata) || (reading[] *= string("Read: \n\t\t", fetchdata, "\n\n"))
                             newcmd[] = (addr, true)
                         end
                     end
@@ -382,7 +382,7 @@ let
                                     logout!(CPU, ct)
                                 end
                             end
-                            isnothing(fetchdata) || (readstr[] *= string("Read: \n\t\t", fetchdata, "\n\n"))
+                            isnothing(fetchdata) || (reading[] *= string("Read: \n\t\t", fetchdata, "\n\n"))
                             newcmd[] = (addr, true)
                         end
                     end
@@ -1264,7 +1264,6 @@ let
     global function refresh1(log=false; instrlist=keys(INSTRBUFFERVIEWERS))
         fetchibvs = lock(lk) do
             wait_remotecall_fetch(workers()[1], INSTRBUFFERVIEWERS; timeout=120) do ibvs
-                empty!(INSTRBUFFERVIEWERS)
                 merge!(INSTRBUFFERVIEWERS, ibvs)
                 @sync for (ins, inses) in filter(x -> x.first in instrlist && !isempty(x.second), INSTRBUFFERVIEWERS)
                     ins == "Others" && continue
@@ -1284,6 +1283,7 @@ let
                                             getfunc = Symbol(ins, :_, qtnm, :_get) |> eval
                                             qt.read = ct(getfunc, CPU, Val(:read))
                                             qt.refreshed = true
+                                            myid() == 1 && sendtoupdatefront(qt)
                                         elseif qt.enable && qt.isautorefresh
                                             t = time()
                                             δt = t - qt.lastrefresh
@@ -1292,6 +1292,7 @@ let
                                                 getfunc = Symbol(ins, :_, qtnm, :_get) |> eval
                                                 qt.read = ct(getfunc, CPU, Val(:read))
                                                 qt.refreshed = true
+                                                myid() == 1 && sendtoupdatefront(qt)
                                             end
                                         end
                                     end
@@ -1311,7 +1312,7 @@ let
                 return INSTRBUFFERVIEWERS
             end
         end
-        if !isnothing(fetchibvs)
+        if CONF.Basic.isremote && !isnothing(fetchibvs)
             for (ins, inses) in filter(x -> !isempty(x.second), INSTRBUFFERVIEWERS)
                 for (addr, ibv) in filter(x -> x.second.insbuf.isautorefresh || log, inses)
                     reflist = if log
