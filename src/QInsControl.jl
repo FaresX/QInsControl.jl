@@ -35,6 +35,8 @@ using UUIDs
 
 include("QInsControlCore/QInsControlCore.jl")
 using .QInsControlCore
+using .QInsControlCore.LibSerialPort
+import .QInsControlCore: VISAInstrAttr, SerialInstrAttr, TCPSocketInstrAttr, VirtualInstrAttr
 
 @enum SyncStatesIndex begin
     AutoDetecting = 1 #是否正在自动查询仪器
@@ -62,7 +64,7 @@ include("StaticString.jl")
 include("Utilities.jl")
 
 include("UI/Block.jl")
-include("UI/CustomWidgets.jl")
+include("UI/CustomWidgets/CustomWidgets.jl")
 include("UI/DAQTask.jl")
 include("UI/FileTree.jl")
 include("UI/IconsFontAwesome6.jl")
@@ -97,8 +99,8 @@ include("Conf.jl")
 function julia_main()::Cint
     try
         loadconf()
-        databuf_c::Channel{Vector{Tuple{String,String}}} = Channel{Vector{NTuple{2,String}}}(CONF.DAQ.channel_size)
-        progress_c::Channel{Vector{Tuple{UUID,Int,Int,Float64}}} = Channel{Vector{Tuple{UUID,Int,Int,Float64}}}(CONF.DAQ.channel_size)
+        databuf_c::Channel{Vector{Tuple{String,String}}} = Channel{Vector{NTuple{2,String}}}(CONF.DAQ.channelsize)
+        progress_c::Channel{Vector{Tuple{UUID,Int,Int,Float64}}} = Channel{Vector{Tuple{UUID,Int,Int,Float64}}}(CONF.DAQ.channelsize)
         global SYNCSTATES = SharedVector{Bool}(8)
         global DATABUFRC = RemoteChannel(() -> databuf_c)
         global PROGRESSRC = RemoteChannel(() -> progress_c)
@@ -137,11 +139,12 @@ function julia_main()::Cint
             @eval const REFRESHCTS = Dict{String,Dict{String,Controller}}()
         end
         global AUTOREFRESHTASK = autorefresh()
+        global UPDATEFRONTTASK = updatefronttask()
         @info "[$(now())]\n$(mlstr("successfully started!"))"
         if !isinteractive()
             wait(uitask)
             while SYNCSTATES[Int(IsDAQTaskRunning)]
-                yield()
+                sleep(0.1)
             end
             sleep(0.1)
             exit()

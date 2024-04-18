@@ -1,7 +1,7 @@
 global ICONS = Icon()
 global ICONS_NAME = Dict()
 for f in fieldnames(Icon)
-    push!(ICONS_NAME, getproperty(ICONS, f) => string(f))
+    ICONS_NAME[getproperty(ICONS, f)] = string(f)
 end
 
 # mutable struct IconColored

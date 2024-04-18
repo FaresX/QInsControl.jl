@@ -190,10 +190,6 @@ let
 
             CImGui.PopStyleVar(2)
             CImGui.PopFont()
-            CImGui.SetCursorPosY(
-                2CONF.Fonts.plotfontsize * unsafe_load(CImGui.GetIO().FontGlobalScale) +
-                2unsafe_load(IMGUISTYLE.ItemSpacing.y) + unsafe_load(IMGUISTYLE.WindowPadding.y)
-            )
             igSeparatorText("")
 
 
@@ -203,7 +199,11 @@ let
                 CImGui.PushStyleVar(CImGui.ImGuiStyleVar_ChildBorderSize, 1)
                 CImGui.BeginChild("border1", (Cfloat(0), btw + 2unsafe_load(IMGUISTYLE.WindowPadding.y)), true)
                 showst |= SYNCSTATES[Int(AutoDetecting)]
-                showst && CImGui.PushStyleColor(CImGui.ImGuiCol_Button, SYNCSTATES[Int(AutoDetecting)] ? MORESTYLE.Colors.LogInfo : st ? MORESTYLE.Colors.HighlightText : MORESTYLE.Colors.LogError)
+                showst && CImGui.PushStyleColor(
+                    CImGui.ImGuiCol_Button,
+                    SYNCSTATES[Int(AutoDetecting)] ? MORESTYLE.Colors.LogInfo : st ? MORESTYLE.Colors.HighlightText : MORESTYLE.Colors.LogError
+                )
+                igBeginDisabled(SYNCSTATES[Int(IsDAQTaskRunning)])
                 CImGui.Button(MORESTYLE.Icons.InstrumentsAutoDetect, (btw, btw)) && refresh_instrlist()
                 showst && CImGui.PopStyleColor()
                 CImGui.SameLine()
@@ -215,6 +215,7 @@ let
                 st = st1 || st2
                 CImGui.PopItemWidth()
                 CImGui.EndGroup()
+                igEndDisabled()
                 CImGui.EndChild()
 
                 CImGui.BeginChild("border2", (0, 0), true)
@@ -222,11 +223,16 @@ let
                     isempty(inses) && CImGui.PushStyleColor(
                         CImGui.ImGuiCol_Text, CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_TextDisabled)
                     )
-                    isrefreshingdict = Dict(
-                        addr => ibv.insbuf.isautorefresh && true in [
-                            qt.isautorefresh for qt in values(ibv.insbuf.quantities)
-                        ] for (addr, ibv) in inses
-                    )
+                    isrefreshingdict = Dict()
+                    for (addr, ibv) in inses
+                        hasref = false
+                        for qt in values(ibv.insbuf.quantities)
+                            SYNCSTATES[Int(IsAutoRefreshing)] && ibv.insbuf.isautorefresh && (hasref |= qt.isautorefresh)
+                            qt isa SweepQuantity && (hasref |= qt.issweeping)
+                            hasref && break
+                        end
+                        isrefreshingdict[addr] = hasref
+                    end
                     hasrefreshing = !isempty(inses) && SYNCSTATES[Int(IsAutoRefreshing)] && (|)(values(isrefreshingdict)...)
                     hasrefreshing && CImGui.PushStyleColor(CImGui.ImGuiCol_Text, MORESTYLE.Colors.DAQTaskRunning)
                     insnode = CImGui.TreeNode(stcstr(INSCONF[ins].conf.icon, " ", ins, "  ", "(", length(inses), ")"))
@@ -236,19 +242,17 @@ let
                             CImGui.TextDisabled(stcstr("(", mlstr("Null"), ")"))
                         else
                             for (addr, ibv) in inses
-                                if SYNCSTATES[Int(IsAutoRefreshing)] && isrefreshingdict[addr]
-                                    CImGui.PushStyleColor(CImGui.ImGuiCol_Text, MORESTYLE.Colors.DAQTaskRunning)
-                                end
+                                isrefreshingdict[addr] && CImGui.PushStyleColor(
+                                    CImGui.ImGuiCol_Text, MORESTYLE.Colors.DAQTaskRunning
+                                )
                                 addrnode = CImGui.TreeNode(addr)
-                                if SYNCSTATES[Int(IsAutoRefreshing)] && isrefreshingdict[addr]
-                                    CImGui.PopStyleColor()
-                                end
+                                isrefreshingdict[addr] && CImGui.PopStyleColor()
                                 if CImGui.BeginPopupContextItem()
                                     if CImGui.MenuItem(
                                         stcstr(MORESTYLE.Icons.CloseFile, " ", mlstr("Delete")),
                                         C_NULL,
                                         false,
-                                        ins != "VirtualInstr"
+                                        ins != "VirtualInstr" && !SYNCSTATES[Int(IsDAQTaskRunning)]
                                     )
                                         synccall_wait(workers()[1], ins, addr) do ins, addr
                                             delete!(INSTRBUFFERVIEWERS[ins], addr)
@@ -256,7 +260,7 @@ let
                                     end
                                     if CImGui.BeginMenu(
                                         stcstr(MORESTYLE.Icons.NewFile, " ", mlstr("Add to")),
-                                        ins == "Others"
+                                        ins == "Others" && !SYNCSTATES[Int(IsDAQTaskRunning)]
                                     )
                                         for (cfins, cf) in INSCONF
                                             cfins in ["Others", "VirtualInstr"] && continue
@@ -274,15 +278,15 @@ let
                                 if addrnode
                                     @c CImGui.MenuItem(mlstr("Common"), C_NULL, &ibv.p_open)
                                     if haskey(INSWCONF, ins)
-                                        haskey(instrwidgets, addr) || push!(instrwidgets, addr => Dict())
+                                        haskey(instrwidgets, addr) || (instrwidgets[addr] = Dict())
                                         for w in INSWCONF[ins]
                                             if !haskey(instrwidgets[addr], w.name)
-                                                push!(instrwidgets[addr], w.name => (Ref(false), []))
+                                                instrwidgets[addr][w.name] = (Ref(false), [])
                                             end
                                             if CImGui.MenuItem(w.name, C_NULL, instrwidgets[addr][w.name][1])
                                                 if instrwidgets[addr][w.name][1][]
                                                     push!(instrwidgets[addr][w.name][2], deepcopy(w))
-                                                    Threads.@spawn initialize!(only(instrwidgets[addr][w.name][2]), addr)
+                                                    initialize!(only(instrwidgets[addr][w.name][2]), addr)
                                                 end
                                             end
                                         end

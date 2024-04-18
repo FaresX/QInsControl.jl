@@ -14,11 +14,11 @@ function loadconf(precompile=false)
                         ustr = occursin(" ", U) ? replace(U, " " => "*") : U
                         push!(Us, eval(:(@u_str($ustr))))
                     end
-                    push!(unitslist, Ut => Us)
+                    unitslist[Ut] = Us
                 end
             end
-            push!(unitslist, "" => [""])
-            push!(conf_dict, "U" => unitslist)
+            unitslist[""] = [""]
+            conf_dict["U"] = unitslist
             try_from_dict(Conf, conf_dict)
         end
     else
@@ -41,7 +41,7 @@ function loadconf(precompile=false)
     ###### generate INSCONF ######
     for file in readdir(joinpath(ENV["QInsControlAssets"], "ExtraLoad"), join=true)
         try
-            split(basename(file), '.')[end] == "jl" && include(file)
+            endswith(basename(file), ".jl") && include(file)
         catch e
             @error mlstr("loading drivers failed!!!") exception = e file = file
         end
@@ -49,7 +49,7 @@ function loadconf(precompile=false)
     for file in readdir(joinpath(ENV["QInsControlAssets"], "Confs"), join=true)
         bnm = basename(file)
         try
-            split(bnm, '.')[end] == "toml" && gen_insconf(file)
+            endswith(bnm, ".toml") && gen_insconf(file)
         catch e
             @error mlstr("loading file failed!!!") file = file excepiton = e
         end
@@ -62,7 +62,7 @@ function loadconf(precompile=false)
         try
             if filetype == "toml"
                 widgets = TOML.parsefile(file)
-                push!(INSWCONF, instrnm => [])
+                INSWCONF[instrnm] = []
                 for (_, widget) in widgets
                     push!(INSWCONF[instrnm], try_from_dict(InstrWidget, widget))
                 end
@@ -75,27 +75,35 @@ function loadconf(precompile=false)
     if myid() == 1
         ###### generate INSTRBUFFERVIEWERS ######
         for ins in keys(INSCONF)
-            push!(INSTRBUFFERVIEWERS, ins => Dict{String,InstrBufferViewer}())
+            INSTRBUFFERVIEWERS[ins] = Dict{String,InstrBufferViewer}()
         end
-        push!(INSTRBUFFERVIEWERS, "VirtualInstr" => Dict("VirtualAddress" => InstrBufferViewer("VirtualInstr", "VirtualAddress")))
+        INSTRBUFFERVIEWERS["VirtualInstr"] = Dict("VirtualAddress" => InstrBufferViewer("VirtualInstr", "VirtualAddress"))
 
         ###### load style_conf ######
         for file in readdir(CONF.Style.dir, join=true)
             bnm = basename(file)
             try
-                split(bnm, '.')[end] == "sty" && merge!(STYLES, load(file))
+                endswith(bnm, ".sty") && merge!(STYLES, load(file))
             catch e
                 @error mlstr("loading file failed!!!") file = file exception = e
             end
         end
 
         ###### save conf.toml ######
-        svconf = deepcopy(CONF)
-        svconf.U = Dict(up.first => string.(up.second) for up in CONF.U)
-        to_toml(joinpath(ENV["QInsControlAssets"], "Necessity/conf.toml"), svconf)
+        saveconf()
     end
 
     return nothing
+end
+
+function saveconf()
+    svconf = deepcopy(CONF)
+    svconf.U = Dict(up.first => string.(up.second) for up in CONF.U)
+    try
+        to_toml(joinpath(ENV["QInsControlAssets"], "Necessity/conf.toml"), svconf)
+    catch e
+        @error "[$(now())]\n$(mlstr("saving configurations failed!!!"))" exception = e
+    end
 end
 
 macro scpi(instrnm, quantity, scpistr)
@@ -166,10 +174,10 @@ function gen_insconf(conf_file)
         if cf.first == "conf"
             oneinsconf.conf = BasicConf(cf.second)
         else
-            push!(oneinsconf.quantities, cf.first => QuantityConf(cf.second))
+            oneinsconf.quantities[cf.first] = QuantityConf(cf.second)
         end
     end
-    push!(INSCONF, string(instrnm) => oneinsconf)
+    INSCONF[string(instrnm)] = oneinsconf
 end
 
 function try_from_dict(t::Type, dict)

@@ -12,6 +12,7 @@ function UI(breakdown=false; precompile=false)
     CONF.Basic.viewportenable || (CONF.Basic.hidewindow = false)
     window = glfwCreateWindow(CONF.Basic.windowsize..., "QInsControl", C_NULL, C_NULL)
     @assert window != C_NULL
+    precompile && glfwHideWindow(window)
     glfwMakeContextCurrent(window)
     glfwSwapInterval(1)  # enable vsync
     CONF.Basic.hidewindow && glfwHideWindow(window)
@@ -183,13 +184,21 @@ function UI(breakdown=false; precompile=false)
             if CImGui.BeginPopupModal("##windowshouldclose?", C_NULL, CImGui.ImGuiWindowFlags_AlwaysAutoResize)
                 CImGui.TextColored(
                     MORESTYLE.Colors.LogError,
-                    stcstr("\n\n", mlstr("data acqiring, please wait......"), "\n\n\n")
+                    stcstr("\n\n", mlstr("data acquiring or sweeping, please wait......"), "\n\n\n")
                 )
                 CImGui.Button(mlstr("Confirm"), (-1, 0)) && CImGui.CloseCurrentPopup()
                 CImGui.EndPopup()
             end
             if glfwWindowShouldClose(window) != 0 || !isshowapp()[]
-                if SYNCSTATES[Int(IsDAQTaskRunning)]
+                hasrefreshing = false
+                for inses in values(INSTRBUFFERVIEWERS)
+                    for ibv in values(inses)
+                        for (_, qt) in filter(x -> x.second isa SweepQuantity, ibv.insbuf.quantities)
+                            hasrefreshing |= qt.issweeping
+                        end
+                    end
+                end
+                if SYNCSTATES[Int(IsDAQTaskRunning)] || hasrefreshing
                     CImGui.OpenPopup("##windowshouldclose?")
                     glfwSetWindowShouldClose(window, false)
                     isshowapp()[] = true
@@ -244,6 +253,7 @@ function UI(breakdown=false; precompile=false)
     finally
         SYNCSTATES[Int(IsDAQTaskRunning)] || remotecall_wait(() -> stop!(CPU), workers()[1])
         schedule(AUTOREFRESHTASK, mlstr("Stop"); error=true)
+        schedule(UPDATEFRONTTASK, mlstr("Stop"); error=true)
         empty!(STATICSTRINGS)
         empty!(MLSTRINGS)
         empty!(IMAGES)

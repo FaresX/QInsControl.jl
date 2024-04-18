@@ -436,14 +436,14 @@ let
 
     global function addnewnode(nodeeditor::NodeEditor, nodetype, pos, ::Val{:simple})
         nodeeditor.maxid += 1
-        push!(nodeeditor.nodes, nodeeditor.maxid => Node(nodeeditor.maxid, Val(nodetype)))
+        nodeeditor.nodes[nodeeditor.maxid] = Node(nodeeditor.maxid, Val(nodetype))
         imnodes_SetNodeScreenSpacePos(nodeeditor.maxid, pos)
         newnode = true
     end
 
     global function addnewnode(nodeeditor::NodeEditor, ins, pos, ::Val{:instrument})
         nodeeditor.maxid += 1
-        push!(nodeeditor.nodes, nodeeditor.maxid => Node(nodeeditor.maxid, ins, Val(:Instrument)))
+        nodeeditor.nodes[nodeeditor.maxid] = Node(nodeeditor.maxid, ins, Val(:Instrument))
         imnodes_SetNodeScreenSpacePos(nodeeditor.maxid, pos)
         newnode = true
     end
@@ -812,7 +812,7 @@ let
             CImGui.SameLine(CImGui.GetContentRegionAvailWidth() - holdsz)
             @c ToggleButton(MORESTYLE.Icons.HoldPin, &hold)
             holdsz = CImGui.GetItemRectSize().x
-            haskey(nodeeditor_contexts, id) || push!(nodeeditor_contexts, id => imnodes_EditorContextCreate())
+            haskey(nodeeditor_contexts, id) || (nodeeditor_contexts[id] = imnodes_EditorContextCreate())
             imnodes_EditorContextSet(nodeeditor_contexts[id])
             edit(nodeeditor)
             isfocus &= CImGui.IsWindowFocused(CImGui.ImGuiFocusedFlags_ChildWindows)
@@ -889,7 +889,7 @@ end
 let
     nodeeditor_contexts::Dict{String,Ptr{LibCImGui.ImNodesEditorContext}} = Dict()
     global function view(nodeeditor::NodeEditor, id)
-        haskey(nodeeditor_contexts, id) || push!(nodeeditor_contexts, id => imnodes_EditorContextCreate())
+        haskey(nodeeditor_contexts, id) || (nodeeditor_contexts[id] = imnodes_EditorContextCreate())
         imnodes_EditorContextSet(nodeeditor_contexts[id])
         imnodes_BeginNodeEditor()
         for (id, node) in nodeeditor.nodes

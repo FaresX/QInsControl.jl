@@ -78,7 +78,7 @@ let
                 filetree.filepath = newpath
                 filetree.filepath_bnm = basename(filetree.filepath)
                 delete!(isrename, path)
-                push!(isrename, newpath => false)
+                isrename[newpath] = false
                 filetree.selectedpath[] = newpath
             else
                 isrename[path] = isrnm

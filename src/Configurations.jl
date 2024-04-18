@@ -15,6 +15,7 @@ end
 
 @option mutable struct OptCommunication
     visapath::String = ""
+    attrlist::Dict{String,Dict} = Dict()
 end
 
 @option mutable struct OptDtViewer
@@ -28,8 +29,10 @@ end
     externaleval::Bool = false
     savetime::Cint = 60
     cuttingfile::Cint = 2000000
-    channel_size::Cint = 512
+    channelsize::Cint = 512
     packsize::Cint = 6
+    ctbuflen::Cint = 4
+    cttimeout::Cfloat = 4
     historylen::Cint = 120
     retrysendtimes::Cint = 3
     retryconnecttimes::Cint = 3
@@ -38,7 +41,6 @@ end
 @option mutable struct OptInsBuf
     showhelp::Bool = false
     showcol::Cint = 3
-    refreshrate::Cfloat = 1
     disablelist::Dict{String,Dict{String,Vector{String}}} = Dict()
     unitlist::Dict{String,Dict{String,Dict{String,Int}}} = Dict()
 end
@@ -51,7 +53,7 @@ end
     dir::String = ""
     size::Cint = 18
     plotfontsize::Cint = 30
-    first::String = "ZaoZiGongFangShangHeiG0v1ChangGuiTi-1.otf"
+    first::String = "msyh.ttc"
     second::String = "arial.ttf"
     plotfont::String = "arial.ttf"
 end
@@ -187,7 +189,7 @@ todict(qtcf::QuantityConf) = Dict(
 function todict(oneinscf::OneInsConf)
     dict = Dict{String,Dict{String,Any}}("conf" => todict(oneinscf.conf))
     for (qt, qtcf) in oneinscf.quantities
-        push!(dict, qt => todict(qtcf))
+        dict[qt] = todict(qtcf)
     end
     dict
 end

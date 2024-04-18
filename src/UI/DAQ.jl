@@ -76,9 +76,11 @@ let
         global OLDI
         ftsz = CImGui.GetFontSize()
         CImGui.BeginChild("queue")
+        bth = 2CONF.Fonts.plotfontsize * unsafe_load(CImGui.GetIO().FontGlobalScale) +
+              4unsafe_load(IMGUISTYLE.FramePadding.y) - unsafe_load(IMGUISTYLE.ItemSpacing.y)
         if ColoredButtonRect(
             stcstr(MORESTYLE.Icons.SelectPath, " ", mlstr("Workplace"));
-            size=(6ftsz, 2CONF.Fonts.plotfontsize * unsafe_load(CImGui.GetIO().FontGlobalScale) + 2unsafe_load(IMGUISTYLE.ItemSpacing.y)),
+            size=(6ftsz, bth),
             colbt=zeros(4),
             coltxt=MORESTYLE.Colors.HighlightText,
             colrect=MORESTYLE.Colors.ItemBorder
@@ -88,7 +90,7 @@ let
         CImGui.SameLine()
         TextRect(
             WORKPATH;
-            size=(Cfloat(0), 2CONF.Fonts.plotfontsize * unsafe_load(CImGui.GetIO().FontGlobalScale) + 2unsafe_load(IMGUISTYLE.ItemSpacing.y)),
+            size=(Cfloat(0), bth),
             coltxt=if WORKPATH == mlstr("no workplace selected!!!")
                 MORESTYLE.Colors.LogError
             else
@@ -106,12 +108,11 @@ let
         end
         igSeparatorText("")
         halfwidth = (CImGui.GetContentRegionAvailWidth() - unsafe_load(IMGUISTYLE.ItemSpacing.x)) / 2
+        btsz = (halfwidth, 2ftsz + unsafe_load(IMGUISTYLE.FramePadding.y))
         CImGui.PushStyleColor(CImGui.ImGuiCol_Text, MORESTYLE.Colors.IconButton)
-        CImGui.Button(stcstr(MORESTYLE.Icons.NewFile, " ", mlstr("New Task")), (halfwidth, 2ftsz)) && push!(daqtasks, DAQTask())
+        CImGui.Button(stcstr(MORESTYLE.Icons.NewFile, " ", mlstr("New Task")), btsz) && push!(daqtasks, DAQTask())
         CImGui.SameLine()
-        if CImGui.Button(stcstr(MORESTYLE.Icons.NewFile, " ", mlstr("New Plot")), (halfwidth, 2CImGui.GetFontSize()))
-            newplot!(DAQDATAPLOT)
-        end
+        CImGui.Button(stcstr(MORESTYLE.Icons.NewFile, " ", mlstr("New Plot")), btsz) && newplot!(DAQDATAPLOT)
         CImGui.PopStyleColor()
         length(show_daq_editors) == length(daqtasks) || resize!(show_daq_editors, length(daqtasks))
         length(torunstates) == length(daqtasks) || resize!(torunstates, length(daqtasks))
@@ -191,7 +192,7 @@ let
                     stcstr(MORESTYLE.Icons.RunTask, " ", mlstr(torunstates[i] ? "Cancel" : "Run")),
                     C_NULL,
                     false,
-                    !isrunning_i
+                    !isrunning_i && !SYNCSTATES[Int(AutoDetecting)]
                 )
                     torunstates[i] ⊻= true
                     torunstates[i] && (SYNCSTATES[Int(IsDAQTaskRunning)] || rundaqtasks())
@@ -312,9 +313,9 @@ let
                     dtpklink = DAQDATAPLOT.dtpks[DAQDATAPLOT.linkidx[i]]
                     linkeddata = Dict{String,VecOrMat{Cdouble}}()
                     for (j, pss) in enumerate(pltlink.series)
-                        push!(linkeddata, "x$j" => copy(pss.x))
-                        push!(linkeddata, "y$j" => copy(pss.y))
-                        push!(linkeddata, "z$j" => copy(pss.z))
+                        linkeddata["x$j"] = copy(pss.x)
+                        linkeddata["y$j"] = copy(pss.y)
+                        linkeddata["z$j"] = copy(pss.z)
                         dtpklink.series[j].hflipz && reverse!(linkeddata["z$j"], dims=1)
                         dtpklink.series[j].vflipz && reverse!(linkeddata["z$j"], dims=2)
                         linkeddata["z$j"] = transpose(linkeddata["z$j"]) |> collect

@@ -70,12 +70,9 @@ let
             CImGui.BeginChild("specific options")
             ftsz = CImGui.GetFontSize()
             if selectedpref == "General"
+                ftsz = CImGui.GetFontSize()
                 ### Basic ###
                 SeparatorTextColored(MORESTYLE.Colors.HighlightText, mlstr("Basic Setup"))
-                # @c CImGui.Checkbox(
-                #     CONF.Basic.isremote ? mlstr("dual core") : mlstr("single core"),
-                #     &CONF.Basic.isremote
-                # )
                 @c(CImGui.Checkbox(
                     CONF.Basic.viewportenable ? mlstr("multi-viewport mode on") : mlstr("multi-viewport mode off"),
                     &CONF.Basic.viewportenable
@@ -87,6 +84,7 @@ let
                 # if unsafe_load(CImGui.GetIO().ConfigFlags) & CImGui.ImGuiConfigFlags_ViewportsEnable == CImGui.ImGuiConfigFlags_ViewportsEnable
                 #     @c CImGui.Checkbox(mlstr("hide window"), &CONF.Basic.hidewindow)
                 # end
+                @c RadioButton2(mlstr("dual core"), mlstr("single core"), &CONF.Basic.isremote; local_pos_x=12ftsz)
                 !isinteractive() && @c(CImGui.DragInt(
                     mlstr("threads"),
                     &CONF.Basic.nthreads,
@@ -162,21 +160,18 @@ let
 
                 ###DAQ###
                 SeparatorTextColored(MORESTYLE.Colors.HighlightText, "DAQ")
-                @c(CImGui.Checkbox(
-                    mlstr(CONF.DAQ.logall ? "log all quantities" : "log enabled quantities"),
-                    &CONF.DAQ.logall
-                )) && remotecall_wait((logall) -> CONF.DAQ.logall = logall, workers()[1], CONF.DAQ.logall)
-                @c CImGui.Checkbox(
-                    mlstr(CONF.DAQ.equalstep ? "equal step sampling" : "fixed step sampling"),
-                    &CONF.DAQ.equalstep
-                )
-                @c CImGui.Checkbox(
-                    mlstr(CONF.DAQ.externaleval ? "eval in Main" : "eval in QInsControl"),
-                    &CONF.DAQ.externaleval
-                )
+                @c(RadioButton2(
+                    mlstr("log all quantities"), mlstr("log enabled quantities"), &CONF.DAQ.logall;
+                    local_pos_x = 12ftsz
+                )) && remotecall_wait(x -> CONF.DAQ.logall = x, workers()[1], CONF.DAQ.logall)
+                @c(RadioButton2(
+                    mlstr("equal step sampling"), mlstr("fixed step sampling"), &CONF.DAQ.equalstep;
+                    local_pos_x = 12ftsz
+                )) && remotecall_wait(x -> CONF.DAQ.equalstep = x, workers()[1], CONF.DAQ.equalstep)
+                @c RadioButton2(mlstr("eval in Main"), mlstr("eval in QInsControl"), &CONF.DAQ.externaleval; local_pos_x = 12ftsz)
                 @c ComboS(mlstr("stored data type"), &CONF.DAQ.savetype, datatypes)
                 @c CImGui.DragInt(
-                    mlstr("saving time"),
+                    stcstr(mlstr("saving time"), " (s)"),
                     &CONF.DAQ.savetime,
                     1.0, 1, 180, "%d",
                     CImGui.ImGuiSliderFlags_AlwaysClamp
@@ -187,18 +182,30 @@ let
                     100, 100, 10000000, "%d",
                     CImGui.ImGuiSliderFlags_AlwaysClamp
                 )
-                @c CImGui.DragInt(
+                @c(CImGui.DragInt(
                     mlstr("channel size"),
-                    &CONF.DAQ.channel_size,
+                    &CONF.DAQ.channelsize,
                     1.0, 4, 2048, "%d",
                     CImGui.ImGuiSliderFlags_AlwaysClamp
-                )
-                @c CImGui.DragInt(
+                )) && remotecall_wait(x -> (CONF.DAQ.channelsize = x), workers()[1], CONF.DAQ.channelsize)
+                @c(CImGui.DragInt(
                     mlstr("packing size"),
                     &CONF.DAQ.packsize,
-                    1.0, 6, 120, "%d",
+                    1.0, 6, 2048, "%d",
                     CImGui.ImGuiSliderFlags_AlwaysClamp
-                )
+                )) && remotecall_wait(x -> (CONF.DAQ.packsize = x), workers()[1], CONF.DAQ.packsize)
+                @c(CImGui.DragInt(
+                    mlstr("controller buffer size"),
+                    &CONF.DAQ.ctbuflen,
+                    1.0, 1, 1024, "%d",
+                    CImGui.ImGuiSliderFlags_AlwaysClamp
+                )) && remotecall_wait(x -> (CONF.DAQ.ctbuflen = x), workers()[1], CONF.DAQ.ctbuflen)
+                @c(CImGui.DragFloat(
+                    stcstr(mlstr("controller timeout"), " (s)"),
+                    &CONF.DAQ.cttimeout,
+                    0.1, 0.1, 240, "%.1f",
+                    CImGui.ImGuiSliderFlags_AlwaysClamp
+                )) && remotecall_wait(x -> (CONF.DAQ.cttimeout = x), workers()[1], CONF.DAQ.cttimeout)
                 @c CImGui.DragInt(
                     stcstr(mlstr("history blocks"), "##DAQ"),
                     &CONF.DAQ.historylen,
@@ -227,12 +234,6 @@ let
                     mlstr("display columns"),
                     &CONF.InsBuf.showcol,
                     1.0, 1, 6, "%d",
-                    CImGui.ImGuiSliderFlags_AlwaysClamp
-                )
-                @c CImGui.DragFloat(
-                    mlstr("refresh rate"),
-                    &CONF.InsBuf.refreshrate,
-                    0.01, 0.01, 60, "%.2f",
                     CImGui.ImGuiSliderFlags_AlwaysClamp
                 )
                 CImGui.Text(" ")
@@ -304,7 +305,7 @@ let
                 selectiodir && (iodir = pick_folder(abspath(iodir)))
                 (inputiodir || selectiodir) && isvalidpath(iodir; file=false) && (CONF.Console.dir = iodir)
                 @c CImGui.DragFloat(
-                    stcstr(mlstr("refresh rate"), "##Console"),
+                    stcstr(mlstr("refresh rate"), " (s)##Console"),
                     &CONF.Console.refreshrate,
                     1.0, 0.1, 60, "%.1f",
                     CImGui.ImGuiSliderFlags_AlwaysClamp
@@ -341,7 +342,7 @@ let
                 selectlogdir && (logdir = pick_folder(abspath(logdir)))
                 (inputlogdir || selectlogdir) && isvalidpath(logdir; file=false) && (CONF.Logs.dir = logdir)
                 @c CImGui.DragFloat(
-                    stcstr(mlstr("refresh rate"), "##Logs"),
+                    stcstr(mlstr("refresh rate"), " (s)##Logs"),
                     &CONF.Logs.refreshrate,
                     1.0, 0.1, 60, "%.1f",
                     CImGui.ImGuiSliderFlags_AlwaysClamp

@@ -6,7 +6,7 @@ end
 const STATICSTRINGS = Dict{Tuple,StaticString}()
 
 function stcstr(args...)
-    haskey(STATICSTRINGS, (args...,)) || push!(STATICSTRINGS, (args...,) => StaticString(string(args...), true))
+    haskey(STATICSTRINGS, (args...,)) || (STATICSTRINGS[(args...,)] = StaticString(string(args...), true))
     ss = STATICSTRINGS[(args...,)]
     ss.update = true
     return ss.str

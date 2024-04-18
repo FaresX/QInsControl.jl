@@ -47,9 +47,15 @@ end
 
 function packtake!(c, n=12)
     buf = eltype(c)[]
-    for _ in 1:n
-        isready(c) && push!(buf, take!(c))
-    end
+    taking = true
+    t = errormonitor(
+        @async while taking
+            isready(c) ? push!(buf, take!(c)) : yield()
+        end
+    )
+    timedwait(() -> length(buf) > n, 0.01; pollint=0.001)
+    taking = false
+    wait(t)
     buf
 end
 
@@ -84,7 +90,7 @@ end
 let
     oldtime::Dict{String,Float64} = Dict()
     global function waittime(id, δt=1)
-        haskey(oldtime, id) || push!(oldtime, id => time())
+        haskey(oldtime, id) || (oldtime[id] = time())
         newtime = time()
         trig = newtime - oldtime[id] > δt
         trig && (oldtime[id] = newtime)
@@ -138,7 +144,7 @@ function newkey!(dict::AbstractDict, oldkey, newkey)
         if p.first != oldkey
             push!(newdict, p)
         else
-            push!(newdict, newkey => p.second)
+            newdict[newkey] = p.second
         end
     end
     empty!(dict)
@@ -187,9 +193,9 @@ function swapvalue!(dict::OrderedDict, key1, key2)
     newdict = OrderedDict()
     for p in dict
         if p.first == key1
-            push!(newdict, key2 => dict[key2])
+            newdict[key2] = dict[key2]
         elseif p.first == key2
-            push!(newdict, key1 => dict[key1])
+            newdict[key1] = dict[key1]
         else
             push!(newdict, p)
         end

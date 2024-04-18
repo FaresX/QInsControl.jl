@@ -93,7 +93,7 @@ let
         Plot(plt; psize=CImGui.ImVec2(-1, -1), flags=flags)
         CImGui.PopFont()
         plt.hovered && CImGui.IsMouseClicked(2) && CImGui.OpenPopup(stcstr("title", id))
-        haskey(openpopup_mspos_list, id) || push!(openpopup_mspos_list, id => Cfloat[0, 0])
+        haskey(openpopup_mspos_list, id) || (openpopup_mspos_list[id] = Cfloat[0, 0])
         openpopup_mspos = openpopup_mspos_list[id]
         if CImGui.BeginPopup(stcstr("title", id))
             if openpopup_mspos == Cfloat[0, 0]
@@ -580,15 +580,12 @@ let
         if count(lc -> !lc.vline, plt.linecuts) == 0
             delete!(hlinecuts, plt.id)
         else
-            haskey(hlinecuts, plt.id) || push!(hlinecuts, plt.id => Dict())
+            haskey(hlinecuts, plt.id) || (hlinecuts[plt.id] = Dict())
             for pss in filter(s -> s.ptype == "heatmap", plt.series)
                 if haskey(hlinecuts[plt.id], pss.legend)
                     empty!(hlinecuts[plt.id][pss.legend].series)
                 else
-                    push!(
-                        hlinecuts[plt.id],
-                        pss.legend => Plot(title=stcstr(mlstr("Horizontal Linecuts"), " ", pss.legend))
-                    )
+                    hlinecuts[plt.id][pss.legend] = Plot(title=stcstr(mlstr("Horizontal Linecuts"), " ", pss.legend))
                 end
             end
             lgs = [s.legend for s in plt.series]
@@ -631,15 +628,12 @@ let
         if count(lc -> lc.vline, plt.linecuts) == 0
             delete!(vlinecuts, plt.id)
         else
-            haskey(vlinecuts, plt.id) || push!(vlinecuts, plt.id => Dict())
+            haskey(vlinecuts, plt.id) || (vlinecuts[plt.id] = Dict())
             for pss in filter(s -> s.ptype == "heatmap", plt.series)
                 if haskey(vlinecuts[plt.id], pss.legend)
                     empty!(vlinecuts[plt.id][pss.legend].series)
                 else
-                    push!(
-                        vlinecuts[plt.id],
-                        pss.legend => Plot(title=stcstr(mlstr("Vertical Linecuts"), " ", pss.legend))
-                    )
+                    vlinecuts[plt.id][pss.legend] = Plot(title=stcstr(mlstr("Vertical Linecuts"), " ", pss.legend))
                 end
             end
             lgs = [s.legend for s in plt.series]

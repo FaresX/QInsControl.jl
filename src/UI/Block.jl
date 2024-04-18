@@ -284,7 +284,7 @@ function gencodes_read(bk::Union{ReadingBlock,QueryBlock,ReadBlock})
     index isa Integer && (index = [index])
     bk isa ReadingBlock && (getfunc = Symbol(bk.instrnm, :_, bk.quantity, :_get))
     bk isa QueryBlock && (cmd = parsedollar(bk.cmd))
-    if isnothing(index)
+    if isnothing(index) || (bk isa ReadingBlock && INSCONF[bk.instrnm].quantities[bk.quantity].separator == "")
         key = if bk isa ReadingBlock
             string(bk.mark, "_", bk.instrnm, "_", bk.quantity, "_", bk.addr)
         else
@@ -351,7 +351,6 @@ function gencodes_read(bk::Union{ReadingBlock,QueryBlock,ReadBlock})
                 return quote
                     @async for data in zip($keyall, $getdata)
                         put!(databuf_lc, data)
-                        yield()
                     end
                 end
             else
