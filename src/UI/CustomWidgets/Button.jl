@@ -332,3 +332,12 @@ function ColoredProgressBarRect(
     CImGui.AddRect(draw_list, rmin, rmax, CImGui.ColorConvertFloat4ToU32(colrect), bdrounding, 0, thickness)
     return false
 end
+
+function RadioButton2(label1, label2, v::Ref{Bool}; local_pos_x=0, spacing_w=-1)
+    trig1 = CImGui.RadioButton(label1, v[])
+    CImGui.SameLine(local_pos_x, spacing_w)
+    trig2 = CImGui.RadioButton(label2, !v[])
+    trig1 && (v[] = true)
+    trig2 && (v[] = false)
+    return trig1 || trig2
+end

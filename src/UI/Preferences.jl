@@ -70,12 +70,9 @@ let
             CImGui.BeginChild("specific options")
             ftsz = CImGui.GetFontSize()
             if selectedpref == "General"
+                ftsz = CImGui.GetFontSize()
                 ### Basic ###
                 SeparatorTextColored(MORESTYLE.Colors.HighlightText, mlstr("Basic Setup"))
-                # @c CImGui.Checkbox(
-                #     CONF.Basic.isremote ? mlstr("dual core") : mlstr("single core"),
-                #     &CONF.Basic.isremote
-                # )
                 @c(CImGui.Checkbox(
                     CONF.Basic.viewportenable ? mlstr("multi-viewport mode on") : mlstr("multi-viewport mode off"),
                     &CONF.Basic.viewportenable
@@ -87,6 +84,7 @@ let
                 # if unsafe_load(CImGui.GetIO().ConfigFlags) & CImGui.ImGuiConfigFlags_ViewportsEnable == CImGui.ImGuiConfigFlags_ViewportsEnable
                 #     @c CImGui.Checkbox(mlstr("hide window"), &CONF.Basic.hidewindow)
                 # end
+                @c RadioButton2(mlstr("dual core"), mlstr("single core"), &CONF.Basic.isremote; local_pos_x=12ftsz)
                 !isinteractive() && @c(CImGui.DragInt(
                     mlstr("threads"),
                     &CONF.Basic.nthreads,
@@ -162,18 +160,15 @@ let
 
                 ###DAQ###
                 SeparatorTextColored(MORESTYLE.Colors.HighlightText, "DAQ")
-                @c(CImGui.Checkbox(
-                    mlstr(CONF.DAQ.logall ? "log all quantities" : "log enabled quantities"),
-                    &CONF.DAQ.logall
+                @c(RadioButton2(
+                    mlstr("log all quantities"), mlstr("log enabled quantities"), &CONF.DAQ.logall;
+                    local_pos_x = 12ftsz
                 )) && remotecall_wait(x -> CONF.DAQ.logall = x, workers()[1], CONF.DAQ.logall)
-                @c(CImGui.Checkbox(
-                    mlstr(CONF.DAQ.equalstep ? "equal step sampling" : "fixed step sampling"),
-                    &CONF.DAQ.equalstep
+                @c(RadioButton2(
+                    mlstr("equal step sampling"), mlstr("fixed step sampling"), &CONF.DAQ.equalstep;
+                    local_pos_x = 12ftsz
                 )) && remotecall_wait(x -> CONF.DAQ.equalstep = x, workers()[1], CONF.DAQ.equalstep)
-                @c CImGui.Checkbox(
-                    mlstr(CONF.DAQ.externaleval ? "eval in Main" : "eval in QInsControl"),
-                    &CONF.DAQ.externaleval
-                )
+                RadioButton2(mlstr("eval in Main"), mlstr("eval in QInsControl"), &CONF.DAQ.externaleval; local_pos_x = 12ftsz)
                 @c ComboS(mlstr("stored data type"), &CONF.DAQ.savetype, datatypes)
                 @c CImGui.DragInt(
                     stcstr(mlstr("saving time"), " (s)"),
