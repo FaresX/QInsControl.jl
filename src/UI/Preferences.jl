@@ -168,7 +168,7 @@ let
                     mlstr("equal step sampling"), mlstr("fixed step sampling"), &CONF.DAQ.equalstep;
                     local_pos_x = 12ftsz
                 )) && remotecall_wait(x -> CONF.DAQ.equalstep = x, workers()[1], CONF.DAQ.equalstep)
-                RadioButton2(mlstr("eval in Main"), mlstr("eval in QInsControl"), &CONF.DAQ.externaleval; local_pos_x = 12ftsz)
+                @c RadioButton2(mlstr("eval in Main"), mlstr("eval in QInsControl"), &CONF.DAQ.externaleval; local_pos_x = 12ftsz)
                 @c ComboS(mlstr("stored data type"), &CONF.DAQ.savetype, datatypes)
                 @c CImGui.DragInt(
                     stcstr(mlstr("saving time"), " (s)"),
