@@ -759,7 +759,7 @@ function edit(opts::QuantityWidgetOption, qt::SetQuantity, instrnm, addr, ::Val{
             colrect=opts.bdcolor
         )
     end
-    trig = CImGui.IsItemDeactivatedAfterChange()
+    trig = CImGui.IsItemDeactivated()
     trig && (apply!(qt, instrnm, addr); updatefront!(qt))
     opts.textsize == "big" && CImGui.PopFont()
     CImGui.SetWindowFontScale(originscale)
