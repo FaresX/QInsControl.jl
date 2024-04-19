@@ -53,7 +53,7 @@ end
     dir::String = ""
     size::Cint = 18
     plotfontsize::Cint = 30
-    first::String = "msyh.ttc"
+    first::String = "HarmonyOS_Sans_SC_Regular.ttf"
     second::String = "arial.ttf"
     plotfont::String = "arial.ttf"
 end
