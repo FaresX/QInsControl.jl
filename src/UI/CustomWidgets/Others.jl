@@ -611,3 +611,19 @@ let
         end
     end
 end
+
+let
+    states::Dict{String,Bool} = Dict()
+    global function CopyableText(label, text; size=(0, 0))
+        haskey(states, label) || (states[label] = false)
+        if states[label]
+            CImGui.InputTextMultiline(
+                label, text, length(text), size, CImGui.ImGuiInputTextFlags_ReadOnly
+            )
+            !CImGui.IsItemHovered() && CImGui.IsAnyMouseDown() && (states[label] = false)
+        else
+            CImGui.TextUnformatted(text)
+            CImGui.IsItemHovered() && CImGui.IsMouseDoubleClicked(0) && (states[label] = true)
+        end
+    end
+end

@@ -54,10 +54,13 @@ let
             lineheigth = (1 + length(findall('\n', buffer))) * CImGui.GetTextLineHeight() +
                          2unsafe_load(IMGUISTYLE.FramePadding.y)
             CImGui.BeginChild("STD OUT", (Float32(0), -lineheigth - unsafe_load(IMGUISTYLE.ItemSpacing.y)))
-            for (col, msg) in iomsgshow
-                CImGui.PushStyleColor(CImGui.ImGuiCol_Text, col)
+            for (i, colmsg) in enumerate(iomsgshow)
+                CImGui.PushStyleColor(CImGui.ImGuiCol_Text, colmsg[1])
                 CImGui.PushTextWrapPos(0)
-                CImGui.TextUnformatted(msg)
+                CopyableText(
+                    stcstr("##consolemsg", i), colmsg[2];
+                    size=(Cfloat(-1), (1 + length(findall("\n", colmsg[2]))) * CImGui.GetTextLineHeightWithSpacing())
+                )
                 CImGui.PopTextWrapPos()
                 CImGui.PopStyleColor()
             end
