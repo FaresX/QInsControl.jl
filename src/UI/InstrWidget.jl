@@ -75,6 +75,9 @@ end
     rate::Cint = 1
     windowbgcolor::Vector{Cfloat} = [1.000, 1.000, 1.000, 1.000]
     bgtintcolor::Vector{Cfloat} = [1.000, 1.000, 1.000, 1.000]
+    titlebgcolor::Vector{Cfloat} = [1.000, 1.000, 1.000, 1.000]
+    titlebgactivecolor::Vector{Cfloat} = [0.8, 0.8, 0.8, 1.000]
+    titlebgcollapsedcolor::Vector{Cfloat} = [1.000, 1.000, 1.000, 0.5]
     globaloptions::Bool = true
     qtlist::Vector{String} = []
     posoffset::Vector{Cfloat} = [0, 0]
@@ -979,6 +982,18 @@ let
             CImGui.ImGuiCol_WindowBg,
             insw.globaloptions ? CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_WindowBg) : insw.windowbgcolor
         )
+        CImGui.PushStyleColor(
+            CImGui.ImGuiCol_TitleBg,
+            insw.globaloptions ? CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_TitleBg) : insw.titlebgcolor
+        )
+        CImGui.PushStyleColor(
+            CImGui.ImGuiCol_TitleBgActive,
+            insw.globaloptions ? CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_TitleBgActive) : insw.titlebgactivecolor
+        )
+        CImGui.PushStyleColor(
+            CImGui.ImGuiCol_TitleBgCollapsed,
+            insw.globaloptions ? CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_TitleBgCollapsed) : insw.titlebgcollapsedcolor
+        )
         if CImGui.Begin(
             stcstr(
                 INSCONF[insw.instrnm].conf.icon, " ", insw.instrnm, " ", addr, " ", insw.name,
@@ -1097,7 +1112,7 @@ let
         end
         CImGui.IsWindowCollapsed() || (insw.windowsize .= CImGui.GetWindowSize() ./ scale)
         CImGui.End()
-        CImGui.PopStyleColor()
+        CImGui.PopStyleColor(4)
     end
 
     global function showlayer(insw::InstrWidget, qtw::QuantityWidget, i::Int, isanyitemdragging::Ref{Bool})
@@ -2161,6 +2176,21 @@ function globalwidgetoptionsmenu(insw::InstrWidget)
     CImGui.ColorEdit4(
         mlstr("Window"),
         insw.windowbgcolor,
+        CImGui.ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_AlphaPreviewHalf
+    )
+    CImGui.ColorEdit4(
+        mlstr("Title"),
+        insw.titlebgcolor,
+        CImGui.ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_AlphaPreviewHalf
+    )
+    CImGui.ColorEdit4(
+        mlstr("Active Title"),
+        insw.titlebgactivecolor,
+        CImGui.ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_AlphaPreviewHalf
+    )
+    CImGui.ColorEdit4(
+        mlstr("Collapsed Title"),
+        insw.titlebgcollapsedcolor,
         CImGui.ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_AlphaPreviewHalf
     )
     CImGui.EndChild()
