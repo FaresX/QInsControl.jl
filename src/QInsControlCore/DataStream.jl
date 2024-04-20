@@ -51,6 +51,7 @@ end
 construct a Processor to deal with the commands sended into by Controllers.
 """
 struct Processor
+    lock::Threads.Condition
     controllers::Vector{Controller}
     cmdchannel::Vector{Tuple{Controller,Int,Function,String,Val}}
     exechannels::Dict{String,Vector{Tuple{Controller,Int,Function,String,Val}}}
@@ -61,7 +62,7 @@ struct Processor
     instrs::Dict{String,Instrument}
     running::Ref{Bool}
     fast::Ref{Bool}
-    Processor() = new([], [], Dict(), Ref{Task}(), Dict(), Dict(), 0, Dict(), false, false)
+    Processor() = new(Threads.Condition(), [], [], Dict(), Ref{Task}(), Dict(), Dict(), 0, Dict(), false, false)
 end
 function Base.show(io::IO, cpu::Processor)
     str1 = """
@@ -97,15 +98,13 @@ auto-detect available instruments.
 """
 find_resources(cpu::Processor) = Instruments.find_resources(cpu.resourcemanager[])
 
-const LOGLOCK = Threads.Condition()
-
 """
     login!(cpu::Processor, ct::Controller)
 
 log the Controller in the Processor which can be done before and after the cpu started.
 """
 function login!(cpu::Processor, ct::Controller; quiet=true, attr=nothing)
-    lock(LOGLOCK) do
+    lock(cpu.lock) do
         ct in cpu.controllers || push!(cpu.controllers, ct)
         if cpu.running[]
             if !haskey(cpu.instrs, ct.addr)
@@ -141,7 +140,7 @@ log the Controller out the Processor.
 log all the Controllers that control the instrument with address addr out the Processor.
 """
 function logout!(cpu::Processor, ct::Controller; quiet=true)
-    lock(LOGLOCK) do
+    lock(cpu.lock) do
         if ct in cpu.controllers
             if ct.addr ∉ [c.addr for c in cpu.controllers if c != ct]
                 popinstr = pop!(cpu.instrs, ct.addr)
@@ -227,20 +226,17 @@ function (ct::Controller)(f::Function, cpu::Processor, val::String, ::Val{:query
 end
 
 function runcmd(cpu::Processor, ct::Controller, i::Int, f::Function, val::String, ::Val{:write})
-    instr = cpu.instrs[ct.addr]
-    wait(Threads.@spawn f(instr, val))
+    f(cpu.instrs[ct.addr], val)
     ct.ready[i] = true
     return nothing
 end
 function runcmd(cpu::Processor, ct::Controller, i::Int, f::Function, ::String, ::Val{:read})
-    instr = cpu.instrs[ct.addr]
-    ct.databuf[i] = fetch(Threads.@spawn f(instr))
+    ct.databuf[i] = f(cpu.instrs[ct.addr])
     ct.ready[i] = true
     return nothing
 end
 function runcmd(cpu::Processor, ct::Controller, i::Int, f::Function, val::String, ::Val{:query})
-    instr = cpu.instrs[ct.addr]
-    ct.databuf[i] = fetch(Threads.@spawn f(instr, val))
+    ct.databuf[i] = f(cpu.instrs[ct.addr], val)
     ct.ready[i] = true
     return nothing
 end

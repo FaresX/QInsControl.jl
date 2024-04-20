@@ -1,6 +1,6 @@
 function CPUMonitor()
     cpuinfo = remotecall_fetch(workers()[1]) do
-        lock(QInsControlCore.LOGLOCK) do
+        lock(CPU.lock) do
             Dict(
                 :running => CPU.running[],
                 :taskfailed => istaskfailed(CPU.processtask[]),
