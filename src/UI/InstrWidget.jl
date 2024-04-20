@@ -2202,44 +2202,41 @@ function exit!(insw::InstrWidget, addr)
     end
 end
 
-let
-    lk::Threads.Condition = Threads.Condition()
-    global function refresh1(insw::InstrWidget, addr; blacklist=[])
-        lock(lk) do
-            if haskey(INSTRBUFFERVIEWERS, insw.instrnm) && haskey(INSTRBUFFERVIEWERS[insw.instrnm], addr)
-                fetchibvs = wait_remotecall_fetch(
-                    workers()[1], INSTRBUFFERVIEWERS, insw.instrnm, addr, insw.qtlist, blacklist; timeout=120
-                ) do ibvs, ins, addr, qtlist, blacklist
-                    merge!(INSTRBUFFERVIEWERS, ibvs)
-                    ct = Controller(ins, addr; buflen=CONF.DAQ.ctbuflen, timeout=CONF.DAQ.cttimeout)
-                    try
-                        login!(CPU, ct; attr=getattr(addr))
-                        for (qtnm, qt) in filter(
-                            x -> x.first in qtlist && x.first ∉ blacklist,
-                            INSTRBUFFERVIEWERS[ins][addr].insbuf.quantities
-                        )
-                            getfunc = Symbol(ins, :_, qtnm, :_get) |> eval
-                            qt.read = ct(getfunc, CPU, Val(:read))
-                        end
-                    catch e
-                        @error(
-                            "[$(now())]\n$(mlstr("instrument communication failed!!!"))",
-                            instrument = string(ins, ": ", addr),
-                            exception = e
-                        )
-                    finally
-                        logout!(CPU, ct)
-                    end
-                    return INSTRBUFFERVIEWERS
-                end
-                if !isnothing(fetchibvs)
+function refresh1(insw::InstrWidget, addr; blacklist=[])
+    lock(REFRESHLOCK) do
+        if haskey(INSTRBUFFERVIEWERS, insw.instrnm) && haskey(INSTRBUFFERVIEWERS[insw.instrnm], addr)
+            fetchibvs = wait_remotecall_fetch(
+                workers()[1], INSTRBUFFERVIEWERS, insw.instrnm, addr, insw.qtlist, blacklist; timeout=120
+            ) do ibvs, ins, addr, qtlist, blacklist
+                merge!(INSTRBUFFERVIEWERS, ibvs)
+                ct = Controller(ins, addr; buflen=CONF.DAQ.ctbuflen, timeout=CONF.DAQ.cttimeout)
+                try
+                    login!(CPU, ct; attr=getattr(addr))
                     for (qtnm, qt) in filter(
-                        x -> x.first in insw.qtlist,
-                        INSTRBUFFERVIEWERS[insw.instrnm][addr].insbuf.quantities
+                        x -> x.first in qtlist && x.first ∉ blacklist,
+                        INSTRBUFFERVIEWERS[ins][addr].insbuf.quantities
                     )
-                        qt.read = fetchibvs[insw.instrnm][addr].insbuf.quantities[qtnm].read
-                        sendtoupdatefront(qt)
+                        getfunc = Symbol(ins, :_, qtnm, :_get) |> eval
+                        qt.read = ct(getfunc, CPU, Val(:read))
                     end
+                catch e
+                    @error(
+                        "[$(now())]\n$(mlstr("instrument communication failed!!!"))",
+                        instrument = string(ins, ": ", addr),
+                        exception = e
+                    )
+                finally
+                    logout!(CPU, ct)
+                end
+                return INSTRBUFFERVIEWERS
+            end
+            if !isnothing(fetchibvs)
+                for (qtnm, qt) in filter(
+                    x -> x.first in insw.qtlist,
+                    INSTRBUFFERVIEWERS[insw.instrnm][addr].insbuf.quantities
+                )
+                    qt.read = fetchibvs[insw.instrnm][addr].insbuf.quantities[qtnm].read
+                    sendtoupdatefront(qt)
                 end
             end
         end

@@ -1259,77 +1259,75 @@ function log_instrbufferviewers()
     CFGBUF["instrbufferviewers/[$(now())]"] = deepcopy(INSTRBUFFERVIEWERS)
 end
 
-let
-    lk::Threads.Condition = Threads.Condition()
-    global function refresh1(log=false; instrlist=keys(INSTRBUFFERVIEWERS))
-        fetchibvs = lock(lk) do
-            wait_remotecall_fetch(workers()[1], INSTRBUFFERVIEWERS; timeout=120) do ibvs
-                merge!(INSTRBUFFERVIEWERS, ibvs)
-                @sync for (ins, inses) in filter(x -> x.first in instrlist && !isempty(x.second), INSTRBUFFERVIEWERS)
-                    ins == "Others" && continue
-                    for (addr, ibv) in inses
-                        errormonitor(
-                            @async if ibv.insbuf.isautorefresh || log
-                                haskey(REFRESHCTS, ins) || (REFRESHCTS[ins] = Dict())
-                                haskey(REFRESHCTS[ins], addr) || (REFRESHCTS[ins][addr] = Controller(
-                                    ins, addr; buflen=CONF.DAQ.ctbuflen, timeout=CONF.DAQ.cttimeout
-                                )
-                                )
-                                ct = REFRESHCTS[ins][addr]
-                                try
-                                    login!(CPU, ct; attr=getattr(addr))
-                                    for (qtnm, qt) in ibv.insbuf.quantities
-                                        if log && (CONF.DAQ.logall || qt.enable)
+const REFRESHLOCK = Threads.Condition()
+function refresh1(log=false; instrlist=keys(INSTRBUFFERVIEWERS))
+    fetchibvs = lock(REFRESHLOCK) do
+        wait_remotecall_fetch(workers()[1], INSTRBUFFERVIEWERS; timeout=120) do ibvs
+            merge!(INSTRBUFFERVIEWERS, ibvs)
+            @sync for (ins, inses) in filter(x -> x.first in instrlist && !isempty(x.second), INSTRBUFFERVIEWERS)
+                ins == "Others" && continue
+                for (addr, ibv) in inses
+                    errormonitor(
+                        @async if ibv.insbuf.isautorefresh || log
+                            haskey(REFRESHCTS, ins) || (REFRESHCTS[ins] = Dict())
+                            haskey(REFRESHCTS[ins], addr) || (REFRESHCTS[ins][addr] = Controller(
+                                ins, addr; buflen=CONF.DAQ.ctbuflen, timeout=CONF.DAQ.cttimeout
+                            )
+                            )
+                            ct = REFRESHCTS[ins][addr]
+                            try
+                                login!(CPU, ct; attr=getattr(addr))
+                                for (qtnm, qt) in ibv.insbuf.quantities
+                                    if log && (CONF.DAQ.logall || qt.enable)
+                                        getfunc = Symbol(ins, :_, qtnm, :_get) |> eval
+                                        qt.read = ct(getfunc, CPU, Val(:read))
+                                        qt.refreshed = true
+                                        myid() == 1 && sendtoupdatefront(qt)
+                                    elseif qt.enable && qt.isautorefresh
+                                        t = time()
+                                        δt = t - qt.lastrefresh
+                                        if δt > qt.refreshrate - 0.005
+                                            qt.lastrefresh = t
                                             getfunc = Symbol(ins, :_, qtnm, :_get) |> eval
                                             qt.read = ct(getfunc, CPU, Val(:read))
                                             qt.refreshed = true
                                             myid() == 1 && sendtoupdatefront(qt)
-                                        elseif qt.enable && qt.isautorefresh
-                                            t = time()
-                                            δt = t - qt.lastrefresh
-                                            if δt > qt.refreshrate - 0.005
-                                                qt.lastrefresh = t
-                                                getfunc = Symbol(ins, :_, qtnm, :_get) |> eval
-                                                qt.read = ct(getfunc, CPU, Val(:read))
-                                                qt.refreshed = true
-                                                myid() == 1 && sendtoupdatefront(qt)
-                                            end
                                         end
                                     end
-                                catch e
-                                    @error(
-                                        "[$(now())]\n$(mlstr("instrument communication failed!!!"))",
-                                        instrument = string(ins, ": ", addr),
-                                        exception = e
-                                    )
-                                finally
-                                    logout!(CPU, ct)
                                 end
+                            catch e
+                                @error(
+                                    "[$(now())]\n$(mlstr("instrument communication failed!!!"))",
+                                    instrument = string(ins, ": ", addr),
+                                    exception = e
+                                )
+                            finally
+                                logout!(CPU, ct)
                             end
-                        )
+                        end
+                    )
+                end
+            end
+            return INSTRBUFFERVIEWERS
+        end
+    end
+    if CONF.Basic.isremote && !isnothing(fetchibvs)
+        for (ins, inses) in filter(x -> !isempty(x.second), INSTRBUFFERVIEWERS)
+            for (addr, ibv) in filter(x -> x.second.insbuf.isautorefresh || log, inses)
+                reflist = if log
+                    CONF.DAQ.logall ? ibv.insbuf.quantities : filter(x -> x.second.enable, ibv.insbuf.quantities)
+                else
+                    filter(ibv.insbuf.quantities) do qtpair
+                        qt = qtpair.second
+                        fetchqt = fetchibvs[ins][addr].insbuf.quantities[qtpair.first]
+                        fetchqt.refreshed && (qt.refreshed = false)
+                        qt.enable && qt.isautorefresh && fetchqt.refreshed
                     end
                 end
-                return INSTRBUFFERVIEWERS
-            end
-        end
-        if CONF.Basic.isremote && !isnothing(fetchibvs)
-            for (ins, inses) in filter(x -> !isempty(x.second), INSTRBUFFERVIEWERS)
-                for (addr, ibv) in filter(x -> x.second.insbuf.isautorefresh || log, inses)
-                    reflist = if log
-                        CONF.DAQ.logall ? ibv.insbuf.quantities : filter(x -> x.second.enable, ibv.insbuf.quantities)
-                    else
-                        filter(ibv.insbuf.quantities) do qtpair
-                            qt = qtpair.second
-                            fetchqt = fetchibvs[ins][addr].insbuf.quantities[qtpair.first]
-                            fetchqt.refreshed && (qt.refreshed = false)
-                            qt.enable && qt.isautorefresh && fetchqt.refreshed
-                        end
-                    end
-                    for (qtnm, qt) in reflist
-                        qt.read = fetchibvs[ins][addr].insbuf.quantities[qtnm].read
-                        qt.lastrefresh = fetchibvs[ins][addr].insbuf.quantities[qtnm].lastrefresh
-                        sendtoupdatefront(qt)
-                    end
+                for (qtnm, qt) in reflist
+                    qt.read = fetchibvs[ins][addr].insbuf.quantities[qtnm].read
+                    qt.lastrefresh = fetchibvs[ins][addr].insbuf.quantities[qtnm].lastrefresh
+                    sendtoupdatefront(qt)
                 end
             end
         end
