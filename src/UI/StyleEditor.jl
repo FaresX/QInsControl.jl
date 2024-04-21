@@ -457,11 +457,11 @@ let
                     if getproperty(style_ref.Colors, color) != getproperty(MORESTYLE.Colors, color)
                         CImGui.SameLine()
                         if CImGui.Button("Save")
-                            setproperty!(style_ref.Colors, color, copy(getproperty(MORESTYLE.Colors, color)))
+                            getproperty(style_ref.Colors, color) .= getproperty(MORESTYLE.Colors, color)
                         end
                         CImGui.SameLine()
                         if CImGui.Button("Revert")
-                            setproperty!(MORESTYLE.Colors, color, copy(getproperty(style_ref.Colors, color)))
+                            getproperty(MORESTYLE.Colors, color) .= getproperty(style_ref.Colors, color)
                         end
                     end
                 end
