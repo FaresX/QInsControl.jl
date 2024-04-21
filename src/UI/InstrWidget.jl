@@ -961,6 +961,7 @@ let
     qtypes::Vector{String} = ["sweep", "set", "read"]
     continuousuitypes::Vector{String} = ["inputstep", "inputstop", "dragdelay", "inputset"]
     draggable::Bool = false
+    disabled::Bool = true
     draglayers::Dict{Int,Union{DragRect,Vector{DragPoint}}} = Dict()
     copiedopts::Ref{QuantityWidgetOption} = QuantityWidgetOption()
     showslnums::Bool = false
@@ -1011,12 +1012,12 @@ let
             CImGui.BeginChild("drawing area")
             for (i, qtw) in enumerate(insw.qtws)
                 CImGui.PushID(i)
-                !usingit && draggable && igBeginDisabled(true)
+                !usingit && draggable && disabled && igBeginDisabled(true)
                 if edit(qtw, insbuf, insw.instrnm, addr)
                     qtw.qtype in qtypes && qtw.options.uitype ∉ continuousuitypes && Threads.@spawn refresh1(insw, addr; blacklist=[qtw.name])
                     qtw.name == "_QuantitySelector_" && (trigselector!(qtw, insw); Threads.@spawn refresh1(insw, addr))
                 end
-                !usingit && draggable && igEndDisabled()
+                !usingit && draggable && disabled && igEndDisabled()
                 if !usingit
                     if haskey(draglayers, i)
                         isselected = selectedqtw == i
@@ -1322,6 +1323,7 @@ let
         @c CImGui.Checkbox(mlstr("Show Serial Numbers"), &showslnums)
         @c CImGui.Checkbox(mlstr("Show Positions"), &showpos)
         @c CImGui.Checkbox(mlstr("Draggable"), &draggable)
+        draggable && (CImGui.SameLine(); @c CImGui.Checkbox(mlstr("Disable"), &disabled))
         @c ComboS(mlstr("Dragging Mode"), &dragmode, mlstr.(dragmodes))
         @c CImGui.SliderInt(mlstr("Display Columns"), &showcols, 1, 12, "%d")
         if all(!qtw.selected for qtw in insw.qtws)
