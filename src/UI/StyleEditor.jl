@@ -525,7 +525,18 @@ function loadstyle(style_ref::ImNodesStyle)
         CImGui.c_set!(IMNODESSTYLE.Colors, i - 1, style_ref.Colors[i])
     end
 end
-loadstyle(style_ref::MoreStyle) = (global MORESTYLE = deepcopy(style_ref); IMPLOTSTYLE.Marker = MORESTYLE.Variables.ImPlotMarker)
+function loadstyle(style_ref::MoreStyle)
+    for var in fieldnames(MoreStyleVariable)
+        setproperty!(MORESTYLE.Variables, var, getproperty(style_ref.Variables, var))
+    end
+    for var in fieldnames(MoreStyleColor)
+        getproperty(MORESTYLE.Colors, var) .= getproperty(style_ref.Colors, var)
+    end
+    for var in fieldnames(MoreStyleIcon)
+        setproperty!(MORESTYLE.Icons, var, getproperty(style_ref.Icons, var))
+    end
+    IMPLOTSTYLE.Marker = MORESTYLE.Variables.ImPlotMarker
+end
 function loadstyle(ustyle::UnionStyle)
     for s in fieldnames(UnionStyle)
         loadstyle(getproperty(ustyle, s))
