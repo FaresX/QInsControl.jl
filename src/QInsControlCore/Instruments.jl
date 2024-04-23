@@ -54,7 +54,7 @@ struct SerialInstr <: Instrument
     attr::SerialInstrAttr
 end
 
-struct TCPSocketInstr <: Instrument
+mutable struct TCPSocketInstr <: Instrument
     name::String
     addr::String
     ip::IPv4
@@ -90,7 +90,7 @@ function instrument(name, addr; attr=nothing)
         end
     elseif occursin("TCPSOCKET", addr)
         try
-            _, ipstr, portstr, _ = split(addr, "::")
+            _, ipstr, portstr = split(addr, "::")
             port = parse(Int, portstr)
             ip = try
                 IPv4(ipstr)
@@ -159,7 +159,7 @@ function connect!(_, instr::SerialInstr)
 end
 function connect!(_, instr::TCPSocketInstr)
     if !instr.connected[]
-        bind(instr.handle, instr.ip, instr.port)
+        instr.handle = connect(instr.ip, instr.port)
         instr.connected[] = true
     end
     return instr.connected[]
