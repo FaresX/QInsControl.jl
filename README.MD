@@ -22,7 +22,7 @@ or you can download the execution file on the releases pages, which is a quicker
 using QInsControl
 QInsControl.start()
 ```
-TCPIP address: TCPSOCKET::127.0.0.1::8080 [TCPIP::**ip**::**port**]  
+TCPIP address: TCPSOCKET::127.0.0.1::8080 [TCPSOCKET::**ip**::**port**]  
 serial port address: SERIAL::COM1 [SERIAL::**port**]
 
 ## example
