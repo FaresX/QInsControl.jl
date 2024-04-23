@@ -1213,6 +1213,7 @@ let
             newlayer.colbd = MORESTYLE.Colors.WidgetBorder
             newlayer.colbdh = MORESTYLE.Colors.WidgetBorderHovered
             newlayer.colbda = MORESTYLE.Colors.WidgetBorderDragging
+            newlayer.thickness = MORESTYLE.Variables.WidgetBorderThickness
         end
         draglayers[i] = newlayer
     end

@@ -164,6 +164,7 @@ end
     MiniMapFraction::Cfloat = 0.2
     MiniMapLocation::LibCImGui.ImNodesMiniMapLocation = LibCImGui.ImNodesMiniMapLocation_TopRight
     ImPlotMarker::Cint = 0
+    WidgetBorderThickness::Cfloat = 1
 end
 
 @kwdef mutable struct MoreStyle
@@ -370,6 +371,10 @@ let
                 )
                 @c CImGui.DragFloat(
                     "TextRectThickness", &MORESTYLE.Variables.TextRectThickness,
+                    1, 0, 60, "%.1f", CImGui.ImGuiSliderFlags_AlwaysClamp
+                )
+                @c CImGui.DragFloat(
+                    "WidgetBorderThickness", &MORESTYLE.Variables.WidgetBorderThickness,
                     1, 0, 60, "%.1f", CImGui.ImGuiSliderFlags_AlwaysClamp
                 )
                 CImGui.DragFloat2(

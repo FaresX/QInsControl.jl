@@ -333,7 +333,13 @@ function Plot2D(plotfunc, pss::PlotSeries, plt::Plot)
         if !isempty(d2s)
             mind2 = findmin(d2s)
             idx = idxes[mind2[2]]
-            if mind2[1] < abs2(unsafe_load(IMPLOTSTYLE.MarkerSize))
+            if mind2[1] < 4abs2(unsafe_load(IMPLOTSTYLE.MarkerSize))
+                CImGui.AddCircle(
+                    CImGui.GetWindowDrawList(), ImPlot.PlotToPixels(pss.x[idx], pss.y[idx]),
+                    unsafe_load(IMPLOTSTYLE.MarkerSize) + MORESTYLE.Variables.WidgetBorderThickness + 2,
+                    CImGui.ColorConvertFloat4ToU32(MORESTYLE.Colors.WidgetBorderHovered),
+                    24, MORESTYLE.Variables.WidgetBorderThickness
+                )
                 CImGui.BeginTooltip()
                 SeparatorTextColored(MORESTYLE.Colors.HighlightText, pss.legend)
                 CImGui.PushTextWrapPos(36CImGui.GetFontSize())
@@ -370,12 +376,27 @@ function Plot(pss::PlotSeries, plt::Plot, ::Val{:heatmap})
         yr = range(pss.axis.yaxis.lims[2], pss.axis.yaxis.lims[1], length=zsz[2])
         xidx = argmin(abs.(xr .- plt.mspos.x))
         yidx = argmin(abs.(yr .- plt.mspos.y))
+        x, y, z = xr[xidx], yr[yidx], pss.z[xidx, yidx]
+        zpospixel = ImPlot.PlotToPixels(x, y)
+        hb, vb = plt.plotlims[[pss.axis.xaxis.axis + 1, pss.axis.yaxis.axis + 1]]
+        hmlb, hmrb = max(hb.Min, xr[1]), min(hb.Max, xr[end])
+        hmbb, hmtb = max(vb.Min, yr[end]), min(vb.Max, yr[1])
+        hlen = ImPlot.PlotToPixels(hmrb, hmbb).x - ImPlot.PlotToPixels(hmlb, hmbb).x
+        vlen = ImPlot.PlotToPixels(hmlb, hmbb).y - ImPlot.PlotToPixels(hmlb, hmtb).y
+        lidx, ridx = argmin(abs.(xr .- hmlb)), argmin(abs.(xr .- hmrb))
+        bidx, tidx = argmin(abs.(yr .- hmbb)), argmin(abs.(yr .- hmtb))
+        hmpixelsz = (hlen / (ridx - lidx + (ridx == lidx)), vlen / (bidx - tidx + (bidx == tidx)))
+        CImGui.AddRect(
+            CImGui.GetWindowDrawList(), zpospixel .- hmpixelsz ./ 2, zpospixel .+ hmpixelsz ./ 2,
+            CImGui.ColorConvertFloat4ToU32(MORESTYLE.Colors.WidgetBorderHovered),
+            0.0, CImGui.ImDrawFlags_RoundCornersAll, MORESTYLE.Variables.WidgetBorderThickness
+        )
         CImGui.BeginTooltip()
         SeparatorTextColored(MORESTYLE.Colors.HighlightText, pss.legend)
         CImGui.PushTextWrapPos(36CImGui.GetFontSize())
-        CImGui.Text(string("x : ", xr[xidx]))
-        CImGui.Text(string("y : ", yr[yidx]))
-        CImGui.Text(string("z : ", pss.z[xidx, yidx]))
+        CImGui.Text(string("x : ", x))
+        CImGui.Text(string("y : ", y))
+        CImGui.Text(string("z : ", z))
         CImGui.PopTextWrapPos()
         CImGui.EndTooltip()
     end
