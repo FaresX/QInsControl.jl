@@ -10,7 +10,7 @@ friendly GUI and a flexible script written mannar to keep both the convenience a
 See [docs](https://FaresX.github.io/QInsControl.jl/dev/) here or 视频【QInsControl.jl 开源的可编程仪器控制和数据采集工具】 https://www.bilibili.com/video/BV1Y2421N75d/?share_source=copy_web&vd_source=9bb5f2e2197b605d0d141ae8f55c67c7
 
 ## install
-Before installation, make sure you have NI VISA installed!
+Before installation, make sure you have NI VISA installed! **Now it's able to run without VISA and supports TCPIP socket and serial port.** <font color='red'> (less tested) </font>
 ```
 julia> ]
 (@v1.10) pkg> add https://github.com/FaresX/QInsControl.jl.git
@@ -22,6 +22,8 @@ or you can download the execution file on the releases pages, which is a quicker
 using QInsControl
 QInsControl.start()
 ```
+TCPIP address: TCPSOCKET::127.0.0.1::8080 [TCPIP::**ip**::**port**]  
+serial port address: SERIAL::COM1 [SERIAL::**port**]
 
 ## example
 ![image](example/demo.png)
