@@ -68,6 +68,7 @@ let
         CImGui.PushItemWidth(-1)
         @c(RenameSelectable(
             "##path", &isrnm, &file, filetree.selectedpath[] == path;
+            size2=(-1, 0),
             fixedlabel=stcstr(MORESTYLE.Icons.OpenFile, " ")
         )) && (filetree.selectedpath[] = path)
         CImGui.PopItemWidth()

@@ -127,6 +127,7 @@ let
                 if @c RenameSelectable(
                     "##RenameInsConf", &renamei, &newinsnm, selectedins == oldinsnm,
                     0, (Cfloat(0), 3CImGui.GetFrameHeight() / 2);
+                    size2=(Cfloat(-1), 3CImGui.GetFrameHeight() / 2),
                     fixedlabel=stcstr(inscf.conf.icon, " ")
                 )
                     selectedins = oldinsnm

@@ -32,7 +32,7 @@
 
 function DragMultiSelectable(
     rightclickmenu, id, labels, states, n, idxing, args...;
-    action=(si, ti, args...)->(),
+    action=(si, ti, args...) -> (),
     size=(Cfloat(0), CImGui.GetFrameHeight() * ceil(Int, length(labels) / n)),
     border=false,
     selectableflags=0,
@@ -73,15 +73,25 @@ function DragMultiSelectable(
     CImGui.EndChild()
 end
 
-function RenameSelectable(str_id, isrename::Ref{Bool}, label::Ref, selected::Bool, flags=0, size=(0, 0); fixedlabel="")
+function RenameSelectable(
+    str_id, isrename::Ref{Bool}, label::Ref, selected::Bool, flags=0, size1=(0, 0);
+    size2=(0, 0), fixedlabel=""
+)
     trig = false
     if isrename[]
+        size2[2] > 0 && CImGui.PushStyleVar(
+            CImGui.ImGuiStyleVar_FramePadding,
+            (unsafe_load(IMGUISTYLE.FramePadding.x), (size2[2] - CImGui.GetFontSize()) / 2)
+        )
+        CImGui.PushItemWidth(size2[1])
         InputTextRSZ(str_id, label)
+        CImGui.PopItemWidth()
+        size2[2] > 0 && CImGui.PopStyleVar()
         if (!CImGui.IsItemHovered() && !CImGui.IsItemActive() && CImGui.IsMouseClicked(0)) || CImGui.IsMouseClicked(1)
             isrename[] = false
         end
     else
-        trig = CImGui.Selectable(stcstr(fixedlabel, label[]), selected, flags, size)
+        trig = CImGui.Selectable(stcstr(fixedlabel, label[]), selected, flags, size1)
         CImGui.IsItemHovered() && CImGui.IsMouseDoubleClicked(0) && (isrename[] = true)
     end
     trig
