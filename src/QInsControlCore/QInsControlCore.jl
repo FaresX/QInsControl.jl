@@ -1,6 +1,7 @@
 module QInsControlCore
 using BinDeps
 using Instruments
+using Instruments: viSetAttribute
 using LibSerialPort
 using Sockets
 using UUIDs
@@ -20,6 +21,7 @@ function timedwhile(f::Function, timeout::Real)
 end
 
 include("VISA.jl")
+include("constants.jl")
 include("Instruments.jl")
 include("DataStream.jl")
 end # module QInsControlCore

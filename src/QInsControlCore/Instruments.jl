@@ -2,6 +2,12 @@ abstract type Instrument end
 abstract type InstrAttr end
 
 @kwdef mutable struct VISAInstrAttr <: InstrAttr
+    #ASRL
+    baudrate::Integer = 9600
+    ndatabits::Integer = 8
+    parity::VI_ASRL_PAR = VI_ASRL_PAR_NONE
+    nstopbits::VI_ASRL_STOP = VI_ASRL_STOP_ONE
+    #Common
     async::Bool = false
     timeoutq::Real = 6
     querydelay::Real = 0
@@ -137,7 +143,11 @@ function connect!(rm, instr::VISAInstr)
         Instruments.connect!(rm, instr.handle, instr.addr)
         instr.connected[] = instr.handle.connected
         if occursin("ASRL", instr.addr)
-            Instruments.viSetAttribute(instr.handle.handle, Instruments.VI_ATTR_TERMCHAR, UInt(instr.attr.termchar))
+            viSetAttribute(instr.handle.handle, Instruments.VI_ATTR_ASRL_BAUD, UInt(instr.attr.baudrate))
+            viSetAttribute(instr.handle.handle, Instruments.VI_ATTR_ASRL_DATA_BITS, UInt(instr.attr.ndatabits))
+            viSetAttribute(instr.handle.handle, Instruments.VI_ATTR_ASRL_PARITY, UInt(instr.attr.parity))
+            viSetAttribute(instr.handle.handle, Instruments.VI_ATTR_ASRL_STOP_BITS, UInt(instr.attr.nstopbits))
+            viSetAttribute(instr.handle.handle, Instruments.VI_ATTR_TERMCHAR, UInt(instr.attr.termchar))
         end
     end
     return instr.connected[]
