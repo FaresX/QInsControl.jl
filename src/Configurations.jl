@@ -1,6 +1,7 @@
 @option mutable struct OptBasic
     isremote::Bool = true
     viewportenable::Bool = true
+    holdmainwindow::Bool = true
     scale::Bool = false
     hidewindow::Bool = false
     nthreads::Cint = 2

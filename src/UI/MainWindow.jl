@@ -69,9 +69,30 @@ let
     global function MainWindow()
         if !CONF.Basic.hidewindow
             viewport = igGetMainViewport()
-            CImGui.SetNextWindowPos(unsafe_load(viewport.WorkPos))
-            CImGui.SetNextWindowSize(unsafe_load(viewport.WorkSize))
-            CImGui.Begin("Wallpaper", C_NULL, window_flags | CImGui.ImGuiWindowFlags_NoBringToFrontOnFocus)
+            if CONF.Basic.viewportenable
+                CImGui.SetNextWindowPos(unsafe_load(viewport.WorkPos))
+                CImGui.SetNextWindowSize(unsafe_load(viewport.WorkSize))
+            else
+                CImGui.SetNextWindowPos((0, 0))
+                CImGui.SetNextWindowSize(unsafe_load(viewport.WorkSize))
+            end
+            CImGui.PushStyleVar(CImGui.ImGuiStyleVar_WindowRounding, 0)
+            CImGui.PushStyleVar(CImGui.ImGuiStyleVar_WindowPadding, (0, 0))
+            CImGui.Begin("DockSpace", C_NULL, window_flags | CImGui.ImGuiWindowFlags_NoBackground)
+            igDockSpace(CImGui.GetID("MainWindow"), CImGui.ImVec2(0, 0), ImGuiDockNodeFlags_PassthruCentralNode, C_NULL)
+            CImGui.End()
+            CImGui.PopStyleVar(2)
+
+            if CONF.Basic.holdmainwindow
+                CImGui.SetNextWindowPos(unsafe_load(viewport.WorkPos))
+                CImGui.SetNextWindowSize(unsafe_load(viewport.WorkSize))
+            else
+                CImGui.SetNextWindowSize(CONF.Basic.windowsize, CImGui.ImGuiCond_FirstUseEver)
+            end
+            CImGui.Begin(
+                stcstr(mlstr("Main Window"), "###MainWindow"),
+                C_NULL, CONF.Basic.holdmainwindow ? window_flags | CImGui.ImGuiWindowFlags_NoBringToFrontOnFocus : 0
+            )
             SetWindowBgImage()
             DAQtoolbar()
             CImGui.SameLine()
@@ -360,15 +381,6 @@ let
             CImGui.EndChild()
 
             CImGui.End()
-
-            CImGui.SetNextWindowPos(unsafe_load(viewport.WorkPos))
-            CImGui.SetNextWindowSize(unsafe_load(viewport.WorkSize))
-            CImGui.PushStyleVar(CImGui.ImGuiStyleVar_WindowRounding, 0)
-            CImGui.PushStyleVar(CImGui.ImGuiStyleVar_WindowPadding, (0, 0))
-            CImGui.Begin("DockSpace", C_NULL, window_flags | CImGui.ImGuiWindowFlags_NoBackground)
-            igDockSpace(CImGui.GetID("MainWindow"), CImGui.ImVec2(0, 0), ImGuiDockNodeFlags_PassthruCentralNode, C_NULL)
-            CImGui.End()
-            CImGui.PopStyleVar(2)
         end
 
         ######子窗口######

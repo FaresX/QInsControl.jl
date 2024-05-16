@@ -77,6 +77,7 @@ let
                     CONF.Basic.viewportenable ? mlstr("multi-viewport mode on") : mlstr("multi-viewport mode off"),
                     &CONF.Basic.viewportenable
                 )) && (CONF.Basic.viewportenable || (CONF.Basic.hidewindow = false))
+                @c CImGui.Checkbox(mlstr("hold main window"), &CONF.Basic.holdmainwindow)
                 @c CImGui.Checkbox(
                     CONF.Basic.scale ? mlstr("scale on") : mlstr("scale off"),
                     &CONF.Basic.scale
