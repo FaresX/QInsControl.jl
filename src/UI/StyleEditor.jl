@@ -1,4 +1,5 @@
 @kwdef mutable struct MoreStyleColor
+    ClearColor::Vector{Cfloat} = [1.000, 1.000, 1.000, 1.000]
     BgImageTint::Vector{Cfloat} = [1.000, 1.000, 1.000, 0.600]
     HighlightText::Vector{Cfloat} = [1.000, 1.000, 0.000, 1.000]
     LogInfo::Vector{Cfloat} = [0.000, 0.855, 1.000, 1.000]

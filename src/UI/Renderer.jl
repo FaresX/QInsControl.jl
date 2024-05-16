@@ -166,7 +166,6 @@ function UI(breakdown=false; precompile=false)
     breakdown && closeallwindow()
 
     @async try
-        clear_color = Cfloat[0.45, 0.55, 0.60, 1.00]
         scale_old::Cfloat = 0
         isshowapp()[] = true
         # firsthide::Bool = CONF.Basic.hidewindow
@@ -231,7 +230,7 @@ function UI(breakdown=false; precompile=false)
             display_h = height[]
 
             glViewport(0, 0, display_w, display_h)
-            glClearColor(clear_color...)
+            glClearColor(MORESTYLE.Colors.ClearColor...)
             glClear(GL_COLOR_BUFFER_BIT)
             ImGuiOpenGLBackend.render(gl_ctx)
 
