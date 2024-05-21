@@ -117,14 +117,12 @@ function edit(dtviewer::DataViewer, path, id)
                     if CImGui.MenuItem(stcstr(MORESTYLE.Icons.SaveButton, " ", mlstr("Export")))
                         exportpath = save_file(; filterlist="csv")
                         if exportpath != ""
-                            try
+                            @trycatch mlstr("exporting data failed!!!") begin
                                 exportdata(
                                     exportpath,
                                     dtviewer.data["data"],
                                     Val(Symbol(split(basename(exportpath), '.')[end]))
                                 )
-                            catch e
-                                @error "[$(now())]\n$(mlstr("exporting data failed!!!"))" exception = e
                             end
                         end
                     end
@@ -209,13 +207,11 @@ function loaddtviewer!(dtviewer::DataViewer, path)
             if haskey(dtviewer.data, "circuit")
                 for (_, node) in dtviewer.data["circuit"].nodes
                     if node isa SampleHolderNode
-                        try
+                        @trycatch mlstr("loading image failed!!!") begin
                             img = RGBA.(jpeg_decode(node.imgr.image))
                             imgsize = size(img)
                             node.imgr.id = ImGui_ImplOpenGL3_CreateImageTexture(imgsize...)
                             ImGui_ImplOpenGL3_UpdateImageTexture(node.imgr.id, img, imgsize...)
-                        catch e
-                            @error "[$(now())]\n$(mlstr("loading image failed!!!"))" exception = e
                         end
                     end
                 end
@@ -223,13 +219,11 @@ function loaddtviewer!(dtviewer::DataViewer, path)
             if haskey(dtviewer.data, "revision")
                 for (_, node) in dtviewer.data["revision"]["circuit"].nodes
                     if node isa SampleHolderNode
-                        try
+                        @trycatch mlstr("loading image failed!!!") begin
                             img = RGBA.(jpeg_decode(node.imgr.image))
                             imgsize = size(img)
                             node.imgr.id = ImGui_ImplOpenGL3_CreateImageTexture(imgsize...)
                             ImGui_ImplOpenGL3_UpdateImageTexture(node.imgr.id, img, imgsize...)
-                        catch e
-                            @error "[$(now())]\n$(mlstr("loading image failed!!!"))" exception = e
                         end
                     end
                 end

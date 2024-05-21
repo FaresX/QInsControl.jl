@@ -23,6 +23,7 @@ function manualadd(addr)
             catch e
                 logout!(CPU, ct)
                 @error "[$(now())]\n$(mlstr("instrument communication failed!!!"))" instrument_address = addr exception = e
+                Base.show_backtrace(LOGIO, catch_backtrace())
             end
         end
         if isnothing(idnr)
@@ -50,7 +51,7 @@ end
 function refresh_instrlist()
     if !SYNCSTATES[Int(AutoDetecting)] && !SYNCSTATES[Int(AutoDetectDone)]
         SYNCSTATES[Int(AutoDetecting)] = true
-        @monitorasync begin
+        @async begin
             try
                 for ins in keys(INSTRBUFFERVIEWERS)
                     ins == "VirtualInstr" && continue
@@ -60,7 +61,8 @@ function refresh_instrlist()
                 SYNCSTATES[Int(AutoDetecting)] && (SYNCSTATES[Int(AutoDetectDone)] = true)
             catch e
                 SYNCSTATES[Int(AutoDetecting)] && (SYNCSTATES[Int(AutoDetectDone)] = true)
-                @error mlstr("auto searching failed!!!") exception = e
+                @error string("[", now(), "]\n", mlstr("auto searching failed!!!")) exception = e
+                Base.show_backtrace(LOGIO, catch_backtrace())
             end
         end
         poll_autodetect()
@@ -68,7 +70,7 @@ function refresh_instrlist()
 end
 
 function poll_autodetect()
-    @monitorasync begin
+    @async @trycatch mlstr("task failed!!!") begin
         starttime = time()
         while true
             if SYNCSTATES[Int(AutoDetectDone)] || time() - starttime > 180
@@ -89,7 +91,7 @@ let
         @c ComboS("##OthersIns", &addinstr, keys(INSTRBUFFERVIEWERS["Others"]))
         CImGui.SameLine()
         if CImGui.Button(stcstr(MORESTYLE.Icons.NewFile))
-            @monitorasync begin
+            @async @trycatch mlstr("task failed!!!") begin
                 if !SYNCSTATES[Int(AutoDetecting)] && !SYNCSTATES[Int(AutoDetectDone)]
                     SYNCSTATES[Int(AutoDetecting)] = true
                     st = manualadd(addinstr)
@@ -122,7 +124,7 @@ let
         end
         CImGui.SameLine()
         if CImGui.Button(stcstr(MORESTYLE.Icons.NewFile, "##manual input addr"))
-            @monitorasync begin
+            @async @trycatch mlstr("task failed!!!") begin
                 if !SYNCSTATES[Int(AutoDetecting)] && !SYNCSTATES[Int(AutoDetectDone)]
                     SYNCSTATES[Int(AutoDetecting)] = true
                     st = manualadd(newinsaddr)

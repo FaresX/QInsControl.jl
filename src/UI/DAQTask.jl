@@ -128,12 +128,13 @@ function run(daqtask::DAQTask)
         log_instrbufferviewers()
     catch e
         @error "[$(now())]\n$(mlstr("instrument logging error, program terminates!!!"))" exception = e
+        Base.show_backtrace(LOGIO, catch_backtrace())
         SYNCSTATES[Int(IsDAQTaskRunning)] = false
         return nothing
     end
     run_remote(daqtask)
     wait(
-        @monitorspawn while update_all()
+        Threads.@spawn @trycatch mlstr("updating data task failed!!!") while update_all()
             yield()
         end
     )
@@ -167,14 +168,14 @@ function run_remote(daqtask::DAQTask)
                 databuf_lc = Channel{Tuple{String,String}}(CONF.DAQ.channelsize)
                 progress_lc = Channel{Tuple{UUID,Int,Int,Float64}}(CONF.DAQ.channelsize)
                 @sync begin
-                    remotedotask = @monitorasync begin
+                    remotedotask = @async @trycatch mlstr("remotedotask failed!!!") begin
                         remotecall_wait(() -> (start!(CPU); fast!(CPU)), workers()[1])
                         for ct in values(controllers)
                             login!(CPU, ct; quiet=false, attr=getattr(ct.addr))
                         end
                         remote_sweep_block(controllers, databuf_lc, progress_lc, SYNCSTATES)
                     end
-                    @monitorasync while true
+                    @async @trycatch mlstr("transfering data task failded!!!") while true
                         if istaskdone(remotedotask) && all(.!isready.([databuf_lc, databuf_rc, progress_lc, progress_rc]))
                             remotecall_wait(eval, 1, :(log_instrbufferviewers()))
                             SYNCSTATES[Int(IsDAQTaskDone)] = true
@@ -188,6 +189,7 @@ function run_remote(daqtask::DAQTask)
                 end
             catch e
                 @error "[$(now())]\n$(mlstr("task failed!!!"))" exeption = e
+                Base.show_backtrace(LOGIO, catch_backtrace())
             finally
                 for ct in values(controllers)
                     logout!(CPU, ct; quiet=false)
@@ -203,6 +205,7 @@ function run_remote(daqtask::DAQTask)
         catch e
             SYNCSTATES[Int(IsDAQTaskDone)] = true
             @error "[$(now())]\n$(mlstr("errors in program definition!!!"))" exception = e
+            Base.show_backtrace(LOGIO, catch_backtrace())
         end
     end
     SYNCSTATES[Int(IsDAQTaskDone)] && return
@@ -213,6 +216,7 @@ function run_remote(daqtask::DAQTask)
         catch e
             syncstates[Int(IsDAQTaskDone)] = true
             @error "[$(now())]\n$(mlstr("executing program failed!!!"))" exception = e
+            Base.show_backtrace(LOGIO, catch_backtrace())
         end
     end
 end
@@ -244,11 +248,7 @@ function saveqdt()
             global SAVEPATH = joinpath(dir, string(savepathhead, " [", cuttingnum, "].qdt"))
             empty!(DATABUF)
             empty!(DATABUFPARSED)
-            try
-                log_instrbufferviewers()
-            catch e
-                @error "[$(now())]\n$(mlstr("instrument logging error, program terminates!!!"))" exception = e
-            end
+            @trycatch mlstr("instrument logging error, program terminates!!!") log_instrbufferviewers()
         end
     end
 end
@@ -339,6 +339,7 @@ function extract_controllers(bkch::Vector{AbstractBlock})
                     instrument = string(bk.instrnm, ": ", bk.addr),
                     exception = e
                 )
+                Base.show_backtrace(LOGIO, catch_backtrace())
                 logout!(CPU, ct)
                 return controllers, false
             end

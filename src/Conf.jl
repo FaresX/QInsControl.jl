@@ -40,18 +40,14 @@ function loadconf(precompile=false)
 
     ###### generate INSCONF ######
     for file in readdir(joinpath(ENV["QInsControlAssets"], "ExtraLoad"), join=true)
-        try
+        @trycatch mlstr("loading drivers failed!!!") begin
             endswith(basename(file), ".jl") && include(file)
-        catch e
-            @error mlstr("loading drivers failed!!!") exception = e file = file
         end
     end
     for file in readdir(joinpath(ENV["QInsControlAssets"], "Confs"), join=true)
         bnm = basename(file)
-        try
+        @trycatch mlstr("loading file failed!!!") begin
             endswith(bnm, ".toml") && gen_insconf(file)
-        catch e
-            @error mlstr("loading file failed!!!") file = file excepiton = e
         end
     end
 
@@ -59,7 +55,7 @@ function loadconf(precompile=false)
     for file in readdir(joinpath(ENV["QInsControlAssets"], "Widgets"), join=true)
         bnm = basename(file)
         instrnm, filetype = split(bnm, '.')
-        try
+        @trycatch mlstr("loading file failed!!!") begin
             if filetype == "toml"
                 widgets = TOML.parsefile(file)
                 INSWCONF[instrnm] = []
@@ -67,8 +63,6 @@ function loadconf(precompile=false)
                     push!(INSWCONF[instrnm], try_from_dict(InstrWidget, widget))
                 end
             end
-        catch e
-            @error mlstr("loading file failed!!!") file = file exception = e
         end
     end
 
@@ -82,10 +76,8 @@ function loadconf(precompile=false)
         ###### load style_conf ######
         for file in readdir(CONF.Style.dir, join=true)
             bnm = basename(file)
-            try
+            @trycatch mlstr("loading file failed!!!") begin
                 endswith(bnm, ".sty") && merge!(STYLES, load(file))
-            catch e
-                @error mlstr("loading file failed!!!") file = file exception = e
             end
         end
 
@@ -99,11 +91,7 @@ end
 function saveconf()
     svconf = deepcopy(CONF)
     svconf.U = Dict(up.first => string.(up.second) for up in CONF.U)
-    try
-        to_toml(joinpath(ENV["QInsControlAssets"], "Necessity/conf.toml"), svconf)
-    catch e
-        @error "[$(now())]\n$(mlstr("saving configurations failed!!!"))" exception = e
-    end
+    @trycatch mlstr("saving configurations failed!!!") to_toml(joinpath(ENV["QInsControlAssets"], "Necessity/conf.toml"), svconf)
 end
 
 macro scpi(instrnm, quantity, scpistr)
@@ -186,6 +174,7 @@ function try_from_dict(t::Type, dict)
         cf = from_dict(t, dict)
     catch e
         @error mlstr("invalid configuration file, trying refactoring") exception = e
+        Base.show_backtrace(LOGIO, catch_backtrace())
         cfdict = to_dict(cf)
         cf = from_dict(t, mergeconf!(cfdict, dict))
     end

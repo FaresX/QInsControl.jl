@@ -53,13 +53,11 @@ let
             )
                 svconf = deepcopy(CONF)
                 svconf.U = Dict(up.first => string.(up.second) for up in CONF.U)
-                try
+                @trycatch mlstr("saving configurations failed!!!") begin
                     to_toml(joinpath(ENV["QInsControlAssets"], "Necessity/conf.toml"), svconf)
                     !isinteractive() && open(joinpath(ENV["QInsControlAssets"], "Necessity/threads.cmd"), "w") do file
                         write(file, "set JULIA_NUM_THREADS=$(CONF.Basic.nthreads)")
                     end
-                catch e
-                    @error "[$(now())]\n$(mlstr("saving configurations failed!!!"))" exception = e
                 end
             end
             CImGui.PopStyleColor()

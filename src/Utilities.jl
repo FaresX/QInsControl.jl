@@ -7,6 +7,7 @@ macro trypasse(sv, default)
                 x = $sv
             catch e
                 @error "$(now())\nerror in @trypass" exception = e code = $code
+                Base.show_backtrace(LOGIO, catch_backtrace())
                 x = $default
             end
             x
@@ -424,37 +425,14 @@ function resizefill!(sv::Vector{String}, n; fillv="")
     end
 end
 
-macro monitorasync(ex)
+macro trycatch(msg, ex)
     esc(
         quote
-            @async try
+            try
                 $ex
             catch e
-                @error "task error" exception = e
-            end
-        end
-    )
-end
-
-macro monitorasync(msg, ex)
-    esc(
-        quote
-            @async try
-                $ex
-            catch e
-                @error $msg exception = e
-            end
-        end
-    )
-end
-
-macro monitorspawn(ex)
-    esc(
-        quote
-            Threads.@spawn try
-                $ex
-            catch e
-                @error "task error" exception = e
+                @error string("[", now(), "]\n", $msg) exception = e
+                Base.show_backtrace(LOGIO, catch_backtrace())
             end
         end
     )

@@ -58,10 +58,12 @@ global SYNCSTATES::SharedVector{Bool}
 global DATABUFRC::RemoteChannel{Channel{Vector{NTuple{2,String}}}}
 global PROGRESSRC::RemoteChannel{Channel{Vector{Tuple{UUID,Int,Int,Float64}}}}
 
+global LOGIO = stdout
+
+include("Utilities.jl")
 include("Configurations.jl")
 include("MultiLanguage.jl")
 include("StaticString.jl")
-include("Utilities.jl")
 
 include("UI/Block.jl")
 include("UI/CustomWidgets/CustomWidgets.jl")
@@ -106,7 +108,7 @@ function julia_main()::Cint
         global PROGRESSRC = RemoteChannel(() -> progress_c)
         global LOGIO = IOBuffer()
         global_logger(SimpleLogger(LOGIO))
-        @monitorasync mlstr("error in logging task") while true
+        @async @trycatch mlstr("error in logging task") while true
             update_log()
             sleep(1)
         end
@@ -127,7 +129,7 @@ function julia_main()::Cint
                 loadconf()
                 global LOGIO = IOBuffer()
                 global_logger(SimpleLogger(LOGIO))
-                @monitorasync mlstr("error in logging task") while true
+                @async @trycatch mlstr("error in logging task") while true
                     update_log(syncstates)
                     sleep(1)
                 end
@@ -151,6 +153,7 @@ function julia_main()::Cint
         end
     catch
         Base.invokelatest(Base.display_error, Base.catch_stack())
+        Base.show_backtrace(LOGIO, catch_backtrace())
         return 1
     end
     return 0

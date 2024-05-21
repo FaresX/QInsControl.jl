@@ -8,11 +8,7 @@ let
         CImGui.SameLine()
         if CImGui.Button(mlstr("Drivers"))
             driverfile = joinpath(ENV["QInsControlAssets"], "ExtraLoad/$instrnm.jl") |> abspath
-            Threads.@spawn try
-                Base.run(Cmd([CONF.Basic.editor, driverfile]))
-            catch e
-                @error "[$(now())]\n$(mlstr("error editing text!!!"))" exception = e
-            end
+            Threads.@spawn @trycatch mlstr("error editing text!!!") Base.run(Cmd([CONF.Basic.editor, driverfile]))
         end
         CImGui.SameLine()
         if CImGui.Button(MORESTYLE.Icons.InstrumentsManualRef)
@@ -21,6 +17,7 @@ let
                     endswith(basename(file), ".jl") && remotecall_wait(include, workers()[1], file)
                 catch e
                     @error mlstr("reloading drivers failed") exception = e file = file
+                    Base.show_backtrace(LOGIO, catch_backtrace())
                 end
             end
         end
@@ -289,7 +286,7 @@ let
                             end
                             cmdtype = Symbol("@", INSCONF[selectedins].conf.cmdtype)
                             synccall_wait([workers()[1]], selectedins, cmdtype, qtname, editqt.cmdheader) do instrnm, cmdtype, qtname, cmd
-                                try
+                                @trycatch mlstr("instrument registration failed!!!") begin
                                     if cmd != ""
                                         Expr(
                                             :macrocall,
@@ -300,8 +297,6 @@ let
                                             cmd
                                         ) |> eval
                                     end
-                                catch e
-                                    @error "[$(now())]\n$(mlstr("instrument registration failed!!!"))" exception = e
                                 end
                             end
                             for ibv in values(INSTRBUFFERVIEWERS[selectedins])
@@ -390,12 +385,10 @@ function saveinsconf()
         readcf = @trypasse TOML.parsefile(cfpath) nothing
         savingcf = todict(inscf)
         if readcf != savingcf
-            try
+            @trycatch mlstr("saving INSCONF failed!!!") begin
                 open(cfpath, "w") do file
                     TOML.print(file, savingcf)
                 end
-            catch e
-                @error "saving INSCONF failed" exception = e
             end
         end
     end
@@ -414,12 +407,10 @@ function saveinswconf()
         cfpath = joinpath(ENV["QInsControlAssets"], "Widgets/$ins.toml")
         readcf = @trypasse TOML.parsefile(cfpath) nothing
         if readcf != Dict(w => Dict(to_dict(w)) for w in widgets)
-            try
+            @trycatch mlstr("saving INSWCONF failed!!!") begin
                 open(cfpath, "w") do file
                     TOML.print(file, Dict(w.name => to_dict(w) for w in widgets))
                 end
-            catch e
-                @error "saving INSWCONF failed" exception = e
             end
         end
     end

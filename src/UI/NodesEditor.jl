@@ -337,14 +337,12 @@ let
             if CImGui.MenuItem(stcstr(MORESTYLE.Icons.Load, " ", mlstr("Load")))
                 imgpath = pick_file(filterlist="png,jpg,jpeg,tif,bmp")
                 if isfile(imgpath)
-                    try
+                    @trycatch mlstr("loading image failed!!!") begin
                         img = RGBA.(collect(transpose(FileIO.load(imgpath))))
                         imgsize = size(img)
                         imgr.id = ImGui_ImplOpenGL3_CreateImageTexture(imgsize...)
                         ImGui_ImplOpenGL3_UpdateImageTexture(imgr.id, img, imgsize...)
                         imgr.image = jpeg_encode(img)
-                    catch e
-                        @error "[$(now())]\n$(mlstr("loading image failed!!!"))" exception = e
                     end
                 end
             end

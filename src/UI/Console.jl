@@ -115,17 +115,14 @@ function writetoiofile(iofile, buffer)
         write(iofile_open, buffer)
         write(iofile_open, "\n[End]\n")
         write(iofile_open, "\n[OUT Begin]\n")
-        try
-            redirect_stdout(iofile_open) do
-                codes = Meta.parseall(buffer)
-                @eval Main print($codes)
-            end
-        catch e
-            @error exception = e
+        @trycatch mlstr("error parsing codes") redirect_stdout(iofile_open) do
+            codes = Meta.parseall(buffer)
+            @eval Main print($codes)
         end
         write(iofile_open, "\n[End]\n")
     catch e
-        @error exception = e
+        @error string("[", now(), "]\n", mlstr("error writing to file")) exception = e
+        Base.show_backtrace(LOGIO, catch_backtrace())
     finally
         flush(iofile_open)
         close(iofile_open)

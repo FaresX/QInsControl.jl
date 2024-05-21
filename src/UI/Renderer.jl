@@ -226,7 +226,7 @@ function UI(breakdown=false; precompile=false)
             newmousepos = CImGui.GetMousePos()
             mousemoved = newmousepos != mousepos
             mousemoved && (mousepos = newmousepos)
-            updateframe = CImGui.IsAnyMouseDown() || (CImGui.IsAnyWindowHovered() && mousemoved)
+            updateframe = CImGui.IsAnyMouseDown() || CImGui.IsAnyItemActive() || (CImGui.IsAnyWindowHovered() && mousemoved)
             CImGui.Render()
             glfwMakeContextCurrent(window)
 
@@ -254,7 +254,7 @@ function UI(breakdown=false; precompile=false)
         end
     catch e
         @error "[$(now())]\n$(mlstr("Error in renderloop!"))" exception = e
-        Base.show_backtrace(stderr, catch_backtrace())
+        Base.show_backtrace(LOGIO, catch_backtrace())
     finally
         SYNCSTATES[Int(IsDAQTaskRunning)] || remotecall_wait(() -> stop!(CPU), workers()[1])
         schedule(AUTOREFRESHTASK, mlstr("Stop"); error=true)

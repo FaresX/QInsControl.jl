@@ -350,7 +350,10 @@ let
             syncaxes(plt, pss, dtss; force=forcesync)
             (dtss.isrealtime | quiet) || @info "[$(now())]" data_processing = prettify(innercodes)
         catch e
-            (dtss.isrealtime | quiet) || @error "[$(now())]\n$(mlstr("processing data failed!!!"))" exception = e codes = prettify(ex)
+            if !(dtss.isrealtime || quiet)
+                @error "[$(now())]\n$(mlstr("processing data failed!!!"))" exception = e codes = prettify(ex)
+                Base.show_backtrace(LOGIO, catch_backtrace())
+            end
         finally
             dtss.isrunning = false
         end

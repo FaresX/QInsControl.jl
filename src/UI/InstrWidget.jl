@@ -1014,8 +1014,8 @@ let
                 CImGui.PushID(i)
                 !usingit && draggable && disabled && igBeginDisabled(true)
                 if edit(qtw, insbuf, insw.instrnm, addr)
-                    qtw.qtype in qtypes && qtw.options.uitype ∉ continuousuitypes && @monitorspawn refresh1(insw, addr; blacklist=[qtw.name])
-                    qtw.name == "_QuantitySelector_" && (trigselector!(qtw, insw); @monitorspawn refresh1(insw, addr))
+                    qtw.qtype in qtypes && qtw.options.uitype ∉ continuousuitypes && Threads.@spawn @trycatch mlstr("task failed!!!") refresh1(insw, addr; blacklist=[qtw.name])
+                    qtw.name == "_QuantitySelector_" && (trigselector!(qtw, insw); Threads.@spawn @trycatch mlstr("task failed!!!") refresh1(insw, addr))
                 end
                 !usingit && draggable && disabled && igEndDisabled()
                 if !usingit
@@ -2220,7 +2220,7 @@ function initialize!(insw::InstrWidget, addr)
             qt.refreshrate = autoreflist[qtnm]
         end
     end
-    @monitorspawn refresh1(insw, addr)
+    Threads.@spawn @trycatch mlstr("task failed!!!") refresh1(insw, addr)
 end
 
 function exit!(insw::InstrWidget, addr)
@@ -2258,6 +2258,7 @@ function refresh1(insw::InstrWidget, addr; blacklist=[])
                         instrument = string(ins, ": ", addr),
                         exception = e
                     )
+                    Base.show_backtrace(LOGIO, catch_backtrace())
                 finally
                     logout!(CPU, ct)
                 end

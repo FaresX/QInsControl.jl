@@ -14,12 +14,10 @@ function languageinfo()
 end
 
 function loadlanguage(file)
-    try
+    @trycatch mlstr("loading language failed!!!") begin
         empty!(MLSTRINGS)
         merge!(MLSTRINGS, TOML.parsefile(file))
         delete!(MLSTRINGS, "__language_name")
-    catch e
-        @error "[$(now())]\n$(mlstr("loading language failed!!!"))" exception = e
     end
 end
 

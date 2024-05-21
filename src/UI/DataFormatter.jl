@@ -87,7 +87,7 @@ function edit(fd::FormatData, id)
         fd.dtviewer.p_open && haskey(fd.dtviewer.data, "data") && renderplots(fd.dtviewer.dtp, stcstr("formatdata", id))
         fd.dtviewer.p_open || (fd.dtviewer = DataViewer(p_open=false))
     end
-    CImGui.Button(mlstr("Data"), (-1, 0)) && @monitorspawn fd.path = pick_file(filterlist="qdt")
+    CImGui.Button(mlstr("Data"), (-1, 0)) && Threads.@spawn @trycatch mlstr("task failed!!!") fd.path = pick_file(filterlist="qdt")
 end
 
 function edit(fdg::FormatDataGroup, id)
@@ -157,7 +157,7 @@ function edit(fdg::FormatDataGroup, id)
         fdg.dtviewer.p_open || (fdg.dtviewer = DataViewer(p_open=false))
     end
     if CImGui.Button(mlstr("Data Group"), (-1, 0))
-        @monitorspawn begin
+        Threads.@spawn @trycatch mlstr("task failed!!!") begin
             pathes = pick_multi_file(filterlist="qdt")
             isempty(pathes) || append!(fdg.data, [FormatData(path=path) for path in pathes])
         end
@@ -196,11 +196,7 @@ function edit(dft::DataFormatter, id)
         CImGui.Button(MORESTYLE.Icons.CloseFile, (3ftsz / 2, Cfloat(0))) && (isempty(dft.data) || pop!(dft.data))
         CImGui.SameLine()
         if CImGui.Button(MORESTYLE.Icons.DataFormatter, (3ftsz / 2, Cfloat(0)))
-            try
-                formatdata(dft.data)
-            catch e
-                @error mlstr("formatting data failed!") exception = e
-            end
+            @trycatch mlstr("formatting data failed!") formatdata(dft.data)
         end
         CImGui.PopStyleColor(2)
         CImGui.PopFont()

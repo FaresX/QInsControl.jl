@@ -208,14 +208,14 @@ let
     task::Ref{Task} = Ref{Task}()
     global function updatefronttask()
         task[] = errormonitor(
-            @monitorasync while true
+            @async @trycatch mlstr("updating front task failed!!!") while true
                 isready(tobeupdated) ? updatefront!(take!(tobeupdated)) : sleep(0.001)
             end
         )
-        @monitorasync "[$(now())]\n$(mlstr("updating front task failed!!!"))" while true
+        @async @trycatch mlstr("updating front task failed!!!") while true
             if istaskfailed(task[])
                 task[] = errormonitor(
-                    @monitorasync while true
+                    @async @trycatch mlstr("updating front task failed!!!") while true
                         isready(tobeupdated) ? updatefront!(take!(tobeupdated)) : sleep(0.001)
                     end
                 )
@@ -344,6 +344,7 @@ let
                                         instrument = string(ins, ": ", addr),
                                         exception = e
                                     )
+                                    Base.show_backtrace(LOGIO, catch_backtrace())
                                     logout!(CPU, ct)
                                 end
                             end
@@ -367,6 +368,7 @@ let
                                         instrument = string(ins, ": ", addr),
                                         exception = e
                                     )
+                                    Base.show_backtrace(LOGIO, catch_backtrace())
                                     logout!(CPU, ct)
                                 end
                             end
@@ -390,6 +392,7 @@ let
                                         instrument = string(ins, ": ", addr),
                                         exception = e
                                     )
+                                    Base.show_backtrace(LOGIO, catch_backtrace())
                                     logout!(CPU, ct)
                                 end
                             end
@@ -1013,6 +1016,7 @@ function apply!(qt::SweepQuantity, instrnm, addr)
                 instrument = string(instrnm, "-", addr),
                 exception = e
             )
+            Base.show_backtrace(LOGIO, catch_backtrace())
             logout!(CPU, ct)
         end
     end
@@ -1024,7 +1028,7 @@ function apply!(qt::SweepQuantity, instrnm, addr)
     end
     if !(isnothing(start) | isnothing(step) | isnothing(stop))
         sweeplist = gensweeplist(start, step, stop)
-        @monitorspawn begin
+        Threads.@spawn @trycatch mlstr("task failed!!!") begin
             qt.issweeping = true
             @info "[$(now())]\nBefore sweeping" instrument = instrnm address = addr quantity = qt
             actionidx = 1
@@ -1036,7 +1040,7 @@ function apply!(qt::SweepQuantity, instrnm, addr)
             qt.nstep = length(sweeplist)
             qt.presenti = 0
             qt.elapsedtime = 0
-            sweepcalltask = @monitorasync remotecall_wait(
+            sweepcalltask = @async @trycatch mlstr("remote sweeping task failed!!!") remotecall_wait(
                 workers()[1], instrnm, addr, sweeplist, sweep_rc, qt.name, qt.delay, idxbuf, timebuf
             ) do instrnm, addr, sweeplist, sweep_rc, qtnm, delay, idxbuf, timebuf
                 haskey(SWEEPCTS, instrnm) || (SWEEPCTS[instrnm] = Dict())
@@ -1054,20 +1058,18 @@ function apply!(qt::SweepQuantity, instrnm, addr)
                     setfunc = Symbol(instrnm, :_, qtnm, :_set) |> eval
                     getfunc = Symbol(instrnm, :_, qtnm, :_get) |> eval
                     @sync begin
-                        sweeptask = errormonitor(
-                            @monitorasync begin
-                                tstart = time()
-                                for (i, sv) in enumerate(sweeplist)
-                                    SWEEPCTS[instrnm][addr][1][] || break
-                                    SWEEPCTS[instrnm][addr][2](setfunc, CPU, string(sv), Val(:write))
-                                    sleep(delay)
-                                    put!(sweep_lc, SWEEPCTS[instrnm][addr][2](getfunc, CPU, Val(:read)))
-                                    idxbuf[1] = i
-                                    timebuf[1] = time() - tstart
-                                end
+                        sweeptask = @async @trycatch mlstr("sweeping task failed!!!") begin
+                            tstart = time()
+                            for (i, sv) in enumerate(sweeplist)
+                                SWEEPCTS[instrnm][addr][1][] || break
+                                SWEEPCTS[instrnm][addr][2](setfunc, CPU, string(sv), Val(:write))
+                                sleep(delay)
+                                put!(sweep_lc, SWEEPCTS[instrnm][addr][2](getfunc, CPU, Val(:read)))
+                                idxbuf[1] = i
+                                timebuf[1] = time() - tstart
                             end
-                        )
-                        @monitorasync while !istaskdone(sweeptask) || isready(sweep_lc)
+                        end
+                        @async @trycatch mlstr("transfering sweeping data failed!!!") while !istaskdone(sweeptask) || isready(sweep_lc)
                             isready(sweep_lc) ? put!(sweep_rc, packtake!(sweep_lc, CONF.DAQ.packsize)) : sleep(delay / 10)
                         end
                     end
@@ -1078,6 +1080,7 @@ function apply!(qt::SweepQuantity, instrnm, addr)
                         quantity = qtnm,
                         exception = e
                     )
+                    Base.show_backtrace(LOGIO, catch_backtrace())
                 finally
                     logout!(CPU, SWEEPCTS[instrnm][addr][2]; quiet=false)
                     SWEEPCTS[instrnm][addr][1][] = false
@@ -1132,6 +1135,7 @@ function apply!(qt::SetQuantity, instrnm, addr, byoptvalues=false)
                     quantity = qt.name,
                     exception = e
                 )
+                Base.show_backtrace(LOGIO, catch_backtrace())
                 logout!(CPU, ct)
             end
         end
@@ -1238,7 +1242,7 @@ end
 
 function getread(qt::AbstractQuantity, instrnm, addr)
     if qt.enable && addr != ""
-        @monitorspawn begin
+        Threads.@spawn @trycatch mlstr("task failed!!!") begin
             fetchdata = refresh_qt(instrnm, addr, qt.name)
             isnothing(fetchdata) || (qt.read = fetchdata)
             sendtoupdatefront(qt)
@@ -1262,6 +1266,7 @@ function refresh_qt(instrnm, addr, qtnm)
                 quantity = qtnm,
                 exception = e
             )
+            Base.show_backtrace(LOGIO, catch_backtrace())
             logout!(CPU, ct)
         end
     end
@@ -1280,7 +1285,7 @@ function refresh1(log=false; instrlist=keys(INSTRBUFFERVIEWERS))
             @sync for (ins, inses) in filter(x -> x.first in instrlist && !isempty(x.second), INSTRBUFFERVIEWERS)
                 ins == "Others" && continue
                 for (addr, ibv) in inses
-                    @monitorasync if ibv.insbuf.isautorefresh || log
+                    @async @trycatch mlstr("refreshing $ins: $addr task failed!!!") if ibv.insbuf.isautorefresh || log
                         haskey(REFRESHCTS, ins) || (REFRESHCTS[ins] = Dict())
                         haskey(REFRESHCTS[ins], addr) || (REFRESHCTS[ins][addr] = Controller(
                             ins, addr; buflen=CONF.DAQ.ctbuflen, timeout=CONF.DAQ.cttimeout
@@ -1313,6 +1318,7 @@ function refresh1(log=false; instrlist=keys(INSTRBUFFERVIEWERS))
                                 instrument = string(ins, ": ", addr),
                                 exception = e
                             )
+                            Base.show_backtrace(LOGIO, catch_backtrace())
                         finally
                             logout!(CPU, ct)
                         end
@@ -1354,7 +1360,7 @@ let
                 sleep(0.01)
             end
         )
-        @monitorasync "[$(now())]\n$(mlstr("instrument autorefresh task failed!!!"))" while true
+        @async @trycatch mlstr("instrument autorefresh task failed!!!") while true
             if istaskfailed(task[])
                 task[] = errormonitor(
                     Threads.@spawn while true

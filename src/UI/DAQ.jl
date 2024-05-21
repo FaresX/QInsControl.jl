@@ -332,7 +332,7 @@ let
             global WORKPATH
             if ispath(WORKPATH)
                 saveproject(projpath)
-                runalltask = @monitorasync begin
+                runalltask = @async @trycatch mlstr("runing daq tasks failed!!!") begin
                     for (i, task) in enumerate(daqtasks)
                         torunstates[i] || continue
                         running_i = i
@@ -375,13 +375,11 @@ let
                     CIRCUIT = loaddaqproj["circuit"]
                     for (_, node) in CIRCUIT.nodes
                         if node isa SampleHolderNode
-                            try
+                            @trycatch mlstr("loading image failed!!!") begin
                                 img = RGBA.(jpeg_decode(node.imgr.image))
                                 imgsize = size(img)
                                 node.imgr.id = ImGui_ImplOpenGL3_CreateImageTexture(imgsize...)
                                 ImGui_ImplOpenGL3_UpdateImageTexture(node.imgr.id, img, imgsize...)
-                            catch e
-                                @error "[$(now())]\n$(mlstr("loading image failed!!!"))" exception = e
                             end
                         end
                     end
