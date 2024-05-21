@@ -133,11 +133,9 @@ function run(daqtask::DAQTask)
     end
     run_remote(daqtask)
     wait(
-        errormonitor(
-            Threads.@spawn while update_all()
-                yield()
-            end
-        )
+        @monitorspawn while update_all()
+            yield()
+        end
     )
 end
 
@@ -169,14 +167,14 @@ function run_remote(daqtask::DAQTask)
                 databuf_lc = Channel{Tuple{String,String}}(CONF.DAQ.channelsize)
                 progress_lc = Channel{Tuple{UUID,Int,Int,Float64}}(CONF.DAQ.channelsize)
                 @sync begin
-                    remotedotask = errormonitor(@async begin
+                    remotedotask = @monitorasync begin
                         remotecall_wait(() -> (start!(CPU); fast!(CPU)), workers()[1])
                         for ct in values(controllers)
                             login!(CPU, ct; quiet=false, attr=getattr(ct.addr))
                         end
                         remote_sweep_block(controllers, databuf_lc, progress_lc, SYNCSTATES)
-                    end)
-                    errormonitor(@async while true
+                    end
+                    @monitorasync while true
                         if istaskdone(remotedotask) && all(.!isready.([databuf_lc, databuf_rc, progress_lc, progress_rc]))
                             remotecall_wait(eval, 1, :(log_instrbufferviewers()))
                             SYNCSTATES[Int(IsDAQTaskDone)] = true
@@ -186,7 +184,7 @@ function run_remote(daqtask::DAQTask)
                             isready(progress_lc) && put!(progress_rc, packtake!(progress_lc, CONF.DAQ.packsize))
                         end
                         yield()
-                    end)
+                    end
                 end
             catch e
                 @error "[$(now())]\n$(mlstr("task failed!!!"))" exeption = e

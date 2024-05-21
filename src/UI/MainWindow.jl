@@ -424,13 +424,13 @@ let
 
         ######快捷键######
         if isopenfiles || (unsafe_load(CImGui.GetIO().KeyCtrl) && CImGui.IsKeyDown(ImGuiKey_O))
-            Threads.@spawn begin
+            @monitorspawn begin
                 files = pick_multi_file()
                 isempty(files) || push!(dtviewers, (DataViewer(), FolderFileTree(files), Dict())) #true -> active
             end
         end
         if isopenfolder || (unsafe_load(CImGui.GetIO().KeyCtrl) && CImGui.IsKeyDown(ImGuiKey_K))
-            Threads.@spawn begin
+            @monitorspawn begin
                 root = pick_folder()
                 isdir(root) && push!(dtviewers, (DataViewer(), FolderFileTree(root), Dict())) #true -> active
             end

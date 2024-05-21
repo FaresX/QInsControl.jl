@@ -106,10 +106,10 @@ function julia_main()::Cint
         global PROGRESSRC = RemoteChannel(() -> progress_c)
         global LOGIO = IOBuffer()
         global_logger(SimpleLogger(LOGIO))
-        errormonitor(@async while true
-            sleep(1)
+        @monitorasync mlstr("error in logging task") while true
             update_log()
-        end)
+            sleep(1)
+        end
         jlverinfobuf = IOBuffer()
         versioninfo(jlverinfobuf)
         global JLVERINFO = wrapmultiline(String(take!(jlverinfobuf)), 48)
@@ -127,10 +127,10 @@ function julia_main()::Cint
                 loadconf()
                 global LOGIO = IOBuffer()
                 global_logger(SimpleLogger(LOGIO))
-                errormonitor(@async while true
-                    sleep(1)
+                @monitorasync mlstr("error in logging task") while true
                     update_log(syncstates)
-                end)
+                    sleep(1)
+                end
             end
         end
         remotecall_wait(workers()[1]) do

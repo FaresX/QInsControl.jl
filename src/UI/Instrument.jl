@@ -14,7 +14,7 @@ function manualadd(addr)
         idn = split(addr, "::")[end]
     else
         idnr = wait_remotecall_fetch(workers()[1], addr) do addr
-            ct = Controller("", addr; buflen=1 , timeout=CONF.DAQ.cttimeout)
+            ct = Controller("", addr; buflen=1, timeout=CONF.DAQ.cttimeout)
             try
                 login!(CPU, ct; attr=getattr(addr))
                 retstr = ct(query, CPU, "*IDN?", Val(:query))
@@ -50,7 +50,7 @@ end
 function refresh_instrlist()
     if !SYNCSTATES[Int(AutoDetecting)] && !SYNCSTATES[Int(AutoDetectDone)]
         SYNCSTATES[Int(AutoDetecting)] = true
-        errormonitor(@async begin
+        @monitorasync begin
             try
                 for ins in keys(INSTRBUFFERVIEWERS)
                     ins == "VirtualInstr" && continue
@@ -62,25 +62,23 @@ function refresh_instrlist()
                 SYNCSTATES[Int(AutoDetecting)] && (SYNCSTATES[Int(AutoDetectDone)] = true)
                 @error mlstr("auto searching failed!!!") exception = e
             end
-        end)
+        end
         poll_autodetect()
     end
 end
 
 function poll_autodetect()
-    errormonitor(
-        @async begin
-            starttime = time()
-            while true
-                if SYNCSTATES[Int(AutoDetectDone)] || time() - starttime > 180
-                    SYNCSTATES[Int(AutoDetecting)] = false
-                    SYNCSTATES[Int(AutoDetectDone)] = false
-                    break
-                end
-                sleep(0.001)
+    @monitorasync begin
+        starttime = time()
+        while true
+            if SYNCSTATES[Int(AutoDetectDone)] || time() - starttime > 180
+                SYNCSTATES[Int(AutoDetecting)] = false
+                SYNCSTATES[Int(AutoDetectDone)] = false
+                break
             end
+            sleep(0.001)
         end
-    )
+    end
 end
 
 let
@@ -91,17 +89,15 @@ let
         @c ComboS("##OthersIns", &addinstr, keys(INSTRBUFFERVIEWERS["Others"]))
         CImGui.SameLine()
         if CImGui.Button(stcstr(MORESTYLE.Icons.NewFile))
-            errormonitor(
-                @async begin
-                    if !SYNCSTATES[Int(AutoDetecting)] && !SYNCSTATES[Int(AutoDetectDone)]
-                        SYNCSTATES[Int(AutoDetecting)] = true
-                        st = manualadd(addinstr)
-                        st && (addinstr = "")
-                        time_old = time()
-                        SYNCSTATES[Int(AutoDetecting)] = false
-                    end
+            @monitorasync begin
+                if !SYNCSTATES[Int(AutoDetecting)] && !SYNCSTATES[Int(AutoDetectDone)]
+                    SYNCSTATES[Int(AutoDetecting)] = true
+                    st = manualadd(addinstr)
+                    st && (addinstr = "")
+                    time_old = time()
+                    SYNCSTATES[Int(AutoDetecting)] = false
                 end
-            )
+            end
         end
         return time() - time_old < 2, st
     end
@@ -126,17 +122,15 @@ let
         end
         CImGui.SameLine()
         if CImGui.Button(stcstr(MORESTYLE.Icons.NewFile, "##manual input addr"))
-            errormonitor(
-                @async begin
-                    if !SYNCSTATES[Int(AutoDetecting)] && !SYNCSTATES[Int(AutoDetectDone)]
-                        SYNCSTATES[Int(AutoDetecting)] = true
-                        st = manualadd(newinsaddr)
-                        st && (newinsaddr = "")
-                        time_old = time()
-                        SYNCSTATES[Int(AutoDetecting)] = false
-                    end
+            @monitorasync begin
+                if !SYNCSTATES[Int(AutoDetecting)] && !SYNCSTATES[Int(AutoDetectDone)]
+                    SYNCSTATES[Int(AutoDetecting)] = true
+                    st = manualadd(newinsaddr)
+                    st && (newinsaddr = "")
+                    time_old = time()
+                    SYNCSTATES[Int(AutoDetecting)] = false
                 end
-            )
+            end
         end
         return time() - time_old < 2, st
     end

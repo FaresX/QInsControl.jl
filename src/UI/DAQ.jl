@@ -332,7 +332,7 @@ let
             global WORKPATH
             if ispath(WORKPATH)
                 saveproject(projpath)
-                runalltask = @async begin
+                runalltask = @monitorasync begin
                     for (i, task) in enumerate(daqtasks)
                         torunstates[i] || continue
                         running_i = i
@@ -342,7 +342,6 @@ let
                     end
                     saveproject(projpath)
                 end
-                errormonitor(runalltask)
                 DAQDATAPLOT.showdtpks .= false
             else
                 WORKPATH = mlstr("no workplace selected!!!")

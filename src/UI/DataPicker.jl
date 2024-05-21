@@ -264,7 +264,7 @@ let
                 if haskey(synctasks[plt.id], i)
                     istaskdone(synctasks[plt.id][i]) ? delete!(synctasks[plt.id], i) : (force || continue)
                 end
-                pdtask = errormonitor(Threads.@spawn processdata(plt, plt.series[i], dtss, datastr, datafloat; quiet=quiet, force=force))
+                pdtask = Threads.@spawn processdata(plt, plt.series[i], dtss, datastr, datafloat; quiet=quiet, force=force)
                 synctasks[plt.id][i] = pdtask
             end
         end

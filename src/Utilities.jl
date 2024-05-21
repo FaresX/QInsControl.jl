@@ -423,3 +423,39 @@ function resizefill!(sv::Vector{String}, n; fillv="")
         isassigned(sv, i) || (sv[i] = fillv)
     end
 end
+
+macro monitorasync(ex)
+    esc(
+        quote
+            @async try
+                $ex
+            catch e
+                @error "task error" exception = e
+            end
+        end
+    )
+end
+
+macro monitorasync(msg, ex)
+    esc(
+        quote
+            @async try
+                $ex
+            catch e
+                @error $msg exception = e
+            end
+        end
+    )
+end
+
+macro monitorspawn(ex)
+    esc(
+        quote
+            Threads.@spawn try
+                $ex
+            catch e
+                @error "task error" exception = e
+            end
+        end
+    )
+end

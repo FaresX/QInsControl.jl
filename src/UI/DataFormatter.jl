@@ -87,7 +87,7 @@ function edit(fd::FormatData, id)
         fd.dtviewer.p_open && haskey(fd.dtviewer.data, "data") && renderplots(fd.dtviewer.dtp, stcstr("formatdata", id))
         fd.dtviewer.p_open || (fd.dtviewer = DataViewer(p_open=false))
     end
-    CImGui.Button(mlstr("Data"), (-1, 0)) && Threads.@spawn fd.path = pick_file(filterlist="qdt")
+    CImGui.Button(mlstr("Data"), (-1, 0)) && @monitorspawn fd.path = pick_file(filterlist="qdt")
 end
 
 function edit(fdg::FormatDataGroup, id)
@@ -157,7 +157,7 @@ function edit(fdg::FormatDataGroup, id)
         fdg.dtviewer.p_open || (fdg.dtviewer = DataViewer(p_open=false))
     end
     if CImGui.Button(mlstr("Data Group"), (-1, 0))
-        Threads.@spawn begin
+        @monitorspawn begin
             pathes = pick_multi_file(filterlist="qdt")
             isempty(pathes) || append!(fdg.data, [FormatData(path=path) for path in pathes])
         end
