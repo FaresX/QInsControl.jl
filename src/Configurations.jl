@@ -6,6 +6,7 @@
     hidewindow::Bool = false
     nthreads::Cint = 2
     nthreads_2::Cint = 1
+    noactionswapinterval::Cint = 6
     samplingthreshold::Cint = 200000
     windowsize::Vector{Cint} = [960, 540]
     encoding::String = "GBK"

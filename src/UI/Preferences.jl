@@ -98,6 +98,12 @@ let
                     1, 1, 100, "%d",
                     CImGui.ImGuiSliderFlags_AlwaysClamp
                 )
+                @c CImGui.DragInt(
+                    mlstr("No Action Swap Interval"),
+                    &CONF.Basic.noactionswapinterval,
+                    1, 1, 12, "%d",
+                    CImGui.ImGuiSliderFlags_AlwaysClamp
+                )
                 # io = CImGui.GetIO()
                 # if conf.Basic.viewportenable
                 #     io.ConfigFlags = unsafe_load(io.ConfigFlags) | CImGui.ImGuiConfigFlags_ViewportsEnable

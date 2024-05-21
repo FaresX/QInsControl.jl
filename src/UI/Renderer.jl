@@ -168,8 +168,11 @@ function UI(breakdown=false; precompile=false)
     @async try
         scale_old::Cfloat = 0
         isshowapp()[] = true
+        updateframe::Bool = true
+        mousepos::CImGui.ImVec2 = (0, 0)
         # firsthide::Bool = CONF.Basic.hidewindow
         while true
+            glfwSwapInterval(updateframe ? 1 : CONF.Basic.noactionswapinterval)
             glfwPollEvents()
             ImGuiOpenGLBackend.new_frame(gl_ctx)
             ImGuiGLFWBackend.new_frame(window_ctx)
@@ -220,7 +223,10 @@ function UI(breakdown=false; precompile=false)
             # if glfwGetWindowAttrib(window, GLFW_VISIBLE) == GLFW_FALSE
             #     glfwSetWindowPos(window, glfwwindowx, glfwwindowy)
             # end
-
+            newmousepos = CImGui.GetMousePos()
+            mousemoved = newmousepos != mousepos
+            mousemoved && (mousepos = newmousepos)
+            updateframe = CImGui.IsAnyMouseDown() || (CImGui.IsAnyWindowHovered() && mousemoved)
             CImGui.Render()
             glfwMakeContextCurrent(window)
 
