@@ -13,7 +13,7 @@ let
             if SYNCSTATES[Int(NewLogging)] || waittime("Logger", CONF.Logs.refreshrate)
                 empty!(logmsgshow)
                 textc = CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_Text)
-                markerlist = ["┌ Info", "┌ Warning", "┌ Error"]
+                markerlist = ["┌ Info", "┌ Warning", "┌ Error", "Stacktrace:"]
                 date = today()
                 logdir = joinpath(CONF.Logs.dir, string(year(date)), string(year(date), "-", month(date)))
                 isdir(logdir) || mkpath(logdir)
@@ -26,8 +26,9 @@ let
                     occursin(markerlist[1], s) && (textc = ImVec4(MORESTYLE.Colors.LogInfo...))
                     occursin(markerlist[2], s) && (textc = ImVec4(MORESTYLE.Colors.LogWarn...))
                     occursin(markerlist[3], s) && (textc = ImVec4(MORESTYLE.Colors.LogError...))
+                    occursin(markerlist[4], s) && (textc = ImVec4(MORESTYLE.Colors.LogError...))
                     length(s) > CONF.Logs.showloglength && (s = s[1:CONF.Logs.showloglength])
-                    if occursin("└", s)
+                    if occursin("└", s) || s == "\r"
                         logmsg *= @sprintf "%-8d%s\n\n" i s
                         push!(logmsgshow, (textc, logmsg))
                         textc = CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_Text)

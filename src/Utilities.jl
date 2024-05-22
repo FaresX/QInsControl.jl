@@ -425,7 +425,7 @@ function resizefill!(sv::Vector{String}, n; fillv="")
     end
 end
 
-showbacktrace() = (Base.show_backtrace(LOGIO, catch_backtrace()); println(LOGIO, "\n"))
+showbacktrace() = (Base.show_backtrace(LOGIO, catch_backtrace()); println(LOGIO, "\n\r"))
 macro trycatch(msg, ex)
     esc(
         quote
