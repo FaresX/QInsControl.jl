@@ -65,10 +65,9 @@ function edit(dtviewer::DataViewer, path, id)
                 CImGui.BeginChild("instrument status")
                 for insbuf in insbufkeys
                     logtime::String = split(insbuf, "/")[2]
-                    CImGui.PushStyleColor(CImGui.ImGuiCol_Button, MORESTYLE.Colors.LogInfo)
                     CImGui.PushStyleColor(CImGui.ImGuiCol_Text, MORESTYLE.Colors.LogWarn)
                     CImGui.Button(logtime, (-0.1, 0.0))
-                    CImGui.PopStyleColor(2)
+                    CImGui.PopStyleColor()
                     CImGui.PushID(logtime)
                     view(dtviewer.data[insbuf])
                     CImGui.PopID()
