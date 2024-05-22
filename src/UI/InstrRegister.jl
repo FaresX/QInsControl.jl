@@ -17,7 +17,7 @@ let
                     endswith(basename(file), ".jl") && remotecall_wait(include, workers()[1], file)
                 catch e
                     @error mlstr("reloading drivers failed") exception = e file = file
-                    Base.show_backtrace(LOGIO, catch_backtrace())
+                    showbacktrace()
                 end
             end
         end

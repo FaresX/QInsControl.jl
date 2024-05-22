@@ -122,7 +122,7 @@ function writetoiofile(iofile, buffer)
         write(iofile_open, "\n[End]\n")
     catch e
         @error string("[", now(), "]\n", mlstr("error writing to file")) exception = e
-        Base.show_backtrace(LOGIO, catch_backtrace())
+        showbacktrace()
     finally
         flush(iofile_open)
         close(iofile_open)

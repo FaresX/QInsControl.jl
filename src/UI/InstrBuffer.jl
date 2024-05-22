@@ -344,7 +344,7 @@ let
                                         instrument = string(ins, ": ", addr),
                                         exception = e
                                     )
-                                    Base.show_backtrace(LOGIO, catch_backtrace())
+                                    showbacktrace()
                                     logout!(CPU, ct)
                                 end
                             end
@@ -368,7 +368,7 @@ let
                                         instrument = string(ins, ": ", addr),
                                         exception = e
                                     )
-                                    Base.show_backtrace(LOGIO, catch_backtrace())
+                                    showbacktrace()
                                     logout!(CPU, ct)
                                 end
                             end
@@ -392,7 +392,7 @@ let
                                         instrument = string(ins, ": ", addr),
                                         exception = e
                                     )
-                                    Base.show_backtrace(LOGIO, catch_backtrace())
+                                    showbacktrace()
                                     logout!(CPU, ct)
                                 end
                             end
@@ -1016,7 +1016,7 @@ function apply!(qt::SweepQuantity, instrnm, addr)
                 instrument = string(instrnm, "-", addr),
                 exception = e
             )
-            Base.show_backtrace(LOGIO, catch_backtrace())
+            showbacktrace()
             logout!(CPU, ct)
         end
     end
@@ -1080,7 +1080,7 @@ function apply!(qt::SweepQuantity, instrnm, addr)
                         quantity = qtnm,
                         exception = e
                     )
-                    Base.show_backtrace(LOGIO, catch_backtrace())
+                    showbacktrace()
                 finally
                     logout!(CPU, SWEEPCTS[instrnm][addr][2]; quiet=false)
                     SWEEPCTS[instrnm][addr][1][] = false
@@ -1135,7 +1135,7 @@ function apply!(qt::SetQuantity, instrnm, addr, byoptvalues=false)
                     quantity = qt.name,
                     exception = e
                 )
-                Base.show_backtrace(LOGIO, catch_backtrace())
+                showbacktrace()
                 logout!(CPU, ct)
             end
         end
@@ -1266,7 +1266,7 @@ function refresh_qt(instrnm, addr, qtnm)
                 quantity = qtnm,
                 exception = e
             )
-            Base.show_backtrace(LOGIO, catch_backtrace())
+            showbacktrace()
             logout!(CPU, ct)
         end
     end
@@ -1318,7 +1318,7 @@ function refresh1(log=false; instrlist=keys(INSTRBUFFERVIEWERS))
                                 instrument = string(ins, ": ", addr),
                                 exception = e
                             )
-                            Base.show_backtrace(LOGIO, catch_backtrace())
+                            showbacktrace()
                         finally
                             logout!(CPU, ct)
                         end

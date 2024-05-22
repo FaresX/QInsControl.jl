@@ -352,7 +352,7 @@ let
         catch e
             if !(dtss.isrealtime || quiet)
                 @error "[$(now())]\n$(mlstr("processing data failed!!!"))" exception = e codes = prettify(ex)
-                Base.show_backtrace(LOGIO, catch_backtrace())
+                showbacktrace()
             end
         finally
             dtss.isrunning = false

@@ -7,7 +7,7 @@ macro trypasse(sv, default)
                 x = $sv
             catch e
                 @error "$(now())\nerror in @trypass" exception = e code = $code
-                Base.show_backtrace(LOGIO, catch_backtrace())
+                showbacktrace()
                 x = $default
             end
             x
@@ -425,6 +425,7 @@ function resizefill!(sv::Vector{String}, n; fillv="")
     end
 end
 
+showbacktrace() = (Base.show_backtrace(LOGIO, catch_backtrace()); println(LOGIO, "\n"))
 macro trycatch(msg, ex)
     esc(
         quote
@@ -432,7 +433,7 @@ macro trycatch(msg, ex)
                 $ex
             catch e
                 @error string("[", now(), "]\n", $msg) exception = e
-                Base.show_backtrace(LOGIO, catch_backtrace())
+                showbacktrace()
             end
         end
     )

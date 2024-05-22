@@ -379,7 +379,7 @@ macro gentrycatch(instrnm, addr, cmd, len=0)
                                 instrument = $(string(instrnm, ": ", addr)),
                                 exception = e
                             )
-                            Base.show_backtrace(LOGIO, catch_backtrace())
+                            showbacktrace()
                             @warn stcstr("[", now(), "]\n", mlstr("retry sending command"), " ", tin)
                             return false, $(len == 0 ? "" : fill("", len))
                         end

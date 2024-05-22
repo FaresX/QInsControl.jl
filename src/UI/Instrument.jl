@@ -23,7 +23,7 @@ function manualadd(addr)
             catch e
                 logout!(CPU, ct)
                 @error "[$(now())]\n$(mlstr("instrument communication failed!!!"))" instrument_address = addr exception = e
-                Base.show_backtrace(LOGIO, catch_backtrace())
+                showbacktrace()
             end
         end
         if isnothing(idnr)
@@ -62,7 +62,7 @@ function refresh_instrlist()
             catch e
                 SYNCSTATES[Int(AutoDetecting)] && (SYNCSTATES[Int(AutoDetectDone)] = true)
                 @error string("[", now(), "]\n", mlstr("auto searching failed!!!")) exception = e
-                Base.show_backtrace(LOGIO, catch_backtrace())
+                showbacktrace()
             end
         end
         poll_autodetect()

@@ -174,7 +174,7 @@ function try_from_dict(t::Type, dict)
         cf = from_dict(t, dict)
     catch e
         @error mlstr("invalid configuration file, trying refactoring") exception = e
-        Base.show_backtrace(LOGIO, catch_backtrace())
+        showbacktrace()
         cfdict = to_dict(cf)
         cf = from_dict(t, mergeconf!(cfdict, dict))
     end

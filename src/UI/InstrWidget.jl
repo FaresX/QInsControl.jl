@@ -2258,7 +2258,7 @@ function refresh1(insw::InstrWidget, addr; blacklist=[])
                         instrument = string(ins, ": ", addr),
                         exception = e
                     )
-                    Base.show_backtrace(LOGIO, catch_backtrace())
+                    showbacktrace()
                 finally
                     logout!(CPU, ct)
                 end

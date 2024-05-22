@@ -153,7 +153,7 @@ function julia_main()::Cint
         end
     catch
         Base.invokelatest(Base.display_error, Base.catch_stack())
-        Base.show_backtrace(LOGIO, catch_backtrace())
+        showbacktrace()
         return 1
     end
     return 0

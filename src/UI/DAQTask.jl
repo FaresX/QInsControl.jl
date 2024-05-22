@@ -128,7 +128,7 @@ function run(daqtask::DAQTask)
         log_instrbufferviewers()
     catch e
         @error "[$(now())]\n$(mlstr("instrument logging error, program terminates!!!"))" exception = e
-        Base.show_backtrace(LOGIO, catch_backtrace())
+        showbacktrace()
         SYNCSTATES[Int(IsDAQTaskRunning)] = false
         return nothing
     end
@@ -189,7 +189,7 @@ function run_remote(daqtask::DAQTask)
                 end
             catch e
                 @error "[$(now())]\n$(mlstr("task failed!!!"))" exeption = e
-                Base.show_backtrace(LOGIO, catch_backtrace())
+                showbacktrace()
             finally
                 for ct in values(controllers)
                     logout!(CPU, ct; quiet=false)
@@ -205,7 +205,7 @@ function run_remote(daqtask::DAQTask)
         catch e
             SYNCSTATES[Int(IsDAQTaskDone)] = true
             @error "[$(now())]\n$(mlstr("errors in program definition!!!"))" exception = e
-            Base.show_backtrace(LOGIO, catch_backtrace())
+            showbacktrace()
         end
     end
     SYNCSTATES[Int(IsDAQTaskDone)] && return
@@ -216,7 +216,7 @@ function run_remote(daqtask::DAQTask)
         catch e
             syncstates[Int(IsDAQTaskDone)] = true
             @error "[$(now())]\n$(mlstr("executing program failed!!!"))" exception = e
-            Base.show_backtrace(LOGIO, catch_backtrace())
+            showbacktrace()
         end
     end
 end
@@ -339,7 +339,7 @@ function extract_controllers(bkch::Vector{AbstractBlock})
                     instrument = string(bk.instrnm, ": ", bk.addr),
                     exception = e
                 )
-                Base.show_backtrace(LOGIO, catch_backtrace())
+                showbacktrace()
                 logout!(CPU, ct)
                 return controllers, false
             end
