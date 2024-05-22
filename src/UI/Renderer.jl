@@ -169,7 +169,6 @@ function UI(breakdown=false; precompile=false)
         scale_old::Cfloat = 0
         isshowapp()[] = true
         updateframe::Bool = true
-        mousepos::CImGui.ImVec2 = (0, 0)
         # firsthide::Bool = CONF.Basic.hidewindow
         while true
             glfwSwapInterval(updateframe ? 1 : CONF.Basic.noactionswapinterval)
@@ -223,12 +222,8 @@ function UI(breakdown=false; precompile=false)
             # if glfwGetWindowAttrib(window, GLFW_VISIBLE) == GLFW_FALSE
             #     glfwSetWindowPos(window, glfwwindowx, glfwwindowy)
             # end
-            newmousepos = CImGui.GetMousePos()
-            mousemoved = newmousepos != mousepos
-            mousemoved && (mousepos = newmousepos)
-            updateframe = CImGui.IsAnyMouseDown()
-            updateframe |= CImGui.IsKeyDown(CImGui.ImGuiKey_MouseWheelX) || CImGui.IsKeyDown(CImGui.ImGuiKey_MouseWheelY)
-            updateframe |= CImGui.IsAnyItemActive() || (CImGui.IsAnyWindowHovered() && mousemoved)
+            updateframe = updating()
+
             CImGui.Render()
             glfwMakeContextCurrent(window)
 
@@ -274,3 +269,21 @@ function UI(breakdown=false; precompile=false)
     end
 end
 
+let
+    t1 = time()
+    mousepos::CImGui.ImVec2 = (0, 0)
+    global function updating()
+        if time() - t1 > 2
+            newmousepos = CImGui.GetMousePos()
+            mousemoved = newmousepos != mousepos
+            mousemoved && (mousepos = newmousepos)
+            updateframe = CImGui.IsAnyMouseDown()
+            updateframe |= CImGui.IsKeyDown(ImGuiKey_MouseWheelX) || CImGui.IsKeyDown(ImGuiKey_MouseWheelY)
+            updateframe |= CImGui.IsAnyItemActive() || (CImGui.IsAnyWindowHovered() && mousemoved)
+            updateframe && (t1 = time())
+            return updateframe
+        else
+            return true
+        end
+    end
+end
