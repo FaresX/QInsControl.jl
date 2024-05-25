@@ -33,10 +33,9 @@ using SharedArrays
 using TOML
 using UUIDs
 
-include("QInsControlCore/QInsControlCore.jl")
-using .QInsControlCore
-using .QInsControlCore.LibSerialPort
-import .QInsControlCore: VISAInstrAttr, SerialInstrAttr, TCPSocketInstrAttr, VirtualInstrAttr
+using QInsControlCore
+using QInsControlCore.LibSerialPort
+import QInsControlCore: VISAInstrAttr, SerialInstrAttr, TCPSocketInstrAttr, VirtualInstrAttr
 
 @enum SyncStatesIndex begin
     AutoDetecting = 1 #是否正在自动查询仪器
