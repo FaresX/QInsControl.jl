@@ -547,8 +547,8 @@ function serialsettings(attr::SerialInstrAttr)
         stcstr(mlstr("Query Delay"), " (s)"), &querydelay,
         1, 0, 360, "%.1f", CImGui.ImGuiSliderFlags_AlwaysClamp)
     ) && (attr.querydelay = querydelay)
-    termchar = attr.termchar == '\r' ? "\\r" : "\\n"
-    @c(ComboS(mlstr("Termination Character"), &termchar, ["\\r", "\\n"])) && (attr.termchar = termchar == "\\r" ? '\r' : '\n')
+    termchar = TERMCHARDICTINV[attr.termchar]
+    @c(ComboS(mlstr("Termination Character"), &termchar, keys(TERMCHARDICT))) && (attr.termchar = TERMCHARDICT[termchar])
 end
 function tcpipsettings(attr::TCPSocketInstrAttr)
     timeoutw = Cfloat(attr.timeoutw)
@@ -572,8 +572,8 @@ function tcpipsettings(attr::TCPSocketInstrAttr)
         stcstr(mlstr("Query Delay"), " (s)"), &querydelay,
         1, 0, 360, "%.1f", CImGui.ImGuiSliderFlags_AlwaysClamp)
     ) && (attr.querydelay = querydelay)
-    termchar = attr.termchar == '\r' ? "\\r" : "\\n"
-    @c(ComboS(mlstr("Termination Character"), &termchar, ["\\r", "\\n"])) && (attr.termchar = termchar == "\\r" ? '\r' : '\n')
+    termchar = TERMCHARDICTINV[attr.termchar]
+    @c(ComboS(mlstr("Termination Character"), &termchar, keys(TERMCHARDICT))) && (attr.termchar = TERMCHARDICT[termchar])
 end
 function virtualsettings(attr::VirtualInstrAttr)
     timeoutq = Cfloat(attr.timeoutq)
@@ -586,8 +586,8 @@ function virtualsettings(attr::VirtualInstrAttr)
         stcstr(mlstr("Query Delay"), " (s)"), &querydelay,
         1, 0, 360, "%.1f", CImGui.ImGuiSliderFlags_AlwaysClamp)
     ) && (attr.querydelay = querydelay)
-    termchar = attr.termchar == '\r' ? "\\r" : "\\n"
-    @c(ComboS(mlstr("Termination Character"), &termchar, ["\\r", "\\n"])) && (attr.termchar = termchar == "\\r" ? '\r' : '\n')
+    termchar = TERMCHARDICTINV[attr.termchar]
+    @c(ComboS(mlstr("Termination Character"), &termchar, keys(TERMCHARDICT))) && (attr.termchar = TERMCHARDICT[termchar])
 end
 function visasettings(attr::VISAInstrAttr)
     SeparatorTextColored(MORESTYLE.Colors.HighlightText, "ASRL")
@@ -611,8 +611,8 @@ function visasettings(attr::VISAInstrAttr)
         stcstr(mlstr("Query Delay"), " (s)"), &querydelay,
         1, 0, 360, "%.1f", CImGui.ImGuiSliderFlags_AlwaysClamp)
     ) && (attr.querydelay = querydelay)
-    termchar = attr.termchar == '\r' ? "\\r" : "\\n"
-    @c(ComboS(mlstr("Termination Character"), &termchar, ["\\r", "\\n"])) && (attr.termchar = termchar == "\\r" ? '\r' : '\n')
+    termchar = TERMCHARDICTINV[attr.termchar]
+    @c(ComboS(mlstr("Termination Character"), &termchar, keys(TERMCHARDICT))) && (attr.termchar = TERMCHARDICT[termchar])
 end
 
 function edit(insbuf::InstrBuffer, addr)

@@ -37,6 +37,7 @@ include("QInsControlCore/QInsControlCore.jl")
 using .QInsControlCore
 using .QInsControlCore.LibSerialPort
 import .QInsControlCore: VISAInstrAttr, SerialInstrAttr, TCPSocketInstrAttr, VirtualInstrAttr
+import .QInsControlCore: TERMCHARDICT, TERMCHARDICTINV
 
 @enum SyncStatesIndex begin
     AutoDetecting = 1 #是否正在自动查询仪器

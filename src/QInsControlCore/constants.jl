@@ -11,3 +11,15 @@ end
     VI_ASRL_STOP_ONE5 = Instruments.VI_ASRL_STOP_ONE5
     VI_ASRL_STOP_TWO = Instruments.VI_ASRL_STOP_TWO
 end
+
+const TERMCHARDICT = Dict(
+    "\\n" => '\n',
+    "\\r" => '\r',
+    "\\s" => ' '
+)
+
+const TERMCHARDICTINV = Dict(
+    '\n' => "\\n",
+    '\r' => "\\r",
+    ' ' => "\\s"
+)
