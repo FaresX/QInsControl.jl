@@ -275,9 +275,7 @@ let
                                         false,
                                         ins != "VirtualInstr" && !SYNCSTATES[Int(IsDAQTaskRunning)]
                                     )
-                                        synccall_wait(workers()[1], ins, addr) do ins, addr
-                                            delete!(INSTRBUFFERVIEWERS[ins], addr)
-                                        end
+                                        delete!(INSTRBUFFERVIEWERS[ins], addr)
                                     end
                                     if CImGui.BeginMenu(
                                         stcstr(MORESTYLE.Icons.NewFile, " ", mlstr("Add to")),
@@ -286,10 +284,8 @@ let
                                         for (cfins, cf) in INSCONF
                                             cfins in ["Others", "VirtualInstr"] && continue
                                             if CImGui.MenuItem(stcstr(cf.conf.icon, " ", cfins))
-                                                synccall_wait(workers()[1], ins, addr, cfins) do ins, addr, cfins
-                                                    delete!(INSTRBUFFERVIEWERS[ins], addr)
-                                                    get!(INSTRBUFFERVIEWERS[cfins], addr, InstrBufferViewer(cfins, addr))
-                                                end
+                                                delete!(INSTRBUFFERVIEWERS[ins], addr)
+                                                get!(INSTRBUFFERVIEWERS[cfins], addr, InstrBufferViewer(cfins, addr))
                                             end
                                         end
                                         CImGui.EndMenu()
