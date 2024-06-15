@@ -37,7 +37,6 @@ include("QInsControlCore/QInsControlCore.jl")
 using .QInsControlCore
 using .QInsControlCore.LibSerialPort
 import .QInsControlCore: VISAInstrAttr, SerialInstrAttr, TCPSocketInstrAttr, VirtualInstrAttr
-import .QInsControlCore: TERMCHARDICT, TERMCHARDICTINV
 
 @enum SyncStatesIndex begin
     AutoDetecting = 1 #是否正在自动查询仪器
@@ -101,6 +100,7 @@ include("Conf.jl")
 
 function julia_main()::Cint
     try
+        initialize!()
         loadconf()
         databuf_c::Channel{Vector{Tuple{String,String}}} = Channel{Vector{NTuple{2,String}}}(CONF.DAQ.channelsize)
         progress_c::Channel{Vector{Tuple{UUID,Int,Int,Float64}}} = Channel{Vector{Tuple{UUID,Int,Int,Float64}}}(CONF.DAQ.channelsize)
@@ -127,6 +127,7 @@ function julia_main()::Cint
             global DATABUFRC = RemoteChannel(() -> databuf_c)
             global PROGRESSRC = RemoteChannel(() -> progress_c)
             remotecall_wait(workers()[1], SYNCSTATES) do syncstates
+                initialize!()
                 loadconf()
                 global LOGIO = IOBuffer()
                 global_logger(SimpleLogger(LOGIO))
@@ -158,6 +159,16 @@ function julia_main()::Cint
         return 1
     end
     return 0
+end
+
+function initialize!()
+    empty!(DATABUF)
+    empty!(DATABUFPARSED)
+    empty!(PROGRESSLIST)
+    empty!(STYLES)
+    empty!(INSCONF)
+    empty!(INSWCONF)
+    empty!(INSTRBUFFERVIEWERS)
 end
 
 start() = (get!(ENV, "QInsControlAssets", joinpath(Base.@__DIR__, "../Assets")); julia_main())
