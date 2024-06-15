@@ -6,6 +6,11 @@ using LibSerialPort
 using Sockets
 using UUIDs
 
+export VI_ASRL_PAR
+export VI_ASRL_PAR_NONE, VI_ASRL_PAR_ODD, VI_ASRL_PAR_EVEN, VI_ASRL_PAR_MARK, VI_ASRL_PAR_SPACE
+export VI_ASRL_STOP
+export VI_ASRL_STOP_ONE, VI_ASRL_STOP_ONE5, VI_ASRL_STOP_TWO
+export TERMCHARDICT, TERMCHARDICTINV
 
 export Controller, Processor
 export login!, logout!, start!, stop!, reconnect!, find_resources, slow!, fast!
