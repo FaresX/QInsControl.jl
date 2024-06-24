@@ -35,6 +35,8 @@ using UUIDs
 
 include("QInsControlCore/QInsControlCore.jl")
 using .QInsControlCore
+using .QInsControlCore.LibSerialPort
+import .QInsControlCore: VISAInstrAttr, SerialInstrAttr, TCPSocketInstrAttr, VirtualInstrAttr
 
 @enum SyncStatesIndex begin
     AutoDetecting = 1 #是否正在自动查询仪器
@@ -56,13 +58,15 @@ global SYNCSTATES::SharedVector{Bool}
 global DATABUFRC::RemoteChannel{Channel{Vector{NTuple{2,String}}}}
 global PROGRESSRC::RemoteChannel{Channel{Vector{Tuple{UUID,Int,Int,Float64}}}}
 
+global LOGIO = stdout
+
+include("Utilities.jl")
 include("Configurations.jl")
 include("MultiLanguage.jl")
 include("StaticString.jl")
-include("Utilities.jl")
 
 include("UI/Block.jl")
-include("UI/CustomWidgets.jl")
+include("UI/CustomWidgets/CustomWidgets.jl")
 include("UI/DAQTask.jl")
 include("UI/FileTree.jl")
 include("UI/IconsFontAwesome6.jl")
@@ -97,23 +101,18 @@ include("Compatibility.jl")
 
 function julia_main()::Cint
     try
+        initialize!()
         loadconf()
-        databuf_c::Channel{Vector{Tuple{String,String}}} = Channel{Vector{NTuple{2,String}}}(CONF.DAQ.channel_size)
-        progress_c::Channel{Vector{Tuple{UUID,Int,Int,Float64}}} = Channel{Vector{Tuple{UUID,Int,Int,Float64}}}(CONF.DAQ.channel_size)
-        ENV["JULIA_NUM_THREADS"] = CONF.Basic.nthreads_2
-        CONF.Basic.isremote && nprocs() == 1 && addprocs(1)
-        @eval @everywhere using QInsControl
+        databuf_c::Channel{Vector{Tuple{String,String}}} = Channel{Vector{NTuple{2,String}}}(CONF.DAQ.channelsize)
+        progress_c::Channel{Vector{Tuple{UUID,Int,Int,Float64}}} = Channel{Vector{Tuple{UUID,Int,Int,Float64}}}(CONF.DAQ.channelsize)
         global SYNCSTATES = SharedVector{Bool}(8)
         global DATABUFRC = RemoteChannel(() -> databuf_c)
         global PROGRESSRC = RemoteChannel(() -> progress_c)
-        synccall_wait(workers()[1], SYNCSTATES) do syncstates
-            myid() == 1 || loadconf()
-            # global LOGIO = IOBuffer()
-            # global_logger(SimpleLogger(LOGIO))
-            # errormonitor(@async while true
-            #     sleep(1)
-            #     update_log(syncstates)
-            # end)
+        global LOGIO = IOBuffer()
+        global_logger(SimpleLogger(LOGIO))
+        @async @trycatch mlstr("error in logging task") while true
+            update_log()
+            sleep(1)
         end
         jlverinfobuf = IOBuffer()
         versioninfo(jlverinfobuf)
@@ -121,30 +120,56 @@ function julia_main()::Cint
         @info ARGS
         isempty(ARGS) || @info reencoding.(ARGS, CONF.Basic.encoding)
         uitask = UI()
+        if CONF.Basic.isremote
+            ENV["JULIA_NUM_THREADS"] = CONF.Basic.nthreads_2
+            nprocs() == 1 && addprocs(1)
+            @eval @everywhere using QInsControl
+            global SYNCSTATES = SharedVector{Bool}(8)
+            global DATABUFRC = RemoteChannel(() -> databuf_c)
+            global PROGRESSRC = RemoteChannel(() -> progress_c)
+            remotecall_wait(workers()[1], SYNCSTATES) do syncstates
+                initialize!()
+                loadconf()
+                global LOGIO = IOBuffer()
+                global_logger(SimpleLogger(LOGIO))
+                @async @trycatch mlstr("error in logging task") while true
+                    update_log(syncstates)
+                    sleep(1)
+                end
+            end
+        end
         remotecall_wait(workers()[1]) do
             start!(CPU)
-            @eval const SWEEPCTS = Dict{UUID,Tuple{Ref{Bool},Controller}}()
+            @eval const SWEEPCTS = Dict{String,Dict{String,Tuple{Ref{Bool},Controller}}}()
             @eval const REFRESHCTS = Dict{String,Dict{String,Controller}}()
         end
         global AUTOREFRESHTASK = autorefresh()
-        if CONF.Basic.remoteprocessdata && nprocs() == 2
-            ENV["JULIA_NUM_THREADS"] = CONF.Basic.nthreads_3
-            addprocs(1)
-        end
+        global UPDATEFRONTTASK = updatefronttask()
         @info "[$(now())]\n$(mlstr("successfully started!"))"
         if !isinteractive()
             wait(uitask)
             while SYNCSTATES[Int(IsDAQTaskRunning)]
-                yield()
+                sleep(0.1)
             end
             sleep(0.1)
             exit()
         end
     catch
         Base.invokelatest(Base.display_error, Base.catch_stack())
+        showbacktrace()
         return 1
     end
     return 0
+end
+
+function initialize!()
+    empty!(DATABUF)
+    empty!(DATABUFPARSED)
+    empty!(PROGRESSLIST)
+    empty!(STYLES)
+    empty!(INSCONF)
+    empty!(INSWCONF)
+    empty!(INSTRBUFFERVIEWERS)
 end
 
 start() = (get!(ENV, "QInsControlAssets", joinpath(Base.@__DIR__, "../Assets")); julia_main())
@@ -152,7 +177,7 @@ start() = (get!(ENV, "QInsControlAssets", joinpath(Base.@__DIR__, "../Assets"));
 @compile_workload begin
     get!(ENV, "QInsControlAssets", joinpath(Base.@__DIR__, "../Assets"))
     global SYNCSTATES = SharedVector{Bool}(8)
-    loadconf()
+    loadconf(true)
     try
         UI(precompile=true) |> wait
     catch

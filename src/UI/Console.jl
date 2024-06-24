@@ -31,6 +31,7 @@ let
                 for (i, s) in enumerate(allmsg[end-limitline+1:end])
                     occursin(markerlist[1], s) && (textc = ImVec4(MORESTYLE.Colors.HighlightText...))
                     occursin(markerlist[2], s) && (textc = ImVec4(MORESTYLE.Colors.LogInfo...))
+                    length(s) > CONF.Console.showiolength && (s = s[1:CONF.Console.showiolength])
                     if occursin("[End]", s)
                         isinblock || (iomsg *= "\n")
                         push!(iomsgshow, (textc, iomsg))
@@ -53,10 +54,13 @@ let
             lineheigth = (1 + length(findall('\n', buffer))) * CImGui.GetTextLineHeight() +
                          2unsafe_load(IMGUISTYLE.FramePadding.y)
             CImGui.BeginChild("STD OUT", (Float32(0), -lineheigth - unsafe_load(IMGUISTYLE.ItemSpacing.y)))
-            for (col, msg) in iomsgshow
-                CImGui.PushStyleColor(CImGui.ImGuiCol_Text, col)
+            for (i, colmsg) in enumerate(iomsgshow)
+                CImGui.PushStyleColor(CImGui.ImGuiCol_Text, colmsg[1])
                 CImGui.PushTextWrapPos(0)
-                CImGui.TextUnformatted(msg)
+                CopyableText(
+                    stcstr("##consolemsg", i), colmsg[2];
+                    size=(Cfloat(-1), (1 + length(findall("\n", colmsg[2]))) * CImGui.GetTextLineHeightWithSpacing())
+                )
                 CImGui.PopTextWrapPos()
                 CImGui.PopStyleColor()
             end
@@ -64,11 +68,11 @@ let
             CImGui.EndChild()
             @c InputTextMultilineRSZ("##input cmd", &buffer, (Cfloat(0), lineheigth))
             if CImGui.IsItemHovered() && !CImGui.IsItemActive()
-                if CImGui.IsKeyReleased(ImGuiKey_UpArrow)
+                if CImGui.IsKeyReleased(ImGuiKey_UpArrow) && historycmd[-1] != ""
                     move!(historycmd, -1)
                     historycmd_max += 1
                     buffer = historycmd[]
-                elseif CImGui.IsKeyReleased(ImGuiKey_DownArrow)
+                elseif CImGui.IsKeyReleased(ImGuiKey_DownArrow) && historycmd[1] != ""
                     move!(historycmd)
                     historycmd_max -= 1
                     buffer = historycmd[]
@@ -79,21 +83,22 @@ let
                unsafe_load(CImGui.GetIO().KeyCtrl) && CImGui.IsKeyDown(ImGuiKey_Enter)
                 if buffer != ""
                     writetoiofile(iofile, buffer)
-                    historycmd[1+historycmd_max] = buffer
-                    move!(historycmd, 1 + historycmd_max)
+                    move!(historycmd, historycmd_max)
+                    historycmd[] = buffer
+                    move!(historycmd)
                     historycmd_max = 0
                     buffer = ""
                     newmsg = true
                 end
             end
             CImGui.SameLine()
-            if CImGui.Button(ICONS.ICON_CARET_LEFT)
+            if CImGui.Button(ICONS.ICON_CARET_LEFT) && historycmd[-1] != ""
                 move!(historycmd, -1)
                 historycmd_max += 1
                 buffer = historycmd[]
             end
             CImGui.SameLine()
-            if CImGui.Button(ICONS.ICON_CARET_RIGHT)
+            if CImGui.Button(ICONS.ICON_CARET_RIGHT) && historycmd[1] != ""
                 move!(historycmd)
                 historycmd_max -= 1
                 buffer = historycmd[]
@@ -110,17 +115,14 @@ function writetoiofile(iofile, buffer)
         write(iofile_open, buffer)
         write(iofile_open, "\n[End]\n")
         write(iofile_open, "\n[OUT Begin]\n")
-        try
-            redirect_stdout(iofile_open) do
-                codes = Meta.parseall(buffer)
-                @eval Main print($codes)
-            end
-        catch e
-            @error exception = e
+        @trycatch mlstr("error parsing codes") redirect_stdout(iofile_open) do
+            codes = Meta.parseall(buffer)
+            @eval Main print($codes)
         end
         write(iofile_open, "\n[End]\n")
     catch e
-        @error exception = e
+        @error string("[", now(), "]\n", mlstr("error writing to file")) exception = e
+        showbacktrace()
     finally
         flush(iofile_open)
         close(iofile_open)

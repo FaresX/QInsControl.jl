@@ -6,20 +6,18 @@ function languageinfo()
     languages = Dict()
     for file in readdir(joinpath(ENV["QInsControlAssets"], "Languages"); join=true)
         bnm = basename(file)
-        if split(bnm, '.')[end] == "toml" && bnm != "default.toml"
-            push!(languages, TOML.parsefile(file)["__language_name"] => file)
+        if endswith(bnm, ".toml") && bnm != "default.toml"
+            languages[TOML.parsefile(file)["__language_name"]] = file
         end
     end
     return languages
 end
 
 function loadlanguage(file)
-    try
+    @trycatch mlstr("loading language failed!!!") begin
         empty!(MLSTRINGS)
         merge!(MLSTRINGS, TOML.parsefile(file))
         delete!(MLSTRINGS, "__language_name")
-    catch e
-        @error "[$(now())]\n$(mlstr("loading language failed!!!"))" exception = e
     end
 end
 

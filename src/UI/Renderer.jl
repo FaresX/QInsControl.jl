@@ -12,6 +12,7 @@ function UI(breakdown=false; precompile=false)
     CONF.Basic.viewportenable || (CONF.Basic.hidewindow = false)
     window = glfwCreateWindow(CONF.Basic.windowsize..., "QInsControl", C_NULL, C_NULL)
     @assert window != C_NULL
+    precompile && glfwHideWindow(window)
     glfwMakeContextCurrent(window)
     glfwSwapInterval(1)  # enable vsync
     CONF.Basic.hidewindow && glfwHideWindow(window)
@@ -50,6 +51,7 @@ function UI(breakdown=false; precompile=false)
     io.ConfigFlags = unsafe_load(io.ConfigFlags) | CImGui.ImGuiConfigFlags_DockingEnable
     CONF.Basic.viewportenable && (io.ConfigFlags = unsafe_load(io.ConfigFlags) | CImGui.ImGuiConfigFlags_ViewportsEnable)
     # io.ConfigDockingWithShift = true
+    io.BackendFlags = unsafe_load(io.BackendFlags) | ImGuiBackendFlags_RendererHasVtxOffset
 
     # load imgui.ini
     # isfile(imguiinifile) ? CImGui.LoadIniSettingsFromDisk(imguiinifile) : touch(imguiinifile)
@@ -164,11 +166,12 @@ function UI(breakdown=false; precompile=false)
     breakdown && closeallwindow()
 
     @async try
-        clear_color = Cfloat[0.45, 0.55, 0.60, 1.00]
         scale_old::Cfloat = 0
         isshowapp()[] = true
+        updateframe::Bool = true
         # firsthide::Bool = CONF.Basic.hidewindow
         while true
+            glfwSwapInterval(updateframe ? 1 : CONF.Basic.noactionswapinterval)
             glfwPollEvents()
             ImGuiOpenGLBackend.new_frame(gl_ctx)
             ImGuiGLFWBackend.new_frame(window_ctx)
@@ -182,13 +185,21 @@ function UI(breakdown=false; precompile=false)
             if CImGui.BeginPopupModal("##windowshouldclose?", C_NULL, CImGui.ImGuiWindowFlags_AlwaysAutoResize)
                 CImGui.TextColored(
                     MORESTYLE.Colors.LogError,
-                    stcstr("\n\n", mlstr("data acqiring, please wait......"), "\n\n\n")
+                    stcstr("\n\n", mlstr("data acquiring or sweeping, please wait......"), "\n\n\n")
                 )
                 CImGui.Button(mlstr("Confirm"), (-1, 0)) && CImGui.CloseCurrentPopup()
                 CImGui.EndPopup()
             end
             if glfwWindowShouldClose(window) != 0 || !isshowapp()[]
-                if SYNCSTATES[Int(IsDAQTaskRunning)]
+                hasrefreshing = false
+                for inses in values(INSTRBUFFERVIEWERS)
+                    for ibv in values(inses)
+                        for (_, qt) in filter(x -> x.second isa SweepQuantity, ibv.insbuf.quantities)
+                            hasrefreshing |= qt.issweeping
+                        end
+                    end
+                end
+                if SYNCSTATES[Int(IsDAQTaskRunning)] || hasrefreshing
                     CImGui.OpenPopup("##windowshouldclose?")
                     glfwSetWindowShouldClose(window, false)
                     isshowapp()[] = true
@@ -211,6 +222,7 @@ function UI(breakdown=false; precompile=false)
             # if glfwGetWindowAttrib(window, GLFW_VISIBLE) == GLFW_FALSE
             #     glfwSetWindowPos(window, glfwwindowx, glfwwindowy)
             # end
+            updateframe = updating()
 
             CImGui.Render()
             glfwMakeContextCurrent(window)
@@ -221,7 +233,7 @@ function UI(breakdown=false; precompile=false)
             display_h = height[]
 
             glViewport(0, 0, display_w, display_h)
-            glClearColor(clear_color...)
+            glClearColor(MORESTYLE.Colors.ClearColor...)
             glClear(GL_COLOR_BUFFER_BIT)
             ImGuiOpenGLBackend.render(gl_ctx)
 
@@ -239,10 +251,11 @@ function UI(breakdown=false; precompile=false)
         end
     catch e
         @error "[$(now())]\n$(mlstr("Error in renderloop!"))" exception = e
-        Base.show_backtrace(stderr, catch_backtrace())
+        showbacktrace()
     finally
         SYNCSTATES[Int(IsDAQTaskRunning)] || remotecall_wait(() -> stop!(CPU), workers()[1])
         schedule(AUTOREFRESHTASK, mlstr("Stop"); error=true)
+        schedule(UPDATEFRONTTASK, mlstr("Stop"); error=true)
         empty!(STATICSTRINGS)
         empty!(MLSTRINGS)
         empty!(IMAGES)
@@ -256,3 +269,21 @@ function UI(breakdown=false; precompile=false)
     end
 end
 
+let
+    t1 = time()
+    mousepos::CImGui.ImVec2 = (0, 0)
+    global function updating()
+        if time() - t1 > 2
+            newmousepos = CImGui.GetMousePos()
+            mousemoved = newmousepos != mousepos
+            mousemoved && (mousepos = newmousepos)
+            updateframe = CImGui.IsAnyMouseDown()
+            updateframe |= CImGui.IsKeyDown(ImGuiKey_MouseWheelX) || CImGui.IsKeyDown(ImGuiKey_MouseWheelY)
+            updateframe |= CImGui.IsAnyItemActive() || (CImGui.IsAnyWindowHovered() && mousemoved)
+            updateframe && (t1 = time())
+            return updateframe
+        else
+            return true
+        end
+    end
+end

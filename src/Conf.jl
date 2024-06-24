@@ -1,4 +1,4 @@
-function loadconf()
+function loadconf(precompile=false)
     ###### gennerate conf ######
     conf_file = joinpath(ENV["QInsControlAssets"], "Necessity/conf.toml")
     global CONF = if isfile(conf_file)
@@ -14,15 +14,19 @@ function loadconf()
                         ustr = occursin(" ", U) ? replace(U, " " => "*") : U
                         push!(Us, eval(:(@u_str($ustr))))
                     end
-                    push!(unitslist, Ut => Us)
+                    unitslist[Ut] = Us
                 end
             end
-            push!(unitslist, "" => [""])
-            push!(conf_dict, "U" => unitslist)
-            from_dict(Conf, conf_dict)
+            unitslist[""] = [""]
+            conf_dict["U"] = unitslist
+            try_from_dict(Conf, conf_dict)
         end
     else
         Conf()
+    end
+    if !precompile
+        isfile(CONF.Communication.visapath) || (CONF.Communication.visapath = QInsControlCore.find_visa())
+        isfile(CONF.Communication.visapath) && (QInsControlCore.Instruments.libvisa = CONF.Communication.visapath)
     end
     isdir(CONF.Fonts.dir) || (CONF.Fonts.dir = joinpath(ENV["QInsControlAssets"], "Fonts"))
     isdir(CONF.Console.dir) || (CONF.Console.dir = joinpath(ENV["QInsControlAssets"], "IOs"))
@@ -35,21 +39,29 @@ function loadconf()
     haskey(CONF.Basic.languages, CONF.Basic.language) && loadlanguage(CONF.Basic.languages[CONF.Basic.language])
 
     ###### generate INSCONF ######
-    include(joinpath(ENV["QInsControlAssets"], "ExtraLoad/extraload.jl"))
+    for file in readdir(joinpath(ENV["QInsControlAssets"], "ExtraLoad"), join=true)
+        @trycatch mlstr("loading drivers failed!!!") begin
+            endswith(basename(file), ".jl") && include(file)
+        end
+    end
     for file in readdir(joinpath(ENV["QInsControlAssets"], "Confs"), join=true)
         bnm = basename(file)
-        split(bnm, '.')[end] == "toml" && gen_insconf(file)
+        @trycatch mlstr("loading file failed!!!") begin
+            endswith(bnm, ".toml") && gen_insconf(file)
+        end
     end
 
     ###### generate INSWCONF ######
     for file in readdir(joinpath(ENV["QInsControlAssets"], "Widgets"), join=true)
         bnm = basename(file)
         instrnm, filetype = split(bnm, '.')
-        if filetype == "toml"
-            widgets = TOML.parsefile(file)
-            push!(INSWCONF, instrnm => [])
-            for (_, widget) in widgets
-                push!(INSWCONF[instrnm], from_dict(InstrWidget, widget))
+        @trycatch mlstr("loading file failed!!!") begin
+            if filetype == "toml"
+                widgets = TOML.parsefile(file)
+                INSWCONF[instrnm] = []
+                for (_, widget) in widgets
+                    push!(INSWCONF[instrnm], try_from_dict(InstrWidget, widget))
+                end
             end
         end
     end
@@ -57,23 +69,29 @@ function loadconf()
     if myid() == 1
         ###### generate INSTRBUFFERVIEWERS ######
         for ins in keys(INSCONF)
-            push!(INSTRBUFFERVIEWERS, ins => Dict{String,InstrBufferViewer}())
+            INSTRBUFFERVIEWERS[ins] = Dict{String,InstrBufferViewer}()
         end
-        push!(INSTRBUFFERVIEWERS, "VirtualInstr" => Dict("VirtualAddress" => InstrBufferViewer("VirtualInstr", "VirtualAddress")))
+        INSTRBUFFERVIEWERS["VirtualInstr"] = Dict("VirtualAddress" => InstrBufferViewer("VirtualInstr", "VirtualAddress"))
 
         ###### load style_conf ######
         for file in readdir(CONF.Style.dir, join=true)
             bnm = basename(file)
-            split(bnm, '.')[end] == "sty" && merge!(STYLES, load(file))
+            @trycatch mlstr("loading file failed!!!") begin
+                endswith(bnm, ".sty") && merge!(STYLES, load(file))
+            end
         end
 
         ###### save conf.toml ######
-        svconf = deepcopy(CONF)
-        svconf.U = Dict(up.first => string.(up.second) for up in CONF.U)
-        to_toml(joinpath(ENV["QInsControlAssets"], "Necessity/conf.toml"), svconf)
+        saveconf()
     end
 
     return nothing
+end
+
+function saveconf()
+    svconf = deepcopy(CONF)
+    svconf.U = Dict(up.first => string.(up.second) for up in CONF.U)
+    @trycatch mlstr("saving configurations failed!!!") to_toml(joinpath(ENV["QInsControlAssets"], "Necessity/conf.toml"), svconf)
 end
 
 macro scpi(instrnm, quantity, scpistr)
@@ -144,8 +162,35 @@ function gen_insconf(conf_file)
         if cf.first == "conf"
             oneinsconf.conf = BasicConf(cf.second)
         else
-            push!(oneinsconf.quantities, cf.first => QuantityConf(cf.second))
+            oneinsconf.quantities[cf.first] = QuantityConf(cf.second)
         end
     end
-    push!(INSCONF, string(instrnm) => oneinsconf)
+    INSCONF[string(instrnm)] = oneinsconf
+end
+
+function try_from_dict(t::Type, dict)
+    cf = t()
+    try
+        cf = from_dict(t, dict)
+    catch e
+        @error mlstr("invalid configuration file, trying refactoring") exception = e
+        showbacktrace()
+        cfdict = to_dict(cf)
+        cf = from_dict(t, mergeconf!(cfdict, dict))
+    end
+    return cf
+end
+
+function mergeconf!(cfdict, dict)
+    for (key, val) in cfdict
+        if haskey(dict, key)
+            if val isa AbstractDict
+                mergeconf!(val, dict[key])
+            else
+                oldval = @trypass convert(typeof(val), dict[key]) nothing
+                isnothing(oldval) || (cfdict[key] = dict[key])
+            end
+        end
+    end
+    return cfdict
 end

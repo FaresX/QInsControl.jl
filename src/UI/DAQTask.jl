@@ -11,7 +11,6 @@ global SAVEPATH::String = ""
 const CFGBUF = Dict{String,Any}()
 
 let
-    holdsz::Cfloat = 0
     viewmode::Bool = false
     redolist::Dict{Int,LoopVector{Vector{AbstractBlock}}} = Dict()
     global function edit(daqtask::DAQTask, id, p_open::Ref{Bool})
@@ -25,13 +24,20 @@ let
             p_open,
             CImGui.ImGuiWindowFlags_NoTitleBar | CImGui.ImGuiWindowFlags_NoDocking
         )
-            CImGui.BeginChild("Blocks")
-            CImGui.TextColored(MORESTYLE.Colors.HighlightText, MORESTYLE.Icons.TaskButton)
+            ftsz = CImGui.GetFontSize()
+            CImGui.PushStyleColor(CImGui.ImGuiCol_Button, (0, 0, 0, 0))
+            CImGui.PushStyleColor(CImGui.ImGuiCol_ButtonHovered, (0, 0, 0, 0))
+            CImGui.PushStyleColor(CImGui.ImGuiCol_ButtonActive, (0, 0, 0, 0))
+            CImGui.PushStyleColor(CImGui.ImGuiCol_Text, MORESTYLE.Colors.HighlightText)
+            CImGui.Button(MORESTYLE.Icons.TaskButton)
+            CImGui.PopStyleColor()
             CImGui.SameLine()
-            CImGui.Text(stcstr(" ", mlstr("Edit queue: Task"), " ", id + OLDI, " ", daqtask.name))
-            CImGui.SameLine(CImGui.GetContentRegionAvailWidth() - holdsz)
-            @c CImGui.Checkbox(mlstr("HOLD"), &daqtask.hold)
-            holdsz = CImGui.GetItemRectSize().x
+            CImGui.Button(stcstr(" ", mlstr("Edit queue: Task"), " ", id + OLDI, " ", daqtask.name))
+            CImGui.PopStyleColor(3)
+            CImGui.SameLine(CImGui.GetContentRegionAvailWidth() - 3ftsz)
+            CImGui.Button(viewmode ? MORESTYLE.Icons.View : MORESTYLE.Icons.Edit, (3ftsz / 2, Cfloat(0))) && (viewmode ⊻= true)
+            CImGui.SameLine()
+            @c ToggleButton(MORESTYLE.Icons.HoldPin, &daqtask.hold)
             CImGui.Separator()
             SeparatorTextColored(MORESTYLE.Colors.HighlightText, mlstr("Experimental Records"))
             y = (1 + length(findall("\n", daqtask.explog))) * CImGui.GetTextLineHeight() +
@@ -42,19 +48,10 @@ let
                 CImGui.EndPopup()
             end
             SeparatorTextColored(MORESTYLE.Colors.HighlightText, mlstr("Script"))
-            CImGui.Button(
-                stcstr(MORESTYLE.Icons.InstrumentsAutoDetect, " ", mlstr("Refresh instrument list"))
-            ) && refresh_instrlist()
-            if CImGui.BeginPopupContextItem()
-                manualadd_ui()
-                CImGui.EndPopup()
-            end
             if SYNCSTATES[Int(AutoDetecting)]
                 CImGui.SameLine()
                 CImGui.TextColored(MORESTYLE.Colors.HighlightText, stcstr(mlstr("searching instruments"), "......"))
             end
-            CImGui.SameLine(CImGui.GetContentRegionAvailWidth() - holdsz)
-            @c CImGui.Checkbox(viewmode ? mlstr("View") : mlstr("Edit"), &viewmode)
             CImGui.PushID(id)
             dragblockmenu(id)
             CImGui.BeginChild("DAQTask.blocks")
@@ -64,8 +61,13 @@ let
             CImGui.PopStyleVar()
             CImGui.PopStyleColor()
             CImGui.EndChild()
-            haskey(redolist, id) || (push!(redolist, id => LoopVector(fill(AbstractBlock[], 10))); redolist[id][] = deepcopy(daqtask.blocks))
-            redolist[id][] ≈ daqtask.blocks || (move!(redolist[id]); redolist[id][] = deepcopy(daqtask.blocks))
+            if !haskey(redolist, id)
+                redolist[id] = LoopVector(fill(AbstractBlock[], CONF.DAQ.historylen))
+                redolist[id][] = deepcopy(daqtask.blocks)
+            end
+            if !CImGui.IsMouseDown(0)
+                redolist[id][] ≈ daqtask.blocks || (move!(redolist[id]); redolist[id][] = deepcopy(daqtask.blocks))
+            end
             all(.!mousein.(daqtask.blocks, true)) && CImGui.OpenPopupOnItemClick("add new Block")
             if CImGui.BeginPopup("add new Block")
                 if CImGui.BeginMenu(stcstr(MORESTYLE.Icons.NewFile, " ", mlstr("Add")))
@@ -74,32 +76,26 @@ let
                     CImGui.EndMenu()
                 end
                 CImGui.Separator()
-                if CImGui.MenuItem(stcstr(MORESTYLE.Icons.Undo, " ", mlstr("Undo")))
+                if CImGui.MenuItem(stcstr(MORESTYLE.Icons.Undo, " ", mlstr("Undo"))) && !isempty(redolist[id][-1])
                     move!(redolist[id], -1)
                     daqtask.blocks = deepcopy(redolist[id][])
                 end
-                if CImGui.MenuItem(stcstr(MORESTYLE.Icons.Redo, " ", mlstr("Redo")))
+                if CImGui.MenuItem(stcstr(MORESTYLE.Icons.Redo, " ", mlstr("Redo"))) && !isempty(redolist[id][1])
                     move!(redolist[id])
                     daqtask.blocks = deepcopy(redolist[id][])
                 end
-                if CImGui.MenuItem(stcstr(MORESTYLE.Icons.Convert, " ", mlstr("Interpret")))
-                    codes = @trypasse quote
-                        $(tocodes.(daqtask.blocks)...)
-                    end |> prettify @error "[$(now())]\n$(mlstr("interpreting blocks failed!!!"))"
-                    isnothing(codes) || @info codes
-                end
+                CImGui.MenuItem(stcstr(MORESTYLE.Icons.Convert, " ", mlstr("Interpret"))) && interpret(daqtask.blocks)
                 CImGui.EndPopup()
             end
-            if unsafe_load(CImGui.GetIO().KeyCtrl)
-                if CImGui.IsKeyPressed(ImGuiKey_Z, false)
+            if unsafe_load(CImGui.GetIO().KeyCtrl) && CImGui.IsWindowFocused(CImGui.ImGuiFocusedFlags_ChildWindows)
+                if CImGui.IsKeyPressed(ImGuiKey_Z, false) && !isempty(redolist[id][-1])
                     move!(redolist[id], -1)
                     daqtask.blocks = deepcopy(redolist[id][])
-                elseif CImGui.IsKeyPressed(ImGuiKey_Y, false)
+                elseif CImGui.IsKeyPressed(ImGuiKey_Y, false) && !isempty(redolist[id][1])
                     move!(redolist[id])
                     daqtask.blocks = deepcopy(redolist[id][])
                 end
             end
-            CImGui.EndChild()
             isfocus &= CImGui.IsWindowFocused(CImGui.ImGuiFocusedFlags_ChildWindows)
         end
         CImGui.End()
@@ -107,6 +103,13 @@ let
         CImGui.PopStyleColor()
         p_open[] &= (isfocus | daqtask.hold)
     end
+end
+
+function interpret(blocks::Vector{AbstractBlock})
+    codes = @trypasse quote
+        $(tocodes.(blocks)...)
+    end |> prettify @error "[$(now())]\n$(mlstr("interpreting blocks failed!!!"))"
+    return isnothing(codes) ? :nothing : (@info "[$(now())]\n$codes"; codes)
 end
 
 function run(daqtask::DAQTask)
@@ -120,17 +123,18 @@ function run(daqtask::DAQTask)
     cfgsvdir = joinpath(WORKPATH, string(year(date)), string(year(date), "-", month(date)), string(date))
     ispath(cfgsvdir) || mkpath(cfgsvdir)
     SAVEPATH = joinpath(cfgsvdir, replace("[$(now())] $(mlstr("Task")) $(1+OLDI) $(daqtask.name).qdt", ':' => '.'))
-    push!(CFGBUF, "daqtask" => deepcopy(daqtask))
+    CFGBUF["daqtask"] = deepcopy(daqtask)
     try
         log_instrbufferviewers()
     catch e
-        @error "[($now())]\n$(mlstr("instrument logging error, program terminates!!!"))" exception = e
+        @error "[$(now())]\n$(mlstr("instrument logging error, program terminates!!!"))" exception = e
+        showbacktrace()
         SYNCSTATES[Int(IsDAQTaskRunning)] = false
         return nothing
     end
     run_remote(daqtask)
     wait(
-        Threads.@spawn while update_all()
+        Threads.@spawn @trycatch mlstr("updating data task failed!!!") while update_all()
             yield()
         end
     )
@@ -161,17 +165,17 @@ function run_remote(daqtask::DAQTask)
         function remote_do_block(databuf_rc, progress_rc, SYNCSTATES, rn)
             controllers = $controllers
             try
-                databuf_lc = Channel{Tuple{String,String}}(CONF.DAQ.channel_size)
-                progress_lc = Channel{Tuple{UUID,Int,Int,Float64}}(CONF.DAQ.channel_size)
+                databuf_lc = Channel{Tuple{String,String}}(CONF.DAQ.channelsize)
+                progress_lc = Channel{Tuple{UUID,Int,Int,Float64}}(CONF.DAQ.channelsize)
                 @sync begin
-                    remotedotask = errormonitor(@async begin
+                    remotedotask = @async @trycatch mlstr("remotedotask failed!!!") begin
                         remotecall_wait(() -> (start!(CPU); fast!(CPU)), workers()[1])
                         for ct in values(controllers)
-                            login!(CPU, ct)
+                            login!(CPU, ct; quiet=false, attr=getattr(ct.addr))
                         end
                         remote_sweep_block(controllers, databuf_lc, progress_lc, SYNCSTATES)
-                    end)
-                    errormonitor(@async while true
+                    end
+                    @async @trycatch mlstr("transfering data task failded!!!") while true
                         if istaskdone(remotedotask) && all(.!isready.([databuf_lc, databuf_rc, progress_lc, progress_rc]))
                             remotecall_wait(eval, 1, :(log_instrbufferviewers()))
                             SYNCSTATES[Int(IsDAQTaskDone)] = true
@@ -181,13 +185,14 @@ function run_remote(daqtask::DAQTask)
                             isready(progress_lc) && put!(progress_rc, packtake!(progress_lc, CONF.DAQ.packsize))
                         end
                         yield()
-                    end)
+                    end
                 end
             catch e
                 @error "[$(now())]\n$(mlstr("task failed!!!"))" exeption = e
+                showbacktrace()
             finally
                 for ct in values(controllers)
-                    logout!(CPU, ct)
+                    logout!(CPU, ct; quiet=false)
                 end
                 slow!(CPU)
             end
@@ -200,6 +205,7 @@ function run_remote(daqtask::DAQTask)
         catch e
             SYNCSTATES[Int(IsDAQTaskDone)] = true
             @error "[$(now())]\n$(mlstr("errors in program definition!!!"))" exception = e
+            showbacktrace()
         end
     end
     SYNCSTATES[Int(IsDAQTaskDone)] && return
@@ -210,27 +216,62 @@ function run_remote(daqtask::DAQTask)
         catch e
             syncstates[Int(IsDAQTaskDone)] = true
             @error "[$(now())]\n$(mlstr("executing program failed!!!"))" exception = e
+            showbacktrace()
         end
     end
 end
 
 function saveqdt()
+    savetype = eval(Symbol(CONF.DAQ.savetype))
     jldopen(SAVEPATH, "w") do file
-        file["data"] = DATABUF
+        if savetype == String
+            file["data"] = DATABUF
+        else
+            datafloat = Dict()
+            for (key, val) in DATABUF
+                dataparsed = tryparse.(savetype, val)
+                datafloat[key] = true in isnothing.(dataparsed) ? val : dataparsed
+            end
+            file["data"] = datafloat
+        end
         file["circuit"] = CIRCUIT
         file["dataplot"] = empty!(deepcopy(DAQDATAPLOT))
         for (key, val) in CFGBUF
             file[key] = val
         end
     end
+    if sum(length(data) for data in values(DATABUF); init=0) > CONF.DAQ.cuttingfile
+        dir, file = splitdir(SAVEPATH)
+        cuttingnum = find_cutting_i(dir, file)
+        if cuttingnum != 1
+            savepathhead = chop(file, tail=cuttingnum == 2 ? 4 : 7 + length(string(cuttingnum)))
+            global SAVEPATH = joinpath(dir, string(savepathhead, " [", cuttingnum, "].qdt"))
+            empty!(DATABUF)
+            empty!(DATABUFPARSED)
+            @trycatch mlstr("instrument logging error, program terminates!!!") log_instrbufferviewers()
+        end
+    end
+end
+
+function find_cutting_i(dir, file)
+    if isfile(joinpath(dir, file))
+        m = match(r"[\w.]* \[([0-9]+)\].qdt", file)
+        return if isnothing(m)
+            2
+        else
+            old_i = tryparse(Int, m[1])
+            isnothing(old_i) ? 2 : old_i + 1
+        end
+    end
+    return 1
 end
 
 function update_data()
     if isready(DATABUFRC)
         packdata = take!(DATABUFRC)
         for data in packdata
-            haskey(DATABUF, data[1]) || push!(DATABUF, data[1] => String[])
-            haskey(DATABUFPARSED, data[1]) || push!(DATABUFPARSED, data[1] => Float64[])
+            haskey(DATABUF, data[1]) || (DATABUF[data[1]] = String[])
+            haskey(DATABUFPARSED, data[1]) || (DATABUFPARSED[data[1]] = Float64[])
             push!(DATABUF[data[1]], data[2])
             parsed_data = tryparse(Float64, data[2])
             push!(DATABUFPARSED[data[1]], isnothing(parsed_data) ? NaN : parsed_data)
@@ -240,10 +281,23 @@ function update_data()
             else
                 continue
             end
-            occursin(r"\[.*\]", qt) && continue
             insbuf = INSTRBUFFERVIEWERS[instrnm][addr].insbuf
-            insbuf.quantities[qt].read = data[2]
-            updatefront!(insbuf.quantities[qt])
+            if occursin(r"\[.*\]", qt)
+                splitqt = split(qt, '[')
+                qt = splitqt[1]
+                idx = parse(Int, splitqt[2][1:end-1])
+                splitread = split(insbuf.quantities[qt].read, insbuf.quantities[qt].separator)
+                if idx > length(splitread)
+                    insbuf.quantities[qt].read *= repeat(insbuf.quantities[qt].separator, idx - length(splitread))
+                    insbuf.quantities[qt].read *= data[2]
+                else
+                    splitread[idx] = data[2]
+                    insbuf.quantities[qt].read = join(splitread, insbuf.quantities[qt].separator)
+                end
+            else
+                insbuf.quantities[qt].read = data[2]
+            end
+            sendtoupdatefront(insbuf.quantities[qt])
         end
         if waittime("savedatabuf", CONF.DAQ.savetime)
             saveqdt()
@@ -271,18 +325,21 @@ function extract_controllers(bkch::Vector{AbstractBlock})
     for bk in bkch
         if typeof(bk) in [SettingBlock, SweepBlock, ReadingBlock, WriteBlock, QueryBlock, ReadBlock]
             bk.instrnm == "VirtualInstr" && bk.addr != "VirtualAddress" && return controllers, false
-            ct = Controller(bk.instrnm, bk.addr)
+            ct = Controller(bk.instrnm, bk.addr; buflen=CONF.DAQ.ctbuflen, timeout=CONF.DAQ.cttimeout)
             try
-                login!(CPU, ct)
+                @assert haskey(INSTRBUFFERVIEWERS, bk.instrnm) mlstr("$(bk.instrnm) has not been added")
+                @assert haskey(INSTRBUFFERVIEWERS[bk.instrnm], bk.addr) mlstr("$(bk.addr) has not been added")
+                login!(CPU, ct; attr=getattr(bk.addr))
                 ct(query, CPU, "*IDN?", Val(:query))
                 logout!(CPU, ct)
-                push!(controllers, string(bk.instrnm, "_", bk.addr) => ct)
+                controllers[string(bk.instrnm, "_", bk.addr)] = ct
             catch e
                 @error(
                     "[$(now())]\n$(mlstr("incorrect instrument settings!!!"))",
                     instrument = string(bk.instrnm, ": ", bk.addr),
                     exception = e
                 )
+                showbacktrace()
                 logout!(CPU, ct)
                 return controllers, false
             end

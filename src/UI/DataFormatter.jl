@@ -9,6 +9,7 @@ end
 @kwdef mutable struct FormatDataGroup <: AbstractFormatData
     data::Vector{FormatData} = []
     mode::String = "default"
+    dtviewer::DataViewer = DataViewer(p_open=false)
 end
 
 @kwdef mutable struct FormatCodes <: AbstractFormatData
@@ -38,7 +39,7 @@ function edit(fc::FormatCodes, _)
     rmin, rmax = CImGui.GetItemRectMin(), CImGui.GetItemRectMax()
     CImGui.SetCursorScreenPos(rmin.x, rmax.y)
     CImGui.PushItemWidth(3CImGui.GetFontSize())
-    @c ComBoS("##mode", &fc.mode, FORMATTERCODEMODES, CImGui.ImGuiComboFlags_NoArrowButton)
+    @c ComboS("##mode", &fc.mode, FORMATTERCODEMODES, CImGui.ImGuiComboFlags_NoArrowButton)
     CImGui.PopItemWidth()
     CImGui.SameLine()
     CImGui.Button(mlstr("Codes"), (-1, 0))
@@ -73,7 +74,7 @@ function edit(fd::FormatData, id)
     CImGui.PopItemWidth()
     CImGui.SameLine()
     CImGui.PushItemWidth(3ftsz)
-    @c ComBoS("##mode", &fd.mode, FORMATTERSINGLEMODES, CImGui.ImGuiComboFlags_NoArrowButton)
+    @c ComboS("##mode", &fd.mode, FORMATTERSINGLEMODES, CImGui.ImGuiComboFlags_NoArrowButton)
     CImGui.PopItemWidth()
     CImGui.PopStyleVar()
     CImGui.SameLine()
@@ -86,14 +87,14 @@ function edit(fd::FormatData, id)
         fd.dtviewer.p_open && haskey(fd.dtviewer.data, "data") && renderplots(fd.dtviewer.dtp, stcstr("formatdata", id))
         fd.dtviewer.p_open || (fd.dtviewer = DataViewer(p_open=false))
     end
-    CImGui.Button(mlstr("Data"), (-1, 0)) && (fd.path = pick_file(filterlist="qdt"))
+    CImGui.Button(mlstr("Data"), (-1, 0)) && Threads.@spawn @trycatch mlstr("task failed!!!") fd.path = pick_file(filterlist="qdt")
 end
 
 function edit(fdg::FormatDataGroup, id)
     CImGui.PushStyleColor(CImGui.ImGuiCol_Border, MORESTYLE.Colors.FormatDataGroupBorder)
     CImGui.PushStyleVar(CImGui.ImGuiStyleVar_ChildBorderSize, 1)
     lfdg = length(fdg.data)
-    height = max(lfdg, 1) * 3CImGui.GetFrameHeight() + (lfdg - 1) * unsafe_load(IMGUISTYLE.ItemSpacing.y) +
+    height = max(lfdg, 1) * (3CImGui.GetTextLineHeightWithSpacing() + CImGui.GetFrameHeight()) + (lfdg - 1) * unsafe_load(IMGUISTYLE.ItemSpacing.y) +
              2unsafe_load(IMGUISTYLE.WindowPadding.y)
     CImGui.BeginChild("FormatDataGroup", (Cfloat(0), height), true)
     for (i, fd) in enumerate(fdg.data)
@@ -120,13 +121,22 @@ function edit(fdg::FormatDataGroup, id)
             CImGui.EndDragDropTarget()
         end
     end
-    CImGui.PopStyleVar()
     CImGui.EndChild()
     CImGui.PopStyleVar()
     CImGui.PopStyleColor()
     rmin, rmax = CImGui.GetItemRectMin(), CImGui.GetItemRectMax()
     CImGui.SetCursorScreenPos(rmin.x, rmax.y)
     ftsz = CImGui.GetFontSize()
+    CImGui.PushStyleColor(
+        CImGui.ImGuiCol_Button,
+        fdg.dtviewer.p_open ? MORESTYLE.Colors.HighlightText : CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_Button)
+    )
+    if CImGui.Button(ICONS.ICON_EYE, (2ftsz, Cfloat(0)))
+        fdg.dtviewer.p_open ⊻= true
+        fdg.dtviewer.p_open ? loaddtviewer!(fdg) : (fdg.dtviewer = DataViewer(p_open=false))
+    end
+    CImGui.PopStyleColor()
+    CImGui.SameLine()
     CImGui.PushStyleVar(CImGui.ImGuiStyleVar_ItemSpacing, (0, 0))
     CImGui.Button(ICONS.ICON_PLUS, (2ftsz, Cfloat(0))) && push!(fdg.data, FormatData())
     CImGui.SameLine()
@@ -134,48 +144,63 @@ function edit(fdg::FormatDataGroup, id)
     CImGui.PopStyleVar()
     CImGui.SameLine()
     CImGui.PushItemWidth(3ftsz)
-    @c ComBoS("##mode", &fdg.mode, FORMATTERGROUPMODES, CImGui.ImGuiComboFlags_NoArrowButton)
+    @c ComboS("##mode", &fdg.mode, FORMATTERGROUPMODES, CImGui.ImGuiComboFlags_NoArrowButton)
     CImGui.PopItemWidth()
     CImGui.SameLine()
+    if fdg.dtviewer.p_open
+        CImGui.SetNextWindowSize((600, 600), CImGui.ImGuiCond_Once)
+        if @c CImGui.Begin(stcstr("FormatDataGroup", id), &fdg.dtviewer.p_open)
+            edit(fdg.dtviewer, "", stcstr("FormatDataGroup", id))
+        end
+        CImGui.End()
+        fdg.dtviewer.p_open && haskey(fdg.dtviewer.data, "data") && renderplots(fdg.dtviewer.dtp, stcstr("formatdatagroup", id))
+        fdg.dtviewer.p_open || (fdg.dtviewer = DataViewer(p_open=false))
+    end
     if CImGui.Button(mlstr("Data Group"), (-1, 0))
-        pathes = pick_multi_file(filterlist="qdt")
-        isempty(pathes) || append!(fdg.data, [FormatData(path=path) for path in pathes])
+        Threads.@spawn @trycatch mlstr("task failed!!!") begin
+            pathes = pick_multi_file(filterlist="qdt")
+            isempty(pathes) || append!(fdg.data, [FormatData(path=path) for path in pathes])
+        end
     end
 end
 
 function edit(dft::DataFormatter, id)
     CImGui.SetNextWindowSize((800, 600), CImGui.ImGuiCond_Once)
     if @c CImGui.Begin(stcstr(MORESTYLE.Icons.DataFormatter, " ", mlstr("Data Formatter"), "##", id), &dft.p_open)
+        SetWindowBgImage()
         CImGui.PushFont(PLOTFONT)
+        CImGui.AddRectFilled(
+            CImGui.GetWindowDrawList(),
+            CImGui.GetCursorScreenPos(),
+            CImGui.GetCursorScreenPos() .+ (CImGui.GetWindowContentRegionMax().x, CImGui.GetFrameHeight() + unsafe_load(IMGUISTYLE.ItemSpacing.y)),
+            CImGui.ColorConvertFloat4ToU32(MORESTYLE.Colors.ToolBarBg)
+        )
         CImGui.Button(MORESTYLE.Icons.NewFile)
         rmin = CImGui.GetItemRectMin()
         CImGui.SameLine()
         ftsz = CImGui.GetFontSize()
         CImGui.PushStyleColor(CImGui.ImGuiCol_Button, (0, 0, 0, 0))
+        CImGui.PushStyleColor(CImGui.ImGuiCol_Text, MORESTYLE.Colors.IconButton)
         CImGui.Button(MORESTYLE.Icons.File, (3ftsz / 2, Cfloat(0))) && push!(dft.data, FormatData())
         CImGui.SameLine()
         CImGui.Button(MORESTYLE.Icons.OpenFolder, (3ftsz / 2, Cfloat(0))) && push!(dft.data, FormatDataGroup())
         CImGui.SameLine()
         CImGui.Button(MORESTYLE.Icons.CodeBlock, (3ftsz / 2, Cfloat(0))) && push!(dft.data, FormatCodes())
         rmax = CImGui.GetItemRectMax()
-        CImGui.PopStyleColor()
         CImGui.AddRect(
             CImGui.GetWindowDrawList(), rmin, rmax,
             CImGui.ColorConvertFloat4ToU32(MORESTYLE.Colors.ShowTextRect),
             MORESTYLE.Variables.TextRectRounding, ImDrawFlags_RoundCornersAll, MORESTYLE.Variables.TextRectThickness
         )
         CImGui.SameLine()
-        CImGui.Button(MORESTYLE.Icons.CloseFile) && (isempty(dft.data) || pop!(dft.data))
+        CImGui.Button(MORESTYLE.Icons.CloseFile, (3ftsz / 2, Cfloat(0))) && (isempty(dft.data) || pop!(dft.data))
         CImGui.SameLine()
-        if ColoredButton(MORESTYLE.Icons.DataFormatter; colbt=MORESTYLE.Colors.ControlButton)
-            try
-                formatdata(dft.data)
-            catch e
-                @error mlstr("formatting data failed!") exception = e
-            end
+        if CImGui.Button(MORESTYLE.Icons.DataFormatter, (3ftsz / 2, Cfloat(0)))
+            @trycatch mlstr("formatting data failed!") formatdata(dft.data)
         end
+        CImGui.PopStyleColor(2)
         CImGui.PopFont()
-        igSeparatorText("")
+        # igSeparatorText("")
         for (i, fd) in enumerate(dft.data)
             CImGui.PushID(i)
             edit(fd, stcstr(id, '-', i))
@@ -203,6 +228,27 @@ function edit(dft::DataFormatter, id)
         end
     end
     CImGui.End()
+end
+
+function loaddtviewer!(fdg::FormatDataGroup)
+    haskey(fdg.dtviewer.data, "data") || (fdg.dtviewer.data["data"] = Dict{String,Vector{String}}())
+    for (i, fd) in enumerate(fdg.data)
+        if isfile(fd.path)
+            data = @trypasse load(fd.path, "data") Dict{String,Vector{String}}()
+            if !isempty(data)
+                datai = Dict{String,Vector{String}}()
+                for (k, val) in data
+                    datai[string(i, " - ", k)] = val
+                end
+                merge!(fdg.dtviewer.data["data"], datai)
+            end
+        end
+    end
+    fdg.dtviewer.data["dataplot"] = empty!(deepcopy(fdg.dtviewer.dtp))
+    fdg.dtviewer.data["daqtask"] = DAQTask(
+        explog=join([string("Data ", i, '\n', fd.path) for (i, fd) in enumerate(fdg.data)], '\n'),
+        blocks=[]
+    )
 end
 
 function formatdata(fds::Vector{AbstractFormatData})

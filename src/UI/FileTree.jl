@@ -68,6 +68,7 @@ let
         CImGui.PushItemWidth(-1)
         @c(RenameSelectable(
             "##path", &isrnm, &file, filetree.selectedpath[] == path;
+            size2=(-1, 0),
             fixedlabel=stcstr(MORESTYLE.Icons.OpenFile, " ")
         )) && (filetree.selectedpath[] = path)
         CImGui.PopItemWidth()
@@ -78,7 +79,7 @@ let
                 filetree.filepath = newpath
                 filetree.filepath_bnm = basename(filetree.filepath)
                 delete!(isrename, path)
-                push!(isrename, newpath => false)
+                isrename[newpath] = false
                 filetree.selectedpath[] = newpath
             else
                 isrename[path] = isrnm

@@ -13,9 +13,9 @@ end
 labeltoidx!(lo::Layout) = lo.selectedidx = [lo.labeltoidx[lb] for lb in lo.selectedlabels]
 
 function edit(
-    rightclickmenu,
-    lo::Layout,
-    size=(Cfloat(0), CImGui.GetTextLineHeight() * ceil(Int, length(lo.labels) / lo.showcol));
+    rightclickmenu, lo::Layout, args...;
+    action=(si, ti, args...) -> (),
+    size=(Cfloat(0), CImGui.GetTextLineHeight() * ceil(Int, length(lo.labels) / lo.showcol)),
     showlayout=false,
     selectableflags=0,
     selectablesize=(0, 0)
@@ -23,9 +23,9 @@ function edit(
     states_old = copy(lo.states)
     marks_old = copy(lo.marks)
     editlabels = @. lo.labels * " " * lo.marks * "###for rename" * lo.labels
-    @c MultiSelectable(
-        rightclickmenu, lo.id, editlabels, lo.states, lo.showcol, &lo.idxing, size;
-        border=true, selectableflags=selectableflags, selectablesize=selectablesize
+    @c DragMultiSelectable(
+        rightclickmenu, lo.id, editlabels, lo.states, lo.showcol, &lo.idxing, args...;
+        action=action, size=size, border=true, selectableflags=selectableflags, selectablesize=selectablesize
     )
     if lo.states != states_old || lo.marks != marks_old
         editlabels = @. lo.labels * " " * lo.marks
@@ -37,13 +37,7 @@ function edit(
         CImGui.Separator()
         CImGui.Text(mlstr("layout"))
         selectedlabels_old = copy(lo.selectedlabels)
-        DragMultiSelectable(
-            () -> false,
-            lo.id,
-            lo.selectedlabels,
-            trues(length(lo.selectedlabels)),
-            lo.showcol
-        )
+        DragMultiSelectable(() -> false, lo.id, lo.selectedlabels, trues(length(lo.selectedlabels)), lo.showcol, Ref(1))
         lo.selectedlabels == selectedlabels_old || labeltoidx!(lo)
     end
 end
@@ -78,25 +72,20 @@ function editmenu(dtp::DataPlot)
     length(dtp.showdtpks) == ldtpks || resize!(dtp.showdtpks, ldtpks)
     llink = length(dtp.linkidx)
     llink == ldtpks || (resize!(dtp.linkidx, ldtpks); llink < ldtpks && (dtp.linkidx[llink+1:end] .= 0))
-
-    dtp.layout.labels = MORESTYLE.Icons.Plot * " " .* string.(collect(eachindex(dtp.layout.labels)))
+    dtp.layout.labels = [stcstr(MORESTYLE.Icons.Plot, " ", mlstr("Plot"), " ", i) for i in eachindex(dtp.layout.labels)]
     edit(
-        dtp.layout,
-        (
-            Cfloat(0),
-            CImGui.GetFrameHeightWithSpacing() * ceil(Int, length(dtp.layout.labels) / dtp.layout.showcol) -
-            unsafe_load(IMGUISTYLE.ItemSpacing.y) + 2unsafe_load(IMGUISTYLE.WindowPadding.y)
-        );
-        selectablesize=(Cfloat(0), CImGui.GetFrameHeight()-unsafe_load(IMGUISTYLE.ItemSpacing.y))
+        dtp.layout, dtp;
+        action=insertplotbefore!, size=(0, 0),
+        selectablesize=(Cfloat(0), CImGui.GetFrameHeight() - unsafe_load(IMGUISTYLE.ItemSpacing.y))
     ) do
         openright = CImGui.BeginPopupContextItem()
         if openright
             if CImGui.MenuItem(stcstr(MORESTYLE.Icons.Plot, " ", mlstr("Select Data")))
-                if !dtp.layout.states[dtp.layout.idxing]
-                    for dtss in dtp.dtpks[dtp.layout.idxing].series
-                        dtss.isrealtime = false
-                    end
-                end
+                # if !dtp.layout.states[dtp.layout.idxing]
+                #     for dtss in dtp.dtpks[dtp.layout.idxing].series
+                #         dtss.isrealtime = false
+                #     end
+                # end
                 dtp.showdtpks[dtp.layout.idxing] = true
             end
             if CImGui.MenuItem(stcstr(MORESTYLE.Icons.CloseFile, " ", mlstr("Delete")))
@@ -132,6 +121,23 @@ function newplot!(dtp::DataPlot)
     push!(dtp.plots, Plot())
     push!(dtp.dtpks, DataPicker())
     push!(dtp.linkidx, 0)
+end
+
+function insertplotbefore!(si, ti, dtp::DataPlot)
+    insert!(dtp.layout.labels, ti, dtp.layout.labels[si])
+    insert!(dtp.layout.marks, ti, dtp.layout.marks[si])
+    insert!(dtp.layout.states, ti, dtp.layout.states[si])
+    insert!(dtp.plots, ti, dtp.plots[si])
+    insert!(dtp.dtpks, ti, dtp.dtpks[si])
+    insert!(dtp.linkidx, ti, dtp.linkidx[si])
+    insert!(dtp.showdtpks, ti, dtp.showdtpks[si])
+    deleteat!(dtp.layout.labels, si < ti ? si : si + 1)
+    deleteat!(dtp.layout.marks, si < ti ? si : si + 1)
+    deleteat!(dtp.layout.states, si < ti ? si : si + 1)
+    deleteat!(dtp.plots, si < ti ? si : si + 1)
+    deleteat!(dtp.dtpks, si < ti ? si : si + 1)
+    deleteat!(dtp.linkidx, si < ti ? si : si + 1)
+    deleteat!(dtp.showdtpks, si < ti ? si : si + 1)
 end
 
 function showdtpks(
@@ -172,14 +178,14 @@ function showdtpks(
                 dtp.showdtpks[i] = isshowdtpk
                 if true in [
                     dtss.update ||
-                    (dtss.isrealtime && waittime(stcstr("DataPicker", dtp.plots[i].id, "-", j), dtss.refreshrate))
+                    (dtss.isrealtime && waittime(stcstr("DataPicker-link", dtp.plots[i].id, "-", j), dtss.refreshrate))
                     for (j, dtss) in enumerate(dtpk.series)
                 ]
                     linkeddata = Dict{String,VecOrMat{Cdouble}}()
                     for (j, pss) in enumerate(pltlink.series)
-                        push!(linkeddata, "x$j" => copy(pss.x))
-                        push!(linkeddata, "y$j" => copy(pss.y))
-                        push!(linkeddata, "z$j" => copy(pss.z))
+                        linkeddata["x$j"] = copy(pss.x)
+                        linkeddata["y$j"] = copy(pss.y)
+                        linkeddata["z$j"] = copy(pss.z)
                         dtpklink.series[j].hflipz && reverse!(linkeddata["z$j"], dims=1)
                         dtpklink.series[j].vflipz && reverse!(linkeddata["z$j"], dims=2)
                         linkeddata["z$j"] = transpose(linkeddata["z$j"]) |> collect
@@ -234,8 +240,14 @@ function Base.empty!(dtp::DataPlot)
         empty!(plt.zaxes)
         for pss in plt.series
             empty!(pss.x)
+            empty!(pss.axis.xaxis.ticklabels)
+            empty!(pss.axis.xaxis.tickvalues)
             empty!(pss.y)
+            empty!(pss.axis.yaxis.ticklabels)
+            empty!(pss.axis.yaxis.tickvalues)
             pss.z = Matrix{eltype(pss.z)}(undef, 0, 0)
+            empty!(pss.axis.zaxis.ticklabels)
+            empty!(pss.axis.zaxis.tickvalues)
         end
     end
     return dtp
@@ -244,6 +256,6 @@ end
 function update!(dtp::DataPlot, datastr, datafloat::Dict{String,VecOrMat{Cdouble}}=Dict{String,VecOrMat{Cdouble}}())
     for (i, dtpk) in enumerate(dtp.dtpks)
         dtpk.update = true
-        syncplotdata(dtp.plots[i], dtpk, datastr, datafloat; quiet=true)
+        syncplotdata(dtp.plots[i], dtpk, datastr, datafloat; quiet=true, force=true)
     end
 end

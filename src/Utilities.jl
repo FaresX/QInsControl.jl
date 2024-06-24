@@ -7,6 +7,7 @@ macro trypasse(sv, default)
                 x = $sv
             catch e
                 @error "$(now())\nerror in @trypass" exception = e code = $code
+                showbacktrace()
                 x = $default
             end
             x
@@ -47,9 +48,15 @@ end
 
 function packtake!(c, n=12)
     buf = eltype(c)[]
-    for _ in 1:n
-        isready(c) && push!(buf, take!(c))
-    end
+    taking = true
+    t = errormonitor(
+        @async while taking
+            isready(c) ? push!(buf, take!(c)) : yield()
+        end
+    )
+    timedwait(() -> length(buf) > n, 0.01; pollint=0.001)
+    taking = false
+    wait(t)
     buf
 end
 
@@ -84,7 +91,7 @@ end
 let
     oldtime::Dict{String,Float64} = Dict()
     global function waittime(id, δt=1)
-        haskey(oldtime, id) || push!(oldtime, id => time())
+        haskey(oldtime, id) || (oldtime[id] = time())
         newtime = time()
         trig = newtime - oldtime[id] > δt
         trig && (oldtime[id] = newtime)
@@ -124,7 +131,8 @@ function centermultiline(s)
     spacel = CImGui.CalcTextSize(" ").x / CImGui.GetFontSize()
     for (i, line) in enumerate(ss)
         line == "" && continue
-        ss[i] = " "^Int((ml - lengthpr(line)) ÷ 2spacel) * line
+        ns = (ml - lengthpr(line)) ÷ 2spacel
+        ss[i] = " "^(isnan(ns) || ns < 0 ? 0 : round(Int, ns)) * line
     end
     join(ss, '\n')
 end
@@ -137,7 +145,7 @@ function newkey!(dict::AbstractDict, oldkey, newkey)
         if p.first != oldkey
             push!(newdict, p)
         else
-            push!(newdict, newkey => p.second)
+            newdict[newkey] = p.second
         end
     end
     empty!(dict)
@@ -186,9 +194,9 @@ function swapvalue!(dict::OrderedDict, key1, key2)
     newdict = OrderedDict()
     for p in dict
         if p.first == key1
-            push!(newdict, key2 => dict[key2])
+            newdict[key2] = dict[key2]
         elseif p.first == key2
-            push!(newdict, key1 => dict[key1])
+            newdict[key1] = dict[key1]
         else
             push!(newdict, p)
         end
@@ -216,6 +224,19 @@ function Base.getindex(v::Union{ImVec2,ImPlot.ImPlotPoint}, i)
     end
 end
 Base.length(::Union{ImVec2,ImPlot.ImPlotPoint}) = 2
+function Base.getindex(v::ImVec4, i)
+    if i == 1
+        return v.x
+    elseif i == 2
+        return v.y
+    elseif i == 3
+        return v.z
+    elseif i == 4
+        return v.w
+    else
+        throw(BoundsError(v, i))
+    end
+end
 
 function Base.getproperty(x::Ptr{LibCImGui.ImNodesStyle}, f::Symbol)
     f === :GridSpacing && return Ptr{Cfloat}(x + 0)
@@ -293,13 +314,15 @@ end
 Base.length(lv::LoopVector) = length(lv.data)
 function __find_index(lv::LoopVector, i)
     l = length(lv)
-    r = (i + lv.index - 1) % l |> abs
+    r = (i + lv.index) % l |> abs
     return r == 0 ? l : r
 end
-Base.getindex(lv::LoopVector, i=1) = lv.data[__find_index(lv, i)]
-Base.setindex!(lv::LoopVector, x, i=1) = (lv.data[__find_index(lv, i)] = x)
+Base.getindex(lv::LoopVector, i=0) = lv.data[__find_index(lv, i)]
+Base.setindex!(lv::LoopVector, x, i=0) = (lv.data[__find_index(lv, i)] = x)
 
 move!(lv::LoopVector, i=1) = (lv.index += i)
+
+Base.push!(lv::LoopVector, x) = push!(lv.data, x)
 
 function waittofetch(f, timeout=2; pollint=0.001)
     waittask = errormonitor(@async fetch(f))
@@ -364,11 +387,9 @@ end
 function imgsampling(x, y; num=100000)
     if num > 1000
         xl, yl = length(x), length(y)
-        xmin, xmax = extrema(x)
-        xinterp = xl == yl ? x : range(xmin, xmax, length=yl)
-        nx = range(xmin, xmax, length=num)
-        ny = LinearInterpolation(y, xinterp).(nx)
-        return nx, ny
+        xidxleft = round.(Int, range(1, xl, length=min(num, xl)))
+        yidxleft = round.(Int, range(1, yl, length=min(num, yl)))
+        return x[xidxleft], y[yidxleft]
     else
         return x, y
     end
@@ -395,4 +416,25 @@ function imgsampling(x, y, z; num=100000)
     else
         return x, y, z
     end
+end
+
+function resizefill!(sv::Vector{String}, n; fillv="")
+    resize!(sv, n)
+    for i in eachindex(sv)
+        isassigned(sv, i) || (sv[i] = fillv)
+    end
+end
+
+showbacktrace() = (Base.show_backtrace(LOGIO, catch_backtrace()); println(LOGIO, "\n\r"))
+macro trycatch(msg, ex)
+    esc(
+        quote
+            try
+                $ex
+            catch e
+                @error string("[", now(), "]\n", $msg) exception = e
+                showbacktrace()
+            end
+        end
+    )
 end

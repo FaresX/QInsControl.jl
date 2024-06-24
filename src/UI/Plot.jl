@@ -11,6 +11,8 @@ end
 @kwdef mutable struct Linecut
     ptype::String = "line"
     vline::Bool = true
+    thickness::Cfloat = 0
+    color::CImGui.ImVec4 = (1.000, 1.000, 1.000, 1.000)
     pos::Cdouble = 0
 end
 
@@ -20,6 +22,7 @@ end
     tickvalues::Vector{Cdouble} = []
     ticklabels::Vector{String} = []
     lims::Tuple{Cdouble,Cdouble} = (0, 1)
+    scale::ImPlot.ImPlotScale = 0
     hovered::Bool = false
 end
 
@@ -29,6 +32,7 @@ end
     tickvalues::Vector{Cdouble} = []
     ticklabels::Vector{String} = []
     lims::Tuple{Cdouble,Cdouble} = (0, 1)
+    scale::ImPlot.ImPlotScale = 0
     hovered::Bool = false
 end
 
@@ -39,6 +43,7 @@ end
     tickvalues::Vector{Cdouble} = []
     ticklabels::Vector{String} = []
     lims::Tuple{Cdouble,Cdouble} = (0, 1)
+    scale::UInt32 = 0
     hovered::Bool = false
     colormapscalesize::CImGui.ImVec2 = (0, 0)
 end
@@ -71,6 +76,7 @@ end
     hovered::Bool = false
     showtooltip::Bool = true
     mspos::ImPlot.ImPlotPoint = ImPlot.ImPlotPoint(0, 0)
+    plotlims::Vector{ImPlot.ImPlotRange} = fill(ImPlot.ImPlotRange(0, 1), 6)
     plotpos::CImGui.ImVec2 = (0, 0)
     plotsize::CImGui.ImVec2 = (0, 0)
 end
@@ -87,7 +93,7 @@ let
         Plot(plt; psize=CImGui.ImVec2(-1, -1), flags=flags)
         CImGui.PopFont()
         plt.hovered && CImGui.IsMouseClicked(2) && CImGui.OpenPopup(stcstr("title", id))
-        haskey(openpopup_mspos_list, id) || push!(openpopup_mspos_list, id => Cfloat[0, 0])
+        haskey(openpopup_mspos_list, id) || (openpopup_mspos_list[id] = Cfloat[0, 0])
         openpopup_mspos = openpopup_mspos_list[id]
         if CImGui.BeginPopup(stcstr("title", id))
             if openpopup_mspos == Cfloat[0, 0]
@@ -96,26 +102,6 @@ let
                 annbuf.offsetx, annbuf.offsety = openpopup_mspos
             end
             @c InputTextRSZ(mlstr("title"), &plt.title)
-            CImGui.BeginGroup()
-            for za in plt.zaxes
-                CImGui.Text(stcstr("Colormap ", za.axis))
-            end
-            CImGui.EndGroup()
-            CImGui.SameLine()
-            CImGui.BeginGroup()
-            for za in plt.zaxes
-                if ImPlot.ColormapButton(
-                    stcstr(unsafe_string(ImPlot.GetColormapName(za.colormap)), "##", za.axis),
-                    ImVec2(Cfloat(-0.1), Cfloat(0)),
-                    za.colormap
-                )
-                    za.colormap = (za.colormap + 1) % Cint(ImPlot.GetColormapCount())
-                    for pss in plt.series
-                        pss.axis.zaxis.axis == za.axis && (pss.axis.zaxis.colormap = za.colormap)
-                    end
-                end
-            end
-            CImGui.EndGroup()
             @c CImGui.Checkbox(mlstr("data tip"), &plt.showtooltip)
             if CImGui.BeginMenu(mlstr("Add Linecut"))
                 CImGui.MenuItem(mlstr("Horizontal Linecut")) && push!(plt.linecuts, Linecut(vline=false, pos=openpopup_mspos[2]))
@@ -148,6 +134,13 @@ let
                         pss.axis.xaxis.axis == pltxa.axis && (pss.axis.xaxis.label = pltxa.label)
                     end
                 end
+                scale = string(ImPlot.ImPlotScale_(pltxa.scale))
+                if @c ComboS(mlstr("Axis Scale"), &scale, string.(instances(ImPlot.ImPlotScale_)))
+                    pltxa.scale = getproperty(ImPlot, Symbol(scale))
+                    for pss in plt.series
+                        pss.axis.xaxis.axis == pltxa.axis && (pss.axis.xaxis.scale = pltxa.scale)
+                    end
+                end
                 CImGui.EndPopup()
             end
         end
@@ -159,6 +152,13 @@ let
                         pss.axis.yaxis.axis == pltya.axis && (pss.axis.yaxis.label = pltya.label)
                     end
                 end
+                scale = string(ImPlot.ImPlotScale_(pltya.scale))
+                if @c ComboS(mlstr("Axis Scale"), &scale, string.(instances(ImPlot.ImPlotScale_)))
+                    pltya.scale = getproperty(ImPlot, Symbol(scale))
+                    for pss in plt.series
+                        pss.axis.yaxis.axis == pltya.axis && (pss.axis.yaxis.scale = pltya.scale)
+                    end
+                end
                 CImGui.EndPopup()
             end
         end
@@ -168,6 +168,23 @@ let
                 if @c InputTextRSZ(stcstr("Z ", mlstr("label")), &pltza.label)
                     for pss in plt.series
                         pss.axis.zaxis.axis == pltza.axis && (pss.axis.zaxis.label = pltza.label)
+                    end
+                end
+                cmap = unsafe_string(ImPlot.GetColormapName(pltza.colormap))
+                if @c ComboS(mlstr("Colormap"), &cmap, unsafe_string.(ImPlot.GetColormapName.(0:ImPlot.GetColormapCount()-1)))
+                    pltza.colormap = ImPlot.GetColormapIndex(cmap)
+                    for pss in plt.series
+                        pss.axis.zaxis.axis == pltza.axis && (pss.axis.zaxis.colormap = pltza.colormap)
+                    end
+                end
+                if ImPlot.ColormapButton(
+                    stcstr(unsafe_string(ImPlot.GetColormapName(pltza.colormap)), "##", pltza.axis),
+                    ImVec2(Cfloat(-0.1), Cfloat(0)),
+                    pltza.colormap
+                )
+                    pltza.colormap = (pltza.colormap + 1) % ImPlot.GetColormapCount()
+                    for pss in plt.series
+                        pss.axis.zaxis.axis == pltza.axis && (pss.axis.zaxis.colormap = pltza.colormap)
                     end
                 end
                 CImGui.EndPopup()
@@ -205,7 +222,7 @@ end
 function mergezaxes!(plt::Plot)
     empty!(plt.zaxes)
     for pss in plt.series
-        zlims = isempty(pss.z) ? (0, 1) : extrema(pss.z)
+        zlims = extrema(pss.z; init=(0, 1))
         zlims[1] == zlims[2] && (zlims = (0, 1))
         pss.axis.zaxis.lims = zlims
     end
@@ -224,17 +241,46 @@ end
 function Plot(plt::Plot; psize=CImGui.ImVec2(0, 0), flags=0)
     if ImPlot.BeginPlot(
         stcstr(plt.title, "###", plt.id),
-        CImGui.ImVec2(CImGui.GetContentRegionAvailWidth() - sum(za.colormapscalesize.x for za in plt.zaxes; init=0), psize.y),
+        CImGui.ImVec2((psize.x > 0 ? psize.x : CImGui.GetContentRegionAvailWidth()) - sum(za.colormapscalesize.x for za in plt.zaxes; init=0), psize.y),
         flags
     )
         isempty(plt.xaxes) && mergexaxes!(plt)
         isempty(plt.yaxes) && mergeyaxes!(plt)
         map(xa -> ImPlot.SetupAxis(xa.axis, xa.label), plt.xaxes)
         map(ya -> ImPlot.SetupAxis(ya.axis, ya.label), plt.yaxes)
+        map(plt.xaxes) do xa
+            if !isempty(xa.ticklabels) && length(xa.tickvalues) == length(xa.ticklabels)
+                pltxlims = plt.plotlims[xa.axis+1]
+                seriesxlims = extrema(xa.tickvalues; init=(0, 1))
+                pickrange = [max(pltxlims.Min, seriesxlims[1]), min(pltxlims.Max, seriesxlims[2])]
+                pickvalues, picklabels = if pickrange[2] < seriesxlims[1] || pickrange[1] > seriesxlims[2]
+                    [], []
+                else
+                    idxl = argmin(abs.(pickrange[1] .- xa.tickvalues))
+                    idxr = argmin(abs.(pickrange[2] .- xa.tickvalues))
+                    xa.tickvalues[idxl:idxr], xa.ticklabels[idxl:idxr]
+                end
+                if !isempty(picklabels)
+                    ticksmaxlen = max([CImGui.CalcTextSize(tick).x for tick in picklabels]...)
+                    ticksmaxlen == 0 && (ticksmaxlen = 1)
+                    rate = (pickrange[2] - pickrange[1]) / (pltxlims.Max - pltxlims.Min)
+                    num = min(floor(Int, plt.plotsize[1] * rate / ticksmaxlen), length(picklabels))
+                    if num != 0
+                        ll = length(picklabels)
+                        showidxes = num == 1 ? [(ll + 1) ÷ 2] : round.(Int, range(1, ll, length=num))
+                        ImPlot.SetupAxisTicks(xa.axis, pickvalues[showidxes], num, picklabels[showidxes])
+                    end
+                end
+            end
+        end
+        map(xa -> ImPlot.SetupAxisScale(xa.axis, xa.scale), plt.xaxes)
+        map(ya -> ImPlot.SetupAxisScale(ya.axis, ya.scale), plt.yaxes)
         map(xa -> xa.hovered = ImPlot.IsAxisHovered(xa.axis), plt.xaxes)
         map(ya -> ya.hovered = ImPlot.IsAxisHovered(ya.axis), plt.yaxes)
+        hasheatmap = false
         for (i, pss) in enumerate(plt.series)
             if pss.ptype == "heatmap"
+                hasheatmap = true
                 (isempty(pss.x) | isempty(pss.y) | isempty(pss.z)) && continue
             else
                 (isempty(pss.x) | isempty(pss.y)) && continue
@@ -246,6 +292,12 @@ function Plot(plt::Plot; psize=CImGui.ImVec2(0, 0), flags=0)
             end
         end
         PlotAnns(plt.anns)
+        hasheatmap && PlotLinecuts(plt.linecuts)
+        for i in 0:2
+            xylims = ImPlot.GetPlotLimits(ImPlot.ImAxis_(i), ImPlot.ImAxis_(i + 3))
+            plt.plotlims[i+1] = xylims.X
+            plt.plotlims[i+4] = xylims.Y
+        end
         plt.hovered = ImPlot.IsPlotHovered()
         ImPlot.EndPlot()
     end
@@ -254,6 +306,7 @@ function Plot(plt::Plot; psize=CImGui.ImVec2(0, 0), flags=0)
     CImGui.PushStyleVar(CImGui.ImGuiStyleVar_ItemSpacing, (0, 0))
     for za in plt.zaxes
         CImGui.SameLine()
+        za.colormap + 1 > ImPlot.GetColormapCount() && (za.colormap %= ImPlot.GetColormapCount())
         ImPlot.PushColormap(za.colormap)
         ImPlot.ColormapScale(stcstr(za.label, "###", plt.id, "-", za.axis), za.lims..., CImGui.ImVec2(Cfloat(0), psize.y))
         ImPlot.PopColormap()
@@ -261,40 +314,50 @@ function Plot(plt::Plot; psize=CImGui.ImVec2(0, 0), flags=0)
         za.hovered = CImGui.IsItemHovered()
     end
     CImGui.PopStyleVar()
-    for pss in plt.series
-        pss.ptype == "heatmap" && !isempty(pss.z) && renderlinecuts(plt.linecuts, pss, plt)
-    end
+    renderlinecuts(plt)
 end
 
 Plot(pss::PlotSeries, plt::Plot) = Plot(pss, plt, Val(Symbol(pss.ptype)))
 
 function Plot2D(plotfunc, pss::PlotSeries, plt::Plot)
     ImPlot.SetAxes(pss.axis.xaxis.axis, pss.axis.yaxis.axis)
-    ImPlot.SetupAxisTicks(pss.axis.xaxis.axis, pss.axis.xaxis.tickvalues, length(pss.axis.xaxis.tickvalues), pss.axis.xaxis.ticklabels)
     plotfunc(pss.legend, pss.x, pss.y, length(pss.x))
     pss.legendhovered = ImPlot.IsLegendEntryHovered(pss.legend)
-    xl, xr = extrema(pss.x)
+    xl, xr = extrema(pss.x; init=(0, 1))
     plt.mspos = ImPlot.GetPlotMousePos()
     if plt.showtooltip && plt.hovered && xl <= plt.mspos.x <= xr
-        idx = argmin(abs.(pss.x .- plt.mspos.x))
-        xpos, ypos = pss.x[idx], pss.y[idx]
-        ppixel = ImPlot.PlotToPixels(xpos, ypos)
+        minx = pss.x[argmin(abs.(pss.x .- plt.mspos.x))]
+        idxes = findall(≈(minx), pss.x)
         mspospixel = CImGui.GetMousePos()
-        if sum(abs2.(mspospixel .- ppixel)) < abs2(unsafe_load(IMPLOTSTYLE.MarkerSize))
-            CImGui.BeginTooltip()
-            SeparatorTextColored(MORESTYLE.Colors.HighlightText, pss.legend)
-            CImGui.PushTextWrapPos(36CImGui.GetFontSize())
-            CImGui.Text(string("x : ", isempty(pss.axis.xaxis.ticklabels) ? xpos : pss.axis.xaxis.ticklabels[idx]))
-            CImGui.Text(string("y : ", ypos))
-            CImGui.PopTextWrapPos()
-            CImGui.EndTooltip()
+        d2s = [sum(abs2.(mspospixel .- ImPlot.PlotToPixels(pss.x[idx], pss.y[idx]))) for idx in idxes]
+        if !isempty(d2s)
+            mind2 = findmin(d2s)
+            idx = idxes[mind2[2]]
+            if mind2[1] < 4abs2(unsafe_load(IMPLOTSTYLE.MarkerSize))
+                CImGui.AddCircle(
+                    CImGui.GetWindowDrawList(), ImPlot.PlotToPixels(pss.x[idx], pss.y[idx]),
+                    unsafe_load(IMPLOTSTYLE.MarkerSize) + MORESTYLE.Variables.WidgetBorderThickness + 2,
+                    CImGui.ColorConvertFloat4ToU32(MORESTYLE.Colors.WidgetBorderHovered),
+                    24, MORESTYLE.Variables.WidgetBorderThickness
+                )
+                CImGui.BeginTooltip()
+                SeparatorTextColored(MORESTYLE.Colors.HighlightText, pss.legend)
+                CImGui.PushTextWrapPos(36CImGui.GetFontSize())
+                CImGui.Text(string("x : ", isempty(pss.axis.xaxis.ticklabels) ? pss.x[idx] : pss.axis.xaxis.ticklabels[idx]))
+                CImGui.Text(string("y : ", pss.y[idx]))
+                CImGui.PopTextWrapPos()
+                CImGui.EndTooltip()
+            end
         end
     end
 end
 Plot(pss::PlotSeries, plt::Plot, ::Val{:line}) = Plot2D(ImPlot.PlotLine, pss, plt)
 Plot(pss::PlotSeries, plt::Plot, ::Val{:scatter}) = Plot2D(ImPlot.PlotScatter, pss, plt)
+Plot(pss::PlotSeries, plt::Plot, ::Val{:stairs}) = Plot2D(ImPlot.PlotStairs, pss, plt)
+Plot(pss::PlotSeries, plt::Plot, ::Val{:stems}) = Plot2D(ImPlot.PlotStems, pss, plt)
 
 function Plot(pss::PlotSeries, plt::Plot, ::Val{:heatmap})
+    pss.axis.zaxis.colormap + 1 > ImPlot.GetColormapCount() && (pss.axis.zaxis.colormap %= ImPlot.GetColormapCount())
     ImPlot.PushColormap(pss.axis.zaxis.colormap)
     ImPlot.PlotHeatmap(
         pss.legend, pss.z, reverse(size(pss.z))..., pss.axis.zaxis.lims..., "",
@@ -313,16 +376,30 @@ function Plot(pss::PlotSeries, plt::Plot, ::Val{:heatmap})
         yr = range(pss.axis.yaxis.lims[2], pss.axis.yaxis.lims[1], length=zsz[2])
         xidx = argmin(abs.(xr .- plt.mspos.x))
         yidx = argmin(abs.(yr .- plt.mspos.y))
+        x, y, z = xr[xidx], yr[yidx], pss.z[xidx, yidx]
+        zpospixel = ImPlot.PlotToPixels(x, y)
+        hb, vb = plt.plotlims[[pss.axis.xaxis.axis + 1, pss.axis.yaxis.axis + 1]]
+        hmlb, hmrb = max(hb.Min, xr[1]), min(hb.Max, xr[end])
+        hmbb, hmtb = max(vb.Min, yr[end]), min(vb.Max, yr[1])
+        hlen = ImPlot.PlotToPixels(hmrb, hmbb).x - ImPlot.PlotToPixels(hmlb, hmbb).x
+        vlen = ImPlot.PlotToPixels(hmlb, hmbb).y - ImPlot.PlotToPixels(hmlb, hmtb).y
+        lidx, ridx = argmin(abs.(xr .- hmlb)), argmin(abs.(xr .- hmrb))
+        bidx, tidx = argmin(abs.(yr .- hmbb)), argmin(abs.(yr .- hmtb))
+        hmpixelsz = (hlen / (ridx - lidx + (ridx == lidx)), vlen / (bidx - tidx + (bidx == tidx)))
+        CImGui.AddRect(
+            CImGui.GetWindowDrawList(), zpospixel .- hmpixelsz ./ 2, zpospixel .+ hmpixelsz ./ 2,
+            CImGui.ColorConvertFloat4ToU32(MORESTYLE.Colors.WidgetBorderHovered),
+            0.0, CImGui.ImDrawFlags_RoundCornersAll, MORESTYLE.Variables.WidgetBorderThickness
+        )
         CImGui.BeginTooltip()
         SeparatorTextColored(MORESTYLE.Colors.HighlightText, pss.legend)
         CImGui.PushTextWrapPos(36CImGui.GetFontSize())
-        CImGui.Text(string("x : ", xr[xidx]))
-        CImGui.Text(string("y : ", yr[yidx]))
-        CImGui.Text(string("z : ", pss.z[xidx, yidx]))
+        CImGui.Text(string("x : ", x))
+        CImGui.Text(string("y : ", y))
+        CImGui.Text(string("z : ", z))
         CImGui.PopTextWrapPos()
         CImGui.EndTooltip()
     end
-    PlotLinecuts(plt.linecuts)
 end
 
 function setupplotseries!(pss::PlotSeries, x::AbstractVector{Tx}, y) where {Tx<:AbstractString}
@@ -330,9 +407,12 @@ function setupplotseries!(pss::PlotSeries, x::AbstractVector{Tx}, y) where {Tx<:
     pss.y = y
     lx, ly = length(x), length(y)
     pss.axis.xaxis.ticklabels = lx < ly ? append!(copy(x), fill("", ly - lx)) : x[1:ly]
+    pss.axis.xaxis.tickvalues = 1:length(pss.axis.xaxis.ticklabels)
 end
 function setupplotseries!(pss::PlotSeries, x::AbstractVector{Tx}, y) where {Tx<:Real}
     pss.x, pss.y = isempty(x) ? (1:length(y), y) : trunc(x, y)
+    empty!(pss.axis.xaxis.tickvalues)
+    empty!(pss.axis.xaxis.ticklabels)
 end
 function setupplotseries!(pss::PlotSeries, x::AbstractVector{Tx}, y, z) where {Tx<:Real}
     pss.z = z
@@ -366,50 +446,52 @@ function setupplotseries!(pss::PlotSeries, x::AbstractVector{Tx}, y, z) where {T
 end
 
 function PlotAnns(anns::Vector{Annotation})
-    openpopup_i = 0
-    ishv = false
-    ImPlot.SetAxes(ImPlot.ImAxis_X1, ImPlot.ImAxis_Y1)
-    CImGui.PushFont(GLOBALFONT)
-    for (i, ann) in enumerate(anns)
-        offset = ImPlot.PlotToPixels(ann.offsetx, ann.offsety) .- ImPlot.PlotToPixels(ann.posx, ann.posy)
-        halflabelsz = CImGui.CalcTextSize(ann.label) ./ 2
-        ImPlot.AnnotationClamped(
-            ann.posx,
-            ann.posy,
-            CImGui.ImVec4(ann.color...),
-            correct_offset(offset, halflabelsz),
-            ann.label
-        )
-        CImGui.PushID(i)
-        @c ImPlot.DragPoint(i, &ann.posx, &ann.posy, CImGui.ImVec4(ann.color...), ann.possz)
-        ishv = isdragpointhovered(ann.posx, ann.posy, ann.possz)
-        @c ImPlot.DragPoint(
-            -i,
-            &ann.offsetx,
-            &ann.offsety,
-            CImGui.ImVec4(ann.color[1:3]..., 0.000),
-            halflabelsz[2] / 2
-        )
-        ishv |= isdragpointhovered(ann.offsetx, ann.offsety, halflabelsz[2])
-        ishv && (ItemTooltipNoHovered(ann.label); openpopup_i = i)
-        CImGui.PopID()
-        if CImGui.BeginPopup(stcstr("annotation", i))
-            @c InputTextRSZ(mlstr("content"), &ann.label)
-            pos = Cfloat[ann.posx, ann.posy]
-            CImGui.InputFloat2(mlstr("position"), pos)
-            ann.posx, ann.posy = pos
-            offset = Cfloat[ann.offsetx, ann.offsety]
-            CImGui.InputFloat2(mlstr("offset"), offset)
-            ann.offsetx, ann.offsety = offset
-            @c CImGui.DragFloat(mlstr("size"), &ann.possz, 1.0, 1, 60, "%.3f", CImGui.ImGuiSliderFlags_AlwaysClamp)
-            CImGui.ColorEdit4(mlstr("color"), ann.color, CImGui.ImGuiColorEditFlags_AlphaBar)
-            CImGui.SameLine()
-            CImGui.Button(stcstr(MORESTYLE.Icons.CloseFile, "##annotation")) && (deleteat!(anns, i); break)
-            CImGui.EndPopup()
+    if !isempty(anns)
+        openpopup_i = 0
+        ishv = false
+        ImPlot.SetAxes(ImPlot.ImAxis_X1, ImPlot.ImAxis_Y1)
+        CImGui.PushFont(GLOBALFONT)
+        for (i, ann) in enumerate(anns)
+            offset = ImPlot.PlotToPixels(ann.offsetx, ann.offsety) .- ImPlot.PlotToPixels(ann.posx, ann.posy)
+            halflabelsz = CImGui.CalcTextSize(ann.label) ./ 2
+            ImPlot.AnnotationClamped(
+                ann.posx,
+                ann.posy,
+                CImGui.ImVec4(ann.color...),
+                correct_offset(offset, halflabelsz),
+                ann.label
+            )
+            CImGui.PushID(i)
+            @c ImPlot.DragPoint(i, &ann.posx, &ann.posy, CImGui.ImVec4(ann.color...), ann.possz)
+            ishv = isdragpointhovered(ann.posx, ann.posy, ann.possz)
+            @c ImPlot.DragPoint(
+                -i,
+                &ann.offsetx,
+                &ann.offsety,
+                CImGui.ImVec4(ann.color[1:3]..., 0.000),
+                halflabelsz[2] / 2
+            )
+            ishv |= isdragpointhovered(ann.offsetx, ann.offsety, halflabelsz[2])
+            ishv && (ItemTooltipNoHovered(ann.label); openpopup_i = i)
+            CImGui.PopID()
+            if CImGui.BeginPopup(stcstr("annotation", i))
+                @c InputTextRSZ(mlstr("content"), &ann.label)
+                pos = Cfloat[ann.posx, ann.posy]
+                CImGui.InputFloat2(mlstr("position"), pos)
+                ann.posx, ann.posy = pos
+                offset = Cfloat[ann.offsetx, ann.offsety]
+                CImGui.InputFloat2(mlstr("offset"), offset)
+                ann.offsetx, ann.offsety = offset
+                @c CImGui.DragFloat(mlstr("size"), &ann.possz, 1.0, 1, 60, "%.3f", CImGui.ImGuiSliderFlags_AlwaysClamp)
+                CImGui.ColorEdit4(mlstr("color"), ann.color, CImGui.ImGuiColorEditFlags_AlphaBar)
+                CImGui.SameLine()
+                CImGui.Button(stcstr(MORESTYLE.Icons.CloseFile, "##annotation")) && (deleteat!(anns, i); break)
+                CImGui.EndPopup()
+            end
         end
+        CImGui.PopFont()
+        openpopup_i != 0 && CImGui.IsMouseClicked(1) && CImGui.OpenPopup(stcstr("annotation", openpopup_i))
     end
-    CImGui.PopFont()
-    openpopup_i != 0 && CImGui.IsMouseClicked(1) && CImGui.OpenPopup(stcstr("annotation", openpopup_i))
 end
 
 function isdragpointhovered(x, y, sz)
@@ -447,26 +529,28 @@ function correct_offset(offset, halflabelsz)
 end
 
 function PlotLinecuts(linecuts::Vector{Linecut})
-    openpopup_i = 0
-    ishv = false
-    ImPlot.SetAxes(ImPlot.ImAxis_X1, ImPlot.ImAxis_Y1)
-    CImGui.PushFont(GLOBALFONT)
-    for (i, lc) in enumerate(linecuts)
-        if lc.vline
-            @c ImPlot.DragLineX(i, &lc.pos, CImGui.ImVec4(MORESTYLE.Colors.HighlightText...))
-            ishv |= isdraglinexhovered(lc.pos)
-        else
-            @c ImPlot.DragLineY(i, &lc.pos, CImGui.ImVec4(MORESTYLE.Colors.HighlightText...))
-            ishv |= isdraglineyhovered(lc.pos)
+    if !isempty(linecuts)
+        openpopup_i = 0
+        ishv = false
+        ImPlot.SetAxes(ImPlot.ImAxis_X1, ImPlot.ImAxis_Y1)
+        CImGui.PushFont(GLOBALFONT)
+        for (i, lc) in enumerate(linecuts)
+            if lc.vline
+                @c ImPlot.DragLineX(i, &lc.pos, CImGui.ImVec4(MORESTYLE.Colors.HighlightText...))
+                ishv |= isdraglinexhovered(lc.pos)
+            else
+                @c ImPlot.DragLineY(i, &lc.pos, CImGui.ImVec4(MORESTYLE.Colors.HighlightText...))
+                ishv |= isdraglineyhovered(lc.pos)
+            end
+            ishv && (openpopup_i = i)
+            if CImGui.BeginPopup(stcstr("linecut", i))
+                CImGui.MenuItem(stcstr(MORESTYLE.Icons.CloseFile, " ", mlstr("Delete"), "##", i)) && (deleteat!(linecuts, i); break)
+                CImGui.EndPopup()
+            end
         end
-        ishv && (openpopup_i = i)
-        if CImGui.BeginPopup(stcstr("linecut", i))
-            CImGui.MenuItem(stcstr(MORESTYLE.Icons.CloseFile, " ", mlstr("Delete"), "##", i)) && (deleteat!(linecuts, i); break)
-            CImGui.EndPopup()
-        end
+        CImGui.PopFont()
+        openpopup_i != 0 && CImGui.IsMouseClicked(1) && CImGui.OpenPopup(stcstr("linecut", openpopup_i))
     end
-    CImGui.PopFont()
-    openpopup_i != 0 && CImGui.IsMouseClicked(1) && CImGui.OpenPopup(stcstr("linecut", openpopup_i))
 end
 
 function isdraglinexhovered(x)
@@ -476,56 +560,134 @@ function isdraglineyhovered(y)
     !ImPlot.IsPlotHovered() && abs(ImPlot.PlotToPixels(ImPlot.GetPlotMousePos().x, y).y - CImGui.GetMousePos().y) < 4
 end
 
-function renderlinecuts(linecuts::Vector{Linecut}, pss::PlotSeries, plt::Plot)
-    if !isempty(linecuts)
+function renderlinecuts(plt::Plot)
+    if !isempty(plt.linecuts)
         p_open = Ref(true)
-        CImGui.SetNextWindowSize((600, 600), CImGui.ImGuiCond_Once)
-        if CImGui.Begin(
-            stcstr(plt.title, " ", mlstr("Linecuts"), " ", pss.legend, "###", plt.id, pss.legend),
+        CImGui.SetNextWindowSize((600, 400), CImGui.ImGuiCond_Once)
+        CImGui.PushFont(GLOBALFONT)
+        openlinecuts = CImGui.Begin(
+            stcstr(mlstr("Linecuts"), " ", plt.title, "###", plt.id),
             p_open,
             CImGui.ImGuiWindowFlags_NoDocking
         )
-            zsz = size(pss.z)
-            hlines = collect(filter(x -> !x.vline, linecuts))
-            vlines = collect(filter(x -> x.vline, linecuts))
-            if !isempty(hlines) && ImPlot.BeginPlot(
-                stcstr(plt.title, " ", mlstr("Horizontal Linecuts")),
-                CImGui.ImVec2(CImGui.GetContentRegionAvailWidth() / (1 + !isempty(vlines)), -1)
-            )
-                ImPlot.SetupAxis(pss.axis.xaxis.axis, pss.axis.xaxis.label)
-                ImPlot.SetupAxis(pss.axis.yaxis.axis, pss.axis.zaxis.label)
-                for lc in hlines
-                    xr = collect(range(pss.axis.xaxis.lims[1], pss.axis.xaxis.lims[2], length=zsz[1]))
-                    yr = collect(range(pss.axis.yaxis.lims[2], pss.axis.yaxis.lims[1], length=zsz[2]))
-                    yidx = argmin(abs.(yr .- lc.pos))
-                    if lc.ptype == "line"
-                        ImPlot.PlotLine("", xr, pss.z[:, yidx], zsz[1])
-                    elseif lc.ptype == "scatter"
-                        ImPlot.PlotScatter("", xr, pss.z[:, yidx], zsz[1])
-                    end
-                end
-                ImPlot.EndPlot()
+        CImGui.PopFont()
+        if openlinecuts
+            hms = length(Set([s.legend for s in plt.series if s.ptype == "heatmap"]))
+
+            num_h = count(lc -> !lc.vline, plt.linecuts)
+            num_v = length(plt.linecuts) - num_h
+            w = CImGui.GetContentRegionAvailWidth() / (2 - (num_h == 0 || num_v == 0))
+            h = (CImGui.GetContentRegionAvail().y - (hms - 1) * unsafe_load(IMGUISTYLE.ItemSpacing.y)) / hms
+            if num_h != 0
+                CImGui.BeginChild("hlinecuts", (w, Cfloat(0)))
+                renderhlinecuts(plt, h)
+                CImGui.EndChild()
+                CImGui.SameLine()
             end
-            CImGui.SameLine()
-            if !isempty(vlines) && ImPlot.BeginPlot(
-                stcstr(plt.title, " ", mlstr("Vertical Linecuts")), pss.axis.yaxis.label, pss.axis.zaxis.label,
-                CImGui.ImVec2(-1, -1)
-            )
-                for lc in vlines
-                    xr = collect(range(pss.axis.xaxis.lims[1], pss.axis.xaxis.lims[2], length=zsz[1]))
-                    yr = collect(range(pss.axis.yaxis.lims[1], pss.axis.yaxis.lims[2], length=zsz[2]))
-                    xidx = argmin(abs.(xr .- lc.pos))
-                    if lc.ptype == "line"
-                        ImPlot.PlotLine("", yr, reverse(pss.z[xidx, :]), zsz[2])
-                    elseif lc.ptype == "scatter"
-                        ImPlot.PlotScatter("", yr, reverse(pss.z[xidx, :]), zsz[2])
-                    end
-                end
-                ImPlot.EndPlot()
+            if num_v != 0
+                CImGui.BeginChild("vlinecuts", (w, Cfloat(0)))
+                rendervlinecuts(plt, h)
+                CImGui.EndChild()
             end
         end
         CImGui.End()
-        p_open[] || empty!(linecuts)
+        p_open[] || empty!(plt.linecuts)
+    end
+end
+
+let
+    hlinecuts::Dict{String,Dict{String,Plot}} = Dict()
+    global function renderhlinecuts(plt::Plot, h)
+        if count(lc -> !lc.vline, plt.linecuts) == 0
+            delete!(hlinecuts, plt.id)
+        else
+            haskey(hlinecuts, plt.id) || (hlinecuts[plt.id] = Dict())
+            for pss in filter(s -> s.ptype == "heatmap", plt.series)
+                if haskey(hlinecuts[plt.id], pss.legend)
+                    empty!(hlinecuts[plt.id][pss.legend].series)
+                else
+                    hlinecuts[plt.id][pss.legend] = Plot(title=stcstr(mlstr("Horizontal Linecuts"), " ", pss.legend))
+                end
+            end
+            lgs = [s.legend for s in plt.series]
+            for lg in filter(lg -> lg ∉ lgs, keys(hlinecuts[plt.id]))
+                delete!(hlinecuts[plt.id], lg)
+            end
+            for pss in filter(s -> s.ptype == "heatmap", plt.series)
+                zsz = size(pss.z)
+                xr = collect(range(pss.axis.xaxis.lims[1], pss.axis.xaxis.lims[2], length=zsz[1]))
+                yr = collect(range(pss.axis.yaxis.lims[2], pss.axis.yaxis.lims[1], length=zsz[2]))
+                if !isempty(xr) && !isempty(yr) && !isempty(pss.z)
+                    empty!(hlinecuts[plt.id][pss.legend].xaxes)
+                    empty!(hlinecuts[plt.id][pss.legend].yaxes)
+                    for (i, lc) in enumerate(filter(lc -> !lc.vline, plt.linecuts))
+                        newseries = PlotSeries(
+                            ptype=lc.ptype,
+                            legend=stcstr("HL ", i),
+                            axis=Axis(
+                                xaxis=Xaxis(axis=pss.axis.xaxis.axis, label=pss.axis.xaxis.label),
+                                yaxis=Yaxis(axis=pss.axis.yaxis.axis, label=pss.axis.zaxis.label)
+                            )
+                        )
+                        push!(hlinecuts[plt.id][pss.legend].series, newseries)
+                        setupplotseries!(newseries, xr, pss.z[:, argmin(abs.(yr .- lc.pos))])
+                    end
+                end
+            end
+            for (i, hplt) in enumerate(values(hlinecuts[plt.id]))
+                CImGui.BeginChild(i, (Cfloat(0), h))
+                Plot(hplt; psize=CImGui.ImVec2(-1, -1))
+                CImGui.EndChild()
+            end
+        end
+    end
+end
+
+let
+    vlinecuts::Dict{String,Dict{String,Plot}} = Dict()
+    global function rendervlinecuts(plt::Plot, h)
+        if count(lc -> lc.vline, plt.linecuts) == 0
+            delete!(vlinecuts, plt.id)
+        else
+            haskey(vlinecuts, plt.id) || (vlinecuts[plt.id] = Dict())
+            for pss in filter(s -> s.ptype == "heatmap", plt.series)
+                if haskey(vlinecuts[plt.id], pss.legend)
+                    empty!(vlinecuts[plt.id][pss.legend].series)
+                else
+                    vlinecuts[plt.id][pss.legend] = Plot(title=stcstr(mlstr("Vertical Linecuts"), " ", pss.legend))
+                end
+            end
+            lgs = [s.legend for s in plt.series]
+            for lg in filter(lg -> lg ∉ lgs, keys(vlinecuts[plt.id]))
+                delete!(vlinecuts[plt.id], lg)
+            end
+            for pss in filter(s -> s.ptype == "heatmap", plt.series)
+                zsz = size(pss.z)
+                xr = collect(range(pss.axis.xaxis.lims[1], pss.axis.xaxis.lims[2], length=zsz[1]))
+                yr = collect(range(pss.axis.yaxis.lims[1], pss.axis.yaxis.lims[2], length=zsz[2]))
+                if !isempty(xr) && !isempty(yr) && !isempty(pss.z)
+                    empty!(vlinecuts[plt.id][pss.legend].xaxes)
+                    empty!(vlinecuts[plt.id][pss.legend].yaxes)
+                    for (i, lc) in enumerate(filter(lc -> lc.vline, plt.linecuts))
+                        newseries = PlotSeries(
+                            ptype=lc.ptype,
+                            legend=stcstr("VL ", i),
+                            axis=Axis(
+                                xaxis=Xaxis(axis=pss.axis.xaxis.axis, label=pss.axis.yaxis.label),
+                                yaxis=Yaxis(axis=pss.axis.yaxis.axis, label=pss.axis.zaxis.label)
+                            )
+                        )
+                        push!(vlinecuts[plt.id][pss.legend].series, newseries)
+                        setupplotseries!(newseries, yr, reverse(pss.z[argmin(abs.(xr .- lc.pos)), :]))
+                    end
+                end
+            end
+            for (i, vplt) in enumerate(values(vlinecuts[plt.id]))
+                CImGui.BeginChild(i, (Cfloat(0), h))
+                Plot(vplt; psize=CImGui.ImVec2(-1, -1))
+                CImGui.EndChild()
+            end
+        end
     end
 end
 

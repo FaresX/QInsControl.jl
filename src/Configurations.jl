@@ -1,17 +1,23 @@
 @option mutable struct OptBasic
     isremote::Bool = true
-    remoteprocessdata::Bool = false
     viewportenable::Bool = true
+    holdmainwindow::Bool = true
     scale::Bool = false
     hidewindow::Bool = false
+    nthreads::Cint = 2
     nthreads_2::Cint = 1
-    nthreads_3::Cint = 1
+    noactionswapinterval::Cint = 6
     samplingthreshold::Cint = 200000
-    windowsize::Vector{Cint} = [1280, 720]
+    windowsize::Vector{Cint} = [960, 540]
     encoding::String = "GBK"
     editor::String = "notepad"
     language::String = "English"
     languages::Dict{String,String} = Dict()
+end
+
+@option mutable struct OptCommunication
+    visapath::String = ""
+    attrlist::Dict{String,Dict} = Dict()
 end
 
 @option mutable struct OptDtViewer
@@ -19,14 +25,16 @@ end
 end
 
 @option mutable struct OptDAQ
-    saveimg::Bool = false
+    savetype::String = "String"
     logall::Bool = false
     equalstep::Bool = true
+    externaleval::Bool = false
     savetime::Cint = 60
-    channel_size::Cint = 512
+    cuttingfile::Cint = 2000000
+    channelsize::Cint = 512
     packsize::Cint = 6
-    plotshowcol::Cint = 2
-    pick_fps::Vector{Cint} = [3, 36]
+    ctbuflen::Cint = 4
+    cttimeout::Cfloat = 4
     historylen::Cint = 120
     retrysendtimes::Cint = 3
     retryconnecttimes::Cint = 3
@@ -35,16 +43,19 @@ end
 @option mutable struct OptInsBuf
     showhelp::Bool = false
     showcol::Cint = 3
-    refreshrate::Cfloat = 1
     disablelist::Dict{String,Dict{String,Vector{String}}} = Dict()
     unitlist::Dict{String,Dict{String,Dict{String,Int}}} = Dict()
+end
+
+@option mutable struct OptRegister
+    historylen::Cint = 120
 end
 
 @option mutable struct OptFonts
     dir::String = ""
     size::Cint = 18
     plotfontsize::Cint = 30
-    first::String = "ZaoZiGongFangShangHeiG0v1ChangGuiTi-1.otf"
+    first::String = "HarmonyOS_Sans_SC_Regular.subset.ttf"
     second::String = "arial.ttf"
     plotfont::String = "arial.ttf"
 end
@@ -57,6 +68,7 @@ end
     dir::String = ""
     refreshrate::Cfloat = 60
     showioline::Cint = 100
+    showiolength::Cint = 1000
     historylen::Cint = 120
 end
 
@@ -69,6 +81,7 @@ end
 
 @option mutable struct OptBGImage
     path::String = ""
+    rate::Cint = 1
     useall::Bool = true
 end
 
@@ -83,9 +96,11 @@ end
 
 @option mutable struct Conf
     Basic::OptBasic = OptBasic()
+    Communication::OptCommunication = OptCommunication()
     DtViewer::OptDtViewer = OptDtViewer()
     DAQ::OptDAQ = OptDAQ()
     InsBuf::OptInsBuf = OptInsBuf()
+    Register::OptRegister = OptRegister()
     Fonts::OptFonts = OptFonts()
     # Icons::OptIcons = OptIcons()
     Console::OptConsole = OptConsole()
@@ -134,6 +149,8 @@ BasicConf(conf::Dict) = BasicConf(
     optkeys::Vector{String} = []
     optvalues::Vector{String} = []
     type::String = "set"
+    separator::String = ""
+    numread::Cint = 1
     help::String = ""
 end
 QuantityConf(qt::Dict) = QuantityConf(
@@ -143,6 +160,8 @@ QuantityConf(qt::Dict) = QuantityConf(
     qt["optkeys"],
     qt["optvalues"],
     qt["type"],
+    qt["separator"],
+    qt["numread"],
     qt["help"]
 )
 
@@ -165,12 +184,14 @@ todict(qtcf::QuantityConf) = Dict(
     "optkeys" => qtcf.optkeys,
     "optvalues" => qtcf.optvalues,
     "type" => qtcf.type,
+    "separator" => qtcf.separator,
+    "numread" => qtcf.numread,
     "help" => qtcf.help
 )
 function todict(oneinscf::OneInsConf)
     dict = Dict{String,Dict{String,Any}}("conf" => todict(oneinscf.conf))
     for (qt, qtcf) in oneinscf.quantities
-        push!(dict, qt => todict(qtcf))
+        dict[qt] = todict(qtcf)
     end
     dict
 end

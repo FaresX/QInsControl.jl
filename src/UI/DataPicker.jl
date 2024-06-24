@@ -46,9 +46,16 @@ let
             CImGui.ImGuiWindowFlags_NoTitleBar | CImGui.ImGuiWindowFlags_NoDocking
         )
             dtpk.update = false
-            CImGui.TextColored(MORESTYLE.Colors.HighlightText, MORESTYLE.Icons.Plot)
+            CImGui.PushStyleColor(CImGui.ImGuiCol_Button, (0, 0, 0, 0))
+            CImGui.PushStyleColor(CImGui.ImGuiCol_ButtonHovered, (0, 0, 0, 0))
+            CImGui.PushStyleColor(CImGui.ImGuiCol_ButtonActive, (0, 0, 0, 0))
+            CImGui.PushStyleColor(CImGui.ImGuiCol_Text, MORESTYLE.Colors.HighlightText)
+            # CImGui.TextColored(MORESTYLE.Colors.HighlightText, MORESTYLE.Icons.Plot)
+            CImGui.Button(MORESTYLE.Icons.Plot)
+            CImGui.PopStyleColor()
             CImGui.SameLine()
-            CImGui.Text(stcstr(" ", mlstr("Data Selecting")))
+            CImGui.Button(stcstr(" ", mlstr("Data Selecting")))
+            CImGui.PopStyleColor(3)
             CImGui.SameLine(CImGui.GetContentRegionAvailWidth() - holdsz)
             CImGui.Button(MORESTYLE.Icons.Update) && (dtpk.update = true)
             holdsz = CImGui.GetItemRectSize().x
@@ -59,7 +66,7 @@ let
             CImGui.Button(MORESTYLE.Icons.CloseFile) && (isempty(dtpk.series) || pop!(dtpk.series))
             holdsz += CImGui.GetItemRectSize().x + 2unsafe_load(IMGUISTYLE.ItemSpacing.x)
             CImGui.SameLine()
-            @c CImGui.Checkbox(mlstr("HOLD"), &dtpk.hold)
+            @c ToggleButton(MORESTYLE.Icons.HoldPin, &dtpk.hold)
             holdsz += CImGui.GetItemRectSize().x
             CImGui.BeginChild("Series")
             for (i, dtss) in enumerate(dtpk.series)
@@ -100,7 +107,7 @@ let
 end
 
 let
-    ptypelist::Vector{String} = ["line", "scatter", "heatmap"]
+    ptypelist::Vector{String} = ["line", "scatter", "stairs", "stems", "heatmap"]
     global function edit(dtss::DataSeries, datalist)
         dtss.update = false
         availwidth = CImGui.GetContentRegionAvailWidth()
@@ -114,7 +121,7 @@ let
         @c CImGui.DragInt(mlstr("sampling"), &dtss.samplingnum, 100, 0, 1000000, "%d", CImGui.ImGuiSliderFlags_AlwaysClamp)
         CImGui.PopItemWidth()
         CImGui.PushItemWidth(availwidth / 3)
-        @c ComBoS(mlstr("plot type"), &dtss.ptype, ptypelist)
+        @c ComboS(mlstr("plot type"), &dtss.ptype, ptypelist)
         CImGui.PopItemWidth()
         CImGui.SameLine()
         CImGui.Button(stcstr(MORESTYLE.Icons.NewFile)) && push!(dtss.aux, "")
@@ -128,7 +135,7 @@ let
         CImGui.SameLine()
         CImGui.BeginGroup()
         CImGui.PushItemWidth(-1)
-        @c ComBoS("##select X", &dtss.x, datalist)
+        @c ComboS("##select X", &dtss.x, datalist)
         CImGui.PushItemWidth(CImGui.GetContentRegionAvailWidth() / 2)
         @c CImGui.SliderInt(stcstr("X", mlstr("axis")), &dtss.xaxis, 1, 3)
         CImGui.PopItemWidth()
@@ -141,7 +148,7 @@ let
         CImGui.SameLine()
         CImGui.BeginGroup()
         CImGui.PushItemWidth(-1)
-        @c ComBoS("##select Y", &dtss.y, datalist)
+        @c ComboS("##select Y", &dtss.y, datalist)
         CImGui.PopItemWidth()
         CImGui.PushItemWidth(CImGui.GetContentRegionAvailWidth() / 2)
         @c CImGui.SliderInt(stcstr("Y", mlstr("axis")), &dtss.yaxis, 1, 3)
@@ -153,7 +160,7 @@ let
             CImGui.SameLine()
             CImGui.BeginGroup()
             CImGui.PushItemWidth(-1)
-            @c ComBoS("##select Z", &dtss.z, datalist)
+            @c ComboS("##select Z", &dtss.z, datalist)
             CImGui.PopItemWidth()
             CImGui.PushItemWidth(CImGui.GetContentRegionAvailWidth() / 2)
             @c CImGui.SliderInt(stcstr("Z", mlstr("axis")), &dtss.zaxis, 1, 6)
@@ -182,14 +189,14 @@ let
         BoxTextColored("W"; size=(4CImGui.GetFontSize(), Cfloat(0)), col=MORESTYLE.Colors.HighlightText)
         CImGui.SameLine()
         CImGui.PushItemWidth(-1)
-        @c ComBoS("##select W", &dtss.w, datalist)
+        @c ComboS("##select W", &dtss.w, datalist)
         CImGui.PopItemWidth()
 
         for (i, aux) in enumerate(dtss.aux)
             BoxTextColored(stcstr("AUX", " ", i); size=(4CImGui.GetFontSize(), Cfloat(0)), col=MORESTYLE.Colors.HighlightText)
             CImGui.SameLine()
             CImGui.PushItemWidth(-1)
-            @c(ComBoS(stcstr("##select AUX", i), &aux, datalist)) && (dtss.aux[i] = aux)
+            @c(ComboS(stcstr("##select AUX", i), &aux, datalist)) && (dtss.aux[i] = aux)
             CImGui.PopItemWidth()
         end
 
@@ -200,7 +207,7 @@ let
             CImGui.SameLine()
             dtss.alsz = CImGui.GetItemRectSize().x
             CImGui.PushItemWidth(2CImGui.GetFontSize())
-            @c CImGui.DragFloat("s", &dtss.refreshrate, 0.01, 0.03, 6, "%.2f", CImGui.ImGuiSliderFlags_AlwaysClamp)
+            @c CImGui.DragFloat("s", &dtss.refreshrate, 0.01, 0.01, 60, "%.2f", CImGui.ImGuiSliderFlags_AlwaysClamp)
             CImGui.SameLine()
             CImGui.PopItemWidth()
             dtss.alsz += CImGui.GetItemRectSize().x + unsafe_load(IMGUISTYLE.ItemSpacing.x)
@@ -235,9 +242,10 @@ let
         dtpk::DataPicker,
         datastr::Dict{String,Vector{String}},
         datafloat::Dict{String,VecOrMat{Cdouble}}=Dict{String,VecOrMat{Cdouble}}();
-        quiet=false
+        quiet=false,
+        force=false
     )
-        haskey(synctasks, plt.id) || push!(synctasks, plt.id => Dict())
+        haskey(synctasks, plt.id) || (synctasks[plt.id] = Dict())
         lpltss = length(plt.series)
         ldtpkss = length(dtpk.series)
         if lpltss < ldtpkss
@@ -254,10 +262,10 @@ let
         for (i, dtss) in enumerate(dtpk.series)
             if dtpk.update || dtss.update || (dtss.isrealtime && waittime(stcstr("DataPicker", plt.id, "-", i), dtss.refreshrate))
                 if haskey(synctasks[plt.id], i)
-                    istaskdone(synctasks[plt.id][i]) ? delete!(synctasks[plt.id], i) : continue
+                    istaskdone(synctasks[plt.id][i]) ? delete!(synctasks[plt.id], i) : (force || continue)
                 end
-                pdtask = errormonitor(@async processdata(plt, plt.series[i], dtss, datastr, datafloat; quiet=quiet))
-                push!(synctasks[plt.id], i => pdtask)
+                pdtask = Threads.@spawn processdata(plt, plt.series[i], dtss, datastr, datafloat; quiet=quiet, force=force)
+                synctasks[plt.id][i] = pdtask
             end
         end
     end
@@ -268,7 +276,8 @@ let
         dtss::DataSeries,
         datastr::Dict{String,Vector{String}},
         datafloat::Dict{String,VecOrMat{Cdouble}};
-        quiet=false
+        quiet=false,
+        force=false
     )
         dtss.isrunning = true
         dtss.runtime = 0
@@ -277,13 +286,13 @@ let
                 t1 = time()
                 while dtss.isrunning
                     dtss.runtime = round(time() - t1; digits=1)
-                    sleep(0.001)
-                    yield()
+                    sleep(0.05)
                 end
             end
         )
-        forcesync = pss.ptype != dtss.ptype
+        forcesync = force || pss.ptype != dtss.ptype
         forcesync && (pss.ptype = dtss.ptype)
+        forcesync |= !dtss.xtype || (dtss.xtype && !isempty(pss.axis.xaxis.ticklabels))
         xbuf = dtss.xtype ? loaddata(datastr, datafloat, dtss.x) : haskey(datastr, dtss.x) ? copy(datastr[dtss.x]) : String[]
         ybuf = loaddata(datastr, datafloat, dtss.y)
         zbuf = pss.ptype == "heatmap" ? loaddata(datastr, datafloat, dtss.z) : Cdouble[]
@@ -302,23 +311,7 @@ let
             end
         end
         try
-            nx, ny, nz = if CONF.Basic.remoteprocessdata && nprocs() > 2
-                f = if dtss.isrealtime
-                    @eval Main QInsControl.remotecall(
-                        () -> try
-                            eval($ex)
-                        catch
-                        end, QInsControl.workers()[2]
-                    )
-                else
-                    @eval Main QInsControl.remotecall(() -> eval($ex), QInsControl.workers()[2])
-                end
-                waittask = errormonitor(@async fetch(f))
-                wait(waittask)
-                fetch(waittask)
-            else
-                eval(ex)
-            end
+            nx, ny, nz = CONF.DAQ.externaleval ? @eval(Main, $ex) : eval(ex)
             if pss.ptype == "heatmap"
                 dropexeption!(nz)
                 if nz isa Matrix
@@ -335,21 +328,32 @@ let
                 dtss.vflipz && reverse!(pss.z, dims=2)
                 dtss.hflipz && reverse!(pss.z, dims=1)
                 setupplotseries!(pss, nx, ny, pss.z)
-                pss.x, pss.y, pss.z = imgsampling(
-                    pss.x, pss.y, pss.z;
-                    num=dtss.sampling ? min(dtss.samplingnum, CONF.Basic.samplingthreshold) : 0
-                )
+                if dtss.sampling
+                    pss.x, pss.y, pss.z = imgsampling(
+                        pss.x, pss.y, pss.z; num=min(dtss.samplingnum, CONF.Basic.samplingthreshold)
+                    )
+                else
+                    if length(pss.z) > CONF.Basic.samplingthreshold
+                        pss.x, pss.y, pss.z = imgsampling(pss.x, pss.y, pss.z; num=CONF.Basic.samplingthreshold)
+                    end
+                end
             else
                 setupplotseries!(pss, nx, ny)
-                pss.x, pss.y = imgsampling(
-                    pss.x, pss.y;
-                    num=dtss.sampling ? min(dtss.samplingnum, CONF.Basic.samplingthreshold) : 0
-                )
+                if dtss.sampling
+                    pss.x, pss.y = imgsampling(pss.x, pss.y; num=min(dtss.samplingnum, CONF.Basic.samplingthreshold))
+                else
+                    if length(pss.x) > CONF.Basic.samplingthreshold && length(pss.y) > CONF.Basic.samplingthreshold
+                        pss.x, pss.y = imgsampling(pss.x, pss.y; num=CONF.Basic.samplingthreshold)
+                    end
+                end
             end
             syncaxes(plt, pss, dtss; force=forcesync)
             (dtss.isrealtime | quiet) || @info "[$(now())]" data_processing = prettify(innercodes)
         catch e
-            (dtss.isrealtime | quiet) || @error "[$(now())]\n$(mlstr("processing data failed!!!"))" exception = e codes = prettify(ex)
+            if !(dtss.isrealtime || quiet)
+                @error "[$(now())]\n$(mlstr("processing data failed!!!"))" exception = e codes = prettify(ex)
+                showbacktrace()
+            end
         finally
             dtss.isrunning = false
         end
