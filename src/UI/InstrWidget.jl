@@ -1935,11 +1935,11 @@ let
             CImGui.DragFloat2(mlstr("uv0"), qtw.options.uv0)
             CImGui.DragFloat2(mlstr("uv1"), qtw.options.uv1)
         end
-        if qtw.qtype == "set" && CImGui.CollapsingHeader(mlstr("Binding Options"))
+        if qtw.qtype == "set" && qtw.options.uitype != "read" && CImGui.CollapsingHeader(mlstr("Binding Options"))
             @c CImGui.SliderInt(mlstr("Binding Index to RadioButton"), &qtw.options.bindingidx, 1, qtw.numoptvs)
             CImGui.SliderInt2(mlstr("Binding Index to ON/OFF"), qtw.options.bindingonoff, 1, qtw.numoptvs)
         end
-        if qtw.qtype == "read" && CImGui.CollapsingHeader(mlstr("Binding Options"))
+        if qtw.options.uitype == "read" && CImGui.CollapsingHeader(mlstr("Binding Options"))
             @c CImGui.SliderInt(mlstr("Reading Index"), &qtw.options.bindingidx, 1, qtw.numread)
         end
         if qtw.name == "_QuantitySelector_" && CImGui.CollapsingHeader(mlstr("Selector Options"))

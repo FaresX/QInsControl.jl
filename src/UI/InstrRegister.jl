@@ -70,6 +70,7 @@ let
         CImGui.PushItemWidth((CImGui.CalcItemWidth() - unsafe_load(IMGUISTYLE.ItemSpacing.x)) / 2)
         @c InputTextRSZ(mlstr("##separator"), &qtcf.separator)
         CImGui.SameLine()
+        qtcf.separator == "" && (qtcf.numread = 1)
         @c CImGui.DragInt(mlstr("separator"), &qtcf.numread, 1, 1, 36, "%d", CImGui.ImGuiSliderFlags_AlwaysClamp)
         CImGui.PopItemWidth()
         CImGui.TextColored(MORESTYLE.Colors.LogInfo, mlstr("help document"))
