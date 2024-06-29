@@ -206,8 +206,12 @@ Base.write(::VirtualInstr, ::AbstractString) = nothing
 read the instrument.
 """
 function Base.read(instr::Instrument)
-    isok = timedwhile(() -> bytesavailable(instr.handle) > 0, instr.attr.timeoutr)
-    return isok ? readuntil(instr.handle, instr.attr.termchar) : error("read $(instr.addr) time out")
+    buf = Ref{String}("")
+    isok = timedwhile(instr.attr.timeoutr) do 
+        buf[] = readuntil(instr.handle, instr.attr.termchar)
+        buf[] != ""
+    end
+    return isok ? buf[] : error("read $(instr.addr) time out")
 end
 Base.read(instr::VISAInstr) = (instr.attr.async ? readasync : Instruments.read)(instr.handle)
 Base.read(::VirtualInstr) = "read"

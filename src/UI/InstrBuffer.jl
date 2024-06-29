@@ -1114,7 +1114,7 @@ function apply!(qt::SetQuantity, instrnm, addr, byoptvalues=false)
     U == "" || (Uchange::Float64 = Us[1] isa Unitful.FreeUnits ? ustrip(Us[1], 1U) : 1.0)
     sv = (U == "" || byoptvalues) ? qt.set : @trypasse string(float(eval(Meta.parse(qt.set)) * Uchange)) qt.set
     sv = string(lstrip(rstrip(sv)))
-    if (U == "" && sv != "") || !isnothing(tryparse(Float64, sv))
+    if byoptvalues || (U == "" && sv != "") || !isnothing(tryparse(Float64, sv))
         @info "[$(now())]\nBefore setting" instrument = instrnm address = addr quantity = qt
         actionidx = 1
         SYNCSTATES[Int(IsDAQTaskRunning)] && (actionidx = logaction(qt, instrnm, addr))
