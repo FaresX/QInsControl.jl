@@ -675,7 +675,7 @@ let
                 ImVec4(MORESTYLE.Colors.SweepBlockBorder...)
             end
         )
-        CImGui.BeginChild("##SweepBlock", (Float32(0), bkheight(bk)), true)
+        CImGui.BeginChild("##FreeSweepBlock", (Float32(0), bkheight(bk)), true)
         CImGui.TextColored(
             bk.istrycatch ? MORESTYLE.Colors.BlockTrycatch : MORESTYLE.Colors.BlockIcons,
             MORESTYLE.Icons.FreeSweepBlock
@@ -685,7 +685,7 @@ let
         CImGui.SameLine()
         width = (CImGui.GetContentRegionAvailWidth() - 3CImGui.GetFontSize()) / 5
         CImGui.PushItemWidth(width)
-        @c ComboSFiltered("##SweepBlock instrument", &bk.instrnm, sort(collect(keys(INSCONF))), CImGui.ImGuiComboFlags_NoArrowButton)
+        @c ComboSFiltered("##FreeSweepBlock instrument", &bk.instrnm, sort(collect(keys(INSCONF))), CImGui.ImGuiComboFlags_NoArrowButton)
         CImGui.PopItemWidth()
         CImGui.SameLine()
 
@@ -693,7 +693,7 @@ let
         bk.addr = inlist ? bk.addr : mlstr("address")
         addrlist = haskey(INSTRBUFFERVIEWERS, bk.instrnm) ? keys(INSTRBUFFERVIEWERS[bk.instrnm]) : Set{String}()
         CImGui.PushItemWidth(width)
-        @c ComboS("##SweepBlock address", &bk.addr, sort(collect(addrlist)), CImGui.ImGuiComboFlags_NoArrowButton)
+        @c ComboS("##FreeSweepBlock address", &bk.addr, sort(collect(addrlist)), CImGui.ImGuiComboFlags_NoArrowButton)
         CImGui.PopItemWidth()
         CImGui.SameLine()
 
@@ -703,14 +703,10 @@ let
             mlstr("sweep")
         end
         CImGui.PushItemWidth(width)
-        if CImGui.BeginCombo("##SweepBlock sweep", showqt, CImGui.ImGuiComboFlags_NoArrowButton)
+        if CImGui.BeginCombo("##FreeSweepBlock sweep", showqt, CImGui.ImGuiComboFlags_NoArrowButton)
             qtlist = haskey(INSCONF, bk.instrnm) ? keys(INSCONF[bk.instrnm].quantities) : Set{String}()
-            qts = if haskey(INSCONF, bk.instrnm)
-                [qt for qt in qtlist if INSCONF[bk.instrnm].quantities[qt].type == "sweep"]
-            else
-                String[]
-            end
-            @c InputTextWithHintRSZ("##SweepBlock sweep", mlstr("Filter"), &filter)
+            qts = collect(qtlist)
+            @c InputTextWithHintRSZ("##FreeSweepBlock sweep", mlstr("Filter"), &filter)
             sp = sortperm([INSCONF[bk.instrnm].quantities[qt].alias for qt in qts])
             for qt in qts[sp]
                 showqt = INSCONF[bk.instrnm].quantities[qt].alias
@@ -725,19 +721,19 @@ let
         CImGui.SameLine()
 
         CImGui.PushItemWidth(width * 3 / 8 - unsafe_load(IMGUISTYLE.ItemSpacing.x) / 2)
-        @c CImGui.InputFloat("##SweepBlock delta", &bk.delta, 0, 0, "%g")
+        @c CImGui.InputFloat("##FreeSweepBlock delta", &bk.delta, 0, 0, "%g")
         CImGui.PopItemWidth()
         CImGui.SameLine()
         CImGui.PushItemWidth(width * 3 / 8 - unsafe_load(IMGUISTYLE.ItemSpacing.x) / 2)
-        @c CImGui.DragFloat("##SweepBlock duration", &bk.duration, 1, 1, 3600, "%g", CImGui.ImGuiSliderFlags_AlwaysClamp)
+        @c CImGui.DragFloat("##FreeSweepBlock duration", &bk.duration, 1, 1, 3600, "%g", CImGui.ImGuiSliderFlags_AlwaysClamp)
         CImGui.PopItemWidth()
         CImGui.SameLine()
         CImGui.PushItemWidth(width * 3 / 4)
-        @c InputTextWithHintRSZ("##SweepBlock stop", mlstr("stop"), &bk.stop)
+        @c InputTextWithHintRSZ("##FreeSweepBlock stop", mlstr("stop"), &bk.stop)
         CImGui.PopItemWidth()
         CImGui.SameLine()
         CImGui.PushItemWidth(width / 2)
-        @c CImGui.DragFloat("##SweepBlock delay", &bk.delay, 0.01, 0, 9.99, "%g", CImGui.ImGuiSliderFlags_AlwaysClamp)
+        @c CImGui.DragFloat("##FreeSweepBlock delay", &bk.delay, 0.01, 0, 9.99, "%g", CImGui.ImGuiSliderFlags_AlwaysClamp)
         CImGui.PopItemWidth()
         CImGui.SameLine()
 
@@ -747,7 +743,7 @@ let
             ""
         end
         CImGui.PushItemWidth(-1)
-        @c ShowUnit("##SweepBlock", Ut, &bk.ui)
+        @c ShowUnit("##FreeSweepBlock", Ut, &bk.ui)
         CImGui.PopItemWidth()
         CImGui.PopStyleColor()
         bk.hideblocks || isempty(skipnull(bk.blocks)) || edit(bk.blocks, bk.level + 1)
