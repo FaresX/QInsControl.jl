@@ -30,6 +30,7 @@ using InteractiveUtils
 using Logging
 using Printf
 using SharedArrays
+using Statistics
 using TOML
 using UUIDs
 
