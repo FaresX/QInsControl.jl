@@ -1,4 +1,4 @@
-function UI(breakdown=false; precompile=false)
+function UI(breakdown=false)
     glfwDefaultWindowHints()
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3)
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 2)
@@ -12,7 +12,6 @@ function UI(breakdown=false; precompile=false)
     CONF.Basic.viewportenable || (CONF.Basic.hidewindow = false)
     window = glfwCreateWindow(CONF.Basic.windowsize..., "QInsControl", C_NULL, C_NULL)
     @assert window != C_NULL
-    precompile && glfwHideWindow(window)
     glfwMakeContextCurrent(window)
     glfwSwapInterval(1)  # enable vsync
     CONF.Basic.hidewindow && glfwHideWindow(window)
@@ -246,7 +245,6 @@ function UI(breakdown=false; precompile=false)
 
             glfwSwapBuffers(window)
             GC.safepoint()
-            precompile && CImGui.GetFrameCount() > 36 && break
             yield()
         end
     catch e
@@ -267,6 +265,8 @@ function UI(breakdown=false; precompile=false)
         CImGui.DestroyContext(ctx)
         glfwDestroyWindow(window)
     end
+
+    return window
 end
 
 let

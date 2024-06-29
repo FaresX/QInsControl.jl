@@ -178,7 +178,10 @@ start() = (get!(ENV, "QInsControlAssets", joinpath(Base.@__DIR__, "../Assets"));
     global SYNCSTATES = SharedVector{Bool}(8)
     loadconf(true)
     try
-        UI(precompile=true) |> wait
+        window = UI()
+        glfwHideWindow(window)
+        sleep(6)
+        glfwSetWindowShouldClose(window, true)
     catch
     end
 end
