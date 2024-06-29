@@ -56,10 +56,11 @@ let
             stcstr(MORESTYLE.Icons.Circuit, "##circuit"),
             (btwidth, btheight)
         ) && (show_circuit_editor ⊻= true)
-        # CImGui.SameLine()
+        igBeginDisabled(SYNCSTATES[Int(IsDAQTaskRunning)])
         CImGui.Button(
             stcstr(MORESTYLE.Icons.Load, "##Load Project"), (btwidth, btheight)
         ) && loadproject(pick_file(filterlist="daq;qdt"))
+        igEndDisabled()
         CImGui.Button(
             stcstr(MORESTYLE.Icons.SaveButton, "##Save Project"),
             (btwidth, btheight)
@@ -292,7 +293,7 @@ let
             CImGui.Separator()
             CImGui.MenuItem(stcstr(MORESTYLE.Icons.SaveButton, " ", mlstr("Save Project"))) && saveproject()
             CImGui.MenuItem(
-                stcstr(MORESTYLE.Icons.Load, " ", mlstr("Load Project"))
+                stcstr(MORESTYLE.Icons.Load, " ", mlstr("Load Project")), C_NULL, false, !SYNCSTATES[Int(IsDAQTaskRunning)]
             ) && loadproject(pick_file(filterlist="daq;qdt"))
             CImGui.EndPopup()
         end
