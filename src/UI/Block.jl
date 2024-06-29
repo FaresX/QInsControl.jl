@@ -264,28 +264,16 @@ function tocodes(bk::FreeSweepBlock)
     end : quote
         $(innercodes...)
     end
-    @gensym observables pgid pgi pgn tn fraction
+    @gensym observables
     getcmd = :(controllers[$instr]($getfunc, CPU, Val(:read)))
     getdata = bk.istrycatch ? :(@gentrycatch $(bk.instrnm) $(bk.addr) $getcmd) : getcmd
     return quote
         let $observables = []
-            push!($observables, (time(), parse(Float64, $getdata)))
-            $pgid = uuid4()
-            $pgn = 100
-            $pgi = 0
-            put!(progress_lc, ($pgid, $pgi, $pgn, 0))
-            $tn = time()
-            while !isarrived($observables, $stop, $delta, $(bk.duration))
+            @progress $observables $getdata $stop while !isarrived($observables, $stop, $delta, $(bk.duration))
                 @gencontroller SweepBlock $instr
                 sleep($(bk.delay))
                 $interpcodes
-                push!($observables, (time(), parse(Float64, $getdata)))
-                $pgi += 1
-                $fraction = ($stop - $observables[1][2]) / ($observables[end][2] - $observables[1][2])
-                $pgn = isinf($fraction) || isnan($fraction) ? 100 + $pgi : ceil(Int, $pgi * $fraction)
-                put!(progress_lc, ($pgid, $pgi, $pgn, time() - $tn))
             end
-            empty!($observables)
         end
     end
 end
