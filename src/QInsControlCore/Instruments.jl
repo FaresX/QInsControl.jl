@@ -9,7 +9,6 @@ abstract type InstrAttr end
     nstopbits::VI_ASRL_STOP = VI_ASRL_STOP_ONE
     #Common
     async::Bool = false
-    timeoutq::Real = 6
     querydelay::Real = 0
     termchar::Char = '\n'
 end
@@ -27,7 +26,6 @@ end
     xonxoff::SPXonXoff = SP_XONXOFF_DISABLED
     timeoutw::Real = 6
     timeoutr::Real = 6
-    timeoutq::Real = 6
     querydelay::Real = 0
     termchar::Char = '\n'
 end
@@ -35,7 +33,6 @@ end
 @kwdef mutable struct TCPSocketInstrAttr <: InstrAttr
     timeoutw::Real = 6
     timeoutr::Real = 6
-    timeoutq::Real = 6
     querydelay::Real = 0
     termchar::Char = '\n'
 end
@@ -206,12 +203,9 @@ Base.write(::VirtualInstr, ::AbstractString) = nothing
 read the instrument.
 """
 function Base.read(instr::Instrument)
-    buf = Ref{String}("")
-    isok = timedwhile(instr.attr.timeoutr) do 
-        buf[] = readuntil(instr.handle, instr.attr.termchar)
-        buf[] != ""
-    end
-    return isok ? buf[] : error("read $(instr.addr) time out")
+    t = @async readuntil(instr.handle, instr.attr.termchar)
+    isok = timedwhile(() -> istaskdone(t), instr.attr.timeoutr)
+    return isok ? fetch(t) : (schedule(t, "read $(instr.addr) time out"; error=true); error("read $(instr.addr) time out"))
 end
 Base.read(instr::VISAInstr) = (instr.attr.async ? readasync : Instruments.read)(instr.handle)
 Base.read(::VirtualInstr) = "read"
@@ -224,9 +218,7 @@ query the instrument with some message string.
 function _query_(instr::Instrument, msg::AbstractString)
     write(instr, msg)
     instr.attr.querydelay < 0.001 || sleep(instr.attr.querydelay)
-    t = @async read(instr)
-    isok = timedwhile(() -> istaskdone(t), instr.attr.timeoutq)
-    return isok ? fetch(t) : error("query $(instr.addr) time out")
+    read(instr)
 end
 query(instr::VISAInstr, msg::AbstractString) = (instr.attr.async ? queryasync(instr.handle, msg) : _query_(instr, msg))
 query(instr::SerialInstr, msg::AbstractString) = _query_(instr, msg)

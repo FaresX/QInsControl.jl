@@ -537,11 +537,6 @@ function serialsettings(attr::SerialInstrAttr)
         stcstr(mlstr("Read Timeout"), " (s)"), &timeoutr,
         1, 0.1, 360, "%.1f", CImGui.ImGuiSliderFlags_AlwaysClamp)
     ) && (attr.timeoutr = timeoutr)
-    timeoutq = Cfloat(attr.timeoutq)
-    @c(CImGui.DragFloat(
-        stcstr(mlstr("Query Timeout"), " (s)"), &timeoutq,
-        1, 0.1, 360, "%.1f", CImGui.ImGuiSliderFlags_AlwaysClamp)
-    ) && (attr.timeoutq = timeoutq)
     querydelay = Cfloat(attr.querydelay)
     @c(CImGui.DragFloat(
         stcstr(mlstr("Query Delay"), " (s)"), &querydelay,
@@ -561,12 +556,6 @@ function tcpipsettings(attr::TCPSocketInstrAttr)
         stcstr(mlstr("Read Timeout"), " (s)"), &timeoutr,
         1, 0.1, 360, "%.1f", CImGui.ImGuiSliderFlags_AlwaysClamp)
     ) && (attr.timeoutr = timeoutr)
-    timeoutq = Cfloat(attr.timeoutq)
-    timeoutq = Cfloat(attr.timeoutq)
-    @c(CImGui.DragFloat(
-        stcstr(mlstr("Query Timeout"), " (s)"), &timeoutq,
-        1, 0.1, 360, "%.1f", CImGui.ImGuiSliderFlags_AlwaysClamp)
-    ) && (attr.timeoutq = timeoutq)
     querydelay = Cfloat(attr.querydelay)
     @c(CImGui.DragFloat(
         stcstr(mlstr("Query Delay"), " (s)"), &querydelay,
@@ -576,11 +565,6 @@ function tcpipsettings(attr::TCPSocketInstrAttr)
     @c(ComboS(mlstr("Termination Character"), &termchar, keys(TERMCHARDICT))) && (attr.termchar = TERMCHARDICT[termchar])
 end
 function virtualsettings(attr::VirtualInstrAttr)
-    timeoutq = Cfloat(attr.timeoutq)
-    @c(CImGui.DragFloat(
-        stcstr(mlstr("Query Timeout"), " (s)"), &timeoutq,
-        1, 0.1, 360, "%.1f", CImGui.ImGuiSliderFlags_AlwaysClamp)
-    ) && (attr.timeoutq = timeoutq)
     querydelay = Cfloat(attr.querydelay)
     @c(CImGui.DragFloat(
         stcstr(mlstr("Query Delay"), " (s)"), &querydelay,
@@ -601,11 +585,6 @@ function visasettings(attr::VISAInstrAttr)
     @c(ComboS(mlstr("Stop Bits"), &nstopbits, string.(instances(QInsControlCore.VI_ASRL_STOP)))) && (attr.nstopbits = getproperty(QInsControlCore, Symbol(nstopbits)))
     SeparatorTextColored(MORESTYLE.Colors.HighlightText, mlstr("Common"))
     @c CImGui.Checkbox(mlstr(attr.async ? "Asynchronous" : "Synchronous"), &attr.async)
-    timeoutq = Cfloat(attr.timeoutq)
-    @c(CImGui.DragFloat(
-        stcstr(mlstr("Query Timeout"), " (s)"), &timeoutq,
-        1, 0.1, 360, "%.1f", CImGui.ImGuiSliderFlags_AlwaysClamp)
-    ) && (attr.timeoutq = timeoutq)
     querydelay = Cfloat(attr.querydelay)
     @c(CImGui.DragFloat(
         stcstr(mlstr("Query Delay"), " (s)"), &querydelay,
