@@ -95,6 +95,7 @@ end
     StrideCodeBlock::String = ICONS.ICON_RAINBOW
     BranchBlock::String = ICONS.ICON_CODE_BRANCH
     SweepBlock::String = ICONS.ICON_VOLCANO
+    FreeSweepBlock::String = ICONS.ICON_YIN_YANG
     SettingBlock::String = ICONS.ICON_GEARS
     ReadingBlock::String = ICONS.ICON_BOOK_OPEN
     LogBlock::String = ICONS.ICON_CLOUD_ARROW_DOWN

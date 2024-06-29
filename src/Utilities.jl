@@ -362,6 +362,22 @@ function gensweeplist(start, step, stop)
     return sweeplist
 end
 
+function timeaverage(data, τ)
+    idx = argmin(abs.([data[end][1] - d[1] for d in data] .- τ))
+    datasubset = [d[2] for d in data[idx:end]]
+    mv = mean(datasubset)
+    stdv = stdm(datasubset, mv)
+    return mv, stdv
+end
+function isarrived(data, target, δ, τ)
+    data[end][1] - data[1][1] < τ && return false
+    arrive = abs(timeaverage(data, τ)[1] - target) < δ
+    arrive && return true
+    data[end][1] - data[1][1] < 10τ && return false
+    arrive |= abs(timeaverage(data, τ)[1] - target) < 5δ && all(abs.(timeaverage(data, τ) .- timeaverage(data, 10τ)) .< δ)
+    return arrive
+end
+
 function getU(utype, uidx::Ref{Int})
     Us = haskey(CONF.U, utype) ? CONF.U[utype] : [""]
     if uidx[] == 0

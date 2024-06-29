@@ -1,15 +1,17 @@
 abstract type AbstractBlock end
+abstract type ElementBlock <: AbstractBlock end
+abstract type ContainerBlock <: AbstractBlock end
 
-struct NullBlock <: AbstractBlock end
+struct NullBlock <: ElementBlock end
 skipnull(bkch::Vector{AbstractBlock}) = findall(bk -> !isa(bk, NullBlock), bkch)
 
-@kwdef mutable struct CodeBlock <: AbstractBlock
+@kwdef mutable struct CodeBlock <: ElementBlock
     codes::String = ""
     regmin::ImVec2 = (0, 0)
     regmax::ImVec2 = (0, 0)
 end
 
-@kwdef mutable struct StrideCodeBlock <: AbstractBlock
+@kwdef mutable struct StrideCodeBlock <: ContainerBlock
     codes::String = ""
     level::Int = 1
     blocks::Vector{AbstractBlock} = AbstractBlock[]
@@ -19,13 +21,13 @@ end
     regmax::ImVec2 = (0, 0)
 end
 
-@kwdef mutable struct BranchBlock <: AbstractBlock
+@kwdef mutable struct BranchBlock <: ElementBlock
     codes::String = ""
     regmin::ImVec2 = (0, 0)
     regmax::ImVec2 = (0, 0)
 end
 
-@kwdef mutable struct SweepBlock <: AbstractBlock
+@kwdef mutable struct SweepBlock <: ContainerBlock
     instrnm::String = mlstr("instrument")
     addr::String = mlstr("address")
     quantity::String = mlstr("sweep")
@@ -41,7 +43,24 @@ end
     regmax::ImVec2 = (0, 0)
 end
 
-@kwdef mutable struct SettingBlock <: AbstractBlock
+@kwdef mutable struct FreeSweepBlock <: ContainerBlock
+    instrnm::String = mlstr("instrument")
+    addr::String = mlstr("address")
+    quantity::String = mlstr("sweep")
+    stop::String = ""
+    delay::Cfloat = 0.1
+    delta::Cfloat = 0
+    duration::Cfloat = 6
+    ui::Int = 1
+    level::Int = 1
+    blocks::Vector{AbstractBlock} = AbstractBlock[]
+    istrycatch::Bool = false
+    hideblocks::Bool = false
+    regmin::ImVec2 = (0, 0)
+    regmax::ImVec2 = (0, 0)
+end
+
+@kwdef mutable struct SettingBlock <: ElementBlock
     instrnm::String = mlstr("instrument")
     addr::String = mlstr("address")
     quantity::String = mlstr("set")
@@ -52,7 +71,7 @@ end
     regmax::ImVec2 = (0, 0)
 end
 
-@kwdef mutable struct ReadingBlock <: AbstractBlock
+@kwdef mutable struct ReadingBlock <: ElementBlock
     instrnm::String = mlstr("instrument")
     addr::String = mlstr("address")
     quantity::String = mlstr("read")
@@ -66,7 +85,7 @@ end
     regmax::ImVec2 = (0, 0)
 end
 
-@kwdef mutable struct WriteBlock <: AbstractBlock
+@kwdef mutable struct WriteBlock <: ElementBlock
     instrnm::String = mlstr("instrument")
     addr::String = mlstr("address")
     cmd::String = ""
@@ -76,7 +95,7 @@ end
     regmax::ImVec2 = (0, 0)
 end
 
-@kwdef mutable struct QueryBlock <: AbstractBlock
+@kwdef mutable struct QueryBlock <: ElementBlock
     instrnm::String = mlstr("instrument")
     addr::String = mlstr("address")
     cmd::String = ""
@@ -90,7 +109,7 @@ end
     regmax::ImVec2 = (0, 0)
 end
 
-@kwdef mutable struct ReadBlock <: AbstractBlock
+@kwdef mutable struct ReadBlock <: ElementBlock
     instrnm::String = mlstr("instrument")
     addr::String = mlstr("address")
     index::String = ""
@@ -103,7 +122,7 @@ end
     regmax::ImVec2 = (0, 0)
 end
 
-@kwdef mutable struct FeedbackBlock <: AbstractBlock
+@kwdef mutable struct FeedbackBlock <: ElementBlock
     instrnm::String = mlstr("instrument")
     addr::String = mlstr("address")
     action::String = mlstr("Pause")
@@ -193,8 +212,8 @@ function tocodes(bk::SweepBlock)
     stop = Expr(:call, :*, stopc, Uchange)
     innercodes = tocodes.(bk.blocks)
     isasync = false
-    for bk in bk.blocks
-        typeof(bk) in [ReadingBlock, WriteBlock, QueryBlock, ReadBlock] && bk.isasync && (isasync = true; break)
+    for inbk in bk.blocks
+        typeof(inbk) in [ReadingBlock, WriteBlock, QueryBlock, ReadBlock] && inbk.isasync && (isasync = true; break)
     end
     interpcodes = isasync ? quote
         @sync begin
@@ -203,17 +222,70 @@ function tocodes(bk::SweepBlock)
     end : quote
         $(innercodes...)
     end
-    @gensym ijk
-    @gensym sweeplist
+    @gensym ijk sweeplist
     setcmd = :(controllers[$instr]($setfunc, CPU, string($ijk), Val(:write)))
     ex2 = bk.istrycatch ? :(@gentrycatch $(bk.instrnm) $(bk.addr) $setcmd) : setcmd
     return quote
-        $sweeplist = gensweeplist($start, $step, $stop)
-        @progress for $ijk in $sweeplist
-            @gencontroller SweepBlock $instr
-            $ex2
-            sleep($(bk.delay))
-            $interpcodes
+        let $sweeplist = gensweeplist($start, $step, $stop)
+            @progress for $ijk in $sweeplist
+                @gencontroller SweepBlock $instr
+                $ex2
+                sleep($(bk.delay))
+                $interpcodes
+            end
+        end
+    end
+end
+
+function tocodes(bk::FreeSweepBlock)
+    instr = string(bk.instrnm, "_", bk.addr)
+    quantity = bk.quantity
+    @assert INSCONF[bk.instrnm].quantities[bk.quantity].separator == "" mlstr("no free sweeping !!!")
+    getfunc = Symbol(bk.instrnm, :_, bk.quantity, :_get)
+    U, Us = @c getU(INSCONF[bk.instrnm].quantities[quantity].U, &bk.ui)
+    U == "" && (@error "[$(now())]\n$(mlstr("input data error!!!"))" bk = bk;
+    return)
+    stopc = @trypass Meta.parse(bk.stop) begin
+        @error "[$(now())]\n$(mlstr("codes are wrong in parsing time (FreeSweepBlock)!!!"))" bk = bk
+        return nothing
+    end
+    Uchange = U isa Unitful.MixedUnits ? 1 : ustrip(Us[1], 1U)
+    stop = Expr(:call, :*, stopc, Uchange)
+    delta = bk.delta * Uchange
+    innercodes = tocodes.(bk.blocks)
+    isasync = false
+    for inbk in bk.blocks
+        typeof(inbk) in [ReadingBlock, WriteBlock, QueryBlock, ReadBlock] && inbk.isasync && (isasync = true; break)
+    end
+    interpcodes = isasync ? quote
+        @sync begin
+            $(innercodes...)
+        end
+    end : quote
+        $(innercodes...)
+    end
+    @gensym observables pgid pgi pgn tn fraction
+    getcmd = :(controllers[$instr]($getfunc, CPU, Val(:read)))
+    getdata = bk.istrycatch ? :(@gentrycatch $(bk.instrnm) $(bk.addr) $getcmd) : getcmd
+    return quote
+        let $observables = []
+            push!($observables, (time(), parse(Float64, $getdata)))
+            $pgid = uuid4()
+            $pgn = 100
+            $pgi = 0
+            put!(progress_lc, ($pgid, $pgi, $pgn, 0))
+            $tn = time()
+            while !isarrived($observables, $stop, $delta, $(bk.duration))
+                @gencontroller SweepBlock $instr
+                sleep($(bk.delay))
+                $interpcodes
+                push!($observables, (time(), parse(Float64, $getdata)))
+                $pgi += 1
+                $fraction = ($stop - $observables[1][2]) / ($observables[end][2] - $observables[1][2])
+                $pgn = isinf($fraction) || isnan($fraction) ? 100 + $pgi : ceil(Int, $pgi * $fraction)
+                put!(progress_lc, ($pgid, $pgi, $pgn, time() - $tn))
+            end
+            empty!($observables)
         end
     end
 end
@@ -460,14 +532,7 @@ function bkheight(bk::CodeBlock)
     2unsafe_load(IMGUISTYLE.FramePadding.y) +
     2unsafe_load(IMGUISTYLE.WindowPadding.y) + 1
 end
-function bkheight(bk::StrideCodeBlock)
-    return bk.hideblocks ? 2unsafe_load(IMGUISTYLE.WindowPadding.y) + CImGui.GetFrameHeight() :
-           2unsafe_load(IMGUISTYLE.WindowPadding.y) +
-           CImGui.GetFrameHeight() +
-           length(skipnull(bk.blocks)) * unsafe_load(IMGUISTYLE.ItemSpacing.y) +
-           sum(bkheight.(bk.blocks))
-end
-function bkheight(bk::SweepBlock)
+function bkheight(bk::Union{StrideCodeBlock,SweepBlock,FreeSweepBlock})
     return bk.hideblocks ? 2unsafe_load(IMGUISTYLE.WindowPadding.y) + CImGui.GetFrameHeight() :
            2unsafe_load(IMGUISTYLE.WindowPadding.y) +
            CImGui.GetFrameHeight() +
@@ -591,7 +656,100 @@ let
         CImGui.PopItemWidth()
         CImGui.SameLine()
         CImGui.PushItemWidth(width / 2)
-        @c CImGui.DragFloat("##SweepBlock delay", &bk.delay, 0.01, 0, 9.99, "%.2f", CImGui.ImGuiSliderFlags_AlwaysClamp)
+        @c CImGui.DragFloat("##SweepBlock delay", &bk.delay, 0.01, 0, 9.99, "%g", CImGui.ImGuiSliderFlags_AlwaysClamp)
+        CImGui.PopItemWidth()
+        CImGui.SameLine()
+
+        Ut = if haskey(INSCONF, bk.instrnm) && haskey(INSCONF[bk.instrnm].quantities, bk.quantity)
+            INSCONF[bk.instrnm].quantities[bk.quantity].U
+        else
+            ""
+        end
+        CImGui.PushItemWidth(-1)
+        @c ShowUnit("##SweepBlock", Ut, &bk.ui)
+        CImGui.PopItemWidth()
+        CImGui.PopStyleColor()
+        bk.hideblocks || isempty(skipnull(bk.blocks)) || edit(bk.blocks, bk.level + 1)
+        CImGui.EndChild()
+        CImGui.PopStyleVar()
+    end
+end
+
+let
+    filter::String = ""
+    global function edit(bk::FreeSweepBlock)
+        CImGui.PushStyleVar(CImGui.ImGuiStyleVar_ItemSpacing, (Float32(2), unsafe_load(IMGUISTYLE.ItemSpacing.y)))
+        CImGui.PushStyleColor(
+            CImGui.ImGuiCol_Border,
+            if isempty(skipnull(bk.blocks))
+                CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_Border)
+            else
+                ImVec4(MORESTYLE.Colors.SweepBlockBorder...)
+            end
+        )
+        CImGui.BeginChild("##SweepBlock", (Float32(0), bkheight(bk)), true)
+        CImGui.TextColored(
+            bk.istrycatch ? MORESTYLE.Colors.BlockTrycatch : MORESTYLE.Colors.BlockIcons,
+            MORESTYLE.Icons.FreeSweepBlock
+        )
+        CImGui.IsItemClicked(2) && (bk.istrycatch ⊻= true)
+        CImGui.IsItemHovered() && CImGui.IsMouseDoubleClicked(0) && (bk.hideblocks ⊻= true)
+        CImGui.SameLine()
+        width = (CImGui.GetContentRegionAvailWidth() - 3CImGui.GetFontSize()) / 5
+        CImGui.PushItemWidth(width)
+        @c ComboSFiltered("##SweepBlock instrument", &bk.instrnm, sort(collect(keys(INSCONF))), CImGui.ImGuiComboFlags_NoArrowButton)
+        CImGui.PopItemWidth()
+        CImGui.SameLine()
+
+        inlist = haskey(INSTRBUFFERVIEWERS, bk.instrnm) && haskey(INSTRBUFFERVIEWERS[bk.instrnm], bk.addr)
+        bk.addr = inlist ? bk.addr : mlstr("address")
+        addrlist = haskey(INSTRBUFFERVIEWERS, bk.instrnm) ? keys(INSTRBUFFERVIEWERS[bk.instrnm]) : Set{String}()
+        CImGui.PushItemWidth(width)
+        @c ComboS("##SweepBlock address", &bk.addr, sort(collect(addrlist)), CImGui.ImGuiComboFlags_NoArrowButton)
+        CImGui.PopItemWidth()
+        CImGui.SameLine()
+
+        showqt = if haskey(INSCONF, bk.instrnm) && haskey(INSCONF[bk.instrnm].quantities, bk.quantity)
+            INSCONF[bk.instrnm].quantities[bk.quantity].alias
+        else
+            mlstr("sweep")
+        end
+        CImGui.PushItemWidth(width)
+        if CImGui.BeginCombo("##SweepBlock sweep", showqt, CImGui.ImGuiComboFlags_NoArrowButton)
+            qtlist = haskey(INSCONF, bk.instrnm) ? keys(INSCONF[bk.instrnm].quantities) : Set{String}()
+            qts = if haskey(INSCONF, bk.instrnm)
+                [qt for qt in qtlist if INSCONF[bk.instrnm].quantities[qt].type == "sweep"]
+            else
+                String[]
+            end
+            @c InputTextWithHintRSZ("##SweepBlock sweep", mlstr("Filter"), &filter)
+            sp = sortperm([INSCONF[bk.instrnm].quantities[qt].alias for qt in qts])
+            for qt in qts[sp]
+                showqt = INSCONF[bk.instrnm].quantities[qt].alias
+                (filter == "" || !isvalid(filter) || occursin(lowercase(filter), lowercase(showqt))) || continue
+                selected = bk.quantity == qt
+                CImGui.Selectable(showqt, selected, 0) && (bk.quantity = qt)
+                selected && CImGui.SetItemDefaultFocus()
+            end
+            CImGui.EndCombo()
+        end
+        CImGui.PopItemWidth()
+        CImGui.SameLine()
+
+        CImGui.PushItemWidth(width * 3 / 4)
+        @c InputTextWithHintRSZ("##SweepBlock stop", mlstr("stop"), &bk.stop)
+        CImGui.PopItemWidth()
+        CImGui.SameLine()
+        CImGui.PushItemWidth(width * 3 / 8 - unsafe_load(IMGUISTYLE.ItemSpacing.x) / 2)
+        @c CImGui.InputFloat("##SweepBlock delta", &bk.delta, 0, 0, "%g")
+        CImGui.PopItemWidth()
+        CImGui.SameLine()
+        CImGui.PushItemWidth(width * 3 / 8 - unsafe_load(IMGUISTYLE.ItemSpacing.x) / 2)
+        @c CImGui.DragFloat("##SweepBlock duration", &bk.duration, 1, 1, 3600, "%g", CImGui.ImGuiSliderFlags_AlwaysClamp)
+        CImGui.PopItemWidth()
+        CImGui.SameLine()
+        CImGui.PushItemWidth(width / 2)
+        @c CImGui.DragFloat("##SweepBlock delay", &bk.delay, 0.01, 0, 9.99, "%g", CImGui.ImGuiSliderFlags_AlwaysClamp)
         CImGui.PopItemWidth()
         CImGui.SameLine()
 
@@ -992,9 +1150,9 @@ let
     dropblock = AbstractBlock[]
     copyblock::AbstractBlock = NullBlock()
     selectedblock::Cint = 0
-    instrblocks::Vector{Type} = [SweepBlock, SettingBlock, ReadingBlock, WriteBlock, QueryBlock, ReadBlock, FeedbackBlock]
-    allblocks::Vector{Symbol} = [:CodeBlock, :StrideCodeBlock, :BranchBlock, :SweepBlock, :SettingBlock, :ReadingBlock,
-        :WriteBlock, :QueryBlock, :ReadBlock, :FeedbackBlock]
+    instrblocks::Vector{Type} = [SweepBlock, FreeSweepBlock, SettingBlock, ReadingBlock, WriteBlock, QueryBlock, ReadBlock, FeedbackBlock]
+    allblocks::Vector{Symbol} = [:CodeBlock, :StrideCodeBlock, :BranchBlock, :SweepBlock, :FreeSweepBlock,
+        :SettingBlock, :ReadingBlock, :WriteBlock, :QueryBlock, :ReadBlock, :FeedbackBlock]
 
     global function dragblockmenu(id)
         presentid = id
@@ -1049,7 +1207,7 @@ let
             CImGui.PushID(i)
             edit(bk)
             id = stcstr(CImGui.igGetItemID())
-            if typeof(bk) in [SweepBlock, StrideCodeBlock]
+            if typeof(bk) <: ContainerBlock
                 bk.regmin, rmax = CImGui.GetItemRectMin(), CImGui.GetItemRectMax()
                 wp = unsafe_load(IMGUISTYLE.WindowPadding.y)
                 extraheight = isempty(bk.blocks) ? wp : unsafe_load(IMGUISTYLE.ItemSpacing.y) ÷ 2
@@ -1078,7 +1236,7 @@ let
                     isnothing(newblock) || insert!(blocks, i, newblock)
                     CImGui.EndMenu()
                 end
-                if (bk isa StrideCodeBlock || bk isa SweepBlock) && isempty(skipnull(bk.blocks))
+                if typeof(bk) <: ContainerBlock && isempty(skipnull(bk.blocks))
                     if CImGui.BeginMenu(stcstr(MORESTYLE.Icons.InsertInside, " ", mlstr("Insert Inside")), bk.level < 6)
                         newblock = addblockmenu(n)
                         isnothing(newblock) || push!(bk.blocks, newblock)
@@ -1094,9 +1252,13 @@ let
                     newblock = addblockmenu(n)
                     if !(isnothing(newblock) || newblock isa typeof(bk))
                         if newblock isa StrideCodeBlock
-                            bk isa SweepBlock && (newblock.blocks = bk.blocks)
-                        elseif newblock isa SweepBlock
+                            typeof(bk) <: ContainerBlock && (newblock.blocks = bk.blocks)
+                        elseif typeof(newblock) in [SweepBlock, FreeSweepBlock]
                             if bk isa StrideCodeBlock
+                                newblock.blocks = bk.blocks
+                            elseif typeof(bk) in [SweepBlock, FreeSweepBlock]
+                                newblock.instrnm = bk.instrnm
+                                newblock.addr = bk.addr
                                 newblock.blocks = bk.blocks
                             elseif typeof(bk) in instrblocks
                                 newblock.instrnm = bk.instrnm
@@ -1145,6 +1307,7 @@ function addblockmenu(n)
     CImGui.MenuItem(stcstr(MORESTYLE.Icons.StrideCodeBlock, " ", mlstr("StrideCodeBlock"))) && return StrideCodeBlock(level=n)
     CImGui.MenuItem(stcstr(MORESTYLE.Icons.BranchBlock, " ", mlstr("BranchBlock"))) && return BranchBlock()
     CImGui.MenuItem(stcstr(MORESTYLE.Icons.SweepBlock, " ", mlstr("SweepBlock"))) && return SweepBlock(level=n)
+    CImGui.MenuItem(stcstr(MORESTYLE.Icons.FreeSweepBlock, " ", mlstr("FreeSweepBlock"))) && return FreeSweepBlock(level=n)
     CImGui.MenuItem(stcstr(MORESTYLE.Icons.SettingBlock, " ", mlstr("SettingBlock"))) && return SettingBlock()
     CImGui.MenuItem(stcstr(MORESTYLE.Icons.ReadingBlock, " ", mlstr("ReadingBlock"))) && return ReadingBlock()
     CImGui.MenuItem(stcstr(MORESTYLE.Icons.WriteBlock, " ", mlstr("WriteBlock"))) && return WriteBlock()
@@ -1157,7 +1320,7 @@ end
 function swapblock(blocks::Vector{AbstractBlock}, dragbk::AbstractBlock, dropbk::AbstractBlock, addmode)
     (dragbk == dropbk || isininnerblocks(dropbk, dragbk)) && return
     disable_drag(blocks, dragbk)
-    if typeof(dropbk) in [SweepBlock, StrideCodeBlock] && unsafe_load(CImGui.GetIO().KeyCtrl)
+    if typeof(dropbk) <: ContainerBlock && unsafe_load(CImGui.GetIO().KeyCtrl)
         push!(dropbk.blocks, dragbk)
         return
     end
@@ -1165,7 +1328,7 @@ function swapblock(blocks::Vector{AbstractBlock}, dragbk::AbstractBlock, dropbk:
 end
 
 function isininnerblocks(dropbk::AbstractBlock, dragbk::AbstractBlock)
-    if typeof(dragbk) in [SweepBlock, StrideCodeBlock]
+    if typeof(dragbk) <: ContainerBlock
         return dropbk in dragbk.blocks || true in [isininnerblocks(dropbk, bk) for bk in dragbk.blocks]
     else
         return false
@@ -1175,7 +1338,7 @@ end
 function disable_drag(blocks::Vector{AbstractBlock}, dragbk::AbstractBlock)
     for (i, bk) in enumerate(blocks)
         bk == dragbk && (blocks[i] = NullBlock(); return true)
-        typeof(bk) in [SweepBlock, StrideCodeBlock] && disable_drag(bk.blocks, dragbk) && return true
+        typeof(bk) <: ContainerBlock && disable_drag(bk.blocks, dragbk) && return true
     end
     return false
 end
@@ -1183,7 +1346,7 @@ end
 function insert_drop(blocks::Vector{AbstractBlock}, dragbk::AbstractBlock, dropbk::AbstractBlock, addmode)
     for (i, bk) in enumerate(blocks)
         bk == dropbk && (insert!(blocks, addmode ? i + 1 : i, dragbk); return true)
-        typeof(bk) in [SweepBlock, StrideCodeBlock] && insert_drop(bk.blocks, dragbk, dropbk, addmode) && return true
+        typeof(bk) <: ContainerBlock && insert_drop(bk.blocks, dragbk, dropbk, addmode) && return true
     end
     return false
 end
@@ -1268,6 +1431,50 @@ function view(bk::SweepBlock)
             "\t", mlstr("step"), ": ", bk.step, U,
             "\t", mlstr("stop"), ": ", bk.stop, U,
             "\t", mlstr("delay"), ": ", bk.delay
+        ),
+        (-1, 0)
+    )
+    CImGui.PopStyleVar()
+    CImGui.PopStyleColor()
+    bk.hideblocks || isempty(skipnull(bk.blocks)) || view(bk.blocks)
+    CImGui.EndChild()
+end
+
+function view(bk::FreeSweepBlock)
+    CImGui.PushStyleColor(
+        CImGui.ImGuiCol_Border,
+        if isempty(skipnull(bk.blocks))
+            CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_Border)
+        else
+            MORESTYLE.Colors.SweepBlockBorder
+        end
+    )
+    CImGui.BeginChild("##FreeSweepBlockViewer", (Float32(0), bkheight(bk)), true)
+    instrnm = bk.instrnm
+    addr = bk.addr
+    quantity = @trypass INSCONF[bk.instrnm].quantities[bk.quantity].alias ""
+    Ut = if haskey(INSCONF, bk.instrnm) && haskey(INSCONF[bk.instrnm].quantities, bk.quantity)
+        INSCONF[bk.instrnm].quantities[bk.quantity].U
+    else
+        ""
+    end
+    U, _ = @c getU(Ut, &bk.ui)
+    CImGui.TextColored(
+        bk.istrycatch ? MORESTYLE.Colors.BlockTrycatch : MORESTYLE.Colors.BlockIcons,
+        MORESTYLE.Icons.FreeSweepBlock
+    )
+    CImGui.IsItemHovered() && CImGui.IsMouseDoubleClicked(0) && (bk.hideblocks ⊻= true)
+    CImGui.SameLine()
+    CImGui.PushStyleVar(CImGui.ImGuiStyleVar_ButtonTextAlign, (0.0, 0.5))
+    CImGui.Button(
+        stcstr(
+            mlstr("instrument"), ": ", instrnm,
+            "\t", mlstr("address"), ": ", addr,
+            "\t", mlstr("sweep"), ": ", quantity,
+            "\t", mlstr("stop"), ": ", bk.stop, U,
+            "\t", mlstr("delay"), ": ", bk.delay,
+            "\t", mlstr("δ"), ": ", bk.delta,
+            "\t", mlstr("duration"), ": ", bk.duration
         ),
         (-1, 0)
     )
