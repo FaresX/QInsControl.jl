@@ -119,7 +119,7 @@ function julia_main()::Cint
         global JLVERINFO = wrapmultiline(String(take!(jlverinfobuf)), 48)
         @info ARGS
         isempty(ARGS) || @info reencoding.(ARGS, CONF.Basic.encoding)
-        uitask = UI()
+        uitask = UI()[2]
         if CONF.Basic.isremote
             ENV["JULIA_NUM_THREADS"] = CONF.Basic.nthreads_2
             nprocs() == 1 && addprocs(1)
@@ -179,7 +179,7 @@ start() = (get!(ENV, "QInsControlAssets", joinpath(Base.@__DIR__, "../Assets"));
     global SYNCSTATES = SharedVector{Bool}(8)
     loadconf(true)
     try
-        window = UI()
+        window = UI()[1]
         glfwHideWindow(window)
         sleep(6)
         glfwSetWindowShouldClose(window, true)

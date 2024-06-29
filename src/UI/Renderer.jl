@@ -164,7 +164,7 @@ function UI(breakdown=false)
 
     breakdown && closeallwindow()
 
-    Threads.@spawn :interactive try
+    uitask = Threads.@spawn :interactive try
         scale_old::Cfloat = 0
         isshowapp()[] = true
         updateframe::Bool = true
@@ -266,7 +266,7 @@ function UI(breakdown=false)
         glfwDestroyWindow(window)
     end
 
-    return window
+    return window, uitask
 end
 
 let
