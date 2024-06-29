@@ -48,10 +48,6 @@ let
                 CImGui.EndPopup()
             end
             SeparatorTextColored(MORESTYLE.Colors.HighlightText, mlstr("Script"))
-            if SYNCSTATES[Int(AutoDetecting)]
-                CImGui.SameLine()
-                CImGui.TextColored(MORESTYLE.Colors.HighlightText, stcstr(mlstr("searching instruments"), "......"))
-            end
             CImGui.PushID(id)
             dragblockmenu(id)
             CImGui.BeginChild("DAQTask.blocks")
