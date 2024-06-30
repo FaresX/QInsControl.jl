@@ -530,8 +530,9 @@ function bkheight(bk::CodeBlock)
     2unsafe_load(IMGUISTYLE.WindowPadding.y) + 1
 end
 function bkheight(bk::Union{StrideCodeBlock,SweepBlock,FreeSweepBlock})
-    return bk.hideblocks ? 2unsafe_load(IMGUISTYLE.WindowPadding.y) + CImGui.GetFrameHeight() :
-           2unsafe_load(IMGUISTYLE.WindowPadding.y) +
+    return isempty(skipnull(bk.blocks)) ? 2unsafe_load(IMGUISTYLE.WindowPadding.y) + CImGui.GetFrameHeight() :
+           bk.hideblocks ? 2MORESTYLE.Variables.ContainerBlockWindowPadding[2] + CImGui.GetFrameHeight() :
+           2MORESTYLE.Variables.ContainerBlockWindowPadding[2] +
            CImGui.GetFrameHeight() +
            length(skipnull(bk.blocks)) * unsafe_load(IMGUISTYLE.ItemSpacing.y) +
            sum(bkheight.(bk.blocks))
@@ -557,7 +558,13 @@ function edit(bk::StrideCodeBlock)
             MORESTYLE.Colors.StrideCodeBlockBorder
         end
     )
-    CImGui.BeginChild("##StrideBlock", (Float32(0), bkheight(bk)), true)
+    wp = unsafe_load(IMGUISTYLE.WindowPadding)
+    bkh = bkheight(bk)
+    CImGui.PushStyleVar(
+        CImGui.ImGuiStyleVar_WindowPadding,
+        bk.hideblocks || isempty(skipnull(bk.blocks)) ? wp : MORESTYLE.Variables.ContainerBlockWindowPadding
+    )
+    CImGui.BeginChild("##StrideCodeBlock", (Float32(0), bkh), true)
     CImGui.TextColored(
         bk.nohandler ? MORESTYLE.Colors.StrideCodeBlockBorder : MORESTYLE.Colors.BlockIcons,
         MORESTYLE.Icons.StrideCodeBlock
@@ -569,8 +576,10 @@ function edit(bk::StrideCodeBlock)
     @c InputTextWithHintRSZ("##code header", mlstr("code header"), &bk.codes)
     CImGui.PopItemWidth()
     CImGui.PopStyleColor()
+    CImGui.PushStyleVar(CImGui.ImGuiStyleVar_WindowPadding, wp)
     bk.hideblocks || isempty(skipnull(bk.blocks)) || edit(bk.blocks, bk.level + 1)
     CImGui.EndChild()
+    CImGui.PopStyleVar(2)
 end
 
 function edit(bk::BranchBlock)
@@ -595,7 +604,13 @@ let
                 ImVec4(MORESTYLE.Colors.SweepBlockBorder...)
             end
         )
-        CImGui.BeginChild("##SweepBlock", (Float32(0), bkheight(bk)), true)
+        wp = unsafe_load(IMGUISTYLE.WindowPadding)
+        bkh = bkheight(bk)
+        CImGui.PushStyleVar(
+            CImGui.ImGuiStyleVar_WindowPadding,
+            bk.hideblocks || isempty(skipnull(bk.blocks)) ? wp : MORESTYLE.Variables.ContainerBlockWindowPadding
+        )
+        CImGui.BeginChild("##SweepBlock", (Float32(0), bkh), true)
         CImGui.TextColored(
             bk.istrycatch ? MORESTYLE.Colors.BlockTrycatch : MORESTYLE.Colors.BlockIcons,
             MORESTYLE.Icons.SweepBlock
@@ -666,9 +681,10 @@ let
         @c ShowUnit("##SweepBlock", Ut, &bk.ui)
         CImGui.PopItemWidth()
         CImGui.PopStyleColor()
+        CImGui.PushStyleVar(CImGui.ImGuiStyleVar_WindowPadding, wp)
         bk.hideblocks || isempty(skipnull(bk.blocks)) || edit(bk.blocks, bk.level + 1)
         CImGui.EndChild()
-        CImGui.PopStyleVar()
+        CImGui.PopStyleVar(3)
     end
 end
 
@@ -684,7 +700,13 @@ let
                 ImVec4(MORESTYLE.Colors.SweepBlockBorder...)
             end
         )
-        CImGui.BeginChild("##FreeSweepBlock", (Float32(0), bkheight(bk)), true)
+        wp = unsafe_load(IMGUISTYLE.WindowPadding)
+        bkh = bkheight(bk)
+        CImGui.PushStyleVar(
+            CImGui.ImGuiStyleVar_WindowPadding,
+            bk.hideblocks || isempty(skipnull(bk.blocks)) ? wp : MORESTYLE.Variables.ContainerBlockWindowPadding
+        )
+        CImGui.BeginChild("##FreeSweepBlock", (Float32(0), bkh), true)
         CImGui.TextColored(
             bk.istrycatch ? MORESTYLE.Colors.BlockTrycatch : MORESTYLE.Colors.BlockIcons,
             MORESTYLE.Icons.FreeSweepBlock
@@ -755,9 +777,10 @@ let
         @c ShowUnit("##FreeSweepBlock", Ut, &bk.ui)
         CImGui.PopItemWidth()
         CImGui.PopStyleColor()
+        CImGui.PushStyleVar(CImGui.ImGuiStyleVar_WindowPadding, wp)
         bk.hideblocks || isempty(skipnull(bk.blocks)) || edit(bk.blocks, bk.level + 1)
         CImGui.EndChild()
-        CImGui.PopStyleVar()
+        CImGui.PopStyleVar(3)
     end
 end
 

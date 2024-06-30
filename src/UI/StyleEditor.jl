@@ -167,6 +167,7 @@ end
     MiniMapLocation::LibCImGui.ImNodesMiniMapLocation = LibCImGui.ImNodesMiniMapLocation_TopRight
     ImPlotMarker::Cint = 0
     WidgetBorderThickness::Cfloat = 1
+    ContainerBlockWindowPadding::Vector{Cfloat} = [18, 18]
 end
 
 @kwdef mutable struct MoreStyle
@@ -407,6 +408,10 @@ let
                     MORESTYLE.Variables.ImPlotMarker = findfirst(==(selectedmarker), implotmarkerlist) - 1
                     IMPLOTSTYLE.Marker = MORESTYLE.Variables.ImPlotMarker
                 end
+                CImGui.DragFloat2(
+                    "ContainerBlockWindowPadding", MORESTYLE.Variables.ContainerBlockWindowPadding,
+                    1, 0, 60, "%.1f", CImGui.ImGuiSliderFlags_AlwaysClamp
+                )
                 CImGui.EndTabItem()
             end
             if CImGui.BeginTabItem("Colors")
