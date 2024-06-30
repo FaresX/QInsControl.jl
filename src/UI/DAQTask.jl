@@ -319,7 +319,7 @@ end
 function extract_controllers(bkch::Vector{AbstractBlock})
     controllers = Dict()
     for bk in bkch
-        if typeof(bk) in [SettingBlock, SweepBlock, FreeSweepBlock, ReadingBlock, WriteBlock, QueryBlock, ReadBlock]
+        if isinstr(bk)
             bk.instrnm == "VirtualInstr" && bk.addr != "VirtualAddress" && return controllers, false
             ct = Controller(bk.instrnm, bk.addr; buflen=CONF.DAQ.ctbuflen, timeout=CONF.DAQ.cttimeout)
             try
@@ -340,7 +340,7 @@ function extract_controllers(bkch::Vector{AbstractBlock})
                 return controllers, false
             end
         end
-        if typeof(bk) in [SweepBlock, FreeSweepBlock, StrideCodeBlock]
+        if iscontainer(bk)
             inner_controllers, inner_st = extract_controllers(bk.blocks)
             inner_st || return controllers, false
             merge!(controllers, inner_controllers)

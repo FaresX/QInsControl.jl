@@ -1,17 +1,15 @@
 abstract type AbstractBlock end
-abstract type ElementBlock <: AbstractBlock end
-abstract type ContainerBlock <: AbstractBlock end
 
-struct NullBlock <: ElementBlock end
+struct NullBlock <: AbstractBlock end
 skipnull(bkch::Vector{AbstractBlock}) = findall(bk -> !isa(bk, NullBlock), bkch)
 
-@kwdef mutable struct CodeBlock <: ElementBlock
+@kwdef mutable struct CodeBlock <: AbstractBlock
     codes::String = ""
     regmin::ImVec2 = (0, 0)
     regmax::ImVec2 = (0, 0)
 end
 
-@kwdef mutable struct StrideCodeBlock <: ContainerBlock
+@kwdef mutable struct StrideCodeBlock <: AbstractBlock
     codes::String = ""
     level::Int = 1
     blocks::Vector{AbstractBlock} = AbstractBlock[]
@@ -21,13 +19,13 @@ end
     regmax::ImVec2 = (0, 0)
 end
 
-@kwdef mutable struct BranchBlock <: ElementBlock
+@kwdef mutable struct BranchBlock <: AbstractBlock
     codes::String = ""
     regmin::ImVec2 = (0, 0)
     regmax::ImVec2 = (0, 0)
 end
 
-@kwdef mutable struct SweepBlock <: ContainerBlock
+@kwdef mutable struct SweepBlock <: AbstractBlock
     instrnm::String = mlstr("instrument")
     addr::String = mlstr("address")
     quantity::String = mlstr("sweep")
@@ -43,7 +41,7 @@ end
     regmax::ImVec2 = (0, 0)
 end
 
-@kwdef mutable struct FreeSweepBlock <: ContainerBlock
+@kwdef mutable struct FreeSweepBlock <: AbstractBlock
     instrnm::String = mlstr("instrument")
     addr::String = mlstr("address")
     quantity::String = mlstr("sweep")
@@ -60,7 +58,7 @@ end
     regmax::ImVec2 = (0, 0)
 end
 
-@kwdef mutable struct SettingBlock <: ElementBlock
+@kwdef mutable struct SettingBlock <: AbstractBlock
     instrnm::String = mlstr("instrument")
     addr::String = mlstr("address")
     quantity::String = mlstr("set")
@@ -72,7 +70,7 @@ end
     regmax::ImVec2 = (0, 0)
 end
 
-@kwdef mutable struct ReadingBlock <: ElementBlock
+@kwdef mutable struct ReadingBlock <: AbstractBlock
     instrnm::String = mlstr("instrument")
     addr::String = mlstr("address")
     quantity::String = mlstr("read")
@@ -86,7 +84,7 @@ end
     regmax::ImVec2 = (0, 0)
 end
 
-@kwdef mutable struct WriteBlock <: ElementBlock
+@kwdef mutable struct WriteBlock <: AbstractBlock
     instrnm::String = mlstr("instrument")
     addr::String = mlstr("address")
     cmd::String = ""
@@ -96,7 +94,7 @@ end
     regmax::ImVec2 = (0, 0)
 end
 
-@kwdef mutable struct QueryBlock <: ElementBlock
+@kwdef mutable struct QueryBlock <: AbstractBlock
     instrnm::String = mlstr("instrument")
     addr::String = mlstr("address")
     cmd::String = ""
@@ -110,7 +108,7 @@ end
     regmax::ImVec2 = (0, 0)
 end
 
-@kwdef mutable struct ReadBlock <: ElementBlock
+@kwdef mutable struct ReadBlock <: AbstractBlock
     instrnm::String = mlstr("instrument")
     addr::String = mlstr("address")
     index::String = ""
@@ -123,13 +121,17 @@ end
     regmax::ImVec2 = (0, 0)
 end
 
-@kwdef mutable struct FeedbackBlock <: ElementBlock
+@kwdef mutable struct FeedbackBlock <: AbstractBlock
     instrnm::String = mlstr("instrument")
     addr::String = mlstr("address")
     action::String = mlstr("Pause")
     regmin::ImVec2 = (0, 0)
     regmax::ImVec2 = (0, 0)
 end
+
+iscontainer(bk::AbstractBlock) = typeof(bk) in [StrideCodeBlock, SweepBlock, FreeSweepBlock]
+isinstr(bk::AbstractBlock) = typeof(bk) in [SweepBlock, FreeSweepBlock, SettingBlock, ReadingBlock, WriteBlock, QueryBlock, ReadBlock, FeedbackBlock]
+
 ############ isapprox --------------------------------------------------------------------------------------------------
 
 function Base.isapprox(bk1::T1, bk2::T2) where {T1<:AbstractBlock} where {T2<:AbstractBlock}
@@ -1146,7 +1148,6 @@ let
     dropblock = AbstractBlock[]
     copyblock::AbstractBlock = NullBlock()
     selectedblock::Cint = 0
-    instrblocks::Vector{Type} = [SweepBlock, FreeSweepBlock, SettingBlock, ReadingBlock, WriteBlock, QueryBlock, ReadBlock, FeedbackBlock]
     allblocks::Vector{Symbol} = [:CodeBlock, :StrideCodeBlock, :BranchBlock, :SweepBlock, :FreeSweepBlock,
         :SettingBlock, :ReadingBlock, :WriteBlock, :QueryBlock, :ReadBlock, :FeedbackBlock]
 
@@ -1203,7 +1204,7 @@ let
             CImGui.PushID(i)
             edit(bk)
             id = stcstr(CImGui.igGetItemID())
-            if typeof(bk) <: ContainerBlock
+            if iscontainer(bk)
                 bk.regmin, rmax = CImGui.GetItemRectMin(), CImGui.GetItemRectMax()
                 wp = unsafe_load(IMGUISTYLE.WindowPadding.y)
                 extraheight = isempty(bk.blocks) ? wp : unsafe_load(IMGUISTYLE.ItemSpacing.y) ÷ 2
@@ -1232,7 +1233,7 @@ let
                     isnothing(newblock) || insert!(blocks, i, newblock)
                     CImGui.EndMenu()
                 end
-                if typeof(bk) <: ContainerBlock && isempty(skipnull(bk.blocks))
+                if iscontainer(bk) && isempty(skipnull(bk.blocks))
                     if CImGui.BeginMenu(stcstr(MORESTYLE.Icons.InsertInside, " ", mlstr("Insert Inside")), bk.level < 6)
                         newblock = addblockmenu(n)
                         isnothing(newblock) || push!(bk.blocks, newblock)
@@ -1248,20 +1249,20 @@ let
                     newblock = addblockmenu(n)
                     if !(isnothing(newblock) || newblock isa typeof(bk))
                         if newblock isa StrideCodeBlock
-                            typeof(bk) <: ContainerBlock && (newblock.blocks = bk.blocks)
-                        elseif typeof(newblock) in [SweepBlock, FreeSweepBlock]
+                            iscontainer(bk) && (newblock.blocks = bk.blocks)
+                        elseif iscontainer(newblock) && isinstr(newblock)
                             if bk isa StrideCodeBlock
                                 newblock.blocks = bk.blocks
-                            elseif typeof(bk) in [SweepBlock, FreeSweepBlock]
+                            elseif iscontainer(bk) && isinstr(bk)
                                 newblock.instrnm = bk.instrnm
                                 newblock.addr = bk.addr
                                 newblock.blocks = bk.blocks
-                            elseif typeof(bk) in instrblocks
+                            elseif isinstr(bk)
                                 newblock.instrnm = bk.instrnm
                                 newblock.addr = bk.addr
                             end
-                        elseif typeof(newblock) in instrblocks
-                            typeof(bk) in instrblocks && (newblock.instrnm = bk.instrnm; newblock.addr = bk.addr)
+                        elseif isinstr(newblock)
+                            isinstr(bk) && (newblock.instrnm = bk.instrnm; newblock.addr = bk.addr)
                         end
                         blocks[i] = newblock
                     end
@@ -1316,7 +1317,7 @@ end
 function swapblock(blocks::Vector{AbstractBlock}, dragbk::AbstractBlock, dropbk::AbstractBlock, addmode)
     (dragbk == dropbk || isininnerblocks(dropbk, dragbk)) && return
     disable_drag(blocks, dragbk)
-    if typeof(dropbk) <: ContainerBlock && unsafe_load(CImGui.GetIO().KeyCtrl)
+    if iscontainer(dropbk) && unsafe_load(CImGui.GetIO().KeyCtrl)
         push!(dropbk.blocks, dragbk)
         return
     end
@@ -1324,7 +1325,7 @@ function swapblock(blocks::Vector{AbstractBlock}, dragbk::AbstractBlock, dropbk:
 end
 
 function isininnerblocks(dropbk::AbstractBlock, dragbk::AbstractBlock)
-    if typeof(dragbk) <: ContainerBlock
+    if iscontainer(dragbk)
         return dropbk in dragbk.blocks || true in [isininnerblocks(dropbk, bk) for bk in dragbk.blocks]
     else
         return false
@@ -1334,7 +1335,7 @@ end
 function disable_drag(blocks::Vector{AbstractBlock}, dragbk::AbstractBlock)
     for (i, bk) in enumerate(blocks)
         bk == dragbk && (blocks[i] = NullBlock(); return true)
-        typeof(bk) <: ContainerBlock && disable_drag(bk.blocks, dragbk) && return true
+        iscontainer(bk) && disable_drag(bk.blocks, dragbk) && return true
     end
     return false
 end
@@ -1342,7 +1343,7 @@ end
 function insert_drop(blocks::Vector{AbstractBlock}, dragbk::AbstractBlock, dropbk::AbstractBlock, addmode)
     for (i, bk) in enumerate(blocks)
         bk == dropbk && (insert!(blocks, addmode ? i + 1 : i, dragbk); return true)
-        typeof(bk) <: ContainerBlock && insert_drop(bk.blocks, dragbk, dropbk, addmode) && return true
+        iscontainer(bk) && insert_drop(bk.blocks, dragbk, dropbk, addmode) && return true
     end
     return false
 end
@@ -1769,6 +1770,7 @@ function Base.show(io::IO, bk::SettingBlock)
            address : $(bk.addr)
           quantity : $(bk.quantity)
          set value : $(bk.setvalue)
+             delay : $(bk.delay)
               unit : $U
           trycatch : $(bk.istrycatch)
     """
