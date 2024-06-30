@@ -65,6 +65,7 @@ end
     addr::String = mlstr("address")
     quantity::String = mlstr("set")
     setvalue::String = ""
+    delay::Cfloat = 0.1
     ui::Int = 1
     istrycatch::Bool = false
     regmin::ImVec2 = (0, 0)
@@ -294,7 +295,13 @@ function tocodes(bk::SettingBlock)
     end
     setfunc = Symbol(bk.instrnm, :_, bk.quantity, :_set)
     setcmd = :(controllers[$instr]($setfunc, CPU, string($setvalue), Val(:write)))
-    return bk.istrycatch ? :(@gentrycatch $(bk.instrnm) $(bk.addr) $setcmd) : setcmd
+    return bk.istrycatch ? quote
+        @gentrycatch $(bk.instrnm) $(bk.addr) $setcmd
+        sleep($(bk.delay))
+    end : quote
+        $setcmd
+        sleep($(bk.delay))
+    end
 end
 
 
@@ -804,7 +811,7 @@ let
         CImGui.PopItemWidth()
 
         CImGui.SameLine()
-        CImGui.PushItemWidth(2width)
+        CImGui.PushItemWidth(3width / 2)
         @c InputTextWithHintRSZ("##SettingBlock set value", mlstr("set value"), &bk.setvalue)
         CImGui.PopItemWidth()
         if CImGui.BeginPopup("select set value")
@@ -818,8 +825,13 @@ let
             CImGui.EndPopup()
         end
         CImGui.OpenPopupOnItemClick("select set value", 2)
-
         CImGui.SameLine()
+
+        CImGui.PushItemWidth(width / 2)
+        @c CImGui.DragFloat("##SettingBlock delay", &bk.delay, 0.01, 0, 9.99, "%g", CImGui.ImGuiSliderFlags_AlwaysClamp)
+        CImGui.PopItemWidth()
+        CImGui.SameLine()
+
         Ut = if haskey(INSCONF, bk.instrnm) && haskey(INSCONF[bk.instrnm].quantities, bk.quantity)
             INSCONF[bk.instrnm].quantities[bk.quantity].U
         else
