@@ -351,6 +351,7 @@ let
                                 ).filetrees
                             end
                             CImGui.MenuItem(stcstr(MORESTYLE.Icons.CloseFile, " ", mlstr("Close"))) && (dtv[1].noclose = false)
+                            CImGui.MenuItem(stcstr(MORESTYLE.Icons.InstrumentsAutoRef, " ", mlstr("Update"))) && converttonew(dtv[2].rootpath)
                             CImGui.EndPopup()
                         end
                         CImGui.PopID()
