@@ -9,6 +9,7 @@ end
 @kwdef mutable struct FormatDataGroup <: AbstractFormatData
     data::Vector{FormatData} = []
     mode::String = "default"
+    merge::Bool = false
     dtviewer::DataViewer = DataViewer(p_open=false)
 end
 
@@ -137,6 +138,8 @@ function edit(fdg::FormatDataGroup, id)
     end
     CImGui.PopStyleColor()
     CImGui.SameLine()
+    @c CImGui.Checkbox(ICONS.ICON_CODE_MERGE, &fdg.merge)
+    CImGui.SameLine()
     CImGui.PushStyleVar(CImGui.ImGuiStyleVar_ItemSpacing, (0, 0))
     CImGui.Button(ICONS.ICON_PLUS, (2ftsz, Cfloat(0))) && push!(fdg.data, FormatData())
     CImGui.SameLine()
@@ -236,11 +239,21 @@ function loaddtviewer!(fdg::FormatDataGroup)
         if isfile(fd.path)
             data = @trypasse load(fd.path, "data") Dict{String,Vector{String}}()
             if !isempty(data)
-                datai = Dict{String,Vector{String}}()
-                for (k, val) in data
-                    datai[string(i, " - ", k)] = val
+                if fdg.merge
+                    for (k, val) in data
+                        if haskey(fdg.dtviewer.data["data"], k)
+                            append!(fdg.dtviewer.data["data"][k], val)
+                        else
+                            fdg.dtviewer.data["data"][k] = val
+                        end
+                    end
+                else
+                    datai = Dict{String,Vector{String}}()
+                    for (k, val) in data
+                        datai[string(i, " - ", k)] = val
+                    end
+                    merge!(fdg.dtviewer.data["data"], datai)
                 end
-                merge!(fdg.dtviewer.data["data"], datai)
             end
         end
     end
