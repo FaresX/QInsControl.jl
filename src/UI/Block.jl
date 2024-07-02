@@ -1392,7 +1392,13 @@ function view(bk::StrideCodeBlock)
             MORESTYLE.Colors.StrideCodeBlockBorder
         end
     )
-    CImGui.BeginChild("##StrideCodeBlockViewer", (Float32(0), bkheight(bk)), true)
+    wp = unsafe_load(IMGUISTYLE.WindowPadding)
+    bkh = bkheight(bk)
+    CImGui.PushStyleVar(
+        CImGui.ImGuiStyleVar_WindowPadding,
+        bk.hideblocks || isempty(skipnull(bk.blocks)) ? wp : MORESTYLE.Variables.ContainerBlockWindowPadding
+    )
+    CImGui.BeginChild("##StrideCodeBlockViewer", (Float32(0), bkh), true)
     CImGui.TextColored(
         bk.nohandler ? MORESTYLE.Colors.StrideCodeBlockBorder : MORESTYLE.Colors.BlockIcons,
         MORESTYLE.Icons.StrideCodeBlock
@@ -1403,8 +1409,10 @@ function view(bk::StrideCodeBlock)
     CImGui.Button(bk.codes, (-1, 0))
     CImGui.PopStyleVar()
     CImGui.PopStyleColor()
+    CImGui.PushStyleVar(CImGui.ImGuiStyleVar_WindowPadding, wp)
     bk.hideblocks || isempty(skipnull(bk.blocks)) || view(bk.blocks)
     CImGui.EndChild()
+    CImGui.PopStyleVar(2)
 end
 
 function view(bk::BranchBlock)
@@ -1426,7 +1434,13 @@ function view(bk::SweepBlock)
             MORESTYLE.Colors.SweepBlockBorder
         end
     )
-    CImGui.BeginChild("##SweepBlockViewer", (Float32(0), bkheight(bk)), true)
+    wp = unsafe_load(IMGUISTYLE.WindowPadding)
+    bkh = bkheight(bk)
+    CImGui.PushStyleVar(
+        CImGui.ImGuiStyleVar_WindowPadding,
+        bk.hideblocks || isempty(skipnull(bk.blocks)) ? wp : MORESTYLE.Variables.ContainerBlockWindowPadding
+    )
+    CImGui.BeginChild("##SweepBlockViewer", (Float32(0), bkh), true)
     instrnm = bk.instrnm
     addr = bk.addr
     quantity = @trypass INSCONF[bk.instrnm].quantities[bk.quantity].alias ""
@@ -1456,8 +1470,10 @@ function view(bk::SweepBlock)
     )
     CImGui.PopStyleVar()
     CImGui.PopStyleColor()
+    CImGui.PushStyleVar(CImGui.ImGuiStyleVar_WindowPadding, wp)
     bk.hideblocks || isempty(skipnull(bk.blocks)) || view(bk.blocks)
     CImGui.EndChild()
+    CImGui.PopStyleVar(2)
 end
 
 function view(bk::FreeSweepBlock)
@@ -1469,7 +1485,13 @@ function view(bk::FreeSweepBlock)
             MORESTYLE.Colors.SweepBlockBorder
         end
     )
-    CImGui.BeginChild("##FreeSweepBlockViewer", (Float32(0), bkheight(bk)), true)
+    wp = unsafe_load(IMGUISTYLE.WindowPadding)
+    bkh = bkheight(bk)
+    CImGui.PushStyleVar(
+        CImGui.ImGuiStyleVar_WindowPadding,
+        bk.hideblocks || isempty(skipnull(bk.blocks)) ? wp : MORESTYLE.Variables.ContainerBlockWindowPadding
+    )
+    CImGui.BeginChild("##FreeSweepBlockViewer", (Float32(0), bkh), true)
     instrnm = bk.instrnm
     addr = bk.addr
     quantity = @trypass INSCONF[bk.instrnm].quantities[bk.quantity].alias ""
@@ -1500,8 +1522,10 @@ function view(bk::FreeSweepBlock)
     )
     CImGui.PopStyleVar()
     CImGui.PopStyleColor()
+    CImGui.PushStyleVar(CImGui.ImGuiStyleVar_WindowPadding, wp)
     bk.hideblocks || isempty(skipnull(bk.blocks)) || view(bk.blocks)
     CImGui.EndChild()
+    CImGui.PopStyleVar(2)
 end
 
 function view(bk::SettingBlock)
