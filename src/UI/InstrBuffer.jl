@@ -530,17 +530,17 @@ function serialsettings(attr::SerialInstrAttr)
     timeoutw = Cfloat(attr.timeoutw)
     @c(CImGui.DragFloat(
         stcstr(mlstr("Write Timeout"), " (s)"), &timeoutw,
-        1, 0.1, 360, "%.1f", CImGui.ImGuiSliderFlags_AlwaysClamp)
+        1, 0.1, 360, "%.3f", CImGui.ImGuiSliderFlags_AlwaysClamp)
     ) && (attr.timeoutw = timeoutw)
     timeoutr = Cfloat(attr.timeoutr)
     @c(CImGui.DragFloat(
         stcstr(mlstr("Read Timeout"), " (s)"), &timeoutr,
-        1, 0.1, 360, "%.1f", CImGui.ImGuiSliderFlags_AlwaysClamp)
+        1, 0.1, 360, "%.3f", CImGui.ImGuiSliderFlags_AlwaysClamp)
     ) && (attr.timeoutr = timeoutr)
     querydelay = Cfloat(attr.querydelay)
     @c(CImGui.DragFloat(
         stcstr(mlstr("Query Delay"), " (s)"), &querydelay,
-        1, 0, 360, "%.1f", CImGui.ImGuiSliderFlags_AlwaysClamp)
+        1, 0, 360, "%.3f", CImGui.ImGuiSliderFlags_AlwaysClamp)
     ) && (attr.querydelay = querydelay)
     termchar = TERMCHARDICTINV[attr.termchar]
     @c(ComboS(mlstr("Termination Character"), &termchar, keys(TERMCHARDICT))) && (attr.termchar = TERMCHARDICT[termchar])
@@ -549,17 +549,17 @@ function tcpipsettings(attr::TCPSocketInstrAttr)
     timeoutw = Cfloat(attr.timeoutw)
     @c(CImGui.DragFloat(
         stcstr(mlstr("Write Timeout"), " (s)"), &timeoutw,
-        1, 0.1, 360, "%.1f", CImGui.ImGuiSliderFlags_AlwaysClamp)
+        1, 0.1, 360, "%.3f", CImGui.ImGuiSliderFlags_AlwaysClamp)
     ) && (attr.timeoutw = timeoutw)
     timeoutr = Cfloat(attr.timeoutr)
     @c(CImGui.DragFloat(
         stcstr(mlstr("Read Timeout"), " (s)"), &timeoutr,
-        1, 0.1, 360, "%.1f", CImGui.ImGuiSliderFlags_AlwaysClamp)
+        1, 0.1, 360, "%.3f", CImGui.ImGuiSliderFlags_AlwaysClamp)
     ) && (attr.timeoutr = timeoutr)
     querydelay = Cfloat(attr.querydelay)
     @c(CImGui.DragFloat(
         stcstr(mlstr("Query Delay"), " (s)"), &querydelay,
-        1, 0, 360, "%.1f", CImGui.ImGuiSliderFlags_AlwaysClamp)
+        1, 0, 360, "%.3f", CImGui.ImGuiSliderFlags_AlwaysClamp)
     ) && (attr.querydelay = querydelay)
     termchar = TERMCHARDICTINV[attr.termchar]
     @c(ComboS(mlstr("Termination Character"), &termchar, keys(TERMCHARDICT))) && (attr.termchar = TERMCHARDICT[termchar])
@@ -568,7 +568,7 @@ function virtualsettings(attr::VirtualInstrAttr)
     querydelay = Cfloat(attr.querydelay)
     @c(CImGui.DragFloat(
         stcstr(mlstr("Query Delay"), " (s)"), &querydelay,
-        1, 0, 360, "%.1f", CImGui.ImGuiSliderFlags_AlwaysClamp)
+        1, 0, 360, "%.3f", CImGui.ImGuiSliderFlags_AlwaysClamp)
     ) && (attr.querydelay = querydelay)
     termchar = TERMCHARDICTINV[attr.termchar]
     @c(ComboS(mlstr("Termination Character"), &termchar, keys(TERMCHARDICT))) && (attr.termchar = TERMCHARDICT[termchar])
@@ -588,7 +588,7 @@ function visasettings(attr::VISAInstrAttr)
     querydelay = Cfloat(attr.querydelay)
     @c(CImGui.DragFloat(
         stcstr(mlstr("Query Delay"), " (s)"), &querydelay,
-        1, 0, 360, "%.1f", CImGui.ImGuiSliderFlags_AlwaysClamp)
+        1, 0, 360, "%.3f", CImGui.ImGuiSliderFlags_AlwaysClamp)
     ) && (attr.querydelay = querydelay)
     termchar = TERMCHARDICTINV[attr.termchar]
     @c(ComboS(mlstr("Termination Character"), &termchar, keys(TERMCHARDICT))) && (attr.termchar = TERMCHARDICT[termchar])
