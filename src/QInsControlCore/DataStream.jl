@@ -143,6 +143,21 @@ log all the Controllers that control the instrument with address addr out the Pr
 function logout!(cpu::Processor, ct::Controller; quiet=true)
     lock(cpu.lock) do
         if ct in cpu.controllers
+            if ct.instrnm == "" && ct.addr ∉ [c.addr for c in cpu.controllers if c != ct]
+                instr = cpu.instrs[ct.addr]
+                if cpu.running[]
+                    cpu.taskhandlers[instr.addr] = false
+                    try
+                        haskey(cpu.tasks, instr.addr) && wait(cpu.tasks[instr.addr])
+                    catch e
+                        @error "an error occurs during logging out" exception = e
+                    end
+                    delete!(cpu.taskhandlers, instr.addr)
+                    delete!(cpu.tasks, instr.addr)
+                    delete!(cpu.exechannels, instr.addr)
+                    disconnect!(pop!(cpu.instrs, ct.addr))
+                end
+            end
             idx = findfirst(==(ct), cpu.controllers)
             deleteat!(cpu.controllers, idx)
             quiet || @info "controller $idx has logged out"
@@ -151,23 +166,26 @@ function logout!(cpu::Processor, ct::Controller; quiet=true)
     return nothing
 end
 function logout!(cpu::Processor, addr::String; quiet=true)
-    for ct in cpu.controllers
-        ct.addr == addr && logout!(cpu, ct; quiet=quiet)
-    end
-    popinstr = pop!(cpu.instrs, addr)
-    if cpu.running[]
-        cpu.taskhandlers[popinstr.addr] = false
-        try
-            haskey(cpu.tasks, popinstr.addr) && wait(cpu.tasks[popinstr.addr])
-        catch e
-            @error "an error occurs during logging out" exception = e
+    lock(cpu.lock) do
+        for ct in cpu.controllers
+            ct.addr == addr && logout!(cpu, ct; quiet=quiet)
         end
-        delete!(cpu.taskhandlers, popinstr.addr)
-        delete!(cpu.tasks, popinstr.addr)
-        delete!(cpu.exechannels, popinstr.addr)
-        disconnect!(popinstr)
+        instr = cpu.instrs[addr]
+        if cpu.running[]
+            cpu.taskhandlers[instr.addr] = false
+            try
+                haskey(cpu.tasks, instr.addr) && wait(cpu.tasks[instr.addr])
+            catch e
+                @error "an error occurs during logging out" exception = e
+            end
+            delete!(cpu.taskhandlers, instr.addr)
+            delete!(cpu.tasks, instr.addr)
+            delete!(cpu.exechannels, instr.addr)
+            disconnect!(pop!(cpu.instrs, addr))
+        end
+        @warn "instrument $(addr) has been logged out"
     end
-    @warn "instrument $(addr) has been logged out"
+    return nothing
 end
 
 function (ct::Controller)(f::Function, cpu::Processor, val::String, ::Val{:write})
