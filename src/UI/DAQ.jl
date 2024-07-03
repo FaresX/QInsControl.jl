@@ -28,7 +28,7 @@ let
         CImGui.PushStyleColor(CImGui.ImGuiCol_Button, (0, 0, 0, 0))
         if SYNCSTATES[Int(IsBlocked)]
             CImGui.PushStyleColor(CImGui.ImGuiCol_Button, MORESTYLE.Colors.ControlButtonPause)
-            if CImGui.Button(stcstr(MORESTYLE.Icons.RunTask, "##", mlstr("Continue")), (btwidth, btheight))
+            if CImGui.Button(stcstr(MORESTYLE.Icons.RunTask, "##Continue"), (btwidth, btheight))
                 SYNCSTATES[Int(IsBlocked)] = false
                 remote_do(workers()[1]) do
                     lock(() -> notify(BLOCK), BLOCK)
@@ -36,12 +36,12 @@ let
             end
             CImGui.PopStyleColor()
         else
-            if CImGui.Button(stcstr(MORESTYLE.Icons.BlockTask, "##", mlstr("Pause")), (btwidth, btheight))
+            if CImGui.Button(stcstr(MORESTYLE.Icons.BlockTask, "##Pause"), (btwidth, btheight))
                 SYNCSTATES[Int(IsDAQTaskRunning)] && (SYNCSTATES[Int(IsBlocked)] = true)
             end
         end
         # CImGui.SameLine()
-        if CImGui.Button(stcstr(MORESTYLE.Icons.InterruptTask, "##", mlstr("Interrupt")), (btwidth, btheight))
+        if CImGui.Button(stcstr(MORESTYLE.Icons.InterruptTask, "##Interrupt"), (btwidth, btheight))
             if SYNCSTATES[Int(IsDAQTaskRunning)]
                 SYNCSTATES[Int(IsInterrupted)] = true
                 if SYNCSTATES[Int(IsBlocked)]
@@ -52,6 +52,14 @@ let
                 end
             end
         end
+        CImGui.PushStyleColor(
+            CImGui.ImGuiCol_Button,
+            SYNCSTATES[Int(IsAutoRefreshing)] ? MORESTYLE.Colors.DAQTaskRunning : CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_Button)
+        )
+        if CImGui.Button(stcstr(MORESTYLE.Icons.InstrumentsAutoRef, "##autorefresh"), (btwidth, btheight))
+            SYNCSTATES[Int(IsAutoRefreshing)] ⊻= true
+        end
+        CImGui.PopStyleColor()
         CImGui.Button(
             stcstr(MORESTYLE.Icons.Circuit, "##circuit"),
             (btwidth, btheight)
