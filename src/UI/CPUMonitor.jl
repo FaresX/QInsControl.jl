@@ -38,9 +38,6 @@ function CPUMonitor()
     CImGui.Spacing()
     SeparatorTextColored(MORESTYLE.Colors.HighlightText, mlstr("Controllers"))
     CImGui.Indent()
-    CImGui.Button(
-        stcstr(MORESTYLE.Icons.InstrumentsManualRef, " ", mlstr("Reconnect"))
-    ) && remotecall_wait(() -> reconnect!(CPU), workers()[1])
     if isempty(cpuinfo[:instrs])
         CImGui.TextDisabled(stcstr("(", mlstr("Null"), ")"))
     else
@@ -55,54 +52,55 @@ function CPUMonitor()
             haskey(instrtocontrollers[ins], addr) || (instrtocontrollers[ins][addr] = [])
         end
         for (ins, inses) in instrtocontrollers
-            CImGui.TextColored(MORESTYLE.Colors.HighlightText, stcstr(mlstr("Instrument"), " ", mlstr(": "), ins))
-            CImGui.Indent()
-            for (addr, cts) in inses
-                CImGui.Text(addr)
-                CImGui.SameLine()
-                CImGui.TextColored(
-                    cpuinfo[:isconnected][addr] ? MORESTYLE.Colors.LogInfo : MORESTYLE.Colors.LogError,
-                    mlstr(cpuinfo[:isconnected][addr] ? "Connected" : "Unconnected")
-                )
-                CImGui.SameLine()
-                CImGui.Button(mlstr("Log Out")) && remotecall_wait(addr -> logout!(CPU, addr), workers()[1], addr)
-                CImGui.Text(stcstr(mlstr("Status"), mlstr(": ")))
-                CImGui.SameLine()
-                CImGui.TextColored(
-                    cpuinfo[:taskhandlers][addr] ? MORESTYLE.Colors.LogInfo : MORESTYLE.Colors.LogError,
-                    mlstr(cpuinfo[:taskhandlers][addr] ? "Running" : "Stopped")
-                )
-                CImGui.SameLine()
-                CImGui.TextColored(
-                    cpuinfo[:tasksfailed][addr] ? MORESTYLE.Colors.LogError : MORESTYLE.Colors.LogInfo,
-                    mlstr(cpuinfo[:tasksfailed][addr] ? "Failed" : "Well")
-                )
-                CImGui.Indent()
-                for ct in cts
-                    idx = findfirst(==(ct), cpuinfo[:controllers])
-                    CImGui.Text(stcstr(mlstr("Controller"), " ", idx))
-                    @cstatic cols::Cint = 2 begin
-                        CImGui.PushItemWidth(6CImGui.GetFontSize())
-                        @c CImGui.DragInt(mlstr("Buffer"), &cols, 1, 1, 64, "%d", CImGui.ImGuiSliderFlags_AlwaysClamp)
-                        CImGui.PopItemWidth()
-                        CImGui.BeginTable(stcstr("Controller", idx), cols, CImGui.ImGuiTableFlags_Borders)
-                        for idxes in Iterators.partition(eachindex(ct.databuf), cols)
-                            CImGui.TableNextRow()
-                            for i in idxes
-                                CImGui.TableSetColumnIndex((i - 1) % cols)
-                                CImGui.Text(ct.databuf[i])
-                                ct.available[i] || CImGui.TableSetBgColor(
-                                    CImGui.ImGuiTableBgTarget_CellBg,
-                                    CImGui.ColorConvertFloat4ToU32(MORESTYLE.Colors.LogError)
-                                )
+            if CImGui.TreeNode(ins)
+                for (addr, cts) in inses
+                    if CImGui.TreeNode(addr)
+                        CImGui.TextColored(
+                            cpuinfo[:isconnected][addr] ? MORESTYLE.Colors.LogInfo : MORESTYLE.Colors.LogError,
+                            mlstr(cpuinfo[:isconnected][addr] ? "Connected" : "Unconnected")
+                        )
+                        CImGui.SameLine()
+                        igBeginDisabled(SYNCSTATES[Int(IsDAQTaskRunning)])
+                        CImGui.Button(mlstr("Log Out")) && remotecall_wait(addr -> logout!(CPU, addr), workers()[1], addr)
+                        igEndDisabled()
+                        CImGui.Text(stcstr(mlstr("Status"), mlstr(": ")))
+                        CImGui.SameLine()
+                        CImGui.TextColored(
+                            cpuinfo[:taskhandlers][addr] ? MORESTYLE.Colors.LogInfo : MORESTYLE.Colors.LogError,
+                            mlstr(cpuinfo[:taskhandlers][addr] ? "Running" : "Stopped")
+                        )
+                        CImGui.SameLine()
+                        CImGui.TextColored(
+                            cpuinfo[:tasksfailed][addr] ? MORESTYLE.Colors.LogError : MORESTYLE.Colors.LogInfo,
+                            mlstr(cpuinfo[:tasksfailed][addr] ? "Failed" : "Well")
+                        )
+                        for ct in cts
+                            idx = findfirst(==(ct), cpuinfo[:controllers])
+                            CImGui.BulletText(stcstr(mlstr("Controller"), " ", idx))
+                            @cstatic cols::Cint = 2 begin
+                                CImGui.PushItemWidth(6CImGui.GetFontSize())
+                                @c CImGui.DragInt(mlstr("Buffer"), &cols, 1, 1, 64, "%d", CImGui.ImGuiSliderFlags_AlwaysClamp)
+                                CImGui.PopItemWidth()
+                                CImGui.BeginTable(stcstr("Controller", idx), cols, CImGui.ImGuiTableFlags_Borders)
+                                for idxes in Iterators.partition(eachindex(ct.databuf), cols)
+                                    CImGui.TableNextRow()
+                                    for i in idxes
+                                        CImGui.TableSetColumnIndex((i - 1) % cols)
+                                        CImGui.Text(ct.databuf[i])
+                                        ct.available[i] || CImGui.TableSetBgColor(
+                                            CImGui.ImGuiTableBgTarget_CellBg,
+                                            CImGui.ColorConvertFloat4ToU32(MORESTYLE.Colors.LogError)
+                                        )
+                                    end
+                                end
+                                CImGui.EndTable()
                             end
                         end
-                        CImGui.EndTable()
+                        CImGui.TreePop()
                     end
                 end
-                CImGui.Unindent()
+                CImGui.TreePop()
             end
-            CImGui.Unindent()
         end
     end
     CImGui.Unindent()
