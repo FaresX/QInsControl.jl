@@ -276,6 +276,7 @@ let
                                         ins != "VirtualInstr" && !SYNCSTATES[Int(IsDAQTaskRunning)]
                                     )
                                         delete!(INSTRBUFFERVIEWERS[ins], addr)
+                                        remotecall_fetch(addr -> logout!(CPU, addr), workers()[1], addr)
                                     end
                                     if CImGui.BeginMenu(
                                         stcstr(MORESTYLE.Icons.NewFile, " ", mlstr("Add to")),

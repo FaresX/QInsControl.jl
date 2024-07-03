@@ -6,6 +6,7 @@ function CPUMonitor()
                 :taskfailed => istaskfailed(CPU.processtask[]),
                 :fast => CPU.fast[],
                 :resourcemanager => CPU.resourcemanager[],
+                :instrs => Dict(ins.addr => ins.name for ins in values(CPU.instrs)),
                 :isconnected => Dict(addr => QInsControlCore.isconnected(instr) for (addr, instr) in CPU.instrs),
                 :controllers => CPU.controllers,
                 :taskhandlers => CPU.taskhandlers,
@@ -40,7 +41,7 @@ function CPUMonitor()
     CImGui.Button(
         stcstr(MORESTYLE.Icons.InstrumentsManualRef, " ", mlstr("Reconnect"))
     ) && remotecall_wait(() -> reconnect!(CPU), workers()[1])
-    if isempty(cpuinfo[:controllers])
+    if isempty(cpuinfo[:instrs])
         CImGui.TextDisabled(stcstr("(", mlstr("Null"), ")"))
     else
         instrtocontrollers = Dict()
@@ -48,6 +49,10 @@ function CPUMonitor()
             haskey(instrtocontrollers, ct.instrnm) || (instrtocontrollers[ct.instrnm] = Dict())
             haskey(instrtocontrollers[ct.instrnm], ct.addr) || (instrtocontrollers[ct.instrnm][ct.addr] = [])
             push!(instrtocontrollers[ct.instrnm][ct.addr], ct)
+        end
+        for (addr, ins) in cpuinfo[:instrs]
+            haskey(instrtocontrollers, ins) || (instrtocontrollers[ins] = Dict())
+            haskey(instrtocontrollers[ins], addr) || (instrtocontrollers[ins][addr] = [])
         end
         for (ins, inses) in instrtocontrollers
             CImGui.TextColored(MORESTYLE.Colors.HighlightText, stcstr(mlstr("Instrument"), " ", mlstr(": "), ins))
@@ -59,6 +64,8 @@ function CPUMonitor()
                     cpuinfo[:isconnected][addr] ? MORESTYLE.Colors.LogInfo : MORESTYLE.Colors.LogError,
                     mlstr(cpuinfo[:isconnected][addr] ? "Connected" : "Unconnected")
                 )
+                CImGui.SameLine()
+                CImGui.Button(mlstr("Log Out")) && remotecall_wait(addr -> logout!(CPU, addr), workers()[1], addr)
                 CImGui.Text(stcstr(mlstr("Status"), mlstr(": ")))
                 CImGui.SameLine()
                 CImGui.TextColored(
