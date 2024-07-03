@@ -611,6 +611,7 @@ let
             bk.hideblocks || isempty(skipnull(bk.blocks)) ? wp : MORESTYLE.Variables.ContainerBlockWindowPadding
         )
         CImGui.BeginChild("##SweepBlock", (Float32(0), bkh), true)
+        CImGui.PopStyleVar()
         CImGui.TextColored(
             bk.istrycatch ? MORESTYLE.Colors.BlockTrycatch : MORESTYLE.Colors.BlockIcons,
             MORESTYLE.Icons.SweepBlock
@@ -684,7 +685,7 @@ let
         CImGui.PushStyleVar(CImGui.ImGuiStyleVar_WindowPadding, wp)
         bk.hideblocks || isempty(skipnull(bk.blocks)) || edit(bk.blocks, bk.level + 1)
         CImGui.EndChild()
-        CImGui.PopStyleVar(3)
+        CImGui.PopStyleVar(2)
     end
 end
 
@@ -707,6 +708,7 @@ let
             bk.hideblocks || isempty(skipnull(bk.blocks)) ? wp : MORESTYLE.Variables.ContainerBlockWindowPadding
         )
         CImGui.BeginChild("##FreeSweepBlock", (Float32(0), bkh), true)
+        CImGui.PopStyleVar()
         CImGui.TextColored(
             bk.istrycatch ? MORESTYLE.Colors.BlockTrycatch : MORESTYLE.Colors.BlockIcons,
             MORESTYLE.Icons.FreeSweepBlock
@@ -780,7 +782,7 @@ let
         CImGui.PushStyleVar(CImGui.ImGuiStyleVar_WindowPadding, wp)
         bk.hideblocks || isempty(skipnull(bk.blocks)) || edit(bk.blocks, bk.level + 1)
         CImGui.EndChild()
-        CImGui.PopStyleVar(3)
+        CImGui.PopStyleVar(2)
     end
 end
 
