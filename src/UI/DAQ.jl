@@ -27,7 +27,7 @@ let
         btheight = 2ftsz
         CImGui.PushStyleColor(CImGui.ImGuiCol_Button, (0, 0, 0, 0))
         if SYNCSTATES[Int(IsBlocked)]
-            CImGui.PushStyleColor(CImGui.ImGuiCol_Button, MORESTYLE.Colors.ControlButtonPause)
+            CImGui.PushStyleColor(CImGui.ImGuiCol_Text, MORESTYLE.Colors.ControlButtonPause)
             if CImGui.Button(stcstr(MORESTYLE.Icons.RunTask, "##Continue"), (btwidth, btheight))
                 SYNCSTATES[Int(IsBlocked)] = false
                 remote_do(workers()[1]) do
@@ -53,8 +53,8 @@ let
             end
         end
         CImGui.PushStyleColor(
-            CImGui.ImGuiCol_Button,
-            SYNCSTATES[Int(IsAutoRefreshing)] ? MORESTYLE.Colors.DAQTaskRunning : CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_Button)
+            CImGui.ImGuiCol_Text,
+            SYNCSTATES[Int(IsAutoRefreshing)] ? MORESTYLE.Colors.DAQTaskRunning : CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_Text)
         )
         if CImGui.Button(stcstr(MORESTYLE.Icons.InstrumentsAutoRef, "##autorefresh"), (btwidth, btheight))
             SYNCSTATES[Int(IsAutoRefreshing)] ⊻= true
