@@ -170,20 +170,22 @@ function logout!(cpu::Processor, addr::String; quiet=true)
         for ct in cpu.controllers
             ct.addr == addr && logout!(cpu, ct; quiet=quiet)
         end
-        instr = cpu.instrs[addr]
-        if cpu.running[]
-            cpu.taskhandlers[instr.addr] = false
-            try
-                haskey(cpu.tasks, instr.addr) && wait(cpu.tasks[instr.addr])
-            catch e
-                @error "an error occurs during logging out" exception = e
+        if haskey(cpu.instrs, addr)
+            instr = cpu.instrs[addr]
+            if cpu.running[]
+                cpu.taskhandlers[instr.addr] = false
+                try
+                    haskey(cpu.tasks, instr.addr) && wait(cpu.tasks[instr.addr])
+                catch e
+                    @error "an error occurs during logging out" exception = e
+                end
+                delete!(cpu.taskhandlers, instr.addr)
+                delete!(cpu.tasks, instr.addr)
+                delete!(cpu.exechannels, instr.addr)
+                disconnect!(pop!(cpu.instrs, addr))
             end
-            delete!(cpu.taskhandlers, instr.addr)
-            delete!(cpu.tasks, instr.addr)
-            delete!(cpu.exechannels, instr.addr)
-            disconnect!(pop!(cpu.instrs, addr))
+            @warn "instrument $(addr) has been logged out"
         end
-        @warn "instrument $(addr) has been logged out"
     end
     return nothing
 end
