@@ -206,7 +206,7 @@ function (ct::Controller)(f::Function, cpu::Processor, val::String, ::Val{:write
     push!(cpu.cmdchannel, (ct, i, f, val, Val(:write)))
     isok = timedwhile(() -> ct.ready[i], ct.timeout)
     ct.available[i] = true
-    return isok ? ct.databuf[i] : error("timeout")
+    return isok ? ct.databuf[i] : error("write timeout")
 end
 function (ct::Controller)(f::Function, cpu::Processor, ::Val{:read})
     @assert ct in cpu.controllers "Controller is not logged in"
@@ -224,7 +224,7 @@ function (ct::Controller)(f::Function, cpu::Processor, ::Val{:read})
     push!(cpu.cmdchannel, (ct, i, f, "", Val(:read)))
     isok = timedwhile(() -> ct.ready[i], ct.timeout)
     ct.available[i] = true
-    return isok ? ct.databuf[i] : error("timeout")
+    return isok ? ct.databuf[i] : error("read timeout")
 end
 function (ct::Controller)(f::Function, cpu::Processor, val::String, ::Val{:query})
     @assert ct in cpu.controllers "Controller is not logged in"
@@ -242,7 +242,7 @@ function (ct::Controller)(f::Function, cpu::Processor, val::String, ::Val{:query
     push!(cpu.cmdchannel, (ct, i, f, val, Val(:query)))
     isok = timedwhile(() -> ct.ready[i], ct.timeout)
     ct.available[i] = true
-    return isok ? ct.databuf[i] : error("timeout")
+    return isok ? ct.databuf[i] : error("query timeout")
 end
 
 function runcmd(cpu::Processor, ct::Controller, i::Int, f::Function, val::String, ::Val{:write})
