@@ -215,15 +215,17 @@ Base.read(::VirtualInstr) = "read"
 
 query the instrument with some message string.
 """
-function _query_(instr::Instrument, msg::AbstractString)
+function _query_(instr::Instrument, msg::AbstractString; delay=0)
     write(instr, msg)
-    instr.attr.querydelay < 0.001 || sleep(instr.attr.querydelay)
+    delay < 0.001 || sleep(delay)
     read(instr)
 end
-query(instr::VISAInstr, msg::AbstractString) = (instr.attr.async ? queryasync(instr.handle, msg) : _query_(instr, msg))
-query(instr::SerialInstr, msg::AbstractString) = _query_(instr, msg)
-query(instr::TCPSocketInstr, msg::AbstractString) = _query_(instr, msg)
-query(::VirtualInstr, ::AbstractString) = "query"
+function query(instr::VISAInstr, msg::AbstractString; delay=instr.attr.querydelay)
+    instr.attr.async ? queryasync(instr.handle, msg; delay=delay) : _query_(instr, msg; delay=delay)
+end
+query(instr::SerialInstr, msg::AbstractString; delay=instr.attr.querydelay) = _query_(instr, msg; delay=delay)
+query(instr::TCPSocketInstr, msg::AbstractString; delay=instr.attr.querydelay) = _query_(instr, msg; delay=delay)
+query(::VirtualInstr, ::AbstractString; delay=0) = "query"
 
 """
     isconnected(instr)
