@@ -689,7 +689,7 @@ let
             else
                 MORESTYLE.Colors.LogError
             end
-        ) && getread!(qt, instrnm, addr)
+        ) && Threads.@spawn @trycatch mlstr("reading task failed!!!") getread!(qt, instrnm, addr)
         if qt.issweeping
             rmin = CImGui.GetItemRectMin()
             rsz = CImGui.GetItemRectSize()
@@ -794,7 +794,7 @@ let
             else
                 MORESTYLE.Colors.LogError
             end
-        ) && getread!(qt, instrnm, addr)
+        ) && Threads.@spawn @trycatch mlstr("reading task failed!!!") getread!(qt, instrnm, addr)
         # CImGui.PopFont()
         CImGui.PopStyleColor(2)
         if CONF.InsBuf.showhelp && CImGui.IsItemHovered() && qt.help != ""
@@ -888,7 +888,7 @@ let
             else
                 MORESTYLE.Colors.LogError
             end
-        ) && getread!(qt, instrnm, addr)
+        ) && Threads.@spawn @trycatch mlstr("reading task failed!!!") getread!(qt, instrnm, addr)
         # CImGui.PopFont()
         CImGui.PopStyleColor(2)
         if CONF.InsBuf.showhelp && CImGui.IsItemHovered() && qt.help != ""
@@ -1094,35 +1094,33 @@ function apply!(qt::SetQuantity, instrnm, addr, byoptvalues=false)
     sv = (U == "" || byoptvalues) ? qt.set : @trypasse string(float(eval(Meta.parse(qt.set)) * Uchange)) qt.set
     sv = string(lstrip(rstrip(sv)))
     if byoptvalues || (U == "" && sv != "") || !isnothing(tryparse(Float64, sv))
-        Threads.@spawn @trycatch mlstr("setting task failed!!!") begin
-            @info "[$(now())]\nBefore setting" instrument = instrnm address = addr quantity = qt
-            actionidx = 1
-            SYNCSTATES[Int(IsDAQTaskRunning)] && (actionidx = logaction(qt, instrnm, addr))
-            fetchdata = wait_remotecall_fetch(workers()[1], instrnm, addr, sv) do instrnm, addr, sv
-                ct = Controller(instrnm, addr; buflen=CONF.DAQ.ctbuflen, timeout=CONF.DAQ.cttimeout)
-                try
-                    setfunc = Symbol(instrnm, :_, qt.name, :_set) |> eval
-                    getfunc = Symbol(instrnm, :_, qt.name, :_get) |> eval
-                    login!(CPU, ct; attr=getattr(addr))
-                    ct(setfunc, CPU, sv, Val(:write))
-                    readstr = ct(getfunc, CPU, Val(:read))
-                    logout!(CPU, ct)
-                    return readstr
-                catch e
-                    @error(
-                        "[$(now())]\n$(mlstr("instrument communication failed!!!"))",
-                        instrument = string(instrnm, ": ", addr),
-                        quantity = qt.name,
-                        exception = e
-                    )
-                    showbacktrace()
-                    logout!(CPU, ct)
-                end
+        @info "[$(now())]\nBefore setting" instrument = instrnm address = addr quantity = qt
+        actionidx = 1
+        SYNCSTATES[Int(IsDAQTaskRunning)] && (actionidx = logaction(qt, instrnm, addr))
+        fetchdata = wait_remotecall_fetch(workers()[1], instrnm, addr, sv) do instrnm, addr, sv
+            ct = Controller(instrnm, addr; buflen=CONF.DAQ.ctbuflen, timeout=CONF.DAQ.cttimeout)
+            try
+                setfunc = Symbol(instrnm, :_, qt.name, :_set) |> eval
+                getfunc = Symbol(instrnm, :_, qt.name, :_get) |> eval
+                login!(CPU, ct; attr=getattr(addr))
+                ct(setfunc, CPU, sv, Val(:write))
+                readstr = ct(getfunc, CPU, Val(:read))
+                logout!(CPU, ct)
+                return readstr
+            catch e
+                @error(
+                    "[$(now())]\n$(mlstr("instrument communication failed!!!"))",
+                    instrument = string(instrnm, ": ", addr),
+                    quantity = qt.name,
+                    exception = e
+                )
+                showbacktrace()
+                logout!(CPU, ct)
             end
-            isnothing(fetchdata) || (qt.read = fetchdata; sendtoupdatefront(qt))
-            @info "[$(now())]\nAfter setting" instrument = instrnm address = addr quantity = qt
-            SYNCSTATES[Int(IsDAQTaskRunning)] && logaction(qt, instrnm, addr, actionidx)
         end
+        isnothing(fetchdata) || (qt.read = fetchdata; sendtoupdatefront(qt))
+        @info "[$(now())]\nAfter setting" instrument = instrnm address = addr quantity = qt
+        SYNCSTATES[Int(IsDAQTaskRunning)] && logaction(qt, instrnm, addr, actionidx)
     else
         @warn "[$(now())]\n$(mlstr("invalid inputs!"))"
     end
@@ -1223,11 +1221,9 @@ end
 
 function getread!(qt::AbstractQuantity, instrnm, addr)
     if qt.enable && addr != ""
-        Threads.@spawn @trycatch mlstr("task failed!!!") begin
-            fetchdata = refresh_qt(instrnm, addr, qt.name)
-            isnothing(fetchdata) || (qt.read = fetchdata)
-            sendtoupdatefront(qt)
-        end
+        fetchdata = refresh_qt(instrnm, addr, qt.name)
+        isnothing(fetchdata) || (qt.read = fetchdata)
+        sendtoupdatefront(qt)
     end
 end
 
