@@ -438,7 +438,9 @@ macro gentrycatch(instrnm, addr, cmd, len=0)
         quote
             let
                 state, getval = counter(CONF.DAQ.retryconnecttimes) do tout
+                    @gencontroller mlstr("retry connecting to instrument") string($instrnm, " ", $addr)
                     state, getval = counter(CONF.DAQ.retrysendtimes) do tin
+                        @gencontroller mlstr("retry sending command") string($instrnm, " ", $addr)
                         try
                             getval = $cmd
                             return true, getval
@@ -461,7 +463,7 @@ macro gentrycatch(instrnm, addr, cmd, len=0)
                             connect!(CPU.resourcemanager, CPU.instrs[$addr])
                         catch
                         end
-                        @warn stcstr("[", now(), "]\n", mlstr("retry reconnecting instrument"), " ", tout)
+                        @warn stcstr("[", now(), "]\n", mlstr("retry reconnecting to instrument"), " ", tout)
                         return false, $(len == 0 ? "" : fill("", len))
                     end
                 end
