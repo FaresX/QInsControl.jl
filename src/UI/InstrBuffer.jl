@@ -98,7 +98,7 @@ end
 function Base.show(io::IO, qt::SetQuantity)
     updatefront!(qt)
     str = """
-    SweepQuantity :
+    SetQuantity :
                 name : $(qt.name)
                alias : $(qt.alias)
                  set : $(qt.set)
@@ -111,7 +111,7 @@ end
 function Base.show(io::IO, qt::ReadQuantity)
     updatefront!(qt)
     str = """
-    SweepQuantity :
+    ReadQuantity :
                 name : $(qt.name)
                alias : $(qt.alias)
                 read : $(join(qt.showval, qt.separator)) $(qt.showU)
@@ -689,7 +689,7 @@ let
             else
                 MORESTYLE.Colors.LogError
             end
-        ) && getread(qt, instrnm, addr)
+        ) && getread!(qt, instrnm, addr)
         if qt.issweeping
             rmin = CImGui.GetItemRectMin()
             rsz = CImGui.GetItemRectSize()
@@ -794,7 +794,7 @@ let
             else
                 MORESTYLE.Colors.LogError
             end
-        ) && getread(qt, instrnm, addr)
+        ) && getread!(qt, instrnm, addr)
         # CImGui.PopFont()
         CImGui.PopStyleColor(2)
         if CONF.InsBuf.showhelp && CImGui.IsItemHovered() && qt.help != ""
@@ -888,7 +888,7 @@ let
             else
                 MORESTYLE.Colors.LogError
             end
-        ) && getread(qt, instrnm, addr)
+        ) && getread!(qt, instrnm, addr)
         # CImGui.PopFont()
         CImGui.PopStyleColor(2)
         if CONF.InsBuf.showhelp && CImGui.IsItemHovered() && qt.help != ""
@@ -1119,7 +1119,7 @@ function apply!(qt::SetQuantity, instrnm, addr, byoptvalues=false)
                     logout!(CPU, ct)
                 end
             end
-            isnothing(fetchdata) || (qt.read = fetchdata; updatefront!(qt))
+            isnothing(fetchdata) || (qt.read = fetchdata; sendtoupdatefront(qt))
             @info "[$(now())]\nAfter setting" instrument = instrnm address = addr quantity = qt
             SYNCSTATES[Int(IsDAQTaskRunning)] && logaction(qt, instrnm, addr, actionidx)
         end
@@ -1221,7 +1221,7 @@ function resolveunitlist(qt::AbstractQuantity, instrnm, addr)
     unitlist[qt.name] != qt.uindex && (unitlist[qt.name] = qt.uindex; saveconf())
 end
 
-function getread(qt::AbstractQuantity, instrnm, addr)
+function getread!(qt::AbstractQuantity, instrnm, addr)
     if qt.enable && addr != ""
         Threads.@spawn @trycatch mlstr("task failed!!!") begin
             fetchdata = refresh_qt(instrnm, addr, qt.name)
