@@ -4,7 +4,7 @@ let
     showinfo::Bool = true
     showwarn::Bool = true
     showerror::Bool = true
-    showstacktrace::Bool = true
+    showstacktrace::Bool = false
     global function LogWindow(p_open::Ref)
         # CImGui.SetNextWindowPos((100, 100), CImGui.ImGuiCond_Once)
         CImGui.SetNextWindowSize((800, 600), CImGui.ImGuiCond_Once)

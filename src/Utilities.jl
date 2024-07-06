@@ -29,6 +29,19 @@ macro trypass(sv, default)
     end
     esc(ex)
 end
+showbacktrace() = (Base.show_backtrace(LOGIO, catch_backtrace()); println(LOGIO, "\n\r"))
+macro trycatch(msg, ex)
+    esc(
+        quote
+            try
+                $ex
+            catch e
+                @error string("[", now(), "]\n", $msg) exception = e
+                showbacktrace()
+            end
+        end
+    )
+end
 
 function parsedollar(str)
     ms = collect(eachmatch(r"(\$\w*)", str))
@@ -439,18 +452,4 @@ function resizefill!(sv::Vector{String}, n; fillv="")
     for i in eachindex(sv)
         isassigned(sv, i) || (sv[i] = fillv)
     end
-end
-
-showbacktrace() = (Base.show_backtrace(LOGIO, catch_backtrace()); println(LOGIO, "\n\r"))
-macro trycatch(msg, ex)
-    esc(
-        quote
-            try
-                $ex
-            catch e
-                @error string("[", now(), "]\n", $msg) exception = e
-                showbacktrace()
-            end
-        end
-    )
 end
