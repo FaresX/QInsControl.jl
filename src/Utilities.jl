@@ -333,7 +333,7 @@ end
 
 function wait_remotecall_fetch(f, id::Integer, args...; timeout=2, pollint=0.001, kwargs...)
     future = remotecall_fetch(f, id, args...; kwargs...)
-    waittask = errormonitor(@async fetch(future))
+    waittask = @async @trycatch mlstr("fetch task failed!!!") fetch(future)
     isok = timedwait(() -> istaskdone(waittask), timeout; pollint=pollint)
     isok == :ok && return fetch(waittask)
     return nothing
