@@ -52,9 +52,17 @@ function CPUMonitor()
             haskey(instrtocontrollers[ins], addr) || (instrtocontrollers[ins][addr] = [])
         end
         for (ins, inses) in instrtocontrollers
-            if CImGui.TreeNode(ins)
+            hasct = !isempty(inses) && (|)(.!isempty.(values(inses))...)
+            hasct && CImGui.PushStyleColor(CImGui.ImGuiCol_Text, MORESTYLE.Colors.DAQTaskRunning)
+            insnode = CImGui.TreeNode(ins)
+            hasct && CImGui.PopStyleColor()
+            if insnode
                 for (addr, cts) in inses
-                    if CImGui.TreeNode(addr)
+                    hasct = !isempty(cts)
+                    hasct && CImGui.PushStyleColor(CImGui.ImGuiCol_Text, MORESTYLE.Colors.DAQTaskRunning)
+                    addrnode = CImGui.TreeNode(addr)
+                    hasct && CImGui.PopStyleColor()
+                    if addrnode
                         CImGui.TextColored(
                             cpuinfo[:isconnected][addr] ? MORESTYLE.Colors.LogInfo : MORESTYLE.Colors.LogError,
                             mlstr(cpuinfo[:isconnected][addr] ? "Connected" : "Unconnected")
