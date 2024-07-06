@@ -67,6 +67,13 @@ function CPUMonitor()
                             cpuinfo[:isconnected][addr] ? MORESTYLE.Colors.LogInfo : MORESTYLE.Colors.LogError,
                             mlstr(cpuinfo[:isconnected][addr] ? "Connected" : "Unconnected")
                         )
+                        if !cpuinfo[:isconnected][addr]
+                            CImGui.SameLine()
+                            CImGui.Button(mlstr("Connect")) && remotecall_wait(workers()[1], addr) do addr
+                                @trycatch mlstr("connection failded!!!") connect!(CPU.resourcemanager[], CPU.instrs[addr])
+                            end
+                            CImGui.SameLine()
+                        end
                         CImGui.SameLine()
                         igBeginDisabled(SYNCSTATES[Int(IsDAQTaskRunning)])
                         CImGui.Button(mlstr("Log Out")) && remotecall_wait(addr -> logout!(CPU, addr), workers()[1], addr)
