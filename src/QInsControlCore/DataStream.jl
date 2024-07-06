@@ -105,11 +105,15 @@ log the Controller in the Processor which can be done before and after the cpu s
 """
 function login!(cpu::Processor, ct::Controller; quiet=true, attr=nothing)
     lock(cpu.lock) do
+        ct in cpu.controllers || push!(cpu.controllers, ct)
         if cpu.running[]
             if !haskey(cpu.instrs, ct.addr)
                 instr = instrument(ct.instrnm, ct.addr; attr=attr)
-                connect!(cpu.resourcemanager[], instr)
-                ct in cpu.controllers || push!(cpu.controllers, ct)
+                try
+                    connect!(cpu.resourcemanager[], instr)
+                catch e
+                    @error "an error occurs during connecting" exception = e
+                end
                 cpu.instrs[ct.addr] = instr
                 cpu.exechannels[ct.addr] = []
                 cpu.taskhandlers[ct.addr] = true
@@ -124,7 +128,6 @@ function login!(cpu::Processor, ct::Controller; quiet=true, attr=nothing)
                 )
             end
         else
-            ct in cpu.controllers || push!(cpu.controllers, ct)
             haskey(cpu.instrs, ct.addr) || (cpu.instrs[ct.addr] = instrument(ct.instrnm, ct.addr; attr=attr))
         end
         quiet || @info "controller $(findfirst(==(ct), cpu.controllers)) has logged in"
