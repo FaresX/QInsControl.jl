@@ -446,7 +446,7 @@ macro gentrycatch(instrnm, addr, cmd, len=0)
                             return true, getval
                         catch e
                             @error(
-                                "[$(now)]\n$(mlstr("instrument communication failed!!!"))",
+                                "[$(now())]\n$(mlstr("instrument communication failed!!!"))",
                                 instrument = $(string(instrnm, ": ", addr)),
                                 exception = e
                             )
