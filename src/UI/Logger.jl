@@ -1,6 +1,10 @@
 let
     firsttime::Bool = true
-    logmsgshow = Tuple{CImGui.LibCImGui.ImVec4,String}[]
+    logmsgshow = Tuple{Symbol,CImGui.LibCImGui.ImVec4,String}[]
+    showinfo::Bool = true
+    showwarn::Bool = true
+    showerror::Bool = true
+    showstacktrace::Bool = true
     global function LogWindow(p_open::Ref)
         # CImGui.SetNextWindowPos((100, 100), CImGui.ImGuiCond_Once)
         CImGui.SetNextWindowSize((800, 600), CImGui.ImGuiCond_Once)
@@ -13,6 +17,7 @@ let
             if SYNCSTATES[Int(NewLogging)] || waittime("Logger", CONF.Logs.refreshrate)
                 empty!(logmsgshow)
                 textc = CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_Text)
+                texttype = :Info
                 markerlist = ["┌ Info", "┌ Warning", "┌ Error", "Stacktrace:"]
                 date = today()
                 logdir = joinpath(CONF.Logs.dir, string(year(date)), string(year(date), "-", month(date)))
@@ -23,24 +28,37 @@ let
                 limitline::Int = length(allmsg) > CONF.Logs.showlogline ? CONF.Logs.showlogline : length(allmsg)
                 logmsg = ""
                 for (i, s) in enumerate(allmsg[end-limitline+1:end])
-                    occursin(markerlist[1], s) && (textc = ImVec4(MORESTYLE.Colors.LogInfo...))
-                    occursin(markerlist[2], s) && (textc = ImVec4(MORESTYLE.Colors.LogWarn...))
-                    occursin(markerlist[3], s) && (textc = ImVec4(MORESTYLE.Colors.LogError...))
-                    occursin(markerlist[4], s) && (textc = ImVec4(MORESTYLE.Colors.LogError...))
+                    occursin(markerlist[1], s) && (textc = ImVec4(MORESTYLE.Colors.LogInfo...); texttype = :Info)
+                    occursin(markerlist[2], s) && (textc = ImVec4(MORESTYLE.Colors.LogWarn...); texttype = :Warn)
+                    occursin(markerlist[3], s) && (textc = ImVec4(MORESTYLE.Colors.LogError...); texttype = :Error)
+                    occursin(markerlist[4], s) && (textc = ImVec4(MORESTYLE.Colors.LogError...); texttype = :Stacktrace)
                     length(s) > CONF.Logs.showloglength && (s = s[1:CONF.Logs.showloglength])
                     if occursin("└", s) || s == "\r"
                         logmsg *= @sprintf "%-8d%s\n\n" i s
-                        push!(logmsgshow, (textc, logmsg))
+                        push!(logmsgshow, (texttype, textc, logmsg))
                         textc = CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_Text)
+                        texttype = :Info
                         logmsg = ""
                     else
                         logmsg *= @sprintf "%-8d%s\n" i s
-                        i == limitline && push!(logmsgshow, (textc, logmsg))
+                        i == limitline && push!(logmsgshow, (texttype, textc, logmsg))
                     end
                 end
             end
+            @c(CImGui.Checkbox(mlstr("Info"), &showinfo)) && (SYNCSTATES[Int(NewLogging)] = true)
+            CImGui.SameLine()
+            @c(CImGui.Checkbox(mlstr("Warn"), &showwarn)) && (SYNCSTATES[Int(NewLogging)] = true)
+            CImGui.SameLine()
+            @c(CImGui.Checkbox(mlstr("Error"), &showerror)) && (SYNCSTATES[Int(NewLogging)] = true)
+            CImGui.SameLine()
+            @c(CImGui.Checkbox(mlstr("Stacktrace"), &showstacktrace)) && (SYNCSTATES[Int(NewLogging)] = true)
+            igSeparatorText("")
             CImGui.BeginChild("WrapIOs")
-            for (col, msg) in logmsgshow
+            for (type, col, msg) in logmsgshow
+                !showinfo && type == :Info && continue
+                !showwarn && type == :Warn && continue
+                !showerror && type == :Error && continue
+                !showstacktrace && type == :Stacktrace && continue
                 CImGui.PushStyleColor(CImGui.ImGuiCol_Text, col)
                 CImGui.PushTextWrapPos(0)
                 CImGui.TextUnformatted(msg)
@@ -72,6 +90,8 @@ function update_log(syncstates=SYNCSTATES)
             open(logfile, "a+") do file
                 msgsp = split(msg, '\n')
                 for (i, s) in enumerate(msgsp)
+                    s == "" && (msgsp[i] = "\n")
+                    s == "\r" && (msgsp[i] = "\n\r")
                     isempty(rstrip(s)) || (msgsp[i] = string("from worker $(myid()): ", msgsp[i], '\n'))
                 end
                 write(file, string(msgsp...))
