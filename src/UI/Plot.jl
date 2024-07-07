@@ -202,7 +202,11 @@ function mergexaxes!(plt::Plot)
     end
     for pltxa in plt.xaxes
         for axis in [pss.axis for pss in plt.series]
-            axis.xaxis.axis == pltxa.axis && (axis.xaxis = deepcopy(pltxa))
+            if axis.xaxis.axis == pltxa.axis
+                lims = axis.xaxis.lims
+                axis.xaxis = deepcopy(pltxa)
+                axis.xaxis.lims = lims
+            end
         end
     end
 end
@@ -214,7 +218,11 @@ function mergeyaxes!(plt::Plot)
     end
     for pltya in plt.yaxes
         for axis in [pss.axis for pss in plt.series]
-            axis.yaxis.axis == pltya.axis && (axis.yaxis = deepcopy(pltya))
+            if axis.yaxis.axis == pltya.axis
+                lims = axis.yaxis.lims
+                axis.yaxis = deepcopy(pltya)
+                axis.yaxis.lims = lims
+            end
         end
     end
 end
