@@ -45,7 +45,6 @@ let
             p_open,
             CImGui.ImGuiWindowFlags_NoTitleBar | CImGui.ImGuiWindowFlags_NoDocking
         )
-            dtpk.update = false
             CImGui.PushStyleColor(CImGui.ImGuiCol_Button, (0, 0, 0, 0))
             CImGui.PushStyleColor(CImGui.ImGuiCol_ButtonHovered, (0, 0, 0, 0))
             CImGui.PushStyleColor(CImGui.ImGuiCol_ButtonActive, (0, 0, 0, 0))
@@ -109,7 +108,6 @@ end
 let
     ptypelist::Vector{String} = ["line", "scatter", "stairs", "stems", "heatmap"]
     global function edit(dtss::DataSeries, datalist)
-        dtss.update = false
         availwidth = CImGui.GetContentRegionAvailWidth()
         CImGui.PushItemWidth(availwidth / 3)
         @c InputTextRSZ(mlstr("legend"), &dtss.legend)
@@ -266,8 +264,10 @@ let
                 end
                 pdtask = Threads.@spawn processdata(plt, plt.series[i], dtss, datastr, datafloat; quiet=quiet, force=force)
                 synctasks[plt.id][i] = pdtask
+                dtss.update = false
             end
         end
+        dtpk.update = false
     end
 
     global function processdata(
