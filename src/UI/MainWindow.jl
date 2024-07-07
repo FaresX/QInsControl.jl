@@ -79,7 +79,7 @@ let
             CImGui.PushStyleVar(CImGui.ImGuiStyleVar_WindowRounding, 0)
             CImGui.PushStyleVar(CImGui.ImGuiStyleVar_WindowPadding, (0, 0))
             CImGui.Begin("DockSpace", C_NULL, window_flags | CImGui.ImGuiWindowFlags_NoBackground)
-            igDockSpace(CImGui.GetID("MainWindow"), CImGui.ImVec2(0, 0), ImGuiDockNodeFlags_PassthruCentralNode, C_NULL)
+            igDockSpace(CImGui.GetID("Main Window"), CImGui.ImVec2(0, 0), ImGuiDockNodeFlags_PassthruCentralNode, C_NULL)
             CImGui.End()
             CImGui.PopStyleVar(2)
 
