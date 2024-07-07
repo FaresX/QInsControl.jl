@@ -235,6 +235,7 @@ end
 
 let
     synctasks::Dict{String,Dict{Int,Task}} = Dict()
+    processlock::ReentrantLock = ReentrantLock()
     global function syncplotdata(
         plt::Plot,
         dtpk::DataPicker,
@@ -262,7 +263,7 @@ let
                 if haskey(synctasks[plt.id], i)
                     istaskdone(synctasks[plt.id][i]) ? delete!(synctasks[plt.id], i) : (force || continue)
                 end
-                pdtask = Threads.@spawn processdata(plt, plt.series[i], dtss, datastr, datafloat; quiet=quiet, force=force)
+                pdtask = @async processdata(plt, plt.series[i], dtss, datastr, datafloat; quiet=quiet, force=force)
                 synctasks[plt.id][i] = pdtask
                 dtss.update = false
             end
@@ -311,7 +312,7 @@ let
             end
         end
         try
-            nx, ny, nz = CONF.DAQ.externaleval ? @eval(Main, $ex) : eval(ex)
+            nx, ny, nz = fetch(Threads.@spawn lock(() -> CONF.DAQ.externaleval ? @eval(Main, $ex) : eval(ex), processlock))
             if pss.ptype == "heatmap"
                 dropexeption!(nz)
                 if nz isa Matrix
@@ -358,6 +359,18 @@ let
             dtss.isrunning = false
         end
     end
+
+    function loaddata(datastr::Dict{String,Vector{String}}, datafloat::Dict{String,VecOrMat{Cdouble}}, key)
+        fetch(Threads.@spawn begin
+            lock(processlock) do
+                if isempty(datafloat)
+                    haskey(datastr, key) ? replace(tryparse.(Cdouble, datastr[key]), nothing => NaN) : Float64[]
+                else
+                    haskey(datafloat, key) ? copy(datafloat[key]) : Float64[]
+                end
+            end
+        end)
+    end
 end
 
 function syncaxes(plt::Plot, pss::PlotSeries, dtss::DataSeries; force=false)
@@ -380,13 +393,5 @@ function syncaxes(plt::Plot, pss::PlotSeries, dtss::DataSeries; force=false)
     if (pss.ptype == "heatmap" && changez) || force
         pss.axis.zaxis.axis = dtss.zaxis
         mergezaxes!(plt)
-    end
-end
-
-function loaddata(datastr::Dict{String,Vector{String}}, datafloat::Dict{String,VecOrMat{Cdouble}}, key)
-    if isempty(datafloat)
-        haskey(datastr, key) ? replace(tryparse.(Cdouble, datastr[key]), nothing => NaN) : Float64[]
-    else
-        haskey(datafloat, key) ? copy(datafloat[key]) : Float64[]
     end
 end
