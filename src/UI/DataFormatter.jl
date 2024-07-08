@@ -79,15 +79,6 @@ function edit(fd::FormatData, id)
     CImGui.PopItemWidth()
     CImGui.PopStyleVar()
     CImGui.SameLine()
-    if fd.dtviewer.p_open
-        CImGui.SetNextWindowSize((600, 600), CImGui.ImGuiCond_Once)
-        if @c CImGui.Begin(stcstr("FormatData", id), &fd.dtviewer.p_open)
-            edit(fd.dtviewer, fd.path, stcstr("FormatData", id))
-        end
-        CImGui.End()
-        fd.dtviewer.p_open && haskey(fd.dtviewer.data, "data") && renderplots(fd.dtviewer.dtp, stcstr("formatdata", id))
-        fd.dtviewer.p_open || (fd.dtviewer = DataViewer(p_open=false))
-    end
     CImGui.Button(mlstr("Data"), (-1, 0)) && Threads.@spawn @trycatch mlstr("task failed!!!") fd.path = pick_file(filterlist="qdt")
 end
 
@@ -150,15 +141,6 @@ function edit(fdg::FormatDataGroup, id)
     @c ComboS("##mode", &fdg.mode, FORMATTERGROUPMODES, CImGui.ImGuiComboFlags_NoArrowButton)
     CImGui.PopItemWidth()
     CImGui.SameLine()
-    if fdg.dtviewer.p_open
-        CImGui.SetNextWindowSize((600, 600), CImGui.ImGuiCond_Once)
-        if @c CImGui.Begin(stcstr("FormatDataGroup", id), &fdg.dtviewer.p_open)
-            edit(fdg.dtviewer, "", stcstr("FormatDataGroup", id))
-        end
-        CImGui.End()
-        fdg.dtviewer.p_open && haskey(fdg.dtviewer.data, "data") && renderplots(fdg.dtviewer.dtp, stcstr("formatdatagroup", id))
-        fdg.dtviewer.p_open || (fdg.dtviewer = DataViewer(p_open=false))
-    end
     if CImGui.Button(mlstr("Data Group"), (-1, 0))
         Threads.@spawn @trycatch mlstr("task failed!!!") begin
             pathes = pick_multi_file(filterlist="qdt")
@@ -231,6 +213,27 @@ function edit(dft::DataFormatter, id)
         end
     end
     CImGui.End()
+    if dft.p_open
+        for (i, fd) in enumerate(dft.data)
+            if fd isa FormatData || fd isa FormatDataGroup
+                if fd.dtviewer.p_open
+                    CImGui.SetNextWindowSize((600, 600), CImGui.ImGuiCond_Once)
+                    if @c CImGui.Begin(stcstr("FormatData", id, "-", i), &fd.dtviewer.p_open)
+                        edit(
+                            fd.dtviewer,
+                            fd isa FormatData ? fd.path : "",
+                            stcstr(fd isa FormatData ? "FormatData" : "FormatDataGroup", id, "-", i)
+                        )
+                    end
+                    CImGui.End()
+                    fd.dtviewer.p_open && haskey(fd.dtviewer.data, "data") && renderplots(
+                            fd.dtviewer.dtp, stcstr(fd isa FormatData ? "formatdata" : "formatdatagroup", id)
+                        )
+                    fd.dtviewer.p_open || (fd.dtviewer = DataViewer(p_open=false))
+                end
+            end
+        end
+    end
 end
 
 function loaddtviewer!(fdg::FormatDataGroup)
