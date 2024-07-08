@@ -324,7 +324,11 @@ let
             end
         end
         try
-            nx, ny, nz = fetch(Threads.@spawn lock(() -> CONF.DAQ.externaleval ? @eval(Main, $ex) : eval(ex), processlock))
+            nx, ny, nz = fetch(
+                Threads.@spawn @trycatch mlstr("eval failed!!!") lock(processlock) do
+                    CONF.DAQ.externaleval ? @eval(Main, $ex) : eval(ex)
+                end
+            )
             if pss.ptype == "heatmap"
                 dropexeption!(nz)
                 if nz isa Matrix
@@ -373,7 +377,7 @@ let
     end
 
     function loaddata(datastr::Dict{String,Vector{String}}, datafloat::Dict{String,VecOrMat{Cdouble}}, key)
-        fetch(Threads.@spawn begin
+        fetch(Threads.@spawn @trycatch mlstr("loading data failed!!!") begin
             lock(processlock) do
                 if isempty(datafloat)
                     haskey(datastr, key) ? replace(tryparse.(Cdouble, datastr[key]), nothing => NaN) : Float64[]
