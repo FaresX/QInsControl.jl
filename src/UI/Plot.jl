@@ -439,7 +439,7 @@ function setupplotseries!(pss::PlotSeries, x::AbstractVector{Tx}, y, z) where {T
             xlims = extrema(x)
             xlims[1] == xlims[2] && (xlims = (0, 1))
             pss.axis.xaxis.lims = xlims
-            pss.x = length(x) == zsz[1] ? x : range(extrema(x)..., length=zsz[1])
+            pss.x = range(extrema(x)..., length=zsz[1])
         end
         if isempty(y)
             pss.axis.yaxis.lims = (0, 1)
@@ -448,7 +448,7 @@ function setupplotseries!(pss::PlotSeries, x::AbstractVector{Tx}, y, z) where {T
             ylims = extrema(y)
             ylims[1] == ylims[2] && (ylims = (0, 1))
             pss.axis.yaxis.lims = ylims
-            pss.y = length(y) == zsz[2] ? y : range(extrema(y)..., length=zsz[2])
+            pss.y = range(extrema(y)..., length=zsz[2])
         end
     end
 end
