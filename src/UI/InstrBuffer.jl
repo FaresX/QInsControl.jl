@@ -156,8 +156,7 @@ end
 
 function updatefront!(qt::SweepQuantity)
     getvalU!(qt)
-    content = string("\n", qt.alias, "\n \n", join(qt.showval, qt.separator), " ", qt.showU, "\n ") |> centermultiline
-    qt.show_edit = string(content, "###for refresh")
+    qt.show_edit = string("\n", qt.alias, "\n \n", join(qt.showval, qt.separator), " ", qt.showU, "\n ")
 end
 
 function updateoptvalue!(qt::SetQuantity)
@@ -183,14 +182,12 @@ end
 function updatefront!(qt::SetQuantity)
     getvalU!(qt)
     updateoptvalue!(qt)
-    content = string("\n", qt.alias, "\n \n", join(qt.showval, qt.separator), " ", qt.showU, "\n ") |> centermultiline
-    qt.show_edit = string(content, "###for refresh")
+    qt.show_edit = string("\n", qt.alias, "\n \n", join(qt.showval, qt.separator), " ", qt.showU, "\n ")
 end
 
 function updatefront!(qt::ReadQuantity)
     getvalU!(qt)
-    content = string("\n", qt.alias, "\n \n", join(qt.showval, qt.separator), " ", qt.showU, "\n ") |> centermultiline
-    qt.show_edit = string(content, "###for refresh")
+    qt.show_edit = string("\n", qt.alias, "\n \n", join(qt.showval, qt.separator), " ", qt.showU, "\n ")
 end
 
 function updatefront!(qt::AbstractQuantity; show_edit=true)
@@ -199,31 +196,8 @@ function updatefront!(qt::AbstractQuantity; show_edit=true)
     else
         getvalU!(qt)
         qt isa SetQuantity && updateoptvalue!(qt)
-        qt.show_view = string(qt.alias, "\n", join(qt.showval, qt.separator), " ", qt.showU) |> centermultiline
+        qt.show_view = string(qt.alias, "\n", join(qt.showval, qt.separator), " ", qt.showU)
     end
-end
-
-let
-    tobeupdated::Channel{AbstractQuantity} = Channel{AbstractQuantity}(1024)
-    task::Ref{Task} = Ref{Task}()
-    global function updatefronttask()
-        task[] = errormonitor(
-            @async @trycatch mlstr("updating front task failed!!!") while true
-                isready(tobeupdated) ? updatefront!(take!(tobeupdated)) : sleep(0.001)
-            end
-        )
-        @async @trycatch mlstr("updating front task failed!!!") while true
-            if istaskfailed(task[])
-                task[] = errormonitor(
-                    @async @trycatch mlstr("updating front task failed!!!") while true
-                        isready(tobeupdated) ? updatefront!(take!(tobeupdated)) : sleep(0.001)
-                    end
-                )
-            end
-            sleep(1)
-        end
-    end
-    global sendtoupdatefront(qt::AbstractQuantity) = put!(tobeupdated, qt)
 end
 
 @kwdef mutable struct InstrBuffer
@@ -682,7 +656,7 @@ let
         qt.show_edit == "" && updatefront!(qt)
         # CImGui.PushFont(PLOTFONT)
         ColoredButton(
-            qt.show_edit;
+            stcstr(centermultiline(qt.show_edit), "###for refresh");
             size=btsize,
             colbt=if qt.enable
                 qt.isautorefresh ? MORESTYLE.Colors.DAQTaskRunning : MORESTYLE.Colors.SweepQuantityBt
@@ -787,7 +761,7 @@ let
         qt.show_edit == "" && updatefront!(qt)
         # CImGui.PushFont(PLOTFONT)
         ColoredButton(
-            qt.show_edit;
+            stcstr(centermultiline(qt.show_edit), "###for refresh");
             size=btsize,
             colbt=if qt.enable
                 qt.isautorefresh ? MORESTYLE.Colors.DAQTaskRunning : MORESTYLE.Colors.SetQuantityBt
@@ -881,7 +855,7 @@ let
         qt.show_edit == "" && updatefront!(qt)
         # CImGui.PushFont(PLOTFONT)
         ColoredButton(
-            qt.show_edit;
+            stcstr(centermultiline(qt.show_edit), "###for refresh");
             size=btsize,
             colbt=if qt.enable
                 qt.isautorefresh ? MORESTYLE.Colors.DAQTaskRunning : MORESTYLE.Colors.ReadQuantityBt
@@ -950,7 +924,7 @@ function view(qt::AbstractQuantity, size=(-1, 0))
         CImGui.ImGuiCol_Button,
         qt.enable ? CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_Button) : MORESTYLE.Colors.LogError
     )
-    if CImGui.Button(qt.show_view, size)
+    if CImGui.Button(centermultiline(qt.show_view), size)
         _, Us = @c getU(qt.utype, &qt.uindex)
         uindex = findfirst(==(qt.showU), string.(Us))
         if !isnothing(uindex)
@@ -1074,7 +1048,7 @@ function apply!(qt::SweepQuantity, instrnm, addr)
                     qt.read = val
                     qt.presenti = idxbuf[1]
                     qt.elapsedtime = timebuf[1]
-                    sendtoupdatefront(qt)
+                    updatefront!(qt)
                 end : sleep(qt.delay / 10)
             end
             qt.issweeping = false
@@ -1118,7 +1092,7 @@ function apply!(qt::SetQuantity, instrnm, addr, byoptvalues=false)
                 logout!(CPU, ct)
             end
         end
-        isnothing(fetchdata) || (qt.read = fetchdata; sendtoupdatefront(qt))
+        isnothing(fetchdata) || (qt.read = fetchdata; updatefront!(qt))
         @info "[$(now())]\nAfter setting" instrument = instrnm address = addr quantity = qt
         SYNCSTATES[Int(IsDAQTaskRunning)] && logaction(qt, instrnm, addr, actionidx)
     else
@@ -1223,7 +1197,7 @@ function getread!(qt::AbstractQuantity, instrnm, addr)
     if qt.enable && addr != ""
         fetchdata = refresh_qt(instrnm, addr, qt.name)
         isnothing(fetchdata) || (qt.read = fetchdata)
-        sendtoupdatefront(qt)
+        updatefront!(qt)
     end
 end
 
@@ -1276,7 +1250,7 @@ function refresh1(log=false; instrlist=keys(INSTRBUFFERVIEWERS))
                                     getfunc = Symbol(ins, :_, qtnm, :_get) |> eval
                                     qt.read = ct(getfunc, CPU, Val(:read))
                                     qt.refreshed = true
-                                    myid() == 1 && sendtoupdatefront(qt)
+                                    myid() == 1 && updatefront!(qt)
                                 elseif qt.enable && qt.isautorefresh
                                     t = time()
                                     δt = t - qt.lastrefresh
@@ -1285,7 +1259,7 @@ function refresh1(log=false; instrlist=keys(INSTRBUFFERVIEWERS))
                                         getfunc = Symbol(ins, :_, qtnm, :_get) |> eval
                                         qt.read = ct(getfunc, CPU, Val(:read))
                                         qt.refreshed = true
-                                        myid() == 1 && sendtoupdatefront(qt)
+                                        myid() == 1 && updatefront!(qt)
                                     end
                                 end
                             end
@@ -1322,7 +1296,7 @@ function refresh1(log=false; instrlist=keys(INSTRBUFFERVIEWERS))
                     for (qtnm, qt) in reflist
                         qt.read = fetchibvs[ins][addr].insbuf.quantities[qtnm].read
                         qt.lastrefresh = fetchibvs[ins][addr].insbuf.quantities[qtnm].lastrefresh
-                        sendtoupdatefront(qt)
+                        updatefront!(qt)
                     end
                 end
             end

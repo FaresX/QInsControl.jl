@@ -253,7 +253,6 @@ function UI(breakdown=false)
     finally
         SYNCSTATES[Int(IsDAQTaskRunning)] || remotecall_wait(() -> stop!(CPU), workers()[1])
         schedule(AUTOREFRESHTASK, mlstr("Stop"); error=true)
-        schedule(UPDATEFRONTTASK, mlstr("Stop"); error=true)
         empty!(STATICSTRINGS)
         empty!(MLSTRINGS)
         empty!(IMAGES)

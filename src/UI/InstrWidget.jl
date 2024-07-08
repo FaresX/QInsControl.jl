@@ -2244,7 +2244,7 @@ function refresh1(insw::InstrWidget, addr; blacklist=[])
                     INSTRBUFFERVIEWERS[insw.instrnm][addr].insbuf.quantities
                 )
                     qt.read = fetchibvs[insw.instrnm][addr].insbuf.quantities[qtnm].read
-                    sendtoupdatefront(qt)
+                    updatefront!(qt)
                 end
             end
         end
