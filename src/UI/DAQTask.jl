@@ -130,8 +130,22 @@ function run(daqtask::DAQTask)
     end
     run_remote(daqtask)
     wait(
-        Threads.@spawn @trycatch mlstr("updating data task failed!!!") while update_all()
-            yield()
+        Threads.@spawn try
+            while update_all()
+                yield()
+            end
+        catch e
+            @error "[$(now())]\n$(mlstr("updating data task terminated!!!"))" exception = e
+            showbacktrace()
+            if SYNCSTATES[Int(IsDAQTaskRunning)]
+                SYNCSTATES[Int(IsInterrupted)] = true
+                if SYNCSTATES[Int(IsBlocked)]
+                    SYNCSTATES[Int(IsBlocked)] = false
+                    remote_do(workers()[1]) do
+                        lock(() -> notify(BLOCK), BLOCK)
+                    end
+                end
+            end
         end
     )
 end
@@ -293,7 +307,7 @@ function update_data()
             else
                 insbuf.quantities[qt].read = data[2]
             end
-            sendtoupdatefront(insbuf.quantities[qt])
+            updatefront!(insbuf.quantities[qt])
         end
         if waittime("savedatabuf", CONF.DAQ.savetime)
             saveqdt()
