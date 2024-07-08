@@ -35,6 +35,7 @@ end
 
 let
     holdsz::Cfloat = 0
+    copyseries::DataSeries = DataSeries()
     global function edit(dtpk::DataPicker, id, p_open::Ref{Bool})
         CImGui.SetNextWindowSize((400, 600), CImGui.ImGuiCond_Once)
         CImGui.PushStyleColor(CImGui.ImGuiCol_WindowBg, CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_PopupBg))
@@ -72,6 +73,12 @@ let
                 CImGui.PushStyleColor(CImGui.ImGuiCol_Text, MORESTYLE.Colors.HighlightText)
                 openseries = CImGui.CollapsingHeader(stcstr(mlstr("Series"), " ", i, " ", dtss.legend, "###", i))
                 CImGui.PopStyleColor()
+                if CImGui.BeginPopupContextItem()
+                    CImGui.MenuItem(stcstr(MORESTYLE.Icons.Copy, " ", mlstr("Copy"))) && (copyseries = deepcopy(dtss))
+                    CImGui.MenuItem(stcstr(MORESTYLE.Icons.Paste, " ", mlstr("Paste"))) && insert!(dtpk.series, i+1, deepcopy(copyseries))
+                    CImGui.MenuItem(stcstr(MORESTYLE.Icons.CloseFile, " ", mlstr("Delete"))) && (deleteat!(dtpk.series, i); break)
+                    CImGui.EndPopup()
+                end
                 if CImGui.BeginDragDropSource(0)
                     @c CImGui.SetDragDropPayload("Swap Series", &i, sizeof(Cint))
                     CImGui.Text(stcstr(mlstr("Series"), " ", i, " ", dtss.legend))
@@ -96,6 +103,11 @@ let
                 end
             end
             CImGui.EndChild()
+            if CImGui.BeginPopup("copymenu")
+                CImGui.MenuItem(stcstr(MORESTYLE.Icons.Paste, " ", mlstr("Paste"))) && push!(dtpk.series, deepcopy(copyseries))
+                CImGui.EndPopup()
+            end
+            CImGui.IsAnyItemHovered() || CImGui.OpenPopupOnItemClick("copymenu")
             isfocus &= CImGui.IsWindowFocused(CImGui.ImGuiFocusedFlags_ChildWindows)
         end
         CImGui.End()
