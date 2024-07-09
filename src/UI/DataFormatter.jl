@@ -46,7 +46,7 @@ function edit(fc::FormatCodes, _)
     CImGui.Button(mlstr("Codes"), (-1, 0))
 end
 
-function edit(fd::FormatData, id)
+function edit(fd::FormatData, _)
     ftsz = CImGui.GetFontSize()
     CImGui.PushStyleColor(CImGui.ImGuiCol_Border, MORESTYLE.Colors.FormatDataBorder)
     CImGui.PushStyleVar(CImGui.ImGuiStyleVar_ChildBorderSize, 1)
