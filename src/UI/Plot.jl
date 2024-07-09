@@ -187,6 +187,15 @@ let
                         pss.axis.zaxis.axis == pltza.axis && (pss.axis.zaxis.colormap = pltza.colormap)
                     end
                 end
+                zlims = Cfloat.([pltza.lims...])
+                if CImGui.InputFloat2(mlstr("Color Range"), zlims)
+                    if zlims[1] != zlims[2]
+                        pltza.lims = (zlims...,)
+                        for pss in plt.series
+                            pss.axis.zaxis.axis == pltza.axis && (pss.axis.zaxis.lims = pltza.lims)
+                        end
+                    end
+                end
                 CImGui.EndPopup()
             end
         end
