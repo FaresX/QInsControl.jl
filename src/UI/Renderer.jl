@@ -164,7 +164,7 @@ function UI(breakdown=false)
 
     breakdown && closeallwindow()
 
-    uitask = @async try
+    uitask = Threads.@spawn :interactive try
         scale_old::Cfloat = 0
         isshowapp()[] = true
         updateframe::Bool = true

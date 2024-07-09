@@ -256,6 +256,6 @@ end
 function update!(dtp::DataPlot, datastr, datafloat::Dict{String,VecOrMat{Cdouble}}=Dict{String,VecOrMat{Cdouble}}())
     for (i, dtpk) in enumerate(dtp.dtpks)
         dtpk.update = true
-        syncplotdata(dtp.plots[i], dtpk, datastr, datafloat; quiet=true, force=true)
+        syncplotdata(dtp.plots[i], dtpk, datastr, datafloat; force=true)
     end
 end

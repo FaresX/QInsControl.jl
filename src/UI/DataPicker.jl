@@ -75,7 +75,7 @@ let
                 CImGui.PopStyleColor()
                 if CImGui.BeginPopupContextItem()
                     CImGui.MenuItem(stcstr(MORESTYLE.Icons.Copy, " ", mlstr("Copy"))) && (copyseries = deepcopy(dtss))
-                    CImGui.MenuItem(stcstr(MORESTYLE.Icons.Paste, " ", mlstr("Paste"))) && insert!(dtpk.series, i+1, deepcopy(copyseries))
+                    CImGui.MenuItem(stcstr(MORESTYLE.Icons.Paste, " ", mlstr("Paste"))) && insert!(dtpk.series, i + 1, deepcopy(copyseries))
                     CImGui.MenuItem(stcstr(MORESTYLE.Icons.CloseFile, " ", mlstr("Delete"))) && (deleteat!(dtpk.series, i); break)
                     CImGui.EndPopup()
                 end
@@ -247,13 +247,11 @@ end
 
 let
     synctasks::Dict{String,Dict{Int,Task}} = Dict()
-    processlock::ReentrantLock = ReentrantLock()
     global function syncplotdata(
         plt::Plot,
         dtpk::DataPicker,
         datastr::Dict{String,Vector{String}},
         datafloat::Dict{String,VecOrMat{Cdouble}}=Dict{String,VecOrMat{Cdouble}}();
-        quiet=false,
         force=false
     )
         haskey(synctasks, plt.id) || (synctasks[plt.id] = Dict())
@@ -273,62 +271,79 @@ let
         for (i, dtss) in enumerate(dtpk.series)
             if dtpk.update || dtss.update || (dtss.isrealtime && waittime(stcstr("DataPicker", plt.id, "-", i), dtss.refreshrate))
                 if haskey(synctasks[plt.id], i)
-                    istaskdone(synctasks[plt.id][i]) ? delete!(synctasks[plt.id], i) : (force || continue)
+                    if istaskdone(synctasks[plt.id][i])
+                        istaskfailed(synctasks[plt.id][i]) || postprocess(
+                            plt, plt.series[i], dtss, fetch(synctasks[plt.id][i])...; force=force
+                        )
+                        delete!(synctasks[plt.id], i)
+                    else
+                        force || continue
+                    end
                 end
-                pdtask = @async processdata(plt, plt.series[i], dtss, datastr, datafloat; quiet=quiet, force=force)
+                pdtask = Threads.@spawn preprocess(dtss, datastr, datafloat; heatmap=plt.series[i].ptype == "heatmap")
                 synctasks[plt.id][i] = pdtask
+                if dtpk.update || dtss.update
+                    try wait(pdtask) catch end
+                    istaskfailed(pdtask) || postprocess(plt, plt.series[i], dtss, fetch(pdtask)...; force=force)
+                    delete!(synctasks[plt.id], i)
+                end
                 dtss.update = false
             end
         end
         dtpk.update = false
     end
 
-    global function processdata(
-        plt::Plot,
-        pss::PlotSeries,
-        dtss::DataSeries,
-        datastr::Dict{String,Vector{String}},
-        datafloat::Dict{String,VecOrMat{Cdouble}};
-        quiet=false,
-        force=false
+    function preprocess(
+        dtss::DataSeries, datastr::Dict{String,Vector{String}}, datafloat::Dict{String,VecOrMat{Cdouble}};
+        heatmap=false
     )
-        dtss.isrunning = true
-        dtss.runtime = 0
-        errormonitor(
-            @async begin
-                t1 = time()
-                while dtss.isrunning
-                    dtss.runtime = round(time() - t1; digits=1)
-                    sleep(0.05)
+        try
+            dtss.isrunning = true
+            dtss.runtime = 0
+            errormonitor(
+                @async begin
+                    t1 = time()
+                    while dtss.isrunning
+                        dtss.runtime = round(time() - t1; digits=1)
+                        sleep(0.05)
+                    end
+                end
+            )
+            xbuf = dtss.xtype ? loaddata(datastr, datafloat, dtss.x) : haskey(datastr, dtss.x) ? copy(datastr[dtss.x]) : String[]
+            ybuf = loaddata(datastr, datafloat, dtss.y)
+            zbuf = heatmap ? loaddata(datastr, datafloat, dtss.z) : Cdouble[]
+            wbuf = loaddata(datastr, datafloat, dtss.w)
+            auxbufs = [loaddata(datastr, datafloat, aux) for aux in dtss.aux]
+            innercodes = tocodes(dtss.codes)
+            ex::Expr = quote
+                let
+                    x = $xbuf
+                    y = $ybuf
+                    z = $zbuf
+                    w = $wbuf
+                    $([Expr(:block, Expr(:(=), Symbol(:aux, i), auxbufs[i])) for i in eachindex(dtss.aux)]...)
+                    $innercodes
+                    x, y, z
                 end
             end
-        )
+            nx, ny, nz = CONF.DAQ.externaleval ? @eval(Main, $ex) : eval(ex)
+            return nx, ny, nz
+        catch e
+            if !dtss.isrealtime
+                @error string("[", now(), "]\n", mlstr("pre-processing data failed!!!")) exception = e
+                showbacktrace()
+            end
+            rethrow()
+        finally
+            dtss.isrunning = false
+        end
+    end
+
+    function postprocess(plt::Plot, pss::PlotSeries, dtss::DataSeries, nx, ny, nz; force=false)
         forcesync = force || pss.ptype != dtss.ptype
         forcesync && (pss.ptype = dtss.ptype)
         forcesync |= !dtss.xtype || (dtss.xtype && !isempty(pss.axis.xaxis.ticklabels))
-        xbuf = dtss.xtype ? loaddata(datastr, datafloat, dtss.x) : haskey(datastr, dtss.x) ? copy(datastr[dtss.x]) : String[]
-        ybuf = loaddata(datastr, datafloat, dtss.y)
-        zbuf = pss.ptype == "heatmap" ? loaddata(datastr, datafloat, dtss.z) : Cdouble[]
-        wbuf = loaddata(datastr, datafloat, dtss.w)
-        auxbufs = [loaddata(datastr, datafloat, aux) for aux in dtss.aux]
-        innercodes = tocodes(dtss.codes)
-        ex::Expr = quote
-            let
-                x = $xbuf
-                y = $ybuf
-                z = $zbuf
-                w = $wbuf
-                $([Expr(:block, Expr(:(=), Symbol(:aux, i), auxbufs[i])) for i in eachindex(dtss.aux)]...)
-                $innercodes
-                x, y, z
-            end
-        end
         try
-            nx, ny, nz = fetch(
-                Threads.@spawn @trycatch mlstr("eval failed!!!") lock(processlock) do
-                    CONF.DAQ.externaleval ? @eval(Main, $ex) : eval(ex)
-                end
-            )
             if pss.ptype == "heatmap"
                 dropexeption!(nz)
                 if nz isa Matrix
@@ -365,27 +380,20 @@ let
                 end
             end
             syncaxes(plt, pss, dtss; force=forcesync)
-            (dtss.isrealtime | quiet) || @info "[$(now())]" data_processing = prettify(innercodes)
         catch e
-            if !(dtss.isrealtime || quiet)
-                @error "[$(now())]\n$(mlstr("processing data failed!!!"))" exception = e codes = prettify(ex)
+            if !dtss.isrealtime
+                @error "[$(now())]\n$(mlstr("post-processing data failed!!!"))" exception = e
                 showbacktrace()
             end
-        finally
-            dtss.isrunning = false
         end
     end
 
     function loaddata(datastr::Dict{String,Vector{String}}, datafloat::Dict{String,VecOrMat{Cdouble}}, key)
-        fetch(Threads.@spawn @trycatch mlstr("loading data failed!!!") begin
-            lock(processlock) do
-                if isempty(datafloat)
-                    haskey(datastr, key) ? replace(tryparse.(Cdouble, datastr[key]), nothing => NaN) : Float64[]
-                else
-                    haskey(datafloat, key) ? copy(datafloat[key]) : Float64[]
-                end
-            end
-        end)
+        if isempty(datafloat)
+            haskey(datastr, key) ? replace(tryparse.(Cdouble, datastr[key]), nothing => NaN) : Float64[]
+        else
+            haskey(datafloat, key) ? copy(datafloat[key]) : Float64[]
+        end
     end
 end
 
