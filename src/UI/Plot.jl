@@ -360,8 +360,14 @@ function Plot2D(plotfunc, pss::PlotSeries, plt::Plot)
                 CImGui.BeginTooltip()
                 SeparatorTextColored(MORESTYLE.Colors.HighlightText, pss.legend)
                 CImGui.PushTextWrapPos(36CImGui.GetFontSize())
-                CImGui.Text(string("x : ", isempty(pss.axis.xaxis.ticklabels) ? pss.x[idx] : pss.axis.xaxis.ticklabels[idx]))
-                CImGui.Text(string("y : ", pss.y[idx]))
+                CImGui.Text(
+                    string(
+                        pss.axis.xaxis.label,
+                        " : ",
+                        isempty(pss.axis.xaxis.ticklabels) ? pss.x[idx] : pss.axis.xaxis.ticklabels[idx]
+                    )
+                )
+                CImGui.Text(string(pss.axis.yaxis.label, " : ", pss.y[idx]))
                 CImGui.PopTextWrapPos()
                 CImGui.EndTooltip()
             end
@@ -411,9 +417,9 @@ function Plot(pss::PlotSeries, plt::Plot, ::Val{:heatmap})
         CImGui.BeginTooltip()
         SeparatorTextColored(MORESTYLE.Colors.HighlightText, pss.legend)
         CImGui.PushTextWrapPos(36CImGui.GetFontSize())
-        CImGui.Text(string("x : ", x))
-        CImGui.Text(string("y : ", y))
-        CImGui.Text(string("z : ", z))
+        CImGui.Text(string(pss.axis.xaxis.label, " : ", x))
+        CImGui.Text(string(pss.axis.yaxis.label, " : ", y))
+        CImGui.Text(string(pss.axis.zaxis.label, " : ", z))
         CImGui.PopTextWrapPos()
         CImGui.EndTooltip()
     end
