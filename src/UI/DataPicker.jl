@@ -280,7 +280,7 @@ let
                         force || continue
                     end
                 end
-                pdtask = Threads.@spawn preprocess(dtss, datastr, datafloat; heatmap=plt.series[i].ptype == "heatmap")
+                pdtask = Threads.@spawn preprocess(dtss, datastr, datafloat)
                 synctasks[plt.id][i] = pdtask
                 if dtpk.update || dtss.update
                     try wait(pdtask) catch end
@@ -293,10 +293,7 @@ let
         dtpk.update = false
     end
 
-    function preprocess(
-        dtss::DataSeries, datastr::Dict{String,Vector{String}}, datafloat::Dict{String,VecOrMat{Cdouble}};
-        heatmap=false
-    )
+    function preprocess(dtss::DataSeries, datastr::Dict{String,Vector{String}}, datafloat::Dict{String,VecOrMat{Cdouble}})
         try
             dtss.isrunning = true
             dtss.runtime = 0
@@ -311,7 +308,7 @@ let
             )
             xbuf = dtss.xtype ? loaddata(datastr, datafloat, dtss.x) : haskey(datastr, dtss.x) ? copy(datastr[dtss.x]) : String[]
             ybuf = loaddata(datastr, datafloat, dtss.y)
-            zbuf = heatmap ? loaddata(datastr, datafloat, dtss.z) : Cdouble[]
+            zbuf = dtss.ptype == "heatmap" ? loaddata(datastr, datafloat, dtss.z) : Cdouble[]
             wbuf = loaddata(datastr, datafloat, dtss.w)
             auxbufs = [loaddata(datastr, datafloat, aux) for aux in dtss.aux]
             innercodes = tocodes(dtss.codes)
