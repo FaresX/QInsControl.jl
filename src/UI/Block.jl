@@ -438,9 +438,9 @@ macro gentrycatch(instrnm, addr, cmd, len=0)
         quote
             let
                 state, getval = counter(CONF.DAQ.retryconnecttimes) do tout
-                    @gencontroller $(mlstr("retry connecting to instrument")) string($instrnm, " ", $addr)
+                    @gencontroller $(mlstr("retry connecting to instrument")) string($instrnm, " ", $addr) (false, "") true
                     state, getval = counter(CONF.DAQ.retrysendtimes) do tin
-                        @gencontroller $(mlstr("retry sending command")) string($instrnm, " ", $addr)
+                        @gencontroller $(mlstr("retry sending command")) string($instrnm, " ", $addr) (false, "") true
                         try
                             getval = $cmd
                             return true, getval
@@ -467,18 +467,25 @@ macro gentrycatch(instrnm, addr, cmd, len=0)
                         return false, $(len == 0 ? "" : fill("", len))
                     end
                 end
-                getval
+                if state
+                    getval
+                elseif SYNCSTATES[Int(IsInterrupted)]
+                    @warn "[$(now())]\n$(mlstr("interrupt!"))"  $(mlstr("retry connecting and sending command")) = string($instrnm, " ", $addr)
+                    return nothing
+                else
+                    error(string("instrument ", $instrnm, " ", $addr, " response time out!!!"))
+                end
             end
         end
     )
 end
 
-macro gencontroller(key, val)
+macro gencontroller(key, val, retval=nothing, quiet=false)
     esc(
         quote
             if SYNCSTATES[Int(IsInterrupted)]
-                @warn "[$(now())]\n$(mlstr("interrupt!"))" $key = $val
-                return nothing
+                $quiet || @warn "[$(now())]\n$(mlstr("interrupt!"))" $key = $val
+                return $retval
             elseif SYNCSTATES[Int(IsBlocked)]
                 @warn "[$(now())]\n$(mlstr("pause!"))" $key = $val
                 lock(() -> wait(BLOCK), BLOCK)
