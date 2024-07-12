@@ -6,6 +6,7 @@
     offsety::Cdouble = 0
     color::Vector{Cfloat} = [1.000, 1.000, 1.000, 1.000]
     possz::Cfloat = 4
+    dragging::Bool = false
 end
 
 @kwdef mutable struct Linecut
@@ -476,28 +477,43 @@ function PlotAnns(anns::Vector{Annotation})
         ImPlot.SetAxes(ImPlot.ImAxis_X1, ImPlot.ImAxis_Y1)
         CImGui.PushFont(GLOBALFONT)
         for (i, ann) in enumerate(anns)
+            labelsz = [CImGui.CalcTextSize(ann.label)...]
+            CImGui.PushID(i)
+            @c ImPlot.DragPoint(i, &ann.posx, &ann.posy, CImGui.ImVec4(ann.color...), ann.possz)
+            ishv = isdragpointhovered(ann.posx, ann.posy, ann.possz)
+            offsetpos = ImPlot.PlotToPixels(ann.offsetx, ann.offsety)
+            inlabel = inregion(CImGui.GetMousePos(), offsetpos .- labelsz / 2, offsetpos .+ labelsz / 2)
+            if ann.dragging || inlabel
+                CImGui.SetCursorScreenPos(offsetpos .- labelsz)
+                CImGui.PushStyleColor(CImGui.ImGuiCol_Button, [0, 0, 0, 0])
+                CImGui.PushStyleColor(CImGui.ImGuiCol_ButtonHovered, [0, 0, 0, 0])
+                CImGui.PushStyleColor(CImGui.ImGuiCol_ButtonActive, [0, 0, 0, 0])
+                CImGui.Button("", 2labelsz)
+                CImGui.PopStyleColor(3)
+            end
+            if ann.dragging
+                CImGui.SetMouseCursor(CImGui.ImGuiMouseCursor_Hand)
+                if CImGui.IsMouseDragging()
+                    mspos = ImPlot.PixelsToPlot(CImGui.GetMousePos())
+                    ann.offsetx = mspos.x
+                    ann.offsety = mspos.y
+                else
+                    ann.dragging = false
+                end
+            else
+                inlabel && CImGui.IsMouseDragging() && (ann.dragging = true)
+            end
+            ishv |= inlabel
+            ishv && (ItemTooltipNoHovered(ann.label); openpopup_i = i)
+            CImGui.PopID()
             offset = ImPlot.PlotToPixels(ann.offsetx, ann.offsety) .- ImPlot.PlotToPixels(ann.posx, ann.posy)
-            halflabelsz = CImGui.CalcTextSize(ann.label) ./ 2
             ImPlot.AnnotationClamped(
                 ann.posx,
                 ann.posy,
                 CImGui.ImVec4(ann.color...),
-                correct_offset(offset, halflabelsz),
+                correct_offset(offset, labelsz),
                 ann.label
             )
-            CImGui.PushID(i)
-            @c ImPlot.DragPoint(i, &ann.posx, &ann.posy, CImGui.ImVec4(ann.color...), ann.possz)
-            ishv = isdragpointhovered(ann.posx, ann.posy, ann.possz)
-            @c ImPlot.DragPoint(
-                -i,
-                &ann.offsetx,
-                &ann.offsety,
-                CImGui.ImVec4(ann.color[1:3]..., 0.000),
-                halflabelsz[2] / 2
-            )
-            ishv |= isdragpointhovered(ann.offsetx, ann.offsety, halflabelsz[2])
-            ishv && (ItemTooltipNoHovered(ann.label); openpopup_i = i)
-            CImGui.PopID()
             if CImGui.BeginPopup(stcstr("annotation", i))
                 @c InputTextRSZ(mlstr("content"), &ann.label)
                 pos = Cfloat[ann.posx, ann.posy]
@@ -523,30 +539,30 @@ function isdragpointhovered(x, y, sz)
     inregion(CImGui.GetMousePos(), ppos .- sz / 2, ppos .+ sz / 2)
 end
 
-function correct_offset(offset, halflabelsz)
-    if offset[1] > halflabelsz[1]
-        if offset[2] > halflabelsz[2]
-            offset_correct = offset - halflabelsz
-        elseif -halflabelsz[2] <= offset[2] <= halflabelsz[2]
-            offset_correct = CImGui.ImVec2(offset[1] - halflabelsz[1], Cfloat(0))
+function correct_offset(offset, labelsz)
+    if offset[1] > labelsz[1]
+        if offset[2] > labelsz[2]
+            offset_correct = offset - labelsz
+        elseif -labelsz[2] <= offset[2] <= labelsz[2]
+            offset_correct = CImGui.ImVec2(offset[1] - labelsz[1], Cfloat(0))
         else
-            offset_correct = CImGui.ImVec2(offset[1] - halflabelsz[1], offset[2] + halflabelsz[2])
+            offset_correct = CImGui.ImVec2(offset[1] - labelsz[1], offset[2] + labelsz[2])
         end
-    elseif -halflabelsz[1] <= offset[1] <= halflabelsz[1]
-        if offset[2] > halflabelsz[2]
-            offset_correct = CImGui.ImVec2(Cfloat(0), offset[2] - halflabelsz[2])
-        elseif -halflabelsz[2] <= offset[2] <= halflabelsz[2]
+    elseif -labelsz[1] <= offset[1] <= labelsz[1]
+        if offset[2] > labelsz[2]
+            offset_correct = CImGui.ImVec2(Cfloat(0), offset[2] - labelsz[2])
+        elseif -labelsz[2] <= offset[2] <= labelsz[2]
             offset_correct = CImGui.ImVec2(Cfloat(0), Cfloat(0))
         else
-            offset_correct = CImGui.ImVec2(Cfloat(0), offset[2] + halflabelsz[2])
+            offset_correct = CImGui.ImVec2(Cfloat(0), offset[2] + labelsz[2])
         end
     else
-        if offset[2] > halflabelsz[2]
-            offset_correct = CImGui.ImVec2(offset[1] + halflabelsz[1], offset[2] - halflabelsz[2])
-        elseif -halflabelsz[2] <= offset[2] <= halflabelsz[2]
-            offset_correct = CImGui.ImVec2(offset[1] + halflabelsz[1], Cfloat(0))
+        if offset[2] > labelsz[2]
+            offset_correct = CImGui.ImVec2(offset[1] + labelsz[1], offset[2] - labelsz[2])
+        elseif -labelsz[2] <= offset[2] <= labelsz[2]
+            offset_correct = CImGui.ImVec2(offset[1] + labelsz[1], Cfloat(0))
         else
-            offset_correct = offset + halflabelsz
+            offset_correct = offset + labelsz
         end
     end
     return ImVec2(offset_correct...)
