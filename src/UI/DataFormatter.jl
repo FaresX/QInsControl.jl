@@ -125,11 +125,13 @@ function edit(fdg::FormatDataGroup, id)
     )
     if CImGui.Button(ICONS.ICON_EYE, (2ftsz, Cfloat(0)))
         fdg.dtviewer.p_open ⊻= true
-        fdg.dtviewer.p_open ? loaddtviewer!(fdg) : (fdg.dtviewer = DataViewer(p_open=false))
+        fdg.dtviewer.p_open && loaddtviewer!(fdg)
     end
     CImGui.PopStyleColor()
     CImGui.SameLine()
-    @c CImGui.Checkbox(ICONS.ICON_CODE_MERGE, &fdg.merge)
+    if @c CImGui.Checkbox(ICONS.ICON_CODE_MERGE, &fdg.merge)
+        fdg.dtviewer.p_open || (fdg.dtviewer = DataViewer(p_open=false))
+    end
     CImGui.SameLine()
     CImGui.PushStyleVar(CImGui.ImGuiStyleVar_ItemSpacing, (0, 0))
     CImGui.Button(ICONS.ICON_PLUS, (2ftsz, Cfloat(0))) && push!(fdg.data, FormatData())
@@ -221,7 +223,7 @@ function edit(dft::DataFormatter, id)
 end
 
 function loaddtviewer!(fdg::FormatDataGroup)
-    haskey(fdg.dtviewer.data, "data") || (fdg.dtviewer.data["data"] = Dict{String,Vector{String}}())
+    haskey(fdg.dtviewer.data, "data") ? (return) : fdg.dtviewer.data["data"] = Dict{String,Vector{String}}()
     for (i, fd) in enumerate(fdg.data)
         if isfile(fd.path)
             data = @trypasse load(fd.path, "data") Dict{String,Vector{String}}()
