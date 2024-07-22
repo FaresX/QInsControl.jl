@@ -17,13 +17,12 @@ function manualadd(addr)
             ct = Controller("", addr; buflen=1, timeout=CONF.DAQ.cttimeout)
             try
                 login!(CPU, ct; attr=getattr(addr))
-                retstr = ct(query, CPU, "*IDN?", Val(:query))
-                logout!(CPU, ct)
-                return retstr
+                ct(query, CPU, "*IDN?", Val(:query))
             catch e
-                logout!(CPU, ct)
                 @error "[$(now())]\n$(mlstr("instrument communication failed!!!"))" instrument_address = addr exception = e
                 showbacktrace()
+            finally
+                logout!(CPU, ct)
             end
         end
         if isnothing(idnr)

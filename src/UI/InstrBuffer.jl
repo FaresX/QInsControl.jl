@@ -311,7 +311,6 @@ let
                                 try
                                     login!(CPU, ct; attr=getattr(addr))
                                     ct(write, CPU, inputcmd, Val(:write))
-                                    logout!(CPU, ct)
                                 catch e
                                     @error(
                                         "[$(now())]\n$(mlstr("instrument communication failed!!!"))",
@@ -319,6 +318,7 @@ let
                                         exception = e
                                     )
                                     showbacktrace()
+                                finally
                                     logout!(CPU, ct)
                                 end
                             end
@@ -333,9 +333,7 @@ let
                                 ct = Controller(ins, addr; buflen=CONF.DAQ.ctbuflen, timeout=CONF.DAQ.cttimeout)
                                 try
                                     login!(CPU, ct; attr=getattr(addr))
-                                    readstr = ct(query, CPU, inputcmd, Val(:query))
-                                    logout!(CPU, ct)
-                                    return readstr
+                                    ct(query, CPU, inputcmd, Val(:query))
                                 catch e
                                     @error(
                                         "[$(now())]\n$(mlstr("instrument communication failed!!!"))",
@@ -343,6 +341,7 @@ let
                                         exception = e
                                     )
                                     showbacktrace()
+                                finally
                                     logout!(CPU, ct)
                                 end
                             end
@@ -357,9 +356,7 @@ let
                                 ct = Controller(ins, addr; buflen=CONF.DAQ.ctbuflen, timeout=CONF.DAQ.cttimeout)
                                 try
                                     login!(CPU, ct; attr=getattr(addr))
-                                    readstr = ct(read, CPU, Val(:read))
-                                    logout!(CPU, ct)
-                                    return readstr
+                                    ct(read, CPU, Val(:read))
                                 catch e
                                     @error(
                                         "[$(now())]\n$(mlstr("instrument communication failed!!!"))",
@@ -367,6 +364,7 @@ let
                                         exception = e
                                     )
                                     showbacktrace()
+                                finally
                                     logout!(CPU, ct)
                                 end
                             end
@@ -960,9 +958,7 @@ function apply!(qt::SweepQuantity, instrnm, addr)
         try
             getfunc = Symbol(instrnm, :_, qt.name, :_get) |> eval
             login!(CPU, ct; attr=getattr(addr))
-            readstr = ct(getfunc, CPU, Val(:read))
-            logout!(CPU, ct)
-            return parse(Float64, readstr)
+            parse(Float64, ct(getfunc, CPU, Val(:read)))
         catch e
             @error(
                 "[$(now())]\n$(mlstr("error getting start value!!!"))",
@@ -970,6 +966,7 @@ function apply!(qt::SweepQuantity, instrnm, addr)
                 exception = e
             )
             showbacktrace()
+        finally
             logout!(CPU, ct)
         end
     end
@@ -1078,9 +1075,7 @@ function apply!(qt::SetQuantity, instrnm, addr, byoptvalues=false)
                 getfunc = Symbol(instrnm, :_, qt.name, :_get) |> eval
                 login!(CPU, ct; attr=getattr(addr))
                 ct(setfunc, CPU, sv, Val(:write))
-                readstr = ct(getfunc, CPU, Val(:read))
-                logout!(CPU, ct)
-                return readstr
+                ct(getfunc, CPU, Val(:read))
             catch e
                 @error(
                     "[$(now())]\n$(mlstr("instrument communication failed!!!"))",
@@ -1089,6 +1084,7 @@ function apply!(qt::SetQuantity, instrnm, addr, byoptvalues=false)
                     exception = e
                 )
                 showbacktrace()
+            finally
                 logout!(CPU, ct)
             end
         end
@@ -1207,9 +1203,7 @@ function refresh_qt(instrnm, addr, qtnm)
         try
             getfunc = Symbol(instrnm, :_, qtnm, :_get) |> eval
             login!(CPU, ct; attr=getattr(addr))
-            readstr = ct(getfunc, CPU, Val(:read))
-            logout!(CPU, ct)
-            return readstr
+            ct(getfunc, CPU, Val(:read))
         catch e
             @error(
                 "[$(now())]\n$(mlstr("instrument communication failed!!!"))",
@@ -1218,6 +1212,7 @@ function refresh_qt(instrnm, addr, qtnm)
                 exception = e
             )
             showbacktrace()
+        finally
             logout!(CPU, ct)
         end
     end

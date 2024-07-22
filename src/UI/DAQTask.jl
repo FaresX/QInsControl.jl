@@ -341,7 +341,6 @@ function extract_controllers(bkch::Vector{AbstractBlock})
                 @assert haskey(INSTRBUFFERVIEWERS[bk.instrnm], bk.addr) mlstr("$(bk.addr) has not been added")
                 login!(CPU, ct; attr=getattr(bk.addr))
                 ct(query, CPU, "*IDN?", Val(:query))
-                logout!(CPU, ct)
                 controllers[string(bk.instrnm, "_", bk.addr)] = ct
             catch e
                 @error(
@@ -350,8 +349,9 @@ function extract_controllers(bkch::Vector{AbstractBlock})
                     exception = e
                 )
                 showbacktrace()
-                logout!(CPU, ct)
                 return controllers, false
+            finally
+                logout!(CPU, ct)
             end
         end
         if iscontainer(bk)
