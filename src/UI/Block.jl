@@ -79,7 +79,7 @@ end
     isasync::Bool = false
     isobserve::Bool = false
     isreading::Bool = false
-    istrycatch::Bool = false
+    istrycatch::Bool = true
     regmin::ImVec2 = (0, 0)
     regmax::ImVec2 = (0, 0)
 end
@@ -103,7 +103,7 @@ end
     isasync::Bool = false
     isobserve::Bool = false
     isreading::Bool = false
-    istrycatch::Bool = false
+    istrycatch::Bool = true
     regmin::ImVec2 = (0, 0)
     regmax::ImVec2 = (0, 0)
 end
@@ -116,7 +116,7 @@ end
     isasync::Bool = false
     isobserve::Bool = false
     isreading::Bool = false
-    istrycatch::Bool = false
+    istrycatch::Bool = true
     regmin::ImVec2 = (0, 0)
     regmax::ImVec2 = (0, 0)
 end
