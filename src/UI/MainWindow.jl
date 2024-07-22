@@ -224,7 +224,7 @@ let
                     CImGui.ImGuiCol_Button,
                     SYNCSTATES[Int(AutoDetecting)] ? MORESTYLE.Colors.LogInfo : st ? MORESTYLE.Colors.HighlightText : MORESTYLE.Colors.LogError
                 )
-                igBeginDisabled(SYNCSTATES[Int(IsDAQTaskRunning)])
+                igBeginDisabled(SYNCSTATES[Int(IsDAQTaskRunning)] || hassweeping())
                 CImGui.Button(MORESTYLE.Icons.InstrumentsAutoDetect, (btw, btw)) && refresh_instrlist()
                 showst && CImGui.PopStyleColor()
                 CImGui.SameLine()
@@ -244,16 +244,7 @@ let
                     isempty(inses) && CImGui.PushStyleColor(
                         CImGui.ImGuiCol_Text, CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_TextDisabled)
                     )
-                    isrefreshingdict = Dict()
-                    for (addr, ibv) in inses
-                        hasref = false
-                        for qt in values(ibv.insbuf.quantities)
-                            SYNCSTATES[Int(IsAutoRefreshing)] && ibv.insbuf.isautorefresh && (hasref |= qt.isautorefresh)
-                            qt isa SweepQuantity && (hasref |= qt.issweeping)
-                            hasref && break
-                        end
-                        isrefreshingdict[addr] = hasref
-                    end
+                    isrefreshingdict = Dict(addr => hasref(ibv) for (addr, ibv) in inses)
                     hasrefreshing = !isempty(inses) && SYNCSTATES[Int(IsAutoRefreshing)] && (|)(values(isrefreshingdict)...)
                     hasrefreshing && CImGui.PushStyleColor(CImGui.ImGuiCol_Text, MORESTYLE.Colors.DAQTaskRunning)
                     insnode = CImGui.TreeNode(stcstr(INSCONF[ins].conf.icon, " ", ins, "  ", "(", length(inses), ")"))
@@ -269,18 +260,19 @@ let
                                 addrnode = CImGui.TreeNode(addr)
                                 isrefreshingdict[addr] && CImGui.PopStyleColor()
                                 if CImGui.BeginPopupContextItem()
+                                    sweeping = hassweeping(ibv)
                                     if CImGui.MenuItem(
                                         stcstr(MORESTYLE.Icons.CloseFile, " ", mlstr("Delete")),
                                         C_NULL,
                                         false,
-                                        ins != "VirtualInstr" && !SYNCSTATES[Int(IsDAQTaskRunning)]
+                                        ins != "VirtualInstr" && !SYNCSTATES[Int(IsDAQTaskRunning)] && !sweeping
                                     )
                                         delete!(INSTRBUFFERVIEWERS[ins], addr)
                                         remotecall_fetch(addr -> logout!(CPU, addr), workers()[1], addr)
                                     end
                                     if CImGui.BeginMenu(
                                         stcstr(MORESTYLE.Icons.NewFile, " ", mlstr("Add to")),
-                                        ins == "Others" && !SYNCSTATES[Int(IsDAQTaskRunning)]
+                                        ins == "Others" && !SYNCSTATES[Int(IsDAQTaskRunning)] && !sweeping
                                     )
                                         for (cfins, cf) in INSCONF
                                             cfins in ["Others", "VirtualInstr"] && continue
@@ -442,3 +434,25 @@ let
         end
     end
 end #let
+
+function hassweeping()
+    for (_, inses) in INSTRBUFFERVIEWERS
+        for (_, ibv) in inses
+            hassweeping(ibv) && return true
+        end
+    end
+    return false
+end
+function hassweeping(ibv::InstrBufferViewer)
+    for qt in values(ibv.insbuf.quantities)
+        qt isa SweepQuantity && qt.issweeping && return true
+    end
+    return false
+end
+function hasref(ibv::InstrBufferViewer)
+    for qt in values(ibv.insbuf.quantities)
+        SYNCSTATES[Int(IsAutoRefreshing)] && ibv.insbuf.isautorefresh && qt.isautorefresh && return true
+        qt isa SweepQuantity && qt.issweeping && return true
+    end
+    return false
+end
