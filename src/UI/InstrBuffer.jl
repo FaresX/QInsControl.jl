@@ -1228,10 +1228,10 @@ function refresh1(log=false; instrlist=keys(INSTRBUFFERVIEWERS))
     fetchibvs = lock(REFRESHLOCK) do
         wait_remotecall_fetch(workers()[1], INSTRBUFFERVIEWERS; timeout=120) do ibvs
             merge!(INSTRBUFFERVIEWERS, ibvs)
-            @sync for (ins, inses) in filter(x -> x.first in instrlist && !isempty(x.second), INSTRBUFFERVIEWERS)
+            for (ins, inses) in filter(x -> x.first in instrlist && !isempty(x.second), INSTRBUFFERVIEWERS)
                 ins == "Others" && continue
                 for (addr, ibv) in inses
-                    @async @trycatch mlstr("refreshing $ins: $addr task failed!!!") if ibv.insbuf.isautorefresh || log
+                    if ibv.insbuf.isautorefresh || log
                         haskey(REFRESHCTS, ins) || (REFRESHCTS[ins] = Dict())
                         haskey(REFRESHCTS[ins], addr) || (REFRESHCTS[ins][addr] = Controller(
                             ins, addr; buflen=CONF.DAQ.ctbuflen, timeout=CONF.DAQ.cttimeout
