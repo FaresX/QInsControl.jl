@@ -45,7 +45,8 @@ end
     ticklabels::Vector{String} = []
     lims::Tuple{Cdouble,Cdouble} = (0, 1)
     vlims::Vector{Cfloat} = [0, 1]
-    autofit::Bool = false
+    autofitl::Bool = false
+    autofith::Bool = false
     scale::UInt32 = 0
     hovered::Bool = false
     colormapscalesize::CImGui.ImVec2 = (0, 0)
@@ -172,13 +173,15 @@ let
                     pltza.colormap = (pltza.colormap + 1) % ImPlot.GetColormapCount()
                     resyncz(plt, pltza, :colormap)
                 end
-                igBeginDisabled(pltza.autofit)
+                igBeginDisabled(pltza.autofitl && pltza.autofith)
                 vlimsold = deepcopy(pltza.vlims)
                 if CImGui.InputFloat2(mlstr("Color Range"), pltza.vlims)
                     pltza.vlims[1] == pltza.vlims[2] ? pltza.vlims = vlimsold : resyncz(plt, pltza, :vlims)
                 end
                 igEndDisabled()
-                @c(CImGui.Checkbox(mlstr("Auto-Fit"), &pltza.autofit)) && resyncz(plt, pltza, :autofit)
+                @c(CImGui.Checkbox(mlstr("Auto-Fit Lower Bounds"), &pltza.autofitl)) && resyncz(plt, pltza, :autofitl)
+                CImGui.SameLine()
+                @c(CImGui.Checkbox(mlstr("Auto-Fit Upper Bounds"), &pltza.autofith)) && resyncz(plt, pltza, :autofith)
                 CImGui.EndPopup()
             end
         end
@@ -323,7 +326,7 @@ function Plot(plt::Plot; psize=CImGui.ImVec2(0, 0), flags=0)
         ImPlot.PushColormap(za.colormap)
         ImPlot.ColormapScale(
             stcstr(za.label, "###", plt.id, "-", za.axis),
-            (za.autofit ? za.lims : za.vlims)...,
+            selectzlims(za)...,
             CImGui.ImVec2(Cfloat(0), psize.y)
         )
         ImPlot.PopColormap()
@@ -384,7 +387,7 @@ function Plot(pss::PlotSeries, plt::Plot, ::Val{:heatmap})
     ImPlot.PushColormap(pss.axis.zaxis.colormap)
     ImPlot.PlotHeatmap(
         pss.legend, pss.z, reverse(size(pss.z))...,
-        (pss.axis.zaxis.autofit ? pss.axis.zaxis.lims : pss.axis.zaxis.vlims)...,
+        selectzlims(pss.axis.zaxis)...,
         "",
         ImPlot.ImPlotPoint(pss.axis.xaxis.lims[1], pss.axis.yaxis.lims[1]),
         ImPlot.ImPlotPoint(pss.axis.xaxis.lims[2], pss.axis.yaxis.lims[2])
@@ -425,6 +428,12 @@ function Plot(pss::PlotSeries, plt::Plot, ::Val{:heatmap})
         CImGui.PopTextWrapPos()
         CImGui.EndTooltip()
     end
+end
+
+function selectzlims(za::Zaxis)
+    za.autofitl && return za.autofith ? za.lims : (za.lims[1], za.vlims[2])
+    za.autofith && return (za.vlims[1], za.lims[2])
+    return (za.vlims...,)
 end
 
 function setupplotseries!(pss::PlotSeries, x::AbstractVector{Tx}, y) where {Tx<:AbstractString}
@@ -748,3 +757,4 @@ function dropexeption!(z)
     Inf in z && (replace!(z, Inf => 0))
     -Inf in z && (replace!(z, -Inf => 0))
 end
+
