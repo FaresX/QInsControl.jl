@@ -16,7 +16,7 @@ macro progress(exfor)
     esc(ex)
 end
 
-macro progress(observables, getdatacmd, stop, exwhile)
+macro progress(observables, getdatacmd, stop, duration, exwhile)
     @gensym pgid pgi pgn tn fraction
     ex = quote
         let
@@ -28,7 +28,7 @@ macro progress(observables, getdatacmd, stop, exwhile)
             $tn = time()
             while $(exwhile.args[1])
                 $(exwhile.args[2])
-                push!($observables, (time(), parse(Float64, $getdatacmd)))
+                time() - $observables[end][1] > $duration && push!($observables, (time(), parse(Float64, $getdatacmd)))
                 $pgi += 1
                 $fraction = abs(($stop - $observables[1][2]) / ($observables[end][2] - $observables[1][2]))
                 $pgn = isinf($fraction) || isnan($fraction) ? 100 + $pgi : ceil(Int, $pgi * $fraction)

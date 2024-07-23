@@ -272,7 +272,7 @@ function tocodes(bk::FreeSweepBlock)
     getdata = bk.istrycatch ? :(@gentrycatch $(bk.instrnm) $(bk.addr) $getcmd) : getcmd
     return quote
         let $observables = []
-            @progress $observables $getdata $stop while !isarrived($observables, $stop, $delta, $(bk.duration))
+            @progress $observables $getdata $stop $(bk.duration / 6) while !isarrived($observables, $stop, $delta, $(bk.duration))
                 @gencontroller SweepBlock $instr
                 sleep($(bk.delay))
                 $interpcodes
@@ -470,7 +470,7 @@ macro gentrycatch(instrnm, addr, cmd, len=0)
                 if state
                     getval
                 elseif SYNCSTATES[Int(IsInterrupted)]
-                    @warn "[$(now())]\n$(mlstr("interrupt!"))"  $(mlstr("retry connecting and sending command")) = string($instrnm, " ", $addr)
+                    @warn "[$(now())]\n$(mlstr("interrupt!"))" $(mlstr("retry connecting and sending command")) = string($instrnm, " ", $addr)
                     return nothing
                 else
                     error(string("instrument ", $instrnm, " ", $addr, " response time out!!!"))
