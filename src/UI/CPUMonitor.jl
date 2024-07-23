@@ -75,7 +75,7 @@ function CPUMonitor()
                             CImGui.SameLine()
                         end
                         CImGui.SameLine()
-                        igBeginDisabled(SYNCSTATES[Int(IsDAQTaskRunning)])
+                        igBeginDisabled(SYNCSTATES[Int(IsDAQTaskRunning)] && hasct)
                         CImGui.Button(mlstr("Log Out")) && remotecall_wait(addr -> logout!(CPU, addr), workers()[1], addr)
                         igEndDisabled()
                         CImGui.Text(stcstr(mlstr("Status"), mlstr(": ")))
