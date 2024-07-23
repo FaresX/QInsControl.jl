@@ -1240,9 +1240,9 @@ let
             id = stcstr(CImGui.igGetItemID())
             if iscontainer(bk)
                 bk.regmin, rmax = CImGui.GetItemRectMin(), CImGui.GetItemRectMax()
-                wp = unsafe_load(IMGUISTYLE.WindowPadding.y)
-                extraheight = isempty(bk.blocks) ? wp : unsafe_load(IMGUISTYLE.ItemSpacing.y) ÷ 2
-                bk.regmax = (rmax.x, bk.regmin.y + wp + CImGui.GetFrameHeight() + extraheight)
+                wph = unsafe_load(IMGUISTYLE.WindowPadding.y)
+                extraheight = isempty(bk.blocks) ? 2wph : MORESTYLE.Variables.ContainerBlockWindowPadding[2] + unsafe_load(IMGUISTYLE.ItemSpacing.y) / 2
+                bk.regmax = (rmax.x, bk.regmin.y + CImGui.GetFrameHeight() + extraheight)
             else
                 bk.regmin, bk.regmax = CImGui.GetItemRectMin(), CImGui.GetItemRectMax()
             end
