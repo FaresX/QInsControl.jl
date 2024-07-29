@@ -249,6 +249,7 @@ function saveqdt()
         for (key, val) in CFGBUF
             file[key] = val
         end
+        file["valid"] = false
     end
     if sum(length(data) for data in values(DATABUF); init=0) > CONF.DAQ.cuttingfile
         dir, file = splitdir(SAVEPATH)
