@@ -495,6 +495,127 @@ macro gencontroller(key, val, retval=nothing, quiet=false)
     )
 end
 
+############macro block-------------------------------------------------------------------------------------------------
+macro sweepblock(instrnm, addr, qtnm, step, stop, delay, u, istrycatch, ex)
+    esc(
+        tocodes(
+            SweepBlock(
+                instrnm=instrnm,
+                addr=addr,
+                quantity=qtnm,
+                step=step,
+                stop=stop,
+                delay=delay,
+                ui=utoui(instrnm, qtnm, u),
+                istrycatch=istrycatch,
+                blocks=CodeBlock(codes=string(ex))
+            )
+        )
+    )
+end
+
+
+macro freesweepblock(instrnm, addr, qtnm, stop, delay, delta, duration, u, istrycatch, ex)
+    esc(
+        tocodes(
+            FreeSweepBlock(
+                instrnm=instrnm,
+                addr=addr,
+                quantity=qtnm,
+                stop=stop,
+                delay=delay,
+                delta=delta,
+                duration=duration,
+                ui=utoui(instrnm, qtnm, u),
+                istrycatch=istrycatch,
+                blocks=CodeBlock(codes=string(ex))
+            )
+        )
+    )
+end
+
+macro settingblock(instrnm, addr, qtnm, sv, delay, u, istrycatch)
+    esc(
+        tocodes(
+            SettingBlock(
+                instrnm=instrnm,
+                addr=addr,
+                quantity=qtnm,
+                setvalue=sv,
+                delay=delay,
+                ui=utoui(instrnm, qtnm, u),
+                istrycatch=istrycatch
+            )
+        )
+    )
+end
+
+macro readingblock(instrnm, addr, qtnm, index, mark, isasync, isobserve, isreading, istrycatch)
+    esc(
+        tocodes(
+            ReadingBlock(
+                instrnm=instrnm,
+                addr=addr,
+                quantity=qtnm,
+                index=index,
+                mark=mark,
+                isasync=isasync,
+                isobserve=isobserve,
+                isreading=isreading,
+                istrycatch=istrycatch
+            )
+        )
+    )
+end
+
+macro writeblock(instrnm, addr, cmd, isasync, istrycatch)
+    esc(tocodes(WriteBlock(instrnm=instrnm, addr=addr, cmd=cmd, isasync=isasync, istrycatch=istrycatch)))
+end
+
+macro readblock(instrnm, addr, index, mark, isasync, isobserve, isreading, istrcatch)
+    esc(
+        tocodes(
+            ReadBlock(
+                instrnm=instrnm,
+                addr=addr,
+                index=index,
+                mark=mark,
+                isasync=isasync,
+                isobserve=isobserve,
+                isreading=isreading,
+                istrycatch=istrycatch
+            )
+        )
+    )
+end
+
+macro queryblock(instrnm, addr, cmd, index, mark, isasync, isobserve, isreading, istrcatch)
+    esc(
+        tocodes(
+            QueryBlock(
+                instrnm=instrnm,
+                addr=addr,
+                cmd=cmd,
+                index=index,
+                mark=mark,
+                isasync=isasync,
+                isobserve=isobserve,
+                isreading=isreading,
+                istrycatch=istrycatch
+            )
+        )
+    )
+end
+
+macro feedbackblock(instrnm, addr, action)
+    esc(tocodes(FeedbackBlock(instrnm=instrnm, addr=addr, action=action)))
+end
+
+function utoui(instrnm, qtnm, u)
+    utype = INSCONF[instrnm].quantities[qtnm].U
+    Us = haskey(CONF.U, utype) ? CONF.U[utype] : [""]
+    return u in Us ? findfirst(==(u), Us) : 1
+end
 ############functionality-----------------------------------------------------------------------------------------------
 macro logblock()
     esc(
@@ -530,6 +651,360 @@ macro psleep(seconds)
     )
 end
 
+############compile-----------------------------------------------------------------------------------------------------
+function compile(blocks::Vector{AbstractBlock})
+    return quote
+        function remote_sweep_block(controllers, databuf_lc, progress_lc, SYNCSTATES)
+            $(tocodes.(blocks)...)
+        end
+    end
+end
+
+############interpret----------------------------------------------------------------------------------
+interpret(blocks::Vector{AbstractBlock}) = quote
+    $(interpret.(blocks)...)
+end
+interpret(bk::CodeBlock) = tocodes(bk)
+function interpret(bk::StrideCodeBlock)
+    branch_idx = [i for (i, bk) in enumerate(bk.blocks) if bk isa BranchBlock]
+    branch_codes = [bk.codes for bk in bk.blocks[branch_idx]]
+    pushfirst!(branch_idx, 0)
+    push!(branch_idx, length(bk.blocks) + 1)
+    push!(branch_codes, "end")
+    innercodes = []
+    for i in eachindex(branch_idx)[1:end-1]
+        isasync = false
+        for bk in bk.blocks[branch_idx[i]+1:branch_idx[i+1]-1]
+            typeof(bk) in [ReadingBlock, WriteBlock, QueryBlock, ReadBlock] && bk.isasync && (isasync = true; break)
+        end
+        push!(
+            innercodes,
+            isasync ? quote
+                @sync begin
+                    $(interpret.(bk.blocks[branch_idx[i]+1:branch_idx[i+1]-1])...)
+                end
+            end : quote
+                $(interpret.(bk.blocks[branch_idx[i]+1:branch_idx[i+1]-1])...)
+            end
+        )
+    end
+    ex1 = bk.nohandler ? quote end : quote
+        @gencontroller StrideCodeBlock $(bk.codes)
+    end
+    codestr = string(bk.codes, "\n ", ex1)
+    for i in eachindex(innercodes)
+        codestr *= string("\n ", innercodes[i], "\n ", branch_codes[i])
+    end
+    @trypasse Meta.parse(codestr) (@error "[$(now())]\ncodes are wrong in parsing time (StrideCodeBlock)!!!" bk = bk)
+end
+
+function interpret(bk::SweepBlock)
+    utype = INSCONF[bk.instrnm].quantities[bk.quantity].U
+    u, _ = @c getU(utype, &bk.ui)
+    quote
+        @sweepblock $(bk.instrnm) $(bk.addr) $(bk.quantity) $(bk.step) $(bk.stop) $(bk.delay) $u $(bk.istrycatch) begin
+            $(interpret.(bk.blocks)...)
+        end
+    end
+end
+function interpret(bk::FreeSweepBlock)
+    utype = INSCONF[bk.instrnm].quantities[bk.quantity].U
+    u, _ = @c getU(utype, &bk.ui)
+    quote
+        @freesweepblock $(bk.instrnm) $(bk.addr) $(bk.quantity) $(bk.stop) $(bk.delay) $(bk.delta) $(bk.duration) $u $(bk.istrycatch) begin
+            $(interpret.(bk.blocks)...)
+        end
+    end
+end
+function interpret(bk::SettingBlock)
+    utype = INSCONF[bk.instrnm].quantities[bk.quantity].U
+    u, _ = @c getU(utype, &bk.ui)
+    :(@settingblock $(bk.instrnm) $(bk.addr) $(bk.quantity) $(bk.setvalue) $(bk.delay) $u $(bk.istrycatch))
+end
+function interpret(bk::ReadingBlock)
+    :(@readingblock $(bk.instrnm) $(bk.addr) $(bk.quantity) $(bk.index) $(bk.mark) $(bk.isasync) $(bk.isobserve) $(bk.isreading) $(bk.istrycatch))
+end
+function interpret(bk::WriteBlock)
+    :(@writeblock $(bk.instrnm) $(bk.addr) $(bk.cmd) $(bk.isasync) $(bk.istrycatch))
+end
+function interpret(bk::ReadBlock)
+    :(@readblock $(bk.instrnm) $(bk.addr) $(bk.index) $(bk.mark) $(bk.isasync) $(bk.isobserve) $(bk.isreading) $(bk.istrycatch))
+end
+function interpret(bk::QueryBlock)
+    :(@queryblock $(bk.instrnm) $(bk.addr) $(bk.cmd) $(bk.index) $(bk.mark) $(bk.isasync) $(bk.isobserve) $(bk.isreading) $(bk.istrycatch))
+end
+function interpret(bk::FeedbackBlock)
+    :(@feedbackblock $(bk.instrnm) $(bk.addr) $(bk.action))
+end
+############anti-interpret----------------------------------------------------------------------------------------------
+function antiinterpretblocks(ex)
+    bk = antiinterpret(ex)
+    return checkblocks!(bk isa StrideCodeBlock && bk.codes == "begin" ? bk.blocks : AbstractBlock[bk])
+end
+function checkblocks!(blocks::Vector{AbstractBlock}, level=1)
+    joinablebk = []
+    joining = false
+    for (i, bk) in enumerate(blocks)
+        if bk isa CodeBlock
+            joining || (joining = true; push!(joinablebk, [i]))
+        else
+            joining && (joining = false; push!(joinablebk[end], i - 1))
+            iscontainer(bk) && (bk.level = level; checkblocks!(bk.blocks, level + 1))
+            if bk isa StrideCodeBlock && !isempty(bk.blocks)
+                if bk.blocks[1] isa StrideCodeBlock && bk.blocks[1].codes in ["begin", "@sync begin"]
+                    bk.blocks[1].codes == "begin" && (bk.nohandler = bk.blocks[1].nohandler)
+                    inbks = bk.blocks[1].blocks
+                    deleteat!(bk.blocks, 1)
+                    prepend!(bk.blocks, inbks)
+                end
+                if BranchBlock in typeof.(bk.blocks)
+                    for _ in 1:count(==(BranchBlock), typeof.(bk.blocks))
+                        for (j, inbk) in enumerate(bk.blocks)
+                            if inbk isa BranchBlock && j < length(bk.blocks) && bk.blocks[j+1] isa StrideCodeBlock && bk.blocks[j+1].codes == "begin"
+                                inbks = bk.blocks[j+1].blocks
+                                deleteat!(bk.blocks, j + 1)
+                                for (k, b) in enumerate(inbks)
+                                    insert!(bk.blocks, j + k, b)
+                                end
+                                break
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end
+    joining && (joining = false; push!(joinablebk[end], length(blocks)))
+    for (i, j) in joinablebk
+        i == j && continue
+        jointbk = CodeBlock(codes=join([bk.codes for bk in blocks[i:j]], "\n"))
+        deleteat!(blocks, i:j)
+        insert!(blocks, i, jointbk)
+        for ij in joinablebk
+            ij .- (j - i)
+        end
+    end
+    return blocks
+end
+antiinterpret(ex) = CodeBlock(codes=string(ex))
+function antiinterpret(ex::Expr)
+    ex.head == :toplevel && (ex.head = :block)
+    pex = prettify(ex)
+    return antiinterpret(pex, Val(pex.head))
+end
+antiinterpret(ex, ::Val) = CodeBlock(codes=string(ex))
+function antiinterpret(ex, ::Val{:block})
+    isempty(ex.args) && return NullBlock()
+    blocks = antiinterpret.(ex.args)
+    return if all(x -> x isa CodeBlock, blocks)
+        codesvec = split(string(ex), "\n")
+        for i in eachindex(codesvec)
+            codesvec[i] = codesvec[i][5:end]
+        end
+        CodeBlock(codes=join(codesvec[2:end-1], "\n"))
+    else
+        bk1 = blocks[1]
+        nohandler = !(bk1 isa CodeBlock && @capture(tocodes(bk1), @gencontroller kv__))
+        StrideCodeBlock(codes="begin", blocks=nohandler ? blocks : blocks[2:end], nohandler=nohandler)
+    end
+end
+function antiinterpret(ex, ::Val{:for})
+    bk = antiinterpret(ex.args[2])
+    return if bk isa CodeBlock
+        CodeBlock(codes=string(ex))
+    else
+        StrideCodeBlock(codes=string("for ", ex.args[1]), blocks=[bk], nohandler=true)
+    end
+end
+function antiinterpret(ex, ::Val{:while})
+    bk = antiinterpret(ex.args[2])
+    return if bk isa CodeBlock
+        CodeBlock(codes=string(ex))
+    else
+        StrideCodeBlock(codes=string("while ", ex.args[1]), blocks=[bk], nohandler=true)
+    end
+end
+function antiinterpret(ex, ::Val{:let})
+    bk = antiinterpret(ex.args[2])
+    return if bk isa CodeBlock
+        CodeBlock(codes=string(ex))
+    else
+        codes = ex.args[1].head == :block ? "let" : string("let ", ex.args[1])
+        StrideCodeBlock(codes=codes, blocks=[bk], nohandler=true)
+    end
+end
+function antiinterpret(ex, ::Val{:function})
+    bk = antiinterpret(ex.args[2])
+    return if bk isa CodeBlock
+        CodeBlock(codes=string(ex))
+    else
+        StrideCodeBlock(codes=string("function ", ex.args[1]), blocks=[bk], nohandler=true)
+    end
+end
+function antiinterpret(ex, ::Val{:if})
+    blocks = AbstractBlock[antiinterpret(ex.args[2])]
+    if length(ex.args) == 3
+        if ex.args[3].head == :elseif
+            append!(blocks, antiinterpret(ex.args[3], Val(:elseif)))
+        else
+            push!(blocks, BranchBlock(codes="else"))
+            push!(blocks, antiinterpret(ex.args[3]))
+        end
+    end
+    return if all(x -> x isa CodeBlock || x isa BranchBlock, blocks)
+        CodeBlock(codes=string(ex))
+    else
+        StrideCodeBlock(codes=string("if ", ex.args[1]), blocks=blocks, nohandler=true)
+    end
+end
+function antiinterpret(ex, ::Val{:elseif})
+    blocks = AbstractBlock[BranchBlock(codes=string("elseif ", ex.args[1]))]
+    push!(blocks, antiinterpret(ex.args[2]))
+    return if length(ex.args) == 2
+        blocks
+    elseif length(ex.args) == 3
+        if ex.args[3].head == :elseif
+            append!(blocks, antiinterpret(ex.args[3], Val(:elseif)))
+        else
+            push!(blocks, BranchBlock(codes="else"))
+            push!(blocks, antiinterpret(ex.args[3]))
+        end
+    end
+    return blocks
+end
+function antiinterpret(ex, ::Val{:try})
+    blocks = AbstractBlock[antiinterpret(ex.args[1])]
+    push!(blocks, BranchBlock(codes=string("catch ", ex.args[2])))
+    push!(blocks, antiinterpret(ex.args[3]))
+    if length(ex.args) == 4
+        push!(blocks, BranchBlock(codes="finally"))
+        push!(blocks, antiinterpret(ex.args[4]))
+    end
+    return if all(x -> x isa CodeBlock || x isa BranchBlock, blocks)
+        CodeBlock(codes=string(ex))
+    else
+        StrideCodeBlock(codes="try", blocks=blocks, nohandler=true)
+    end
+end
+function antiinterpret(ex, ::Val{:macrocall})
+    blockmacros = Symbol.(
+        [
+        "@sweepblock", "@freesweepblock", "@settingblock", "@readingblock",
+        "@writeblock", "@readblock", "@queryblock", "@feedbackblock"
+    ]
+    )
+    ex.args[1] in blockmacros && return antiinterpret(ex, Val(Symbol(lstrip(string(ex.args[1]), '@'))))
+    isok1 = @capture ex @m1__ @m_ p__
+    isok1 && m in blockmacros && return StrideCodeBlock(
+            codes=string(join(m1, " "), " begin"),
+            blocks=[antiinterpret(Expr(:macrocall, m, nothing, p...), Val(Symbol(lstrip(string(m), '@'))))],
+            nohandler=true
+        )
+    isok2 = false
+    isok1 || (isok2 = @capture ex @m_ p__)
+    if isok1 || isok2
+        if isempty(p)
+            return CodeBlock(codes=string(ex))
+        else
+            p[end] isa Expr && p[end].head in [:block, :for, :while, :let, :function, :if, :try]
+            bk = antiinterpret(p[end])
+            return if bk isa CodeBlock
+                CodeBlock(codes=string(ex))
+            else
+                codes = string(
+                    join(vcat(isok1 ? m1 : [], [m], p[1:end-1]), " "), " ",
+                    if p[end].head in [:for, :while, :function, :if]
+                        string(p[end].head, " ", p[end].args[1])
+                    elseif p[end].head == :block
+                        "begin"
+                    elseif p[end].head == :let
+                        ex.args[1].head == :block ? "let" : string("let ", ex.args[1])
+                    elseif p[end].head == :try
+                        "try"
+                    end
+                )
+                StrideCodeBlock(codes=codes, blocks=bk.blocks, nohandler=bk.nohandler)
+            end
+        end
+    end
+    return CodeBlock(codes=string(ex))
+end
+antiinterpret(ex, ::Val{:sweepblock}) = SweepBlock(
+    instrnm=ex.args[3],
+    addr=ex.args[4],
+    quantity=ex.args[5],
+    step=ex.args[6],
+    stop=ex.args[7],
+    delay=ex.args[8],
+    ui=utoui(ex.args[3], ex.args[5], strtoU(string(ex.args[9]))),
+    istrycatch=ex.args[10],
+    blocks=(bk = antiinterpret(ex.args[11]); iscontainer(bk) ? bk.blocks : [bk])
+)
+antiinterpret(ex, ::Val{:freesweepblock}) = FreeSweepBlock(
+    instrnm=ex.args[3],
+    addr=ex.args[4],
+    quantity=ex.args[5],
+    stop=ex.args[6],
+    delay=ex.args[7],
+    delta=ex.args[8],
+    duration=ex.args[9],
+    ui=utoui(ex.args[3], ex.args[5], strtoU(string(ex.args[10]))),
+    istrycatch=ex.args[11],
+    blocks=(bk = antiinterpret(ex.args[12]); iscontainer(bk) ? bk.blocks : [bk])
+)
+antiinterpret(ex, ::Val{:settingblock}) = SettingBlock(
+    instrnm=ex.args[3],
+    addr=ex.args[4],
+    quantity=ex.args[5],
+    setvalue=ex.args[6],
+    delay=ex.args[7],
+    ui=utoui(ex.args[3], ex.args[5], strtoU(string(ex.args[8]))),
+    istrycatch=ex.args[9]
+)
+antiinterpret(ex, ::Val{:readingblock}) = ReadingBlock(
+    instrnm=ex.args[3],
+    addr=ex.args[4],
+    quantity=ex.args[5],
+    index=ex.args[6],
+    mark=ex.args[7],
+    isasync=ex.args[8],
+    isobserve=ex.args[9],
+    isreading=ex.args[10],
+    istrycatch=ex.args[11]
+)
+antiinterpret(ex, ::Val{:writeblock}) = WriteBlock(
+    instrnm=ex.args[3],
+    addr=ex.args[4],
+    cmd=ex.args[5],
+    isasync=ex.args[6],
+    istrycatch=ex.args[7]
+)
+antiinterpret(ex, ::Val{:readblock}) = ReadBlock(
+    instrnm=ex.args[3],
+    addr=ex.args[4],
+    index=ex.args[5],
+    mark=ex.args[6],
+    isasync=ex.args[7],
+    isobserve=ex.args[8],
+    isreading=ex.args[9],
+    istrycatch=ex.args[10]
+)
+antiinterpret(ex, ::Val{:queryblock}) = QueryBlock(
+    instrnm=ex.args[3],
+    addr=ex.args[4],
+    cmd=ex.args[5],
+    index=ex.args[6],
+    mark=ex.args[7],
+    isasync=ex.args[8],
+    isobserve=ex.args[9],
+    isreading=ex.args[10],
+    istrycatch=ex.args[11]
+)
+antiinterpret(ex, ::Val{:feedbackblock}) = FeedbackBlock(
+    instrnm=ex.args[3],
+    addr=ex.args[4],
+    action=ex.args[5]
+)
 ############bkheight----------------------------------------------------------------------------------------------------
 
 bkheight(::NullBlock) = zero(Float32)
