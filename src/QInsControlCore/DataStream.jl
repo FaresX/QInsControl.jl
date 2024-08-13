@@ -250,17 +250,17 @@ function (ct::Controller)(f::Function, cpu::Processor, val::String, ::Val{:query
 end
 
 function runcmd(cpu::Processor, ct::Controller, i::Int, f::Function, val::String, ::Val{:write})
-    f(cpu.instrs[ct.addr], val)
+    wait(Threads.@spawn f(cpu.instrs[ct.addr], val))
     ct.ready[i] = true
     return nothing
 end
 function runcmd(cpu::Processor, ct::Controller, i::Int, f::Function, ::String, ::Val{:read})
-    ct.databuf[i] = f(cpu.instrs[ct.addr])
+    ct.databuf[i] = fetch(Threads.@spawn f(cpu.instrs[ct.addr]))
     ct.ready[i] = true
     return nothing
 end
 function runcmd(cpu::Processor, ct::Controller, i::Int, f::Function, val::String, ::Val{:query})
-    ct.databuf[i] = f(cpu.instrs[ct.addr], val)
+    ct.databuf[i] = fetch(Threads.@spawn f(cpu.instrs[ct.addr], val))
     ct.ready[i] = true
     return nothing
 end
