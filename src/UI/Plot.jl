@@ -236,6 +236,7 @@ function mergeyaxes!(plt::Plot)
 end
 
 function mergezaxes!(plt::Plot)
+    zaxesbackup = deepcopy(plt.zaxes)
     empty!(plt.zaxes)
     for pss in plt.series
         zlims = extrema(pss.z; init=(0, 1))
@@ -250,6 +251,9 @@ function mergezaxes!(plt::Plot)
         pltza.lims = extrema(vcat([collect(axis.zaxis.lims) for axis in sameaxis]...))
         for axis in sameaxis
             axis.zaxis = deepcopy(pltza)
+        end
+        if pltza.axis in [za.axis for za in zaxesbackup]
+            pltza.colormapscalesize = zaxesbackup[findfirst(za -> za.axis == pltza.axis, zaxesbackup)].colormapscalesize
         end
     end
 end
