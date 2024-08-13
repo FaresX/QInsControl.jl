@@ -40,7 +40,7 @@ let
             CImGui.Button(stcstr(" ", mlstr("Edit queue: Task"), " ", id + OLDI, " ", daqtask.name))
             CImGui.PopStyleColor(3)
             CImGui.SameLine(CImGui.GetContentRegionAvailWidth() - 3ftsz - tbtx - unsafe_load(IMGUISTYLE.ItemSpacing.x))
-            if @c ToggleButton(mlstr(daqtask.textmode ? "Text" : "Block"), &daqtask.textmode; size=(tbtx, Cfloat(0)))
+            if @c ToggleButton(mlstr(daqtask.textmode ? "Text" : "Block"), &daqtask.textmode)
                 try
                     daqtask.textmode && (daqtask.viewcodes = string(prettify(interpret(daqtask.blocks))))
                 catch e
