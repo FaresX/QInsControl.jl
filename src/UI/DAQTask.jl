@@ -155,7 +155,7 @@ let
                         daqtask.blocks = deepcopy(redolist[id][])
                     end
                     if CImGui.MenuItem(stcstr(MORESTYLE.Icons.Convert, " ", mlstr("Compile")))
-                        @info "[$(now())]\n" codes = @trypasse compile(daqtask.blocks) nothing
+                        @info "[$(now())]\n" codes = @trypasse prettify(compile(daqtask.blocks)) nothing
                     end
                     CImGui.EndPopup()
                 end
