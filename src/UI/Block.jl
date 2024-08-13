@@ -147,7 +147,7 @@ Base.isapprox(x::Vector{AbstractBlock}, y::Vector{AbstractBlock}) = length(x) ==
 
 ############ tocodes ---------------------------------------------------------------------------------------------------
 
-tocodes(::NullBlock) = nothing
+tocodes(::NullBlock) = Expr(:block)
 
 function tocodes(bk::CodeBlock)
     ex = @trypass Meta.parseall(bk.codes) begin
@@ -664,6 +664,7 @@ end
 interpret(blocks::Vector{AbstractBlock}) = quote
     $(interpret.(blocks)...)
 end
+interpret(::NullBlock) = Expr(:block)
 interpret(bk::CodeBlock) = tocodes(bk)
 function interpret(bk::StrideCodeBlock)
     branch_idx = [i for (i, bk) in enumerate(bk.blocks) if bk isa BranchBlock]
@@ -751,7 +752,12 @@ function checkblocks!(blocks::Vector{AbstractBlock}, level=1)
             joining && (joining = false; push!(joinablebk[end], i - 1))
             iscontainer(bk) && (bk.level = level; checkblocks!(bk.blocks, level + 1))
             if bk isa StrideCodeBlock && !isempty(bk.blocks)
-                if bk.blocks[1] isa StrideCodeBlock && bk.blocks[1].codes in ["begin", "@sync begin"]
+                if bk.blocks[1] isa StrideCodeBlock &&
+                   (
+                    bk.blocks[1].codes == "begin" ||
+                    bk.blocks[1].codes == "@sync begin" && length(bk.blocks) == 1 &&
+                    count(x -> x in [ReadingBlock, ReadBlock, QueryBlock], typeof.(bk.blocks[1].blocks)) > 0
+                )
                     bk.blocks[1].codes == "begin" && (bk.nohandler = bk.blocks[1].nohandler)
                     inbks = bk.blocks[1].blocks
                     deleteat!(bk.blocks, 1)
@@ -760,7 +766,12 @@ function checkblocks!(blocks::Vector{AbstractBlock}, level=1)
                 if BranchBlock in typeof.(bk.blocks)
                     for _ in 1:count(==(BranchBlock), typeof.(bk.blocks))
                         for (j, inbk) in enumerate(bk.blocks)
-                            if inbk isa BranchBlock && j < length(bk.blocks) && bk.blocks[j+1] isa StrideCodeBlock && bk.blocks[j+1].codes == "begin"
+                            if inbk isa BranchBlock && j < length(bk.blocks) && bk.blocks[j+1] isa StrideCodeBlock &&
+                               (
+                                   bk.blocks[j+1].codes == "begin" ||
+                                   bk.blocks[j+1].codes == "@sync begin" && (j + 1 == length(bk.blocks) || bk.blocks[j+2] isa BranchBlock) &&
+                                   count(x -> x in [ReadingBlock, ReadBlock, QueryBlock], typeof.(bk.blocks[j+1].blocks)) > 0
+                               )
                                 inbks = bk.blocks[j+1].blocks
                                 deleteat!(bk.blocks, j + 1)
                                 for (k, b) in enumerate(inbks)
@@ -903,6 +914,7 @@ function antiinterpret(ex, ::Val{:macrocall})
     isok2 = false
     isok1 || (isok2 = @capture ex @m_ p__)
     if isok1 || isok2
+        isok1 && m1[end] == m == Symbol("@sync") && return antiinterpret(Meta.parse(join(vcat(m1, p), " ")))
         if isempty(p)
             return CodeBlock(codes=string(ex))
         else
