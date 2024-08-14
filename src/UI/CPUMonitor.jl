@@ -17,7 +17,7 @@ function CPUMonitor()
     SeparatorTextColored(MORESTYLE.Colors.HighlightText, mlstr("Processor"))
     CImGui.Indent()
     if cpuinfo[:running]
-        igBeginDisabled(SYNCSTATES[Int(IsDAQTaskRunning)])
+        igBeginDisabled(SYNCSTATES[Int(IsDAQTaskRunning)] || SYNCSTATES[Int(IsAutoRefreshing)])
         ToggleButton(mlstr("Running"), Ref(true)) && remotecall_wait(() -> stop!(CPU), workers()[1])
         igEndDisabled()
         CImGui.SameLine()
