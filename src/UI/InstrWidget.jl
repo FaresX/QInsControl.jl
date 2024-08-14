@@ -988,8 +988,14 @@ let
                 CImGui.PushID(i)
                 igBeginDisabled(!usingit && draggable && disabled)
                 if edit(qtw, insbuf, insw.instrnm, addr)
-                    qtw.qtype in qtypes && qtw.options.uitype ∉ continuousuitypes && Threads.@spawn @trycatch mlstr("task failed!!!") refresh1(insw, addr; blacklist=[qtw.name])
-                    qtw.name == "_QuantitySelector_" && (trigselector!(qtw, insw); Threads.@spawn @trycatch mlstr("task failed!!!") refresh1(insw, addr))
+                    if qtw.qtype in qtypes && qtw.options.uitype ∉ continuousuitypes
+                        Threads.@spawn @trycatch mlstr("task failed!!!") refresh1(insw, addr; blacklist=[qtw.name])
+                    end
+                    if qtw.name == "_QuantitySelector_"
+                        trigselector!(qtw, insw)
+                        refreshqtlist!(insw)
+                        Threads.@spawn @trycatch mlstr("task failed!!!") refresh1(insw, addr)
+                    end
                 end
                 igEndDisabled()
                 if !usingit
@@ -2175,16 +2181,7 @@ function globalwidgetoptionsmenu(insw::InstrWidget)
 end
 
 function initialize!(insw::InstrWidget, addr)
-    empty!(insw.qtlist)
-    qtlist = []
-    autoreflist = Dict()
-    for qtw in insw.qtws
-        if qtw.qtype in ["sweep", "set", "read"]
-            push!(qtlist, qtw.name)
-            qtw.options.autorefresh && (autoreflist[qtw.name] = qtw.options.refreshrate)
-        end
-    end
-    append!(insw.qtlist, Set(qtlist))
+    _, autoreflist = refreshqtlist!(insw)
     if haskey(INSTRBUFFERVIEWERS, insw.instrnm) && haskey(INSTRBUFFERVIEWERS[insw.instrnm], addr) && !isempty(autoreflist)
         SYNCSTATES[Int(IsAutoRefreshing)] = true
         INSTRBUFFERVIEWERS[insw.instrnm][addr].insbuf.isautorefresh = true
@@ -2207,6 +2204,20 @@ function exit!(insw::InstrWidget, addr)
             qt.isautorefresh = false
         end
     end
+end
+
+function refreshqtlist!(insw::InstrWidget)
+    empty!(insw.qtlist)
+    qtlist = []
+    autoreflist = Dict()
+    for qtw in insw.qtws
+        if qtw.qtype in ["sweep", "set", "read"]
+            push!(qtlist, qtw.name)
+            qtw.options.autorefresh && (autoreflist[qtw.name] = qtw.options.refreshrate)
+        end
+    end
+    append!(insw.qtlist, Set(qtlist))
+    return qtlist, autoreflist
 end
 
 function refresh1(insw::InstrWidget, addr; blacklist=[])
