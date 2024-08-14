@@ -168,13 +168,13 @@ let
                 SeparatorTextColored(MORESTYLE.Colors.HighlightText, "DAQ")
                 @c(RadioButton2(
                     mlstr("log all quantities"), mlstr("log enabled quantities"), &CONF.DAQ.logall;
-                    local_pos_x = 12ftsz
+                    local_pos_x=12ftsz
                 )) && remotecall_wait(x -> CONF.DAQ.logall = x, workers()[1], CONF.DAQ.logall)
                 @c(RadioButton2(
                     mlstr("equal step sampling"), mlstr("fixed step sampling"), &CONF.DAQ.equalstep;
-                    local_pos_x = 12ftsz
+                    local_pos_x=12ftsz
                 )) && remotecall_wait(x -> CONF.DAQ.equalstep = x, workers()[1], CONF.DAQ.equalstep)
-                @c RadioButton2(mlstr("eval in Main"), mlstr("eval in QInsControl"), &CONF.DAQ.externaleval; local_pos_x = 12ftsz)
+                @c RadioButton2(mlstr("eval in Main"), mlstr("eval in QInsControl"), &CONF.DAQ.externaleval; local_pos_x=12ftsz)
                 @c ComboS(mlstr("stored data type"), &CONF.DAQ.savetype, datatypes)
                 @c CImGui.DragInt(
                     stcstr(mlstr("saving time"), " (s)"),
@@ -235,6 +235,9 @@ let
 
                 ###InsBuf###
                 SeparatorTextColored(MORESTYLE.Colors.HighlightText, mlstr("Instrument Control"))
+                @c(CImGui.Checkbox(
+                    mlstr("read after sweeping"), &CONF.InsBuf.retreading)
+                ) && remotecall_wait(x -> (CONF.InsBuf.retreading = x), workers()[1], CONF.InsBuf.retreading)
                 @c CImGui.Checkbox(mlstr("show help"), &CONF.InsBuf.showhelp)
                 @c CImGui.DragInt(
                     mlstr("display columns"),
