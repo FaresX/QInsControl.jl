@@ -133,11 +133,11 @@ let
         for (i, pltxa) in enumerate(plt.xaxes)
             pltxa.hovered && mousedoubleclicked0 && CImGui.OpenPopup(stcstr("xlabel", i, "-", id))
             if CImGui.BeginPopup(stcstr("xlabel", i, "-", id))
-                @c(InputTextRSZ(stcstr("X ", mlstr("label")), &pltxa.label)) && resyncx(plt, pltxa, :label)
+                @c(InputTextRSZ(stcstr("X ", mlstr("label")), &pltxa.label)) && resync(plt, pltxa, :label)
                 scale = string(ImPlot.ImPlotScale_(pltxa.scale))
                 if @c ComboS(mlstr("Axis Scale"), &scale, string.(instances(ImPlot.ImPlotScale_)))
                     pltxa.scale = getproperty(ImPlot, Symbol(scale))
-                    resyncx(plt, pltxa, :scale)
+                    resync(plt, pltxa, :scale)
                 end
                 CImGui.EndPopup()
             end
@@ -145,11 +145,11 @@ let
         for (i, pltya) in enumerate(plt.yaxes)
             pltya.hovered && mousedoubleclicked0 && CImGui.OpenPopup(stcstr("ylabel", i, "-", id))
             if CImGui.BeginPopup(stcstr("ylabel", i, "-", id))
-                @c(InputTextRSZ(stcstr("Y ", mlstr("label")), &pltya.label)) && resyncy(plt, pltya, :label)
+                @c(InputTextRSZ(stcstr("Y ", mlstr("label")), &pltya.label)) && resync(plt, pltya, :label)
                 scale = string(ImPlot.ImPlotScale_(pltya.scale))
                 if @c ComboS(mlstr("Axis Scale"), &scale, string.(instances(ImPlot.ImPlotScale_)))
                     pltya.scale = getproperty(ImPlot, Symbol(scale))
-                    resyncy(plt, pltya, :scale)
+                    resync(plt, pltya, :scale)
                 end
                 CImGui.EndPopup()
             end
@@ -157,13 +157,13 @@ let
         for (i, pltza) in enumerate(plt.zaxes)
             pltza.hovered && mousedoubleclicked0 && CImGui.OpenPopup(stcstr("zlabel", i, "-", id))
             if CImGui.BeginPopup(stcstr("zlabel", i, "-", id))
-                @c(InputTextRSZ(stcstr("Z ", mlstr("label")), &pltza.label)) && resyncz(plt, pltza, :label)
+                @c(InputTextRSZ(stcstr("Z ", mlstr("label")), &pltza.label)) && resync(plt, pltza, :label)
                 cmap = unsafe_string(ImPlot.GetColormapName(pltza.colormap))
                 if @c ComboS(
                     mlstr("Colormap"), &cmap, unsafe_string.(ImPlot.GetColormapName.(0:ImPlot.GetColormapCount()-1))
                 )
                     pltza.colormap = ImPlot.GetColormapIndex(cmap)
-                    resyncz(plt, pltza, :colormap)
+                    resync(plt, pltza, :colormap)
                 end
                 if ImPlot.ColormapButton(
                     stcstr(unsafe_string(ImPlot.GetColormapName(pltza.colormap)), "##", pltza.axis),
@@ -171,17 +171,17 @@ let
                     pltza.colormap
                 )
                     pltza.colormap = (pltza.colormap + 1) % ImPlot.GetColormapCount()
-                    resyncz(plt, pltza, :colormap)
+                    resync(plt, pltza, :colormap)
                 end
                 igBeginDisabled(pltza.autofitl && pltza.autofith)
                 vlimsold = deepcopy(pltza.vlims)
                 if CImGui.InputFloat2(mlstr("Color Range"), pltza.vlims)
-                    pltza.vlims[1] == pltza.vlims[2] ? pltza.vlims = vlimsold : resyncz(plt, pltza, :vlims)
+                    pltza.vlims[1] == pltza.vlims[2] ? pltza.vlims = vlimsold : resync(plt, pltza, :vlims)
                 end
                 igEndDisabled()
-                @c(CImGui.Checkbox(mlstr("Auto-Fit Lower Bounds"), &pltza.autofitl)) && resyncz(plt, pltza, :autofitl)
+                @c(CImGui.Checkbox(mlstr("Auto-Fit Lower Bounds"), &pltza.autofitl)) && resync(plt, pltza, :autofitl)
                 CImGui.SameLine()
-                @c(CImGui.Checkbox(mlstr("Auto-Fit Upper Bounds"), &pltza.autofith)) && resyncz(plt, pltza, :autofith)
+                @c(CImGui.Checkbox(mlstr("Auto-Fit Upper Bounds"), &pltza.autofith)) && resync(plt, pltza, :autofith)
                 CImGui.EndPopup()
             end
         end
@@ -190,17 +190,20 @@ let
     end
 end
 
-for d in [:x, :y, :z]
-    func = Symbol(:resync, d)
-    axis = Symbol(d, :axis)
-    ex = quote
-        function $func(plt::Plot, axis, attr)
-            for pss in plt.series
-                pss.axis.$axis.axis == axis.axis && setproperty!(pss.axis.$axis, attr, getproperty(axis, attr))
-            end
-        end
+function resync(plt::Plot, axis::Xaxis, attr)
+    for pss in plt.series
+        pss.axis.xaxis.axis == axis.axis && setproperty!(pss.axis.xaxis, attr, getproperty(axis, attr))
     end
-    eval(ex)
+end
+function resync(plt::Plot, axis::Yaxis, attr)
+    for pss in plt.series
+        pss.axis.yaxis.axis == axis.axis && setproperty!(pss.axis.yaxis, attr, getproperty(axis, attr))
+    end
+end
+function resync(plt::Plot, axis::Zaxis, attr)
+    for pss in plt.series
+        pss.axis.zaxis.axis == axis.axis && setproperty!(pss.axis.zaxis, attr, getproperty(axis, attr))
+    end
 end
 
 function mergexaxes!(plt::Plot)
