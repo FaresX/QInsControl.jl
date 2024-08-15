@@ -217,7 +217,7 @@ query the instrument with some message string.
 """
 function _query_(instr::Instrument, msg::AbstractString; delay=0)
     write(instr, msg)
-    delay < 0.001 || sleep(delay)
+    delay < 0.001 ? yield() : sleep(delay)
     read(instr)
 end
 function query(instr::VISAInstr, msg::AbstractString; delay=instr.attr.querydelay)
