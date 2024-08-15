@@ -76,7 +76,7 @@ end
     quantity::String = mlstr("read")
     index::String = ""
     mark::String = ""
-    isasync::Bool = false
+    isasync::Bool = true
     isobserve::Bool = false
     isreading::Bool = false
     istrycatch::Bool = true
@@ -100,7 +100,7 @@ end
     cmd::String = ""
     index::String = ""
     mark::String = ""
-    isasync::Bool = false
+    isasync::Bool = true
     isobserve::Bool = false
     isreading::Bool = false
     istrycatch::Bool = true
