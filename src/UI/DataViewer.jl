@@ -22,9 +22,11 @@ function edit(dtviewer::DataViewer, filetree::FileTree, isrename::Dict{String,Bo
 
         oldfile = filetree.selectedpath[]
         InputTextRSZ(stcstr(mlstr("Filter"), "##", id), filetree.filter)
+        CImGui.SameLine()
+        CImGui.Checkbox(mlstr("Valid"), filetree.valid)
         CImGui.PushStyleColor(CImGui.ImGuiCol_ChildBg, MORESTYLE.Colors.ToolBarBg)
         CImGui.BeginChild("DataViewer-FileTree")
-        edit(filetree, isrename)
+        edit(filetree, isrename, false)
         filetree.selectedpath[] == oldfile || loaddtviewer!(dtviewer, filetree.selectedpath[])
         CImGui.EndChild()
         CImGui.PopStyleColor()
@@ -186,6 +188,10 @@ function edit(dtviewer::DataViewer, path, id)
                 savepath == "" || saveqdt(dtviewer, savepath)
             end
         end
+        CImGui.SameLine()
+        haskey(dtviewer.data, "valid") || push!(dtviewer.data, "valid" => false)
+        valid = dtviewer.data["valid"]
+        @c(CImGui.Checkbox(mlstr("Valid"), &valid)) && (dtviewer.data["valid"] = valid)
         CImGui.EndTabBar()
     end
     CImGui.EndChild()

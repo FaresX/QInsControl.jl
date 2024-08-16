@@ -5,6 +5,7 @@ mutable struct FileFileTree <: FileTree
     filepath_bnm::String
     selectedpath::Ref{String}
     filter::Ref{String}
+    valid::Bool
     isdeleted::Bool
 end
 mutable struct FolderFileTree <: FileTree
@@ -12,47 +13,62 @@ mutable struct FolderFileTree <: FileTree
     rootpath_bnm::String
     selectedpath::Ref{String}
     filter::Ref{String}
+    valid::Ref{Bool}
     filetrees::Vector{T} where {T<:FileTree}
-    function FolderFileTree(rootpath::String, selectedpath::Ref{String}=Ref(""), filter::Ref{String}=Ref(""))
+    function FolderFileTree(rootpath::String, selectedpath::Ref{String}=Ref(""), filter=Ref(""), valid=Ref(false))
         ft = new()
         ft.rootpath = rootpath
         ft.rootpath_bnm = basename(ft.rootpath)
         ft.selectedpath = selectedpath
         ft.filter = filter
+        ft.valid = valid
         ft.filetrees = FileTree[]
         dircontent = readdir(rootpath, join=true)
         for p in dircontent
             if isdir(p)
-                push!(ft.filetrees, FolderFileTree(p, ft.selectedpath, ft.filter))
+                push!(ft.filetrees, FolderFileTree(p, ft.selectedpath, ft.filter, ft.valid))
             elseif isfile(p)
-                push!(ft.filetrees, FileFileTree(p, basename(p), ft.selectedpath, ft.filter, false))
+                push!(
+                    ft.filetrees,
+                    FileFileTree(
+                        p, basename(p), ft.selectedpath, ft.filter,
+                        split(basename(p), '.')[end] in ["qdt", "cfg"] ? loadvalid(p) : false,
+                        false
+                    )
+                )
             end
         end
         ft
     end
-    function FolderFileTree(pathes::Vector{String}, selectedpath::Ref{String}=Ref(""), filter::Ref{String}=Ref(""))
+    function FolderFileTree(pathes::Vector{String}, selectedpath::Ref{String}=Ref(""), filter=Ref(""), valid=Ref(false))
         new(
-            dirname(pathes[1]),
-            "",
-            selectedpath,
-            filter,
-            [FileFileTree(p, basename(p), selectedpath, filter, false) for p in pathes]
+            dirname(pathes[1]), "", selectedpath, filter, valid,
+            [
+                FileFileTree(
+                    p, basename(p), selectedpath, filter,
+                    split(basename(p), '.')[end] in ["qdt", "cfg"] ? loadvalid(p) : false,
+                    false
+                )
+                for p in pathes
+            ]
         )
     end
 end
 
-function edit(filetree::FolderFileTree, isrename::Dict{String,Bool}, bnm=false)
+function edit(filetree::FolderFileTree, isrename::Dict{String,Bool}, ::Bool, bnm=false)
     if CImGui.TreeNode(stcstr(MORESTYLE.Icons.OpenFolder, " ", bnm ? filetree.rootpath_bnm : filetree.rootpath))
         for ft in filetree.filetrees
-            edit(ft, isrename, true)
+            edit(ft, isrename, filetree.valid[], true)
         end
         CImGui.TreePop()
     end
 end
 
-function edit(filetree::FileFileTree, isrename::Dict{String,Bool}, ::Bool)
-    if !filetree.isdeleted && (filetree.filter[] == "" || !isvalid(filetree.filter[]) ||
-                               occursin(lowercase(filetree.filter[]), lowercase(filetree.filepath_bnm)))
+function edit(filetree::FileFileTree, isrename::Dict{String,Bool}, valid::Bool, ::Bool)
+    if !filetree.isdeleted &&
+       (filetree.filter[] == "" || !isvalid(filetree.filter[]) ||
+        occursin(lowercase(filetree.filter[]), lowercase(filetree.filepath_bnm))) &&
+       (!valid || (valid && filetree.valid[]))
         filemenu(filetree, isrename)
     end
 end
@@ -100,3 +116,5 @@ let
         CImGui.PopID()
     end
 end
+
+loadvalid(path) = (valid = @trypasse load(path, "valid") false; valid isa Bool ? valid : false)

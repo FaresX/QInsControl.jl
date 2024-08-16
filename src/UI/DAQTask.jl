@@ -2,6 +2,10 @@
     name::String = ""
     explog::String = ""
     blocks::Vector{AbstractBlock} = [SweepBlock()]
+    viewcodes::String = ""
+    editcodes::String = ""
+    textmode::Bool = false
+    viewmode::Bool = false
     hold::Bool = false
 end
 
@@ -11,8 +15,9 @@ global SAVEPATH::String = ""
 const CFGBUF = Dict{String,Any}()
 
 let
-    viewmode::Bool = false
     redolist::Dict{Int,LoopVector{Vector{AbstractBlock}}} = Dict()
+    blocksbuf::Vector{AbstractBlock} = []
+    tbtx::Cfloat = 0
     global function edit(daqtask::DAQTask, id, p_open::Ref{Bool})
         CImGui.SetNextWindowSize((600, 800), CImGui.ImGuiCond_Once)
         CImGui.PushStyleColor(CImGui.ImGuiCol_WindowBg, CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_PopupBg))
@@ -34,8 +39,20 @@ let
             CImGui.SameLine()
             CImGui.Button(stcstr(" ", mlstr("Edit queue: Task"), " ", id + OLDI, " ", daqtask.name))
             CImGui.PopStyleColor(3)
+            CImGui.SameLine(CImGui.GetContentRegionAvailWidth() - 3ftsz - tbtx - unsafe_load(IMGUISTYLE.ItemSpacing.x))
+            if @c ToggleButton(mlstr(daqtask.textmode ? "Text" : "Block"), &daqtask.textmode)
+                try
+                    daqtask.textmode && (daqtask.viewcodes = string(prettify(interpret(daqtask.blocks))))
+                catch e
+                    @error "[$(now())]\nan error occurs during interpreting blocks" exception = e
+                    showbacktrace()
+                end
+            end
+            tbtx = CImGui.GetItemRectSize().x
             CImGui.SameLine(CImGui.GetContentRegionAvailWidth() - 3ftsz)
-            CImGui.Button(viewmode ? MORESTYLE.Icons.View : MORESTYLE.Icons.Edit, (3ftsz / 2, Cfloat(0))) && (viewmode ⊻= true)
+            CImGui.Button(
+                daqtask.viewmode ? MORESTYLE.Icons.View : MORESTYLE.Icons.Edit, (3ftsz / 2, Cfloat(0))
+            ) && (daqtask.viewmode ⊻= true)
             CImGui.SameLine()
             @c ToggleButton(MORESTYLE.Icons.HoldPin, &daqtask.hold)
             CImGui.Separator()
@@ -48,48 +65,108 @@ let
                 CImGui.EndPopup()
             end
             SeparatorTextColored(MORESTYLE.Colors.HighlightText, mlstr("Script"))
-            CImGui.PushID(id)
-            dragblockmenu(id)
-            CImGui.BeginChild("DAQTask.blocks")
-            CImGui.PushStyleColor(CImGui.ImGuiCol_Border, MORESTYLE.Colors.NormalBlockBorder)
-            CImGui.PushStyleVar(CImGui.ImGuiStyleVar_ChildBorderSize, 1)
-            viewmode ? view(daqtask.blocks) : edit(daqtask.blocks, 1, id)
-            CImGui.PopStyleVar()
-            CImGui.PopStyleColor()
-            CImGui.EndChild()
-            if !haskey(redolist, id)
-                redolist[id] = LoopVector(fill(AbstractBlock[], CONF.DAQ.historylen))
-                redolist[id][] = deepcopy(daqtask.blocks)
-            end
-            if !CImGui.IsMouseDown(0)
-                redolist[id][] ≈ daqtask.blocks || (move!(redolist[id]); redolist[id][] = deepcopy(daqtask.blocks))
-            end
-            all(.!mousein.(daqtask.blocks, true)) && CImGui.OpenPopupOnItemClick("add new Block")
-            if CImGui.BeginPopup("add new Block")
-                if CImGui.BeginMenu(stcstr(MORESTYLE.Icons.NewFile, " ", mlstr("Add")))
-                    newblock = addblockmenu(1)
-                    isnothing(newblock) || push!(daqtask.blocks, newblock)
-                    CImGui.EndMenu()
+            if daqtask.textmode
+                if daqtask.viewmode
+                    @c InputTextMultilineRSZ(stcstr("##Script", id), &daqtask.viewcodes, (-1, -1), ImGuiInputTextFlags_ReadOnly)
+                else
+                    if CImGui.Button(mlstr("Open with Editor"))
+                        isdir(joinpath(ENV["QInsControlAssets"], "temp")) || mkdir(joinpath(ENV["QInsControlAssets"], "temp"))
+                        Threads.@spawn @trycatch mlstr("error editing text!!!") begin
+                            file = joinpath(ENV["QInsControlAssets"], "temp", string(basename(tempname()), ".jl"))
+                            open(file, "w") do io
+                                write(io, daqtask.editcodes)
+                            end
+                            Base.run(Cmd([CONF.Basic.editor, file]))
+                            daqtask.editcodes = read(file, String)
+                        end
+                    end
+                    CImGui.SameLine()
+                    if CImGui.Button(mlstr("Interpret"))
+                        try
+                            daqtask.editcodes = string(prettify(interpret(daqtask.blocks)))
+                        catch e
+                            @error "[$(now())]\nan error occurs during interpreting blocks" exception = e
+                            showbacktrace()
+                        end
+                    end
+                    CImGui.SameLine()
+                    if CImGui.Button(mlstr("Anti-interpret"))
+                        try
+                            blocksbuf = antiinterpretblocks(Meta.parseall(daqtask.editcodes))
+                        catch e
+                            blocksbuf = []
+                            @error "[$(now())]\nan error occurs during anti-interpreting codes" exception = e
+                            showbacktrace()
+                        end
+                        CImGui.OpenPopup("##Blocks Buffer$id")
+                    end
+                    @c InputTextMultilineRSZ(stcstr("##Script", id), &daqtask.editcodes, (-1, -1), ImGuiInputTextFlags_AllowTabInput)
+                    if CImGui.BeginPopupModal(stcstr("##Blocks Buffer", id))
+                        CImGui.Button(stcstr(MORESTYLE.Icons.CloseFile, " ", mlstr("Close"))) && CImGui.CloseCurrentPopup()
+                        CImGui.SameLine()
+                        if CImGui.Button(stcstr(MORESTYLE.Icons.SaveButton, " ", mlstr("Save")))
+                            daqtask.blocks = copy(blocksbuf)
+                            CImGui.CloseCurrentPopup()
+                        end
+                        CImGui.Columns(2)
+                        BoxTextColored(mlstr("Original"); size=(-1, 0), col=MORESTYLE.Colors.HighlightText)
+                        CImGui.BeginChild("blocksorigin")
+                        edit(daqtask.blocks, 1, "blocksorigin")
+                        CImGui.EndChild()
+                        CImGui.NextColumn()
+                        BoxTextColored(mlstr("New"); size=(-1, 0), col=MORESTYLE.Colors.HighlightText)
+                        CImGui.BeginChild("blocksbuf")
+                        edit(blocksbuf, 1, "blocksbuf")
+                        CImGui.EndChild()
+                        CImGui.EndPopup()
+                    end
                 end
-                CImGui.Separator()
-                if CImGui.MenuItem(stcstr(MORESTYLE.Icons.Undo, " ", mlstr("Undo"))) && !isempty(redolist[id][-1])
-                    move!(redolist[id], -1)
-                    daqtask.blocks = deepcopy(redolist[id][])
+            else
+                CImGui.PushID(id)
+                dragblockmenu(id)
+                CImGui.BeginChild("DAQTask.blocks")
+                CImGui.PushStyleColor(CImGui.ImGuiCol_Border, MORESTYLE.Colors.NormalBlockBorder)
+                CImGui.PushStyleVar(CImGui.ImGuiStyleVar_ChildBorderSize, 1)
+                daqtask.viewmode ? view(daqtask.blocks) : edit(daqtask.blocks, 1, id)
+                CImGui.PopStyleVar()
+                CImGui.PopStyleColor()
+                CImGui.EndChild()
+                if !haskey(redolist, id)
+                    redolist[id] = LoopVector(fill(AbstractBlock[], CONF.DAQ.historylen))
+                    redolist[id][] = deepcopy(daqtask.blocks)
                 end
-                if CImGui.MenuItem(stcstr(MORESTYLE.Icons.Redo, " ", mlstr("Redo"))) && !isempty(redolist[id][1])
-                    move!(redolist[id])
-                    daqtask.blocks = deepcopy(redolist[id][])
+                if !CImGui.IsMouseDown(0)
+                    redolist[id][] ≈ daqtask.blocks || (move!(redolist[id]); redolist[id][] = deepcopy(daqtask.blocks))
                 end
-                CImGui.MenuItem(stcstr(MORESTYLE.Icons.Convert, " ", mlstr("Interpret"))) && interpret(daqtask.blocks)
-                CImGui.EndPopup()
-            end
-            if unsafe_load(CImGui.GetIO().KeyCtrl) && CImGui.IsWindowFocused(CImGui.ImGuiFocusedFlags_ChildWindows)
-                if CImGui.IsKeyPressed(ImGuiKey_Z, false) && !isempty(redolist[id][-1])
-                    move!(redolist[id], -1)
-                    daqtask.blocks = deepcopy(redolist[id][])
-                elseif CImGui.IsKeyPressed(ImGuiKey_Y, false) && !isempty(redolist[id][1])
-                    move!(redolist[id])
-                    daqtask.blocks = deepcopy(redolist[id][])
+                all(.!mousein.(daqtask.blocks, true)) && CImGui.OpenPopupOnItemClick("add new Block")
+                if CImGui.BeginPopup("add new Block")
+                    if CImGui.BeginMenu(stcstr(MORESTYLE.Icons.NewFile, " ", mlstr("Add")))
+                        newblock = addblockmenu(1)
+                        isnothing(newblock) || push!(daqtask.blocks, newblock)
+                        CImGui.EndMenu()
+                    end
+                    CImGui.Separator()
+                    if CImGui.MenuItem(stcstr(MORESTYLE.Icons.Undo, " ", mlstr("Undo"))) && !isempty(redolist[id][-1])
+                        move!(redolist[id], -1)
+                        daqtask.blocks = deepcopy(redolist[id][])
+                    end
+                    if CImGui.MenuItem(stcstr(MORESTYLE.Icons.Redo, " ", mlstr("Redo"))) && !isempty(redolist[id][1])
+                        move!(redolist[id])
+                        daqtask.blocks = deepcopy(redolist[id][])
+                    end
+                    if CImGui.MenuItem(stcstr(MORESTYLE.Icons.Convert, " ", mlstr("Compile")))
+                        @info "[$(now())]\n" codes = @trypasse prettify(compile(daqtask.blocks)) nothing
+                    end
+                    CImGui.EndPopup()
+                end
+                if unsafe_load(CImGui.GetIO().KeyCtrl) && CImGui.IsWindowFocused(CImGui.ImGuiFocusedFlags_ChildWindows)
+                    if CImGui.IsKeyPressed(ImGuiKey_Z, false) && !isempty(redolist[id][-1])
+                        move!(redolist[id], -1)
+                        daqtask.blocks = deepcopy(redolist[id][])
+                    elseif CImGui.IsKeyPressed(ImGuiKey_Y, false) && !isempty(redolist[id][1])
+                        move!(redolist[id])
+                        daqtask.blocks = deepcopy(redolist[id][])
+                    end
                 end
             end
             isfocus &= CImGui.IsWindowFocused(CImGui.ImGuiFocusedFlags_ChildWindows)
@@ -99,13 +176,6 @@ let
         CImGui.PopStyleColor()
         p_open[] &= (isfocus | daqtask.hold)
     end
-end
-
-function interpret(blocks::Vector{AbstractBlock})
-    codes = @trypasse quote
-        $(tocodes.(blocks)...)
-    end |> prettify @error "[$(now())]\n$(mlstr("interpreting blocks failed!!!"))"
-    return isnothing(codes) ? :nothing : (@info "[$(now())]\n$codes"; codes)
 end
 
 function run(daqtask::DAQTask)
@@ -160,15 +230,12 @@ function run_remote(daqtask::DAQTask)
         return
     end
     rn = length(controllers)
-    blockcodes = @trypasse tocodes.(daqtask.blocks) begin
-        @error "[$(now())]\n$(mlstr("generating codes failed!!!"))"
+    ex1 = try
+        compile(daqtask.blocks)
+    catch e
+        @error "[$(now())]\n$(mlstr("generating codes failed!!!"))" exception = e
         SYNCSTATES[Int(IsDAQTaskDone)] = true
         return
-    end
-    ex1 = quote
-        function remote_sweep_block(controllers, databuf_lc, progress_lc, SYNCSTATES)
-            $(blockcodes...)
-        end
     end
     ex = quote
         $ex1
@@ -179,7 +246,8 @@ function run_remote(daqtask::DAQTask)
                 progress_lc = Channel{Tuple{UUID,Int,Int,Float64}}(CONF.DAQ.channelsize)
                 @sync begin
                     remotedotask = @async @trycatch mlstr("remotedotask failed!!!") begin
-                        remotecall_wait(() -> (start!(CPU); fast!(CPU)), workers()[1])
+                        start!(CPU)
+                        fast!(CPU)
                         for ct in values(controllers)
                             login!(CPU, ct; quiet=false, attr=getattr(ct.addr))
                         end
@@ -249,6 +317,7 @@ function saveqdt()
         for (key, val) in CFGBUF
             file[key] = val
         end
+        file["valid"] = false
     end
     if sum(length(data) for data in values(DATABUF); init=0) > CONF.DAQ.cuttingfile
         dir, file = splitdir(SAVEPATH)

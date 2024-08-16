@@ -391,6 +391,11 @@ function isarrived(data, target, δ, τ)
     return arrive
 end
 
+function strtoU(ustr::AbstractString)
+    str = occursin(" ", ustr) ? replace(ustr, " " => "*") : ustr
+    str == "" ? "" : eval(:(@u_str($str)))
+end
+
 function getU(utype, uidx::Ref{Int})
     Us = haskey(CONF.U, utype) ? CONF.U[utype] : [""]
     if uidx[] == 0

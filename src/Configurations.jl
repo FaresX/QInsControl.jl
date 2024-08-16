@@ -41,6 +41,7 @@ end
 end
 
 @option mutable struct OptInsBuf
+    retreading::Bool = false
     showhelp::Bool = false
     showcol::Cint = 3
     disablelist::Dict{String,Dict{String,Vector{String}}} = Dict()

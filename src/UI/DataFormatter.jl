@@ -251,6 +251,7 @@ function loaddtviewer!(fdg::FormatDataGroup)
         explog=join([string("Data ", i, '\n', fd.path) for (i, fd) in enumerate(fdg.data)], '\n'),
         blocks=[]
     )
+    fdg.dtviewer.data["valid"] = true
 end
 
 function showdtviewer(fd::FormatData, id)

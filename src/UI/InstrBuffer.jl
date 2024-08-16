@@ -1014,7 +1014,7 @@ function apply!(qt::SweepQuantity, instrnm, addr)
                                 SWEEPCTS[instrnm][addr][1][] || break
                                 SWEEPCTS[instrnm][addr][2](setfunc, CPU, string(sv), Val(:write))
                                 sleep(delay)
-                                put!(sweep_lc, SWEEPCTS[instrnm][addr][2](getfunc, CPU, Val(:read)))
+                                put!(sweep_lc, CONF.InsBuf.retreading ? SWEEPCTS[instrnm][addr][2](getfunc, CPU, Val(:read)) : string(sv))
                                 idxbuf[1] = i
                                 timebuf[1] = time() - tstart
                             end

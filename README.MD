@@ -28,6 +28,10 @@ serial port address: SERIAL::COM1 [SERIAL::**port**]
 ## example
 ![image](example/demo.png)
 A simple project file [demo.daq](example) is in the example folder, which gives some ideas to write your own scripts.
+## scripts
+Block mode and text mode can be changed from each other. Block mode is better for selecting instruments, addresses and quantities and some more useful functions. Text mode is better for reading and copying codes. Only block mode is supported to be compiled to executable tasks and run them.
+![image](example/script_blockandtext.png)
+![image](example/script_comparing.png)
 ## custom widgets
 now it comes to a new feture that anyone could create your own widgets to control the instruments.
 ![image](example/test%20widget.png)
