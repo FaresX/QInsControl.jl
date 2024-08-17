@@ -498,7 +498,7 @@ macro gencontroller(key, val, retval=nothing, quiet=false)
 end
 
 ############macro block-------------------------------------------------------------------------------------------------
-macro sweepblock(instrnm, addr, qtnm, step, stop, delay, u, istrycatch, ex)
+macro sweepblock(instrnm, addr, qtnm, step, stop, u, delay, istrycatch, ex)
     esc(
         tocodes(
             SweepBlock(
@@ -517,7 +517,7 @@ macro sweepblock(instrnm, addr, qtnm, step, stop, delay, u, istrycatch, ex)
 end
 
 
-macro freesweepblock(instrnm, addr, qtnm, mode, stop, delay, delta, duration, u, istrycatch, ex)
+macro freesweepblock(instrnm, addr, qtnm, mode, stop, u, delta, duration, delay, istrycatch, ex)
     esc(
         tocodes(
             FreeSweepBlock(
@@ -537,7 +537,7 @@ macro freesweepblock(instrnm, addr, qtnm, mode, stop, delay, delta, duration, u,
     )
 end
 
-macro settingblock(instrnm, addr, qtnm, sv, delay, u, istrycatch)
+macro settingblock(instrnm, addr, qtnm, sv, u, delay, istrycatch)
     esc(
         tocodes(
             SettingBlock(
@@ -706,7 +706,7 @@ function interpret(bk::SweepBlock)
     utype = INSCONF[bk.instrnm].quantities[bk.quantity].U
     u, _ = @c getU(utype, &bk.ui)
     quote
-        @sweepblock $(bk.instrnm) $(bk.addr) $(bk.quantity) $(bk.step) $(bk.stop) $(bk.delay) $u $(bk.istrycatch) begin
+        @sweepblock $(bk.instrnm) $(bk.addr) $(bk.quantity) $(bk.step) $(bk.stop) $u $(bk.delay) $(bk.istrycatch) begin
             $(interpret.(bk.blocks)...)
         end
     end
@@ -715,7 +715,7 @@ function interpret(bk::FreeSweepBlock)
     utype = INSCONF[bk.instrnm].quantities[bk.quantity].U
     u, _ = @c getU(utype, &bk.ui)
     quote
-        @freesweepblock $(bk.instrnm) $(bk.addr) $(bk.quantity) $(bk.mode) $(bk.stop) $(bk.delay) $(bk.delta) $(bk.duration) $u $(bk.istrycatch) begin
+        @freesweepblock $(bk.instrnm) $(bk.addr) $(bk.quantity) $(bk.mode) $(bk.stop) $u $(bk.delta) $(bk.duration) $(bk.delay) $(bk.istrycatch) begin
             $(interpret.(bk.blocks)...)
         end
     end
@@ -723,7 +723,7 @@ end
 function interpret(bk::SettingBlock)
     utype = INSCONF[bk.instrnm].quantities[bk.quantity].U
     u, _ = @c getU(utype, &bk.ui)
-    :(@settingblock $(bk.instrnm) $(bk.addr) $(bk.quantity) $(bk.setvalue) $(bk.delay) $u $(bk.istrycatch))
+    :(@settingblock $(bk.instrnm) $(bk.addr) $(bk.quantity) $(bk.setvalue) $u $(bk.delay) $(bk.istrycatch))
 end
 function interpret(bk::ReadingBlock)
     :(@readingblock $(bk.instrnm) $(bk.addr) $(bk.quantity) $(bk.index) $(bk.mark) $(bk.isasync) $(bk.isobserve) $(bk.isreading) $(bk.istrycatch))
@@ -950,8 +950,8 @@ antiinterpret(ex, ::Val{:sweepblock}) = SweepBlock(
     quantity=ex.args[5],
     step=ex.args[6],
     stop=ex.args[7],
-    delay=ex.args[8],
-    ui=utoui(ex.args[3], ex.args[5], strtoU(string(ex.args[9]))),
+    ui=utoui(ex.args[3], ex.args[5], strtoU(string(ex.args[8]))),
+    delay=ex.args[9],
     istrycatch=ex.args[10],
     blocks=(bk = antiinterpret(ex.args[11]); iscontainer(bk) ? bk.blocks : [bk])
 )
@@ -961,10 +961,10 @@ antiinterpret(ex, ::Val{:freesweepblock}) = FreeSweepBlock(
     quantity=ex.args[5],
     mode=string(ex.args[6]),
     stop=ex.args[7],
-    delay=ex.args[8],
+    ui=utoui(ex.args[3], ex.args[5], strtoU(string(ex.args[8]))),
     delta=ex.args[9],
     duration=ex.args[10],
-    ui=utoui(ex.args[3], ex.args[5], strtoU(string(ex.args[11]))),
+    delay=ex.args[11],
     istrycatch=ex.args[12],
     blocks=(bk = antiinterpret(ex.args[13]); iscontainer(bk) ? bk.blocks : [bk])
 )
@@ -973,8 +973,8 @@ antiinterpret(ex, ::Val{:settingblock}) = SettingBlock(
     addr=ex.args[4],
     quantity=ex.args[5],
     setvalue=ex.args[6],
-    delay=ex.args[7],
-    ui=utoui(ex.args[3], ex.args[5], strtoU(string(ex.args[8]))),
+    ui=utoui(ex.args[3], ex.args[5], strtoU(string(ex.args[7]))),
+    delay=ex.args[8],
     istrycatch=ex.args[9]
 )
 antiinterpret(ex, ::Val{:readingblock}) = ReadingBlock(
@@ -1164,12 +1164,8 @@ let
         @c InputTextWithHintRSZ("##SweepBlock step", mlstr("step"), &bk.step)
         CImGui.PopItemWidth()
         CImGui.SameLine()
-        CImGui.PushItemWidth(width * 3 / 4)
+        CImGui.PushItemWidth(width * 3 / 4 - unsafe_load(IMGUISTYLE.ItemSpacing.x))
         @c InputTextWithHintRSZ("##SweepBlock stop", mlstr("stop"), &bk.stop)
-        CImGui.PopItemWidth()
-        CImGui.SameLine()
-        CImGui.PushItemWidth(width / 2)
-        @c CImGui.DragFloat("##SweepBlock delay", &bk.delay, 0.01, 0, 9.99, "%g", CImGui.ImGuiSliderFlags_AlwaysClamp)
         CImGui.PopItemWidth()
         CImGui.SameLine()
 
@@ -1178,9 +1174,14 @@ let
         else
             ""
         end
-        CImGui.PushItemWidth(-1)
+        CImGui.PushItemWidth(width / 2 - unsafe_load(IMGUISTYLE.ItemSpacing.x))
         @c ShowUnit("##SweepBlock", Ut, &bk.ui)
         CImGui.PopItemWidth()
+        CImGui.SameLine()
+        CImGui.PushItemWidth(-1)
+        @c CImGui.DragFloat("##SweepBlock delay", &bk.delay, 0.01, 0, 9.99, "%g", CImGui.ImGuiSliderFlags_AlwaysClamp)
+        CImGui.PopItemWidth()
+
         CImGui.PopStyleColor()
         CImGui.PushStyleVar(CImGui.ImGuiStyleVar_WindowPadding, wp)
         bk.hideblocks || isempty(skipnull(bk.blocks)) || edit(bk.blocks, bk.level + 1)
@@ -1253,35 +1254,35 @@ let
         CImGui.PopItemWidth()
         CImGui.SameLine()
 
-        CImGui.PushItemWidth(width * 3 / 8 - unsafe_load(IMGUISTYLE.ItemSpacing.x) / 2)
-        @c CImGui.InputFloat("##FreeSweepBlock delta", &bk.delta, 0, 0, "%g")
-        CImGui.PopItemWidth()
-        CImGui.SameLine()
-        CImGui.PushItemWidth(width * 3 / 8 - unsafe_load(IMGUISTYLE.ItemSpacing.x) / 2)
-        @c CImGui.DragFloat("##FreeSweepBlock duration", &bk.duration, 1, 1, 3600, "%g", CImGui.ImGuiSliderFlags_AlwaysClamp)
-        CImGui.PopItemWidth()
-        CImGui.SameLine()
-        CImGui.PushItemWidth(width * 3 / 8 - unsafe_load(IMGUISTYLE.ItemSpacing.x) / 2)
+        CImGui.PushItemWidth(width / 4 - unsafe_load(IMGUISTYLE.ItemSpacing.x) / 2)
         @c ComboS("##FreeSweepBlock mode", &bk.mode, ["=", "<", ">"], CImGui.ImGuiComboFlags_NoArrowButton)
         CImGui.PopItemWidth()
         CImGui.SameLine()
-        CImGui.PushItemWidth(width * 3 / 8 - unsafe_load(IMGUISTYLE.ItemSpacing.x) / 2)
+        CImGui.PushItemWidth(width / 2 - unsafe_load(IMGUISTYLE.ItemSpacing.x) / 2)
         @c InputTextWithHintRSZ("##FreeSweepBlock stop", mlstr("stop"), &bk.stop)
         CImGui.PopItemWidth()
         CImGui.SameLine()
-        CImGui.PushItemWidth(width / 2)
-        @c CImGui.DragFloat("##FreeSweepBlock delay", &bk.delay, 0.01, 0, 9.99, "%g", CImGui.ImGuiSliderFlags_AlwaysClamp)
-        CImGui.PopItemWidth()
-        CImGui.SameLine()
-
         Ut = if haskey(INSCONF, bk.instrnm) && haskey(INSCONF[bk.instrnm].quantities, bk.quantity)
             INSCONF[bk.instrnm].quantities[bk.quantity].U
         else
             ""
         end
-        CImGui.PushItemWidth(-1)
+        CImGui.PushItemWidth(width / 2 - unsafe_load(IMGUISTYLE.ItemSpacing.x))
         @c ShowUnit("##FreeSweepBlock", Ut, &bk.ui)
         CImGui.PopItemWidth()
+        CImGui.SameLine()
+        CImGui.PushItemWidth(width / 2 - unsafe_load(IMGUISTYLE.ItemSpacing.x))
+        @c CImGui.InputFloat("##FreeSweepBlock delta", &bk.delta, 0, 0, "%g")
+        CImGui.PopItemWidth()
+        CImGui.SameLine()
+        CImGui.PushItemWidth(width / 4)
+        @c CImGui.DragFloat("##FreeSweepBlock duration", &bk.duration, 1, 1, 3600, "%g", CImGui.ImGuiSliderFlags_AlwaysClamp)
+        CImGui.PopItemWidth()
+        CImGui.SameLine()
+        CImGui.PushItemWidth(-1)
+        @c CImGui.DragFloat("##FreeSweepBlock delay", &bk.delay, 0.01, 0, 9.99, "%g", CImGui.ImGuiSliderFlags_AlwaysClamp)
+        CImGui.PopItemWidth()
+
         CImGui.PopStyleColor()
         CImGui.PushStyleVar(CImGui.ImGuiStyleVar_WindowPadding, wp)
         bk.hideblocks || isempty(skipnull(bk.blocks)) || edit(bk.blocks, bk.level + 1)
@@ -1358,19 +1359,19 @@ let
         CImGui.OpenPopupOnItemClick("select set value", 2)
         CImGui.SameLine()
 
-        CImGui.PushItemWidth(width / 2)
-        @c CImGui.DragFloat("##SettingBlock delay", &bk.delay, 0.01, 0, 9.99, "%g", CImGui.ImGuiSliderFlags_AlwaysClamp)
-        CImGui.PopItemWidth()
-        CImGui.SameLine()
-
         Ut = if haskey(INSCONF, bk.instrnm) && haskey(INSCONF[bk.instrnm].quantities, bk.quantity)
             INSCONF[bk.instrnm].quantities[bk.quantity].U
         else
             ""
         end
-        CImGui.PushItemWidth(-1)
+        CImGui.PushItemWidth(width / 2)
         @c ShowUnit("SettingBlock", Ut, &bk.ui)
         CImGui.PopItemWidth()
+        CImGui.SameLine()
+        CImGui.PushItemWidth(-1)
+        @c CImGui.DragFloat("##SettingBlock delay", &bk.delay, 0.01, 0, 9.99, "%g", CImGui.ImGuiSliderFlags_AlwaysClamp)
+        CImGui.PopItemWidth()
+
         CImGui.EndChild()
         CImGui.PopStyleVar()
     end
