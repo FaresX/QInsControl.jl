@@ -45,6 +45,7 @@ end
     instrnm::String = mlstr("instrument")
     addr::String = mlstr("address")
     quantity::String = mlstr("sweep")
+    mode::String = "="
     stop::String = ""
     delay::Cfloat = 0.1
     delta::Cfloat = 0
@@ -270,9 +271,10 @@ function tocodes(bk::FreeSweepBlock)
     @gensym observables
     getcmd = :(controllers[$instr]($getfunc, CPU, Val(:read)))
     getdata = bk.istrycatch ? :(@gentrycatch $(bk.instrnm) $(bk.addr) $getcmd) : getcmd
+    detfunc = Dict("=" => isarrived, "<" => isless, ">" => isgreater)[bk.mode]
     return quote
         let $observables = []
-            @progress $observables $getdata $stop $(bk.duration / 6) while !isarrived($observables, $stop, $delta, $(bk.duration))
+            @progress $observables $getdata $stop $(bk.duration / 6) while !$detfunc($observables, $stop, $delta, $(bk.duration))
                 @gencontroller SweepBlock $instr
                 sleep($(bk.delay))
                 $interpcodes
@@ -515,13 +517,14 @@ macro sweepblock(instrnm, addr, qtnm, step, stop, delay, u, istrycatch, ex)
 end
 
 
-macro freesweepblock(instrnm, addr, qtnm, stop, delay, delta, duration, u, istrycatch, ex)
+macro freesweepblock(instrnm, addr, qtnm, mode, stop, delay, delta, duration, u, istrycatch, ex)
     esc(
         tocodes(
             FreeSweepBlock(
                 instrnm=instrnm,
                 addr=addr,
                 quantity=qtnm,
+                mode=mode,
                 stop=stop,
                 delay=delay,
                 delta=delta,
@@ -712,7 +715,7 @@ function interpret(bk::FreeSweepBlock)
     utype = INSCONF[bk.instrnm].quantities[bk.quantity].U
     u, _ = @c getU(utype, &bk.ui)
     quote
-        @freesweepblock $(bk.instrnm) $(bk.addr) $(bk.quantity) $(bk.stop) $(bk.delay) $(bk.delta) $(bk.duration) $u $(bk.istrycatch) begin
+        @freesweepblock $(bk.instrnm) $(bk.addr) $(bk.quantity) $(bk.mode) $(bk.stop) $(bk.delay) $(bk.delta) $(bk.duration) $u $(bk.istrycatch) begin
             $(interpret.(bk.blocks)...)
         end
     end
@@ -956,13 +959,14 @@ antiinterpret(ex, ::Val{:freesweepblock}) = FreeSweepBlock(
     instrnm=ex.args[3],
     addr=ex.args[4],
     quantity=ex.args[5],
-    stop=ex.args[6],
-    delay=ex.args[7],
-    delta=ex.args[8],
-    duration=ex.args[9],
-    ui=utoui(ex.args[3], ex.args[5], strtoU(string(ex.args[10]))),
-    istrycatch=ex.args[11],
-    blocks=(bk = antiinterpret(ex.args[12]); iscontainer(bk) ? bk.blocks : [bk])
+    mode=string(ex.args[6]),
+    stop=ex.args[7],
+    delay=ex.args[8],
+    delta=ex.args[9],
+    duration=ex.args[10],
+    ui=utoui(ex.args[3], ex.args[5], strtoU(string(ex.args[11]))),
+    istrycatch=ex.args[12],
+    blocks=(bk = antiinterpret(ex.args[13]); iscontainer(bk) ? bk.blocks : [bk])
 )
 antiinterpret(ex, ::Val{:settingblock}) = SettingBlock(
     instrnm=ex.args[3],
@@ -1257,7 +1261,11 @@ let
         @c CImGui.DragFloat("##FreeSweepBlock duration", &bk.duration, 1, 1, 3600, "%g", CImGui.ImGuiSliderFlags_AlwaysClamp)
         CImGui.PopItemWidth()
         CImGui.SameLine()
-        CImGui.PushItemWidth(width * 3 / 4)
+        CImGui.PushItemWidth(width * 3 / 8 - unsafe_load(IMGUISTYLE.ItemSpacing.x) / 2)
+        @c ComboS("##FreeSweepBlock mode", &bk.mode, ["=", "<", ">"], CImGui.ImGuiComboFlags_NoArrowButton)
+        CImGui.PopItemWidth()
+        CImGui.SameLine()
+        CImGui.PushItemWidth(width * 3 / 8 - unsafe_load(IMGUISTYLE.ItemSpacing.x) / 2)
         @c InputTextWithHintRSZ("##FreeSweepBlock stop", mlstr("stop"), &bk.stop)
         CImGui.PopItemWidth()
         CImGui.SameLine()
@@ -2011,7 +2019,7 @@ function view(bk::FreeSweepBlock)
             mlstr("instrument"), ": ", instrnm,
             "\t", mlstr("address"), ": ", addr,
             "\t", mlstr("sweep"), ": ", quantity,
-            "\t", mlstr("stop"), ": ", bk.stop, U,
+            "\t", mlstr("stop"), ": ", bk.mode, " ", bk.stop, U,
             "\t", mlstr("delay"), ": ", bk.delay,
             "\t", mlstr("δ"), ": ", bk.delta,
             "\t", mlstr("duration"), ": ", bk.duration
@@ -2288,6 +2296,36 @@ function Base.show(io::IO, bk::SweepBlock)
           quantity : $(bk.quantity)
               step : $(bk.step)
               stop : $(bk.stop)
+              unit : $U
+             delay : $(bk.delay)
+          trycatch : $(bk.istrycatch)
+        hideblocks : $(bk.hideblocks)
+              body :
+    """
+    print(io, str)
+    for b in bk.blocks
+        print(io, string("-"^64, "\n", "\t"^4))
+        show(io, b)
+    end
+end
+function Base.show(io::IO, bk::FreeSweepBlock)
+    Ut = if haskey(INSCONF, bk.instrnm) && haskey(INSCONF[bk.instrnm].quantities, bk.quantity)
+        INSCONF[bk.instrnm].quantities[bk.quantity].U
+    else
+        ""
+    end
+    U, _ = @c getU(Ut, &bk.ui)
+    str = """
+    FreeSweepBlock :
+        region min : $(bk.regmin)
+        region max : $(bk.regmax)
+             level : $(bk.level)
+        instrument : $(bk.instrnm)
+           address : $(bk.addr)
+          quantity : $(bk.quantity)
+              stop : $(bk.mode) $(bk.stop)
+             delta : $(bk.delta)
+          duration : $(bk.duration)
               unit : $U
              delay : $(bk.delay)
           trycatch : $(bk.istrycatch)
