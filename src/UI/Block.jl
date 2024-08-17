@@ -53,7 +53,7 @@ end
     ui::Int = 1
     level::Int = 1
     blocks::Vector{AbstractBlock} = AbstractBlock[]
-    istrycatch::Bool = false
+    istrycatch::Bool = true
     hideblocks::Bool = false
     regmin::ImVec2 = (0, 0)
     regmax::ImVec2 = (0, 0)
