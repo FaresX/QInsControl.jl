@@ -36,7 +36,8 @@ function edit(dtviewer::DataViewer, filetree::FileTree, isrename::Dict{String,Bo
                 filetree.filetrees = FolderFileTree(
                     filetree.rootpath,
                     filetree.selectedpath,
-                    filetree.filter
+                    filetree.filter,
+                    filetree.valid
                 ).filetrees
             end
             CImGui.EndPopup()

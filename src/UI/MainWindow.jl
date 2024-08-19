@@ -340,7 +340,8 @@ let
                                 dtv[2].filetrees = FolderFileTree(
                                     dtv[2].rootpath,
                                     dtv[2].selectedpath,
-                                    dtv[2].filter
+                                    dtv[2].filter,
+                                    dtv[2].valid
                                 ).filetrees
                             end
                             CImGui.MenuItem(stcstr(MORESTYLE.Icons.CloseFile, " ", mlstr("Close"))) && (dtv[1].noclose = false)
