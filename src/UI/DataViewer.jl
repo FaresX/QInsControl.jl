@@ -1,52 +1,73 @@
 @kwdef mutable struct DataViewer
     dtp::DataPlot = DataPlot()
     data::Dict = Dict()
-    noclose::Bool = true
     p_open::Bool = true
-    firsttime::Bool = true
 end
 
-function edit(dtviewer::DataViewer, filetree::FileTree, isrename::Dict{String,Bool}, id)
-    CImGui.SetNextWindowSize((800, 600), CImGui.ImGuiCond_Once)
+@kwdef mutable struct FileViewer
+    filetree::FileTree = FileTree()
+    isrename::Dict{String,Bool} = Dict()
+    dtviewers::Dict{String,DataViewer} = Dict()
+    p_open::Bool = true
+    noclose::Bool = true
+end
+
+function edit(fv::FileViewer, id)
+    CImGui.SetNextWindowSize((400, 600), CImGui.ImGuiCond_Once)
     if @c CImGui.Begin(
-        if filetree.rootpath_bnm == ""
+        if fv.filetree.rootpath_bnm == ""
             stcstr(MORESTYLE.Icons.OpenFile, "  ", mlstr("Data Browse"), "###dtv", id)
         else
             stcstr(MORESTYLE.Icons.OpenFolder, "  ", mlstr("Data Browse"), "###dtv", id)
         end,
-        &dtviewer.p_open
+        &fv.p_open
     )
         SetWindowBgImage()
-        CImGui.Columns(2)
-        dtviewer.firsttime && (CImGui.SetColumnOffset(1, CImGui.GetWindowWidth() * 0.3); dtviewer.firsttime = false)
 
-        oldfile = filetree.selectedpath[]
-        InputTextRSZ(stcstr(mlstr("Filter"), "##", id), filetree.filter)
+        oldfiles = copy(fv.filetree.selectedpathes)
+        InputTextRSZ(stcstr(mlstr("Filter"), "##", id), fv.filetree.filter)
         CImGui.SameLine()
-        CImGui.Checkbox(mlstr("Valid"), filetree.valid)
+        CImGui.Checkbox(mlstr("Valid"), fv.filetree.valid)
         CImGui.PushStyleColor(CImGui.ImGuiCol_ChildBg, MORESTYLE.Colors.ToolBarBg)
-        CImGui.BeginChild("DataViewer-FileTree")
-        edit(filetree, isrename, false)
-        filetree.selectedpath[] == oldfile || loaddtviewer!(dtviewer, filetree.selectedpath[])
-        CImGui.EndChild()
+        edit(fv.filetree, fv.isrename, false)
+        if fv.filetree.selectedpathes != oldfiles
+            for path in fv.filetree.selectedpathes
+                haskey(fv.dtviewers, path) || push!(fv.dtviewers, path => DataViewer())
+                loaddtviewer!(fv.dtviewers[path], path)
+            end
+            for path in keys(fv.dtviewers)
+                path in fv.filetree.selectedpathes || delete!(fv.dtviewers, path)
+            end
+        end
         CImGui.PopStyleColor()
-        filetree.rootpath_bnm != "" && !CImGui.IsAnyItemHovered() && CImGui.OpenPopupOnItemClick("File Menu")
+        fv.filetree.rootpath_bnm != "" && CImGui.IsMouseClicked(1) && !CImGui.IsAnyItemHovered() &&
+        CImGui.IsWindowHovered(CImGui.ImGuiHoveredFlags_RootAndChildWindows) && CImGui.OpenPopup("File Menu")
         if CImGui.BeginPopup("File Menu")
             if CImGui.MenuItem(stcstr(MORESTYLE.Icons.InstrumentsAutoRef, " ", mlstr("Refresh")))
-                filetree.filetrees = FolderFileTree(
-                    filetree.rootpath,
-                    filetree.selectedpath,
-                    filetree.filter,
-                    filetree.valid
+                fv.filetree.filetrees = FolderFileTree(
+                    fv.filetree.rootpath,
+                    fv.filetree.selectedpathes,
+                    fv.filetree.filter,
+                    fv.filetree.valid
                 ).filetrees
             end
             CImGui.EndPopup()
         end
-        CImGui.NextColumn() #文件列表
-        edit(dtviewer, filetree.selectedpath[], id)
     end
     CImGui.End()
-    dtviewer.p_open[] && haskey(dtviewer.data, "data") && renderplots(dtviewer.dtp, stcstr("plot file", id))
+    for path in fv.filetree.selectedpathes
+        haskey(fv.dtviewers, path) || push!(fv.dtviewers, path => DataViewer())
+        dtviewer = fv.dtviewers[path]
+        CImGui.SetNextWindowSize((600, 600), CImGui.ImGuiCond_Once)
+        @c(CImGui.Begin(stcstr(basename(path), "##", id, path), &dtviewer.p_open)) && edit(dtviewer, path, string(id, path))
+        CImGui.End()
+        if dtviewer.p_open
+            haskey(dtviewer.data, "data") && renderplots(dtviewer.dtp, stcstr("DataViewer", id, path))
+        else
+            delete!(fv.dtviewers, path)
+            deleteat!(fv.filetree.selectedpathes, findall(==(path), fv.filetree.selectedpathes))
+        end
+    end
 end
 
 function edit(dtviewer::DataViewer, path, id)
@@ -56,10 +77,7 @@ function edit(dtviewer::DataViewer, path, id)
             if true in occursin.(r"instrbufferviewers/.*", keys(dtviewer.data))
                 if CImGui.BeginPopupContextItem()
                     CImGui.Text(mlstr("Display Columns"))
-                    # CImGui.SameLine()
-                    # CImGui.PushItemWidth(2CImGui.GetFontSize())
                     @c CImGui.SliderInt("##InsBuf col num", &CONF.InsBuf.showcol, 1, 6)
-                    # CImGui.PopItemWidth()
                     CImGui.EndPopup()
                 end
                 insbufkeys::Vector{String} = sort(
@@ -84,10 +102,7 @@ function edit(dtviewer::DataViewer, path, id)
         if CImGui.BeginTabItem(mlstr("Actions"))
             if CImGui.BeginPopupContextItem()
                 CImGui.Text(mlstr("Display Columns"))
-                # CImGui.SameLine()
-                # CImGui.PushItemWidth(2CImGui.GetFontSize())
                 @c CImGui.SliderInt("##InsBuf col num", &CONF.InsBuf.showcol, 1, 6)
-                # CImGui.PopItemWidth()
                 CImGui.EndPopup()
             end
             haskey(dtviewer.data, "actions") ? viewactions(dtviewer.data["actions"]) : CImGui.Text(mlstr("No actions!"))
