@@ -19,6 +19,7 @@
     nonuniformy::Bool = false
     codes::CodeBlock = CodeBlock()
     update::Bool = false
+    updatefunc::Bool = false
     isrealtime::Bool = false
     isrunning::Bool = false
     runtime::Float64 = 0
@@ -211,6 +212,10 @@ let
         end
 
         CImGui.TextColored(MORESTYLE.Colors.LogInfo, mlstr("data processing"))
+        if dtss.isrealtime
+            CImGui.SameLine()
+            CImGui.Button(stcstr(MORESTYLE.Icons.Update, " ", mlstr("Update Function"))) && (dtss.updatefunc = true)
+        end
         CImGui.SameLine(CImGui.GetWindowContentRegionWidth() - dtss.alsz)
         if dtss.isrealtime
             CImGui.Text(mlstr("sampling rate"))
@@ -227,7 +232,7 @@ let
                     MORESTYLE.Icons.Update, " ",
                     dtss.isrunning ? stcstr(mlstr("Updating..."), " ", dtss.runtime, "s") : mlstr("Update"), " "
                 )
-            ) && (dtss.update = true)
+            ) && (dtss.update = true; dtss.updatefunc = true)
             dtss.alsz = CImGui.GetItemRectSize().x
         end
         CImGui.SameLine()
@@ -236,6 +241,7 @@ let
         CImGui.IsItemHovered() && CImGui.SetTooltip(mlstr("real-time data update/manual data update"))
 
         CImGui.PushID("select XYZ")
+        CImGui.Text("function process(x, y, z, w, [auxi]...)")
         edit(dtss.codes)
         if CImGui.BeginPopupContextItem()
             CImGui.MenuItem(mlstr("Clear")) && (dtss.codes.codes = "")
@@ -283,7 +289,10 @@ let
                 pdtask = Threads.@spawn preprocess(dtss, datastr, datafloat)
                 synctasks[plt.id][i] = pdtask
                 if dtpk.update || dtss.update
-                    try wait(pdtask) catch end
+                    try
+                        wait(pdtask)
+                    catch
+                    end
                     istaskfailed(pdtask) || postprocess(plt, plt.series[i], dtss, fetch(pdtask)...; force=force)
                     delete!(synctasks[plt.id], i)
                 end
@@ -293,6 +302,7 @@ let
         dtpk.update = false
     end
 
+    processfuncs::Dict{DataSeries,Function} = Dict()
     function preprocess(dtss::DataSeries, datastr::Dict{String,Vector{String}}, datafloat::Dict{String,VecOrMat{Cdouble}})
         try
             dtss.isrunning = true
@@ -311,20 +321,19 @@ let
             zbuf = dtss.ptype == "heatmap" ? loaddata(datastr, datafloat, dtss.z) : Cdouble[]
             wbuf = loaddata(datastr, datafloat, dtss.w)
             auxbufs = [loaddata(datastr, datafloat, aux) for aux in dtss.aux]
-            innercodes = tocodes(dtss.codes)
-            ex::Expr = quote
-                let
-                    x = $xbuf
-                    y = $ybuf
-                    z = $zbuf
-                    w = $wbuf
-                    $([Expr(:block, Expr(:(=), Symbol(:aux, i), auxbufs[i])) for i in eachindex(dtss.aux)]...)
-                    $innercodes
-                    x, y, z
+            if dtss.updatefunc || !haskey(processfuncs, dtss)
+                innercodes = tocodes(dtss.codes)
+                exfunc::Expr = quote
+                    (x, y, z, w, $([Symbol.(:aux, i) for i in eachindex(auxbufs)]...)) -> begin
+                        $innercodes
+                        x, y, z
+                    end
                 end
+                processfuncs[dtss] = CONF.DAQ.externaleval ? @eval(Main, $exfunc) : eval(exfunc)
+                dtss.updatefunc = false
             end
-            nx, ny, nz = CONF.DAQ.externaleval ? @eval(Main, $ex) : eval(ex)
-            return nx, ny, nz
+            exprocess=:($(processfuncs[dtss])($xbuf, $ybuf, $zbuf, $wbuf, $auxbufs...))
+            return CONF.DAQ.externaleval ? @eval(Main, $exprocess) : eval(exprocess)
         catch e
             if !dtss.isrealtime
                 @error string("[", now(), "]\n", mlstr("pre-processing data failed!!!")) exception = e
