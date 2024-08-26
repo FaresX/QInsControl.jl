@@ -33,7 +33,7 @@ function edit(fv::FileViewer, id)
         if fv.filetree.selectedpathes != oldfiles
             for path in fv.filetree.selectedpathes
                 haskey(fv.dtviewers, path) || push!(fv.dtviewers, path => DataViewer())
-                loaddtviewer!(fv.dtviewers[path], path)
+                path in oldfiles || loaddtviewer!(fv.dtviewers[path], path)
             end
             for path in keys(fv.dtviewers)
                 path in fv.filetree.selectedpathes || delete!(fv.dtviewers, path)
@@ -41,7 +41,7 @@ function edit(fv::FileViewer, id)
         end
         CImGui.PopStyleColor()
         fv.filetree.rootpath_bnm != "" && CImGui.IsMouseClicked(1) && !CImGui.IsAnyItemHovered() &&
-        CImGui.IsWindowHovered(CImGui.ImGuiHoveredFlags_RootAndChildWindows) && CImGui.OpenPopup("File Menu")
+            CImGui.IsWindowHovered(CImGui.ImGuiHoveredFlags_RootAndChildWindows) && CImGui.OpenPopup("File Menu")
         if CImGui.BeginPopup("File Menu")
             if CImGui.MenuItem(stcstr(MORESTYLE.Icons.InstrumentsAutoRef, " ", mlstr("Refresh")))
                 fv.filetree.filetrees = FolderFileTree(
