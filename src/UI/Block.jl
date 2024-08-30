@@ -195,7 +195,7 @@ end
 tocodes(bk::BranchBlock) = error("[$(now())]\n$(mlstr("BranchBlock has to be in a StrideCodeBlock!!!"))\nbk=$bk")
 
 function tocodes(bk::SweepBlock)
-    instr = string(bk.instrnm, "--", bk.addr)
+    instr = string(bk.instrnm, "/", bk.addr)
     quantity = bk.quantity
     setfunc = Symbol(bk.instrnm, :_, bk.quantity, :_set)
     getfunc = Symbol(bk.instrnm, :_, bk.quantity, :_get)
@@ -242,7 +242,7 @@ function tocodes(bk::SweepBlock)
 end
 
 function tocodes(bk::FreeSweepBlock)
-    instr = string(bk.instrnm, "--", bk.addr)
+    instr = string(bk.instrnm, "/", bk.addr)
     quantity = bk.quantity
     @assert INSCONF[bk.instrnm].quantities[bk.quantity].separator == "" mlstr("no free sweeping !!!")
     getfunc = Symbol(bk.instrnm, :_, bk.quantity, :_get)
@@ -284,7 +284,7 @@ function tocodes(bk::FreeSweepBlock)
 end
 
 function tocodes(bk::SettingBlock)
-    instr = string(bk.instrnm, "--", bk.addr)
+    instr = string(bk.instrnm, "/", bk.addr)
     quantity = bk.quantity
     U, Us = @c getU(INSCONF[bk.instrnm].quantities[quantity].U, &bk.ui)
     if U == ""
@@ -312,7 +312,7 @@ end
 tocodes(bk::ReadingBlock) = gencodes_read(bk)
 
 function tocodes(bk::WriteBlock)
-    instr = string(bk.instrnm, "--", bk.addr)
+    instr = string(bk.instrnm, "/", bk.addr)
     cmd = parsedollar(bk.cmd)
     setcmd = :(controllers[$instr](write, CPU, string($cmd), Val(:write)))
     ex = bk.istrycatch ? :(@gentrycatch $(bk.instrnm) $(bk.addr) $setcmd) : setcmd
@@ -328,7 +328,7 @@ tocodes(bk::QueryBlock) = gencodes_read(bk)
 tocodes(bk::ReadBlock) = gencodes_read(bk)
 
 function tocodes(bk::FeedbackBlock)
-    instr = string(bk.instrnm, "--", bk.addr)
+    instr = string(bk.instrnm, "/", bk.addr)
     quote
         if haskey(SWEEPCTS, $(bk.instrnm)) && haskey(SWEEPCTS[$(bk.instrnm)], $(bk.addr))
             SWEEPCTS[$(bk.instrnm)][$(bk.addr)][1][] = false
@@ -347,7 +347,7 @@ function tocodes(bk::FeedbackBlock)
 end
 
 function gencodes_read(bk::Union{ReadingBlock,QueryBlock,ReadBlock})
-    instr = string(bk.instrnm, "--", bk.addr)
+    instr = string(bk.instrnm, "/", bk.addr)
     index = @trypasse eval(Meta.parse(bk.index)) begin
         @error "[$(now())]\n$(mlstr("codes are wrong in parsing time (ReadingBlock)!!!"))" bk = bk
         return
@@ -356,18 +356,18 @@ function gencodes_read(bk::Union{ReadingBlock,QueryBlock,ReadBlock})
     bk isa ReadingBlock && (getfunc = Symbol(bk.instrnm, :_, bk.quantity, :_get))
     bk isa QueryBlock && (cmd = parsedollar(bk.cmd))
     if isnothing(index) || (bk isa ReadingBlock && INSCONF[bk.instrnm].quantities[bk.quantity].separator == "")
-        mark = parsedollar(replace(bk.mark, "--" => "_"))
+        mark = parsedollar(replace(bk.mark, "/" => "_"))
         key = if bk isa ReadingBlock
             if mark isa Expr
-                :(string($mark, "--", $(bk.instrnm), "--", $(bk.quantity), "--", $(bk.addr)))
+                :(string($mark, "/", $(bk.instrnm), "/", $(bk.quantity), "/", $(bk.addr)))
             else
-                string(mark, "--", bk.instrnm, "--", bk.quantity, "--", bk.addr)
+                string(mark, "/", bk.instrnm, "/", bk.quantity, "/", bk.addr)
             end
         else
             if mark isa Expr
-                :(string($mark, "--", $(bk.instrnm), "--", $(bk.addr)))
+                :(string($mark, "/", $(bk.instrnm), "/", $(bk.addr)))
             else
-                string(mark, "--", bk.instrnm, "--", bk.addr)
+                string(mark, "/", bk.instrnm, "/", bk.addr)
             end
         end
         getcmd = if bk isa ReadingBlock
@@ -396,7 +396,7 @@ function gencodes_read(bk::Union{ReadingBlock,QueryBlock,ReadBlock})
         marks = Vector{Union{AbstractString,Expr}}(undef, length(index))
         fill!(marks, "")
         for (i, v) in enumerate(split(bk.mark, ","))
-            marks[i] = parsedollar(replace(v, "--" => "_"))
+            marks[i] = parsedollar(replace(v, "/" => "_"))
         end
         for (i, idx) in enumerate(index)
             marks[i] == "" && (marks[i] = "mark$idx")
@@ -404,23 +404,23 @@ function gencodes_read(bk::Union{ReadingBlock,QueryBlock,ReadBlock})
         keyall = if bk isa ReadingBlock
             if true in isa.(marks, Expr)
                 [
-                    :(string($mark, "--", $(bk.instrnm), "--", $(bk.quantity), "[", $ind, "]", "--", $(bk.addr)))
+                    :(string($mark, "/", $(bk.instrnm), "/", $(bk.quantity), "[", $ind, "]", "/", $(bk.addr)))
                     for (mark, ind) in zip(marks, index)
                 ]
             else
                 [
-                    string(mark, "--", bk.instrnm, "--", bk.quantity, "[", ind, "]", "--", bk.addr)
+                    string(mark, "/", bk.instrnm, "/", bk.quantity, "[", ind, "]", "/", bk.addr)
                     for (mark, ind) in zip(marks, index)
                 ]
             end
         else
             if true in isa.(marks, Expr)
                 [
-                    :(string($mark, "--", $(bk.instrnm), "[", $ind, "]", "--", $(bk.addr)))
+                    :(string($mark, "/", $(bk.instrnm), "[", $ind, "]", "/", $(bk.addr)))
                     for (mark, ind) in zip(marks, index)
                 ]
             else
-                [string(mark, "--", bk.instrnm, "[", ind, "]", "--", bk.addr) for (mark, ind) in zip(marks, index)]
+                [string(mark, "/", bk.instrnm, "[", ind, "]", "/", bk.addr) for (mark, ind) in zip(marks, index)]
             end
         end
         separator = bk isa ReadingBlock ? INSCONF[bk.instrnm].quantities[bk.quantity].separator : ","
