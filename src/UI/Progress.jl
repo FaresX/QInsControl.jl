@@ -34,6 +34,7 @@ macro progress(observables, getdatacmd, stop, duration, exwhile)
                 $pgn = isinf($fraction) || isnan($fraction) ? 100 + $pgi : ceil(Int, $pgi * $fraction)
                 put!(progress_lc, ($pgid, $pgi, $pgn, time() - $tn))
             end
+            put!(progress_lc, ($pgid, $pgn, $pgn, time() - $tn))
             empty!($observables)
         end
     end

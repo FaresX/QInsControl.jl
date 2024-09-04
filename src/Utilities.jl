@@ -383,12 +383,23 @@ function timeaverage(data, τ)
     return mv, stdv
 end
 function isarrived(data, target, δ, τ)
+    δ, τ = abs(δ), abs(τ)
     data[end][1] - data[1][1] < τ && return false
     arrive = abs(timeaverage(data, τ)[1] - target) < δ
     arrive && return true
     data[end][1] - data[1][1] < 10τ && return false
     arrive |= abs(timeaverage(data, τ)[1] - target) < 5δ && all(abs.(timeaverage(data, τ) .- timeaverage(data, 10τ)) .< δ)
     return arrive
+end
+function isless(data, target, δ, τ)
+    δ, τ = abs(δ), abs(τ)
+    data[end][1] - data[1][1] < τ && return false
+    return timeaverage(data, τ)[1] - target < δ
+end
+function isgreater(data, target, δ, τ)
+    δ, τ = abs(δ), abs(τ)
+    data[end][1] - data[1][1] < τ && return false
+    return timeaverage(data, τ)[1] - target > -δ
 end
 
 function strtoU(ustr::AbstractString)

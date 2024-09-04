@@ -45,6 +45,7 @@ end
     instrnm::String = mlstr("instrument")
     addr::String = mlstr("address")
     quantity::String = mlstr("sweep")
+    mode::String = "="
     stop::String = ""
     delay::Cfloat = 0.1
     delta::Cfloat = 0
@@ -52,7 +53,7 @@ end
     ui::Int = 1
     level::Int = 1
     blocks::Vector{AbstractBlock} = AbstractBlock[]
-    istrycatch::Bool = false
+    istrycatch::Bool = true
     hideblocks::Bool = false
     regmin::ImVec2 = (0, 0)
     regmax::ImVec2 = (0, 0)
@@ -194,7 +195,7 @@ end
 tocodes(bk::BranchBlock) = error("[$(now())]\n$(mlstr("BranchBlock has to be in a StrideCodeBlock!!!"))\nbk=$bk")
 
 function tocodes(bk::SweepBlock)
-    instr = string(bk.instrnm, "_", bk.addr)
+    instr = string(bk.instrnm, "/", bk.addr)
     quantity = bk.quantity
     setfunc = Symbol(bk.instrnm, :_, bk.quantity, :_set)
     getfunc = Symbol(bk.instrnm, :_, bk.quantity, :_get)
@@ -241,7 +242,7 @@ function tocodes(bk::SweepBlock)
 end
 
 function tocodes(bk::FreeSweepBlock)
-    instr = string(bk.instrnm, "_", bk.addr)
+    instr = string(bk.instrnm, "/", bk.addr)
     quantity = bk.quantity
     @assert INSCONF[bk.instrnm].quantities[bk.quantity].separator == "" mlstr("no free sweeping !!!")
     getfunc = Symbol(bk.instrnm, :_, bk.quantity, :_get)
@@ -270,9 +271,10 @@ function tocodes(bk::FreeSweepBlock)
     @gensym observables
     getcmd = :(controllers[$instr]($getfunc, CPU, Val(:read)))
     getdata = bk.istrycatch ? :(@gentrycatch $(bk.instrnm) $(bk.addr) $getcmd) : getcmd
+    detfunc = Dict("=" => isarrived, "<" => isless, ">" => isgreater)[bk.mode]
     return quote
         let $observables = []
-            @progress $observables $getdata $stop $(bk.duration / 6) while !isarrived($observables, $stop, $delta, $(bk.duration))
+            @progress $observables $getdata $stop $(bk.duration / 6) while !$detfunc($observables, $stop, $delta, $(bk.duration))
                 @gencontroller SweepBlock $instr
                 sleep($(bk.delay))
                 $interpcodes
@@ -282,7 +284,7 @@ function tocodes(bk::FreeSweepBlock)
 end
 
 function tocodes(bk::SettingBlock)
-    instr = string(bk.instrnm, "_", bk.addr)
+    instr = string(bk.instrnm, "/", bk.addr)
     quantity = bk.quantity
     U, Us = @c getU(INSCONF[bk.instrnm].quantities[quantity].U, &bk.ui)
     if U == ""
@@ -310,7 +312,7 @@ end
 tocodes(bk::ReadingBlock) = gencodes_read(bk)
 
 function tocodes(bk::WriteBlock)
-    instr = string(bk.instrnm, "_", bk.addr)
+    instr = string(bk.instrnm, "/", bk.addr)
     cmd = parsedollar(bk.cmd)
     setcmd = :(controllers[$instr](write, CPU, string($cmd), Val(:write)))
     ex = bk.istrycatch ? :(@gentrycatch $(bk.instrnm) $(bk.addr) $setcmd) : setcmd
@@ -326,7 +328,7 @@ tocodes(bk::QueryBlock) = gencodes_read(bk)
 tocodes(bk::ReadBlock) = gencodes_read(bk)
 
 function tocodes(bk::FeedbackBlock)
-    instr = string(bk.instrnm, "_", bk.addr)
+    instr = string(bk.instrnm, "/", bk.addr)
     quote
         if haskey(SWEEPCTS, $(bk.instrnm)) && haskey(SWEEPCTS[$(bk.instrnm)], $(bk.addr))
             SWEEPCTS[$(bk.instrnm)][$(bk.addr)][1][] = false
@@ -345,7 +347,7 @@ function tocodes(bk::FeedbackBlock)
 end
 
 function gencodes_read(bk::Union{ReadingBlock,QueryBlock,ReadBlock})
-    instr = string(bk.instrnm, "_", bk.addr)
+    instr = string(bk.instrnm, "/", bk.addr)
     index = @trypasse eval(Meta.parse(bk.index)) begin
         @error "[$(now())]\n$(mlstr("codes are wrong in parsing time (ReadingBlock)!!!"))" bk = bk
         return
@@ -354,10 +356,19 @@ function gencodes_read(bk::Union{ReadingBlock,QueryBlock,ReadBlock})
     bk isa ReadingBlock && (getfunc = Symbol(bk.instrnm, :_, bk.quantity, :_get))
     bk isa QueryBlock && (cmd = parsedollar(bk.cmd))
     if isnothing(index) || (bk isa ReadingBlock && INSCONF[bk.instrnm].quantities[bk.quantity].separator == "")
+        mark = parsedollar(replace(bk.mark, "/" => "_"))
         key = if bk isa ReadingBlock
-            string(bk.mark, "_", bk.instrnm, "_", bk.quantity, "_", bk.addr)
+            if mark isa Expr
+                :(string($mark, "/", $(bk.instrnm), "/", $(bk.quantity), "/", $(bk.addr)))
+            else
+                string(mark, "/", bk.instrnm, "/", bk.quantity, "/", bk.addr)
+            end
         else
-            string(bk.mark, "_", bk.instrnm, "_", bk.addr)
+            if mark isa Expr
+                :(string($mark, "/", $(bk.instrnm), "/", $(bk.addr)))
+            else
+                string(mark, "/", bk.instrnm, "/", bk.addr)
+            end
         end
         getcmd = if bk isa ReadingBlock
             :(controllers[$instr]($getfunc, CPU, Val(:read)))
@@ -382,20 +393,35 @@ function gencodes_read(bk::Union{ReadingBlock,QueryBlock,ReadBlock})
             end : ex
         end
     else
-        marks = fill("", length(index))
+        marks = Vector{Union{AbstractString,Expr}}(undef, length(index))
+        fill!(marks, "")
         for (i, v) in enumerate(split(bk.mark, ","))
-            marks[i] = v
+            marks[i] = parsedollar(replace(v, "/" => "_"))
         end
         for (i, idx) in enumerate(index)
             marks[i] == "" && (marks[i] = "mark$idx")
         end
         keyall = if bk isa ReadingBlock
-            [
-                string(mark, "_", bk.instrnm, "_", bk.quantity, "[", ind, "]", "_", bk.addr)
-                for (mark, ind) in zip(marks, index)
-            ]
+            if true in isa.(marks, Expr)
+                [
+                    :(string($mark, "/", $(bk.instrnm), "/", $(bk.quantity), "[", $ind, "]", "/", $(bk.addr)))
+                    for (mark, ind) in zip(marks, index)
+                ]
+            else
+                [
+                    string(mark, "/", bk.instrnm, "/", bk.quantity, "[", ind, "]", "/", bk.addr)
+                    for (mark, ind) in zip(marks, index)
+                ]
+            end
         else
-            [string(mark, "_", bk.instrnm, "[", ind, "]", "_", bk.addr) for (mark, ind) in zip(marks, index)]
+            if true in isa.(marks, Expr)
+                [
+                    :(string($mark, "/", $(bk.instrnm), "[", $ind, "]", "/", $(bk.addr)))
+                    for (mark, ind) in zip(marks, index)
+                ]
+            else
+                [string(mark, "/", bk.instrnm, "[", ind, "]", "/", bk.addr) for (mark, ind) in zip(marks, index)]
+            end
         end
         separator = bk isa ReadingBlock ? INSCONF[bk.instrnm].quantities[bk.quantity].separator : ","
         separator == "" && (separator = ",")
@@ -411,20 +437,20 @@ function gencodes_read(bk::Union{ReadingBlock,QueryBlock,ReadBlock})
             observable = length(index) == 1 ? Symbol(bk.mark) : Expr(:tuple, Symbol.(lstrip.(split(bk.mark, ',')))...)
             return bk.isreading ? quote
                 $observable = $getdata
-                for data in zip($keyall, $observable)
+                for data in zip([$(keyall...)], $observable)
                     put!(databuf_lc, data)
                 end
             end : :($observable = $getdata)
         else
             if bk.isasync
                 return quote
-                    @async for data in zip($keyall, $getdata)
+                    @async for data in zip([$(keyall...)], $getdata)
                         put!(databuf_lc, data)
                     end
                 end
             else
                 return quote
-                    for data in zip($keyall, $getdata)
+                    for data in zip([$(keyall...)], $getdata)
                         put!(databuf_lc, data)
                     end
                 end
@@ -496,7 +522,7 @@ macro gencontroller(key, val, retval=nothing, quiet=false)
 end
 
 ############macro block-------------------------------------------------------------------------------------------------
-macro sweepblock(instrnm, addr, qtnm, step, stop, delay, u, istrycatch, ex)
+macro sweepblock(instrnm, addr, qtnm, step, stop, u, delay, istrycatch, ex)
     esc(
         tocodes(
             SweepBlock(
@@ -515,13 +541,14 @@ macro sweepblock(instrnm, addr, qtnm, step, stop, delay, u, istrycatch, ex)
 end
 
 
-macro freesweepblock(instrnm, addr, qtnm, stop, delay, delta, duration, u, istrycatch, ex)
+macro freesweepblock(instrnm, addr, qtnm, mode, stop, u, delta, duration, delay, istrycatch, ex)
     esc(
         tocodes(
             FreeSweepBlock(
                 instrnm=instrnm,
                 addr=addr,
                 quantity=qtnm,
+                mode=mode,
                 stop=stop,
                 delay=delay,
                 delta=delta,
@@ -534,7 +561,7 @@ macro freesweepblock(instrnm, addr, qtnm, stop, delay, delta, duration, u, istry
     )
 end
 
-macro settingblock(instrnm, addr, qtnm, sv, delay, u, istrycatch)
+macro settingblock(instrnm, addr, qtnm, sv, u, delay, istrycatch)
     esc(
         tocodes(
             SettingBlock(
@@ -625,7 +652,7 @@ end
 
 macro saveblock(key, var)
     esc(
-        :(put!(databuf_lc, (string($(Meta.quot(key))), string($var))))
+        :(put!(databuf_lc, ($key, string($var))))
     )
 end
 
@@ -703,7 +730,7 @@ function interpret(bk::SweepBlock)
     utype = INSCONF[bk.instrnm].quantities[bk.quantity].U
     u, _ = @c getU(utype, &bk.ui)
     quote
-        @sweepblock $(bk.instrnm) $(bk.addr) $(bk.quantity) $(bk.step) $(bk.stop) $(bk.delay) $u $(bk.istrycatch) begin
+        @sweepblock $(bk.instrnm) $(bk.addr) $(bk.quantity) $(bk.step) $(bk.stop) $u $(bk.delay) $(bk.istrycatch) begin
             $(interpret.(bk.blocks)...)
         end
     end
@@ -712,7 +739,7 @@ function interpret(bk::FreeSweepBlock)
     utype = INSCONF[bk.instrnm].quantities[bk.quantity].U
     u, _ = @c getU(utype, &bk.ui)
     quote
-        @freesweepblock $(bk.instrnm) $(bk.addr) $(bk.quantity) $(bk.stop) $(bk.delay) $(bk.delta) $(bk.duration) $u $(bk.istrycatch) begin
+        @freesweepblock $(bk.instrnm) $(bk.addr) $(bk.quantity) $(bk.mode) $(bk.stop) $u $(bk.delta) $(bk.duration) $(bk.delay) $(bk.istrycatch) begin
             $(interpret.(bk.blocks)...)
         end
     end
@@ -720,7 +747,7 @@ end
 function interpret(bk::SettingBlock)
     utype = INSCONF[bk.instrnm].quantities[bk.quantity].U
     u, _ = @c getU(utype, &bk.ui)
-    :(@settingblock $(bk.instrnm) $(bk.addr) $(bk.quantity) $(bk.setvalue) $(bk.delay) $u $(bk.istrycatch))
+    :(@settingblock $(bk.instrnm) $(bk.addr) $(bk.quantity) $(bk.setvalue) $u $(bk.delay) $(bk.istrycatch))
 end
 function interpret(bk::ReadingBlock)
     :(@readingblock $(bk.instrnm) $(bk.addr) $(bk.quantity) $(bk.index) $(bk.mark) $(bk.isasync) $(bk.isobserve) $(bk.isreading) $(bk.istrycatch))
@@ -947,8 +974,8 @@ antiinterpret(ex, ::Val{:sweepblock}) = SweepBlock(
     quantity=ex.args[5],
     step=ex.args[6],
     stop=ex.args[7],
-    delay=ex.args[8],
-    ui=utoui(ex.args[3], ex.args[5], strtoU(string(ex.args[9]))),
+    ui=utoui(ex.args[3], ex.args[5], strtoU(string(ex.args[8]))),
+    delay=ex.args[9],
     istrycatch=ex.args[10],
     blocks=(bk = antiinterpret(ex.args[11]); iscontainer(bk) ? bk.blocks : [bk])
 )
@@ -956,21 +983,22 @@ antiinterpret(ex, ::Val{:freesweepblock}) = FreeSweepBlock(
     instrnm=ex.args[3],
     addr=ex.args[4],
     quantity=ex.args[5],
-    stop=ex.args[6],
-    delay=ex.args[7],
-    delta=ex.args[8],
-    duration=ex.args[9],
-    ui=utoui(ex.args[3], ex.args[5], strtoU(string(ex.args[10]))),
-    istrycatch=ex.args[11],
-    blocks=(bk = antiinterpret(ex.args[12]); iscontainer(bk) ? bk.blocks : [bk])
+    mode=string(ex.args[6]),
+    stop=ex.args[7],
+    ui=utoui(ex.args[3], ex.args[5], strtoU(string(ex.args[8]))),
+    delta=ex.args[9],
+    duration=ex.args[10],
+    delay=ex.args[11],
+    istrycatch=ex.args[12],
+    blocks=(bk = antiinterpret(ex.args[13]); iscontainer(bk) ? bk.blocks : [bk])
 )
 antiinterpret(ex, ::Val{:settingblock}) = SettingBlock(
     instrnm=ex.args[3],
     addr=ex.args[4],
     quantity=ex.args[5],
     setvalue=ex.args[6],
-    delay=ex.args[7],
-    ui=utoui(ex.args[3], ex.args[5], strtoU(string(ex.args[8]))),
+    ui=utoui(ex.args[3], ex.args[5], strtoU(string(ex.args[7]))),
+    delay=ex.args[8],
     istrycatch=ex.args[9]
 )
 antiinterpret(ex, ::Val{:readingblock}) = ReadingBlock(
@@ -1160,12 +1188,8 @@ let
         @c InputTextWithHintRSZ("##SweepBlock step", mlstr("step"), &bk.step)
         CImGui.PopItemWidth()
         CImGui.SameLine()
-        CImGui.PushItemWidth(width * 3 / 4)
+        CImGui.PushItemWidth(width * 3 / 4 - unsafe_load(IMGUISTYLE.ItemSpacing.x))
         @c InputTextWithHintRSZ("##SweepBlock stop", mlstr("stop"), &bk.stop)
-        CImGui.PopItemWidth()
-        CImGui.SameLine()
-        CImGui.PushItemWidth(width / 2)
-        @c CImGui.DragFloat("##SweepBlock delay", &bk.delay, 0.01, 0, 9.99, "%g", CImGui.ImGuiSliderFlags_AlwaysClamp)
         CImGui.PopItemWidth()
         CImGui.SameLine()
 
@@ -1174,9 +1198,14 @@ let
         else
             ""
         end
-        CImGui.PushItemWidth(-1)
+        CImGui.PushItemWidth(width / 2 - unsafe_load(IMGUISTYLE.ItemSpacing.x))
         @c ShowUnit("##SweepBlock", Ut, &bk.ui)
         CImGui.PopItemWidth()
+        CImGui.SameLine()
+        CImGui.PushItemWidth(-1)
+        @c CImGui.DragFloat("##SweepBlock delay", &bk.delay, 0.01, 0, 9.99, "%g", CImGui.ImGuiSliderFlags_AlwaysClamp)
+        CImGui.PopItemWidth()
+
         CImGui.PopStyleColor()
         CImGui.PushStyleVar(CImGui.ImGuiStyleVar_WindowPadding, wp)
         bk.hideblocks || isempty(skipnull(bk.blocks)) || edit(bk.blocks, bk.level + 1)
@@ -1249,31 +1278,35 @@ let
         CImGui.PopItemWidth()
         CImGui.SameLine()
 
-        CImGui.PushItemWidth(width * 3 / 8 - unsafe_load(IMGUISTYLE.ItemSpacing.x) / 2)
-        @c CImGui.InputFloat("##FreeSweepBlock delta", &bk.delta, 0, 0, "%g")
+        CImGui.PushItemWidth(width / 4 - unsafe_load(IMGUISTYLE.ItemSpacing.x) / 2)
+        @c ComboS("##FreeSweepBlock mode", &bk.mode, ["=", "<", ">"], CImGui.ImGuiComboFlags_NoArrowButton)
         CImGui.PopItemWidth()
         CImGui.SameLine()
-        CImGui.PushItemWidth(width * 3 / 8 - unsafe_load(IMGUISTYLE.ItemSpacing.x) / 2)
-        @c CImGui.DragFloat("##FreeSweepBlock duration", &bk.duration, 1, 1, 3600, "%g", CImGui.ImGuiSliderFlags_AlwaysClamp)
-        CImGui.PopItemWidth()
-        CImGui.SameLine()
-        CImGui.PushItemWidth(width * 3 / 4)
+        CImGui.PushItemWidth(width / 2 - unsafe_load(IMGUISTYLE.ItemSpacing.x) / 2)
         @c InputTextWithHintRSZ("##FreeSweepBlock stop", mlstr("stop"), &bk.stop)
         CImGui.PopItemWidth()
         CImGui.SameLine()
-        CImGui.PushItemWidth(width / 2)
-        @c CImGui.DragFloat("##FreeSweepBlock delay", &bk.delay, 0.01, 0, 9.99, "%g", CImGui.ImGuiSliderFlags_AlwaysClamp)
-        CImGui.PopItemWidth()
-        CImGui.SameLine()
-
         Ut = if haskey(INSCONF, bk.instrnm) && haskey(INSCONF[bk.instrnm].quantities, bk.quantity)
             INSCONF[bk.instrnm].quantities[bk.quantity].U
         else
             ""
         end
-        CImGui.PushItemWidth(-1)
+        CImGui.PushItemWidth(width / 2 - unsafe_load(IMGUISTYLE.ItemSpacing.x))
         @c ShowUnit("##FreeSweepBlock", Ut, &bk.ui)
         CImGui.PopItemWidth()
+        CImGui.SameLine()
+        CImGui.PushItemWidth(width / 2 - unsafe_load(IMGUISTYLE.ItemSpacing.x))
+        @c CImGui.InputFloat("##FreeSweepBlock delta", &bk.delta, 0, 0, "%g")
+        CImGui.PopItemWidth()
+        CImGui.SameLine()
+        CImGui.PushItemWidth(width / 4)
+        @c CImGui.DragFloat("##FreeSweepBlock duration", &bk.duration, 1, 1, 3600, "%g", CImGui.ImGuiSliderFlags_AlwaysClamp)
+        CImGui.PopItemWidth()
+        CImGui.SameLine()
+        CImGui.PushItemWidth(-1)
+        @c CImGui.DragFloat("##FreeSweepBlock delay", &bk.delay, 0.01, 0, 9.99, "%g", CImGui.ImGuiSliderFlags_AlwaysClamp)
+        CImGui.PopItemWidth()
+
         CImGui.PopStyleColor()
         CImGui.PushStyleVar(CImGui.ImGuiStyleVar_WindowPadding, wp)
         bk.hideblocks || isempty(skipnull(bk.blocks)) || edit(bk.blocks, bk.level + 1)
@@ -1350,19 +1383,19 @@ let
         CImGui.OpenPopupOnItemClick("select set value", 2)
         CImGui.SameLine()
 
-        CImGui.PushItemWidth(width / 2)
-        @c CImGui.DragFloat("##SettingBlock delay", &bk.delay, 0.01, 0, 9.99, "%g", CImGui.ImGuiSliderFlags_AlwaysClamp)
-        CImGui.PopItemWidth()
-        CImGui.SameLine()
-
         Ut = if haskey(INSCONF, bk.instrnm) && haskey(INSCONF[bk.instrnm].quantities, bk.quantity)
             INSCONF[bk.instrnm].quantities[bk.quantity].U
         else
             ""
         end
-        CImGui.PushItemWidth(-1)
+        CImGui.PushItemWidth(width / 2)
         @c ShowUnit("SettingBlock", Ut, &bk.ui)
         CImGui.PopItemWidth()
+        CImGui.SameLine()
+        CImGui.PushItemWidth(-1)
+        @c CImGui.DragFloat("##SettingBlock delay", &bk.delay, 0.01, 0, 9.99, "%g", CImGui.ImGuiSliderFlags_AlwaysClamp)
+        CImGui.PopItemWidth()
+
         CImGui.EndChild()
         CImGui.PopStyleVar()
     end
@@ -2011,7 +2044,7 @@ function view(bk::FreeSweepBlock)
             mlstr("instrument"), ": ", instrnm,
             "\t", mlstr("address"), ": ", addr,
             "\t", mlstr("sweep"), ": ", quantity,
-            "\t", mlstr("stop"), ": ", bk.stop, U,
+            "\t", mlstr("stop"), ": ", bk.mode, " ", bk.stop, U,
             "\t", mlstr("delay"), ": ", bk.delay,
             "\t", mlstr("δ"), ": ", bk.delta,
             "\t", mlstr("duration"), ": ", bk.duration
@@ -2288,6 +2321,36 @@ function Base.show(io::IO, bk::SweepBlock)
           quantity : $(bk.quantity)
               step : $(bk.step)
               stop : $(bk.stop)
+              unit : $U
+             delay : $(bk.delay)
+          trycatch : $(bk.istrycatch)
+        hideblocks : $(bk.hideblocks)
+              body :
+    """
+    print(io, str)
+    for b in bk.blocks
+        print(io, string("-"^64, "\n", "\t"^4))
+        show(io, b)
+    end
+end
+function Base.show(io::IO, bk::FreeSweepBlock)
+    Ut = if haskey(INSCONF, bk.instrnm) && haskey(INSCONF[bk.instrnm].quantities, bk.quantity)
+        INSCONF[bk.instrnm].quantities[bk.quantity].U
+    else
+        ""
+    end
+    U, _ = @c getU(Ut, &bk.ui)
+    str = """
+    FreeSweepBlock :
+        region min : $(bk.regmin)
+        region max : $(bk.regmax)
+             level : $(bk.level)
+        instrument : $(bk.instrnm)
+           address : $(bk.addr)
+          quantity : $(bk.quantity)
+              stop : $(bk.mode) $(bk.stop)
+             delta : $(bk.delta)
+          duration : $(bk.duration)
               unit : $U
              delay : $(bk.delay)
           trycatch : $(bk.istrycatch)

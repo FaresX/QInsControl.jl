@@ -216,6 +216,12 @@ function run(daqtask::DAQTask)
                     end
                 end
             end
+            while isready(DATABUFRC) || isready(PROGRESSRC)
+                isready(DATABUFRC) && take!(DATABUFRC)
+                isready(PROGRESSRC) && take!(PROGRESSRC)
+                sleep(0.001)
+            end
+            @warn "[$(now())]\n$(mlstr("terminates the task successfully!"))"
         end
     )
 end
@@ -354,7 +360,7 @@ function update_data()
             push!(DATABUF[data[1]], data[2])
             parsed_data = tryparse(Float64, data[2])
             push!(DATABUFPARSED[data[1]], isnothing(parsed_data) ? NaN : parsed_data)
-            splitdata = split(data[1], "_")
+            splitdata = split(data[1], "/")
             if length(splitdata) == 4
                 _, instrnm, qt, addr = splitdata
             else
@@ -410,7 +416,7 @@ function extract_controllers(bkch::Vector{AbstractBlock})
                 @assert haskey(INSTRBUFFERVIEWERS[bk.instrnm], bk.addr) mlstr("$(bk.addr) has not been added")
                 login!(CPU, ct; attr=getattr(bk.addr))
                 ct(query, CPU, "*IDN?", Val(:query))
-                controllers[string(bk.instrnm, "_", bk.addr)] = ct
+                controllers[string(bk.instrnm, "/", bk.addr)] = ct
             catch e
                 @error(
                     "[$(now())]\n$(mlstr("incorrect instrument settings!!!"))",
