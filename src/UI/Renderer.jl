@@ -1,46 +1,13 @@
-function UI(breakdown=false)
-    glfwDefaultWindowHints()
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3)
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 2)
-    CONF.Basic.scale && glfwWindowHint(GLFW_SCALE_TO_MONITOR, GLFW_TRUE)
-    if Sys.isapple()
-        glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE) # 3.2+ only
-        glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE) # required on Mac
-    end
+function UI()
+    CImGui.set_backend(:GlfwOpenGL3)
+    ctx = CImGui.CreateContext()
 
-    # create window
-    CONF.Basic.viewportenable || (CONF.Basic.hidewindow = false)
-    window = glfwCreateWindow(CONF.Basic.windowsize..., "QInsControl", C_NULL, C_NULL)
-    @assert window != C_NULL
-    glfwMakeContextCurrent(window)
-    glfwSwapInterval(1)  # enable vsync
-    CONF.Basic.hidewindow && glfwHideWindow(window)
-
-    # create OpenGL and GLFW context
-    window_ctx = ImGuiGLFWBackend.create_context(window)
-    gl_ctx = ImGuiOpenGLBackend.create_context()
-
-    # 加载图标
-    icons = FileIO.load.([joinpath(ENV["QInsControlAssets"], "Necessity/QInsControl.ico")])
-    icons_8bit = reinterpret.(NTuple{4,UInt8}, icons)
-    glfwicons = Base.unsafe_convert(Ref{GLFWimage}, Base.cconvert(Ref{GLFWimage}, icons_8bit))
-    glfwSetWindowIcon(window, 1, glfwicons)
-    iconsize = reverse(size(icons[1]))
-    global ICONID = ImGui_ImplOpenGL3_CreateImageTexture(iconsize...)
-    ImGui_ImplOpenGL3_UpdateImageTexture(ICONID, transpose(icons[1]), iconsize...)
     # 加载背景
     createimage(CONF.BGImage.path)
 
-
-    # setup Dear ImGui context
-    ctx = CImGui.CreateContext()
-
-    #setup ImPlot context
-    ctxp = ImPlot.CreateContext()
-    ImPlot.SetImGuiContext(ctx)
-
     #setup ImNodes context
     ctxi = imnodes_CreateContext()
+    setctxi(ctxi)
 
     # enable docking and multi-viewport
     io = CImGui.GetIO()
@@ -151,142 +118,74 @@ function UI(breakdown=false)
         icon_r[1].Data
     )
 
-    # setup Platform/Renderer bindings
-    ImGuiGLFWBackend.init(window_ctx)
-    ImGuiOpenGLBackend.init(gl_ctx)
-    ImGui_ImplGlfw_UpdateMonitors_fixeddpiscale(window_ctx)
-
     global IMGUISTYLE = CImGui.GetStyle()
-    global IMPLOTSTYLE = ImPlot.GetStyle()
     global IMNODESSTYLE = imnodes_GetStyle()
     global MORESTYLE = MoreStyle()
     haskey(STYLES, CONF.Style.default) && loadstyle(STYLES[CONF.Style.default])
 
-    breakdown && closeallwindow()
+    global ICONID = nothing
 
-    uitask = Threads.@spawn :interactive try
-        scale_old::Cfloat = 0
-        isshowapp()[] = true
-        updateframe::Bool = true
-        # firsthide::Bool = CONF.Basic.hidewindow
-        while true
-            glfwSwapInterval(updateframe ? 1 : CONF.Basic.noactionswapinterval)
-            glfwPollEvents()
-            ImGuiOpenGLBackend.new_frame(gl_ctx)
-            ImGuiGLFWBackend.new_frame(window_ctx)
-            CImGui.NewFrame()
-            CONF.Basic.scale && @c Update_DpiScale(&scale_old)
+    rendertask = Threads.@spawn CImGui.render(ctx; window_size=CONF.Basic.windowsize, window_title="QInsControl", on_exit=onexitaction, opengl_version=v"3.3") do
+        # 加载图标
+        if isnothing(ICONID)
+            icons = FileIO.load.([joinpath(ENV["QInsControlAssets"], "Necessity/QInsControl.ico")])
+            icons_8bit = reinterpret.(NTuple{4,UInt8}, icons)
+            GLFW.SetWindowIcon(CImGui.current_window(), icons_8bit)
+            GLFW.PollEvents()
+            iconsize = reverse(size(icons[1]))
+            global ICONID = CImGui.create_image_texture(iconsize...)
+            CImGui.update_image_texture(ICONID, transpose(icons[1]), iconsize...)
+        end
+        ###### 检查 STATICSTRINGS ######
+        waittime("Check STATICSTRINGS", 36) && checklifetime()
 
-            ###### 检查 STATICSTRINGS ######
-            waittime("Check STATICSTRINGS", 36) && checklifetime()
-
-            MainWindow()
-            if CImGui.BeginPopupModal("##windowshouldclose?", C_NULL, CImGui.ImGuiWindowFlags_AlwaysAutoResize)
-                CImGui.TextColored(
-                    MORESTYLE.Colors.LogError,
-                    stcstr("\n\n", mlstr("data acquiring or sweeping, please wait......"), "\n\n\n")
-                )
-                CImGui.Button(mlstr("Confirm"), (-1, 0)) && CImGui.CloseCurrentPopup()
-                CImGui.EndPopup()
-            end
-            if glfwWindowShouldClose(window) != 0 || !isshowapp()[]
-                hasrefreshing = false
-                for inses in values(INSTRBUFFERVIEWERS)
-                    for ibv in values(inses)
-                        for (_, qt) in filter(x -> x.second isa SweepQuantity, ibv.insbuf.quantities)
-                            hasrefreshing |= qt.issweeping
-                        end
+        MainWindow()
+        if CImGui.BeginPopupModal("##windowshouldclose?", C_NULL, CImGui.ImGuiWindowFlags_AlwaysAutoResize)
+            CImGui.TextColored(
+                MORESTYLE.Colors.LogError,
+                stcstr("\n\n", mlstr("data acquiring or sweeping, please wait......"), "\n\n\n")
+            )
+            CImGui.Button(mlstr("Confirm"), (-1, 0)) && CImGui.CloseCurrentPopup()
+            CImGui.EndPopup()
+        end
+        if GLFW.WindowShouldClose(CImGui.current_window()) != 0 || !isshowapp()[]
+            hasrefreshing = false
+            for inses in values(INSTRBUFFERVIEWERS)
+                for ibv in values(inses)
+                    for (_, qt) in filter(x -> x.second isa SweepQuantity, ibv.insbuf.quantities)
+                        hasrefreshing |= qt.issweeping
                     end
                 end
-                if SYNCSTATES[Int(IsDAQTaskRunning)] || hasrefreshing
-                    CImGui.OpenPopup("##windowshouldclose?")
-                    glfwSetWindowShouldClose(window, false)
-                    isshowapp()[] = true
-                else
-                    break
-                end
             end
-
-            ###### Hide Window ######
-            # if CONF.Basic.hidewindow ⊻ (glfwGetWindowAttrib(window, GLFW_VISIBLE) == GLFW_FALSE) || firsthide
-            #     firsthide && (firsthide = false)
-            #     if CONF.Basic.hidewindow
-            #         glfwHideWindow(window)
-            #         glfwSetWindowSize(window, 1, 1)
-            #     else
-            #         glfwShowWindow(window)
-            #         glfwSetWindowSize(window, glfwwindoww, glfwwindowh)
-            #     end
-            # end
-            # if glfwGetWindowAttrib(window, GLFW_VISIBLE) == GLFW_FALSE
-            #     glfwSetWindowPos(window, glfwwindowx, glfwwindowy)
-            # end
-            updateframe = updating()
-
-            CImGui.Render()
-            glfwMakeContextCurrent(window)
-
-            width, height = Ref{Cint}(), Ref{Cint}() #! need helper fcn
-            glfwGetFramebufferSize(window, width, height)
-            display_w = width[]
-            display_h = height[]
-
-            glViewport(0, 0, display_w, display_h)
-            glClearColor(MORESTYLE.Colors.ClearColor...)
-            glClear(GL_COLOR_BUFFER_BIT)
-            ImGuiOpenGLBackend.render(gl_ctx)
-
-            if unsafe_load(io.ConfigFlags) & ImGuiConfigFlags_ViewportsEnable == ImGuiConfigFlags_ViewportsEnable
-                backup_current_context = glfwGetCurrentContext()
-                igUpdatePlatformWindows()
-                GC.@preserve gl_ctx igRenderPlatformWindowsDefault(C_NULL, pointer_from_objref(gl_ctx))
-                glfwMakeContextCurrent(backup_current_context)
+            if SYNCSTATES[Int(IsDAQTaskRunning)] || hasrefreshing
+                CImGui.OpenPopup("##windowshouldclose?")
+                GLFW.SetWindowShouldClose(CImGui.current_window(), false)
+                isshowapp()[] = true
+            else
+                return
             end
-
-            glfwSwapBuffers(window)
-            GC.safepoint()
-            yield()
         end
-    catch e
-        @error "[$(now())]\n$(mlstr("Error in renderloop!"))" exception = e
-        showbacktrace()
-    finally
+    end
+
+    return rendertask
+end
+
+let
+    ctxi = nothing
+    global setctxi(ctx) = (ctxi = ctx)
+    global function onexitaction()
+        global AUTOREFRESHTASK
         SYNCSTATES[Int(IsDAQTaskRunning)] || remotecall_wait(() -> stop!(CPU), workers()[1])
         schedule(AUTOREFRESHTASK, mlstr("Stop"); error=true)
         empty!(STATICSTRINGS)
         empty!(MLSTRINGS)
         empty!(IMAGES)
+        empty!(FIGURES)
         temppath = joinpath(ENV["QInsControlAssets"], "temp")
         isdir(temppath) && for file in readdir(temppath, join=true)
             Base.Filesystem.rm(file, force=true)
         end
-        CImGui.SaveIniSettingsToDisk(imguiinifile)
-        ImGuiOpenGLBackend.shutdown(gl_ctx)
-        ImGuiGLFWBackend.shutdown(window_ctx)
+        CImGui.SaveIniSettingsToDisk(joinpath(ENV["QInsControlAssets"], "Necessity/imgui.ini"))
         imnodes_DestroyContext(ctxi)
-        ImPlot.DestroyContext(ctxp)
-        CImGui.DestroyContext(ctx)
-        glfwDestroyWindow(window)
-    end
-
-    return window, uitask
-end
-
-let
-    t1 = time()
-    mousepos::CImGui.ImVec2 = (0, 0)
-    global function updating()
-        if time() - t1 > 2
-            newmousepos = CImGui.GetMousePos()
-            mousemoved = newmousepos != mousepos
-            mousemoved && (mousepos = newmousepos)
-            updateframe = CImGui.IsAnyMouseDown()
-            updateframe |= CImGui.IsKeyDown(ImGuiKey_MouseWheelX) || CImGui.IsKeyDown(ImGuiKey_MouseWheelY)
-            updateframe |= CImGui.IsAnyItemActive() || (CImGui.IsAnyWindowHovered() && mousemoved)
-            updateframe && (t1 = time())
-            return updateframe
-        else
-            return true
-        end
     end
 end

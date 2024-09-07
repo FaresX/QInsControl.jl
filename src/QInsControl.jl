@@ -3,17 +3,19 @@ module QInsControl
 using CImGui
 using CImGui.CSyntax
 using CImGui.CSyntax.CStatic
-using CImGui.ImGuiGLFWBackend
-using CImGui.ImGuiOpenGLBackend
-using CImGui.ImGuiGLFWBackend.LibGLFW
-using CImGui.ImGuiOpenGLBackend.ModernGL
-using CImGui.LibCImGui
+# using CImGui.ImGuiGLFWBackend
+# using CImGui.ImGuiOpenGLBackend
+# using CImGui.ImGuiGLFWBackend.LibGLFW
+# using CImGui.ImGuiOpenGLBackend.ModernGL
+using GLFW
+using ModernGL
+using CImGui.lib
 using ColorTypes
 using Configurations
 using DataInterpolations
 import FileIO
+using GLMakie
 import ImageMagick
-using ImPlot
 using JLD2
 using JpegTurbo
 using MacroTools
@@ -74,11 +76,10 @@ include("UI/IconsFontAwesome6.jl")
 include("UI/IconSelector.jl")
 include("UI/NodesEditor.jl")
 include("UI/Instrument.jl")
-include("UI/Plot.jl")
+include("UI/QPlot.jl")
 include("UI/Progress.jl")
 include("UI/DataPicker.jl")
 include("UI/DataPlot.jl")
-include("UI/UtilitiesForRenderer.jl")
 
 include("UI/DataViewer.jl")
 include("UI/DataFormatter.jl")
@@ -119,7 +120,7 @@ function julia_main()::Cint
         global JLVERINFO = wrapmultiline(String(take!(jlverinfobuf)), 48)
         @info ARGS
         isempty(ARGS) || @info reencoding.(ARGS, CONF.Basic.encoding)
-        uitask = UI()[2]
+        uitask = UI()
         if CONF.Basic.isremote
             ENV["JULIA_NUM_THREADS"] = CONF.Basic.nthreads_2
             nprocs() == 1 && addprocs(1)
@@ -178,10 +179,10 @@ start() = (get!(ENV, "QInsControlAssets", joinpath(Base.@__DIR__, "../Assets"));
     global SYNCSTATES = SharedVector{Bool}(8)
     loadconf(true)
     try
-        window = UI()[1]
-        glfwHideWindow(window)
+        window = CImGui.current_window()
+        GLFW.HideWindow(window)
         sleep(6)
-        glfwSetWindowShouldClose(window, true)
+        GLFW.SetWindowShouldClose(window, true)
     catch
     end
 end
