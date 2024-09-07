@@ -46,7 +46,7 @@ function edit(fc::FormatCodes, _)
     CImGui.Button(mlstr("Codes"), (-1, 0))
 end
 
-function edit(fd::FormatData, _)
+function edit(fd::FormatData, id)
     ftsz = CImGui.GetFontSize()
     CImGui.PushStyleColor(CImGui.ImGuiCol_Border, MORESTYLE.Colors.FormatDataBorder)
     CImGui.PushStyleVar(CImGui.ImGuiStyleVar_ChildBorderSize, 1)
@@ -65,7 +65,14 @@ function edit(fd::FormatData, _)
     )
     if CImGui.Button(ICONS.ICON_EYE, (2ftsz, Cfloat(0)))
         fd.dtviewer.p_open ⊻= true
-        fd.dtviewer.p_open ? loaddtviewer!(fd.dtviewer, fd.path) : (fd.dtviewer = DataViewer(p_open=false))
+        if fd.dtviewer.p_open
+            loaddtviewer!(fd.dtviewer, fd.path, stcstr("formatdata", id))
+        else
+            for plt in fd.dtviewer.dtp.plots
+                delete!(FIGURES, plt.id)
+            end
+            fd.dtviewer = DataViewer(p_open=false)
+        end
     end
     CImGui.PopStyleColor()
     CImGui.SameLine()
@@ -246,7 +253,7 @@ function loaddtviewer!(fdg::FormatDataGroup)
             end
         end
     end
-    fdg.dtviewer.data["dataplot"] = empty!(deepcopy(fdg.dtviewer.dtp))
+    fdg.dtviewer.data["dataplot"] = deepcopy(fdg.dtviewer.dtp)
     fdg.dtviewer.data["daqtask"] = DAQTask(
         explog=join([string("Data ", i, '\n', fd.path) for (i, fd) in enumerate(fdg.data)], '\n'),
         blocks=[]
@@ -260,7 +267,12 @@ function showdtviewer(fd::FormatData, id)
         @c(CImGui.Begin(stcstr("FormatData", id), &fd.dtviewer.p_open)) && edit(fd.dtviewer, fd.path, stcstr("FormatData", id))
         CImGui.End()
         fd.dtviewer.p_open && haskey(fd.dtviewer.data, "data") && renderplots(fd.dtviewer.dtp, stcstr("formatdata", id))
-        fd.dtviewer.p_open || (fd.dtviewer = DataViewer(p_open=false))
+        if !fd.dtviewer.p_open
+            for plt in fd.dtviewer.dtp.plots
+                delete!(FIGURES, plt.id)
+            end
+            fd.dtviewer = DataViewer(p_open=false)
+        end
     end
 end
 function showdtviewer(fdg::FormatDataGroup, id)

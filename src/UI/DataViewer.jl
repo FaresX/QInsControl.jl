@@ -33,10 +33,15 @@ function edit(fv::FileViewer, id)
         if fv.filetree.selectedpathes != oldfiles
             for path in fv.filetree.selectedpathes
                 haskey(fv.dtviewers, path) || push!(fv.dtviewers, path => DataViewer())
-                path in oldfiles || loaddtviewer!(fv.dtviewers[path], path)
+                path in oldfiles || loaddtviewer!(fv.dtviewers[path], path, stcstr("DataViewer", id, path))
             end
             for path in keys(fv.dtviewers)
-                path in fv.filetree.selectedpathes || delete!(fv.dtviewers, path)
+                if path ∉ fv.filetree.selectedpathes
+                    for plt in fv.dtviewers[path].dtp.plots
+                        delete!(FIGURES, plt.id)
+                    end
+                    delete!(fv.dtviewers, path)
+                end
             end
         end
         CImGui.PopStyleColor()
@@ -214,7 +219,7 @@ function edit(dtviewer::DataViewer, path, id)
     haskey(dtviewer.data, "data") && showdtpks(dtviewer.dtp, stcstr("DataViewer", id), dtviewer.data["data"])
 end
 
-function loaddtviewer!(dtviewer::DataViewer, path)
+function loaddtviewer!(dtviewer::DataViewer, path, id)
     if split(basename(path), '.')[end] in ["qdt", "cfg"]
         dtviewer.data = @trypasse load(path) Dict()
         if haskey(dtviewer.data, "data") && !(dtviewer.data["data"] isa Dict{String,Vector{String}})
@@ -222,6 +227,9 @@ function loaddtviewer!(dtviewer::DataViewer, path)
         end
         if haskey(dtviewer.data, "dataplot")
             dtviewer.dtp = dtviewer.data["dataplot"]
+            for (i, plt) in enumerate(dtviewer.dtp.plots)
+                plt.id = stcstr(id, "-", i)
+            end
             haskey(dtviewer.data, "data") && update!(dtviewer.dtp, dtviewer.data["data"])
         end
         if !isempty(dtviewer.data)
@@ -231,8 +239,8 @@ function loaddtviewer!(dtviewer::DataViewer, path)
                         @trycatch mlstr("loading image failed!!!") begin
                             img = RGBA.(jpeg_decode(node.imgr.image))
                             imgsize = size(img)
-                            node.imgr.id = ImGui_ImplOpenGL3_CreateImageTexture(imgsize...)
-                            ImGui_ImplOpenGL3_UpdateImageTexture(node.imgr.id, img, imgsize...)
+                            node.imgr.id = CImGui.create_image_texture(imgsize...)
+                            CImGui.update_image_texture(node.imgr.id, img, imgsize...)
                         end
                     end
                 end
@@ -243,8 +251,8 @@ function loaddtviewer!(dtviewer::DataViewer, path)
                         @trycatch mlstr("loading image failed!!!") begin
                             img = RGBA.(jpeg_decode(node.imgr.image))
                             imgsize = size(img)
-                            node.imgr.id = ImGui_ImplOpenGL3_CreateImageTexture(imgsize...)
-                            ImGui_ImplOpenGL3_UpdateImageTexture(node.imgr.id, img, imgsize...)
+                            node.imgr.id = CImGui.create_image_texture(imgsize...)
+                            CImGui.update_image_texture(node.imgr.id, img, imgsize...)
                         end
                     end
                 end
