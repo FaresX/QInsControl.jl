@@ -1,6 +1,6 @@
 let
     firsttime::Bool = true
-    logmsgshow = Tuple{Symbol,CImGui.LibCImGui.ImVec4,String}[]
+    logmsgshow = Tuple{Symbol,CImGui.lib.ImVec4,String}[]
     showinfo::Bool = true
     showwarn::Bool = true
     showerror::Bool = true

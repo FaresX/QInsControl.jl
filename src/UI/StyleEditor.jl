@@ -149,8 +149,8 @@ mutable struct ImNodesStyle
     Colors::NTuple{29,Cuint}
     function ImNodesStyle()
         vars = Any[]
-        s = Ref{LibCImGui.ImNodesStyle}()
-        for var in fieldnames(LibCImGui.ImNodesStyle)
+        s = Ref{lib.ImNodesStyle}()
+        for var in fieldnames(lib.ImNodesStyle)
             push!(vars, getproperty(s[], var))
         end
         new(vars...)
@@ -161,11 +161,10 @@ end
     TextRectRounding::Cfloat = 0
     TextRectThickness::Cfloat = 2
     TextRectPadding::Vector{Cfloat} = [6, 6]
-    PinShapeInput::LibCImGui.ImNodesPinShape = LibCImGui.ImNodesPinShape_Circle
-    PinShapeOutput::LibCImGui.ImNodesPinShape = LibCImGui.ImNodesPinShape_Triangle
+    PinShapeInput::lib.ImNodesPinShape = lib.ImNodesPinShape_Circle
+    PinShapeOutput::lib.ImNodesPinShape = lib.ImNodesPinShape_Triangle
     MiniMapFraction::Cfloat = 0.2
-    MiniMapLocation::LibCImGui.ImNodesMiniMapLocation = LibCImGui.ImNodesMiniMapLocation_TopRight
-    ImPlotMarker::Cint = 0
+    MiniMapLocation::lib.ImNodesMiniMapLocation = lib.ImNodesMiniMapLocation_TopRight
     WidgetBorderThickness::Cfloat = 1
     ContainerBlockWindowPadding::Vector{Cfloat} = [18, 18]
 end
@@ -177,15 +176,13 @@ end
 end
 
 @kwdef mutable struct UnionStyle
-    imguistyle::LibCImGui.ImGuiStyle = Ref{LibCImGui.ImGuiStyle}()[]
-    implotstyle::ImPlot.ImPlotStyle = Ref{ImPlot.ImPlotStyle}()[]
+    imguistyle::lib.ImGuiStyle = Ref{lib.ImGuiStyle}()[]
     imnodesstyle::ImNodesStyle = ImNodesStyle()
     morestyle::MoreStyle = MoreStyle()
 end
 
-global IMGUISTYLE::Ptr{CImGui.LibCImGui.ImGuiStyle}
-global IMPLOTSTYLE::Ptr{ImPlot.ImPlotStyle}
-global IMNODESSTYLE::Ptr{CImGui.LibCImGui.ImNodesStyle}
+global IMGUISTYLE::Ptr{CImGui.lib.ImGuiStyle}
+global IMNODESSTYLE::Ptr{CImGui.lib.ImNodesStyle}
 global MORESTYLE::MoreStyle
 const STYLES = Dict{String,UnionStyle}()
 
@@ -210,23 +207,23 @@ let
         end
         # imnodesstyle = imnodes_GetStyle()
         if CImGui.Button("Save Ref")
-            for var in fieldnames(LibCImGui.ImNodesStyle)
+            for var in fieldnames(lib.ImNodesStyle)
                 var == :Colors && continue
                 setproperty!(style_ref, var, unsafe_load(getproperty(IMNODESSTYLE, var)))
             end
             storecolors = Cuint[]
-            for i in eachindex(instances(LibCImGui.ImNodesCol_)[1:end-1])
+            for i in eachindex(instances(lib.ImNodesCol_)[1:end-1])
                 push!(storecolors, CImGui.c_get(IMNODESSTYLE.Colors, i - 1))
             end
             style_ref.Colors = (storecolors...,)
         end
         CImGui.SameLine()
         if CImGui.Button("Revert Ref")
-            for var in fieldnames(LibCImGui.ImNodesStyle)
+            for var in fieldnames(lib.ImNodesStyle)
                 var == :Colors && continue
                 setproperty!(IMNODESSTYLE, var, getproperty(style_ref, var))
             end
-            for i in eachindex(instances(LibCImGui.ImNodesCol_)[1:end-1])
+            for i in eachindex(instances(lib.ImNodesCol_)[1:end-1])
                 CImGui.c_set!(IMNODESSTYLE.Colors, i - 1, style_ref.Colors[i])
             end
         end
@@ -240,15 +237,15 @@ let
         )
         if CImGui.BeginTabBar("ImNodesStyle")
             if CImGui.BeginTabItem("Variables")
-                for var in fieldnames(LibCImGui.ImNodesStyle)
-                    if fieldtype(LibCImGui.ImNodesStyle, var) == Cfloat
+                for var in fieldnames(lib.ImNodesStyle)
+                    if fieldtype(lib.ImNodesStyle, var) == Cfloat
                         CImGui.DragFloat(
                             stcstr(var),
                             getproperty(IMNODESSTYLE, var),
                             1.0, 0, 120, "%.3f",
                             CImGui.ImGuiSliderFlags_AlwaysClamp
                         )
-                    elseif fieldtype(LibCImGui.ImNodesStyle, var) == ImVec2
+                    elseif fieldtype(lib.ImNodesStyle, var) == ImVec2
                         CImGui.DragFloat2(
                             stcstr(var),
                             getproperty(IMNODESSTYLE, var),
@@ -257,7 +254,7 @@ let
                         )
                     end
                 end
-                for flag in instances(LibCImGui.ImNodesStyleFlags_)
+                for flag in instances(lib.ImNodesStyleFlags_)
                     CImGui.CheckboxFlags(stcstr(flag), IMNODESSTYLE.Flags, flag)
                 end
                 CImGui.EndTabItem()
@@ -270,7 +267,7 @@ let
                         CImGui.LogToTTY()
                     end
                     CImGui.LogText("ImVec4* colors = imnodes_GetStyle().colors;\n")
-                    for col in instances(LibCImGui.ImNodesCol_)[1:end-1]
+                    for col in instances(lib.ImNodesCol_)[1:end-1]
                         if !output_only_modified || style_ref.Colors[Int(col)+1] != CImGui.c_get(IMNODESSTYLE.Colors, col)
                             CImGui.LogText(string("colors[$col] = ", CImGui.c_get(IMNODESSTYLE.Colors, col), "\n"))
                         end
@@ -306,7 +303,7 @@ let
                     """
                 )
                 CImGui.BeginChild("imnodes Colors", (0, 0), false, CImGui.ImGuiWindowFlags_HorizontalScrollbar)
-                for col in instances(LibCImGui.ImNodesCol_)[1:end-1]
+                for col in instances(lib.ImNodesCol_)[1:end-1]
                     # ImGuiTextFilter_PassFilter(filter, pointer(string(col)), C_NULL) || continue
                     (filter == "" || !isvalid(filter) || occursin(lowercase(filter), lowercase(string(col)))) || continue
                     col_imvec4 = CImGui.ColorConvertU32ToFloat4(CImGui.c_get(IMNODESSTYLE.Colors, col))
@@ -384,29 +381,23 @@ let
                     "TextRectPadding", MORESTYLE.Variables.TextRectPadding,
                     1, 0, 60, "%.1f", CImGui.ImGuiSliderFlags_AlwaysClamp
                 )
-                inpin = string(LibCImGui.ImNodesPinShape_(MORESTYLE.Variables.PinShapeInput))
-                if @c ComboS("Input PinShape", &inpin, string.(instances(LibCImGui.ImNodesPinShape_)))
-                    MORESTYLE.Variables.PinShapeInput = getproperty(LibCImGui, Symbol(inpin))
+                inpin = string(lib.ImNodesPinShape_(MORESTYLE.Variables.PinShapeInput))
+                if @c ComboS("Input PinShape", &inpin, string.(instances(lib.ImNodesPinShape_)))
+                    MORESTYLE.Variables.PinShapeInput = getproperty(lib, Symbol(inpin))
                 end
-                outpin = string(LibCImGui.ImNodesPinShape_(MORESTYLE.Variables.PinShapeOutput))
-                if @c ComboS("Output PinShape", &outpin, string.(instances(LibCImGui.ImNodesPinShape_)))
-                    MORESTYLE.Variables.PinShapeOutput = getproperty(LibCImGui, Symbol(outpin))
+                outpin = string(lib.ImNodesPinShape_(MORESTYLE.Variables.PinShapeOutput))
+                if @c ComboS("Output PinShape", &outpin, string.(instances(lib.ImNodesPinShape_)))
+                    MORESTYLE.Variables.PinShapeOutput = getproperty(lib, Symbol(outpin))
                 end
-                selectedmarker = unsafe_string(ImPlot.GetMarkerName(MORESTYLE.Variables.ImPlotMarker))
-                implotmarkerlist = [unsafe_string(ImPlot.GetMarkerName(i - 1)) for i in 1:ImPlot.ImPlotMarker_COUNT]
                 @c CImGui.DragFloat(
                     "Minimap Fraction",
                     &MORESTYLE.Variables.MiniMapFraction,
                     0.1, 0.1, 1, "%.1f",
                     CImGui.ImGuiSliderFlags_AlwaysClamp
                 )
-                minimaplocation = string(LibCImGui.ImNodesMiniMapLocation_(MORESTYLE.Variables.MiniMapLocation))
-                if @c ComboS("Minimap Location", &minimaplocation, string.(instances(LibCImGui.ImNodesMiniMapLocation_)))
-                    MORESTYLE.Variables.MiniMapLocation = getproperty(LibCImGui, Symbol(minimaplocation))
-                end
-                if @c ComboS("ImPlotMarker", &selectedmarker, implotmarkerlist)
-                    MORESTYLE.Variables.ImPlotMarker = findfirst(==(selectedmarker), implotmarkerlist) - 1
-                    IMPLOTSTYLE.Marker = MORESTYLE.Variables.ImPlotMarker
+                minimaplocation = string(lib.ImNodesMiniMapLocation_(MORESTYLE.Variables.MiniMapLocation))
+                if @c ComboS("Minimap Location", &minimaplocation, string.(instances(lib.ImNodesMiniMapLocation_)))
+                    MORESTYLE.Variables.MiniMapLocation = getproperty(lib, Symbol(minimaplocation))
                 end
                 CImGui.DragFloat2(
                     "ContainerBlockWindowPadding", MORESTYLE.Variables.ContainerBlockWindowPadding,
@@ -510,8 +501,8 @@ let
     end
 end
 
-function loadstyle(style_ref::LibCImGui.ImGuiStyle)
-    for var in fieldnames(LibCImGui.ImGuiStyle)
+function loadstyle(style_ref::lib.ImGuiStyle)
+    for var in fieldnames(lib.ImGuiStyle)
         var == :Colors && continue
         setproperty!(IMGUISTYLE, var, getproperty(style_ref, var))
     end
@@ -519,21 +510,12 @@ function loadstyle(style_ref::LibCImGui.ImGuiStyle)
         CImGui.c_set!(IMGUISTYLE.Colors, i - 1, style_ref.Colors[i])
     end
 end
-function loadstyle(style_ref::ImPlot.ImPlotStyle)
-    for var in fieldnames(ImPlot.ImPlotStyle)
-        var == :Colors && continue
-        setproperty!(IMPLOTSTYLE, var, getproperty(style_ref, var))
-    end
-    for i in 1:ImPlot.ImPlotCol_COUNT
-        CImGui.c_set!(IMPLOTSTYLE.Colors, i - 1, style_ref.Colors[i])
-    end
-end
 function loadstyle(style_ref::ImNodesStyle)
-    for var in fieldnames(LibCImGui.ImNodesStyle)
+    for var in fieldnames(lib.ImNodesStyle)
         var == :Colors && continue
         setproperty!(IMNODESSTYLE, var, getproperty(style_ref, var))
     end
-    for i in eachindex(instances(LibCImGui.ImNodesCol_)[1:end-1])
+    for i in eachindex(instances(lib.ImNodesCol_)[1:end-1])
         CImGui.c_set!(IMNODESSTYLE.Colors, i - 1, style_ref.Colors[i])
     end
 end
@@ -547,7 +529,6 @@ function loadstyle(style_ref::MoreStyle)
     for var in fieldnames(MoreStyleIcon)
         setproperty!(MORESTYLE.Icons, var, getproperty(style_ref.Icons, var))
     end
-    IMPLOTSTYLE.Marker = MORESTYLE.Variables.ImPlotMarker
 end
 function loadstyle(ustyle::UnionStyle)
     for s in fieldnames(UnionStyle)
@@ -656,12 +637,6 @@ let
             if CImGui.BeginTabItem("ImGui Style")
                 CImGui.BeginChild("ImGui Style")
                 @c CImGui.ShowStyleEditor(&ustyle.imguistyle)
-                CImGui.EndChild()
-                CImGui.EndTabItem()
-            end
-            if CImGui.BeginTabItem("ImPlot Style")
-                CImGui.BeginChild("ImPlot Style")
-                @c ImPlot.ShowStyleEditor(&ustyle.implotstyle)
                 CImGui.EndChild()
                 CImGui.EndTabItem()
             end

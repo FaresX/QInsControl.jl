@@ -340,8 +340,8 @@ let
                     @trycatch mlstr("loading image failed!!!") begin
                         img = RGBA.(collect(transpose(FileIO.load(imgpath))))
                         imgsize = size(img)
-                        imgr.id = ImGui_ImplOpenGL3_CreateImageTexture(imgsize...)
-                        ImGui_ImplOpenGL3_UpdateImageTexture(imgr.id, img, imgsize...)
+                        imgr.id = CImGui.create_image_texture(imgsize...)
+                        CImGui.update_image_texture(imgr.id, img, imgsize...)
                         imgr.image = jpeg_encode(img)
                     end
                 end
@@ -789,7 +789,7 @@ end
 let
     hold::Bool = false
     holdsz::Cfloat = 0
-    nodeeditor_contexts::Dict{String,Ptr{LibCImGui.ImNodesEditorContext}} = Dict()
+    nodeeditor_contexts::Dict{String,Ptr{lib.ImNodesEditorContext}} = Dict()
 
     global function edit(nodeeditor::NodeEditor, id, p_open::Ref{Bool})
         CImGui.SetNextWindowSize((1200, 600), CImGui.ImGuiCond_Once)
@@ -885,7 +885,7 @@ function view(node::SampleHolderNode)
 end
 
 let
-    nodeeditor_contexts::Dict{String,Ptr{LibCImGui.ImNodesEditorContext}} = Dict()
+    nodeeditor_contexts::Dict{String,Ptr{lib.ImNodesEditorContext}} = Dict()
     global function view(nodeeditor::NodeEditor, id)
         haskey(nodeeditor_contexts, id) || (nodeeditor_contexts[id] = imnodes_EditorContextCreate())
         imnodes_EditorContextSet(nodeeditor_contexts[id])

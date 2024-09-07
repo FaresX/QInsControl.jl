@@ -134,6 +134,7 @@ function edit(qtw::QuantityWidget, insbuf::InstrBuffer, instrnm, addr)
         opts.vertices[1] *= scale
     end
     CImGui.SetCursorScreenPos(CImGui.GetWindowPos() .+ opts.vertices[1])
+    opts.allowoverlap && igSetNextItemAllowOverlap()
     trig = if haskey(insbuf.quantities, qtw.name)
         edit(opts, insbuf.quantities[qtw.name], instrnm, addr, Val(Symbol(qtw.options.uitype)))
     elseif qtw.name == "_Panel_"
@@ -147,7 +148,6 @@ function edit(qtw::QuantityWidget, insbuf::InstrBuffer, instrnm, addr)
     else
         false
     end
-    opts.allowoverlap && CImGui.SetItemAllowOverlap()
     if scaling
         opts.itemsize = itemsizeo
         opts.vertices[1] = csposo

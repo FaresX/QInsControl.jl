@@ -119,24 +119,24 @@ function createimage(path; showsize=(100, 100))
             if ndims(imgload) == 2
                 img = RGBA.(collect(transpose(imgload)))
                 imgsize = size(img)
-                push!(IMAGES[path], ImGui_ImplOpenGL3_CreateImageTexture(imgsize...))
-                ImGui_ImplOpenGL3_UpdateImageTexture(IMAGES[path][], img, imgsize...)
+                push!(IMAGES[path], CImGui.create_image_texture(imgsize...))
+                CImGui.update_image_texture(IMAGES[path][], img, imgsize...)
             elseif ndims(imgload) == 3
                 imgs = permutedims(RGBA.(imgload), (2, 1, 3))
                 imgsize = size(imgs)[1:2]
                 for img in eachslice(imgs; dims=3)
-                    push!(IMAGES[path], ImGui_ImplOpenGL3_CreateImageTexture(imgsize...))
-                    ImGui_ImplOpenGL3_UpdateImageTexture(IMAGES[path].data[end], img, imgsize...)
+                    push!(IMAGES[path], CImGui.create_image_texture(imgsize...))
+                    CImGui.update_image_texture(IMAGES[path].data[end], img, imgsize...)
                 end
             else
-                push!(IMAGES[path], ImGui_ImplOpenGL3_CreateImageTexture(showsize...))
+                push!(IMAGES[path], CImGui.create_image_texture(showsize...))
             end
         catch e
             @error "[$(now())]\n$(mlstr("loading image failed!!!"))" exception = e
-            push!(IMAGES[path], ImGui_ImplOpenGL3_CreateImageTexture(showsize...))
+            push!(IMAGES[path], CImGui.create_image_texture(showsize...))
         end
     else
-        push!(IMAGES[path], ImGui_ImplOpenGL3_CreateImageTexture(showsize...))
+        push!(IMAGES[path], CImGui.create_image_texture(showsize...))
     end
 end
 
