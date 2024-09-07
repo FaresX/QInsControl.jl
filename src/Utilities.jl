@@ -218,7 +218,7 @@ function swapvalue!(dict::OrderedDict, key1, key2)
     merge!(dict, newdict)
 end
 
-function Base.iterate(v::Union{ImVec2,ImPlot.ImPlotPoint}, state=1)
+function Base.iterate(v::ImVec2, state=1)
     if state == 1
         return v.x, 2
     elseif state == 2
@@ -227,7 +227,7 @@ function Base.iterate(v::Union{ImVec2,ImPlot.ImPlotPoint}, state=1)
         return nothing
     end
 end
-function Base.getindex(v::Union{ImVec2,ImPlot.ImPlotPoint}, i)
+function Base.getindex(v::ImVec2, i)
     if i == 1
         return v.x
     elseif i == 2
@@ -236,7 +236,7 @@ function Base.getindex(v::Union{ImVec2,ImPlot.ImPlotPoint}, i)
         throw(BoundsError(v, i))
     end
 end
-Base.length(::Union{ImVec2,ImPlot.ImPlotPoint}) = 2
+Base.length(::ImVec2) = 2
 function Base.getindex(v::ImVec4, i)
     if i == 1
         return v.x
@@ -251,7 +251,7 @@ function Base.getindex(v::ImVec4, i)
     end
 end
 
-function Base.getproperty(x::Ptr{LibCImGui.ImNodesStyle}, f::Symbol)
+function Base.getproperty(x::Ptr{lib.ImNodesStyle}, f::Symbol)
     f === :GridSpacing && return Ptr{Cfloat}(x + 0)
     f === :NodeCornerRounding && return Ptr{Cfloat}(x + 4)
     f === :NodePadding && return Ptr{ImVec2}(x + 8)
@@ -272,7 +272,7 @@ function Base.getproperty(x::Ptr{LibCImGui.ImNodesStyle}, f::Symbol)
     return getfield(x, f)
 end
 
-Base.setproperty!(x::Ptr{LibCImGui.ImNodesStyle}, f::Symbol, v) = unsafe_store!(getproperty(x, f), v)
+Base.setproperty!(x::Ptr{lib.ImNodesStyle}, f::Symbol, v) = unsafe_store!(getproperty(x, f), v)
 
 function newtuple(t::Tuple, i, v)
     newt = []
@@ -427,40 +427,6 @@ function calcmaxwidth(labels, padding=0)
     lb = length(labels)
     labelwidth = cols > lb ? maxwidth : (availwidth - (cols - 1) * itemspacing.x) / cols
     return cols, labelwidth
-end
-
-function imgsampling(x, y; num=100000)
-    if num > 1000
-        xl, yl = length(x), length(y)
-        xidxleft = round.(Int, range(1, xl, length=min(num, xl)))
-        yidxleft = round.(Int, range(1, yl, length=min(num, yl)))
-        return x[xidxleft], y[yidxleft]
-    else
-        return x, y
-    end
-end
-
-function imgsampling(x, y, z; num=100000)
-    if num > 1000
-        scale = √(num / length(z))
-        xl, yl = size(z)
-        nxl, nyl = round.(Int, (xl, yl) .* scale)
-        z_reducex = similar(z, nxl, yl)
-        linearx = range(extrema(x)..., length=nxl)
-        @views for i in axes(z, 2)
-            interp = LinearInterpolation(z[:, i], x; extrapolate=true)
-            z_reducex[:, i] = interp.(linearx)
-        end
-        nz = similar(z_reducex, nxl, nyl)
-        lineary = range(extrema(y)..., length=nyl)
-        @views for j in axes(z_reducex, 1)
-            interp = LinearInterpolation(z_reducex[j, :], y; extrapolate=true)
-            nz[j, :] = interp.(lineary)
-        end
-        return linearx, lineary, nz
-    else
-        return x, y, z
-    end
 end
 
 function resizefill!(sv::Vector{String}, n; fillv="")
