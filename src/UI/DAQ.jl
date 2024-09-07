@@ -366,7 +366,7 @@ let
                 jldsave(daqsvpath;
                     daqtasks=daqtasks,
                     circuit=CIRCUIT,
-                    dataplot=empty!(deepcopy(DAQDATAPLOT))
+                    dataplot=deepcopy(DAQDATAPLOT)
                 )
             end
         end
@@ -387,8 +387,8 @@ let
                             @trycatch mlstr("loading image failed!!!") begin
                                 img = RGBA.(jpeg_decode(node.imgr.image))
                                 imgsize = size(img)
-                                node.imgr.id = ImGui_ImplOpenGL3_CreateImageTexture(imgsize...)
-                                ImGui_ImplOpenGL3_UpdateImageTexture(node.imgr.id, img, imgsize...)
+                                node.imgr.id = CImGui.create_image_texture(imgsize...)
+                                CImGui.update_image_texture(node.imgr.id, img, imgsize...)
                             end
                         end
                     end
