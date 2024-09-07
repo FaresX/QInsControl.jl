@@ -75,12 +75,13 @@ let
                 @c(CImGui.Checkbox(
                     CONF.Basic.viewportenable ? mlstr("multi-viewport mode on") : mlstr("multi-viewport mode off"),
                     &CONF.Basic.viewportenable
-                )) && (CONF.Basic.viewportenable || (CONF.Basic.hidewindow = false))
+                )) 
+                #&& (CONF.Basic.viewportenable || (CONF.Basic.hidewindow = false))
                 @c CImGui.Checkbox(mlstr("hold main window"), &CONF.Basic.holdmainwindow)
-                @c CImGui.Checkbox(
-                    CONF.Basic.scale ? mlstr("scale on") : mlstr("scale off"),
-                    &CONF.Basic.scale
-                )
+                # @c CImGui.Checkbox(
+                #     CONF.Basic.scale ? mlstr("scale on") : mlstr("scale off"),
+                #     &CONF.Basic.scale
+                # )
                 # if unsafe_load(CImGui.GetIO().ConfigFlags) & CImGui.ImGuiConfigFlags_ViewportsEnable == CImGui.ImGuiConfigFlags_ViewportsEnable
                 #     @c CImGui.Checkbox(mlstr("hide window"), &CONF.Basic.hidewindow)
                 # end
@@ -97,24 +98,24 @@ let
                     1, 1, 100, "%d",
                     CImGui.ImGuiSliderFlags_AlwaysClamp
                 )
-                @c CImGui.DragInt(
-                    mlstr("no action swap interval"),
-                    &CONF.Basic.noactionswapinterval,
-                    1, 1, 12, "%d",
-                    CImGui.ImGuiSliderFlags_AlwaysClamp
-                )
+                # @c CImGui.DragInt(
+                #     mlstr("no action swap interval"),
+                #     &CONF.Basic.noactionswapinterval,
+                #     1, 1, 12, "%d",
+                #     CImGui.ImGuiSliderFlags_AlwaysClamp
+                # )
                 # io = CImGui.GetIO()
                 # if conf.Basic.viewportenable
                 #     io.ConfigFlags = unsafe_load(io.ConfigFlags) | CImGui.ImGuiConfigFlags_ViewportsEnable
                 # else
                 #     io.ConfigFlags = unsafe_load(io.ConfigFlags) & ~CImGui.ImGuiConfigFlags_ViewportsEnable
                 # end
-                @c CImGui.DragInt(
-                    mlstr("sampling threshold"),
-                    &CONF.Basic.samplingthreshold,
-                    100, 10000, 1000000, "%d",
-                    CImGui.ImGuiSliderFlags_AlwaysClamp
-                )
+                # @c CImGui.DragInt(
+                #     mlstr("sampling threshold"),
+                #     &CONF.Basic.samplingthreshold,
+                #     100, 10000, 1000000, "%d",
+                #     CImGui.ImGuiSliderFlags_AlwaysClamp
+                # )
                 CImGui.DragInt2(
                     mlstr("window size"),
                     CONF.Basic.windowsize,

@@ -2,12 +2,12 @@
     isremote::Bool = true
     viewportenable::Bool = true
     holdmainwindow::Bool = true
-    scale::Bool = false
+    # scale::Bool = false
     hidewindow::Bool = false
     nthreads::Cint = 2
     nthreads_2::Cint = 1
-    noactionswapinterval::Cint = 6
-    samplingthreshold::Cint = 200000
+    # noactionswapinterval::Cint = 6
+    # samplingthreshold::Cint = 200000
     windowsize::Vector{Cint} = [960, 540]
     encoding::String = "GBK"
     editor::String = "notepad"
