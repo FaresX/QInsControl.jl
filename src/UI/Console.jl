@@ -2,7 +2,7 @@ let
     buffer::String = ""
     historycmd::LoopVector{String} = LoopVector([""])
     historycmd_max::Int = 0
-    iomsgshow = Tuple{CImGui.LibCImGui.ImVec4,String}[]
+    iomsgshow = Tuple{CImGui.lib.ImVec4,String}[]
     iofile::String = ""
     newmsg::Bool = true
     newmsg_updated::Bool = false
