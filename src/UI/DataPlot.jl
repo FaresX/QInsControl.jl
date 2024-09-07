@@ -61,7 +61,7 @@ end
     dtpks::Vector{DataPicker} = [DataPicker()]
     showdtpks::Vector{Bool} = [false]
     linkidx::Vector{Cint} = [0]
-    plots::Vector{Plot} = [Plot()]
+    plots::Vector{QPlot} = [QPlot()]
     layout::Layout = Layout()
     isdelplot::Bool = false
     delplot_i::Int = 0
@@ -118,7 +118,7 @@ function newplot!(dtp::DataPlot)
     push!(dtp.layout.labels, string(length(dtp.layout.labels) + 1))
     push!(dtp.layout.marks, "")
     push!(dtp.layout.states, false)
-    push!(dtp.plots, Plot())
+    push!(dtp.plots, QPlot())
     push!(dtp.dtpks, DataPicker())
     push!(dtp.linkidx, 0)
 end
@@ -204,6 +204,7 @@ function showdtpks(
         CImGui.ImGuiWindowFlags_AlwaysAutoResize
     )
         if length(dtp.plots) > 1
+            delete!(FIGURES, dtp.plots[dtp.delplot_i].id)
             deleteat!(dtp.layout, dtp.delplot_i)
             deleteat!(dtp.plots, dtp.delplot_i)
             deleteat!(dtp.dtpks, dtp.delplot_i)
@@ -226,36 +227,16 @@ function renderplots(dtp::DataPlot, id)
             ),
             &isopenplot
         )
-        Plot(dtp.plots[idx], stcstr(id, "-", idx))
+        QPlot(dtp.plots[idx], stcstr(id, "-", idx))
         CImGui.End()
         dtp.layout.states[idx] = isopenplot
         isopenplot || (deleteat!(dtp.layout.selectedidx, i); deleteat!(dtp.layout.selectedlabels, i))
     end
 end
 
-function Base.empty!(dtp::DataPlot)
-    for plt in dtp.plots
-        empty!(plt.xaxes)
-        empty!(plt.yaxes)
-        empty!(plt.zaxes)
-        for pss in plt.series
-            empty!(pss.x)
-            empty!(pss.axis.xaxis.ticklabels)
-            empty!(pss.axis.xaxis.tickvalues)
-            empty!(pss.y)
-            empty!(pss.axis.yaxis.ticklabels)
-            empty!(pss.axis.yaxis.tickvalues)
-            pss.z = Matrix{eltype(pss.z)}(undef, 0, 0)
-            empty!(pss.axis.zaxis.ticklabels)
-            empty!(pss.axis.zaxis.tickvalues)
-        end
-    end
-    return dtp
-end
-
 function update!(dtp::DataPlot, datastr, datafloat::Dict{String,VecOrMat{Cdouble}}=Dict{String,VecOrMat{Cdouble}}())
     for (i, dtpk) in enumerate(dtp.dtpks)
         dtpk.update = true
-        syncplotdata(dtp.plots[i], dtpk, datastr, datafloat; force=true)
+        syncplotdata(dtp.plots[i], dtpk, datastr, datafloat)
     end
 end
