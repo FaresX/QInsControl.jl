@@ -62,7 +62,7 @@ let
             CImGui.SameLine()
             @c ToggleButton(MORESTYLE.Icons.HoldPin, &dtpk.hold)
             holdsz += CImGui.GetItemRectSize().x
-            CImGui.Button("Update Layout") && (dtpk.updatelayout = true)
+            CImGui.Button(stcstr(MORESTYLE.Icons.Update, " ", "Update Layout")) && (dtpk.updatelayout = true)
             CImGui.Text("function layout!(figure)")
             CImGui.PushID("Layout")
             edit(dtpk.codes)
@@ -179,13 +179,10 @@ let
             CImGui.PopItemWidth()
         end
 
-        CImGui.TextColored(MORESTYLE.Colors.LogInfo, mlstr("data processing"))
+        SeparatorTextColored(MORESTYLE.Colors.LogInfo, mlstr("Data Processing"))
         if dtss.isrealtime
-            CImGui.SameLine()
             CImGui.Button(stcstr(MORESTYLE.Icons.Update, " ", mlstr("Update Function"))) && (dtss.updateprocessfunc = true)
-        end
-        CImGui.SameLine(CImGui.GetWindowContentRegionWidth() - dtss.alsz)
-        if dtss.isrealtime
+            CImGui.SameLine(CImGui.GetWindowContentRegionWidth() - dtss.alsz)
             CImGui.Text(mlstr("sampling rate"))
             CImGui.SameLine()
             dtss.alsz = CImGui.GetItemRectSize().x
@@ -274,30 +271,33 @@ let
     observables::Dict{DataSeries,NTuple{3,Observable}} = Dict()
     global getobservables(dtss::DataSeries) = observables[dtss]
     global function setobservables!(dtss::DataSeries, x, y, z)
-        cx, cy, cz = collect(x), collect(y), collect(z)
-        if haskey(observables, dtss) && typeof(cx) == typeof(observables[dtss][1][]) &&
-           typeof(cy) == typeof(observables[dtss][2][]) && typeof(cz) == typeof(observables[dtss][3][])
-            resize!(observables[dtss][1][], length(cx))
-            resize!(observables[dtss][2][], length(cy))
-            observables[dtss][1][] = cx
-            observables[dtss][2][] = cy
-            if size(cz) == size(observables[dtss][3][])
-                observables[dtss][3][] = cz
+        try
+            cx, cy, cz = collect(x), collect(y), collect(z)
+            if haskey(observables, dtss) && typeof(cx) == typeof(observables[dtss][1][]) &&
+               typeof(cy) == typeof(observables[dtss][2][]) && typeof(cz) == typeof(observables[dtss][3][])
+                observables[dtss][1].val = cx
+                observables[dtss][2].val = cy
+                if size(cz) == size(observables[dtss][3][])
+                    observables[dtss][3].val = cz
+                else
+                    observables[dtss] = (observables[dtss][1], observables[dtss][2], Observable(cz))
+                end
+                notify.(observables[dtss])
             else
-                observables[dtss] = (observables[dtss][1], observables[dtss][2], Observable(cz))
+                observables[dtss] = (Observable(collect(cx)), Observable(collect(cy)), Observable(collect(cz)))
             end
-        else
-            observables[dtss] = (Observable(collect(cx)), Observable(collect(cy)), Observable(collect(cz)))
+        catch e
+            @error string("[", now(), "]\n", mlstr("setting observables failed!!!")) exception = e
+            showbacktrace()
         end
     end
+    global rmobvs(dtss) = delete!(observables, dtss)
 
     function plotfigurelayout(plt::QPlot, dtpk::DataPicker)
-        @info "update layout"
-        @info plt.id
         try
+            empty!(FIGURES[plt.id])
             ex = quote
                 (figure::Figure -> begin
-                    empty!(figure)
                     $(tocodes(dtpk.codes))
                 end)(FIGURES[$(plt.id)])
             end
@@ -339,9 +339,11 @@ let
             end
             exprocess = :($(processfuncs[dtss])($xbuf, $ybuf, $zbuf, $wbuf, $auxbufs...))
             nx, ny, nz = CONF.DAQ.externaleval ? @eval(Main, $exprocess) : eval(exprocess)
-            if !isempty(nz)
-                nx = length(nx) >= dtss.zsize[2] ? nx[1:dtss.zsize[2]] : 1:length(nx)
-                ny = length(ny) >= dtss.zsize[1] ? ny[1:dtss.zsize[1]] : 1:length(ny)
+            if isempty(nz)
+                nz = transpose(resize(nz, dtss.zsize...; fillms=NaN))
+            else
+                nx = length(nx) >= dtss.zsize[2] ? nx[1:dtss.zsize[2]] : 1:dtss.zsize[2]
+                ny = length(ny) >= dtss.zsize[1] ? ny[1:dtss.zsize[1]] : 1:dtss.zsize[1]
                 nz = nz isa Matrix ? transpose(nz) : transpose(resize(nz, dtss.zsize...; fillms=NaN))
             end
             return nx, ny, nz
