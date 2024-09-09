@@ -30,8 +30,9 @@ macro progress(observables, getdatacmd, stop, duration, exwhile)
                 $(exwhile.args[2])
                 time() - $observables[end][1] > $duration && push!($observables, (time(), parse(Float64, $getdatacmd)))
                 $pgi += 1
-                $fraction = abs(($stop - $observables[1][2]) / ($observables[end][2] - $observables[1][2]))
-                $pgn = isinf($fraction) || isnan($fraction) ? 100 + $pgi : ceil(Int, $pgi * $fraction)
+                $fraction = abs(($observables[end][2] - $observables[1][2]) / ($stop - $observables[1][2]))
+                $fraction > 1 && ($fraction = 1/$fraction)
+                $pgn = isinf($fraction) || isnan($fraction) || iszero($fraction) ? 100 + $pgi : ceil(Int, $pgi / $fraction)
                 put!(progress_lc, ($pgid, $pgi, $pgn, time() - $tn))
             end
             put!(progress_lc, ($pgid, $pgn, $pgn, time() - $tn))
