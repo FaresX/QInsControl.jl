@@ -77,7 +77,7 @@ function UI()
     )
 
     # 加载绘图字体
-    global PLOTFONT = CImGui.AddFontFromFileTTF(
+    global BIGFONT = CImGui.AddFontFromFileTTF(
         fonts,
         joinpath(CONF.Fonts.dir, CONF.Fonts.plotfont),
         CONF.Fonts.plotfontsize,

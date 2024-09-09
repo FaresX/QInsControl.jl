@@ -1707,7 +1707,7 @@ let
 
     global function dragblockmenu(id)
         presentid = id
-        CImGui.PushFont(PLOTFONT)
+        CImGui.PushFont(BIGFONT)
         ftsz = CImGui.GetFontSize()
         lbk = length(allblocks)
         availw = CImGui.GetContentRegionAvailWidth() / lbk - unsafe_load(IMGUISTYLE.ItemSpacing.x)

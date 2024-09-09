@@ -162,7 +162,7 @@ function edit(dft::DataFormatter, id)
     CImGui.SetNextWindowSize((400, 600), CImGui.ImGuiCond_Once)
     if @c CImGui.Begin(stcstr(MORESTYLE.Icons.DataFormatter, " ", mlstr("Data Formatter"), "##", id), &dft.p_open)
         SetWindowBgImage()
-        CImGui.PushFont(PLOTFONT)
+        CImGui.PushFont(BIGFONT)
         CImGui.AddRectFilled(
             CImGui.GetWindowDrawList(),
             CImGui.GetCursorScreenPos(),

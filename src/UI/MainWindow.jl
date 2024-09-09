@@ -107,7 +107,7 @@ let
             CImGui.EndChild()
             CImGui.NextColumn()
             CImGui.BeginChild("right")
-            CImGui.PushFont(PLOTFONT)
+            CImGui.PushFont(BIGFONT)
             isopenfiles = false
             isopenfolder = false
             isopenformatter = false

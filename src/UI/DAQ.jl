@@ -17,7 +17,7 @@ let
         # CImGui.SetColumnOffset(1, 6ftsz)
         CImGui.PushStyleColor(CImGui.ImGuiCol_ChildBg, MORESTYLE.Colors.ToolBarBg)
         CImGui.PushStyleColor(CImGui.ImGuiCol_Text, MORESTYLE.Colors.IconButton)
-        CImGui.PushFont(PLOTFONT)
+        CImGui.PushFont(BIGFONT)
         ftsz = CImGui.GetFontSize()
         CImGui.BeginChild("Toolbar", (3ftsz, Cfloat(0)))
         CImGui.SetCursorPos(ftsz / 2, ftsz / 2)

@@ -652,7 +652,7 @@ let
             )
         )
         qt.show_edit == "" && updatefront!(qt)
-        # CImGui.PushFont(PLOTFONT)
+        # CImGui.PushFont(BIGFONT)
         ColoredButton(
             stcstr(centermultiline(qt.show_edit), "###for refresh");
             size=btsize,
@@ -757,7 +757,7 @@ let
             qt.isautorefresh ? MORESTYLE.Colors.DAQTaskRunning : CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_ButtonHovered)
         )
         qt.show_edit == "" && updatefront!(qt)
-        # CImGui.PushFont(PLOTFONT)
+        # CImGui.PushFont(BIGFONT)
         ColoredButton(
             stcstr(centermultiline(qt.show_edit), "###for refresh");
             size=btsize,
@@ -851,7 +851,7 @@ let
             qt.isautorefresh ? MORESTYLE.Colors.DAQTaskRunning : CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_ButtonHovered)
         )
         qt.show_edit == "" && updatefront!(qt)
-        # CImGui.PushFont(PLOTFONT)
+        # CImGui.PushFont(BIGFONT)
         ColoredButton(
             stcstr(centermultiline(qt.show_edit), "###for refresh");
             size=btsize,

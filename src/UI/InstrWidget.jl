@@ -156,7 +156,7 @@ function edit(qtw::QuantityWidget, insbuf::InstrBuffer, instrnm, addr)
 end
 
 function editPanel(qtw::QuantityWidget, opts::QuantityWidgetOption)
-    opts.textsize == "big" && CImGui.PushFont(PLOTFONT)
+    opts.textsize == "big" && CImGui.PushFont(BIGFONT)
     originscale = unsafe_load(CImGui.GetIO().FontGlobalScale)
     CImGui.SetWindowFontScale(opts.textscale)
     isempty(opts.pathes) && push!(opts.pathes, "")
@@ -251,7 +251,7 @@ function editImage(::QuantityWidget, opts::QuantityWidgetOption)
 end
 
 function editQuantitySelector(qtw::QuantityWidget, opts::QuantityWidgetOption, ::Val{:combo})
-    opts.textsize == "big" && CImGui.PushFont(PLOTFONT)
+    opts.textsize == "big" && CImGui.PushFont(BIGFONT)
     originscale = unsafe_load(CImGui.GetIO().FontGlobalScale)
     CImGui.SetWindowFontScale(opts.textscale)
     trig = if opts.globaloptions
@@ -281,7 +281,7 @@ function editQuantitySelector(qtw::QuantityWidget, opts::QuantityWidgetOption, :
 end
 
 function editQuantitySelector(qtw::QuantityWidget, opts::QuantityWidgetOption, ::Val{:slider})
-    opts.textsize == "big" && CImGui.PushFont(PLOTFONT)
+    opts.textsize == "big" && CImGui.PushFont(BIGFONT)
     originscale = unsafe_load(CImGui.GetIO().FontGlobalScale)
     CImGui.SetWindowFontScale(opts.textscale)
     trig = if opts.globaloptions
@@ -317,7 +317,7 @@ function editQuantitySelector(qtw::QuantityWidget, opts::QuantityWidgetOption, :
 end
 
 function editQuantitySelector(qtw::QuantityWidget, opts::QuantityWidgetOption, ::Val{:vslider})
-    opts.textsize == "big" && CImGui.PushFont(PLOTFONT)
+    opts.textsize == "big" && CImGui.PushFont(BIGFONT)
     originscale = unsafe_load(CImGui.GetIO().FontGlobalScale)
     CImGui.SetWindowFontScale(opts.textscale)
     trig = if opts.globaloptions
@@ -355,7 +355,7 @@ end
 edit(::QuantityWidgetOption, ::AbstractQuantity, _, _, ::Val) = CImGui.Button(mlstr("Invalid UI Type"))
 
 function edit(opts::QuantityWidgetOption, qt::AbstractQuantity, instrnm, addr, ::Val{:read})
-    opts.textsize == "big" && CImGui.PushFont(PLOTFONT)
+    opts.textsize == "big" && CImGui.PushFont(BIGFONT)
     originscale = unsafe_load(CImGui.GetIO().FontGlobalScale)
     CImGui.SetWindowFontScale(opts.textscale)
     trig = if opts.globaloptions
@@ -381,7 +381,7 @@ function edit(opts::QuantityWidgetOption, qt::AbstractQuantity, instrnm, addr, :
 end
 
 function edit(opts::QuantityWidgetOption, qt::AbstractQuantity, instrnm, addr, ::Val{:unit})
-    opts.textsize == "big" && CImGui.PushFont(PLOTFONT)
+    opts.textsize == "big" && CImGui.PushFont(BIGFONT)
     originscale = unsafe_load(CImGui.GetIO().FontGlobalScale)
     CImGui.SetWindowFontScale(opts.textscale)
     trig = if opts.globaloptions
@@ -407,7 +407,7 @@ function edit(opts::QuantityWidgetOption, qt::AbstractQuantity, instrnm, addr, :
 end
 
 function edit(opts::QuantityWidgetOption, qt::AbstractQuantity, instrnm, addr, ::Val{:readunit})
-    opts.textsize == "big" && CImGui.PushFont(PLOTFONT)
+    opts.textsize == "big" && CImGui.PushFont(BIGFONT)
     originscale = unsafe_load(CImGui.GetIO().FontGlobalScale)
     CImGui.SetWindowFontScale(opts.textscale)
     trig = if opts.globaloptions
@@ -436,7 +436,7 @@ function edit(opts::QuantityWidgetOption, qt::AbstractQuantity, instrnm, addr, :
 end
 
 function edit(opts::QuantityWidgetOption, qt::AbstractQuantity, instrnm, addr, ::Val{:readdashboard})
-    opts.textsize == "big" && CImGui.PushFont(PLOTFONT)
+    opts.textsize == "big" && CImGui.PushFont(BIGFONT)
     originscale = unsafe_load(CImGui.GetIO().FontGlobalScale)
     CImGui.SetWindowFontScale(opts.textscale)
     val, mrange1, mrange2, start = parseforreaddashboard(qt)
@@ -464,7 +464,7 @@ function edit(opts::QuantityWidgetOption, qt::AbstractQuantity, instrnm, addr, :
     return false
 end
 function edit(opts::QuantityWidgetOption, qt::AbstractQuantity, instrnm, addr, ::Val{:readdashboarddigits})
-    opts.textsize == "big" && CImGui.PushFont(PLOTFONT)
+    opts.textsize == "big" && CImGui.PushFont(BIGFONT)
     originscale = unsafe_load(CImGui.GetIO().FontGlobalScale)
     CImGui.SetWindowFontScale(opts.textscale)
     trig = if opts.globaloptions
@@ -489,7 +489,7 @@ function edit(opts::QuantityWidgetOption, qt::AbstractQuantity, instrnm, addr, :
     return trig
 end
 function edit(opts::QuantityWidgetOption, qt::AbstractQuantity, instrnm, addr, ::Val{:readdashboarddigitsunit})
-    opts.textsize == "big" && CImGui.PushFont(PLOTFONT)
+    opts.textsize == "big" && CImGui.PushFont(BIGFONT)
     originscale = unsafe_load(CImGui.GetIO().FontGlobalScale)
     CImGui.SetWindowFontScale(opts.textscale)
     trig = if opts.globaloptions
@@ -539,7 +539,7 @@ function parseforreaddashboard(qt::AbstractQuantity)
 end
 
 function edit(opts::QuantityWidgetOption, qt::SweepQuantity, _, _, ::Val{:inputstep})
-    opts.textsize == "big" && CImGui.PushFont(PLOTFONT)
+    opts.textsize == "big" && CImGui.PushFont(BIGFONT)
     originscale = unsafe_load(CImGui.GetIO().FontGlobalScale)
     CImGui.SetWindowFontScale(opts.textscale)
     trig = if opts.globaloptions
@@ -563,7 +563,7 @@ function edit(opts::QuantityWidgetOption, qt::SweepQuantity, _, _, ::Val{:inputs
 end
 
 function edit(opts::QuantityWidgetOption, qt::SweepQuantity, _, _, ::Val{:inputstop})
-    opts.textsize == "big" && CImGui.PushFont(PLOTFONT)
+    opts.textsize == "big" && CImGui.PushFont(BIGFONT)
     originscale = unsafe_load(CImGui.GetIO().FontGlobalScale)
     CImGui.SetWindowFontScale(opts.textscale)
     trig = if opts.globaloptions
@@ -587,7 +587,7 @@ function edit(opts::QuantityWidgetOption, qt::SweepQuantity, _, _, ::Val{:inputs
 end
 
 function edit(opts::QuantityWidgetOption, qt::SweepQuantity, _, _, ::Val{:dragdelay})
-    opts.textsize == "big" && CImGui.PushFont(PLOTFONT)
+    opts.textsize == "big" && CImGui.PushFont(BIGFONT)
     originscale = unsafe_load(CImGui.GetIO().FontGlobalScale)
     CImGui.SetWindowFontScale(opts.textscale)
     trig = if opts.globaloptions
@@ -617,7 +617,7 @@ function edit(opts::QuantityWidgetOption, qt::SweepQuantity, _, _, ::Val{:dragde
 end
 
 function edit(opts::QuantityWidgetOption, qt::SweepQuantity, _, _, ::Val{:progressbar})
-    opts.textsize == "big" && CImGui.PushFont(PLOTFONT)
+    opts.textsize == "big" && CImGui.PushFont(BIGFONT)
     originscale = unsafe_load(CImGui.GetIO().FontGlobalScale)
     CImGui.SetWindowFontScale(opts.textscale)
     trig = if opts.globaloptions
@@ -646,7 +646,7 @@ function edit(opts::QuantityWidgetOption, qt::SweepQuantity, _, _, ::Val{:progre
 end
 
 function edit(opts::QuantityWidgetOption, qt::SweepQuantity, instrnm, addr, ::Val{:ctrlsweep})
-    opts.textsize == "big" && CImGui.PushFont(PLOTFONT)
+    opts.textsize == "big" && CImGui.PushFont(BIGFONT)
     originscale = unsafe_load(CImGui.GetIO().FontGlobalScale)
     CImGui.SetWindowFontScale(opts.textscale)
     trig = if opts.globaloptions
@@ -674,7 +674,7 @@ function edit(opts::QuantityWidgetOption, qt::SweepQuantity, instrnm, addr, ::Va
 end
 
 function edit(opts::QuantityWidgetOption, qt::SetQuantity, _, _, ::Val{:inputset})
-    opts.textsize == "big" && CImGui.PushFont(PLOTFONT)
+    opts.textsize == "big" && CImGui.PushFont(BIGFONT)
     originscale = unsafe_load(CImGui.GetIO().FontGlobalScale)
     CImGui.SetWindowFontScale(opts.textscale)
     trig = if opts.globaloptions
@@ -697,7 +697,7 @@ function edit(opts::QuantityWidgetOption, qt::SetQuantity, _, _, ::Val{:inputset
 end
 
 function edit(opts::QuantityWidgetOption, qt::SetQuantity, instrnm, addr, ::Val{:ctrlset})
-    opts.textsize == "big" && CImGui.PushFont(PLOTFONT)
+    opts.textsize == "big" && CImGui.PushFont(BIGFONT)
     originscale = unsafe_load(CImGui.GetIO().FontGlobalScale)
     CImGui.SetWindowFontScale(opts.textscale)
     trig = if opts.globaloptions
@@ -723,7 +723,7 @@ function edit(opts::QuantityWidgetOption, qt::SetQuantity, instrnm, addr, ::Val{
 end
 
 function edit(opts::QuantityWidgetOption, qt::SetQuantity, instrnm, addr, ::Val{:inputctrlset})
-    opts.textsize == "big" && CImGui.PushFont(PLOTFONT)
+    opts.textsize == "big" && CImGui.PushFont(BIGFONT)
     originscale = unsafe_load(CImGui.GetIO().FontGlobalScale)
     CImGui.SetWindowFontScale(opts.textscale)
     if opts.globaloptions
@@ -761,7 +761,7 @@ end
 
 function edit(opts::QuantityWidgetOption, qt::SetQuantity, instrnm, addr, ::Val{:combo})
     presentv = qt.optkeys[qt.optedidx]
-    opts.textsize == "big" && CImGui.PushFont(PLOTFONT)
+    opts.textsize == "big" && CImGui.PushFont(BIGFONT)
     originscale = unsafe_load(CImGui.GetIO().FontGlobalScale)
     CImGui.SetWindowFontScale(opts.textscale)
     trig = if opts.globaloptions
@@ -793,7 +793,7 @@ function edit(opts::QuantityWidgetOption, qt::SetQuantity, instrnm, addr, ::Val{
 end
 
 function edit(opts::QuantityWidgetOption, qt::SetQuantity, instrnm, addr, ::Val{:radio})
-    opts.textsize == "big" && CImGui.PushFont(PLOTFONT)
+    opts.textsize == "big" && CImGui.PushFont(BIGFONT)
     originscale = unsafe_load(CImGui.GetIO().FontGlobalScale)
     CImGui.SetWindowFontScale(opts.textscale)
     trig = if opts.globaloptions
@@ -822,7 +822,7 @@ function edit(opts::QuantityWidgetOption, qt::SetQuantity, instrnm, addr, ::Val{
 end
 
 function edit(opts::QuantityWidgetOption, qt::SetQuantity, instrnm, addr, ::Val{:slider})
-    opts.textsize == "big" && CImGui.PushFont(PLOTFONT)
+    opts.textsize == "big" && CImGui.PushFont(BIGFONT)
     originscale = unsafe_load(CImGui.GetIO().FontGlobalScale)
     CImGui.SetWindowFontScale(opts.textscale)
     trig = if opts.globaloptions
@@ -861,7 +861,7 @@ function edit(opts::QuantityWidgetOption, qt::SetQuantity, instrnm, addr, ::Val{
 end
 
 function edit(opts::QuantityWidgetOption, qt::SetQuantity, instrnm, addr, ::Val{:vslider})
-    opts.textsize == "big" && CImGui.PushFont(PLOTFONT)
+    opts.textsize == "big" && CImGui.PushFont(BIGFONT)
     originscale = unsafe_load(CImGui.GetIO().FontGlobalScale)
     CImGui.SetWindowFontScale(opts.textscale)
     trig = if opts.globaloptions
@@ -901,7 +901,7 @@ end
 
 function edit(opts::QuantityWidgetOption, qt::SetQuantity, instrnm, addr, ::Val{:toggle})
     ison = qt.optedidx == opts.bindingonoff[1]
-    opts.textsize == "big" && CImGui.PushFont(PLOTFONT)
+    opts.textsize == "big" && CImGui.PushFont(BIGFONT)
     originscale = unsafe_load(CImGui.GetIO().FontGlobalScale)
     CImGui.SetWindowFontScale(opts.textscale)
     trig = if opts.globaloptions
