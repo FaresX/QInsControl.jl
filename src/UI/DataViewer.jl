@@ -267,7 +267,7 @@ function saveqdt(dtviewer::DataViewer, path)
     if !isempty(dtviewer.data)
         jldopen(path, "w") do file
             for key in keys(dtviewer.data)
-                key == "dataplot" && (file[key] = empty!(deepcopy(dtviewer.dtp)); continue)
+                key == "dataplot" && (file[key] = deepcopy(dtviewer.dtp); continue)
                 if key == "data"
                     savetype = eval(Symbol(CONF.DAQ.savetype))
                     if savetype == String
