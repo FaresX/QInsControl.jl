@@ -38,7 +38,7 @@ Unitful = "1986cc42-f94f-5a68-af5c-568840ba703d"
 
 [compat]
 CImGui = "2"
-GLMakie = "0.10.5"
+GLMakie = "=0.10.5"
 ColorTypes = "0.11"
 Configurations = "0.17"
 FileIO = "1"
