@@ -211,13 +211,10 @@ let
             CImGui.PopItemWidth()
         end
 
-        CImGui.TextColored(MORESTYLE.Colors.LogInfo, mlstr("data processing"))
+        SeparatorTextColored(MORESTYLE.Colors.HighlightText, mlstr("Data Processing"))
         if dtss.isrealtime
-            CImGui.SameLine()
             CImGui.Button(stcstr(MORESTYLE.Icons.Update, " ", mlstr("Update Function"))) && (dtss.updatefunc = true)
-        end
-        CImGui.SameLine(CImGui.GetWindowContentRegionWidth() - dtss.alsz)
-        if dtss.isrealtime
+            CImGui.SameLine(CImGui.GetWindowContentRegionWidth() - dtss.alsz)
             CImGui.Text(mlstr("sampling rate"))
             CImGui.SameLine()
             dtss.alsz = CImGui.GetItemRectSize().x
@@ -233,9 +230,9 @@ let
                     dtss.isrunning ? stcstr(mlstr("Updating..."), " ", dtss.runtime, "s") : mlstr("Update"), " "
                 )
             ) && (dtss.update = true; dtss.updatefunc = true)
-            dtss.alsz = CImGui.GetItemRectSize().x
+            CImGui.SameLine(CImGui.GetWindowContentRegionWidth() - dtss.alsz)
+            dtss.alsz = 0
         end
-        CImGui.SameLine()
         @c CImGui.Checkbox("RT", &dtss.isrealtime)
         dtss.alsz += CImGui.GetItemRectSize().x + unsafe_load(IMGUISTYLE.ItemSpacing.x)
         CImGui.IsItemHovered() && CImGui.SetTooltip(mlstr("real-time data update/manual data update"))
