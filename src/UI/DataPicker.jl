@@ -188,9 +188,9 @@ let
             dtss.alsz = CImGui.GetItemRectSize().x
             CImGui.PushItemWidth(2CImGui.GetFontSize())
             @c CImGui.DragFloat("s", &dtss.refreshrate, 0.01, 0.01, 60, "%.2f", CImGui.ImGuiSliderFlags_AlwaysClamp)
-            CImGui.SameLine()
             CImGui.PopItemWidth()
             dtss.alsz += CImGui.GetItemRectSize().x + unsafe_load(IMGUISTYLE.ItemSpacing.x)
+            CImGui.SameLine()
         else
             CImGui.Button(
                 stcstr(
@@ -198,9 +198,9 @@ let
                     dtss.isrunning ? stcstr(mlstr("Updating..."), " ", dtss.runtime, "s") : mlstr("Update"), " "
                 )
             ) && (dtss.update = true; dtss.updateprocessfunc = true)
-            dtss.alsz = CImGui.GetItemRectSize().x
+            CImGui.SameLine(CImGui.GetWindowContentRegionWidth() - dtss.alsz)
+            dtss.alsz = -unsafe_load(IMGUISTYLE.ItemSpacing.x)
         end
-        CImGui.SameLine()
         @c CImGui.Checkbox("RT", &dtss.isrealtime)
         dtss.alsz += CImGui.GetItemRectSize().x + unsafe_load(IMGUISTYLE.ItemSpacing.x)
         CImGui.IsItemHovered() && CImGui.SetTooltip(mlstr("real-time data update/manual data update"))
