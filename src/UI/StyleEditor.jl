@@ -167,6 +167,7 @@ end
     MiniMapLocation::lib.ImNodesMiniMapLocation = lib.ImNodesMiniMapLocation_TopRight
     WidgetBorderThickness::Cfloat = 1
     ContainerBlockWindowPadding::Vector{Cfloat} = [18, 18]
+    MakieTheme::String = "default"
 end
 
 @kwdef mutable struct MoreStyle
@@ -403,6 +404,9 @@ let
                     "ContainerBlockWindowPadding", MORESTYLE.Variables.ContainerBlockWindowPadding,
                     1, 0, 60, "%.1f", CImGui.ImGuiSliderFlags_AlwaysClamp
                 )
+                if @c ComboS("Makie Theme", &MORESTYLE.Variables.MakieTheme, keys(MAKIETHEMES))
+                    toimguitheme!(MAKIETHEMES[MORESTYLE.Variables.MakieTheme])
+                end
                 CImGui.EndTabItem()
             end
             if CImGui.BeginTabItem("Colors")
@@ -522,6 +526,7 @@ end
 function loadstyle(style_ref::MoreStyle)
     for var in fieldnames(MoreStyleVariable)
         setproperty!(MORESTYLE.Variables, var, getproperty(style_ref.Variables, var))
+        var == :MakieTheme && toimguitheme!(MAKIETHEMES[style_ref.Variables.MakieTheme])
     end
     for var in fieldnames(MoreStyleColor)
         getproperty(MORESTYLE.Colors, var) .= getproperty(style_ref.Colors, var)
