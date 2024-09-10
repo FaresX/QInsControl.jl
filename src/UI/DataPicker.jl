@@ -220,9 +220,9 @@ let
             dtss.alsz = CImGui.GetItemRectSize().x
             CImGui.PushItemWidth(2CImGui.GetFontSize())
             @c CImGui.DragFloat("s", &dtss.refreshrate, 0.01, 0.01, 60, "%.2f", CImGui.ImGuiSliderFlags_AlwaysClamp)
-            CImGui.SameLine()
             CImGui.PopItemWidth()
             dtss.alsz += CImGui.GetItemRectSize().x + unsafe_load(IMGUISTYLE.ItemSpacing.x)
+            CImGui.SameLine()
         else
             CImGui.Button(
                 stcstr(
@@ -231,7 +231,7 @@ let
                 )
             ) && (dtss.update = true; dtss.updatefunc = true)
             CImGui.SameLine(CImGui.GetWindowContentRegionWidth() - dtss.alsz)
-            dtss.alsz = 0
+            dtss.alsz = -unsafe_load(IMGUISTYLE.ItemSpacing.x)
         end
         @c CImGui.Checkbox("RT", &dtss.isrealtime)
         dtss.alsz += CImGui.GetItemRectSize().x + unsafe_load(IMGUISTYLE.ItemSpacing.x)
