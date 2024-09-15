@@ -304,7 +304,7 @@ let
         pages = ceil(Int, lmax / CONF.DtViewer.showdatarow)
         pagei[id] > pages && (pagei[id] = 1)
         showpagewidth = CImGui.CalcTextSize(stcstr(" ", pagei[id], " / ", pages, " ")).x
-        contentwidth = CImGui.GetContentRegionAvailWidth()
+        contentwidth = CImGui.GetContentRegionAvail().x
         CImGui.PushID(id)
         if CImGui.Button(ICONS.ICON_CARET_LEFT, ((contentwidth - showpagewidth) / 2, Cfloat(0)))
             pagei[id] > 1 && (pagei[id] -= 1)

@@ -68,6 +68,7 @@ include("Configurations.jl")
 include("MultiLanguage.jl")
 include("StaticString.jl")
 
+include("UI/Extensions.jl")
 include("UI/Block.jl")
 include("UI/CustomWidgets/CustomWidgets.jl")
 include("UI/DAQTask.jl")

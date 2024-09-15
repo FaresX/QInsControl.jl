@@ -77,7 +77,7 @@ let
         if edithelp
             lines = split(qtcf.help, '\n')
             x = CImGui.CalcTextSize(lines[argmax(lengthpr.(lines))]).x
-            width = CImGui.GetContentRegionAvailWidth()
+            width = CImGui.GetContentRegionAvail().x
             x = x > width ? x : width
             y = (1 + length(findall("\n", qtcf.help))) * CImGui.GetTextLineHeight() + 2unsafe_load(IMGUISTYLE.FramePadding.y)
             CImGui.BeginChild("edit help", (Cfloat(0), y), false, CImGui.ImGuiWindowFlags_HorizontalScrollbar)
@@ -174,9 +174,9 @@ let
             end
             CImGui.PopStyleVar()
             CImGui.EndChild()
-            btwidth = CImGui.GetContentRegionAvailWidth() - unsafe_load(IMGUISTYLE.ItemSpacing.x)
+            btwidth = CImGui.GetContentRegionAvail().x - unsafe_load(IMGUISTYLE.ItemSpacing.x)
             CImGui.SetCursorPosY(
-                CImGui.GetWindowContentRegionMax().y - 2CImGui.GetFrameHeight() - unsafe_load(IMGUISTYLE.ItemSpacing.y)
+                CImGui.GetWindowHeight() - 2CImGui.GetFrameHeight() - unsafe_load(IMGUISTYLE.ItemSpacing.y)
             )
             CImGui.Separator()
             CImGui.PushStyleColor(CImGui.ImGuiCol_Button, (0, 0, 0, 0))

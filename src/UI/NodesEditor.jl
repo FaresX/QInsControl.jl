@@ -228,7 +228,7 @@ function draw(pin::ImagePin)
         CImGui.AddCircleFilled(
             drawlist,
             pin.pos, pin.radius - pin.thickness / 2,
-            CImGui.ColorConvertFloat4ToU32(MORESTYLE.Colors.NodeConnected),
+            MORESTYLE.Colors.NodeConnected,
             pin.num_segments
         )
     end
@@ -239,7 +239,7 @@ function draw(pin::ImagePin)
         CImGui.GetFont(),
         ftsz,
         pin.pos .- (l * ftsz / 2, ftsz / 2),
-        CImGui.ColorConvertFloat4ToU32(MORESTYLE.Colors.ImagePinLinkId),
+        MORESTYLE.Colors.ImagePinLinkId,
         stcstr(pin.link_idx)
     )
 end
@@ -278,51 +278,58 @@ function edit(node::Node)
     CImGui.Text(node.title)
     imnodes_EndNodeTitleBar()
     isempty(node.content) || CImGui.Text(node.content)
-    CImGui.BeginGroup()
-    for i in eachindex(node.input_ids)
-        imnodes_BeginInputAttribute(node.input_ids[i], MORESTYLE.Variables.PinShapeInput)
-        CImGui.TextColored(
-            if node.input_ids[i] in node.connected_ids
-                MORESTYLE.Colors.NodeConnected
-            else
-                CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_Text)
-            end,
-            node.input_labels[i]
-        )
-        imnodes_EndInputAttribute()
-    end
-    CImGui.EndGroup()
-    inlens = lengthpr.(node.input_labels)
-    outlens = lengthpr.(node.output_labels)
-    contentlines = split(node.content, '\n')
-    contentls = lengthpr.(contentlines)
-    maxcontentline = argmax(contentls)
-    if true in (max_with_empty(inlens) + max_with_empty(outlens) .< [lengthpr(node.title), contentls[maxcontentline]])
-        maxinlabel = isempty(node.input_labels) ? "" : node.input_labels[argmax(inlens)]
-        maxoutlabel = isempty(node.output_labels) ? "" : node.output_labels[argmax(outlens)]
-        spacing = if lengthpr(node.title) < contentls[maxcontentline]
-            CImGui.CalcTextSize(contentlines[maxcontentline]).x - CImGui.CalcTextSize(maxinlabel).x - CImGui.CalcTextSize(maxoutlabel).x
-        else
-            CImGui.CalcTextSize(node.title).x - CImGui.CalcTextSize(maxinlabel).x - CImGui.CalcTextSize(maxoutlabel).x
-        end
-        CImGui.SameLine(0, max(spacing, 2CImGui.GetFontSize()))
-    else
+    if isempty(node.input_ids)
+        CImGui.Text("")
         CImGui.SameLine(0, 2CImGui.GetFontSize())
-    end
-    CImGui.BeginGroup()
-    for i in eachindex(node.output_ids)
-        imnodes_BeginOutputAttribute(node.output_ids[i], MORESTYLE.Variables.PinShapeOutput)
-        CImGui.TextColored(
-            if node.output_ids[i] in node.connected_ids
-                MORESTYLE.Colors.NodeConnected
+    else
+        CImGui.BeginGroup()
+        for i in eachindex(node.input_ids)
+            imnodes_BeginInputAttribute(node.input_ids[i], MORESTYLE.Variables.PinShapeInput)
+            CImGui.TextColored(
+                if node.input_ids[i] in node.connected_ids
+                    MORESTYLE.Colors.NodeConnected
+                else
+                    CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_Text)
+                end,
+                node.input_labels[i]
+            )
+            imnodes_EndInputAttribute()
+        end
+        CImGui.EndGroup()
+        inlens = lengthpr.(node.input_labels)
+        outlens = lengthpr.(node.output_labels)
+        contentlines = split(node.content, '\n')
+        contentls = lengthpr.(contentlines)
+        maxcontentline = argmax(contentls)
+        if true in (max_with_empty(inlens) + max_with_empty(outlens) .< [lengthpr(node.title), contentls[maxcontentline]])
+            maxinlabel = isempty(node.input_labels) ? "" : node.input_labels[argmax(inlens)]
+            maxoutlabel = isempty(node.output_labels) ? "" : node.output_labels[argmax(outlens)]
+            spacing = if lengthpr(node.title) < contentls[maxcontentline]
+                CImGui.CalcTextSize(contentlines[maxcontentline]).x - CImGui.CalcTextSize(maxinlabel).x - CImGui.CalcTextSize(maxoutlabel).x
             else
-                CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_Text)
-            end,
-            node.output_labels[i]
-        )
-        imnodes_EndOutputAttribute()
+                CImGui.CalcTextSize(node.title).x - CImGui.CalcTextSize(maxinlabel).x - CImGui.CalcTextSize(maxoutlabel).x
+            end
+            CImGui.SameLine(0, max(spacing, 2CImGui.GetFontSize()))
+        else
+            CImGui.SameLine(0, 2CImGui.GetFontSize())
+        end
     end
-    CImGui.EndGroup()
+    if !isempty(node.output_ids)
+        CImGui.BeginGroup()
+        for i in eachindex(node.output_ids)
+            imnodes_BeginOutputAttribute(node.output_ids[i], MORESTYLE.Variables.PinShapeOutput)
+            CImGui.TextColored(
+                if node.output_ids[i] in node.connected_ids
+                    MORESTYLE.Colors.NodeConnected
+                else
+                    CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_Text)
+                end,
+                node.output_labels[i]
+            )
+            imnodes_EndOutputAttribute()
+        end
+        CImGui.EndGroup()
+    end
     imnodes_EndNode()
 end
 
@@ -489,11 +496,11 @@ let
             ftsz = CImGui.GetFontSize()
             rmin = CImGui.GetMousePos() .+ CImGui.ImVec2(ftsz, ftsz)
             rmax = rmin .+ CImGui.CalcTextSize(tiptxt) .+ CImGui.ImVec2(ftsz, ftsz)
-            CImGui.AddRectFilled(draw_list, rmin, rmax, CImGui.ColorConvertFloat4ToU32(MORESTYLE.Colors.BlockDragdrop))
+            CImGui.AddRectFilled(draw_list, rmin, rmax, MORESTYLE.Colors.BlockDragdrop)
             CImGui.AddText(
                 draw_list,
                 rmin .+ CImGui.ImVec2(ftsz / 2, ftsz / 2),
-                CImGui.ColorConvertFloat4ToU32(MORESTYLE.Colors.HighlightText),
+                MORESTYLE.Colors.HighlightText,
                 tiptxt
             )
         end
@@ -807,7 +814,7 @@ let
             CImGui.SameLine()
             CImGui.Button(stcstr(" ", mlstr("Circuit")))
             CImGui.PopStyleColor(3)
-            CImGui.SameLine(CImGui.GetContentRegionAvailWidth() - holdsz)
+            CImGui.SameLine(CImGui.GetContentRegionAvail().x - holdsz)
             @c ToggleButton(MORESTYLE.Icons.HoldPin, &hold)
             holdsz = CImGui.GetItemRectSize().x
             haskey(nodeeditor_contexts, id) || (nodeeditor_contexts[id] = imnodes_EditorContextCreate())

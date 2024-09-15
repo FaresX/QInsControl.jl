@@ -192,11 +192,11 @@ function editShape(opts::QuantityWidgetOption, ::Val{:rect})
     cspos = CImGui.GetCursorScreenPos()
     b = cspos .+ opts.itemsize
     CImGui.AddRectFilled(
-        drawlist, cspos, b, CImGui.ColorConvertFloat4ToU32(opts.bgcolor),
+        drawlist, cspos, b, opts.bgcolor,
         opts.rounding, ImDrawFlags_RoundCornersAll
     )
     CImGui.AddRect(
-        drawlist, cspos, b, CImGui.ColorConvertFloat4ToU32(opts.bdcolor),
+        drawlist, cspos, b, opts.bdcolor,
         opts.bdrounding, ImDrawFlags_RoundCornersAll, opts.bdthickness
     )
     return false
@@ -208,8 +208,8 @@ function editShape(opts::QuantityWidgetOption, ::Val{:triangle})
     a = cspos .+ opts.vertices[1]
     b = a .+ opts.vertices[2]
     c = a .+ opts.vertices[3]
-    CImGui.AddTriangleFilled(drawlist, a, b, c, CImGui.ColorConvertFloat4ToU32(opts.bgcolor))
-    CImGui.AddTriangle(drawlist, a, b, c, CImGui.ColorConvertFloat4ToU32(opts.bdcolor), opts.bdthickness)
+    CImGui.AddTriangleFilled(drawlist, a, b, c, opts.bgcolor)
+    CImGui.AddTriangle(drawlist, a, b, c, opts.bdcolor, opts.bdthickness)
     return false
 end
 
@@ -218,8 +218,8 @@ function editShape(opts::QuantityWidgetOption, ::Val{:circle})
     cspos = CImGui.GetCursorScreenPos()
     O = cspos .+ opts.itemsize ./ 2
     r = min(opts.itemsize...) / 2
-    CImGui.AddCircleFilled(drawlist, O, r, CImGui.ColorConvertFloat4ToU32(opts.bgcolor), opts.circlesegments)
-    CImGui.AddCircle(drawlist, O, r, CImGui.ColorConvertFloat4ToU32(opts.bdcolor), opts.circlesegments, opts.bdthickness)
+    CImGui.AddCircleFilled(drawlist, O, r, opts.bgcolor, opts.circlesegments)
+    CImGui.AddCircle(drawlist, O, r, opts.bdcolor, opts.circlesegments, opts.bdthickness)
     return false
 end
 
@@ -228,7 +228,7 @@ function editShape(opts::QuantityWidgetOption, ::Val{:line})
     cspos = CImGui.GetWindowPos()
     a = cspos .+ opts.vertices[1]
     b = a .+ opts.vertices[2]
-    CImGui.AddLine(drawlist, a, b, CImGui.ColorConvertFloat4ToU32(opts.bdcolor), opts.bdthickness)
+    CImGui.AddLine(drawlist, a, b, opts.bdcolor, opts.bdthickness)
     return false
 end
 
@@ -1048,17 +1048,17 @@ let
                                         c = a .+ qtw.options.vertices[3]
                                         CImGui.AddTriangleFilled(
                                             drawlist, a, b, c,
-                                            CImGui.ColorConvertFloat4ToU32(MORESTYLE.Colors.WidgetRectSelected)
+                                            MORESTYLE.Colors.WidgetRectSelected
                                         )
                                         CImGui.AddTriangle(
                                             drawlist, a, b, c,
-                                            CImGui.ColorConvertFloat4ToU32(MORESTYLE.Colors.WidgetBorderSelected),
+                                            MORESTYLE.Colors.WidgetBorderSelected,
                                             max(4, 2qtw.options.bdthickness)
                                         )
                                     elseif qtw.options.uitype == "line"
                                         CImGui.AddLine(
                                             drawlist, a, b,
-                                            CImGui.ColorConvertFloat4ToU32(MORESTYLE.Colors.WidgetBorderSelected),
+                                            MORESTYLE.Colors.WidgetBorderSelected,
                                             max(4, 2qtw.options.bdthickness)
                                         )
                                     end
@@ -1067,7 +1067,7 @@ let
                                     b = a .+ qtw.options.itemsize
                                     CImGui.AddRectFilled(
                                         drawlist, a, b,
-                                        CImGui.ColorConvertFloat4ToU32(MORESTYLE.Colors.WidgetRectSelected)
+                                        MORESTYLE.Colors.WidgetRectSelected
                                     )
                                     CImGui.AddRect(
                                         drawlist, a, b,
@@ -1221,7 +1221,7 @@ let
         CImGui.Columns(2)
         SeparatorTextColored(MORESTYLE.Colors.HighlightText, mlstr("Widgets"))
         CImGui.BeginChild("view widgets", (0, 0), false, CImGui.ImGuiWindowFlags_HorizontalScrollbar)
-        btw = (CImGui.GetContentRegionAvailWidth() - unsafe_load(IMGUISTYLE.ItemSpacing.x) * (showcols - 1)) / showcols
+        btw = (CImGui.GetContentRegionAvail().x - unsafe_load(IMGUISTYLE.ItemSpacing.x) * (showcols - 1)) / showcols
         for (i, qtw) in enumerate(insw.qtws)
             CImGui.PushID(i)
             showcols == 1 || i % showcols == 1 || CImGui.SameLine()
@@ -1288,10 +1288,10 @@ let
         CImGui.IsItemClicked() && (selectedqtw = 0)
 
         CImGui.NextColumn()
-        coloffsetminus = CImGui.GetWindowContentRegionWidth() - CImGui.GetColumnOffset(1)
+        coloffsetminus = CImGui.GetWindowWidth() - CImGui.GetColumnOffset(1)
         CImGui.BeginChild("options")
         SeparatorTextColored(MORESTYLE.Colors.HighlightText, mlstr("Options"))
-        stbw = CImGui.GetContentRegionAvailWidth() / 2
+        stbw = CImGui.GetContentRegionAvail().x / 2
         if CImGui.Button(stcstr(MORESTYLE.Icons.Undo, " ", mlstr("Undo"))) && !isempty(redolist[insw][-1].qtws)
             move!(redolist[insw], -1)
             copyinsw!(insw, deepcopy(redolist[insw][]))
@@ -1939,7 +1939,7 @@ let
             for (i, lb) in enumerate(qtw.options.selectorlabels)
                 @c(InputTextRSZ(stcstr(mlstr("option"), " ", i), &lb)) && (qtw.options.selectorlabels[i] = lb)
             end
-            width = CImGui.GetContentRegionAvailWidth() / 3
+            width = CImGui.GetContentRegionAvail().x / 3
             if CImGui.Button(stcstr(MORESTYLE.Icons.NewFile, "##addselectorgroup"), (width, Cfloat(0)))
                 push!(qtw.options.selectorlist, [])
                 push!(qtw.options.bindingqtwidxes, [])

@@ -31,7 +31,7 @@ const FORMATTERCODEMODES = ["default"]
 function edit(fc::FormatCodes, _)
     lines = split(fc.codes, '\n')
     x = CImGui.CalcTextSize(lines[argmax(lengthpr.(lines))]).x + 2CImGui.GetFontSize()
-    width = CImGui.GetContentRegionAvailWidth()
+    width = CImGui.GetContentRegionAvail().x
     x = x > width ? x : width
     y = (1 + length(findall("\n", fc.codes))) * CImGui.GetTextLineHeight() + 2unsafe_load(IMGUISTYLE.FramePadding.y)
     CImGui.BeginChild("##FormatCodes", (Cfloat(0), y), false, CImGui.ImGuiWindowFlags_HorizontalScrollbar)
@@ -166,8 +166,8 @@ function edit(dft::DataFormatter, id)
         CImGui.AddRectFilled(
             CImGui.GetWindowDrawList(),
             CImGui.GetCursorScreenPos(),
-            CImGui.GetCursorScreenPos() .+ (CImGui.GetWindowContentRegionMax().x, CImGui.GetFrameHeight() + unsafe_load(IMGUISTYLE.ItemSpacing.y)),
-            CImGui.ColorConvertFloat4ToU32(MORESTYLE.Colors.ToolBarBg)
+            CImGui.GetCursorScreenPos() .+ (CImGui.GetWindowWidth(), CImGui.GetFrameHeight() + unsafe_load(IMGUISTYLE.ItemSpacing.y)),
+            MORESTYLE.Colors.ToolBarBg
         )
         CImGui.Button(MORESTYLE.Icons.NewFile)
         rmin = CImGui.GetItemRectMin()
@@ -183,7 +183,7 @@ function edit(dft::DataFormatter, id)
         rmax = CImGui.GetItemRectMax()
         CImGui.AddRect(
             CImGui.GetWindowDrawList(), rmin, rmax,
-            CImGui.ColorConvertFloat4ToU32(MORESTYLE.Colors.ShowTextRect),
+            MORESTYLE.Colors.ShowTextRect,
             MORESTYLE.Variables.TextRectRounding, ImDrawFlags_RoundCornersAll, MORESTYLE.Variables.TextRectThickness
         )
         CImGui.SameLine()
@@ -286,7 +286,7 @@ function showdtviewer(fdg::FormatDataGroup, id)
         fdg.dtviewer.p_open && haskey(fdg.dtviewer.data, "data") && renderplots(fdg.dtviewer.dtp, stcstr("formatdatagroup", id))
     end
 end
-
+showdtviewer(::FormatCodes, _) = nothing
 
 function formatdata(fds::Vector{AbstractFormatData})
     savepath = save_file(filterlist=".jmd;.jl")

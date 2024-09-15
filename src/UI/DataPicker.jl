@@ -50,7 +50,7 @@ let
             CImGui.SameLine()
             CImGui.Button(stcstr(" ", mlstr("Data Selecting")))
             CImGui.PopStyleColor(3)
-            CImGui.SameLine(CImGui.GetContentRegionAvailWidth() - holdsz)
+            CImGui.SameLine(CImGui.GetContentRegionAvail().x - holdsz)
             CImGui.Button(MORESTYLE.Icons.Update) && (dtpk.update = true)
             holdsz = CImGui.GetItemRectSize().x
             CImGui.SameLine()
@@ -80,7 +80,7 @@ let
                 end
                 if CImGui.BeginDragDropSource(0)
                     @c CImGui.SetDragDropPayload("Swap Series", &i, sizeof(Cint))
-                    CImGui.Text(stcstr(mlstr("Series"), " ", i, " ", dtss.legend))
+                    CImGui.Text(stcstr(mlstr("Series"), " ", i))
                     CImGui.EndDragDropSource()
                 end
                 if CImGui.BeginDragDropTarget()
@@ -182,7 +182,7 @@ let
         SeparatorTextColored(MORESTYLE.Colors.LogInfo, mlstr("Data Processing"))
         if dtss.isrealtime
             CImGui.Button(stcstr(MORESTYLE.Icons.Update, " ", mlstr("Update Function"))) && (dtss.updateprocessfunc = true)
-            CImGui.SameLine(CImGui.GetWindowContentRegionWidth() - dtss.alsz)
+            CImGui.SameLine(CImGui.GetWindowWidth() - dtss.alsz)
             CImGui.Text(mlstr("sampling rate"))
             CImGui.SameLine()
             dtss.alsz = CImGui.GetItemRectSize().x

@@ -23,7 +23,7 @@ let
         CImGui.SetCursorPos(ftsz / 2, ftsz / 2)
         CImGui.Image(Ptr{Cvoid}(ICONID), (2ftsz, 2ftsz))
         CImGui.SetCursorPosY(CImGui.GetCursorPosY() + ftsz / 2)
-        btwidth = Cfloat(CImGui.GetContentRegionAvailWidth() - unsafe_load(IMGUISTYLE.WindowPadding.x))
+        btwidth = Cfloat(CImGui.GetContentRegionAvail().x - unsafe_load(IMGUISTYLE.WindowPadding.x))
         btheight = 2ftsz
         CImGui.PushStyleColor(CImGui.ImGuiCol_Button, (0, 0, 0, 0))
         if SYNCSTATES[Int(IsBlocked)]
@@ -116,7 +116,7 @@ let
             end
         end
         igSeparatorText("")
-        halfwidth = (CImGui.GetContentRegionAvailWidth() - unsafe_load(IMGUISTYLE.ItemSpacing.x)) / 2
+        halfwidth = (CImGui.GetContentRegionAvail().x - unsafe_load(IMGUISTYLE.ItemSpacing.x)) / 2
         btsz = (halfwidth, 2ftsz + unsafe_load(IMGUISTYLE.FramePadding.y))
         CImGui.PushStyleColor(CImGui.ImGuiCol_Text, MORESTYLE.Colors.IconButton)
         CImGui.Button(stcstr(MORESTYLE.Icons.NewFile, " ", mlstr("New Task")), btsz) && push!(daqtasks, DAQTask())

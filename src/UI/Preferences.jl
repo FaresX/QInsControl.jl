@@ -18,7 +18,7 @@ let
             CImGui.PushStyleColor(CImGui.ImGuiCol_ChildBg, MORESTYLE.Colors.ToolBarBg)
             CImGui.BeginChild("Toolbar")
             CImGui.PopStyleColor()
-            width = CImGui.GetContentRegionAvailWidth()
+            width = CImGui.GetContentRegionAvail().x
             ftsz = CImGui.GetFontSize()
             CImGui.SameLine((width - 6ftsz) / 2)
             CImGui.SetCursorPos((width - 6ftsz) / 2, ftsz)
@@ -43,7 +43,7 @@ let
             CImGui.EndChild()
 
             CImGui.SetCursorPosY(
-                CImGui.GetWindowContentRegionMax().y - 2CImGui.GetFrameHeight() - unsafe_load(IMGUISTYLE.ItemSpacing.y)
+                CImGui.GetWindowHeight() - 2CImGui.GetFrameHeight() - unsafe_load(IMGUISTYLE.ItemSpacing.y)
             )
             CImGui.Separator()
             CImGui.PushStyleColor(CImGui.ImGuiCol_Button, (0, 0, 0, 0))

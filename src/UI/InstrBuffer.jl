@@ -301,7 +301,7 @@ let
                     TextRect(stcstr(reading[], "\n "), updatecontent; size=(Cfloat(0), 12CImGui.GetFontSize()))
                     CImGui.Spacing()
                     CImGui.PushStyleVar(CImGui.ImGuiStyleVar_FrameRounding, 24)
-                    btw = (CImGui.GetContentRegionAvailWidth() - 2unsafe_load(IMGUISTYLE.ItemSpacing.x)) / 3
+                    btw = (CImGui.GetContentRegionAvail().x - 2unsafe_load(IMGUISTYLE.ItemSpacing.x)) / 3
                     bth = 2CImGui.GetFrameHeight()
                     if CImGui.Button(stcstr(MORESTYLE.Icons.WriteBlock, "  ", mlstr("Write")), (btw, bth))
                         if addr != ""
@@ -576,7 +576,7 @@ function edit(insbuf::InstrBuffer, addr)
         &insbuf.filtervarname
     )) && update_passfilter!(insbuf)
     CImGui.BeginChild("InstrBuffer")
-    btsize = (CImGui.GetContentRegionAvailWidth() - unsafe_load(IMGUISTYLE.ItemSpacing.x) * (CONF.InsBuf.showcol - 1)) / CONF.InsBuf.showcol
+    btsize = (CImGui.GetContentRegionAvail().x - unsafe_load(IMGUISTYLE.ItemSpacing.x) * (CONF.InsBuf.showcol - 1)) / CONF.InsBuf.showcol
     showi = 0
     for (i, qt) in enumerate(values(insbuf.quantities))
         qt.enable || insbuf.showdisable || continue
@@ -670,7 +670,7 @@ let
             pgcol = [phcol.x, phcol.y, phcol.z, min(0.6, phcol.w)]
             CImGui.AddRectFilled(
                 CImGui.GetWindowDrawList(), rmin, (rmin.x + frac * rsz.x, rmin.y + rsz.y),
-                CImGui.ColorConvertFloat4ToU32(pgcol), unsafe_load(IMGUISTYLE.FrameRounding)
+                pgcol, unsafe_load(IMGUISTYLE.FrameRounding)
             )
             if CImGui.IsItemHovered() && CImGui.BeginTooltip()
                 CImGui.ProgressBar(

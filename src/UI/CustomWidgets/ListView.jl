@@ -65,6 +65,6 @@ function ColoredCombo(
     CImGui.PopStyleColor(6)
     rmin, rmax = CImGui.GetItemRectMin(), CImGui.GetItemRectMax()
     draw_list = CImGui.GetWindowDrawList()
-    CImGui.AddRect(draw_list, rmin, rmax, CImGui.ColorConvertFloat4ToU32(colrect), bdrounding, 0, thickness)
+    CImGui.AddRect(draw_list, rmin, rmax, colrect, bdrounding, 0, thickness)
     return iscombo
 end

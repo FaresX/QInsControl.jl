@@ -218,62 +218,6 @@ function swapvalue!(dict::OrderedDict, key1, key2)
     merge!(dict, newdict)
 end
 
-function Base.iterate(v::ImVec2, state=1)
-    if state == 1
-        return v.x, 2
-    elseif state == 2
-        return v.y, 3
-    else
-        return nothing
-    end
-end
-function Base.getindex(v::ImVec2, i)
-    if i == 1
-        return v.x
-    elseif i == 2
-        return v.y
-    else
-        throw(BoundsError(v, i))
-    end
-end
-Base.length(::ImVec2) = 2
-function Base.getindex(v::ImVec4, i)
-    if i == 1
-        return v.x
-    elseif i == 2
-        return v.y
-    elseif i == 3
-        return v.z
-    elseif i == 4
-        return v.w
-    else
-        throw(BoundsError(v, i))
-    end
-end
-
-function Base.getproperty(x::Ptr{lib.ImNodesStyle}, f::Symbol)
-    f === :GridSpacing && return Ptr{Cfloat}(x + 0)
-    f === :NodeCornerRounding && return Ptr{Cfloat}(x + 4)
-    f === :NodePadding && return Ptr{ImVec2}(x + 8)
-    f === :NodeBorderThickness && return Ptr{Cfloat}(x + 16)
-    f === :LinkThickness && return Ptr{Cfloat}(x + 20)
-    f === :LinkLineSegmentsPerLength && return Ptr{Cfloat}(x + 24)
-    f === :LinkHoverDistance && return Ptr{Cfloat}(x + 28)
-    f === :PinCircleRadius && return Ptr{Cfloat}(x + 32)
-    f === :PinQuadSideLength && return Ptr{Cfloat}(x + 36)
-    f === :PinTriangleSideLength && return Ptr{Cfloat}(x + 40)
-    f === :PinLineThickness && return Ptr{Cfloat}(x + 44)
-    f === :PinHoverRadius && return Ptr{Cfloat}(x + 48)
-    f === :PinOffset && return Ptr{Cfloat}(x + 52)
-    f === :MiniMapPadding && return Ptr{ImVec2}(x + 56)
-    f === :MiniMapOffset && return Ptr{ImVec2}(x + 64)
-    f === :Flags && return Ptr{UInt32}(x + 72)
-    f === :Colors && return Ptr{NTuple{29,Cuint}}(x + 76)
-    return getfield(x, f)
-end
-
-Base.setproperty!(x::Ptr{lib.ImNodesStyle}, f::Symbol, v) = unsafe_store!(getproperty(x, f), v)
-
 function newtuple(t::Tuple, i, v)
     newt = []
     for (j, val) in enumerate(t)
@@ -420,7 +364,7 @@ end
 
 function calcmaxwidth(labels, padding=0)
     maxwidth = max([CImGui.CalcTextSize(label).x for label in labels]...) + padding
-    availwidth = CImGui.GetContentRegionAvailWidth()
+    availwidth = CImGui.GetContentRegionAvail().x
     itemspacing = unsafe_load(IMGUISTYLE.ItemSpacing)
     cols = floor(Int, availwidth / (maxwidth + itemspacing.x))
     cols == 0 && (cols = 1)
