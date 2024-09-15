@@ -143,7 +143,7 @@ function julia_main()::Cint
             @eval const SWEEPCTS = Dict{String,Dict{String,Tuple{Ref{Bool},Controller}}}()
             @eval const REFRESHCTS = Dict{String,Dict{String,Controller}}()
         end
-        global AUTOREFRESHTASK = autorefresh()
+        autorefresh()
         @info "[$(now())]\n$(mlstr("successfully started!"))"
         if !isinteractive()
             wait(uitask)
