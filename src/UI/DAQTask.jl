@@ -208,6 +208,7 @@ function run(daqtask::DAQTask)
     run_remote(daqtask)
     wait(
         Threads.@spawn try
+            savecfgcache()
             while update_all()
                 yield()
             end
