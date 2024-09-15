@@ -274,7 +274,7 @@ function showdtviewer(fdg::FormatDataGroup, id)
         fdg.dtviewer.p_open && haskey(fdg.dtviewer.data, "data") && renderplots(fdg.dtviewer.dtp, stcstr("formatdatagroup", id))
     end
 end
-
+showdtviewer(::FormatCodes, _) = nothing
 
 function formatdata(fds::Vector{AbstractFormatData})
     savepath = save_file(filterlist=".jmd;.jl")
