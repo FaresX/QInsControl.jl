@@ -164,7 +164,7 @@ function UI(breakdown=false)
 
     breakdown && closeallwindow()
 
-    uitask = Threads.@spawn :interactive try
+    uitask = Threads.@spawn try
         scale_old::Cfloat = 0
         isshowapp()[] = true
         updateframe::Bool = true
@@ -268,6 +268,8 @@ function UI(breakdown=false)
         CImGui.DestroyContext(ctx)
         glfwDestroyWindow(window)
     end
+
+    pintask!(uitask, 1)
 
     return window, uitask
 end

@@ -139,36 +139,15 @@ function Update_DpiScale(x_scale_old::Ref{Cfloat})
     end
 end
 
-# ImGuiIO = 5440 + 16 = 5456
-# ImVector_ImWchar = 16
-# ImGuiPlatformIO = 208 + 16 = 224
-# ImVector_ImGuiViewportPtr = 16
-# ImGuiStyle = 196 + 55 * 16 = 1076
-# ImVec4 = 16
-# ImGuiConfigFlags = 4
-# ImDrawListSharedData = 508
-# ImVec2 = 8
-# ImDrawListFlags = 4
-# ImU8 = 1
-# ImGuiID = 4
-# ImVector_ImGuiWindowPtr = 16
-# ImGuiStorage = 16
-# ImU32 = 4
-# ImU64 = 8
-# ImGuiInputSource = 4
-# ImGuiNextWindowData = 148
-# ImGuiNextItemData = 16 + 1
-# ImGuiNextWindowDataFlags = 4
-# ImGuiCond = 4
-# ImRect = 16
-# ImGuiSizeCallback = 8
-# ImGuiWindowClass = 28 + 2
-# ImVector_ImGuiColorMod = 16
-# ImVector_ImGuiStyleMod = 16
-# ImVector_ImFontPtr = 16
-# ImVector_ImGuiID = 16
-# ImVector_ImGuiItemFlags = 16
-# ImVector_ImGuiGroupData = 16
-# ImVector_ImGuiPopupData = 16
-# ImVector_ImGuiViewportPPtr = 16
-# ImGuiPlatformMonitor = 36
+function pintask!(task::Task, tid::Integer)
+    if tid ∉ Threads.threadpooltids(:default) && tid ∉ Threads.threadpooltids(:interactive)
+        error("Thread ID '$tid' does not exist in the :default or :interactive threadpool, cannot schedule a task onto it.")
+    end
+
+    task.sticky = true
+    ret = ccall(:jl_set_task_tid, Cint, (Any, Cint), task, tid - 1)
+
+    if Threads.threadid(task) != tid
+        error("jl_set_task_tid() onto Julia thread ID $tid failed!")
+    end
+end

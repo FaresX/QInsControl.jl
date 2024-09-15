@@ -56,8 +56,7 @@ let
                 @trycatch mlstr("saving configurations failed!!!") begin
                     to_toml(joinpath(ENV["QInsControlAssets"], "Necessity/conf.toml"), svconf)
                     !isinteractive() && open(joinpath(ENV["QInsControlAssets"], "Necessity/threads.cmd"), "w") do file
-                        threadsstr = CONF.Basic.nthreads == 1 ? "1" : string(CONF.Basic.nthreads - 1, ",", 1)
-                        write(file, "set JULIA_NUM_THREADS=$threadsstr")
+                        write(file, string("set JULIA_NUM_THREADS=", CONF.Basic.nthreads))
                     end
                 end
             end
