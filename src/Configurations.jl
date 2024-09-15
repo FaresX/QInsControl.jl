@@ -29,7 +29,7 @@ end
     logall::Bool = false
     equalstep::Bool = true
     externaleval::Bool = false
-    savetime::Cint = 60
+    savetime::Cint = 1
     cuttingfile::Cint = 2000000
     channelsize::Cint = 512
     packsize::Cint = 6

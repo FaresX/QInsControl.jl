@@ -215,43 +215,42 @@ function edit(dtviewer::DataViewer, path, id)
 end
 
 function loaddtviewer!(dtviewer::DataViewer, path)
-    if split(basename(path), '.')[end] in ["qdt", "cfg"]
-        dtviewer.data = @trypasse load(path) Dict()
-        if haskey(dtviewer.data, "data") && !(dtviewer.data["data"] isa Dict{String,Vector{String}})
-            dtviewer.data["data"] = Dict(key => string.(val) for (key, val) in dtviewer.data["data"])
-        end
-        if haskey(dtviewer.data, "dataplot")
-            dtviewer.dtp = dtviewer.data["dataplot"]
-            haskey(dtviewer.data, "data") && update!(dtviewer.dtp, dtviewer.data["data"])
-        end
-        if !isempty(dtviewer.data)
-            if haskey(dtviewer.data, "circuit")
-                for (_, node) in dtviewer.data["circuit"].nodes
-                    if node isa SampleHolderNode
-                        @trycatch mlstr("loading image failed!!!") begin
-                            img = RGBA.(jpeg_decode(node.imgr.image))
-                            imgsize = size(img)
-                            node.imgr.id = ImGui_ImplOpenGL3_CreateImageTexture(imgsize...)
-                            ImGui_ImplOpenGL3_UpdateImageTexture(node.imgr.id, img, imgsize...)
-                        end
-                    end
-                end
-            end
-            if haskey(dtviewer.data, "revision")
-                for (_, node) in dtviewer.data["revision"]["circuit"].nodes
-                    if node isa SampleHolderNode
-                        @trycatch mlstr("loading image failed!!!") begin
-                            img = RGBA.(jpeg_decode(node.imgr.image))
-                            imgsize = size(img)
-                            node.imgr.id = ImGui_ImplOpenGL3_CreateImageTexture(imgsize...)
-                            ImGui_ImplOpenGL3_UpdateImageTexture(node.imgr.id, img, imgsize...)
-                        end
+    loaddtviewer!(dtviewer, split(basename(path), '.')[end] in ["qdt", "cfg"] ? @trypasse(load(path), Dict()) : Dict())
+end
+function loaddtviewer!(dtviewer::DataViewer, data::Dict)
+    dtviewer.data = data
+    if haskey(dtviewer.data, "data") && !(dtviewer.data["data"] isa Dict{String,Vector{String}})
+        dtviewer.data["data"] = Dict(key => string.(val) for (key, val) in dtviewer.data["data"])
+    end
+    if haskey(dtviewer.data, "dataplot")
+        dtviewer.dtp = dtviewer.data["dataplot"]
+        haskey(dtviewer.data, "data") && update!(dtviewer.dtp, dtviewer.data["data"])
+    end
+    if !isempty(dtviewer.data)
+        if haskey(dtviewer.data, "circuit")
+            for (_, node) in dtviewer.data["circuit"].nodes
+                if node isa SampleHolderNode
+                    @trycatch mlstr("loading image failed!!!") begin
+                        img = RGBA.(jpeg_decode(node.imgr.image))
+                        imgsize = size(img)
+                        node.imgr.id = ImGui_ImplOpenGL3_CreateImageTexture(imgsize...)
+                        ImGui_ImplOpenGL3_UpdateImageTexture(node.imgr.id, img, imgsize...)
                     end
                 end
             end
         end
-    else
-        dtviewer.data = Dict()
+        if haskey(dtviewer.data, "revision")
+            for (_, node) in dtviewer.data["revision"]["circuit"].nodes
+                if node isa SampleHolderNode
+                    @trycatch mlstr("loading image failed!!!") begin
+                        img = RGBA.(jpeg_decode(node.imgr.image))
+                        imgsize = size(img)
+                        node.imgr.id = ImGui_ImplOpenGL3_CreateImageTexture(imgsize...)
+                        ImGui_ImplOpenGL3_UpdateImageTexture(node.imgr.id, img, imgsize...)
+                    end
+                end
+            end
+        end
     end
 end
 
