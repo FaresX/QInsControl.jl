@@ -1309,6 +1309,7 @@ let
         istaskdone(task[]) && istaskdone(monitortask[]) || schedule(AUTOREFRESHTASK, mlstr("Stop"); error=true)
     end
     global function autorefresh()
+        stoptask = false
         task[] = errormonitor(
             Threads.@spawn while !stoptask
                 SYNCSTATES[Int(IsAutoRefreshing)] && checkrefresh() && refresh1()
