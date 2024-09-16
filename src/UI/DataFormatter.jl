@@ -132,7 +132,7 @@ function edit(fdg::FormatDataGroup, id)
     )
     if CImGui.Button(ICONS.ICON_EYE, (2ftsz, Cfloat(0)))
         fdg.dtviewer.p_open ⊻= true
-        fdg.dtviewer.p_open && loaddtviewer!(fdg)
+        fdg.dtviewer.p_open && loaddtviewer!(fdg, id)
     end
     CImGui.PopStyleColor()
     CImGui.SameLine()
@@ -229,7 +229,7 @@ function edit(dft::DataFormatter, id)
     end
 end
 
-function loaddtviewer!(fdg::FormatDataGroup)
+function loaddtviewer!(fdg::FormatDataGroup, id)
     haskey(fdg.dtviewer.data, "data") ? (return) : fdg.dtviewer.data["data"] = Dict{String,Vector{String}}()
     if length(fdg.data) == 2
         bnm1 = basename(fdg.data[1].path)
@@ -240,9 +240,9 @@ function loaddtviewer!(fdg::FormatDataGroup)
            bnm1s[end-1] in ["cfg", "qdt"] && bnm2s[end-1] in ["cfg", "qdt"] &&
            join(bnm1s[1:end-2], ".") == join(bnm2s[1:end-2], ".")
             if bnm1s[end-1] == "cfg"
-                mergecache!(fdg.dtviewer, fdg.data[1].path, fdg.data[2].path)
+                mergecache!(fdg.dtviewer, fdg.data[1].path, fdg.data[2].path, id)
             else
-                mergecache!(fdg.dtviewer, fdg.data[2].path, fdg.data[1].path)
+                mergecache!(fdg.dtviewer, fdg.data[2].path, fdg.data[1].path, id)
             end
             return nothing
         end
@@ -347,7 +347,7 @@ function readqdtcache(path)
     end
     return data
 end
-function mergecache!(dtviewer::DataViewer, cfgcachepath, qdtcachepath)
+function mergecache!(dtviewer::DataViewer, cfgcachepath, qdtcachepath, id)
     qdata = readqdtcache(qdtcachepath)
     cfg = load(cfgcachepath)
     data = Dict()
@@ -365,5 +365,5 @@ function mergecache!(dtviewer::DataViewer, cfgcachepath, qdtcachepath)
     for (key, val) in cfg
         data[key] = val
     end
-    loaddtviewer!(dtviewer, data)
+    loaddtviewer!(dtviewer, data, stcstr("formatdatagroup", id))
 end

@@ -227,7 +227,8 @@ function renderplots(dtp::DataPlot, id)
             ),
             &isopenplot
         )
-        QPlot(dtp.plots[idx], stcstr(id, "-", idx))
+            QPlot(dtp.plots[idx], stcstr(id, "-", idx))
+        end
         CImGui.End()
         dtp.layout.states[idx] = isopenplot
         isopenplot || (deleteat!(dtp.layout.selectedidx, i); deleteat!(dtp.layout.selectedlabels, i))
