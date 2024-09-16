@@ -411,7 +411,7 @@ end
 function savecfgcache()
     jldopen(CFGCACHESAVEPATH, "w") do file
         file["circuit"] = CIRCUIT
-        file["dataplot"] = empty!(deepcopy(DAQDATAPLOT))
+        file["dataplot"] = deepcopy(DAQDATAPLOT)
         for (key, val) in CFGBUF
             file[key] = val
         end
