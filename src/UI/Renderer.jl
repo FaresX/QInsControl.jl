@@ -176,7 +176,7 @@ let
     global function onexitaction()
         global AUTOREFRESHTASK
         SYNCSTATES[Int(IsDAQTaskRunning)] || remotecall_wait(() -> stop!(CPU), workers()[1])
-        schedule(AUTOREFRESHTASK, mlstr("Stop"); error=true)
+        stoprefresh()
         empty!(STATICSTRINGS)
         empty!(MLSTRINGS)
         empty!(IMAGES)

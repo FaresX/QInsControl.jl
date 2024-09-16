@@ -56,8 +56,7 @@ let
                 @trycatch mlstr("saving configurations failed!!!") begin
                     to_toml(joinpath(ENV["QInsControlAssets"], "Necessity/conf.toml"), svconf)
                     !isinteractive() && open(joinpath(ENV["QInsControlAssets"], "Necessity/threads.cmd"), "w") do file
-                        threadsstr = CONF.Basic.nthreads == 1 ? "1" : string(CONF.Basic.nthreads - 1, ",", 1)
-                        write(file, "set JULIA_NUM_THREADS=$threadsstr")
+                        write(file, string("set JULIA_NUM_THREADS=", CONF.Basic.nthreads))
                     end
                 end
             end
@@ -178,9 +177,9 @@ let
                 @c RadioButton2(mlstr("eval in Main"), mlstr("eval in QInsControl"), &CONF.DAQ.externaleval; local_pos_x=12ftsz)
                 @c ComboS(mlstr("stored data type"), &CONF.DAQ.savetype, datatypes)
                 @c CImGui.DragInt(
-                    stcstr(mlstr("saving time"), " (s)"),
+                    stcstr(mlstr("saving time"), " (h)"),
                     &CONF.DAQ.savetime,
-                    1.0, 1, 180, "%d",
+                    1.0, 1, 24, "%d",
                     CImGui.ImGuiSliderFlags_AlwaysClamp
                 )
                 @c CImGui.DragInt(

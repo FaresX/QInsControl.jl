@@ -191,6 +191,7 @@ let
             CImGui.PopItemWidth()
             dtss.alsz += CImGui.GetItemRectSize().x + unsafe_load(IMGUISTYLE.ItemSpacing.x)
             CImGui.SameLine()
+            CImGui.SameLine()
         else
             CImGui.Button(
                 stcstr(

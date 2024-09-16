@@ -218,7 +218,7 @@ function renderplots(dtp::DataPlot, id)
     for (i, idx) in enumerate(dtp.layout.selectedidx)
         CImGui.SetNextWindowSize((600, 600), CImGui.ImGuiCond_Once)
         isopenplot = dtp.layout.states[idx]
-        @c CImGui.Begin(
+        if @c CImGui.Begin(
             stcstr(
                 MORESTYLE.Icons.Plot, " ",
                 mlstr("Plot"), " ",

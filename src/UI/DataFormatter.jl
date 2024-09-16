@@ -231,6 +231,22 @@ end
 
 function loaddtviewer!(fdg::FormatDataGroup)
     haskey(fdg.dtviewer.data, "data") ? (return) : fdg.dtviewer.data["data"] = Dict{String,Vector{String}}()
+    if length(fdg.data) == 2
+        bnm1 = basename(fdg.data[1].path)
+        bnm2 = basename(fdg.data[2].path)
+        bnm1s = split(bnm1, ".")
+        bnm2s = split(bnm2, ".")
+        if length(bnm1s) >= 3 && length(bnm2s) >= 3 && bnm1s[end] == bnm2s[end] == "cache" &&
+           bnm1s[end-1] in ["cfg", "qdt"] && bnm2s[end-1] in ["cfg", "qdt"] &&
+           join(bnm1s[1:end-2], ".") == join(bnm2s[1:end-2], ".")
+            if bnm1s[end-1] == "cfg"
+                mergecache!(fdg.dtviewer, fdg.data[1].path, fdg.data[2].path)
+            else
+                mergecache!(fdg.dtviewer, fdg.data[2].path, fdg.data[1].path)
+            end
+            return nothing
+        end
+    end
     for (i, fd) in enumerate(fdg.data)
         if isfile(fd.path)
             data = @trypasse load(fd.path, "data") Dict{String,Vector{String}}()
@@ -259,6 +275,7 @@ function loaddtviewer!(fdg::FormatDataGroup)
         blocks=[]
     )
     fdg.dtviewer.data["valid"] = true
+    return nothing
 end
 
 function showdtviewer(fd::FormatData, id)
@@ -319,4 +336,34 @@ function registermodes!(modes, type=:single)
     elseif type == :code
         append!(FORMATTERCODEMODES, setdiff(Set(modes), Set(FORMATTERCODEMODES)))
     end
+end
+
+function readqdtcache(path)
+    data = Dict()
+    for dpair in split(read(path, String), '\n')
+        key, val = string.(split(dpair, ","))
+        haskey(data, key) || push!(data, key => [])
+        push!(data[key], val)
+    end
+    return data
+end
+function mergecache!(dtviewer::DataViewer, cfgcachepath, qdtcachepath)
+    qdata = readqdtcache(qdtcachepath)
+    cfg = load(cfgcachepath)
+    data = Dict()
+    savetype = eval(Symbol(CONF.DAQ.savetype))
+    if savetype == String
+        data["data"] = qdata
+    else
+        datafloat = Dict()
+        for (key, val) in qdata
+            dataparsed = tryparse.(savetype, val)
+            datafloat[key] = true in isnothing.(dataparsed) ? val : dataparsed
+        end
+        data["data"] = datafloat
+    end
+    for (key, val) in cfg
+        data[key] = val
+    end
+    loaddtviewer!(dtviewer, data)
 end

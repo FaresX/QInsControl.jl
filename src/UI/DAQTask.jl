@@ -12,6 +12,8 @@ end
 global OLDI::Int = 0
 global WORKPATH::String = ""
 global SAVEPATH::String = ""
+global CFGCACHESAVEPATH::String = ""
+global QDTCACHESAVEPATH::String = ""
 const CFGBUF = Dict{String,Any}()
 
 let
@@ -181,6 +183,8 @@ end
 function run(daqtask::DAQTask)
     global WORKPATH
     global SAVEPATH
+    global CFGCACHESAVEPATH
+    global QDTCACHESAVEPATH
     global OLDI
     SYNCSTATES[Int(IsDAQTaskRunning)] = true
     SYNCSTATES[Int(IsAutoRefreshing)] = false
@@ -188,7 +192,10 @@ function run(daqtask::DAQTask)
     find_old_i(joinpath(WORKPATH, string(year(date)), string(year(date), "-", month(date)), string(date)))
     cfgsvdir = joinpath(WORKPATH, string(year(date)), string(year(date), "-", month(date)), string(date))
     ispath(cfgsvdir) || mkpath(cfgsvdir)
-    SAVEPATH = joinpath(cfgsvdir, replace("[$(now())] $(mlstr("Task")) $(1+OLDI) $(daqtask.name).qdt", ':' => '.'))
+    fileprename = replace("[$(now())] $(mlstr("Task")) $(1+OLDI) $(daqtask.name)", ':' => '.')
+    SAVEPATH = joinpath(cfgsvdir, "$fileprename.qdt")
+    CFGCACHESAVEPATH = joinpath(cfgsvdir, "$fileprename.cfg.cache")
+    QDTCACHESAVEPATH = joinpath(cfgsvdir, "$fileprename.qdt.cache")
     CFGBUF["daqtask"] = deepcopy(daqtask)
     try
         log_instrbufferviewers()
@@ -201,6 +208,7 @@ function run(daqtask::DAQTask)
     run_remote(daqtask)
     wait(
         Threads.@spawn try
+            savecfgcache()
             while update_all()
                 yield()
             end
@@ -216,12 +224,15 @@ function run(daqtask::DAQTask)
                     end
                 end
             end
-            while isready(DATABUFRC) || isready(PROGRESSRC)
+            t1 = time()
+            while time() - t1 < 2CONF.DAQ.cttimeout && (!SYNCSTATES[Int(IsDAQTaskDone)] || isready(DATABUFRC) || isready(PROGRESSRC))
                 isready(DATABUFRC) && take!(DATABUFRC)
                 isready(PROGRESSRC) && take!(PROGRESSRC)
                 sleep(0.001)
             end
             @warn "[$(now())]\n$(mlstr("terminates the task successfully!"))"
+            SYNCSTATES[Int(IsDAQTaskDone)] = false
+            SYNCSTATES[Int(IsDAQTaskRunning)] = false
         end
     )
 end
@@ -305,6 +316,66 @@ function run_remote(daqtask::DAQTask)
     end
 end
 
+function update_all()
+    if SYNCSTATES[Int(IsDAQTaskDone)]
+        (isfile(SAVEPATH) | !isempty(DATABUF)) && (saveqdt(); global OLDI += 1)
+        empty!(PROGRESSLIST)
+        empty!(CFGBUF)
+        SYNCSTATES[Int(IsDAQTaskDone)] = false
+        SYNCSTATES[Int(IsDAQTaskRunning)] = false
+        Base.Filesystem.rm(CFGCACHESAVEPATH; force=true)
+        Base.Filesystem.rm(QDTCACHESAVEPATH; force=true)
+        return false
+    else
+        update_data()
+        update_progress()
+        return true
+    end
+end
+
+let
+    cache::Vector{Tuple{String,String}} = []
+    global function update_data()
+        if isready(DATABUFRC)
+            packdata = take!(DATABUFRC)
+            for data in packdata
+                haskey(DATABUF, data[1]) || (DATABUF[data[1]] = String[])
+                haskey(DATABUFPARSED, data[1]) || (DATABUFPARSED[data[1]] = Float64[])
+                push!(DATABUF[data[1]], data[2])
+                push!(cache, data)
+                parsed_data = tryparse(Float64, data[2])
+                push!(DATABUFPARSED[data[1]], isnothing(parsed_data) ? NaN : parsed_data)
+                splitdata = split(data[1], "/")
+                if length(splitdata) == 4
+                    _, instrnm, qt, addr = splitdata
+                else
+                    continue
+                end
+                insbuf = INSTRBUFFERVIEWERS[instrnm][addr].insbuf
+                if occursin(r"\[.*\]", qt)
+                    splitqt = split(qt, '[')
+                    qt = splitqt[1]
+                    idx = parse(Int, splitqt[2][1:end-1])
+                    splitread = split(insbuf.quantities[qt].read, insbuf.quantities[qt].separator)
+                    if idx > length(splitread)
+                        insbuf.quantities[qt].read *= repeat(insbuf.quantities[qt].separator, idx - length(splitread))
+                        insbuf.quantities[qt].read *= data[2]
+                    else
+                        splitread[idx] = data[2]
+                        insbuf.quantities[qt].read = join(splitread, insbuf.quantities[qt].separator)
+                    end
+                else
+                    insbuf.quantities[qt].read = data[2]
+                end
+                updatefront!(insbuf.quantities[qt])
+            end
+            waittime("saveqdtcache", CONF.DAQ.savetime) && (saveqdtcache(cache); empty!(cache))
+            waittime("savecfgcache", 60CONF.DAQ.savetime) && savecfgcache()
+            waittime("savedatabuf", 3600CONF.DAQ.savetime) && saveqdt()
+        end
+    end
+end
+
 function saveqdt()
     savetype = eval(Symbol(CONF.DAQ.savetype))
     jldopen(SAVEPATH, "w") do file
@@ -337,6 +408,22 @@ function saveqdt()
         end
     end
 end
+function savecfgcache()
+    jldopen(CFGCACHESAVEPATH, "w") do file
+        file["circuit"] = CIRCUIT
+        file["dataplot"] = empty!(deepcopy(DAQDATAPLOT))
+        for (key, val) in CFGBUF
+            file[key] = val
+        end
+        file["valid"] = false
+    end
+end
+function saveqdtcache(cache)
+    open(QDTCACHESAVEPATH, "a+") do file
+        data = join(map(x -> string(x[1], ",", x[2]), cache), '\n')
+        write(file, data)
+    end
+end
 
 function find_cutting_i(dir, file)
     if isfile(joinpath(dir, file))
@@ -349,60 +436,6 @@ function find_cutting_i(dir, file)
         end
     end
     return 1
-end
-
-function update_data()
-    if isready(DATABUFRC)
-        packdata = take!(DATABUFRC)
-        for data in packdata
-            haskey(DATABUF, data[1]) || (DATABUF[data[1]] = String[])
-            haskey(DATABUFPARSED, data[1]) || (DATABUFPARSED[data[1]] = Float64[])
-            push!(DATABUF[data[1]], data[2])
-            parsed_data = tryparse(Float64, data[2])
-            push!(DATABUFPARSED[data[1]], isnothing(parsed_data) ? NaN : parsed_data)
-            splitdata = split(data[1], "/")
-            if length(splitdata) == 4
-                _, instrnm, qt, addr = splitdata
-            else
-                continue
-            end
-            insbuf = INSTRBUFFERVIEWERS[instrnm][addr].insbuf
-            if occursin(r"\[.*\]", qt)
-                splitqt = split(qt, '[')
-                qt = splitqt[1]
-                idx = parse(Int, splitqt[2][1:end-1])
-                splitread = split(insbuf.quantities[qt].read, insbuf.quantities[qt].separator)
-                if idx > length(splitread)
-                    insbuf.quantities[qt].read *= repeat(insbuf.quantities[qt].separator, idx - length(splitread))
-                    insbuf.quantities[qt].read *= data[2]
-                else
-                    splitread[idx] = data[2]
-                    insbuf.quantities[qt].read = join(splitread, insbuf.quantities[qt].separator)
-                end
-            else
-                insbuf.quantities[qt].read = data[2]
-            end
-            updatefront!(insbuf.quantities[qt])
-        end
-        if waittime("savedatabuf", CONF.DAQ.savetime)
-            saveqdt()
-        end
-    end
-end
-
-function update_all()
-    if SYNCSTATES[Int(IsDAQTaskDone)]
-        (isfile(SAVEPATH) | !isempty(DATABUF)) && (saveqdt(); global OLDI += 1)
-        empty!(PROGRESSLIST)
-        empty!(CFGBUF)
-        SYNCSTATES[Int(IsDAQTaskDone)] = false
-        SYNCSTATES[Int(IsDAQTaskRunning)] = false
-        return false
-    else
-        update_data()
-        update_progress()
-        return true
-    end
 end
 
 function extract_controllers(bkch::Vector{AbstractBlock})

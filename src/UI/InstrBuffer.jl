@@ -1301,23 +1301,31 @@ end
 
 let
     task::Ref{Task} = Ref{Task}()
+    monitortask::Ref{Task} = Ref{Task}()
+    stoptask::Bool = false
+    global function stoprefresh()
+        stoptask = true
+        sleep(0.1)
+        istaskdone(task[]) && istaskdone(monitortask[]) || schedule(AUTOREFRESHTASK, mlstr("Stop"); error=true)
+    end
     global function autorefresh()
+        stoptask = false
         task[] = errormonitor(
-            Threads.@spawn while true
+            Threads.@spawn while !stoptask
                 SYNCSTATES[Int(IsAutoRefreshing)] && checkrefresh() && refresh1()
                 sleep(0.01)
             end
         )
-        @async @trycatch mlstr("instrument autorefresh task failed!!!") while true
+        monitortask[] = @async @trycatch mlstr("instrument autorefresh task failed!!!") while !stoptask
             if istaskfailed(task[])
                 task[] = errormonitor(
-                    Threads.@spawn while true
+                    Threads.@spawn while !stoptask
                         SYNCSTATES[Int(IsAutoRefreshing)] && checkrefresh() && refresh1()
                         sleep(0.01)
                     end
                 )
             end
-            sleep(1)
+            sleep(0.1)
         end
     end
 end
