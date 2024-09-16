@@ -30,6 +30,7 @@ macro trypass(sv, default)
     esc(ex)
 end
 showbacktrace() = (Base.show_backtrace(LOGIO, catch_backtrace()); println(LOGIO, "\n\r"))
+# showbacktrace() = rethrow()
 macro trycatch(msg, ex)
     esc(
         quote

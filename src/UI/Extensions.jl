@@ -50,8 +50,8 @@ function CImGui.AddImage(
     self, user_texture_id,
     p_min::Union{ImVec2,NTuple{2},Vector},
     p_max::Union{ImVec2,NTuple{2},Vector},
-    uv_min::Union{ImVec4,NTuple{4},Vector}=[0, 0],
-    uv_max::Union{ImVec4,NTuple{4},Vector}=[1, 1],
+    uv_min::Union{ImVec2,NTuple{2},Vector}=[0, 0],
+    uv_max::Union{ImVec2,NTuple{2},Vector}=[1, 1],
     col::Union{ImVec4,NTuple{4},Vector}=[1, 1, 1, 1]
 )
     CImGui.AddImage(
