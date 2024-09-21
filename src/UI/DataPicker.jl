@@ -19,6 +19,7 @@
     nonuniformy::Bool = false
     codes::CodeBlock = CodeBlock()
     update::Bool = false
+    updatefunc::Bool = false
     isrealtime::Bool = false
     isrunning::Bool = false
     runtime::Float64 = 0
@@ -35,6 +36,7 @@ end
 
 let
     holdsz::Cfloat = 0
+    copyseries::DataSeries = DataSeries()
     global function edit(dtpk::DataPicker, id, p_open::Ref{Bool})
         CImGui.SetNextWindowSize((400, 600), CImGui.ImGuiCond_Once)
         CImGui.PushStyleColor(CImGui.ImGuiCol_WindowBg, CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_PopupBg))
@@ -45,7 +47,6 @@ let
             p_open,
             CImGui.ImGuiWindowFlags_NoTitleBar | CImGui.ImGuiWindowFlags_NoDocking
         )
-            dtpk.update = false
             CImGui.PushStyleColor(CImGui.ImGuiCol_Button, (0, 0, 0, 0))
             CImGui.PushStyleColor(CImGui.ImGuiCol_ButtonHovered, (0, 0, 0, 0))
             CImGui.PushStyleColor(CImGui.ImGuiCol_ButtonActive, (0, 0, 0, 0))
@@ -73,6 +74,12 @@ let
                 CImGui.PushStyleColor(CImGui.ImGuiCol_Text, MORESTYLE.Colors.HighlightText)
                 openseries = CImGui.CollapsingHeader(stcstr(mlstr("Series"), " ", i, " ", dtss.legend, "###", i))
                 CImGui.PopStyleColor()
+                if CImGui.BeginPopupContextItem()
+                    CImGui.MenuItem(stcstr(MORESTYLE.Icons.Copy, " ", mlstr("Copy"))) && (copyseries = deepcopy(dtss))
+                    CImGui.MenuItem(stcstr(MORESTYLE.Icons.Paste, " ", mlstr("Paste"))) && insert!(dtpk.series, i + 1, deepcopy(copyseries))
+                    CImGui.MenuItem(stcstr(MORESTYLE.Icons.CloseFile, " ", mlstr("Delete"))) && (deleteat!(dtpk.series, i); break)
+                    CImGui.EndPopup()
+                end
                 if CImGui.BeginDragDropSource(0)
                     @c CImGui.SetDragDropPayload("Swap Series", &i, sizeof(Cint))
                     CImGui.Text(stcstr(mlstr("Series"), " ", i, " ", dtss.legend))
@@ -97,6 +104,11 @@ let
                 end
             end
             CImGui.EndChild()
+            if CImGui.BeginPopup("copymenu")
+                CImGui.MenuItem(stcstr(MORESTYLE.Icons.Paste, " ", mlstr("Paste"))) && push!(dtpk.series, deepcopy(copyseries))
+                CImGui.EndPopup()
+            end
+            CImGui.IsAnyItemHovered() || CImGui.OpenPopupOnItemClick("copymenu")
             isfocus &= CImGui.IsWindowFocused(CImGui.ImGuiFocusedFlags_ChildWindows)
         end
         CImGui.End()
@@ -109,7 +121,6 @@ end
 let
     ptypelist::Vector{String} = ["line", "scatter", "stairs", "stems", "heatmap"]
     global function edit(dtss::DataSeries, datalist)
-        dtss.update = false
         availwidth = CImGui.GetContentRegionAvailWidth()
         CImGui.PushItemWidth(availwidth / 3)
         @c InputTextRSZ(mlstr("legend"), &dtss.legend)
@@ -200,32 +211,34 @@ let
             CImGui.PopItemWidth()
         end
 
-        CImGui.TextColored(MORESTYLE.Colors.LogInfo, mlstr("data processing"))
-        CImGui.SameLine(CImGui.GetWindowContentRegionWidth() - dtss.alsz)
+        SeparatorTextColored(MORESTYLE.Colors.HighlightText, mlstr("Data Processing"))
         if dtss.isrealtime
+            CImGui.Button(stcstr(MORESTYLE.Icons.Update, " ", mlstr("Update Function"))) && (dtss.updatefunc = true)
+            CImGui.SameLine(CImGui.GetWindowContentRegionWidth() - dtss.alsz)
             CImGui.Text(mlstr("sampling rate"))
             CImGui.SameLine()
             dtss.alsz = CImGui.GetItemRectSize().x
             CImGui.PushItemWidth(2CImGui.GetFontSize())
             @c CImGui.DragFloat("s", &dtss.refreshrate, 0.01, 0.01, 60, "%.2f", CImGui.ImGuiSliderFlags_AlwaysClamp)
-            CImGui.SameLine()
             CImGui.PopItemWidth()
             dtss.alsz += CImGui.GetItemRectSize().x + unsafe_load(IMGUISTYLE.ItemSpacing.x)
+            CImGui.SameLine()
         else
             CImGui.Button(
                 stcstr(
                     MORESTYLE.Icons.Update, " ",
                     dtss.isrunning ? stcstr(mlstr("Updating..."), " ", dtss.runtime, "s") : mlstr("Update"), " "
                 )
-            ) && (dtss.update = true)
-            dtss.alsz = CImGui.GetItemRectSize().x
+            ) && (dtss.update = true; dtss.updatefunc = true)
+            CImGui.SameLine(CImGui.GetWindowContentRegionWidth() - dtss.alsz)
+            dtss.alsz = -unsafe_load(IMGUISTYLE.ItemSpacing.x)
         end
-        CImGui.SameLine()
         @c CImGui.Checkbox("RT", &dtss.isrealtime)
         dtss.alsz += CImGui.GetItemRectSize().x + unsafe_load(IMGUISTYLE.ItemSpacing.x)
         CImGui.IsItemHovered() && CImGui.SetTooltip(mlstr("real-time data update/manual data update"))
 
         CImGui.PushID("select XYZ")
+        CImGui.Text("function process(x, y, z, w, [auxi]...)")
         edit(dtss.codes)
         if CImGui.BeginPopupContextItem()
             CImGui.MenuItem(mlstr("Clear")) && (dtss.codes.codes = "")
@@ -242,7 +255,6 @@ let
         dtpk::DataPicker,
         datastr::Dict{String,Vector{String}},
         datafloat::Dict{String,VecOrMat{Cdouble}}=Dict{String,VecOrMat{Cdouble}}();
-        quiet=false,
         force=false
     )
         haskey(synctasks, plt.id) || (synctasks[plt.id] = Dict())
@@ -262,56 +274,79 @@ let
         for (i, dtss) in enumerate(dtpk.series)
             if dtpk.update || dtss.update || (dtss.isrealtime && waittime(stcstr("DataPicker", plt.id, "-", i), dtss.refreshrate))
                 if haskey(synctasks[plt.id], i)
-                    istaskdone(synctasks[plt.id][i]) ? delete!(synctasks[plt.id], i) : (force || continue)
+                    if istaskdone(synctasks[plt.id][i])
+                        istaskfailed(synctasks[plt.id][i]) || postprocess(
+                            plt, plt.series[i], dtss, fetch(synctasks[plt.id][i])...; force=force
+                        )
+                        delete!(synctasks[plt.id], i)
+                    else
+                        force || continue
+                    end
                 end
-                pdtask = Threads.@spawn processdata(plt, plt.series[i], dtss, datastr, datafloat; quiet=quiet, force=force)
+                pdtask = Threads.@spawn preprocess(dtss, datastr, datafloat)
                 synctasks[plt.id][i] = pdtask
+                if dtpk.update || dtss.update
+                    try
+                        wait(pdtask)
+                    catch
+                    end
+                    istaskfailed(pdtask) || postprocess(plt, plt.series[i], dtss, fetch(pdtask)...; force=force)
+                    delete!(synctasks[plt.id], i)
+                end
+                dtss.update = false
             end
+        end
+        dtpk.update = false
+    end
+
+    processfuncs::Dict{DataSeries,Function} = Dict()
+    function preprocess(dtss::DataSeries, datastr::Dict{String,Vector{String}}, datafloat::Dict{String,VecOrMat{Cdouble}})
+        try
+            dtss.isrunning = true
+            dtss.runtime = 0
+            errormonitor(
+                @async begin
+                    t1 = time()
+                    while dtss.isrunning
+                        dtss.runtime = round(time() - t1; digits=1)
+                        sleep(0.05)
+                    end
+                end
+            )
+            xbuf = dtss.xtype ? loaddata(datastr, datafloat, dtss.x) : haskey(datastr, dtss.x) ? copy(datastr[dtss.x]) : String[]
+            ybuf = loaddata(datastr, datafloat, dtss.y)
+            zbuf = dtss.ptype == "heatmap" ? loaddata(datastr, datafloat, dtss.z) : Cdouble[]
+            wbuf = loaddata(datastr, datafloat, dtss.w)
+            auxbufs = [loaddata(datastr, datafloat, aux) for aux in dtss.aux]
+            if dtss.updatefunc || !haskey(processfuncs, dtss)
+                innercodes = tocodes(dtss.codes)
+                exfunc::Expr = quote
+                    (x, y, z, w, $([Symbol.(:aux, i) for i in eachindex(auxbufs)]...)) -> begin
+                        $innercodes
+                        x, y, z
+                    end
+                end
+                processfuncs[dtss] = CONF.DAQ.externaleval ? @eval(Main, $exfunc) : eval(exfunc)
+                dtss.updatefunc = false
+            end
+            exprocess=:($(processfuncs[dtss])($xbuf, $ybuf, $zbuf, $wbuf, $auxbufs...))
+            return CONF.DAQ.externaleval ? @eval(Main, $exprocess) : eval(exprocess)
+        catch e
+            if !dtss.isrealtime
+                @error string("[", now(), "]\n", mlstr("pre-processing data failed!!!")) exception = e
+                showbacktrace()
+            end
+            rethrow()
+        finally
+            dtss.isrunning = false
         end
     end
 
-    global function processdata(
-        plt::Plot,
-        pss::PlotSeries,
-        dtss::DataSeries,
-        datastr::Dict{String,Vector{String}},
-        datafloat::Dict{String,VecOrMat{Cdouble}};
-        quiet=false,
-        force=false
-    )
-        dtss.isrunning = true
-        dtss.runtime = 0
-        errormonitor(
-            @async begin
-                t1 = time()
-                while dtss.isrunning
-                    dtss.runtime = round(time() - t1; digits=1)
-                    sleep(0.05)
-                end
-            end
-        )
+    function postprocess(plt::Plot, pss::PlotSeries, dtss::DataSeries, nx, ny, nz; force=false)
         forcesync = force || pss.ptype != dtss.ptype
         forcesync && (pss.ptype = dtss.ptype)
         forcesync |= !dtss.xtype || (dtss.xtype && !isempty(pss.axis.xaxis.ticklabels))
-        xbuf = dtss.xtype ? loaddata(datastr, datafloat, dtss.x) : haskey(datastr, dtss.x) ? copy(datastr[dtss.x]) : String[]
-        ybuf = loaddata(datastr, datafloat, dtss.y)
-        zbuf = pss.ptype == "heatmap" ? loaddata(datastr, datafloat, dtss.z) : Cdouble[]
-        wbuf = loaddata(datastr, datafloat, dtss.w)
-        auxbufs = [loaddata(datastr, datafloat, aux) for aux in dtss.aux]
-        innercodes = tocodes(dtss.codes)
-        ex::Expr = quote
-            let
-                x = $xbuf
-                y = $ybuf
-                z = $zbuf
-                w = $wbuf
-                $([Expr(:block, Expr(:(=), Symbol(:aux, i), auxbufs[i])) for i in eachindex(dtss.aux)]...)
-                $innercodes
-                x, y, z
-            end
-        end
         try
-            nx, ny, nz = CONF.DAQ.externaleval ? @eval(Main, $ex) : eval(ex)
             if pss.ptype == "heatmap"
                 dropexeption!(nz)
                 if nz isa Matrix
@@ -348,14 +383,19 @@ let
                 end
             end
             syncaxes(plt, pss, dtss; force=forcesync)
-            (dtss.isrealtime | quiet) || @info "[$(now())]" data_processing = prettify(innercodes)
         catch e
-            if !(dtss.isrealtime || quiet)
-                @error "[$(now())]\n$(mlstr("processing data failed!!!"))" exception = e codes = prettify(ex)
+            if !dtss.isrealtime
+                @error "[$(now())]\n$(mlstr("post-processing data failed!!!"))" exception = e
                 showbacktrace()
             end
-        finally
-            dtss.isrunning = false
+        end
+    end
+
+    function loaddata(datastr::Dict{String,Vector{String}}, datafloat::Dict{String,VecOrMat{Cdouble}}, key)
+        if isempty(datafloat)
+            haskey(datastr, key) ? replace(tryparse.(Cdouble, datastr[key]), nothing => NaN) : Float64[]
+        else
+            haskey(datafloat, key) ? copy(datafloat[key]) : Float64[]
         end
     end
 end
@@ -380,13 +420,5 @@ function syncaxes(plt::Plot, pss::PlotSeries, dtss::DataSeries; force=false)
     if (pss.ptype == "heatmap" && changez) || force
         pss.axis.zaxis.axis = dtss.zaxis
         mergezaxes!(plt)
-    end
-end
-
-function loaddata(datastr::Dict{String,Vector{String}}, datafloat::Dict{String,VecOrMat{Cdouble}}, key)
-    if isempty(datafloat)
-        haskey(datastr, key) ? replace(tryparse.(Cdouble, datastr[key]), nothing => NaN) : Float64[]
-    else
-        haskey(datafloat, key) ? copy(datafloat[key]) : Float64[]
     end
 end

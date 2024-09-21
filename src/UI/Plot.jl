@@ -6,6 +6,7 @@
     offsety::Cdouble = 0
     color::Vector{Cfloat} = [1.000, 1.000, 1.000, 1.000]
     possz::Cfloat = 4
+    dragging::Bool = false
 end
 
 @kwdef mutable struct Linecut
@@ -43,6 +44,9 @@ end
     tickvalues::Vector{Cdouble} = []
     ticklabels::Vector{String} = []
     lims::Tuple{Cdouble,Cdouble} = (0, 1)
+    vlims::Vector{Cfloat} = [0, 1]
+    autofitl::Bool = false
+    autofith::Bool = false
     scale::UInt32 = 0
     hovered::Bool = false
     colormapscalesize::CImGui.ImVec2 = (0, 0)
@@ -129,17 +133,11 @@ let
         for (i, pltxa) in enumerate(plt.xaxes)
             pltxa.hovered && mousedoubleclicked0 && CImGui.OpenPopup(stcstr("xlabel", i, "-", id))
             if CImGui.BeginPopup(stcstr("xlabel", i, "-", id))
-                if @c InputTextRSZ(stcstr("X ", mlstr("label")), &pltxa.label)
-                    for pss in plt.series
-                        pss.axis.xaxis.axis == pltxa.axis && (pss.axis.xaxis.label = pltxa.label)
-                    end
-                end
+                @c(InputTextRSZ(stcstr("X ", mlstr("label")), &pltxa.label)) && resync(plt, pltxa, :label)
                 scale = string(ImPlot.ImPlotScale_(pltxa.scale))
                 if @c ComboS(mlstr("Axis Scale"), &scale, string.(instances(ImPlot.ImPlotScale_)))
                     pltxa.scale = getproperty(ImPlot, Symbol(scale))
-                    for pss in plt.series
-                        pss.axis.xaxis.axis == pltxa.axis && (pss.axis.xaxis.scale = pltxa.scale)
-                    end
+                    resync(plt, pltxa, :scale)
                 end
                 CImGui.EndPopup()
             end
@@ -147,17 +145,11 @@ let
         for (i, pltya) in enumerate(plt.yaxes)
             pltya.hovered && mousedoubleclicked0 && CImGui.OpenPopup(stcstr("ylabel", i, "-", id))
             if CImGui.BeginPopup(stcstr("ylabel", i, "-", id))
-                if @c InputTextRSZ(stcstr("Y ", mlstr("label")), &pltya.label)
-                    for pss in plt.series
-                        pss.axis.yaxis.axis == pltya.axis && (pss.axis.yaxis.label = pltya.label)
-                    end
-                end
+                @c(InputTextRSZ(stcstr("Y ", mlstr("label")), &pltya.label)) && resync(plt, pltya, :label)
                 scale = string(ImPlot.ImPlotScale_(pltya.scale))
                 if @c ComboS(mlstr("Axis Scale"), &scale, string.(instances(ImPlot.ImPlotScale_)))
                     pltya.scale = getproperty(ImPlot, Symbol(scale))
-                    for pss in plt.series
-                        pss.axis.yaxis.axis == pltya.axis && (pss.axis.yaxis.scale = pltya.scale)
-                    end
+                    resync(plt, pltya, :scale)
                 end
                 CImGui.EndPopup()
             end
@@ -165,17 +157,13 @@ let
         for (i, pltza) in enumerate(plt.zaxes)
             pltza.hovered && mousedoubleclicked0 && CImGui.OpenPopup(stcstr("zlabel", i, "-", id))
             if CImGui.BeginPopup(stcstr("zlabel", i, "-", id))
-                if @c InputTextRSZ(stcstr("Z ", mlstr("label")), &pltza.label)
-                    for pss in plt.series
-                        pss.axis.zaxis.axis == pltza.axis && (pss.axis.zaxis.label = pltza.label)
-                    end
-                end
+                @c(InputTextRSZ(stcstr("Z ", mlstr("label")), &pltza.label)) && resync(plt, pltza, :label)
                 cmap = unsafe_string(ImPlot.GetColormapName(pltza.colormap))
-                if @c ComboS(mlstr("Colormap"), &cmap, unsafe_string.(ImPlot.GetColormapName.(0:ImPlot.GetColormapCount()-1)))
+                if @c ComboS(
+                    mlstr("Colormap"), &cmap, unsafe_string.(ImPlot.GetColormapName.(0:ImPlot.GetColormapCount()-1))
+                )
                     pltza.colormap = ImPlot.GetColormapIndex(cmap)
-                    for pss in plt.series
-                        pss.axis.zaxis.axis == pltza.axis && (pss.axis.zaxis.colormap = pltza.colormap)
-                    end
+                    resync(plt, pltza, :colormap)
                 end
                 if ImPlot.ColormapButton(
                     stcstr(unsafe_string(ImPlot.GetColormapName(pltza.colormap)), "##", pltza.axis),
@@ -183,15 +171,38 @@ let
                     pltza.colormap
                 )
                     pltza.colormap = (pltza.colormap + 1) % ImPlot.GetColormapCount()
-                    for pss in plt.series
-                        pss.axis.zaxis.axis == pltza.axis && (pss.axis.zaxis.colormap = pltza.colormap)
-                    end
+                    resync(plt, pltza, :colormap)
                 end
+                igBeginDisabled(pltza.autofitl && pltza.autofith)
+                vlimsold = deepcopy(pltza.vlims)
+                if CImGui.InputFloat2(mlstr("Color Range"), pltza.vlims)
+                    pltza.vlims[1] == pltza.vlims[2] ? pltza.vlims = vlimsold : resync(plt, pltza, :vlims)
+                end
+                igEndDisabled()
+                @c(CImGui.Checkbox(mlstr("Auto-Fit Lower Bounds"), &pltza.autofitl)) && resync(plt, pltza, :autofitl)
+                CImGui.SameLine()
+                @c(CImGui.Checkbox(mlstr("Auto-Fit Upper Bounds"), &pltza.autofith)) && resync(plt, pltza, :autofith)
                 CImGui.EndPopup()
             end
         end
         CImGui.EndChild()
         CImGui.PopID()
+    end
+end
+
+function resync(plt::Plot, axis::Xaxis, attr)
+    for pss in plt.series
+        pss.axis.xaxis.axis == axis.axis && setproperty!(pss.axis.xaxis, attr, getproperty(axis, attr))
+    end
+end
+function resync(plt::Plot, axis::Yaxis, attr)
+    for pss in plt.series
+        pss.axis.yaxis.axis == axis.axis && setproperty!(pss.axis.yaxis, attr, getproperty(axis, attr))
+    end
+end
+function resync(plt::Plot, axis::Zaxis, attr)
+    for pss in plt.series
+        pss.axis.zaxis.axis == axis.axis && setproperty!(pss.axis.zaxis, attr, getproperty(axis, attr))
     end
 end
 
@@ -202,7 +213,11 @@ function mergexaxes!(plt::Plot)
     end
     for pltxa in plt.xaxes
         for axis in [pss.axis for pss in plt.series]
-            axis.xaxis.axis == pltxa.axis && (axis.xaxis = deepcopy(pltxa))
+            if axis.xaxis.axis == pltxa.axis
+                lims = axis.xaxis.lims
+                axis.xaxis = deepcopy(pltxa)
+                axis.xaxis.lims = lims
+            end
         end
     end
 end
@@ -214,12 +229,17 @@ function mergeyaxes!(plt::Plot)
     end
     for pltya in plt.yaxes
         for axis in [pss.axis for pss in plt.series]
-            axis.yaxis.axis == pltya.axis && (axis.yaxis = deepcopy(pltya))
+            if axis.yaxis.axis == pltya.axis
+                lims = axis.yaxis.lims
+                axis.yaxis = deepcopy(pltya)
+                axis.yaxis.lims = lims
+            end
         end
     end
 end
 
 function mergezaxes!(plt::Plot)
+    zaxesbackup = deepcopy(plt.zaxes)
     empty!(plt.zaxes)
     for pss in plt.series
         zlims = extrema(pss.z; init=(0, 1))
@@ -234,6 +254,9 @@ function mergezaxes!(plt::Plot)
         pltza.lims = extrema(vcat([collect(axis.zaxis.lims) for axis in sameaxis]...))
         for axis in sameaxis
             axis.zaxis = deepcopy(pltza)
+        end
+        if pltza.axis in [za.axis for za in zaxesbackup]
+            pltza.colormapscalesize = zaxesbackup[findfirst(za -> za.axis == pltza.axis, zaxesbackup)].colormapscalesize
         end
     end
 end
@@ -308,7 +331,11 @@ function Plot(plt::Plot; psize=CImGui.ImVec2(0, 0), flags=0)
         CImGui.SameLine()
         za.colormap + 1 > ImPlot.GetColormapCount() && (za.colormap %= ImPlot.GetColormapCount())
         ImPlot.PushColormap(za.colormap)
-        ImPlot.ColormapScale(stcstr(za.label, "###", plt.id, "-", za.axis), za.lims..., CImGui.ImVec2(Cfloat(0), psize.y))
+        ImPlot.ColormapScale(
+            stcstr(za.label, "###", plt.id, "-", za.axis),
+            selectzlims(za)...,
+            CImGui.ImVec2(Cfloat(0), psize.y)
+        )
         ImPlot.PopColormap()
         za.colormapscalesize = CImGui.GetItemRectSize()
         za.hovered = CImGui.IsItemHovered()
@@ -343,8 +370,14 @@ function Plot2D(plotfunc, pss::PlotSeries, plt::Plot)
                 CImGui.BeginTooltip()
                 SeparatorTextColored(MORESTYLE.Colors.HighlightText, pss.legend)
                 CImGui.PushTextWrapPos(36CImGui.GetFontSize())
-                CImGui.Text(string("x : ", isempty(pss.axis.xaxis.ticklabels) ? pss.x[idx] : pss.axis.xaxis.ticklabels[idx]))
-                CImGui.Text(string("y : ", pss.y[idx]))
+                CImGui.Text(
+                    string(
+                        pss.axis.xaxis.label,
+                        " : ",
+                        isempty(pss.axis.xaxis.ticklabels) ? pss.x[idx] : pss.axis.xaxis.ticklabels[idx]
+                    )
+                )
+                CImGui.Text(string(pss.axis.yaxis.label, " : ", pss.y[idx]))
                 CImGui.PopTextWrapPos()
                 CImGui.EndTooltip()
             end
@@ -360,7 +393,9 @@ function Plot(pss::PlotSeries, plt::Plot, ::Val{:heatmap})
     pss.axis.zaxis.colormap + 1 > ImPlot.GetColormapCount() && (pss.axis.zaxis.colormap %= ImPlot.GetColormapCount())
     ImPlot.PushColormap(pss.axis.zaxis.colormap)
     ImPlot.PlotHeatmap(
-        pss.legend, pss.z, reverse(size(pss.z))..., pss.axis.zaxis.lims..., "",
+        pss.legend, pss.z, reverse(size(pss.z))...,
+        selectzlims(pss.axis.zaxis)...,
+        "",
         ImPlot.ImPlotPoint(pss.axis.xaxis.lims[1], pss.axis.yaxis.lims[1]),
         ImPlot.ImPlotPoint(pss.axis.xaxis.lims[2], pss.axis.yaxis.lims[2])
     )
@@ -394,12 +429,18 @@ function Plot(pss::PlotSeries, plt::Plot, ::Val{:heatmap})
         CImGui.BeginTooltip()
         SeparatorTextColored(MORESTYLE.Colors.HighlightText, pss.legend)
         CImGui.PushTextWrapPos(36CImGui.GetFontSize())
-        CImGui.Text(string("x : ", x))
-        CImGui.Text(string("y : ", y))
-        CImGui.Text(string("z : ", z))
+        CImGui.Text(string(pss.axis.xaxis.label, " : ", x))
+        CImGui.Text(string(pss.axis.yaxis.label, " : ", y))
+        CImGui.Text(string(pss.axis.zaxis.label, " : ", z))
         CImGui.PopTextWrapPos()
         CImGui.EndTooltip()
     end
+end
+
+function selectzlims(za::Zaxis)
+    za.autofitl && return za.autofith ? za.lims : (za.lims[1], za.vlims[2])
+    za.autofith && return (za.vlims[1], za.lims[2])
+    return (za.vlims...,)
 end
 
 function setupplotseries!(pss::PlotSeries, x::AbstractVector{Tx}, y) where {Tx<:AbstractString}
@@ -431,7 +472,7 @@ function setupplotseries!(pss::PlotSeries, x::AbstractVector{Tx}, y, z) where {T
             xlims = extrema(x)
             xlims[1] == xlims[2] && (xlims = (0, 1))
             pss.axis.xaxis.lims = xlims
-            pss.x = length(x) == zsz[1] ? x : range(extrema(x)..., length=zsz[1])
+            pss.x = range(extrema(x)..., length=zsz[1])
         end
         if isempty(y)
             pss.axis.yaxis.lims = (0, 1)
@@ -440,7 +481,7 @@ function setupplotseries!(pss::PlotSeries, x::AbstractVector{Tx}, y, z) where {T
             ylims = extrema(y)
             ylims[1] == ylims[2] && (ylims = (0, 1))
             pss.axis.yaxis.lims = ylims
-            pss.y = length(y) == zsz[2] ? y : range(extrema(y)..., length=zsz[2])
+            pss.y = range(extrema(y)..., length=zsz[2])
         end
     end
 end
@@ -452,28 +493,43 @@ function PlotAnns(anns::Vector{Annotation})
         ImPlot.SetAxes(ImPlot.ImAxis_X1, ImPlot.ImAxis_Y1)
         CImGui.PushFont(GLOBALFONT)
         for (i, ann) in enumerate(anns)
+            labelsz = [CImGui.CalcTextSize(ann.label)...]
+            CImGui.PushID(i)
+            @c ImPlot.DragPoint(i, &ann.posx, &ann.posy, CImGui.ImVec4(ann.color...), ann.possz)
+            ishv = isdragpointhovered(ann.posx, ann.posy, ann.possz)
+            offsetpos = ImPlot.PlotToPixels(ann.offsetx, ann.offsety)
+            inlabel = inregion(CImGui.GetMousePos(), offsetpos .- labelsz / 2, offsetpos .+ labelsz / 2)
+            if ann.dragging || inlabel
+                CImGui.SetCursorScreenPos(offsetpos .- labelsz)
+                CImGui.PushStyleColor(CImGui.ImGuiCol_Button, [0, 0, 0, 0])
+                CImGui.PushStyleColor(CImGui.ImGuiCol_ButtonHovered, [0, 0, 0, 0])
+                CImGui.PushStyleColor(CImGui.ImGuiCol_ButtonActive, [0, 0, 0, 0])
+                CImGui.Button("", 2labelsz)
+                CImGui.PopStyleColor(3)
+            end
+            if ann.dragging
+                CImGui.SetMouseCursor(CImGui.ImGuiMouseCursor_Hand)
+                if CImGui.IsMouseDragging()
+                    mspos = ImPlot.PixelsToPlot(CImGui.GetMousePos())
+                    ann.offsetx = mspos.x
+                    ann.offsety = mspos.y
+                else
+                    ann.dragging = false
+                end
+            else
+                inlabel && CImGui.IsMouseDragging() && (ann.dragging = true)
+            end
+            ishv |= inlabel
+            ishv && (ItemTooltipNoHovered(ann.label); openpopup_i = i)
+            CImGui.PopID()
             offset = ImPlot.PlotToPixels(ann.offsetx, ann.offsety) .- ImPlot.PlotToPixels(ann.posx, ann.posy)
-            halflabelsz = CImGui.CalcTextSize(ann.label) ./ 2
             ImPlot.AnnotationClamped(
                 ann.posx,
                 ann.posy,
                 CImGui.ImVec4(ann.color...),
-                correct_offset(offset, halflabelsz),
+                correct_offset(offset, labelsz),
                 ann.label
             )
-            CImGui.PushID(i)
-            @c ImPlot.DragPoint(i, &ann.posx, &ann.posy, CImGui.ImVec4(ann.color...), ann.possz)
-            ishv = isdragpointhovered(ann.posx, ann.posy, ann.possz)
-            @c ImPlot.DragPoint(
-                -i,
-                &ann.offsetx,
-                &ann.offsety,
-                CImGui.ImVec4(ann.color[1:3]..., 0.000),
-                halflabelsz[2] / 2
-            )
-            ishv |= isdragpointhovered(ann.offsetx, ann.offsety, halflabelsz[2])
-            ishv && (ItemTooltipNoHovered(ann.label); openpopup_i = i)
-            CImGui.PopID()
             if CImGui.BeginPopup(stcstr("annotation", i))
                 @c InputTextRSZ(mlstr("content"), &ann.label)
                 pos = Cfloat[ann.posx, ann.posy]
@@ -499,30 +555,30 @@ function isdragpointhovered(x, y, sz)
     inregion(CImGui.GetMousePos(), ppos .- sz / 2, ppos .+ sz / 2)
 end
 
-function correct_offset(offset, halflabelsz)
-    if offset[1] > halflabelsz[1]
-        if offset[2] > halflabelsz[2]
-            offset_correct = offset - halflabelsz
-        elseif -halflabelsz[2] <= offset[2] <= halflabelsz[2]
-            offset_correct = CImGui.ImVec2(offset[1] - halflabelsz[1], Cfloat(0))
+function correct_offset(offset, labelsz)
+    if offset[1] > labelsz[1]
+        if offset[2] > labelsz[2]
+            offset_correct = offset - labelsz
+        elseif -labelsz[2] <= offset[2] <= labelsz[2]
+            offset_correct = CImGui.ImVec2(offset[1] - labelsz[1], Cfloat(0))
         else
-            offset_correct = CImGui.ImVec2(offset[1] - halflabelsz[1], offset[2] + halflabelsz[2])
+            offset_correct = CImGui.ImVec2(offset[1] - labelsz[1], offset[2] + labelsz[2])
         end
-    elseif -halflabelsz[1] <= offset[1] <= halflabelsz[1]
-        if offset[2] > halflabelsz[2]
-            offset_correct = CImGui.ImVec2(Cfloat(0), offset[2] - halflabelsz[2])
-        elseif -halflabelsz[2] <= offset[2] <= halflabelsz[2]
+    elseif -labelsz[1] <= offset[1] <= labelsz[1]
+        if offset[2] > labelsz[2]
+            offset_correct = CImGui.ImVec2(Cfloat(0), offset[2] - labelsz[2])
+        elseif -labelsz[2] <= offset[2] <= labelsz[2]
             offset_correct = CImGui.ImVec2(Cfloat(0), Cfloat(0))
         else
-            offset_correct = CImGui.ImVec2(Cfloat(0), offset[2] + halflabelsz[2])
+            offset_correct = CImGui.ImVec2(Cfloat(0), offset[2] + labelsz[2])
         end
     else
-        if offset[2] > halflabelsz[2]
-            offset_correct = CImGui.ImVec2(offset[1] + halflabelsz[1], offset[2] - halflabelsz[2])
-        elseif -halflabelsz[2] <= offset[2] <= halflabelsz[2]
-            offset_correct = CImGui.ImVec2(offset[1] + halflabelsz[1], Cfloat(0))
+        if offset[2] > labelsz[2]
+            offset_correct = CImGui.ImVec2(offset[1] + labelsz[1], offset[2] - labelsz[2])
+        elseif -labelsz[2] <= offset[2] <= labelsz[2]
+            offset_correct = CImGui.ImVec2(offset[1] + labelsz[1], Cfloat(0))
         else
-            offset_correct = offset + halflabelsz
+            offset_correct = offset + labelsz
         end
     end
     return ImVec2(offset_correct...)
@@ -708,3 +764,4 @@ function dropexeption!(z)
     Inf in z && (replace!(z, Inf => 0))
     -Inf in z && (replace!(z, -Inf => 0))
 end
+

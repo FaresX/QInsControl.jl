@@ -22,7 +22,7 @@ let
     no_bring_to_front::Bool = false
     no_docking::Bool = true
 
-    global dtviewers = Tuple{DataViewer,FolderFileTree,Dict{String,Bool}}[]
+    fileviewers = FileViewer[]
     dataformatters = DataFormatter[]
     instrwidgets = Dict{String,Dict{String,Tuple{Ref{Bool},Vector{InstrWidget}}}}()
 
@@ -47,8 +47,8 @@ let
         show_metrics = false
         show_logger = false
         show_about = false
-        for dtv in dtviewers
-            dtv[1].p_open = false
+        for fv in fileviewers
+            fv.p_open = false
         end
         for dft in dataformatters
             dft.p_open = false
@@ -79,7 +79,7 @@ let
             CImGui.PushStyleVar(CImGui.ImGuiStyleVar_WindowRounding, 0)
             CImGui.PushStyleVar(CImGui.ImGuiStyleVar_WindowPadding, (0, 0))
             CImGui.Begin("DockSpace", C_NULL, window_flags | CImGui.ImGuiWindowFlags_NoBackground)
-            igDockSpace(CImGui.GetID("MainWindow"), CImGui.ImVec2(0, 0), ImGuiDockNodeFlags_PassthruCentralNode, C_NULL)
+            igDockSpace(CImGui.GetID("Main Window"), CImGui.ImVec2(0, 0), ImGuiDockNodeFlags_PassthruCentralNode, C_NULL)
             CImGui.End()
             CImGui.PopStyleVar(2)
 
@@ -224,7 +224,7 @@ let
                     CImGui.ImGuiCol_Button,
                     SYNCSTATES[Int(AutoDetecting)] ? MORESTYLE.Colors.LogInfo : st ? MORESTYLE.Colors.HighlightText : MORESTYLE.Colors.LogError
                 )
-                igBeginDisabled(SYNCSTATES[Int(IsDAQTaskRunning)])
+                igBeginDisabled(SYNCSTATES[Int(IsDAQTaskRunning)] || hassweeping())
                 CImGui.Button(MORESTYLE.Icons.InstrumentsAutoDetect, (btw, btw)) && refresh_instrlist()
                 showst && CImGui.PopStyleColor()
                 CImGui.SameLine()
@@ -244,16 +244,7 @@ let
                     isempty(inses) && CImGui.PushStyleColor(
                         CImGui.ImGuiCol_Text, CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_TextDisabled)
                     )
-                    isrefreshingdict = Dict()
-                    for (addr, ibv) in inses
-                        hasref = false
-                        for qt in values(ibv.insbuf.quantities)
-                            SYNCSTATES[Int(IsAutoRefreshing)] && ibv.insbuf.isautorefresh && (hasref |= qt.isautorefresh)
-                            qt isa SweepQuantity && (hasref |= qt.issweeping)
-                            hasref && break
-                        end
-                        isrefreshingdict[addr] = hasref
-                    end
+                    isrefreshingdict = Dict(addr => hasref(ibv) for (addr, ibv) in inses)
                     hasrefreshing = !isempty(inses) && SYNCSTATES[Int(IsAutoRefreshing)] && (|)(values(isrefreshingdict)...)
                     hasrefreshing && CImGui.PushStyleColor(CImGui.ImGuiCol_Text, MORESTYLE.Colors.DAQTaskRunning)
                     insnode = CImGui.TreeNode(stcstr(INSCONF[ins].conf.icon, " ", ins, "  ", "(", length(inses), ")"))
@@ -269,17 +260,19 @@ let
                                 addrnode = CImGui.TreeNode(addr)
                                 isrefreshingdict[addr] && CImGui.PopStyleColor()
                                 if CImGui.BeginPopupContextItem()
+                                    sweeping = hassweeping(ibv)
                                     if CImGui.MenuItem(
                                         stcstr(MORESTYLE.Icons.CloseFile, " ", mlstr("Delete")),
                                         C_NULL,
                                         false,
-                                        ins != "VirtualInstr" && !SYNCSTATES[Int(IsDAQTaskRunning)]
+                                        ins != "VirtualInstr" && !SYNCSTATES[Int(IsDAQTaskRunning)] && !sweeping
                                     )
                                         delete!(INSTRBUFFERVIEWERS[ins], addr)
+                                        remotecall_fetch(addr -> logout!(CPU, addr), workers()[1], addr)
                                     end
                                     if CImGui.BeginMenu(
                                         stcstr(MORESTYLE.Icons.NewFile, " ", mlstr("Add to")),
-                                        ins == "Others" && !SYNCSTATES[Int(IsDAQTaskRunning)]
+                                        ins == "Others" && !SYNCSTATES[Int(IsDAQTaskRunning)] && !sweeping
                                     )
                                         for (cfins, cf) in INSCONF
                                             cfins in ["Others", "VirtualInstr"] && continue
@@ -320,17 +313,17 @@ let
                 CImGui.PopStyleVar()
                 CImGui.PopStyleColor()
             elseif showwhat == 1
-                filelist = filter(x -> x[2].rootpath_bnm == "", dtviewers)
-                folderlist = filter(x -> x[2].rootpath_bnm != "", dtviewers)
+                filelist = filter(fv -> fv.filetree.rootpath_bnm == "", fileviewers)
+                folderlist = filter(fv -> fv.filetree.rootpath_bnm != "", fileviewers)
                 SeparatorTextColored(MORESTYLE.Colors.HighlightText, mlstr("Files"))
                 if isempty(filelist)
                     CImGui.TextDisabled(stcstr("(", mlstr("Null"), ")"))
                 else
-                    for dtv in filelist
-                        title = isempty(dtv[2].filetrees) ? mlstr("no file opened") : basename(dtv[2].filetrees[1].filepath)
-                        @c CImGui.MenuItem(title, C_NULL, &dtv[1].p_open)
+                    for fv in filelist
+                        title = isempty(fv.filetree.filetrees) ? mlstr("no file opened") : basename(fv.filetree.filetrees[1].filepath)
+                        @c CImGui.MenuItem(title, C_NULL, &fv.p_open)
                         if CImGui.BeginPopupContextItem()
-                            CImGui.MenuItem(stcstr(MORESTYLE.Icons.CloseFile, " ", mlstr("Close"))) && (dtv[1].noclose = false)
+                            CImGui.MenuItem(stcstr(MORESTYLE.Icons.CloseFile, " ", mlstr("Close"))) && (fv.noclose = false)
                             CImGui.EndPopup()
                         end
                     end
@@ -339,19 +332,20 @@ let
                 if isempty(folderlist)
                     CImGui.TextDisabled(stcstr("(", mlstr("Null"), ")"))
                 else
-                    for (i, dtv) in enumerate(folderlist)
+                    for (i, fv) in enumerate(folderlist)
                         CImGui.PushID(i)
-                        @c CImGui.MenuItem(basename(dtv[2].rootpath), C_NULL, &dtv[1].p_open)
+                        @c CImGui.MenuItem(basename(fv.filetree.rootpath), C_NULL, &fv.p_open)
                         if CImGui.BeginPopupContextItem()
                             if CImGui.MenuItem(stcstr(MORESTYLE.Icons.InstrumentsAutoRef, " ", mlstr("Refresh")))
-                                dtv[2].filetrees = FolderFileTree(
-                                    dtv[2].rootpath,
-                                    dtv[2].selectedpath,
-                                    dtv[2].filter
+                                fv.filetree.filetrees = FolderFileTree(
+                                    fv.filetree.rootpath,
+                                    fv.filetree.selectedpathes,
+                                    fv.filetree.filter,
+                                    fv.filetree.valid
                                 ).filetrees
                             end
-                            CImGui.MenuItem(stcstr(MORESTYLE.Icons.CloseFile, " ", mlstr("Close"))) && (dtv[1].noclose = false)
-                            CImGui.MenuItem(stcstr(MORESTYLE.Icons.InstrumentsAutoRef, " ", mlstr("Update"))) && converttonew(dtv[2].rootpath)
+                            CImGui.MenuItem(stcstr(MORESTYLE.Icons.CloseFile, " ", mlstr("Close"))) && (fv.noclose = false)
+                            CImGui.MenuItem(stcstr(MORESTYLE.Icons.InstrumentsAutoRef, " ", mlstr("Update"))) && converttonew(fv.filetree.rootpath)
                             CImGui.EndPopup()
                         end
                         CImGui.PopID()
@@ -381,11 +375,11 @@ let
         end
 
         ######子窗口######
-        for (i, dtv) in enumerate(dtviewers)
-            dtv[1].p_open && edit(dtv..., i)
+        for (i, fv) in enumerate(fileviewers)
+            fv.p_open && edit(fv, i)
         end
-        for (i, dtv) in enumerate(dtviewers)
-            dtv[1].noclose || deleteat!(dtviewers, i)
+        for (i, fv) in enumerate(fileviewers)
+            fv.noclose || deleteat!(fileviewers, i)
         end
         for (i, dft) in enumerate(dataformatters)
             dft.p_open && edit(dft, i)
@@ -423,13 +417,13 @@ let
         if isopenfiles || (unsafe_load(CImGui.GetIO().KeyCtrl) && CImGui.IsKeyDown(ImGuiKey_O))
             Threads.@spawn @trycatch mlstr("task failed!!!") begin
                 files = pick_multi_file()
-                isempty(files) || push!(dtviewers, (DataViewer(), FolderFileTree(files), Dict())) #true -> active
+                isempty(files) || push!(fileviewers, FileViewer(filetree=FolderFileTree(files)))
             end
         end
         if isopenfolder || (unsafe_load(CImGui.GetIO().KeyCtrl) && CImGui.IsKeyDown(ImGuiKey_K))
             Threads.@spawn @trycatch mlstr("task failed!!!") begin
                 root = pick_folder()
-                isdir(root) && push!(dtviewers, (DataViewer(), FolderFileTree(root), Dict())) #true -> active
+                isdir(root) && push!(fileviewers, FileViewer(filetree=FolderFileTree(root)))
             end
         end
         if isopenformatter
@@ -437,7 +431,7 @@ let
         end
         if !isempty(ARGS)
             filepath = reencoding(ARGS[1], CONF.Basic.encoding)
-            isfile(filepath) && push!(dtviewers, (DataViewer(), FolderFileTree([abspath(filepath)]), Dict()))
+            isfile(filepath) && push!(fileviewers, FileViewer(filetree=FolderFileTree([abspath(filepath)])))
             empty!(ARGS)
         end
     end
@@ -468,4 +462,26 @@ function converttonew(rootpath)
             converttonew(joinpath(root, dir))
         end
     end
+end
+
+function hassweeping()
+    for (_, inses) in INSTRBUFFERVIEWERS
+        for (_, ibv) in inses
+            hassweeping(ibv) && return true
+        end
+    end
+    return false
+end
+function hassweeping(ibv::InstrBufferViewer)
+    for qt in values(ibv.insbuf.quantities)
+        qt isa SweepQuantity && qt.issweeping && return true
+    end
+    return false
+end
+function hasref(ibv::InstrBufferViewer)
+    for qt in values(ibv.insbuf.quantities)
+        SYNCSTATES[Int(IsAutoRefreshing)] && ibv.insbuf.isautorefresh && qt.isautorefresh && return true
+        qt isa SweepQuantity && qt.issweeping && return true
+    end
+    return false
 end

@@ -41,11 +41,30 @@ end
     regmax::ImVec2 = (0, 0)
 end
 
+@kwdef mutable struct FreeSweepBlock <: AbstractBlock
+    instrnm::String = mlstr("instrument")
+    addr::String = mlstr("address")
+    quantity::String = mlstr("sweep")
+    mode::String = "="
+    stop::String = ""
+    delay::Cfloat = 0.1
+    delta::Cfloat = 0
+    duration::Cfloat = 6
+    ui::Int = 1
+    level::Int = 1
+    blocks::Vector{AbstractBlock} = AbstractBlock[]
+    istrycatch::Bool = true
+    hideblocks::Bool = false
+    regmin::ImVec2 = (0, 0)
+    regmax::ImVec2 = (0, 0)
+end
+
 @kwdef mutable struct SettingBlock <: AbstractBlock
     instrnm::String = mlstr("instrument")
     addr::String = mlstr("address")
     quantity::String = mlstr("set")
     setvalue::String = ""
+    delay::Cfloat = 0.1
     ui::Int = 1
     istrycatch::Bool = false
     regmin::ImVec2 = (0, 0)
@@ -58,10 +77,10 @@ end
     quantity::String = mlstr("read")
     index::String = ""
     mark::String = ""
-    isasync::Bool = false
+    isasync::Bool = true
     isobserve::Bool = false
     isreading::Bool = false
-    istrycatch::Bool = false
+    istrycatch::Bool = true
     regmin::ImVec2 = (0, 0)
     regmax::ImVec2 = (0, 0)
 end
@@ -82,10 +101,10 @@ end
     cmd::String = ""
     index::String = ""
     mark::String = ""
-    isasync::Bool = false
+    isasync::Bool = true
     isobserve::Bool = false
     isreading::Bool = false
-    istrycatch::Bool = false
+    istrycatch::Bool = true
     regmin::ImVec2 = (0, 0)
     regmax::ImVec2 = (0, 0)
 end
@@ -98,7 +117,7 @@ end
     isasync::Bool = false
     isobserve::Bool = false
     isreading::Bool = false
-    istrycatch::Bool = false
+    istrycatch::Bool = true
     regmin::ImVec2 = (0, 0)
     regmax::ImVec2 = (0, 0)
 end
@@ -110,6 +129,10 @@ end
     regmin::ImVec2 = (0, 0)
     regmax::ImVec2 = (0, 0)
 end
+
+iscontainer(bk::AbstractBlock) = typeof(bk) in [StrideCodeBlock, SweepBlock, FreeSweepBlock]
+isinstr(bk::AbstractBlock) = typeof(bk) in [SweepBlock, FreeSweepBlock, SettingBlock, ReadingBlock, WriteBlock, QueryBlock, ReadBlock, FeedbackBlock]
+
 ############ isapprox --------------------------------------------------------------------------------------------------
 
 function Base.isapprox(bk1::T1, bk2::T2) where {T1<:AbstractBlock} where {T2<:AbstractBlock}
@@ -125,7 +148,7 @@ Base.isapprox(x::Vector{AbstractBlock}, y::Vector{AbstractBlock}) = length(x) ==
 
 ############ tocodes ---------------------------------------------------------------------------------------------------
 
-tocodes(::NullBlock) = nothing
+tocodes(::NullBlock) = Expr(:block)
 
 function tocodes(bk::CodeBlock)
     ex = @trypass Meta.parseall(bk.codes) begin
@@ -172,7 +195,7 @@ end
 tocodes(bk::BranchBlock) = error("[$(now())]\n$(mlstr("BranchBlock has to be in a StrideCodeBlock!!!"))\nbk=$bk")
 
 function tocodes(bk::SweepBlock)
-    instr = string(bk.instrnm, "_", bk.addr)
+    instr = string(bk.instrnm, "/", bk.addr)
     quantity = bk.quantity
     setfunc = Symbol(bk.instrnm, :_, bk.quantity, :_set)
     getfunc = Symbol(bk.instrnm, :_, bk.quantity, :_get)
@@ -193,8 +216,8 @@ function tocodes(bk::SweepBlock)
     stop = Expr(:call, :*, stopc, Uchange)
     innercodes = tocodes.(bk.blocks)
     isasync = false
-    for bk in bk.blocks
-        typeof(bk) in [ReadingBlock, WriteBlock, QueryBlock, ReadBlock] && bk.isasync && (isasync = true; break)
+    for inbk in bk.blocks
+        typeof(inbk) in [ReadingBlock, WriteBlock, QueryBlock, ReadBlock] && inbk.isasync && (isasync = true; break)
     end
     interpcodes = isasync ? quote
         @sync begin
@@ -203,23 +226,65 @@ function tocodes(bk::SweepBlock)
     end : quote
         $(innercodes...)
     end
-    @gensym ijk
-    @gensym sweeplist
+    @gensym ijk sweeplist
     setcmd = :(controllers[$instr]($setfunc, CPU, string($ijk), Val(:write)))
     ex2 = bk.istrycatch ? :(@gentrycatch $(bk.instrnm) $(bk.addr) $setcmd) : setcmd
     return quote
-        $sweeplist = gensweeplist($start, $step, $stop)
-        @progress for $ijk in $sweeplist
-            @gencontroller SweepBlock $instr
-            $ex2
-            sleep($(bk.delay))
-            $interpcodes
+        let $sweeplist = gensweeplist($start, $step, $stop)
+            @progress for $ijk in $sweeplist
+                @gencontroller SweepBlock $instr
+                $ex2
+                sleep($(bk.delay))
+                $interpcodes
+            end
+        end
+    end
+end
+
+function tocodes(bk::FreeSweepBlock)
+    instr = string(bk.instrnm, "/", bk.addr)
+    quantity = bk.quantity
+    @assert INSCONF[bk.instrnm].quantities[bk.quantity].separator == "" mlstr("no free sweeping !!!")
+    getfunc = Symbol(bk.instrnm, :_, bk.quantity, :_get)
+    U, Us = @c getU(INSCONF[bk.instrnm].quantities[quantity].U, &bk.ui)
+    U == "" && (@error "[$(now())]\n$(mlstr("input data error!!!"))" bk = bk;
+    return)
+    stopc = @trypass Meta.parse(bk.stop) begin
+        @error "[$(now())]\n$(mlstr("codes are wrong in parsing time (FreeSweepBlock)!!!"))" bk = bk
+        return nothing
+    end
+    Uchange = U isa Unitful.MixedUnits ? 1 : ustrip(Us[1], 1U)
+    stop = Expr(:call, :*, stopc, Uchange)
+    delta = bk.delta * Uchange
+    innercodes = tocodes.(bk.blocks)
+    isasync = false
+    for inbk in bk.blocks
+        typeof(inbk) in [ReadingBlock, WriteBlock, QueryBlock, ReadBlock] && inbk.isasync && (isasync = true; break)
+    end
+    interpcodes = isasync ? quote
+        @sync begin
+            $(innercodes...)
+        end
+    end : quote
+        $(innercodes...)
+    end
+    @gensym observables
+    getcmd = :(controllers[$instr]($getfunc, CPU, Val(:read)))
+    getdata = bk.istrycatch ? :(@gentrycatch $(bk.instrnm) $(bk.addr) $getcmd) : getcmd
+    detfunc = Dict("=" => isarrived, "<" => isless, ">" => isgreater)[bk.mode]
+    return quote
+        let $observables = []
+            @progress $observables $getdata $stop $(bk.duration / 6) while !$detfunc($observables, $stop, $delta, $(bk.duration))
+                @gencontroller SweepBlock $instr
+                sleep($(bk.delay))
+                $interpcodes
+            end
         end
     end
 end
 
 function tocodes(bk::SettingBlock)
-    instr = string(bk.instrnm, "_", bk.addr)
+    instr = string(bk.instrnm, "/", bk.addr)
     quantity = bk.quantity
     U, Us = @c getU(INSCONF[bk.instrnm].quantities[quantity].U, &bk.ui)
     if U == ""
@@ -234,14 +299,20 @@ function tocodes(bk::SettingBlock)
     end
     setfunc = Symbol(bk.instrnm, :_, bk.quantity, :_set)
     setcmd = :(controllers[$instr]($setfunc, CPU, string($setvalue), Val(:write)))
-    return bk.istrycatch ? :(@gentrycatch $(bk.instrnm) $(bk.addr) $setcmd) : setcmd
+    return bk.istrycatch ? quote
+        @gentrycatch $(bk.instrnm) $(bk.addr) $setcmd
+        sleep($(bk.delay))
+    end : quote
+        $setcmd
+        sleep($(bk.delay))
+    end
 end
 
 
 tocodes(bk::ReadingBlock) = gencodes_read(bk)
 
 function tocodes(bk::WriteBlock)
-    instr = string(bk.instrnm, "_", bk.addr)
+    instr = string(bk.instrnm, "/", bk.addr)
     cmd = parsedollar(bk.cmd)
     setcmd = :(controllers[$instr](write, CPU, string($cmd), Val(:write)))
     ex = bk.istrycatch ? :(@gentrycatch $(bk.instrnm) $(bk.addr) $setcmd) : setcmd
@@ -257,7 +328,7 @@ tocodes(bk::QueryBlock) = gencodes_read(bk)
 tocodes(bk::ReadBlock) = gencodes_read(bk)
 
 function tocodes(bk::FeedbackBlock)
-    instr = string(bk.instrnm, "_", bk.addr)
+    instr = string(bk.instrnm, "/", bk.addr)
     quote
         if haskey(SWEEPCTS, $(bk.instrnm)) && haskey(SWEEPCTS[$(bk.instrnm)], $(bk.addr))
             SWEEPCTS[$(bk.instrnm)][$(bk.addr)][1][] = false
@@ -276,7 +347,7 @@ function tocodes(bk::FeedbackBlock)
 end
 
 function gencodes_read(bk::Union{ReadingBlock,QueryBlock,ReadBlock})
-    instr = string(bk.instrnm, "_", bk.addr)
+    instr = string(bk.instrnm, "/", bk.addr)
     index = @trypasse eval(Meta.parse(bk.index)) begin
         @error "[$(now())]\n$(mlstr("codes are wrong in parsing time (ReadingBlock)!!!"))" bk = bk
         return
@@ -285,10 +356,19 @@ function gencodes_read(bk::Union{ReadingBlock,QueryBlock,ReadBlock})
     bk isa ReadingBlock && (getfunc = Symbol(bk.instrnm, :_, bk.quantity, :_get))
     bk isa QueryBlock && (cmd = parsedollar(bk.cmd))
     if isnothing(index) || (bk isa ReadingBlock && INSCONF[bk.instrnm].quantities[bk.quantity].separator == "")
+        mark = parsedollar(replace(bk.mark, "/" => "_"))
         key = if bk isa ReadingBlock
-            string(bk.mark, "_", bk.instrnm, "_", bk.quantity, "_", bk.addr)
+            if mark isa Expr
+                :(string($mark, "/", $(bk.instrnm), "/", $(bk.quantity), "/", $(bk.addr)))
+            else
+                string(mark, "/", bk.instrnm, "/", bk.quantity, "/", bk.addr)
+            end
         else
-            string(bk.mark, "_", bk.instrnm, "_", bk.addr)
+            if mark isa Expr
+                :(string($mark, "/", $(bk.instrnm), "/", $(bk.addr)))
+            else
+                string(mark, "/", bk.instrnm, "/", bk.addr)
+            end
         end
         getcmd = if bk isa ReadingBlock
             :(controllers[$instr]($getfunc, CPU, Val(:read)))
@@ -313,20 +393,35 @@ function gencodes_read(bk::Union{ReadingBlock,QueryBlock,ReadBlock})
             end : ex
         end
     else
-        marks = fill("", length(index))
+        marks = Vector{Union{AbstractString,Expr}}(undef, length(index))
+        fill!(marks, "")
         for (i, v) in enumerate(split(bk.mark, ","))
-            marks[i] = v
+            marks[i] = parsedollar(replace(v, "/" => "_"))
         end
         for (i, idx) in enumerate(index)
             marks[i] == "" && (marks[i] = "mark$idx")
         end
         keyall = if bk isa ReadingBlock
-            [
-                string(mark, "_", bk.instrnm, "_", bk.quantity, "[", ind, "]", "_", bk.addr)
-                for (mark, ind) in zip(marks, index)
-            ]
+            if true in isa.(marks, Expr)
+                [
+                    :(string($mark, "/", $(bk.instrnm), "/", $(bk.quantity), "[", $ind, "]", "/", $(bk.addr)))
+                    for (mark, ind) in zip(marks, index)
+                ]
+            else
+                [
+                    string(mark, "/", bk.instrnm, "/", bk.quantity, "[", ind, "]", "/", bk.addr)
+                    for (mark, ind) in zip(marks, index)
+                ]
+            end
         else
-            [string(mark, "_", bk.instrnm, "[", ind, "]", "_", bk.addr) for (mark, ind) in zip(marks, index)]
+            if true in isa.(marks, Expr)
+                [
+                    :(string($mark, "/", $(bk.instrnm), "[", $ind, "]", "/", $(bk.addr)))
+                    for (mark, ind) in zip(marks, index)
+                ]
+            else
+                [string(mark, "/", bk.instrnm, "[", ind, "]", "/", bk.addr) for (mark, ind) in zip(marks, index)]
+            end
         end
         separator = bk isa ReadingBlock ? INSCONF[bk.instrnm].quantities[bk.quantity].separator : ","
         separator == "" && (separator = ",")
@@ -342,20 +437,20 @@ function gencodes_read(bk::Union{ReadingBlock,QueryBlock,ReadBlock})
             observable = length(index) == 1 ? Symbol(bk.mark) : Expr(:tuple, Symbol.(lstrip.(split(bk.mark, ',')))...)
             return bk.isreading ? quote
                 $observable = $getdata
-                for data in zip($keyall, $observable)
+                for data in zip([$(keyall...)], $observable)
                     put!(databuf_lc, data)
                 end
             end : :($observable = $getdata)
         else
             if bk.isasync
                 return quote
-                    @async for data in zip($keyall, $getdata)
+                    @async for data in zip([$(keyall...)], $getdata)
                         put!(databuf_lc, data)
                     end
                 end
             else
                 return quote
-                    for data in zip($keyall, $getdata)
+                    for data in zip([$(keyall...)], $getdata)
                         put!(databuf_lc, data)
                     end
                 end
@@ -369,13 +464,15 @@ macro gentrycatch(instrnm, addr, cmd, len=0)
         quote
             let
                 state, getval = counter(CONF.DAQ.retryconnecttimes) do tout
+                    @gencontroller $(mlstr("retry connecting to instrument")) string($instrnm, " ", $addr) (false, "") true
                     state, getval = counter(CONF.DAQ.retrysendtimes) do tin
+                        @gencontroller $(mlstr("retry sending command")) string($instrnm, " ", $addr) (false, "") true
                         try
                             getval = $cmd
                             return true, getval
                         catch e
                             @error(
-                                "[$(now)]\n$(mlstr("instrument communication failed!!!"))",
+                                "[$(now())]\n$(mlstr("instrument communication failed!!!"))",
                                 instrument = $(string(instrnm, ": ", addr)),
                                 exception = e
                             )
@@ -392,22 +489,29 @@ macro gentrycatch(instrnm, addr, cmd, len=0)
                             connect!(CPU.resourcemanager, CPU.instrs[$addr])
                         catch
                         end
-                        @warn stcstr("[", now(), "]\n", mlstr("retry reconnecting instrument"), " ", tout)
+                        @warn stcstr("[", now(), "]\n", mlstr("retry reconnecting to instrument"), " ", tout)
                         return false, $(len == 0 ? "" : fill("", len))
                     end
                 end
-                getval
+                if state
+                    getval
+                elseif SYNCSTATES[Int(IsInterrupted)]
+                    @warn "[$(now())]\n$(mlstr("interrupt!"))" $(mlstr("retry connecting and sending command")) = string($instrnm, " ", $addr)
+                    return nothing
+                else
+                    error(string("instrument ", $instrnm, " ", $addr, " response time out!!!"))
+                end
             end
         end
     )
 end
 
-macro gencontroller(key, val)
+macro gencontroller(key, val, retval=nothing, quiet=false)
     esc(
         quote
             if SYNCSTATES[Int(IsInterrupted)]
-                @warn "[$(now())]\n$(mlstr("interrupt!"))" $key = $val
-                return nothing
+                $quiet || @warn "[$(now())]\n$(mlstr("interrupt!"))" $key = $val
+                return $retval
             elseif SYNCSTATES[Int(IsBlocked)]
                 @warn "[$(now())]\n$(mlstr("pause!"))" $key = $val
                 lock(() -> wait(BLOCK), BLOCK)
@@ -417,6 +521,128 @@ macro gencontroller(key, val)
     )
 end
 
+############macro block-------------------------------------------------------------------------------------------------
+macro sweepblock(instrnm, addr, qtnm, step, stop, u, delay, istrycatch, ex)
+    esc(
+        tocodes(
+            SweepBlock(
+                instrnm=instrnm,
+                addr=addr,
+                quantity=qtnm,
+                step=step,
+                stop=stop,
+                delay=delay,
+                ui=utoui(instrnm, qtnm, u),
+                istrycatch=istrycatch,
+                blocks=CodeBlock(codes=string(ex))
+            )
+        )
+    )
+end
+
+
+macro freesweepblock(instrnm, addr, qtnm, mode, stop, u, delta, duration, delay, istrycatch, ex)
+    esc(
+        tocodes(
+            FreeSweepBlock(
+                instrnm=instrnm,
+                addr=addr,
+                quantity=qtnm,
+                mode=mode,
+                stop=stop,
+                delay=delay,
+                delta=delta,
+                duration=duration,
+                ui=utoui(instrnm, qtnm, u),
+                istrycatch=istrycatch,
+                blocks=CodeBlock(codes=string(ex))
+            )
+        )
+    )
+end
+
+macro settingblock(instrnm, addr, qtnm, sv, u, delay, istrycatch)
+    esc(
+        tocodes(
+            SettingBlock(
+                instrnm=instrnm,
+                addr=addr,
+                quantity=qtnm,
+                setvalue=sv,
+                delay=delay,
+                ui=utoui(instrnm, qtnm, u),
+                istrycatch=istrycatch
+            )
+        )
+    )
+end
+
+macro readingblock(instrnm, addr, qtnm, index, mark, isasync, isobserve, isreading, istrycatch)
+    esc(
+        tocodes(
+            ReadingBlock(
+                instrnm=instrnm,
+                addr=addr,
+                quantity=qtnm,
+                index=index,
+                mark=mark,
+                isasync=isasync,
+                isobserve=isobserve,
+                isreading=isreading,
+                istrycatch=istrycatch
+            )
+        )
+    )
+end
+
+macro writeblock(instrnm, addr, cmd, isasync, istrycatch)
+    esc(tocodes(WriteBlock(instrnm=instrnm, addr=addr, cmd=cmd, isasync=isasync, istrycatch=istrycatch)))
+end
+
+macro readblock(instrnm, addr, index, mark, isasync, isobserve, isreading, istrcatch)
+    esc(
+        tocodes(
+            ReadBlock(
+                instrnm=instrnm,
+                addr=addr,
+                index=index,
+                mark=mark,
+                isasync=isasync,
+                isobserve=isobserve,
+                isreading=isreading,
+                istrycatch=istrycatch
+            )
+        )
+    )
+end
+
+macro queryblock(instrnm, addr, cmd, index, mark, isasync, isobserve, isreading, istrcatch)
+    esc(
+        tocodes(
+            QueryBlock(
+                instrnm=instrnm,
+                addr=addr,
+                cmd=cmd,
+                index=index,
+                mark=mark,
+                isasync=isasync,
+                isobserve=isobserve,
+                isreading=isreading,
+                istrycatch=istrycatch
+            )
+        )
+    )
+end
+
+macro feedbackblock(instrnm, addr, action)
+    esc(tocodes(FeedbackBlock(instrnm=instrnm, addr=addr, action=action)))
+end
+
+function utoui(instrnm, qtnm, u)
+    utype = INSCONF[instrnm].quantities[qtnm].U
+    Us = haskey(CONF.U, utype) ? CONF.U[utype] : [""]
+    return u in Us ? findfirst(==(u), Us) : 1
+end
 ############functionality-----------------------------------------------------------------------------------------------
 macro logblock()
     esc(
@@ -426,7 +652,7 @@ end
 
 macro saveblock(key, var)
     esc(
-        :(put!(databuf_lc, (string($(Meta.quot(key))), string($var))))
+        :(put!(databuf_lc, ($key, string($var))))
     )
 end
 
@@ -452,6 +678,373 @@ macro psleep(seconds)
     )
 end
 
+############compile-----------------------------------------------------------------------------------------------------
+function compile(blocks::Vector{AbstractBlock})
+    return quote
+        function remote_sweep_block(controllers, databuf_lc, progress_lc, SYNCSTATES)
+            $(tocodes.(blocks)...)
+        end
+    end
+end
+
+############interpret----------------------------------------------------------------------------------
+interpret(blocks::Vector{AbstractBlock}) = quote
+    $(interpret.(blocks)...)
+end
+interpret(::NullBlock) = Expr(:block)
+interpret(bk::CodeBlock) = tocodes(bk)
+function interpret(bk::StrideCodeBlock)
+    branch_idx = [i for (i, bk) in enumerate(bk.blocks) if bk isa BranchBlock]
+    branch_codes = [bk.codes for bk in bk.blocks[branch_idx]]
+    pushfirst!(branch_idx, 0)
+    push!(branch_idx, length(bk.blocks) + 1)
+    push!(branch_codes, "end")
+    innercodes = []
+    for i in eachindex(branch_idx)[1:end-1]
+        isasync = false
+        for bk in bk.blocks[branch_idx[i]+1:branch_idx[i+1]-1]
+            typeof(bk) in [ReadingBlock, WriteBlock, QueryBlock, ReadBlock] && bk.isasync && (isasync = true; break)
+        end
+        push!(
+            innercodes,
+            isasync ? quote
+                @sync begin
+                    $(interpret.(bk.blocks[branch_idx[i]+1:branch_idx[i+1]-1])...)
+                end
+            end : quote
+                $(interpret.(bk.blocks[branch_idx[i]+1:branch_idx[i+1]-1])...)
+            end
+        )
+    end
+    ex1 = bk.nohandler ? quote end : quote
+        @gencontroller StrideCodeBlock $(bk.codes)
+    end
+    codestr = string(bk.codes, "\n ", ex1)
+    for i in eachindex(innercodes)
+        codestr *= string("\n ", innercodes[i], "\n ", branch_codes[i])
+    end
+    @trypasse Meta.parse(codestr) (@error "[$(now())]\ncodes are wrong in parsing time (StrideCodeBlock)!!!" bk = bk)
+end
+
+function interpret(bk::SweepBlock)
+    utype = INSCONF[bk.instrnm].quantities[bk.quantity].U
+    u, _ = @c getU(utype, &bk.ui)
+    quote
+        @sweepblock $(bk.instrnm) $(bk.addr) $(bk.quantity) $(bk.step) $(bk.stop) $u $(bk.delay) $(bk.istrycatch) begin
+            $(interpret.(bk.blocks)...)
+        end
+    end
+end
+function interpret(bk::FreeSweepBlock)
+    utype = INSCONF[bk.instrnm].quantities[bk.quantity].U
+    u, _ = @c getU(utype, &bk.ui)
+    quote
+        @freesweepblock $(bk.instrnm) $(bk.addr) $(bk.quantity) $(bk.mode) $(bk.stop) $u $(bk.delta) $(bk.duration) $(bk.delay) $(bk.istrycatch) begin
+            $(interpret.(bk.blocks)...)
+        end
+    end
+end
+function interpret(bk::SettingBlock)
+    utype = INSCONF[bk.instrnm].quantities[bk.quantity].U
+    u, _ = @c getU(utype, &bk.ui)
+    :(@settingblock $(bk.instrnm) $(bk.addr) $(bk.quantity) $(bk.setvalue) $u $(bk.delay) $(bk.istrycatch))
+end
+function interpret(bk::ReadingBlock)
+    :(@readingblock $(bk.instrnm) $(bk.addr) $(bk.quantity) $(bk.index) $(bk.mark) $(bk.isasync) $(bk.isobserve) $(bk.isreading) $(bk.istrycatch))
+end
+function interpret(bk::WriteBlock)
+    :(@writeblock $(bk.instrnm) $(bk.addr) $(bk.cmd) $(bk.isasync) $(bk.istrycatch))
+end
+function interpret(bk::ReadBlock)
+    :(@readblock $(bk.instrnm) $(bk.addr) $(bk.index) $(bk.mark) $(bk.isasync) $(bk.isobserve) $(bk.isreading) $(bk.istrycatch))
+end
+function interpret(bk::QueryBlock)
+    :(@queryblock $(bk.instrnm) $(bk.addr) $(bk.cmd) $(bk.index) $(bk.mark) $(bk.isasync) $(bk.isobserve) $(bk.isreading) $(bk.istrycatch))
+end
+function interpret(bk::FeedbackBlock)
+    :(@feedbackblock $(bk.instrnm) $(bk.addr) $(bk.action))
+end
+############anti-interpret----------------------------------------------------------------------------------------------
+function antiinterpretblocks(ex)
+    bk = antiinterpret(ex)
+    return checkblocks!(bk isa StrideCodeBlock && bk.codes == "begin" ? bk.blocks : AbstractBlock[bk])
+end
+function checkblocks!(blocks::Vector{AbstractBlock}, level=1)
+    joinablebk = []
+    joining = false
+    for (i, bk) in enumerate(blocks)
+        if bk isa CodeBlock
+            joining || (joining = true; push!(joinablebk, [i]))
+        else
+            joining && (joining = false; push!(joinablebk[end], i - 1))
+            iscontainer(bk) && (bk.level = level; checkblocks!(bk.blocks, level + 1))
+            if bk isa StrideCodeBlock && !isempty(bk.blocks)
+                if bk.blocks[1] isa StrideCodeBlock &&
+                   (
+                    bk.blocks[1].codes == "begin" ||
+                    bk.blocks[1].codes == "@sync begin" && length(bk.blocks) == 1 &&
+                    count(x -> x in [ReadingBlock, ReadBlock, QueryBlock], typeof.(bk.blocks[1].blocks)) > 0
+                )
+                    bk.blocks[1].codes == "begin" && (bk.nohandler = bk.blocks[1].nohandler)
+                    inbks = bk.blocks[1].blocks
+                    deleteat!(bk.blocks, 1)
+                    prepend!(bk.blocks, inbks)
+                end
+                if BranchBlock in typeof.(bk.blocks)
+                    for _ in 1:count(==(BranchBlock), typeof.(bk.blocks))
+                        for (j, inbk) in enumerate(bk.blocks)
+                            if inbk isa BranchBlock && j < length(bk.blocks) && bk.blocks[j+1] isa StrideCodeBlock &&
+                               (
+                                   bk.blocks[j+1].codes == "begin" ||
+                                   bk.blocks[j+1].codes == "@sync begin" && (j + 1 == length(bk.blocks) || bk.blocks[j+2] isa BranchBlock) &&
+                                   count(x -> x in [ReadingBlock, ReadBlock, QueryBlock], typeof.(bk.blocks[j+1].blocks)) > 0
+                               )
+                                inbks = bk.blocks[j+1].blocks
+                                deleteat!(bk.blocks, j + 1)
+                                for (k, b) in enumerate(inbks)
+                                    insert!(bk.blocks, j + k, b)
+                                end
+                                break
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end
+    joining && (joining = false; push!(joinablebk[end], length(blocks)))
+    for (i, j) in joinablebk
+        i == j && continue
+        jointbk = CodeBlock(codes=join([bk.codes for bk in blocks[i:j]], "\n"))
+        deleteat!(blocks, i:j)
+        insert!(blocks, i, jointbk)
+        for ij in joinablebk
+            ij .- (j - i)
+        end
+    end
+    return blocks
+end
+antiinterpret(ex) = CodeBlock(codes=string(ex))
+function antiinterpret(ex::Expr)
+    ex.head == :toplevel && (ex.head = :block)
+    pex = prettify(ex)
+    return antiinterpret(pex, Val(pex.head))
+end
+antiinterpret(ex, ::Val) = CodeBlock(codes=string(ex))
+function antiinterpret(ex, ::Val{:block})
+    isempty(ex.args) && return NullBlock()
+    blocks = antiinterpret.(ex.args)
+    return if all(x -> x isa CodeBlock, blocks)
+        codesvec = split(string(ex), "\n")
+        for i in eachindex(codesvec)
+            codesvec[i] = codesvec[i][5:end]
+        end
+        CodeBlock(codes=join(codesvec[2:end-1], "\n"))
+    else
+        bk1 = blocks[1]
+        nohandler = !(bk1 isa CodeBlock && @capture(tocodes(bk1), @gencontroller kv__))
+        StrideCodeBlock(codes="begin", blocks=nohandler ? blocks : blocks[2:end], nohandler=nohandler)
+    end
+end
+function antiinterpret(ex, ::Val{:for})
+    bk = antiinterpret(ex.args[2])
+    return if bk isa CodeBlock
+        CodeBlock(codes=string(ex))
+    else
+        StrideCodeBlock(codes=string("for ", ex.args[1]), blocks=[bk], nohandler=true)
+    end
+end
+function antiinterpret(ex, ::Val{:while})
+    bk = antiinterpret(ex.args[2])
+    return if bk isa CodeBlock
+        CodeBlock(codes=string(ex))
+    else
+        StrideCodeBlock(codes=string("while ", ex.args[1]), blocks=[bk], nohandler=true)
+    end
+end
+function antiinterpret(ex, ::Val{:let})
+    bk = antiinterpret(ex.args[2])
+    return if bk isa CodeBlock
+        CodeBlock(codes=string(ex))
+    else
+        codes = ex.args[1].head == :block ? "let" : string("let ", ex.args[1])
+        StrideCodeBlock(codes=codes, blocks=[bk], nohandler=true)
+    end
+end
+function antiinterpret(ex, ::Val{:function})
+    bk = antiinterpret(ex.args[2])
+    return if bk isa CodeBlock
+        CodeBlock(codes=string(ex))
+    else
+        StrideCodeBlock(codes=string("function ", ex.args[1]), blocks=[bk], nohandler=true)
+    end
+end
+function antiinterpret(ex, ::Val{:if})
+    blocks = AbstractBlock[antiinterpret(ex.args[2])]
+    if length(ex.args) == 3
+        if ex.args[3].head == :elseif
+            append!(blocks, antiinterpret(ex.args[3], Val(:elseif)))
+        else
+            push!(blocks, BranchBlock(codes="else"))
+            push!(blocks, antiinterpret(ex.args[3]))
+        end
+    end
+    return if all(x -> x isa CodeBlock || x isa BranchBlock, blocks)
+        CodeBlock(codes=string(ex))
+    else
+        StrideCodeBlock(codes=string("if ", ex.args[1]), blocks=blocks, nohandler=true)
+    end
+end
+function antiinterpret(ex, ::Val{:elseif})
+    blocks = AbstractBlock[BranchBlock(codes=string("elseif ", ex.args[1]))]
+    push!(blocks, antiinterpret(ex.args[2]))
+    return if length(ex.args) == 2
+        blocks
+    elseif length(ex.args) == 3
+        if ex.args[3].head == :elseif
+            append!(blocks, antiinterpret(ex.args[3], Val(:elseif)))
+        else
+            push!(blocks, BranchBlock(codes="else"))
+            push!(blocks, antiinterpret(ex.args[3]))
+        end
+    end
+    return blocks
+end
+function antiinterpret(ex, ::Val{:try})
+    blocks = AbstractBlock[antiinterpret(ex.args[1])]
+    push!(blocks, BranchBlock(codes=string("catch ", ex.args[2])))
+    push!(blocks, antiinterpret(ex.args[3]))
+    if length(ex.args) == 4
+        push!(blocks, BranchBlock(codes="finally"))
+        push!(blocks, antiinterpret(ex.args[4]))
+    end
+    return if all(x -> x isa CodeBlock || x isa BranchBlock, blocks)
+        CodeBlock(codes=string(ex))
+    else
+        StrideCodeBlock(codes="try", blocks=blocks, nohandler=true)
+    end
+end
+function antiinterpret(ex, ::Val{:macrocall})
+    blockmacros = Symbol.(
+        [
+        "@sweepblock", "@freesweepblock", "@settingblock", "@readingblock",
+        "@writeblock", "@readblock", "@queryblock", "@feedbackblock"
+    ]
+    )
+    ex.args[1] in blockmacros && return antiinterpret(ex, Val(Symbol(lstrip(string(ex.args[1]), '@'))))
+    isok1 = @capture ex @m1__ @m_ p__
+    isok1 && m in blockmacros && return StrideCodeBlock(
+            codes=string(join(m1, " "), " begin"),
+            blocks=[antiinterpret(Expr(:macrocall, m, nothing, p...), Val(Symbol(lstrip(string(m), '@'))))],
+            nohandler=true
+        )
+    isok2 = false
+    isok1 || (isok2 = @capture ex @m_ p__)
+    if isok1 || isok2
+        isok1 && m1[end] == m == Symbol("@sync") && return antiinterpret(Meta.parse(join(vcat(m1, p), " ")))
+        if isempty(p)
+            return CodeBlock(codes=string(ex))
+        else
+            p[end] isa Expr && p[end].head in [:block, :for, :while, :let, :function, :if, :try]
+            bk = antiinterpret(p[end])
+            return if bk isa CodeBlock
+                CodeBlock(codes=string(ex))
+            else
+                codes = string(
+                    join(vcat(isok1 ? m1 : [], [m], p[1:end-1]), " "), " ",
+                    if p[end].head in [:for, :while, :function, :if]
+                        string(p[end].head, " ", p[end].args[1])
+                    elseif p[end].head == :block
+                        "begin"
+                    elseif p[end].head == :let
+                        ex.args[1].head == :block ? "let" : string("let ", ex.args[1])
+                    elseif p[end].head == :try
+                        "try"
+                    end
+                )
+                StrideCodeBlock(codes=codes, blocks=bk.blocks, nohandler=bk.nohandler)
+            end
+        end
+    end
+    return CodeBlock(codes=string(ex))
+end
+antiinterpret(ex, ::Val{:sweepblock}) = SweepBlock(
+    instrnm=ex.args[3],
+    addr=ex.args[4],
+    quantity=ex.args[5],
+    step=ex.args[6],
+    stop=ex.args[7],
+    ui=utoui(ex.args[3], ex.args[5], strtoU(string(ex.args[8]))),
+    delay=ex.args[9],
+    istrycatch=ex.args[10],
+    blocks=(bk = antiinterpret(ex.args[11]); iscontainer(bk) ? bk.blocks : [bk])
+)
+antiinterpret(ex, ::Val{:freesweepblock}) = FreeSweepBlock(
+    instrnm=ex.args[3],
+    addr=ex.args[4],
+    quantity=ex.args[5],
+    mode=string(ex.args[6]),
+    stop=ex.args[7],
+    ui=utoui(ex.args[3], ex.args[5], strtoU(string(ex.args[8]))),
+    delta=ex.args[9],
+    duration=ex.args[10],
+    delay=ex.args[11],
+    istrycatch=ex.args[12],
+    blocks=(bk = antiinterpret(ex.args[13]); iscontainer(bk) ? bk.blocks : [bk])
+)
+antiinterpret(ex, ::Val{:settingblock}) = SettingBlock(
+    instrnm=ex.args[3],
+    addr=ex.args[4],
+    quantity=ex.args[5],
+    setvalue=ex.args[6],
+    ui=utoui(ex.args[3], ex.args[5], strtoU(string(ex.args[7]))),
+    delay=ex.args[8],
+    istrycatch=ex.args[9]
+)
+antiinterpret(ex, ::Val{:readingblock}) = ReadingBlock(
+    instrnm=ex.args[3],
+    addr=ex.args[4],
+    quantity=ex.args[5],
+    index=ex.args[6],
+    mark=ex.args[7],
+    isasync=ex.args[8],
+    isobserve=ex.args[9],
+    isreading=ex.args[10],
+    istrycatch=ex.args[11]
+)
+antiinterpret(ex, ::Val{:writeblock}) = WriteBlock(
+    instrnm=ex.args[3],
+    addr=ex.args[4],
+    cmd=ex.args[5],
+    isasync=ex.args[6],
+    istrycatch=ex.args[7]
+)
+antiinterpret(ex, ::Val{:readblock}) = ReadBlock(
+    instrnm=ex.args[3],
+    addr=ex.args[4],
+    index=ex.args[5],
+    mark=ex.args[6],
+    isasync=ex.args[7],
+    isobserve=ex.args[8],
+    isreading=ex.args[9],
+    istrycatch=ex.args[10]
+)
+antiinterpret(ex, ::Val{:queryblock}) = QueryBlock(
+    instrnm=ex.args[3],
+    addr=ex.args[4],
+    cmd=ex.args[5],
+    index=ex.args[6],
+    mark=ex.args[7],
+    isasync=ex.args[8],
+    isobserve=ex.args[9],
+    isreading=ex.args[10],
+    istrycatch=ex.args[11]
+)
+antiinterpret(ex, ::Val{:feedbackblock}) = FeedbackBlock(
+    instrnm=ex.args[3],
+    addr=ex.args[4],
+    action=ex.args[5]
+)
 ############bkheight----------------------------------------------------------------------------------------------------
 
 bkheight(::NullBlock) = zero(Float32)
@@ -460,16 +1053,10 @@ function bkheight(bk::CodeBlock)
     2unsafe_load(IMGUISTYLE.FramePadding.y) +
     2unsafe_load(IMGUISTYLE.WindowPadding.y) + 1
 end
-function bkheight(bk::StrideCodeBlock)
-    return bk.hideblocks ? 2unsafe_load(IMGUISTYLE.WindowPadding.y) + CImGui.GetFrameHeight() :
-           2unsafe_load(IMGUISTYLE.WindowPadding.y) +
-           CImGui.GetFrameHeight() +
-           length(skipnull(bk.blocks)) * unsafe_load(IMGUISTYLE.ItemSpacing.y) +
-           sum(bkheight.(bk.blocks))
-end
-function bkheight(bk::SweepBlock)
-    return bk.hideblocks ? 2unsafe_load(IMGUISTYLE.WindowPadding.y) + CImGui.GetFrameHeight() :
-           2unsafe_load(IMGUISTYLE.WindowPadding.y) +
+function bkheight(bk::Union{StrideCodeBlock,SweepBlock,FreeSweepBlock})
+    return isempty(skipnull(bk.blocks)) ? 2unsafe_load(IMGUISTYLE.WindowPadding.y) + CImGui.GetFrameHeight() :
+           bk.hideblocks ? 2MORESTYLE.Variables.ContainerBlockWindowPadding[2] + CImGui.GetFrameHeight() :
+           2MORESTYLE.Variables.ContainerBlockWindowPadding[2] +
            CImGui.GetFrameHeight() +
            length(skipnull(bk.blocks)) * unsafe_load(IMGUISTYLE.ItemSpacing.y) +
            sum(bkheight.(bk.blocks))
@@ -495,7 +1082,13 @@ function edit(bk::StrideCodeBlock)
             MORESTYLE.Colors.StrideCodeBlockBorder
         end
     )
-    CImGui.BeginChild("##StrideBlock", (Float32(0), bkheight(bk)), true)
+    wp = unsafe_load(IMGUISTYLE.WindowPadding)
+    bkh = bkheight(bk)
+    CImGui.PushStyleVar(
+        CImGui.ImGuiStyleVar_WindowPadding,
+        bk.hideblocks || isempty(skipnull(bk.blocks)) ? wp : MORESTYLE.Variables.ContainerBlockWindowPadding
+    )
+    CImGui.BeginChild("##StrideCodeBlock", (Float32(0), bkh), true)
     CImGui.TextColored(
         bk.nohandler ? MORESTYLE.Colors.StrideCodeBlockBorder : MORESTYLE.Colors.BlockIcons,
         MORESTYLE.Icons.StrideCodeBlock
@@ -507,8 +1100,10 @@ function edit(bk::StrideCodeBlock)
     @c InputTextWithHintRSZ("##code header", mlstr("code header"), &bk.codes)
     CImGui.PopItemWidth()
     CImGui.PopStyleColor()
+    CImGui.PushStyleVar(CImGui.ImGuiStyleVar_WindowPadding, wp)
     bk.hideblocks || isempty(skipnull(bk.blocks)) || edit(bk.blocks, bk.level + 1)
     CImGui.EndChild()
+    CImGui.PopStyleVar(2)
 end
 
 function edit(bk::BranchBlock)
@@ -533,7 +1128,14 @@ let
                 ImVec4(MORESTYLE.Colors.SweepBlockBorder...)
             end
         )
-        CImGui.BeginChild("##SweepBlock", (Float32(0), bkheight(bk)), true)
+        wp = unsafe_load(IMGUISTYLE.WindowPadding)
+        bkh = bkheight(bk)
+        CImGui.PushStyleVar(
+            CImGui.ImGuiStyleVar_WindowPadding,
+            bk.hideblocks || isempty(skipnull(bk.blocks)) ? wp : MORESTYLE.Variables.ContainerBlockWindowPadding
+        )
+        CImGui.BeginChild("##SweepBlock", (Float32(0), bkh), true)
+        CImGui.PopStyleVar()
         CImGui.TextColored(
             bk.istrycatch ? MORESTYLE.Colors.BlockTrycatch : MORESTYLE.Colors.BlockIcons,
             MORESTYLE.Icons.SweepBlock
@@ -586,12 +1188,8 @@ let
         @c InputTextWithHintRSZ("##SweepBlock step", mlstr("step"), &bk.step)
         CImGui.PopItemWidth()
         CImGui.SameLine()
-        CImGui.PushItemWidth(width * 3 / 4)
+        CImGui.PushItemWidth(width * 3 / 4 - unsafe_load(IMGUISTYLE.ItemSpacing.x))
         @c InputTextWithHintRSZ("##SweepBlock stop", mlstr("stop"), &bk.stop)
-        CImGui.PopItemWidth()
-        CImGui.SameLine()
-        CImGui.PushItemWidth(width / 2)
-        @c CImGui.DragFloat("##SweepBlock delay", &bk.delay, 0.01, 0, 9.99, "%.2f", CImGui.ImGuiSliderFlags_AlwaysClamp)
         CImGui.PopItemWidth()
         CImGui.SameLine()
 
@@ -600,13 +1198,120 @@ let
         else
             ""
         end
-        CImGui.PushItemWidth(-1)
+        CImGui.PushItemWidth(width / 2 - unsafe_load(IMGUISTYLE.ItemSpacing.x))
         @c ShowUnit("##SweepBlock", Ut, &bk.ui)
         CImGui.PopItemWidth()
+        CImGui.SameLine()
+        CImGui.PushItemWidth(-1)
+        @c CImGui.DragFloat("##SweepBlock delay", &bk.delay, 0.01, 0, 9.99, "%g", CImGui.ImGuiSliderFlags_AlwaysClamp)
+        CImGui.PopItemWidth()
+
         CImGui.PopStyleColor()
+        CImGui.PushStyleVar(CImGui.ImGuiStyleVar_WindowPadding, wp)
         bk.hideblocks || isempty(skipnull(bk.blocks)) || edit(bk.blocks, bk.level + 1)
         CImGui.EndChild()
+        CImGui.PopStyleVar(2)
+    end
+end
+
+let
+    filter::String = ""
+    global function edit(bk::FreeSweepBlock)
+        CImGui.PushStyleVar(CImGui.ImGuiStyleVar_ItemSpacing, (Float32(2), unsafe_load(IMGUISTYLE.ItemSpacing.y)))
+        CImGui.PushStyleColor(
+            CImGui.ImGuiCol_Border,
+            if isempty(skipnull(bk.blocks))
+                CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_Border)
+            else
+                ImVec4(MORESTYLE.Colors.SweepBlockBorder...)
+            end
+        )
+        wp = unsafe_load(IMGUISTYLE.WindowPadding)
+        bkh = bkheight(bk)
+        CImGui.PushStyleVar(
+            CImGui.ImGuiStyleVar_WindowPadding,
+            bk.hideblocks || isempty(skipnull(bk.blocks)) ? wp : MORESTYLE.Variables.ContainerBlockWindowPadding
+        )
+        CImGui.BeginChild("##FreeSweepBlock", (Float32(0), bkh), true)
         CImGui.PopStyleVar()
+        CImGui.TextColored(
+            bk.istrycatch ? MORESTYLE.Colors.BlockTrycatch : MORESTYLE.Colors.BlockIcons,
+            MORESTYLE.Icons.FreeSweepBlock
+        )
+        CImGui.IsItemClicked(2) && (bk.istrycatch ⊻= true)
+        CImGui.IsItemHovered() && CImGui.IsMouseDoubleClicked(0) && (bk.hideblocks ⊻= true)
+        CImGui.SameLine()
+        width = (CImGui.GetContentRegionAvailWidth() - 3CImGui.GetFontSize()) / 5
+        CImGui.PushItemWidth(width)
+        @c ComboSFiltered("##FreeSweepBlock instrument", &bk.instrnm, sort(collect(keys(INSCONF))), CImGui.ImGuiComboFlags_NoArrowButton)
+        CImGui.PopItemWidth()
+        CImGui.SameLine()
+
+        inlist = haskey(INSTRBUFFERVIEWERS, bk.instrnm) && haskey(INSTRBUFFERVIEWERS[bk.instrnm], bk.addr)
+        bk.addr = inlist ? bk.addr : mlstr("address")
+        addrlist = haskey(INSTRBUFFERVIEWERS, bk.instrnm) ? keys(INSTRBUFFERVIEWERS[bk.instrnm]) : Set{String}()
+        CImGui.PushItemWidth(width)
+        @c ComboS("##FreeSweepBlock address", &bk.addr, sort(collect(addrlist)), CImGui.ImGuiComboFlags_NoArrowButton)
+        CImGui.PopItemWidth()
+        CImGui.SameLine()
+
+        showqt = if haskey(INSCONF, bk.instrnm) && haskey(INSCONF[bk.instrnm].quantities, bk.quantity)
+            INSCONF[bk.instrnm].quantities[bk.quantity].alias
+        else
+            mlstr("sweep")
+        end
+        CImGui.PushItemWidth(width)
+        if CImGui.BeginCombo("##FreeSweepBlock sweep", showqt, CImGui.ImGuiComboFlags_NoArrowButton)
+            qtlist = haskey(INSCONF, bk.instrnm) ? keys(INSCONF[bk.instrnm].quantities) : Set{String}()
+            qts = collect(qtlist)
+            @c InputTextWithHintRSZ("##FreeSweepBlock sweep", mlstr("Filter"), &filter)
+            sp = sortperm([INSCONF[bk.instrnm].quantities[qt].alias for qt in qts])
+            for qt in qts[sp]
+                showqt = INSCONF[bk.instrnm].quantities[qt].alias
+                (filter == "" || !isvalid(filter) || occursin(lowercase(filter), lowercase(showqt))) || continue
+                selected = bk.quantity == qt
+                CImGui.Selectable(showqt, selected, 0) && (bk.quantity = qt)
+                selected && CImGui.SetItemDefaultFocus()
+            end
+            CImGui.EndCombo()
+        end
+        CImGui.PopItemWidth()
+        CImGui.SameLine()
+
+        CImGui.PushItemWidth(width / 4 - unsafe_load(IMGUISTYLE.ItemSpacing.x) / 2)
+        @c ComboS("##FreeSweepBlock mode", &bk.mode, ["=", "<", ">"], CImGui.ImGuiComboFlags_NoArrowButton)
+        CImGui.PopItemWidth()
+        CImGui.SameLine()
+        CImGui.PushItemWidth(width / 2 - unsafe_load(IMGUISTYLE.ItemSpacing.x) / 2)
+        @c InputTextWithHintRSZ("##FreeSweepBlock stop", mlstr("stop"), &bk.stop)
+        CImGui.PopItemWidth()
+        CImGui.SameLine()
+        Ut = if haskey(INSCONF, bk.instrnm) && haskey(INSCONF[bk.instrnm].quantities, bk.quantity)
+            INSCONF[bk.instrnm].quantities[bk.quantity].U
+        else
+            ""
+        end
+        CImGui.PushItemWidth(width / 2 - unsafe_load(IMGUISTYLE.ItemSpacing.x))
+        @c ShowUnit("##FreeSweepBlock", Ut, &bk.ui)
+        CImGui.PopItemWidth()
+        CImGui.SameLine()
+        CImGui.PushItemWidth(width / 2 - unsafe_load(IMGUISTYLE.ItemSpacing.x))
+        @c CImGui.InputFloat("##FreeSweepBlock delta", &bk.delta, 0, 0, "%g")
+        CImGui.PopItemWidth()
+        CImGui.SameLine()
+        CImGui.PushItemWidth(width / 4)
+        @c CImGui.DragFloat("##FreeSweepBlock duration", &bk.duration, 1, 1, 3600, "%g", CImGui.ImGuiSliderFlags_AlwaysClamp)
+        CImGui.PopItemWidth()
+        CImGui.SameLine()
+        CImGui.PushItemWidth(-1)
+        @c CImGui.DragFloat("##FreeSweepBlock delay", &bk.delay, 0.01, 0, 9.99, "%g", CImGui.ImGuiSliderFlags_AlwaysClamp)
+        CImGui.PopItemWidth()
+
+        CImGui.PopStyleColor()
+        CImGui.PushStyleVar(CImGui.ImGuiStyleVar_WindowPadding, wp)
+        bk.hideblocks || isempty(skipnull(bk.blocks)) || edit(bk.blocks, bk.level + 1)
+        CImGui.EndChild()
+        CImGui.PopStyleVar(2)
     end
 end
 
@@ -662,7 +1367,7 @@ let
         CImGui.PopItemWidth()
 
         CImGui.SameLine()
-        CImGui.PushItemWidth(2width)
+        CImGui.PushItemWidth(3width / 2)
         @c InputTextWithHintRSZ("##SettingBlock set value", mlstr("set value"), &bk.setvalue)
         CImGui.PopItemWidth()
         if CImGui.BeginPopup("select set value")
@@ -676,16 +1381,21 @@ let
             CImGui.EndPopup()
         end
         CImGui.OpenPopupOnItemClick("select set value", 2)
-
         CImGui.SameLine()
+
         Ut = if haskey(INSCONF, bk.instrnm) && haskey(INSCONF[bk.instrnm].quantities, bk.quantity)
             INSCONF[bk.instrnm].quantities[bk.quantity].U
         else
             ""
         end
-        CImGui.PushItemWidth(-1)
+        CImGui.PushItemWidth(width / 2)
         @c ShowUnit("SettingBlock", Ut, &bk.ui)
         CImGui.PopItemWidth()
+        CImGui.SameLine()
+        CImGui.PushItemWidth(-1)
+        @c CImGui.DragFloat("##SettingBlock delay", &bk.delay, 0.01, 0, 9.99, "%g", CImGui.ImGuiSliderFlags_AlwaysClamp)
+        CImGui.PopItemWidth()
+
         CImGui.EndChild()
         CImGui.PopStyleVar()
     end
@@ -992,9 +1702,8 @@ let
     dropblock = AbstractBlock[]
     copyblock::AbstractBlock = NullBlock()
     selectedblock::Cint = 0
-    instrblocks::Vector{Type} = [SweepBlock, SettingBlock, ReadingBlock, WriteBlock, QueryBlock, ReadBlock, FeedbackBlock]
-    allblocks::Vector{Symbol} = [:CodeBlock, :StrideCodeBlock, :BranchBlock, :SweepBlock, :SettingBlock, :ReadingBlock,
-        :WriteBlock, :QueryBlock, :ReadBlock, :FeedbackBlock]
+    allblocks::Vector{Symbol} = [:CodeBlock, :StrideCodeBlock, :BranchBlock, :SweepBlock, :FreeSweepBlock,
+        :SettingBlock, :ReadingBlock, :WriteBlock, :QueryBlock, :ReadBlock, :FeedbackBlock]
 
     global function dragblockmenu(id)
         presentid = id
@@ -1049,11 +1758,11 @@ let
             CImGui.PushID(i)
             edit(bk)
             id = stcstr(CImGui.igGetItemID())
-            if typeof(bk) in [SweepBlock, StrideCodeBlock]
+            if iscontainer(bk)
                 bk.regmin, rmax = CImGui.GetItemRectMin(), CImGui.GetItemRectMax()
-                wp = unsafe_load(IMGUISTYLE.WindowPadding.y)
-                extraheight = isempty(bk.blocks) ? wp : unsafe_load(IMGUISTYLE.ItemSpacing.y) ÷ 2
-                bk.regmax = (rmax.x, bk.regmin.y + wp + CImGui.GetFrameHeight() + extraheight)
+                wph = unsafe_load(IMGUISTYLE.WindowPadding.y)
+                extraheight = isempty(bk.blocks) ? 2wph : MORESTYLE.Variables.ContainerBlockWindowPadding[2] + unsafe_load(IMGUISTYLE.ItemSpacing.y) / 2
+                bk.regmax = (rmax.x, bk.regmin.y + CImGui.GetFrameHeight() + extraheight)
             else
                 bk.regmin, bk.regmax = CImGui.GetItemRectMin(), CImGui.GetItemRectMax()
             end
@@ -1078,7 +1787,7 @@ let
                     isnothing(newblock) || insert!(blocks, i, newblock)
                     CImGui.EndMenu()
                 end
-                if (bk isa StrideCodeBlock || bk isa SweepBlock) && isempty(skipnull(bk.blocks))
+                if iscontainer(bk) && isempty(skipnull(bk.blocks))
                     if CImGui.BeginMenu(stcstr(MORESTYLE.Icons.InsertInside, " ", mlstr("Insert Inside")), bk.level < 6)
                         newblock = addblockmenu(n)
                         isnothing(newblock) || push!(bk.blocks, newblock)
@@ -1094,16 +1803,20 @@ let
                     newblock = addblockmenu(n)
                     if !(isnothing(newblock) || newblock isa typeof(bk))
                         if newblock isa StrideCodeBlock
-                            bk isa SweepBlock && (newblock.blocks = bk.blocks)
-                        elseif newblock isa SweepBlock
+                            iscontainer(bk) && (newblock.blocks = bk.blocks)
+                        elseif iscontainer(newblock) && isinstr(newblock)
                             if bk isa StrideCodeBlock
                                 newblock.blocks = bk.blocks
-                            elseif typeof(bk) in instrblocks
+                            elseif iscontainer(bk) && isinstr(bk)
+                                newblock.instrnm = bk.instrnm
+                                newblock.addr = bk.addr
+                                newblock.blocks = bk.blocks
+                            elseif isinstr(bk)
                                 newblock.instrnm = bk.instrnm
                                 newblock.addr = bk.addr
                             end
-                        elseif typeof(newblock) in instrblocks
-                            typeof(bk) in instrblocks && (newblock.instrnm = bk.instrnm; newblock.addr = bk.addr)
+                        elseif isinstr(newblock)
+                            isinstr(bk) && (newblock.instrnm = bk.instrnm; newblock.addr = bk.addr)
                         end
                         blocks[i] = newblock
                     end
@@ -1145,6 +1858,7 @@ function addblockmenu(n)
     CImGui.MenuItem(stcstr(MORESTYLE.Icons.StrideCodeBlock, " ", mlstr("StrideCodeBlock"))) && return StrideCodeBlock(level=n)
     CImGui.MenuItem(stcstr(MORESTYLE.Icons.BranchBlock, " ", mlstr("BranchBlock"))) && return BranchBlock()
     CImGui.MenuItem(stcstr(MORESTYLE.Icons.SweepBlock, " ", mlstr("SweepBlock"))) && return SweepBlock(level=n)
+    CImGui.MenuItem(stcstr(MORESTYLE.Icons.FreeSweepBlock, " ", mlstr("FreeSweepBlock"))) && return FreeSweepBlock(level=n)
     CImGui.MenuItem(stcstr(MORESTYLE.Icons.SettingBlock, " ", mlstr("SettingBlock"))) && return SettingBlock()
     CImGui.MenuItem(stcstr(MORESTYLE.Icons.ReadingBlock, " ", mlstr("ReadingBlock"))) && return ReadingBlock()
     CImGui.MenuItem(stcstr(MORESTYLE.Icons.WriteBlock, " ", mlstr("WriteBlock"))) && return WriteBlock()
@@ -1157,7 +1871,7 @@ end
 function swapblock(blocks::Vector{AbstractBlock}, dragbk::AbstractBlock, dropbk::AbstractBlock, addmode)
     (dragbk == dropbk || isininnerblocks(dropbk, dragbk)) && return
     disable_drag(blocks, dragbk)
-    if typeof(dropbk) in [SweepBlock, StrideCodeBlock] && unsafe_load(CImGui.GetIO().KeyCtrl)
+    if iscontainer(dropbk) && unsafe_load(CImGui.GetIO().KeyCtrl)
         push!(dropbk.blocks, dragbk)
         return
     end
@@ -1165,7 +1879,7 @@ function swapblock(blocks::Vector{AbstractBlock}, dragbk::AbstractBlock, dropbk:
 end
 
 function isininnerblocks(dropbk::AbstractBlock, dragbk::AbstractBlock)
-    if typeof(dragbk) in [SweepBlock, StrideCodeBlock]
+    if iscontainer(dragbk)
         return dropbk in dragbk.blocks || true in [isininnerblocks(dropbk, bk) for bk in dragbk.blocks]
     else
         return false
@@ -1175,7 +1889,7 @@ end
 function disable_drag(blocks::Vector{AbstractBlock}, dragbk::AbstractBlock)
     for (i, bk) in enumerate(blocks)
         bk == dragbk && (blocks[i] = NullBlock(); return true)
-        typeof(bk) in [SweepBlock, StrideCodeBlock] && disable_drag(bk.blocks, dragbk) && return true
+        iscontainer(bk) && disable_drag(bk.blocks, dragbk) && return true
     end
     return false
 end
@@ -1183,7 +1897,7 @@ end
 function insert_drop(blocks::Vector{AbstractBlock}, dragbk::AbstractBlock, dropbk::AbstractBlock, addmode)
     for (i, bk) in enumerate(blocks)
         bk == dropbk && (insert!(blocks, addmode ? i + 1 : i, dragbk); return true)
-        typeof(bk) in [SweepBlock, StrideCodeBlock] && insert_drop(bk.blocks, dragbk, dropbk, addmode) && return true
+        iscontainer(bk) && insert_drop(bk.blocks, dragbk, dropbk, addmode) && return true
     end
     return false
 end
@@ -1209,7 +1923,13 @@ function view(bk::StrideCodeBlock)
             MORESTYLE.Colors.StrideCodeBlockBorder
         end
     )
-    CImGui.BeginChild("##StrideCodeBlockViewer", (Float32(0), bkheight(bk)), true)
+    wp = unsafe_load(IMGUISTYLE.WindowPadding)
+    bkh = bkheight(bk)
+    CImGui.PushStyleVar(
+        CImGui.ImGuiStyleVar_WindowPadding,
+        bk.hideblocks || isempty(skipnull(bk.blocks)) ? wp : MORESTYLE.Variables.ContainerBlockWindowPadding
+    )
+    CImGui.BeginChild("##StrideCodeBlockViewer", (Float32(0), bkh), true)
     CImGui.TextColored(
         bk.nohandler ? MORESTYLE.Colors.StrideCodeBlockBorder : MORESTYLE.Colors.BlockIcons,
         MORESTYLE.Icons.StrideCodeBlock
@@ -1220,8 +1940,10 @@ function view(bk::StrideCodeBlock)
     CImGui.Button(bk.codes, (-1, 0))
     CImGui.PopStyleVar()
     CImGui.PopStyleColor()
+    CImGui.PushStyleVar(CImGui.ImGuiStyleVar_WindowPadding, wp)
     bk.hideblocks || isempty(skipnull(bk.blocks)) || view(bk.blocks)
     CImGui.EndChild()
+    CImGui.PopStyleVar(2)
 end
 
 function view(bk::BranchBlock)
@@ -1243,7 +1965,13 @@ function view(bk::SweepBlock)
             MORESTYLE.Colors.SweepBlockBorder
         end
     )
-    CImGui.BeginChild("##SweepBlockViewer", (Float32(0), bkheight(bk)), true)
+    wp = unsafe_load(IMGUISTYLE.WindowPadding)
+    bkh = bkheight(bk)
+    CImGui.PushStyleVar(
+        CImGui.ImGuiStyleVar_WindowPadding,
+        bk.hideblocks || isempty(skipnull(bk.blocks)) ? wp : MORESTYLE.Variables.ContainerBlockWindowPadding
+    )
+    CImGui.BeginChild("##SweepBlockViewer", (Float32(0), bkh), true)
     instrnm = bk.instrnm
     addr = bk.addr
     quantity = @trypass INSCONF[bk.instrnm].quantities[bk.quantity].alias ""
@@ -1273,8 +2001,62 @@ function view(bk::SweepBlock)
     )
     CImGui.PopStyleVar()
     CImGui.PopStyleColor()
+    CImGui.PushStyleVar(CImGui.ImGuiStyleVar_WindowPadding, wp)
     bk.hideblocks || isempty(skipnull(bk.blocks)) || view(bk.blocks)
     CImGui.EndChild()
+    CImGui.PopStyleVar(2)
+end
+
+function view(bk::FreeSweepBlock)
+    CImGui.PushStyleColor(
+        CImGui.ImGuiCol_Border,
+        if isempty(skipnull(bk.blocks))
+            CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_Border)
+        else
+            MORESTYLE.Colors.SweepBlockBorder
+        end
+    )
+    wp = unsafe_load(IMGUISTYLE.WindowPadding)
+    bkh = bkheight(bk)
+    CImGui.PushStyleVar(
+        CImGui.ImGuiStyleVar_WindowPadding,
+        bk.hideblocks || isempty(skipnull(bk.blocks)) ? wp : MORESTYLE.Variables.ContainerBlockWindowPadding
+    )
+    CImGui.BeginChild("##FreeSweepBlockViewer", (Float32(0), bkh), true)
+    instrnm = bk.instrnm
+    addr = bk.addr
+    quantity = @trypass INSCONF[bk.instrnm].quantities[bk.quantity].alias ""
+    Ut = if haskey(INSCONF, bk.instrnm) && haskey(INSCONF[bk.instrnm].quantities, bk.quantity)
+        INSCONF[bk.instrnm].quantities[bk.quantity].U
+    else
+        ""
+    end
+    U, _ = @c getU(Ut, &bk.ui)
+    CImGui.TextColored(
+        bk.istrycatch ? MORESTYLE.Colors.BlockTrycatch : MORESTYLE.Colors.BlockIcons,
+        MORESTYLE.Icons.FreeSweepBlock
+    )
+    CImGui.IsItemHovered() && CImGui.IsMouseDoubleClicked(0) && (bk.hideblocks ⊻= true)
+    CImGui.SameLine()
+    CImGui.PushStyleVar(CImGui.ImGuiStyleVar_ButtonTextAlign, (0.0, 0.5))
+    CImGui.Button(
+        stcstr(
+            mlstr("instrument"), ": ", instrnm,
+            "\t", mlstr("address"), ": ", addr,
+            "\t", mlstr("sweep"), ": ", quantity,
+            "\t", mlstr("stop"), ": ", bk.mode, " ", bk.stop, U,
+            "\t", mlstr("delay"), ": ", bk.delay,
+            "\t", mlstr("δ"), ": ", bk.delta,
+            "\t", mlstr("duration"), ": ", bk.duration
+        ),
+        (-1, 0)
+    )
+    CImGui.PopStyleVar()
+    CImGui.PopStyleColor()
+    CImGui.PushStyleVar(CImGui.ImGuiStyleVar_WindowPadding, wp)
+    bk.hideblocks || isempty(skipnull(bk.blocks)) || view(bk.blocks)
+    CImGui.EndChild()
+    CImGui.PopStyleVar(2)
 end
 
 function view(bk::SettingBlock)
@@ -1551,6 +2333,36 @@ function Base.show(io::IO, bk::SweepBlock)
         show(io, b)
     end
 end
+function Base.show(io::IO, bk::FreeSweepBlock)
+    Ut = if haskey(INSCONF, bk.instrnm) && haskey(INSCONF[bk.instrnm].quantities, bk.quantity)
+        INSCONF[bk.instrnm].quantities[bk.quantity].U
+    else
+        ""
+    end
+    U, _ = @c getU(Ut, &bk.ui)
+    str = """
+    FreeSweepBlock :
+        region min : $(bk.regmin)
+        region max : $(bk.regmax)
+             level : $(bk.level)
+        instrument : $(bk.instrnm)
+           address : $(bk.addr)
+          quantity : $(bk.quantity)
+              stop : $(bk.mode) $(bk.stop)
+             delta : $(bk.delta)
+          duration : $(bk.duration)
+              unit : $U
+             delay : $(bk.delay)
+          trycatch : $(bk.istrycatch)
+        hideblocks : $(bk.hideblocks)
+              body :
+    """
+    print(io, str)
+    for b in bk.blocks
+        print(io, string("-"^64, "\n", "\t"^4))
+        show(io, b)
+    end
+end
 function Base.show(io::IO, bk::SettingBlock)
     Ut = if haskey(INSCONF, bk.instrnm) && haskey(INSCONF[bk.instrnm].quantities, bk.quantity)
         INSCONF[bk.instrnm].quantities[bk.quantity].U
@@ -1566,6 +2378,7 @@ function Base.show(io::IO, bk::SettingBlock)
            address : $(bk.addr)
           quantity : $(bk.quantity)
          set value : $(bk.setvalue)
+             delay : $(bk.delay)
               unit : $U
           trycatch : $(bk.istrycatch)
     """

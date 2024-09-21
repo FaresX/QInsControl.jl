@@ -29,6 +29,19 @@ macro trypass(sv, default)
     end
     esc(ex)
 end
+showbacktrace() = (Base.show_backtrace(LOGIO, catch_backtrace()); println(LOGIO, "\n\r"))
+macro trycatch(msg, ex)
+    esc(
+        quote
+            try
+                $ex
+            catch e
+                @error string("[", now(), "]\n", $msg) exception = e
+                showbacktrace()
+            end
+        end
+    )
+end
 
 function parsedollar(str)
     ms = collect(eachmatch(r"(\$\w*)", str))
@@ -333,7 +346,7 @@ end
 
 function wait_remotecall_fetch(f, id::Integer, args...; timeout=2, pollint=0.001, kwargs...)
     future = remotecall_fetch(f, id, args...; kwargs...)
-    waittask = errormonitor(@async fetch(future))
+    waittask = @async @trycatch mlstr("fetch task failed!!!") fetch(future)
     isok = timedwait(() -> istaskdone(waittask), timeout; pollint=pollint)
     isok == :ok && return fetch(waittask)
     return nothing
@@ -360,6 +373,38 @@ function gensweeplist(start, step, stop)
         sweeplist[end] == stop || push!(sweeplist, stop)
     end
     return sweeplist
+end
+
+function timeaverage(data, τ)
+    idx = argmin(abs.([data[end][1] - d[1] for d in data] .- τ))
+    datasubset = [d[2] for d in data[idx:end]]
+    mv = mean(datasubset)
+    stdv = stdm(datasubset, mv)
+    return mv, stdv
+end
+function isarrived(data, target, δ, τ)
+    δ, τ = abs(δ), abs(τ)
+    data[end][1] - data[1][1] < τ && return false
+    arrive = abs(timeaverage(data, τ)[1] - target) < δ
+    arrive && return true
+    data[end][1] - data[1][1] < 10τ && return false
+    arrive |= abs(timeaverage(data, τ)[1] - target) < 5δ && all(abs.(timeaverage(data, τ) .- timeaverage(data, 10τ)) .< δ)
+    return arrive
+end
+function isless(data, target, δ, τ)
+    δ, τ = abs(δ), abs(τ)
+    data[end][1] - data[1][1] < τ && return false
+    return timeaverage(data, τ)[1] - target < δ
+end
+function isgreater(data, target, δ, τ)
+    δ, τ = abs(δ), abs(τ)
+    data[end][1] - data[1][1] < τ && return false
+    return timeaverage(data, τ)[1] - target > -δ
+end
+
+function strtoU(ustr::AbstractString)
+    str = occursin(" ", ustr) ? replace(ustr, " " => "*") : ustr
+    str == "" ? "" : eval(:(@u_str($str)))
 end
 
 function getU(utype, uidx::Ref{Int})
@@ -423,18 +468,4 @@ function resizefill!(sv::Vector{String}, n; fillv="")
     for i in eachindex(sv)
         isassigned(sv, i) || (sv[i] = fillv)
     end
-end
-
-showbacktrace() = (Base.show_backtrace(LOGIO, catch_backtrace()); println(LOGIO, "\n\r"))
-macro trycatch(msg, ex)
-    esc(
-        quote
-            try
-                $ex
-            catch e
-                @error string("[", now(), "]\n", $msg) exception = e
-                showbacktrace()
-            end
-        end
-    )
 end

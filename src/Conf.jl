@@ -11,8 +11,7 @@ function loadconf(precompile=false)
                 if Ut != ""
                     Us = []
                     for U in conf_dict["U"][Ut]
-                        ustr = occursin(" ", U) ? replace(U, " " => "*") : U
-                        push!(Us, eval(:(@u_str($ustr))))
+                        push!(Us, strtoU(U))
                     end
                     unitslist[Ut] = Us
                 end

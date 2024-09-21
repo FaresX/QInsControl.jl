@@ -135,8 +135,7 @@ function edit(qtw::QuantityWidget, insbuf::InstrBuffer, instrnm, addr)
     end
     CImGui.SetCursorScreenPos(CImGui.GetWindowPos() .+ opts.vertices[1])
     trig = if haskey(insbuf.quantities, qtw.name)
-        qt = insbuf.quantities[qtw.name]
-        edit(opts, qt, instrnm, addr, Val(Symbol(qtw.options.uitype)))
+        edit(opts, insbuf.quantities[qtw.name], instrnm, addr, Val(Symbol(qtw.options.uitype)))
     elseif qtw.name == "_Panel_"
         editPanel(qtw, opts)
     elseif qtw.name == "_Shape_"
@@ -375,13 +374,7 @@ function edit(opts::QuantityWidgetOption, qt::AbstractQuantity, instrnm, addr, :
             thickness=opts.bdthickness
         )
     end
-    if trig
-        if qt.enable && addr != ""
-            fetchdata = refresh_qt(instrnm, addr, qt.name)
-            isnothing(fetchdata) || (qt.read = fetchdata)
-            updatefront!(qt)
-        end
-    end
+    trig && getread!(qt, instrnm, addr)
     opts.textsize == "big" && CImGui.PopFont()
     CImGui.SetWindowFontScale(originscale)
     return trig
@@ -434,11 +427,7 @@ function edit(opts::QuantityWidgetOption, qt::AbstractQuantity, instrnm, addr, :
         )
     end
     if trig
-        if qt.enable && addr != ""
-            fetchdata = refresh_qt(instrnm, addr, qt.name)
-            isnothing(fetchdata) || (qt.read = fetchdata)
-            updatefront!(qt)
-        end
+        getread!(qt, instrnm, addr)
         unsafe_load(CImGui.GetIO().KeyCtrl) && (qt.uindex += 1; getvalU!(qt); resolveunitlist(qt, instrnm, addr))
     end
     opts.textsize == "big" && CImGui.PopFont()
@@ -494,13 +483,7 @@ function edit(opts::QuantityWidgetOption, qt::AbstractQuantity, instrnm, addr, :
             thickness=opts.bdthickness
         )
     end
-    if trig
-        if qt.enable && addr != ""
-            fetchdata = refresh_qt(instrnm, addr, qt.name)
-            isnothing(fetchdata) || (qt.read = fetchdata)
-            updatefront!(qt)
-        end
-    end
+    trig && getread!(qt, instrnm, addr)
     opts.textsize == "big" && CImGui.PopFont()
     CImGui.SetWindowFontScale(originscale)
     return trig
@@ -526,11 +509,7 @@ function edit(opts::QuantityWidgetOption, qt::AbstractQuantity, instrnm, addr, :
         )
     end
     if trig
-        if qt.enable && addr != ""
-            fetchdata = refresh_qt(instrnm, addr, qt.name)
-            isnothing(fetchdata) || (qt.read = fetchdata)
-            updatefront!(qt)
-        end
+        getread!(qt, instrnm, addr)
         unsafe_load(CImGui.GetIO().KeyCtrl) && (qt.uindex += 1; getvalU!(qt); resolveunitlist(qt, instrnm, addr))
     end
     opts.textsize == "big" && CImGui.PopFont()
@@ -690,7 +669,7 @@ function edit(opts::QuantityWidgetOption, qt::SweepQuantity, instrnm, addr, ::Va
     trig && qt.issweeping && apply!(qt, instrnm, addr)
     opts.textsize == "big" && CImGui.PopFont()
     CImGui.SetWindowFontScale(originscale)
-    qt.issweeping && updatefront!(qt)
+    # qt.issweeping && updatefront!(qt)
     return trig
 end
 
@@ -737,7 +716,7 @@ function edit(opts::QuantityWidgetOption, qt::SetQuantity, instrnm, addr, ::Val{
             thickness=opts.bdthickness
         )
     end
-    trig && (apply!(qt, instrnm, addr); updatefront!(qt))
+    trig && apply!(qt, instrnm, addr)
     opts.textsize == "big" && CImGui.PopFont()
     CImGui.SetWindowFontScale(originscale)
     return trig
@@ -763,7 +742,7 @@ function edit(opts::QuantityWidgetOption, qt::SetQuantity, instrnm, addr, ::Val{
         )
     end
     trig = CImGui.IsItemDeactivated()
-    trig && (apply!(qt, instrnm, addr); updatefront!(qt))
+    trig && apply!(qt, instrnm, addr)
     opts.textsize == "big" && CImGui.PopFont()
     CImGui.SetWindowFontScale(originscale)
     return trig
@@ -807,7 +786,6 @@ function edit(opts::QuantityWidgetOption, qt::SetQuantity, instrnm, addr, ::Val{
         qt.optedidx = findfirst(==(presentv), qt.optkeys)
         qt.set = qt.optvalues[qt.optedidx]
         apply!(qt, instrnm, addr, true)
-        updatefront!(qt)
     end
     opts.textsize == "big" && CImGui.PopFont()
     CImGui.SetWindowFontScale(originscale)
@@ -837,7 +815,6 @@ function edit(opts::QuantityWidgetOption, qt::SetQuantity, instrnm, addr, ::Val{
         qt.optedidx = opts.bindingidx
         qt.set = qt.optvalues[qt.optedidx]
         apply!(qt, instrnm, addr, true)
-        updatefront!(qt)
     end
     opts.textsize == "big" && CImGui.PopFont()
     CImGui.SetWindowFontScale(originscale)
@@ -877,7 +854,6 @@ function edit(opts::QuantityWidgetOption, qt::SetQuantity, instrnm, addr, ::Val{
     if trig
         qt.set = qt.optvalues[qt.optedidx]
         apply!(qt, instrnm, addr, true)
-        updatefront!(qt)
     end
     opts.textsize == "big" && CImGui.PopFont()
     CImGui.SetWindowFontScale(originscale)
@@ -917,7 +893,6 @@ function edit(opts::QuantityWidgetOption, qt::SetQuantity, instrnm, addr, ::Val{
     if trig
         qt.set = qt.optvalues[qt.optedidx]
         apply!(qt, instrnm, addr, true)
-        updatefront!(qt)
     end
     opts.textsize == "big" && CImGui.PopFont()
     CImGui.SetWindowFontScale(originscale)
@@ -950,7 +925,6 @@ function edit(opts::QuantityWidgetOption, qt::SetQuantity, instrnm, addr, ::Val{
         qt.optedidx = opts.bindingonoff[ison ? 1 : 2]
         qt.set = qt.optvalues[qt.optedidx]
         apply!(qt, instrnm, addr, true)
-        updatefront!(qt)
     end
     opts.textsize == "big" && CImGui.PopFont()
     CImGui.SetWindowFontScale(originscale)
@@ -1012,12 +986,18 @@ let
             CImGui.BeginChild("drawing area")
             for (i, qtw) in enumerate(insw.qtws)
                 CImGui.PushID(i)
-                !usingit && draggable && disabled && igBeginDisabled(true)
+                igBeginDisabled(!usingit && draggable && disabled)
                 if edit(qtw, insbuf, insw.instrnm, addr)
-                    qtw.qtype in qtypes && qtw.options.uitype ∉ continuousuitypes && Threads.@spawn @trycatch mlstr("task failed!!!") refresh1(insw, addr; blacklist=[qtw.name])
-                    qtw.name == "_QuantitySelector_" && (trigselector!(qtw, insw); Threads.@spawn @trycatch mlstr("task failed!!!") refresh1(insw, addr))
+                    if qtw.qtype in qtypes && qtw.options.uitype ∉ continuousuitypes
+                        Threads.@spawn @trycatch mlstr("task failed!!!") refresh1(insw, addr; blacklist=[qtw.name])
+                    end
+                    if qtw.name == "_QuantitySelector_"
+                        trigselector!(qtw, insw)
+                        refreshqtlist!(insw)
+                        Threads.@spawn @trycatch mlstr("task failed!!!") refresh1(insw, addr)
+                    end
                 end
-                !usingit && draggable && disabled && igEndDisabled()
+                igEndDisabled()
                 if !usingit
                     if haskey(draglayers, i)
                         isselected = selectedqtw == i
@@ -2201,16 +2181,7 @@ function globalwidgetoptionsmenu(insw::InstrWidget)
 end
 
 function initialize!(insw::InstrWidget, addr)
-    empty!(insw.qtlist)
-    qtlist = []
-    autoreflist = Dict()
-    for qtw in insw.qtws
-        if qtw.qtype in ["sweep", "set", "read"]
-            push!(qtlist, qtw.name)
-            qtw.options.autorefresh && (autoreflist[qtw.name] = qtw.options.refreshrate)
-        end
-    end
-    append!(insw.qtlist, Set(qtlist))
+    _, autoreflist = refreshqtlist!(insw)
     if haskey(INSTRBUFFERVIEWERS, insw.instrnm) && haskey(INSTRBUFFERVIEWERS[insw.instrnm], addr) && !isempty(autoreflist)
         SYNCSTATES[Int(IsAutoRefreshing)] = true
         INSTRBUFFERVIEWERS[insw.instrnm][addr].insbuf.isautorefresh = true
@@ -2233,6 +2204,20 @@ function exit!(insw::InstrWidget, addr)
             qt.isautorefresh = false
         end
     end
+end
+
+function refreshqtlist!(insw::InstrWidget)
+    empty!(insw.qtlist)
+    qtlist = []
+    autoreflist = Dict()
+    for qtw in insw.qtws
+        if qtw.qtype in ["sweep", "set", "read"]
+            push!(qtlist, qtw.name)
+            qtw.options.autorefresh && (autoreflist[qtw.name] = qtw.options.refreshrate)
+        end
+    end
+    append!(insw.qtlist, Set(qtlist))
+    return qtlist, autoreflist
 end
 
 function refresh1(insw::InstrWidget, addr; blacklist=[])
@@ -2270,7 +2255,7 @@ function refresh1(insw::InstrWidget, addr; blacklist=[])
                     INSTRBUFFERVIEWERS[insw.instrnm][addr].insbuf.quantities
                 )
                     qt.read = fetchibvs[insw.instrnm][addr].insbuf.quantities[qtnm].read
-                    sendtoupdatefront(qt)
+                    updatefront!(qt)
                 end
             end
         end

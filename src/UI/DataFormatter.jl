@@ -9,6 +9,7 @@ end
 @kwdef mutable struct FormatDataGroup <: AbstractFormatData
     data::Vector{FormatData} = []
     mode::String = "default"
+    merge::Bool = false
     dtviewer::DataViewer = DataViewer(p_open=false)
 end
 
@@ -45,7 +46,7 @@ function edit(fc::FormatCodes, _)
     CImGui.Button(mlstr("Codes"), (-1, 0))
 end
 
-function edit(fd::FormatData, id)
+function edit(fd::FormatData, _)
     ftsz = CImGui.GetFontSize()
     CImGui.PushStyleColor(CImGui.ImGuiCol_Border, MORESTYLE.Colors.FormatDataBorder)
     CImGui.PushStyleVar(CImGui.ImGuiStyleVar_ChildBorderSize, 1)
@@ -78,15 +79,6 @@ function edit(fd::FormatData, id)
     CImGui.PopItemWidth()
     CImGui.PopStyleVar()
     CImGui.SameLine()
-    if fd.dtviewer.p_open
-        CImGui.SetNextWindowSize((600, 600), CImGui.ImGuiCond_Once)
-        if @c CImGui.Begin(stcstr("FormatData", id), &fd.dtviewer.p_open)
-            edit(fd.dtviewer, fd.path, stcstr("FormatData", id))
-        end
-        CImGui.End()
-        fd.dtviewer.p_open && haskey(fd.dtviewer.data, "data") && renderplots(fd.dtviewer.dtp, stcstr("formatdata", id))
-        fd.dtviewer.p_open || (fd.dtviewer = DataViewer(p_open=false))
-    end
     CImGui.Button(mlstr("Data"), (-1, 0)) && Threads.@spawn @trycatch mlstr("task failed!!!") fd.path = pick_file(filterlist="qdt")
 end
 
@@ -133,9 +125,13 @@ function edit(fdg::FormatDataGroup, id)
     )
     if CImGui.Button(ICONS.ICON_EYE, (2ftsz, Cfloat(0)))
         fdg.dtviewer.p_open ⊻= true
-        fdg.dtviewer.p_open ? loaddtviewer!(fdg) : (fdg.dtviewer = DataViewer(p_open=false))
+        fdg.dtviewer.p_open && loaddtviewer!(fdg)
     end
     CImGui.PopStyleColor()
+    CImGui.SameLine()
+    if @c CImGui.Checkbox(ICONS.ICON_CODE_MERGE, &fdg.merge)
+        fdg.dtviewer.p_open || (fdg.dtviewer = DataViewer(p_open=false))
+    end
     CImGui.SameLine()
     CImGui.PushStyleVar(CImGui.ImGuiStyleVar_ItemSpacing, (0, 0))
     CImGui.Button(ICONS.ICON_PLUS, (2ftsz, Cfloat(0))) && push!(fdg.data, FormatData())
@@ -147,15 +143,6 @@ function edit(fdg::FormatDataGroup, id)
     @c ComboS("##mode", &fdg.mode, FORMATTERGROUPMODES, CImGui.ImGuiComboFlags_NoArrowButton)
     CImGui.PopItemWidth()
     CImGui.SameLine()
-    if fdg.dtviewer.p_open
-        CImGui.SetNextWindowSize((600, 600), CImGui.ImGuiCond_Once)
-        if @c CImGui.Begin(stcstr("FormatDataGroup", id), &fdg.dtviewer.p_open)
-            edit(fdg.dtviewer, "", stcstr("FormatDataGroup", id))
-        end
-        CImGui.End()
-        fdg.dtviewer.p_open && haskey(fdg.dtviewer.data, "data") && renderplots(fdg.dtviewer.dtp, stcstr("formatdatagroup", id))
-        fdg.dtviewer.p_open || (fdg.dtviewer = DataViewer(p_open=false))
-    end
     if CImGui.Button(mlstr("Data Group"), (-1, 0))
         Threads.@spawn @trycatch mlstr("task failed!!!") begin
             pathes = pick_multi_file(filterlist="qdt")
@@ -165,7 +152,7 @@ function edit(fdg::FormatDataGroup, id)
 end
 
 function edit(dft::DataFormatter, id)
-    CImGui.SetNextWindowSize((800, 600), CImGui.ImGuiCond_Once)
+    CImGui.SetNextWindowSize((400, 600), CImGui.ImGuiCond_Once)
     if @c CImGui.Begin(stcstr(MORESTYLE.Icons.DataFormatter, " ", mlstr("Data Formatter"), "##", id), &dft.p_open)
         SetWindowBgImage()
         CImGui.PushFont(PLOTFONT)
@@ -228,19 +215,50 @@ function edit(dft::DataFormatter, id)
         end
     end
     CImGui.End()
+    if dft.p_open
+        for (i, fd) in enumerate(dft.data)
+            showdtviewer(fd, stcstr(id, "-", i))
+        end
+    end
 end
 
 function loaddtviewer!(fdg::FormatDataGroup)
-    haskey(fdg.dtviewer.data, "data") || (fdg.dtviewer.data["data"] = Dict{String,Vector{String}}())
+    haskey(fdg.dtviewer.data, "data") ? (return) : fdg.dtviewer.data["data"] = Dict{String,Vector{String}}()
+    if length(fdg.data) == 2
+        bnm1 = basename(fdg.data[1].path)
+        bnm2 = basename(fdg.data[2].path)
+        bnm1s = split(bnm1, ".")
+        bnm2s = split(bnm2, ".")
+        if length(bnm1s) >= 3 && length(bnm2s) >= 3 && bnm1s[end] == bnm2s[end] == "cache" &&
+           bnm1s[end-1] in ["cfg", "qdt"] && bnm2s[end-1] in ["cfg", "qdt"] &&
+           join(bnm1s[1:end-2], ".") == join(bnm2s[1:end-2], ".")
+            if bnm1s[end-1] == "cfg"
+                mergecache!(fdg.dtviewer, fdg.data[1].path, fdg.data[2].path)
+            else
+                mergecache!(fdg.dtviewer, fdg.data[2].path, fdg.data[1].path)
+            end
+            return nothing
+        end
+    end
     for (i, fd) in enumerate(fdg.data)
         if isfile(fd.path)
             data = @trypasse load(fd.path, "data") Dict{String,Vector{String}}()
             if !isempty(data)
-                datai = Dict{String,Vector{String}}()
-                for (k, val) in data
-                    datai[string(i, " - ", k)] = val
+                if fdg.merge
+                    for (k, val) in data
+                        if haskey(fdg.dtviewer.data["data"], k)
+                            append!(fdg.dtviewer.data["data"][k], val)
+                        else
+                            fdg.dtviewer.data["data"][k] = val
+                        end
+                    end
+                else
+                    datai = Dict{String,Vector{String}}()
+                    for (k, val) in data
+                        datai[string(i, " - ", k)] = val
+                    end
+                    merge!(fdg.dtviewer.data["data"], datai)
                 end
-                merge!(fdg.dtviewer.data["data"], datai)
             end
         end
     end
@@ -249,7 +267,31 @@ function loaddtviewer!(fdg::FormatDataGroup)
         explog=join([string("Data ", i, '\n', fd.path) for (i, fd) in enumerate(fdg.data)], '\n'),
         blocks=[]
     )
+    fdg.dtviewer.data["valid"] = true
+    return nothing
 end
+
+function showdtviewer(fd::FormatData, id)
+    if fd.dtviewer.p_open
+        CImGui.SetNextWindowSize((600, 600), CImGui.ImGuiCond_Once)
+        @c(CImGui.Begin(stcstr("FormatData", id), &fd.dtviewer.p_open)) && edit(fd.dtviewer, fd.path, stcstr("FormatData", id))
+        CImGui.End()
+        fd.dtviewer.p_open && haskey(fd.dtviewer.data, "data") && renderplots(fd.dtviewer.dtp, stcstr("formatdata", id))
+        fd.dtviewer.p_open || (fd.dtviewer = DataViewer(p_open=false))
+    end
+end
+function showdtviewer(fdg::FormatDataGroup, id)
+    for (i, fd) in enumerate(fdg.data)
+        showdtviewer(fd, stcstr(id, "-", i))
+    end
+    if fdg.dtviewer.p_open
+        CImGui.SetNextWindowSize((600, 600), CImGui.ImGuiCond_Once)
+        @c(CImGui.Begin(stcstr("FormatDataGroup", id), &fdg.dtviewer.p_open)) && edit(fdg.dtviewer, "", stcstr("FormatDataGroup", id))
+        CImGui.End()
+        fdg.dtviewer.p_open && haskey(fdg.dtviewer.data, "data") && renderplots(fdg.dtviewer.dtp, stcstr("formatdatagroup", id))
+    end
+end
+showdtviewer(::FormatCodes, _) = nothing
 
 function formatdata(fds::Vector{AbstractFormatData})
     savepath = save_file(filterlist=".jmd;.jl")
@@ -282,4 +324,34 @@ function registermodes!(modes, type=:single)
     elseif type == :code
         append!(FORMATTERCODEMODES, setdiff(Set(modes), Set(FORMATTERCODEMODES)))
     end
+end
+
+function readqdtcache(path)
+    data = Dict()
+    for dpair in split(read(path, String), '\n')
+        key, val = string.(split(dpair, ","))
+        haskey(data, key) || push!(data, key => [])
+        push!(data[key], val)
+    end
+    return data
+end
+function mergecache!(dtviewer::DataViewer, cfgcachepath, qdtcachepath)
+    qdata = readqdtcache(qdtcachepath)
+    cfg = load(cfgcachepath)
+    data = Dict()
+    savetype = eval(Symbol(CONF.DAQ.savetype))
+    if savetype == String
+        data["data"] = qdata
+    else
+        datafloat = Dict()
+        for (key, val) in qdata
+            dataparsed = tryparse.(savetype, val)
+            datafloat[key] = true in isnothing.(dataparsed) ? val : dataparsed
+        end
+        data["data"] = datafloat
+    end
+    for (key, val) in cfg
+        data[key] = val
+    end
+    loaddtviewer!(dtviewer, data)
 end

@@ -9,7 +9,6 @@ abstract type InstrAttr end
     nstopbits::VI_ASRL_STOP = VI_ASRL_STOP_ONE
     #Common
     async::Bool = false
-    timeoutq::Real = 6
     querydelay::Real = 0
     termchar::Char = '\n'
 end
@@ -27,7 +26,6 @@ end
     xonxoff::SPXonXoff = SP_XONXOFF_DISABLED
     timeoutw::Real = 6
     timeoutr::Real = 6
-    timeoutq::Real = 6
     querydelay::Real = 0
     termchar::Char = '\n'
 end
@@ -35,7 +33,6 @@ end
 @kwdef mutable struct TCPSocketInstrAttr <: InstrAttr
     timeoutw::Real = 6
     timeoutr::Real = 6
-    timeoutq::Real = 6
     querydelay::Real = 0
     termchar::Char = '\n'
 end
@@ -206,8 +203,9 @@ Base.write(::VirtualInstr, ::AbstractString) = nothing
 read the instrument.
 """
 function Base.read(instr::Instrument)
-    isok = timedwhile(() -> bytesavailable(instr.handle) > 0, instr.attr.timeoutr)
-    return isok ? readuntil(instr.handle, instr.attr.termchar) : error("read $(instr.addr) time out")
+    t = @async readuntil(instr.handle, instr.attr.termchar)
+    isok = timedwhile(() -> istaskdone(t), instr.attr.timeoutr)
+    return isok ? fetch(t) : (schedule(t, "read $(instr.addr) time out"; error=true); error("read $(instr.addr) time out"))
 end
 Base.read(instr::VISAInstr) = (instr.attr.async ? readasync : Instruments.read)(instr.handle)
 Base.read(::VirtualInstr) = "read"
@@ -217,17 +215,17 @@ Base.read(::VirtualInstr) = "read"
 
 query the instrument with some message string.
 """
-function _query_(instr::Instrument, msg::AbstractString)
+function _query_(instr::Instrument, msg::AbstractString; delay=0)
     write(instr, msg)
-    instr.attr.querydelay < 0.001 || sleep(instr.attr.querydelay)
-    t = @async read(instr)
-    isok = timedwhile(() -> istaskdone(t), instr.attr.timeoutq)
-    return isok ? fetch(t) : error("query $(instr.addr) time out")
+    delay < 0.001 ? yield() : sleep(delay)
+    read(instr)
 end
-query(instr::VISAInstr, msg::AbstractString) = (instr.attr.async ? queryasync(instr.handle, msg) : _query_(instr, msg))
-query(instr::SerialInstr, msg::AbstractString) = _query_(instr, msg)
-query(instr::TCPSocketInstr, msg::AbstractString) = _query_(instr, msg)
-query(::VirtualInstr, ::AbstractString) = "query"
+function query(instr::VISAInstr, msg::AbstractString; delay=instr.attr.querydelay)
+    instr.attr.async ? queryasync(instr.handle, msg; delay=delay) : _query_(instr, msg; delay=delay)
+end
+query(instr::SerialInstr, msg::AbstractString; delay=instr.attr.querydelay) = _query_(instr, msg; delay=delay)
+query(instr::TCPSocketInstr, msg::AbstractString; delay=instr.attr.querydelay) = _query_(instr, msg; delay=delay)
+query(::VirtualInstr, ::AbstractString; delay=0) = "query"
 
 """
     isconnected(instr)
