@@ -3,10 +3,6 @@ module QInsControl
 using CImGui
 using CImGui.CSyntax
 using CImGui.CSyntax.CStatic
-# using CImGui.ImGuiGLFWBackend
-# using CImGui.ImGuiOpenGLBackend
-# using CImGui.ImGuiGLFWBackend.LibGLFW
-# using CImGui.ImGuiOpenGLBackend.ModernGL
 using GLFW
 using ModernGL
 using CImGui.lib
