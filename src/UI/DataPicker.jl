@@ -312,8 +312,8 @@ let
                 end)(FIGURES[$(plt.id)])
             end
             eval(ex)
-        catch e
-            @error string("[", now(), "]\n", mlstr("plotting layout failed!!!")) exception = e
+        catch
+            @error string("[", now(), "]\n", mlstr("plotting layout failed!!!"))
             showbacktrace()
         end
     end
