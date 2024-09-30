@@ -161,6 +161,19 @@ function Base.getindex(v::ImVec2, i)
 end
 Base.length(::ImVec2) = 2
 Base.convert(::Type{Vector{Cfloat}}, x::ImVec2) = collect(Cfloat, x)
+function Base.iterate(v::ImVec4, state=1)
+    if state == 1
+        return v.x, 2
+    elseif state == 2
+        return v.y, 3
+    elseif state == 3
+        return v.z, 4
+    elseif state == 4
+        return v.w, 5
+    else
+        return nothing
+    end
+end
 function Base.getindex(v::ImVec4, i)
     if i == 1
         return v.x
@@ -174,4 +187,5 @@ function Base.getindex(v::ImVec4, i)
         throw(BoundsError(v, i))
     end
 end
+Base.length(::ImVec4) = 4
 Base.convert(::Type{Vector{Cfloat}}, x::ImVec4) = collect(Cfloat, x)
