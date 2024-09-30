@@ -381,8 +381,7 @@ let
                 end
                 processfigurefuncs[dtss] = CONF.DAQ.externaleval ? @eval(Main, $exfunc) : eval(exfunc)
             end
-            exprocess = :($(processfigurefuncs[dtss])(FIGURES[$(plt.id)]))
-            CONF.DAQ.externaleval ? @eval(Main, $exprocess) : eval(exprocess)
+            :($(processfigurefuncs[dtss])(FIGURES[$(plt.id)])) |> eval
         catch e
             if !dtss.isrealtime
                 @error string("[", now(), "]\n", mlstr("pre-processing figure failed!!!")) exception = e
