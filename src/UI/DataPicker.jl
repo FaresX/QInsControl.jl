@@ -237,11 +237,10 @@ let
         haskey(synctasks, plt.id) || (synctasks[plt.id] = Dict())
         if (dtpk.updatelayout || dtpk.update)
             plotfigurelayout(plt, dtpk)
-            dtpk.update = true
             dtpk.updatelayout = false
         end
         for (i, dtss) in enumerate(dtpk.series)
-            if dtpk.update || dtpk.updatelayout || dtss.update ||
+            if dtpk.update || dtss.update ||
                (dtss.isrealtime && waittime(stcstr("DataPicker", plt.id, "-", i), dtss.refreshrate))
                 if haskey(synctasks[plt.id], i) && istaskdone(synctasks[plt.id][i])
                     istaskfailed(synctasks[plt.id][i]) || setobservables!(dtss, fetch(synctasks[plt.id][i])...)
@@ -259,13 +258,12 @@ let
                 end
                 dtss.update = false
             end
-            if dtpk.update || dtpk.updatelayout || dtss.updateplot
+            if dtpk.update || dtss.updateplot
                 plottofigure(plt, dtss)
                 dtss.updateplot = false
             end
         end
         dtpk.update = false
-        dtpk.updatelayout = false
     end
 
     observables::Dict{DataSeries,NTuple{3,Observable}} = Dict()
