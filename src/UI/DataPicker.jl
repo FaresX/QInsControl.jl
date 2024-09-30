@@ -7,9 +7,11 @@
     xtype::Bool = true # true = > Number false = > String
     zsize::Vector{Cint} = [0, 0]
     processcodes::CodeBlock = CodeBlock()
+    processfigurecodes::CodeBlock = CodeBlock()
     plotcodes::CodeBlock = CodeBlock(codes="lines!(figure[1,1], x, y)")
     update::Bool = false
     updateprocessfunc::Bool = false
+    updateprocessfigurefunc::Bool = false
     updateplot::Bool = false
     isrealtime::Bool = false
     isrunning::Bool = false
@@ -62,12 +64,13 @@ let
             CImGui.SameLine()
             @c ToggleButton(MORESTYLE.Icons.HoldPin, &dtpk.hold)
             holdsz += CImGui.GetItemRectSize().x
-            CImGui.Button(stcstr(MORESTYLE.Icons.Update, " ", "Update Layout")) && (dtpk.updatelayout = true)
-            CImGui.Text("function layout!(figure)")
-            CImGui.PushID("Layout")
-            edit(dtpk.codes)
-            CImGui.PopID()
-            CImGui.BeginChild("Series")
+            if CImGui.CollapsingHeader(mlstr("Figure Layout"))
+                CImGui.Button(stcstr(MORESTYLE.Icons.Update, " ", mlstr("Update Layout"))) && (dtpk.updatelayout = true)
+                CImGui.Text("function layout!(figure)")
+                CImGui.PushID("Layout")
+                edit(dtpk.codes)
+                CImGui.PopID()
+            end
             for (i, dtss) in enumerate(dtpk.series)
                 CImGui.PushStyleColor(CImGui.ImGuiCol_Text, MORESTYLE.Colors.HighlightText)
                 openseries = CImGui.CollapsingHeader(stcstr(mlstr("Series"), " ", i))
@@ -97,11 +100,12 @@ let
                 end
                 if openseries
                     CImGui.PushID(i)
+                    CImGui.BeginChild("Series")
                     edit(dtss, dtpk.datalist)
+                    CImGui.EndChild()
                     CImGui.PopID()
                 end
             end
-            CImGui.EndChild()
             if CImGui.BeginPopup("copymenu")
                 CImGui.MenuItem(stcstr(MORESTYLE.Icons.Paste, " ", mlstr("Paste"))) && push!(dtpk.series, deepcopy(copyseries))
                 CImGui.EndPopup()
@@ -205,11 +209,19 @@ let
         dtss.alsz += CImGui.GetItemRectSize().x + unsafe_load(IMGUISTYLE.ItemSpacing.x)
         CImGui.IsItemHovered() && CImGui.SetTooltip(mlstr("real-time data update/manual data update"))
 
-        CImGui.PushID("select XYZ")
+        CImGui.PushID("process data")
         CImGui.Text("function process(x, y, z, w, [auxi]...)")
         edit(dtss.processcodes)
         if CImGui.BeginPopupContextItem()
             CImGui.MenuItem(mlstr("Clear")) && (dtss.processcodes = "")
+            CImGui.EndPopup()
+        end
+        CImGui.PopID()
+        CImGui.PushID("process figure")
+        CImGui.Text("function process!(figure)")
+        edit(dtss.processfigurecodes)
+        if CImGui.BeginPopupContextItem()
+            CImGui.MenuItem(mlstr("Clear")) && (dtss.processfigurecodes = "")
             CImGui.EndPopup()
         end
         CImGui.PopID()
@@ -243,7 +255,7 @@ let
             if dtpk.update || dtss.update ||
                (dtss.isrealtime && waittime(stcstr("DataPicker", plt.id, "-", i), dtss.refreshrate))
                 if haskey(synctasks[plt.id], i) && istaskdone(synctasks[plt.id][i])
-                    istaskfailed(synctasks[plt.id][i]) || setobservables!(dtss, fetch(synctasks[plt.id][i])...)
+                    istaskfailed(synctasks[plt.id][i]) || (setobservables!(dtss, fetch(synctasks[plt.id][i])...); postprocess(plt, dtss))
                     delete!(synctasks[plt.id], i)
                 end
                 pdtask = Threads.@spawn preprocess(dtss, datastr, datafloat)
@@ -253,7 +265,7 @@ let
                         wait(pdtask)
                     catch
                     end
-                    istaskfailed(pdtask) || setobservables!(dtss, fetch(pdtask)...)
+                    istaskfailed(pdtask) || (setobservables!(dtss, fetch(pdtask)...); postprocess(plt, dtss))
                     delete!(synctasks[plt.id], i)
                 end
                 dtss.update = false
@@ -334,6 +346,7 @@ let
                     end
                 end
                 processfuncs[dtss] = CONF.DAQ.externaleval ? @eval(Main, $exfunc) : eval(exfunc)
+                dtss.updateprocessfigurefunc = true
             end
             exprocess = :($(processfuncs[dtss])($xbuf, $ybuf, $zbuf, $wbuf, $auxbufs...))
             nx, ny, nz = CONF.DAQ.externaleval ? @eval(Main, $exprocess) : eval(exprocess)
@@ -354,6 +367,30 @@ let
         finally
             dtss.updateprocessfunc = false
             dtss.isrunning = false
+        end
+    end
+    processfigurefuncs::Dict{DataSeries,Function} = Dict()
+    function postprocess(plt::QPlot, dtss::DataSeries)
+        try
+            if dtss.updateprocessfigurefunc || !haskey(processfigurefuncs, dtss)
+                innercodes = tocodes(dtss.processfigurecodes)
+                exfunc::Expr = quote
+                    (figure::Figure -> begin
+                        $innercodes
+                    end)
+                end
+                processfigurefuncs[dtss] = CONF.DAQ.externaleval ? @eval(Main, $exfunc) : eval(exfunc)
+            end
+            exprocess = :($(processfigurefuncs[dtss])(FIGURES[$(plt.id)]))
+            CONF.DAQ.externaleval ? @eval(Main, $exprocess) : eval(exprocess)
+        catch e
+            if !dtss.isrealtime
+                @error string("[", now(), "]\n", mlstr("pre-processing figure failed!!!")) exception = e
+                showbacktrace()
+            end
+            showbacktrace()
+        finally
+            dtss.updateprocessfigurefunc = false
         end
     end
 
