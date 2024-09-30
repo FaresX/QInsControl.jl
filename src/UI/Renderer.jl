@@ -79,7 +79,7 @@ function UI()
     # 加载绘图字体
     global BIGFONT = CImGui.AddFontFromFileTTF(
         fonts,
-        joinpath(CONF.Fonts.dir, CONF.Fonts.plotfont),
+        joinpath(CONF.Fonts.dir, CONF.Fonts.bigfont),
         CONF.Fonts.plotfontsize,
         C_NULL,
         ImFontAtlas_GetGlyphRangesChineseFull(fonts)

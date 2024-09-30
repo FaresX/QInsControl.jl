@@ -58,7 +58,7 @@ end
     plotfontsize::Cint = 30
     first::String = "HarmonyOS_Sans_SC_Regular.subset.ttf"
     second::String = "arial.ttf"
-    plotfont::String = "arial.ttf"
+    bigfont::String = "arial.ttf"
 end
 
 # @option mutable struct OptIcons

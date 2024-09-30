@@ -283,21 +283,21 @@ let
                 CImGui.Text(stcstr(mlstr("font"), " ", 2))
                 selectft2 && (ft2 = basename(pick_file(joinpath(abspath(fontdir), ft2); filterlist="ttf,ttc,otf")))
                 (inputft2 || selectft2) && isvalidpath(joinpath(fontdir, ft2)) && (CONF.Fonts.second = ft2)
-                ftp = CONF.Fonts.plotfont
-                inputftp = @c InputTextRSZ("##plotfont", &ftp)
+                ftp = CONF.Fonts.bigfont
+                inputftp = @c InputTextRSZ("##bigfont", &ftp)
                 CImGui.SameLine()
                 selectftp = CImGui.Button(stcstr(MORESTYLE.Icons.SelectPath, "##Fonts-plot"))
                 CImGui.SameLine()
-                CImGui.Text(mlstr("plot font"))
+                CImGui.Text(mlstr("big font"))
                 selectftp && (ftp = basename(pick_file(joinpath(abspath(fontdir), ftp); filterlist="ttf,ttc,otf")))
-                (inputftp || selectftp) && isvalidpath(joinpath(fontdir, ftp)) && (CONF.Fonts.plotfont = ftp)
+                (inputftp || selectftp) && isvalidpath(joinpath(fontdir, ftp)) && (CONF.Fonts.bigfont = ftp)
                 @c CImGui.DragInt(
                     mlstr("font size"),
                     &CONF.Fonts.size, 1.0, 6, 60, "%d",
                     CImGui.ImGuiSliderFlags_AlwaysClamp
                 )
                 @c CImGui.DragInt(
-                    mlstr("plot font size"),
+                    mlstr("big font size"),
                     &CONF.Fonts.plotfontsize, 1.0, 6, 60, "%d",
                     CImGui.ImGuiSliderFlags_AlwaysClamp
                 )
