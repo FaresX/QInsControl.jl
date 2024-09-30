@@ -76,7 +76,7 @@ function loadconf(precompile=false)
         for file in readdir(CONF.Style.dir, join=true)
             bnm = basename(file)
             @trycatch mlstr("loading file failed!!!") begin
-                endswith(bnm, ".sty") && merge!(STYLES, load(file))
+                endswith(bnm, ".toml") && (STYLES[bnm[1:end-5]] = from_toml(UnionStyle, file))
             end
         end
 
