@@ -19,6 +19,13 @@ function toimguitheme!(theme)
     return theme
 end
 
+# function rmplot(plt::QPlot)
+#     imid = CImGui.GetID(plt.id)
+#     empty!(CImGui.MakieIntegration.makie_context[imid].figure)
+#     delete!(CImGui.MakieIntegration.makie_context, imid)
+#     delete!(FIGURES, id)
+# end
+
 const MAKIETHEMES = Dict(
     "default" => Theme(),
     "ggplot2" => theme_ggplot2(),

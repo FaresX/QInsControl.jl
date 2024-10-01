@@ -69,7 +69,7 @@ function edit(fd::FormatData, id)
             loaddtviewer!(fd.dtviewer, fd.path, stcstr("formatdata", id))
         else
             for plt in fd.dtviewer.dtp.plots
-                delete!(FIGURES, plt.id)
+                # delete!(FIGURES, plt.id)
             end
             fd.dtviewer = DataViewer(p_open=false)
         end
@@ -286,7 +286,7 @@ function showdtviewer(fd::FormatData, id)
         fd.dtviewer.p_open && haskey(fd.dtviewer.data, "data") && renderplots(fd.dtviewer.dtp, stcstr("formatdata", id))
         if !fd.dtviewer.p_open
             for plt in fd.dtviewer.dtp.plots
-                delete!(FIGURES, plt.id)
+                # delete!(FIGURES, plt.id)
             end
             fd.dtviewer = DataViewer(p_open=false)
         end
