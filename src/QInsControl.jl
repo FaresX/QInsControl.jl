@@ -168,6 +168,7 @@ function initialize!()
     empty!(INSCONF)
     empty!(INSWCONF)
     empty!(INSTRBUFFERVIEWERS)
+    empty!(FIGURES)
 end
 
 start() = (get!(ENV, "QInsControlAssets", joinpath(Base.@__DIR__, "../Assets")); julia_main())
