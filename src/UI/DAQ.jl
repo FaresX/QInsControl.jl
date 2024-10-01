@@ -311,27 +311,7 @@ let
         ### show daq datapickers ###
         showdtpks(DAQDATAPLOT, "DAQ", DATABUF, DATABUFPARSED)
         for i in DAQDATAPLOT.layout.selectedidx
-            if DAQDATAPLOT.linkidx[i] == 0
-                syncplotdata(DAQDATAPLOT.plots[i], DAQDATAPLOT.dtpks[i], DATABUF, DATABUFPARSED)
-            else
-                if true in [
-                    dtss.isrealtime && waittime(stcstr("DataPicker-link", DAQDATAPLOT.plots[i].id, "-", j), dtss.refreshrate)
-                    for (j, dtss) in enumerate(DAQDATAPLOT.dtpks[i].series)
-                ]
-                    pltlink = DAQDATAPLOT.plots[DAQDATAPLOT.linkidx[i]]
-                    dtpklink = DAQDATAPLOT.dtpks[DAQDATAPLOT.linkidx[i]]
-                    linkeddata = Dict{String,VecOrMat{Cdouble}}()
-                    for (j, pss) in enumerate(pltlink.series)
-                        linkeddata["x$j"] = copy(pss.x)
-                        linkeddata["y$j"] = copy(pss.y)
-                        linkeddata["z$j"] = copy(pss.z)
-                        dtpklink.series[j].hflipz && reverse!(linkeddata["z$j"], dims=1)
-                        dtpklink.series[j].vflipz && reverse!(linkeddata["z$j"], dims=2)
-                        linkeddata["z$j"] = transpose(linkeddata["z$j"]) |> collect
-                    end
-                    syncplotdata(DAQDATAPLOT.plots[i], DAQDATAPLOT.dtpks[i], Dict{String,Vector{String}}(), linkeddata)
-                end
-            end
+            syncplotdata(DAQDATAPLOT.plots[i], DAQDATAPLOT.dtpks[i], DATABUF, DATABUFPARSED)
         end
         renderplots(DAQDATAPLOT, "DAQ")
     end
