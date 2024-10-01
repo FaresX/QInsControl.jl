@@ -575,7 +575,7 @@ let
                     1, 0, 60, "%.1f", CImGui.ImGuiSliderFlags_AlwaysClamp
                 )
                 if @c ComboS("Makie Theme", &MORESTYLE.Variables.MakieTheme, keys(MAKIETHEMES))
-                    toimguitheme!(MAKIETHEMES[MORESTYLE.Variables.MakieTheme])
+                    # toimguitheme!(MAKIETHEMES[MORESTYLE.Variables.MakieTheme])
                 end
                 CImGui.EndTabItem()
             end
