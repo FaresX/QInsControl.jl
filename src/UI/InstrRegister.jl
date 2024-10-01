@@ -7,8 +7,12 @@ let
         width = CImGui.GetItemRectSize().x / 2 - 2CImGui.CalcTextSize(" =>  ").x
         CImGui.SameLine()
         if CImGui.Button(mlstr("Drivers"))
-            driverfile = joinpath(ENV["QInsControlAssets"], "ExtraLoad/$instrnm.jl") |> abspath
-            Threads.@spawn @trycatch mlstr("error editing text!!!") Base.run(Cmd([CONF.Basic.editor, driverfile]))
+            Threads.@spawn @trycatch mlstr("error editing driver!!!") begin
+                driverfile = joinpath(ENV["QInsControlAssets"], "ExtraLoad/$instrnm.jl") |> abspath
+                isfile(driverfile) || FileIO.open(() -> (), driverfile, "w")
+                DefaultApplication.open(driverfile; wait=true)
+                isempty(read(driverfile)) && Base.Filesystem.rm(driverfile; force=true)
+            end
         end
         CImGui.SameLine()
         if CImGui.Button(MORESTYLE.Icons.InstrumentsManualRef)

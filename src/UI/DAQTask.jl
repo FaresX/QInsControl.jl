@@ -72,13 +72,12 @@ let
                     @c InputTextMultilineRSZ(stcstr("##Script", id), &daqtask.viewcodes, (-1, -1), ImGuiInputTextFlags_ReadOnly)
                 else
                     if CImGui.Button(mlstr("Open with Editor"))
-                        isdir(joinpath(ENV["QInsControlAssets"], "temp")) || mkdir(joinpath(ENV["QInsControlAssets"], "temp"))
                         Threads.@spawn @trycatch mlstr("error editing text!!!") begin
                             file = joinpath(ENV["QInsControlAssets"], "temp", string(basename(tempname()), ".jl"))
                             open(file, "w") do io
                                 write(io, daqtask.editcodes)
                             end
-                            Base.run(Cmd([CONF.Basic.editor, file]))
+                            DefaultApplication.open(file; wait=true)
                             daqtask.editcodes = read(file, String)
                         end
                     end

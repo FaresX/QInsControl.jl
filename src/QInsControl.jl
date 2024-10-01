@@ -9,6 +9,7 @@ using CImGui.lib
 using ColorTypes
 using Configurations
 using DataInterpolations
+import DefaultApplication
 import FileIO
 using GLMakie
 import ImageMagick
