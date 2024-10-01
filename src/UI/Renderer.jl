@@ -123,6 +123,8 @@ function UI()
     global MORESTYLE = MoreStyle()
     haskey(STYLES, CONF.Style.default) && loadstyle(STYLES[CONF.Style.default])
 
+    GLMakie.activate!(scalefactor=unsafe_load(CImGui.GetIO().FontGlobalScale))
+
     global ICONID = nothing
 
     rendertask = Threads.@spawn CImGui.render(ctx; window_size=CONF.Basic.windowsize, window_title="QInsControl", on_exit=onexitaction, opengl_version=v"3.3") do
