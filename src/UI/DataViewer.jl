@@ -69,6 +69,9 @@ function edit(fv::FileViewer, id)
         if dtviewer.p_open
             haskey(dtviewer.data, "data") && renderplots(dtviewer.dtp, stcstr("DataViewer", id, path))
         else
+            for plt in fv.dtviewers[path].dtp.plots
+                delete!(FIGURES, plt.id)
+            end
             delete!(fv.dtviewers, path)
             deleteat!(fv.filetree.selectedpathes, findall(==(path), fv.filetree.selectedpathes))
         end
