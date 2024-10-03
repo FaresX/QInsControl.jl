@@ -179,7 +179,6 @@ let
     ctxi = nothing
     global setctxi(ctx) = (ctxi = ctx)
     global function onexitaction()
-        global AUTOREFRESHTASK
         SYNCSTATES[Int(IsDAQTaskRunning)] || remotecall_wait(() -> stop!(CPU), workers()[1])
         stoprefresh()
         empty!(STATICSTRINGS)
