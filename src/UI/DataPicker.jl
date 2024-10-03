@@ -7,8 +7,8 @@
     xtype::Bool = true # true = > Number false = > String
     zsize::Vector{Cint} = [0, 0]
     processcodes::CodeBlock = CodeBlock()
-    processfigurecodes::CodeBlock = CodeBlock()
-    plotcodes::CodeBlock = CodeBlock(codes="lines!(figure[1,1], x, y)")
+    processfigurecodes::CodeBlock = CodeBlock(codes="autolimits!(content(figure[1,1]))")
+    plotcodes::CodeBlock = CodeBlock(codes="lines!(content(figure[1,1]), x, y)")
     update::Bool = false
     updateprocessfunc::Bool = false
     updateprocessfigurefunc::Bool = false
@@ -23,7 +23,7 @@ end
 @kwdef mutable struct DataPicker
     datalist::Vector{String} = String[]
     series::Vector{DataSeries} = [DataSeries()]
-    codes::CodeBlock = CodeBlock(codes="Axis(figure[1,1])")
+    codes::CodeBlock = CodeBlock(codes="Axis(figure[1,1])\nDataInspector(figure)")
     hold::Bool = false
     update::Bool = false
     updatelayout::Bool = false
@@ -71,6 +71,7 @@ let
                 edit(dtpk.codes)
                 CImGui.PopID()
             end
+            CImGui.BeginChild("Series Child")
             for (i, dtss) in enumerate(dtpk.series)
                 CImGui.PushStyleColor(CImGui.ImGuiCol_Text, MORESTYLE.Colors.HighlightText)
                 openseries = CImGui.CollapsingHeader(stcstr(mlstr("Series"), " ", i))
@@ -106,6 +107,7 @@ let
                     CImGui.PopID()
                 end
             end
+            CImGui.EndChild()
             if CImGui.BeginPopup("copymenu")
                 CImGui.MenuItem(stcstr(MORESTYLE.Icons.Paste, " ", mlstr("Paste"))) && push!(dtpk.series, deepcopy(copyseries))
                 CImGui.EndPopup()
