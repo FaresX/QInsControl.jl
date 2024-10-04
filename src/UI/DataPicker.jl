@@ -389,7 +389,6 @@ let
                 @error string("[", now(), "]\n", mlstr("pre-processing figure failed!!!")) exception = e
                 showbacktrace()
             end
-            showbacktrace()
         finally
             dtss.updateprocessfigurefunc = false
         end
