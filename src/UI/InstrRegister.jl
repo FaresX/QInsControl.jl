@@ -411,7 +411,7 @@ function saveinswconf()
     for (ins, widgets) in INSWCONF
         cfpath = joinpath(ENV["QInsControlAssets"], "Widgets/$ins.toml")
         readcf = @trypasse TOML.parsefile(cfpath) nothing
-        if readcf != Dict(w => Dict(to_dict(w)) for w in widgets)
+        if readcf != Dict(w.name => Dict(to_dict(w)) for w in widgets)
             @trycatch mlstr("saving INSWCONF failed!!!") begin
                 open(cfpath, "w") do file
                     TOML.print(file, Dict(w.name => to_dict(w) for w in widgets))
