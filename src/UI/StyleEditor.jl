@@ -488,7 +488,7 @@ let
                     CImGui.c_set!(IMNODESSTYLE.Colors, col, CImGui.ColorConvertFloat4ToU32(col_arr))
                     if CImGui.ColorConvertFloat4ToU32(style_ref.Colors[Int(col)+1]) != CImGui.c_get(IMNODESSTYLE.Colors, col)
                         CImGui.SameLine()
-                        CImGui.Button("Save") && (style_ref.Colors[Int(col)+1] = CImGui.c_get(IMNODESSTYLE.Colors, col))
+                        CImGui.Button("Save") && (style_ref.Colors[Int(col)+1] = CImGui.ColorConvertU32ToFloat4(CImGui.c_get(IMNODESSTYLE.Colors, col)))
                         CImGui.SameLine()
                         CImGui.Button("Revert") && CImGui.c_set!(
                             IMNODESSTYLE.Colors, col, CImGui.ColorConvertFloat4ToU32(style_ref.Colors[Int(col)+1])
