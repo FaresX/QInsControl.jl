@@ -220,7 +220,7 @@ let
         end
         CImGui.PopID()
         CImGui.PushID("process figure")
-        CImGui.Text("function process!(figure)")
+        CImGui.Text("function process!(figure, x, y, z)")
         edit(dtss.processfigurecodes)
         if CImGui.BeginPopupContextItem()
             CImGui.MenuItem(mlstr("Clear")) && (dtss.processfigurecodes = "")
@@ -257,7 +257,11 @@ let
             if dtpk.update || dtss.update ||
                (dtss.isrealtime && waittime(stcstr("DataPicker", plt.id, "-", i), dtss.refreshrate))
                 if haskey(synctasks[plt.id], i) && istaskdone(synctasks[plt.id][i])
-                    istaskfailed(synctasks[plt.id][i]) || (setobservables!(dtss, fetch(synctasks[plt.id][i])...); postprocess(plt, dtss))
+                    if !istaskfailed(synctasks[plt.id][i])
+                        x, y, z = fetch(synctasks[plt.id][i])
+                        setobservables!(dtss, x, y, z)
+                        postprocess(plt, dtss, x, y, z)
+                    end
                     delete!(synctasks[plt.id], i)
                 end
                 pdtask = Threads.@spawn preprocess(dtss, datastr, datafloat)
@@ -267,7 +271,11 @@ let
                         wait(pdtask)
                     catch
                     end
-                    istaskfailed(pdtask) || (setobservables!(dtss, fetch(pdtask)...); postprocess(plt, dtss))
+                    if !istaskfailed(pdtask)
+                        x, y, z = fetch(pdtask)
+                        setobservables!(dtss, x, y, z)
+                        postprocess(plt, dtss, x, y, z)
+                    end
                     delete!(synctasks[plt.id], i)
                 end
                 dtss.update = false
@@ -372,18 +380,18 @@ let
         end
     end
     processfigurefuncs::Dict{DataSeries,Function} = Dict()
-    function postprocess(plt::QPlot, dtss::DataSeries)
+    function postprocess(plt::QPlot, dtss::DataSeries, x, y, z)
         try
             if dtss.updateprocessfigurefunc || !haskey(processfigurefuncs, dtss)
                 innercodes = tocodes(dtss.processfigurecodes)
                 exfunc::Expr = quote
-                    (figure::Figure -> begin
+                    (figure::Figure, x, y, z) -> begin
                         $innercodes
-                    end)
+                    end
                 end
                 processfigurefuncs[dtss] = CONF.DAQ.externaleval ? @eval(Main, $exfunc) : eval(exfunc)
             end
-            :($(processfigurefuncs[dtss])(FIGURES[$(plt.id)])) |> eval
+            :($(processfigurefuncs[dtss])(FIGURES[$(plt.id)], $x, $y, $z)) |> eval
         catch e
             if !dtss.isrealtime
                 @error string("[", now(), "]\n", mlstr("pre-processing figure failed!!!")) exception = e
