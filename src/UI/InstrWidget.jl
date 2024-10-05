@@ -1071,9 +1071,7 @@ let
                                     )
                                     CImGui.AddRect(
                                         drawlist, a, b,
-                                        CImGui.ColorConvertFloat4ToU32(
-                                            isselected ? MORESTYLE.Colors.SelectedWidgetBt : MORESTYLE.Colors.WidgetBorderSelected
-                                        ),
+                                        isselected ? MORESTYLE.Colors.SelectedWidgetBt : MORESTYLE.Colors.WidgetBorderSelected,
                                         0, 0, max(4, 2qtw.options.bdthickness)
                                     )
                                 end
@@ -1461,7 +1459,7 @@ let
             ftsz = CImGui.GetFontSize()
             CImGui.AddText(
                 CImGui.GetWindowDrawList(), GLOBALFONT, ftsz, (posmax.x - ftsz, posmin.y),
-                CImGui.ColorConvertFloat4ToU32(CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_Text)),
+                CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_Text),
                 MORESTYLE.Icons.HoldPin
             )
         end
@@ -1470,7 +1468,7 @@ let
             ftsz = CImGui.GetFontSize()
             CImGui.AddText(
                 CImGui.GetWindowDrawList(), GLOBALFONT, ftsz, posmin,
-                CImGui.ColorConvertFloat4ToU32(CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_Text)),
+                CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_Text),
                 MORESTYLE.Icons.InstrumentsAutoRef
             )
         end

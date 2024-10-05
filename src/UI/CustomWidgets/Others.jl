@@ -127,11 +127,11 @@ function (rszcd::ResizeChild)(f, id, args...; kwargs...)
         CImGui.GetWindowDrawList(),
         (rszcd.posmax.x - rszcd.rszgripsize, rszcd.posmax.y), rszcd.posmax, (rszcd.posmax.x, rszcd.posmax.y - rszcd.rszgripsize),
         if rszcd.hovered && rszcd.dragging
-            CImGui.ColorConvertFloat4ToU32(CImGui.c_get(IMGUISTYLE.Colors, ImGuiCol_ResizeGripActive))
+            CImGui.c_get(IMGUISTYLE.Colors, ImGuiCol_ResizeGripActive)
         elseif rszcd.hovered
-            CImGui.ColorConvertFloat4ToU32(CImGui.c_get(IMGUISTYLE.Colors, ImGuiCol_ResizeGripHovered))
+            CImGui.c_get(IMGUISTYLE.Colors, ImGuiCol_ResizeGripHovered)
         else
-            CImGui.ColorConvertFloat4ToU32(CImGui.c_get(IMGUISTYLE.Colors, ImGuiCol_ResizeGrip))
+            CImGui.c_get(IMGUISTYLE.Colors, ImGuiCol_ResizeGrip)
         end
     )
     rszcd.posmin = CImGui.GetItemRectMin()
@@ -189,7 +189,7 @@ end
 function draw(dp::DragPoint)
     CImGui.AddCircleFilled(
         CImGui.GetWindowDrawList(), dp.pos, dp.radius,
-        CImGui.ColorConvertFloat4ToU32(dp.dragging ? dp.cola : dp.hovered ? dp.colh : dp.col)
+        dp.dragging ? dp.cola : dp.hovered ? dp.colh : dp.col
     )
 end
 
@@ -236,22 +236,20 @@ function draw(dr::DragRect)
     drawlist = CImGui.GetWindowDrawList()
     CImGui.AddRectFilled(
         drawlist, dr.posmin, dr.posmax,
-        CImGui.ColorConvertFloat4ToU32(dr.dragging ? dr.cola : dr.hovered && !dr.griphovered && !dr.gripdragging ? dr.colh : dr.col),
+        dr.dragging ? dr.cola : dr.hovered && !dr.griphovered && !dr.gripdragging ? dr.colh : dr.col,
         dr.rounding
     )
     CImGui.AddTriangleFilled(
         drawlist,
         (dr.posmax.x - dr.rszgripsize, dr.posmax.y), dr.posmax, (dr.posmax.x, dr.posmax.y - dr.rszgripsize),
-        CImGui.ColorConvertFloat4ToU32(
-            CImGui.c_get(
-                IMGUISTYLE.Colors,
-                dr.gripdragging ? ImGuiCol_ResizeGripActive : dr.griphovered ? ImGuiCol_ResizeGripHovered : ImGuiCol_ResizeGrip
-            )
+        CImGui.c_get(
+            IMGUISTYLE.Colors,
+            dr.gripdragging ? ImGuiCol_ResizeGripActive : dr.griphovered ? ImGuiCol_ResizeGripHovered : ImGuiCol_ResizeGrip
         )
     )
     CImGui.AddRect(
         drawlist, dr.posmin, dr.posmax,
-        CImGui.ColorConvertFloat4ToU32(dr.dragging ? dr.colbda : dr.hovered && !dr.griphovered && !dr.gripdragging ? dr.colbdh : dr.colbd),
+        dr.dragging ? dr.colbda : dr.hovered && !dr.griphovered && !dr.gripdragging ? dr.colbdh : dr.colbd,
         dr.bdrounding, ImDrawFlags_RoundCornersAll, dr.thickness
     )
 end

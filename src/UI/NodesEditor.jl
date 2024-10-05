@@ -193,17 +193,15 @@ function draw(rszgrip::ResizeGrip)
     CImGui.AddTriangleFilled(
         CImGui.GetWindowDrawList(),
         (rszgrip.pos.x - rszgrip.size.x, rszgrip.pos.y), rszgrip.pos, (rszgrip.pos.x, rszgrip.pos.y - rszgrip.size.y),
-        CImGui.ColorConvertFloat4ToU32(
-            CImGui.c_get(
-                IMGUISTYLE.Colors,
-                if rszgrip.hovered && rszgrip.dragging
-                    ImGuiCol_ResizeGripActive
-                elseif rszgrip.hovered
-                    ImGuiCol_ResizeGripHovered
-                else
-                    ImGuiCol_ResizeGrip
-                end
-            )
+        CImGui.c_get(
+            IMGUISTYLE.Colors,
+            if rszgrip.hovered && rszgrip.dragging
+                ImGuiCol_ResizeGripActive
+            elseif rszgrip.hovered
+                ImGuiCol_ResizeGripHovered
+            else
+                ImGuiCol_ResizeGrip
+            end
         )
     )
 end
@@ -213,15 +211,13 @@ function draw(pin::ImagePin)
     CImGui.AddCircle(
         drawlist,
         pin.pos, pin.radius,
-        CImGui.ColorConvertFloat4ToU32(
-            if pin.dragging_in || pin.dragging_out
-                MORESTYLE.Colors.ImagePinDragging
-            elseif pin.hovered_out
-                MORESTYLE.Colors.ImagePinHoveredout
-            else
-                MORESTYLE.Colors.ImagePin
-            end
-        ),
+        if pin.dragging_in || pin.dragging_out
+            MORESTYLE.Colors.ImagePinDragging
+        elseif pin.hovered_out
+            MORESTYLE.Colors.ImagePinHoveredout
+        else
+            MORESTYLE.Colors.ImagePin
+        end,
         pin.num_segments, pin.thickness
     )
     if pin.linked
