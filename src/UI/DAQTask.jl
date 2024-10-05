@@ -474,8 +474,19 @@ end
 #################################################################
 function view(daqtask::DAQTask)
     CImGui.BeginChild("view DAQTask")
-    CImGui.TextColored(MORESTYLE.Colors.HighlightText, mlstr("Experimental Records"))
+    BoxTextColored(mlstr("Experimental Records"); col=MORESTYLE.Colors.HighlightText)
+    CImGui.SameLine()
+    if @c ToggleButton(mlstr(daqtask.textmode ? "Text" : "Block"), &daqtask.textmode)
+        try
+            daqtask.textmode && (daqtask.viewcodes = string(prettify(interpret(daqtask.blocks))))
+        catch e
+            @error "[$(now())]\nan error occurs during interpreting blocks" exception = e
+            showbacktrace()
+        end
+    end
     TextRect(string(daqtask.explog, "\n "); nochild=true)
-    view(daqtask.blocks)
+    daqtask.textmode ? @c(InputTextMultilineRSZ(
+        "##Script", &daqtask.viewcodes, (-1, -1), ImGuiInputTextFlags_ReadOnly
+    )) : view(daqtask.blocks)
     CImGui.EndChild()
 end
