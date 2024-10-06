@@ -33,6 +33,7 @@ end
     stop::String = ""
     delay::Cfloat = 0.1
     ui::Int = 1
+    markdim::Int = 0 # 0 for none, 1 for x, 2 for y
     level::Int = 1
     blocks::Vector{AbstractBlock} = AbstractBlock[]
     istrycatch::Bool = false
@@ -229,13 +230,34 @@ function tocodes(bk::SweepBlock)
     @gensym ijk sweeplist
     setcmd = :(controllers[$instr]($setfunc, CPU, string($ijk), Val(:write)))
     ex2 = bk.istrycatch ? :(@gentrycatch $(bk.instrnm) $(bk.addr) $setcmd) : setcmd
-    return quote
-        let $sweeplist = gensweeplist($start, $step, $stop)
-            @progress for $ijk in $sweeplist
-                @gencontroller SweepBlock $instr
-                $ex2
-                sleep($(bk.delay))
-                $interpcodes
+    ex3 = quote
+        @gencontroller SweepBlock $instr
+        $ex2
+        sleep($(bk.delay))
+        $interpcodes
+    end
+    return if bk.markdim == 0
+        quote
+            let $sweeplist = gensweeplist($start, $step, $stop)
+                @progress for $ijk in $sweeplist
+                    $ex3
+                end
+            end
+        end
+    elseif bk.markdim == 1
+        quote
+            let $sweeplist = gensweeplist($start, $step, $stop)
+                @progressx for $ijk in $sweeplist
+                    $ex3
+                end
+            end
+        end
+    else
+        quote
+            let $sweeplist = gensweeplist($start, $step, $stop)
+                @progressy for $ijk in $sweeplist
+                    $ex3
+                end
             end
         end
     end
@@ -1138,7 +1160,7 @@ let
         CImGui.PopStyleVar()
         CImGui.TextColored(
             bk.istrycatch ? MORESTYLE.Colors.BlockTrycatch : MORESTYLE.Colors.BlockIcons,
-            MORESTYLE.Icons.SweepBlock
+            bk.markdim == 0 ? MORESTYLE.Icons.SweepBlock : bk.markdim == 1 ? "X" : "Y"
         )
         CImGui.IsItemClicked(2) && (bk.istrycatch ⊻= true)
         CImGui.IsItemHovered() && CImGui.IsMouseDoubleClicked(0) && (bk.hideblocks ⊻= true)
@@ -1827,6 +1849,13 @@ let
                 CImGui.MenuItem(stcstr(MORESTYLE.Icons.CloseFile, " ", mlstr("Delete"))) && (blocks[i] = NullBlock())
                 if typeof(bk) in [CodeBlock, StrideCodeBlock]
                     CImGui.MenuItem(stcstr(MORESTYLE.Icons.CloseFile, " ", mlstr("Clear"))) && (bk.codes = "")
+                end
+                ### specific menu for blocks
+                if bk isa SweepBlock
+                    CImGui.Separator()
+                    CImGui.MenuItem(stcstr(MORESTYLE.Icons.SweepBlock, " ", mlstr("Clear Mark"))) && (bk.markdim = 0)
+                    CImGui.MenuItem(stcstr(MORESTYLE.Icons.SweepBlock, " ", mlstr("Mark X"))) && (bk.markdim = 1)
+                    CImGui.MenuItem(stcstr(MORESTYLE.Icons.SweepBlock, " ", mlstr("Mark Y"))) && (bk.markdim = 2)
                 end
                 CImGui.EndPopup()
             end
