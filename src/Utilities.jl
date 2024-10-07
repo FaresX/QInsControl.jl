@@ -74,7 +74,7 @@ function packtake!(c, n=12)
     buf
 end
 
-function resize(z, m, n; fillms=0)
+function resize(z, m, n; fillms=NaN)
     return if length(z) > m * n
         @views reshape(z[1:m*n], m, n)
     else
