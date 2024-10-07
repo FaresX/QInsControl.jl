@@ -256,11 +256,12 @@ function run_remote(daqtask::DAQTask)
     end
     ex = quote
         $ex1
-        function remote_do_block(databuf_rc, progress_rc, SYNCSTATES, rn)
+        function remote_do_block(databuf_rc, progress_rc, extradatabuf_rc, SYNCSTATES, rn)
             controllers = $controllers
             try
                 databuf_lc = Channel{Tuple{String,String}}(CONF.DAQ.channelsize)
                 progress_lc = Channel{Tuple{UUID,Int,Int,Float64}}(CONF.DAQ.channelsize)
+                extradatabuf_lc = Channel{Tuple{String,Vector{String}}}(CONF.DAQ.channelsize)
                 @sync begin
                     remotedotask = @async @trycatch mlstr("remotedotask failed!!!") begin
                         start!(CPU)
@@ -268,16 +269,19 @@ function run_remote(daqtask::DAQTask)
                         for ct in values(controllers)
                             login!(CPU, ct; quiet=false, attr=getattr(ct.addr))
                         end
-                        remote_sweep_block(controllers, databuf_lc, progress_lc, SYNCSTATES)
+                        remote_sweep_block(controllers, databuf_lc, progress_lc, extradatabuf_lc, SYNCSTATES)
                     end
                     @async @trycatch mlstr("transfering data task failded!!!") while true
-                        if istaskdone(remotedotask) && all(.!isready.([databuf_lc, databuf_rc, progress_lc, progress_rc]))
+                        if istaskdone(remotedotask) && all(.!isready.(
+                            [databuf_lc, databuf_rc, progress_lc, progress_rc, extradatabuf_lc, extradatabuf_rc]
+                        ))
                             remotecall_wait(eval, 1, :(log_instrbufferviewers()))
                             SYNCSTATES[Int(IsDAQTaskDone)] = true
                             break
                         else
                             isready(databuf_lc) && put!(databuf_rc, packtake!(databuf_lc, 2rn * CONF.DAQ.packsize))
                             isready(progress_lc) && put!(progress_rc, packtake!(progress_lc, CONF.DAQ.packsize))
+                            isready(extradatabuf_lc) && put!(extradatabuf_rc, take!(extradatabuf_lc))
                         end
                         yield()
                     end
@@ -304,10 +308,12 @@ function run_remote(daqtask::DAQTask)
         end
     end
     SYNCSTATES[Int(IsDAQTaskDone)] && return
-    remote_do(workers()[1], DATABUFRC, PROGRESSRC, SYNCSTATES, rn) do databuf_rc, progress_rc, syncstates, rn
+    remote_do(
+        workers()[1], DATABUFRC, PROGRESSRC, EXTRADATABUFRC, SYNCSTATES, rn
+    ) do databuf_rc, progress_rc, extradatabuf_rc, syncstates, rn
         try
             global BLOCK = Threads.Condition()
-            remote_do_block(databuf_rc, progress_rc, syncstates, rn)
+            remote_do_block(databuf_rc, progress_rc, extradatabuf_rc, syncstates, rn)
         catch e
             syncstates[Int(IsDAQTaskDone)] = true
             @error "[$(now())]\n$(mlstr("executing program failed!!!"))" exception = e
@@ -372,6 +378,11 @@ let
             waittime("saveqdtcache", CONF.DAQ.savetime) && (saveqdtcache(cache); empty!(cache))
             waittime("savecfgcache", 60CONF.DAQ.savetime) && savecfgcache()
             waittime("savedatabuf", 3600CONF.DAQ.savetime) && saveqdt()
+        end
+        if isready(EXTRADATABUFRC)
+            key, val = take!(EXTRADATABUFRC)
+            DATABUF[key] = val
+            DATABUFPARSED[key] = replace(tryparse.(Float64, val), nothing => NaN)
         end
     end
 end

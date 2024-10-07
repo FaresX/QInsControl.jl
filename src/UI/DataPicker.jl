@@ -5,8 +5,6 @@
     w::String = ""
     aux::Vector{String} = String[]
     xtype::Bool = true # true = > Number false = > String
-    zsize::Vector{Cint} = [0, 0]
-    autozsize::Bool = false
     processcodes::CodeBlock = CodeBlock()
     processfigurecodes::CodeBlock = CodeBlock(codes="autolimits!(content(figure[1,1]))")
     plotcodes::CodeBlock = CodeBlock(codes="lines!(content(figure[1,1]), x, y)")
@@ -158,21 +156,6 @@ let
         CImGui.PushItemWidth(-1)
         @c ComboS("##select Z", &dtss.z, datalist)
         CImGui.PopItemWidth()
-        CImGui.PushItemWidth(-CImGui.CalcTextSize(mlstr("matrix size")).x - 4CImGui.GetFontSize())
-        CImGui.DragInt2(
-            mlstr("matrix size"), dtss.zsize, 1, 0, 1000000, "%d",
-            CImGui.ImGuiSliderFlags_AlwaysClamp
-        )
-        CImGui.PopItemWidth()
-        if SYNCSTATES[Int(IsDAQTaskRunning)]
-            CImGui.SameLine()
-            @c CImGui.Checkbox("##auto zsize", &dtss.autozsize)
-            CImGui.SetItemTooltip(mlstr("auto-get z size"))
-            CImGui.SameLine()
-            if !dtss.autozsize && CImGui.Button(MORESTYLE.Icons.InstrumentsAutoRef) && length(PROGRESSLIST) == 2
-                dtss.zsize .= reverse([pgb[3] for pgb in values(PROGRESSLIST)])
-            end
-        end
         CImGui.EndGroup()
 
         BoxTextColored("W"; size=(4CImGui.GetFontSize(), Cfloat(0)), col=MORESTYLE.Colors.HighlightText)
@@ -346,12 +329,8 @@ let
                     end
                 end
             )
-            xbuf = if dtss.autozsize
-                remotecall_fetch(() -> Xvec[], workers()[1])
-            else
-                dtss.xtype ? loaddata(datastr, datafloat, dtss.x) : haskey(datastr, dtss.x) ? copy(datastr[dtss.x]) : String[]
-            end
-            ybuf = dtss.autozsize ? remotecall_fetch(() -> Yvec[], workers()[1]) : loaddata(datastr, datafloat, dtss.y)
+            xbuf = dtss.xtype ? loaddata(datastr, datafloat, dtss.x) : haskey(datastr, dtss.x) ? copy(datastr[dtss.x]) : String[]
+            ybuf = loaddata(datastr, datafloat, dtss.y)
             zbuf = loaddata(datastr, datafloat, dtss.z)
             wbuf = loaddata(datastr, datafloat, dtss.w)
             auxbufs = [loaddata(datastr, datafloat, aux) for aux in dtss.aux]
@@ -367,16 +346,7 @@ let
                 dtss.updateprocessfigurefunc = true
             end
             exprocess = :($(processfuncs[dtss])($xbuf, $ybuf, $zbuf, $wbuf, $auxbufs...))
-            nx, ny, nz = CONF.DAQ.externaleval ? @eval(Main, $exprocess) : eval(exprocess)
-            dtss.autozsize && (dtss.zsize .= remotecall_fetch(() -> (length(Yvec[]), length(Xvec[])), workers()[1]))
-            if isempty(nz)
-                nz = transpose(resize(nz, dtss.zsize...; fillms=NaN))
-            else
-                nx = length(nx) >= dtss.zsize[2] ? nx[1:dtss.zsize[2]] : 1:dtss.zsize[2]
-                ny = length(ny) >= dtss.zsize[1] ? ny[1:dtss.zsize[1]] : 1:dtss.zsize[1]
-                nz = nz isa Matrix ? transpose(nz) : transpose(resize(nz, dtss.zsize...; fillms=NaN))
-            end
-            return nx, ny, nz
+            return CONF.DAQ.externaleval ? @eval(Main, $exprocess) : eval(exprocess)
         catch e
             if !dtss.isrealtime
                 @error string("[", now(), "]\n", mlstr("pre-processing data failed!!!")) exception = e

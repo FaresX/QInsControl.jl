@@ -1,6 +1,3 @@
-const Xvec = Ref([])
-const Yvec = Ref([])
-
 macro progress(exfor)
     @gensym pgid pgi pgn tn
     ex = quote
@@ -19,29 +16,11 @@ macro progress(exfor)
     esc(ex)
 end
 
-macro progressx(exfor)
+macro progress(mark, exfor)
     @gensym pgid pgi pgn tn
     ex = quote
         let
-            Xvec[] = collect($(exfor.args[1].args[2]))
-            $pgid = uuid4()
-            $pgn = length($(exfor.args[1].args[2]))
-            $pgi = 0
-            put!(progress_lc, ($pgid, $pgi, $pgn, 0))
-            $tn = time()
-            for ($pgi, $(exfor.args[1].args[1])) in enumerate($(exfor.args[1].args[2]))
-                $(exfor.args[2])
-                put!(progress_lc, ($pgid, $pgi, $pgn, time() - $tn))
-            end
-        end
-    end
-    esc(ex)
-end
-macro progressy(exfor)
-    @gensym pgid pgi pgn tn
-    ex = quote
-        let
-            Yvec[] = collect($(exfor.args[1].args[2]))
+            put!(extradatabuf_lc, ($(string("Marked ", mark)), string.(collect($(exfor.args[1].args[2])))))
             $pgid = uuid4()
             $pgn = length($(exfor.args[1].args[2]))
             $pgi = 0

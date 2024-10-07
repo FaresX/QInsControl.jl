@@ -56,6 +56,7 @@ const PROGRESSLIST = OrderedDict{UUID,Tuple{UUID,Int,Int,Float64}}() #进度条�
 
 global SYNCSTATES::SharedVector{Bool}
 global DATABUFRC::RemoteChannel{Channel{Vector{NTuple{2,String}}}}
+global EXTRADATABUFRC::RemoteChannel{Channel{Tuple{String,Vector{Any}}}}
 global PROGRESSRC::RemoteChannel{Channel{Vector{Tuple{UUID,Int,Int,Float64}}}}
 
 global LOGIO = stdout
@@ -103,9 +104,11 @@ function julia_main()::Cint
         initialize!()
         loadconf()
         databuf_c::Channel{Vector{Tuple{String,String}}} = Channel{Vector{NTuple{2,String}}}(CONF.DAQ.channelsize)
+        extradatabuf_c::Channel{Tuple{String,Vector{Any}}} = Channel{Tuple{String,Vector{Any}}}(CONF.DAQ.channelsize)
         progress_c::Channel{Vector{Tuple{UUID,Int,Int,Float64}}} = Channel{Vector{Tuple{UUID,Int,Int,Float64}}}(CONF.DAQ.channelsize)
         global SYNCSTATES = SharedVector{Bool}(8)
         global DATABUFRC = RemoteChannel(() -> databuf_c)
+        global EXTRADATABUFRC = RemoteChannel(() -> extradatabuf_c)
         global PROGRESSRC = RemoteChannel(() -> progress_c)
         global LOGIO = IOBuffer()
         global_logger(SimpleLogger(LOGIO))
@@ -125,6 +128,7 @@ function julia_main()::Cint
             @eval @everywhere using QInsControl
             global SYNCSTATES = SharedVector{Bool}(8)
             global DATABUFRC = RemoteChannel(() -> databuf_c)
+            global EXTRADATABUFRC = RemoteChannel(() -> extradatabuf_c)
             global PROGRESSRC = RemoteChannel(() -> progress_c)
             remotecall_wait(workers()[1], SYNCSTATES) do syncstates
                 initialize!()
