@@ -29,39 +29,38 @@ let
         # optvalues = join(qtcf.optvalues, "\n")
         # @c(InputTextRSZ("可选值", &optkeys)) && (qtcf.optkeys = split(optkeys, '\n'))
         # @c(InputTextRSZ("可选值", &optvalues)) && (qtcf.optvalues = split(optvalues, '\n'))
-        CImGui.BeginGroup()
 
-        CImGui.BeginGroup()
-        for (i, key) in enumerate(qtcf.optkeys)
-            CImGui.PushID(i)
-            CImGui.PushItemWidth(width)
-            if @c InputTextRSZ("##optkey", &key)
-                key == "" || (qtcf.optkeys[i] = key)
+        if !isempty(qtcf.optkeys)
+            CImGui.BeginGroup()
+            for (i, key) in enumerate(qtcf.optkeys)
+                CImGui.PushID(i)
+                CImGui.PushItemWidth(width)
+                if @c InputTextRSZ("##optkey", &key)
+                    key == "" || (qtcf.optkeys[i] = key)
+                end
+                CImGui.PopItemWidth()
+                CImGui.SameLine()
+                CImGui.Text(" => ")
+                CImGui.SameLine()
+                CImGui.PushItemWidth(width)
+                val = qtcf.optvalues[i]
+                if @c InputTextRSZ("##optvalue", &val)
+                    val == "" || (qtcf.optvalues[i] = val)
+                end
+                CImGui.PopItemWidth()
+                CImGui.SameLine()
+                CImGui.PushID("optvalue")
+                if CImGui.Button(MORESTYLE.Icons.CloseFile)
+                    deleteat!(qtcf.optkeys, i)
+                    deleteat!(qtcf.optvalues, i)
+                    break
+                end
+                CImGui.PopID()
+                CImGui.PopID()
             end
-            CImGui.PopItemWidth()
+            CImGui.EndGroup()
             CImGui.SameLine()
-            CImGui.Text(" => ")
-            CImGui.SameLine()
-            CImGui.PushItemWidth(width)
-            val = qtcf.optvalues[i]
-            if @c InputTextRSZ("##optvalue", &val)
-                val == "" || (qtcf.optvalues[i] = val)
-            end
-            CImGui.PopItemWidth()
-            CImGui.SameLine()
-            CImGui.PushID("optvalue")
-            if CImGui.Button(MORESTYLE.Icons.CloseFile)
-                deleteat!(qtcf.optkeys, i)
-                deleteat!(qtcf.optvalues, i)
-                break
-            end
-            CImGui.PopID()
-            CImGui.PopID()
         end
-        CImGui.EndGroup()
-
-        CImGui.EndGroup()
-        CImGui.SameLine()
         CImGui.PushID("addopt")
         if CImGui.Button(MORESTYLE.Icons.NewFile)
             push!(qtcf.optkeys, string("key", length(qtcf.optkeys) + 1))
