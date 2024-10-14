@@ -282,20 +282,24 @@ let
             cx, cy, cz = collect(x), collect(y), collect(z)
             if haskey(observables, dtss) && typeof(cx) == typeof(observables[dtss][1][]) &&
                typeof(cy) == typeof(observables[dtss][2][]) && typeof(cz) == typeof(observables[dtss][3][])
-                observables[dtss][1].val = cx
-                observables[dtss][2].val = cy
-                if size(cz) == size(observables[dtss][3][])
-                    observables[dtss][3].val = cz
-                else
-                    observables[dtss] = (observables[dtss][1], observables[dtss][2], Observable(cz))
+                isempty(cx) || (observables[dtss][1].val = cx)
+                isempty(cy) || (observables[dtss][2].val = cy)
+                if !isempty(cz)
+                    if size(cz) == size(observables[dtss][3][])
+                        observables[dtss][3].val = cz
+                    else
+                        observables[dtss] = (observables[dtss][1], observables[dtss][2], Observable(cz))
+                    end
                 end
                 notify.(observables[dtss])
             else
                 observables[dtss] = (Observable(collect(cx)), Observable(collect(cy)), Observable(collect(cz)))
             end
         catch e
-            @error string("[", now(), "]\n", mlstr("setting observables failed!!!")) exception = e
-            showbacktrace()
+            if !dtss.isrealtime
+                @error string("[", now(), "]\n", mlstr("setting observables failed!!!")) exception = e
+                showbacktrace()
+            end
         end
     end
     global rmobvs(dtss) = delete!(observables, dtss)
