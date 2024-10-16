@@ -61,10 +61,11 @@ global PROGRESSRC::RemoteChannel{Channel{Vector{Tuple{UUID,Int,Int,Float64}}}}
 
 global LOGIO = stdout
 
-include("Utilities.jl")
+include("Utilities/Utilities.jl")
+include("Utilities/LoopVector.jl")
 include("Configurations.jl")
-include("MultiLanguage.jl")
-include("StaticString.jl")
+include("Utilities/MultiLanguage.jl")
+include("Utilities/StaticString.jl")
 
 include("UI/Extensions.jl")
 include("UI/Block.jl")
@@ -96,7 +97,7 @@ include("UI/MainWindow.jl")
 include("UI/Renderer.jl")
 
 # include("AuxFunc.jl")
-include("JLD2Struct.jl")
+include("Utilities/JLD2Struct.jl")
 include("Conf.jl")
 
 function julia_main()::Cint
