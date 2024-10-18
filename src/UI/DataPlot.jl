@@ -194,3 +194,12 @@ function update!(dtp::DataPlot, datastr, datafloat::Dict{String,VecOrMat{Cdouble
         syncplotdata(dtp.plots[i], dtpk, datastr, datafloat)
     end
 end
+
+function norealtime!(dtp::DataPlot)
+    for dtpk in dtp.dtpks
+        for dtss in dtpk.series
+            dtss.isrealtime = false
+        end
+    end
+    return dtp
+end
