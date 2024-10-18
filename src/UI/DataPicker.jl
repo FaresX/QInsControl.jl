@@ -306,7 +306,8 @@ let
 
     function plotfigurelayout(plt::QPlot, dtpk::DataPicker)
         try
-            empty!(FIGURES[plt.id])
+            rmplot!(plt)
+            FIGURES[plt.id] = Figure()
             ex = quote
                 (figure::Figure -> begin
                     $(tocodes(dtpk.codes))

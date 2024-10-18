@@ -19,12 +19,17 @@ function toimguitheme!(theme)
     return theme
 end
 
-# function rmplot(plt::QPlot)
-#     imid = CImGui.GetID(plt.id)
-#     empty!(CImGui.MakieIntegration.makie_context[imid].figure)
-#     delete!(CImGui.MakieIntegration.makie_context, imid)
-#     delete!(FIGURES, id)
-# end
+function rmplot!(plt::QPlot)
+    if haskey(FIGURES, plt.id)
+        figure = FIGURES[plt.id]
+        empty!(figure)
+        extension_module = Base.get_extension(CImGui, :MakieIntegration)
+        for (id, imfig) in extension_module.makie_context
+            imfig.figure == figure && (delete!(extension_module.makie_context, id); break)
+        end
+        delete!(FIGURES, plt.id)
+    end
+end
 
 const MAKIETHEMES = Dict(
     "default" => Theme(),
