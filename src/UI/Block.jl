@@ -1300,6 +1300,10 @@ let
         @c InputTextWithHintRSZ("##FreeSweepBlock stop", mlstr("stop"), &bk.stop)
         CImGui.PopItemWidth()
         CImGui.SameLine()
+        CImGui.PushItemWidth(width / 2 - unsafe_load(IMGUISTYLE.ItemSpacing.x))
+        @c CImGui.InputFloat("##FreeSweepBlock delta", &bk.delta, 0, 0, "%g")
+        CImGui.PopItemWidth()
+        CImGui.SameLine()
         Ut = if haskey(INSCONF, bk.instrnm) && haskey(INSCONF[bk.instrnm].quantities, bk.quantity)
             INSCONF[bk.instrnm].quantities[bk.quantity].U
         else
@@ -1307,10 +1311,6 @@ let
         end
         CImGui.PushItemWidth(width / 2 - unsafe_load(IMGUISTYLE.ItemSpacing.x))
         @c ShowUnit("##FreeSweepBlock", Ut, &bk.ui)
-        CImGui.PopItemWidth()
-        CImGui.SameLine()
-        CImGui.PushItemWidth(width / 2 - unsafe_load(IMGUISTYLE.ItemSpacing.x))
-        @c CImGui.InputFloat("##FreeSweepBlock delta", &bk.delta, 0, 0, "%g")
         CImGui.PopItemWidth()
         CImGui.SameLine()
         CImGui.PushItemWidth(width / 4)
