@@ -25,7 +25,7 @@ function loadconf(precompile=false)
     end
     if !precompile
         isfile(CONF.Communication.visapath) || (CONF.Communication.visapath = QInsControlCore.find_visa())
-        isfile(CONF.Communication.visapath) && (QInsControlCore.Instruments.libvisa = CONF.Communication.visapath)
+        isfile(CONF.Communication.visapath) && QInsControlCore.set_libvisa(CONF.Communication.visapath)
     end
     isdir(CONF.Fonts.dir) || (CONF.Fonts.dir = joinpath(ENV["QInsControlAssets"], "Fonts"))
     isdir(CONF.Console.dir) || (CONF.Console.dir = joinpath(ENV["QInsControlAssets"], "IOs"))
