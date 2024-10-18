@@ -401,7 +401,7 @@ function saveqdt()
             file["data"] = datafloat
         end
         file["circuit"] = CIRCUIT
-        file["dataplot"] = deepcopy(DAQDATAPLOT)
+        file["dataplot"] = norealtime!(deepcopy(DAQDATAPLOT))
         for (key, val) in CFGBUF
             file[key] = val
         end
