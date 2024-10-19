@@ -744,7 +744,7 @@ function interpret(bk::SweepBlock)
     utype = INSCONF[bk.instrnm].quantities[bk.quantity].U
     u, _ = @c getU(utype, &bk.ui)
     quote
-        @sweepblock $(bk.instrnm) $(bk.addr) $(bk.quantity) $(bk.step) $(bk.stop) $u $(bk.delay) $(bk.istrycatch) begin
+        @sweepblock $(bk.rangemark) $(bk.instrnm) $(bk.addr) $(bk.quantity) $(bk.step) $(bk.stop) $u $(bk.delay) $(bk.istrycatch) begin
             $(interpret.(bk.blocks)...)
         end
     end
@@ -983,15 +983,16 @@ function antiinterpret(ex, ::Val{:macrocall})
     return CodeBlock(codes=string(ex))
 end
 antiinterpret(ex, ::Val{:sweepblock}) = SweepBlock(
-    instrnm=ex.args[3],
-    addr=ex.args[4],
-    quantity=ex.args[5],
-    step=ex.args[6],
-    stop=ex.args[7],
-    ui=utoui(ex.args[3], ex.args[5], strtoU(string(ex.args[8]))),
-    delay=ex.args[9],
-    istrycatch=ex.args[10],
-    blocks=(bk = antiinterpret(ex.args[11]); iscontainer(bk) ? bk.blocks : [bk])
+    rangemark=ex.args[3],
+    instrnm=ex.args[4],
+    addr=ex.args[5],
+    quantity=ex.args[6],
+    step=ex.args[7],
+    stop=ex.args[8],
+    ui=utoui(ex.args[4], ex.args[6], strtoU(string(ex.args[9]))),
+    delay=ex.args[10],
+    istrycatch=ex.args[11],
+    blocks=(bk = antiinterpret(ex.args[12]); iscontainer(bk) ? bk.blocks : [bk])
 )
 antiinterpret(ex, ::Val{:freesweepblock}) = FreeSweepBlock(
     instrnm=ex.args[3],
