@@ -236,13 +236,21 @@ let
     )
         haskey(FIGURES, plt.id) || (FIGURES[plt.id] = Figure())
         haskey(synctasks, plt.id) || (synctasks[plt.id] = Dict())
-        if (dtpk.updatelayout || dtpk.update)
+        if dtpk.update
+            dtpk.updatelayout = true
+            for dtss in dtpk.series
+                dtss.update = true
+                dtss.updateprocessfunc = true
+                dtss.updateprocessfigurefunc = true
+                dtss.updateplot = true
+            end
+        end
+        if dtpk.updatelayout
             plotfigurelayout(plt, dtpk)
             dtpk.updatelayout = false
         end
         for (i, dtss) in enumerate(dtpk.series)
-            if dtpk.update || dtss.update ||
-               (dtss.isrealtime && waittime(stcstr("DataPicker", plt.id, "-", i), dtss.refreshrate))
+            if dtss.update || (dtss.isrealtime && waittime(stcstr("DataPicker", plt.id, "-", i), dtss.refreshrate))
                 if haskey(synctasks[plt.id], i) && istaskdone(synctasks[plt.id][i])
                     if !istaskfailed(synctasks[plt.id][i])
                         x, y, z = fetch(synctasks[plt.id][i])
@@ -253,7 +261,7 @@ let
                 end
                 pdtask = Threads.@spawn preprocess(dtss, datastr, datafloat)
                 synctasks[plt.id][i] = pdtask
-                if dtpk.update || dtss.update
+                if dtss.update
                     try
                         wait(pdtask)
                     catch
@@ -267,7 +275,7 @@ let
                 end
                 dtss.update = false
             end
-            if dtpk.update || dtss.updateplot
+            if dtss.updateplot
                 plottofigure(plt, dtss)
                 dtss.updateplot = false
             end
