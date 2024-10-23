@@ -1306,7 +1306,7 @@ let
     global function stoprefresh()
         stoptask = true
         sleep(0.1)
-        istaskdone(task[]) && istaskdone(monitortask[]) || schedule(AUTOREFRESHTASK, mlstr("Stop"); error=true)
+        istaskdone(task[]) && istaskdone(monitortask[]) || schedule(task[], mlstr("Stop"); error=true)
     end
     global function autorefresh()
         stoptask = false
