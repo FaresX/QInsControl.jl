@@ -386,7 +386,7 @@ let
             :($(processfigurefuncs[dtss])(FIGURES[$(plt.id)], $x, $y, $z)) |> eval
         catch e
             if !dtss.isrealtime
-                @error string("[", now(), "]\n", mlstr("pre-processing figure failed!!!")) exception = e
+                @error string("[", now(), "]\n", mlstr("post-processing figure failed!!!")) exception = e
                 showbacktrace()
             end
         finally
