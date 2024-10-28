@@ -28,6 +28,7 @@ function edit(fv::FileViewer, id)
         InputTextRSZ(stcstr(mlstr("Filter"), "##", id), fv.filetree.filter)
         CImGui.SameLine()
         CImGui.Checkbox(mlstr("Valid"), fv.filetree.valid)
+        CImGui.BeginChild("FileTree")
         CImGui.PushStyleColor(CImGui.ImGuiCol_ChildBg, MORESTYLE.Colors.ToolBarBg)
         edit(fv.filetree, fv.isrename, false)
         if fv.filetree.selectedpathes != oldfiles
@@ -58,6 +59,7 @@ function edit(fv::FileViewer, id)
             end
             CImGui.EndPopup()
         end
+        CImGui.EndChild()
     end
     CImGui.End()
     for path in fv.filetree.selectedpathes
