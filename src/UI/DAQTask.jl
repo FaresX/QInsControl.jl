@@ -383,6 +383,8 @@ let
             key, val = take!(EXTRADATABUFRC)
             DATABUF[key] = val
             DATABUFPARSED[key] = replace(tryparse.(Float64, val), nothing => NaN)
+            haskey(CFGBUF, "EXTRADATA") || (CFGBUF["EXTRADATA"] = Dict())
+            CFGBUF["EXTRADATA"][key] = val
         end
     end
 end
@@ -403,6 +405,7 @@ function saveqdt()
         file["circuit"] = CIRCUIT
         file["dataplot"] = norealtime!(deepcopy(DAQDATAPLOT))
         for (key, val) in CFGBUF
+            key == "EXTRADATA" && continue
             file[key] = val
         end
         file["valid"] = false

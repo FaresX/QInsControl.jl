@@ -350,6 +350,11 @@ end
 function mergecache!(dtviewer::DataViewer, cfgcachepath, qdtcachepath, id)
     qdata = readqdtcache(qdtcachepath)
     cfg = load(cfgcachepath)
+    if haskey(cfg, "EXTRADATA")
+        for (key, val) in cfg["EXTRADATA"]
+            qdata[key] = val
+        end
+    end
     data = Dict()
     savetype = eval(Symbol(CONF.DAQ.savetype))
     if savetype == String
@@ -363,6 +368,7 @@ function mergecache!(dtviewer::DataViewer, cfgcachepath, qdtcachepath, id)
         data["data"] = datafloat
     end
     for (key, val) in cfg
+        key == "EXTRADATA" && continue
         data[key] = val
     end
     loaddtviewer!(dtviewer, data, stcstr("formatdatagroup", id))
