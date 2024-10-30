@@ -345,7 +345,9 @@ function tocodes(bk::FeedbackBlock)
     instr = string(bk.instrnm, "/", bk.addr)
     quote
         if haskey(SWEEPCTS, $(bk.instrnm)) && haskey(SWEEPCTS[$(bk.instrnm)], $(bk.addr))
-            SWEEPCTS[$(bk.instrnm)][$(bk.addr)][1][] = false
+            for (sweeping, _) in values(SWEEPCTS[$(bk.instrnm)][$(bk.addr)])
+                sweeping[] = false
+            end
         end
         if $(bk.action) == mlstr("Interrupt")
             SYNCSTATES[Int(IsInterrupted)] = true

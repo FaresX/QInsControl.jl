@@ -994,16 +994,17 @@ function apply!(qt::SweepQuantity, instrnm, addr)
                 workers()[1], instrnm, addr, sweeplist, sweep_rc, qt.name, qt.delay, idxbuf, timebuf
             ) do instrnm, addr, sweeplist, sweep_rc, qtnm, delay, idxbuf, timebuf
                 haskey(SWEEPCTS, instrnm) || (SWEEPCTS[instrnm] = Dict())
-                if haskey(SWEEPCTS[instrnm], addr)
-                    SWEEPCTS[instrnm][addr][1][] = true
+                haskey(SWEEPCTS[instrnm], addr) || (SWEEPCTS[instrnm][addr] = Dict())
+                if haskey(SWEEPCTS[instrnm][addr], qt.name)
+                    SWEEPCTS[instrnm][addr][qt.name][1][] = true
                 else
-                    SWEEPCTS[instrnm][addr] = (
+                    SWEEPCTS[instrnm][addr][qt.name] = (
                         Ref(true),
                         Controller(instrnm, addr; buflen=CONF.DAQ.ctbuflen, timeout=CONF.DAQ.cttimeout)
                     )
                 end
                 sweep_lc = Channel{String}(CONF.DAQ.channelsize)
-                login!(CPU, SWEEPCTS[instrnm][addr][2]; quiet=false, attr=getattr(addr))
+                login!(CPU, SWEEPCTS[instrnm][addr][qt.name][2]; quiet=false, attr=getattr(addr))
                 try
                     setfunc = Symbol(instrnm, :_, qtnm, :_set) |> eval
                     getfunc = Symbol(instrnm, :_, qtnm, :_get) |> eval
@@ -1011,10 +1012,10 @@ function apply!(qt::SweepQuantity, instrnm, addr)
                         sweeptask = @async @trycatch mlstr("sweeping task failed!!!") begin
                             tstart = time()
                             for (i, sv) in enumerate(sweeplist)
-                                SWEEPCTS[instrnm][addr][1][] || break
-                                SWEEPCTS[instrnm][addr][2](setfunc, CPU, string(sv), Val(:write))
+                                SWEEPCTS[instrnm][addr][qt.name][1][] || break
+                                SWEEPCTS[instrnm][addr][qt.name][2](setfunc, CPU, string(sv), Val(:write))
                                 sleep(delay)
-                                put!(sweep_lc, CONF.InsBuf.retreading ? SWEEPCTS[instrnm][addr][2](getfunc, CPU, Val(:read)) : string(sv))
+                                put!(sweep_lc, CONF.InsBuf.retreading ? SWEEPCTS[instrnm][addr][qt.name][2](getfunc, CPU, Val(:read)) : string(sv))
                                 idxbuf[1] = i
                                 timebuf[1] = time() - tstart
                             end
@@ -1032,14 +1033,14 @@ function apply!(qt::SweepQuantity, instrnm, addr)
                     )
                     showbacktrace()
                 finally
-                    logout!(CPU, SWEEPCTS[instrnm][addr][2]; quiet=false)
-                    SWEEPCTS[instrnm][addr][1][] = false
+                    logout!(CPU, SWEEPCTS[instrnm][addr][qt.name][2]; quiet=false)
+                    SWEEPCTS[instrnm][addr][qt.name][1][] = false
                 end
             end
             ## local
             while !istaskdone(sweepcalltask) || isready(sweep_rc)
                 qt.issweeping || remotecall_wait(workers()[1], instrnm, addr) do instrnm, addr
-                    SWEEPCTS[instrnm][addr][1][] = false
+                    SWEEPCTS[instrnm][addr][qt.name][1][] = false
                 end
                 isready(sweep_rc) ? for val in take!(sweep_rc)
                     qt.read = val
