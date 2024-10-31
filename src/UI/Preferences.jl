@@ -144,10 +144,10 @@ let
                 if inputvisapath || selectvisapath || autovisapath
                     isvalidpath(visapath) && (CONF.Communication.visapath = visapath)
                     if isfile(CONF.Communication.visapath)
-                        QInsControlCore.Instruments.libvisa = CONF.Communication.visapath
+                        QInsControlCore.set_libvisa(CONF.Communication.visapath)
                         remotecall_wait(workers()[1], CONF.Communication.visapath) do visapath
                             CONF.Communication.visapath = visapath
-                            QInsControlCore.Instruments.libvisa = visapath
+                            QInsControlCore.set_libvisa(visapath)
                         end
                     end
                 end

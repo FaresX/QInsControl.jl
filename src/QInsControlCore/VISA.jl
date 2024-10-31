@@ -86,3 +86,5 @@ function find_visa()
     visa_path_found = BinDeps._find_library(visa)
     return isempty(visa_path_found) ? "" : visa_path_found[1][end]
 end
+
+set_libvisa(visapath) = @eval Instruments libvisa = $visapath
