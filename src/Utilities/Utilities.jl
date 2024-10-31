@@ -360,3 +360,10 @@ function resizefill!(sv::Vector{String}, n; fillv="")
         isassigned(sv, i) || (sv[i] = fillv)
     end
 end
+
+function resizebool!(v::Vector{Bool}, n)
+    lv = length(v)
+    resize!(v, n)
+    lv < n && @views v[lv+1:n] .= false
+    return v
+end

@@ -68,7 +68,7 @@ end
 
 function editmenu(dtp::DataPlot)
     ldtpks = length(dtp.dtpks)
-    length(dtp.showdtpks) == ldtpks || resize!(dtp.showdtpks, ldtpks)
+    length(dtp.showdtpks) == ldtpks || resizebool!(dtp.showdtpks, ldtpks)
     dtp.layout.labels = [stcstr(MORESTYLE.Icons.Plot, " ", mlstr("Plot"), " ", i) for i in eachindex(dtp.layout.labels)]
     edit(
         dtp.layout, dtp;

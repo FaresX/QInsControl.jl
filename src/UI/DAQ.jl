@@ -123,8 +123,8 @@ let
         CImGui.SameLine()
         CImGui.Button(stcstr(MORESTYLE.Icons.NewFile, " ", mlstr("New Plot")), btsz) && newplot!(DAQDATAPLOT)
         CImGui.PopStyleColor()
-        length(show_daq_editors) == length(daqtasks) || resize!(show_daq_editors, length(daqtasks))
-        length(torunstates) == length(daqtasks) || resize!(torunstates, length(daqtasks))
+        length(show_daq_editors) == length(daqtasks) || resizebool!(show_daq_editors, length(daqtasks))
+        length(torunstates) == length(daqtasks) || resizebool!(torunstates, length(daqtasks))
         daqtaskscdy = (length(daqtasks) + SYNCSTATES[Int(IsDAQTaskRunning)] * length(PROGRESSLIST)) *
                       CImGui.GetFrameHeightWithSpacing() - unsafe_load(IMGUISTYLE.ItemSpacing.y) +
                       2unsafe_load(IMGUISTYLE.WindowPadding.y)
