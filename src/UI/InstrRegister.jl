@@ -7,8 +7,12 @@ let
         width = CImGui.GetItemRectSize().x / 2 - 2CImGui.CalcTextSize(" =>  ").x
         CImGui.SameLine()
         if CImGui.Button(mlstr("Drivers"))
-            driverfile = joinpath(ENV["QInsControlAssets"], "ExtraLoad/$instrnm.jl") |> abspath
-            Threads.@spawn @trycatch mlstr("error editing text!!!") Base.run(Cmd([CONF.Basic.editor, driverfile]))
+            Threads.@spawn @trycatch mlstr("error editing driver!!!") begin
+                driverfile = joinpath(ENV["QInsControlAssets"], "ExtraLoad/$instrnm.jl") |> abspath
+                isfile(driverfile) || FileIO.open(() -> (), driverfile, "w")
+                DefaultApplication.open(driverfile; wait=true)
+                isempty(read(driverfile)) && Base.Filesystem.rm(driverfile; force=true)
+            end
         end
         CImGui.SameLine()
         if CImGui.Button(MORESTYLE.Icons.InstrumentsManualRef)
@@ -25,39 +29,38 @@ let
         # optvalues = join(qtcf.optvalues, "\n")
         # @c(InputTextRSZ("可选值", &optkeys)) && (qtcf.optkeys = split(optkeys, '\n'))
         # @c(InputTextRSZ("可选值", &optvalues)) && (qtcf.optvalues = split(optvalues, '\n'))
-        CImGui.BeginGroup()
 
-        CImGui.BeginGroup()
-        for (i, key) in enumerate(qtcf.optkeys)
-            CImGui.PushID(i)
-            CImGui.PushItemWidth(width)
-            if @c InputTextRSZ("##optkey", &key)
-                key == "" || (qtcf.optkeys[i] = key)
+        if !isempty(qtcf.optkeys)
+            CImGui.BeginGroup()
+            for (i, key) in enumerate(qtcf.optkeys)
+                CImGui.PushID(i)
+                CImGui.PushItemWidth(width)
+                if @c InputTextRSZ("##optkey", &key)
+                    key == "" || (qtcf.optkeys[i] = key)
+                end
+                CImGui.PopItemWidth()
+                CImGui.SameLine()
+                CImGui.Text(" => ")
+                CImGui.SameLine()
+                CImGui.PushItemWidth(width)
+                val = qtcf.optvalues[i]
+                if @c InputTextRSZ("##optvalue", &val)
+                    val == "" || (qtcf.optvalues[i] = val)
+                end
+                CImGui.PopItemWidth()
+                CImGui.SameLine()
+                CImGui.PushID("optvalue")
+                if CImGui.Button(MORESTYLE.Icons.CloseFile)
+                    deleteat!(qtcf.optkeys, i)
+                    deleteat!(qtcf.optvalues, i)
+                    break
+                end
+                CImGui.PopID()
+                CImGui.PopID()
             end
-            CImGui.PopItemWidth()
+            CImGui.EndGroup()
             CImGui.SameLine()
-            CImGui.Text(" => ")
-            CImGui.SameLine()
-            CImGui.PushItemWidth(width)
-            val = qtcf.optvalues[i]
-            if @c InputTextRSZ("##optvalue", &val)
-                val == "" || (qtcf.optvalues[i] = val)
-            end
-            CImGui.PopItemWidth()
-            CImGui.SameLine()
-            CImGui.PushID("optvalue")
-            if CImGui.Button(MORESTYLE.Icons.CloseFile)
-                deleteat!(qtcf.optkeys, i)
-                deleteat!(qtcf.optvalues, i)
-                break
-            end
-            CImGui.PopID()
-            CImGui.PopID()
         end
-        CImGui.EndGroup()
-
-        CImGui.EndGroup()
-        CImGui.SameLine()
         CImGui.PushID("addopt")
         if CImGui.Button(MORESTYLE.Icons.NewFile)
             push!(qtcf.optkeys, string("key", length(qtcf.optkeys) + 1))
@@ -77,7 +80,7 @@ let
         if edithelp
             lines = split(qtcf.help, '\n')
             x = CImGui.CalcTextSize(lines[argmax(lengthpr.(lines))]).x
-            width = CImGui.GetContentRegionAvailWidth()
+            width = CImGui.GetContentRegionAvail().x
             x = x > width ? x : width
             y = (1 + length(findall("\n", qtcf.help))) * CImGui.GetTextLineHeight() + 2unsafe_load(IMGUISTYLE.FramePadding.y)
             CImGui.BeginChild("edit help", (Cfloat(0), y), false, CImGui.ImGuiWindowFlags_HorizontalScrollbar)
@@ -174,9 +177,9 @@ let
             end
             CImGui.PopStyleVar()
             CImGui.EndChild()
-            btwidth = CImGui.GetContentRegionAvailWidth() - unsafe_load(IMGUISTYLE.ItemSpacing.x)
+            btwidth = CImGui.GetContentRegionAvail().x - unsafe_load(IMGUISTYLE.ItemSpacing.x)
             CImGui.SetCursorPosY(
-                CImGui.GetWindowContentRegionMax().y - 2CImGui.GetFrameHeight() - unsafe_load(IMGUISTYLE.ItemSpacing.y)
+                CImGui.GetWindowHeight() - 2CImGui.GetFrameHeight() - unsafe_load(IMGUISTYLE.ItemSpacing.y)
             )
             CImGui.Separator()
             CImGui.PushStyleColor(CImGui.ImGuiCol_Button, (0, 0, 0, 0))
@@ -407,7 +410,7 @@ function saveinswconf()
     for (ins, widgets) in INSWCONF
         cfpath = joinpath(ENV["QInsControlAssets"], "Widgets/$ins.toml")
         readcf = @trypasse TOML.parsefile(cfpath) nothing
-        if readcf != Dict(w => Dict(to_dict(w)) for w in widgets)
+        if readcf != Dict(w.name => Dict(to_dict(w)) for w in widgets)
             @trycatch mlstr("saving INSWCONF failed!!!") begin
                 open(cfpath, "w") do file
                     TOML.print(file, Dict(w.name => to_dict(w) for w in widgets))

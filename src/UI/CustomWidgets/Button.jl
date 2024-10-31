@@ -119,24 +119,24 @@ function createimage(path; showsize=(100, 100))
             if ndims(imgload) == 2
                 img = RGBA.(collect(transpose(imgload)))
                 imgsize = size(img)
-                push!(IMAGES[path], ImGui_ImplOpenGL3_CreateImageTexture(imgsize...))
-                ImGui_ImplOpenGL3_UpdateImageTexture(IMAGES[path][], img, imgsize...)
+                push!(IMAGES[path], CImGui.create_image_texture(imgsize...))
+                CImGui.update_image_texture(IMAGES[path][], img, imgsize...)
             elseif ndims(imgload) == 3
                 imgs = permutedims(RGBA.(imgload), (2, 1, 3))
                 imgsize = size(imgs)[1:2]
                 for img in eachslice(imgs; dims=3)
-                    push!(IMAGES[path], ImGui_ImplOpenGL3_CreateImageTexture(imgsize...))
-                    ImGui_ImplOpenGL3_UpdateImageTexture(IMAGES[path].data[end], img, imgsize...)
+                    push!(IMAGES[path], CImGui.create_image_texture(imgsize...))
+                    CImGui.update_image_texture(IMAGES[path].data[end], img, imgsize...)
                 end
             else
-                push!(IMAGES[path], ImGui_ImplOpenGL3_CreateImageTexture(showsize...))
+                push!(IMAGES[path], CImGui.create_image_texture(showsize...))
             end
         catch e
             @error "[$(now())]\n$(mlstr("loading image failed!!!"))" exception = e
-            push!(IMAGES[path], ImGui_ImplOpenGL3_CreateImageTexture(showsize...))
+            push!(IMAGES[path], CImGui.create_image_texture(showsize...))
         end
     else
-        push!(IMAGES[path], ImGui_ImplOpenGL3_CreateImageTexture(showsize...))
+        push!(IMAGES[path], CImGui.create_image_texture(showsize...))
     end
 end
 
@@ -189,7 +189,7 @@ function ColoredButtonRect(
     CImGui.PopStyleVar()
     rmin, rmax = CImGui.GetItemRectMin(), CImGui.GetItemRectMax()
     draw_list = CImGui.GetWindowDrawList()
-    CImGui.AddRect(draw_list, rmin, rmax, CImGui.ColorConvertFloat4ToU32(colrect), bdrounding, 0, thickness)
+    CImGui.AddRect(draw_list, rmin, rmax, colrect, bdrounding, 0, thickness)
     return clicked
 end
 
@@ -219,7 +219,7 @@ function ImageButtonRect(
     CImGui.PopStyleColor(3)
     rmin, rmax = CImGui.GetItemRectMin(), CImGui.GetItemRectMax()
     draw_list = CImGui.GetWindowDrawList()
-    CImGui.AddRect(draw_list, rmin, rmax, CImGui.ColorConvertFloat4ToU32(colrect), bdrounding, 0, thickness)
+    CImGui.AddRect(draw_list, rmin, rmax, colrect, bdrounding, 0, thickness)
     return clicked
 end
 
@@ -291,7 +291,7 @@ function ToggleButtonRect(
     CImGui.PopStyleVar()
     rmin, rmax = CImGui.GetItemRectMin(), CImGui.GetItemRectMax()
     draw_list = CImGui.GetWindowDrawList()
-    CImGui.AddRect(draw_list, rmin, rmax, CImGui.ColorConvertFloat4ToU32(colrect), bdrounding, 0, thickness)
+    CImGui.AddRect(draw_list, rmin, rmax, colrect, bdrounding, 0, thickness)
     return toggled
 end
 
@@ -315,7 +315,7 @@ function ColoredRadioButton(
     CImGui.PopStyleColor(5)
     rmin, rmax = CImGui.GetItemRectMin(), CImGui.GetItemRectMax()
     draw_list = CImGui.GetWindowDrawList()
-    CImGui.AddRect(draw_list, rmin, rmax, CImGui.ColorConvertFloat4ToU32(colrect), bdrounding, 0, thickness)
+    CImGui.AddRect(draw_list, rmin, rmax, colrect, bdrounding, 0, thickness)
     return clicked
 end
 
@@ -339,7 +339,7 @@ function ColoredProgressBarRect(
     CImGui.PopStyleColor(3)
     rmin, rmax = CImGui.GetItemRectMin(), CImGui.GetItemRectMax()
     draw_list = CImGui.GetWindowDrawList()
-    CImGui.AddRect(draw_list, rmin, rmax, CImGui.ColorConvertFloat4ToU32(colrect), bdrounding, 0, thickness)
+    CImGui.AddRect(draw_list, rmin, rmax, colrect, bdrounding, 0, thickness)
     return false
 end
 

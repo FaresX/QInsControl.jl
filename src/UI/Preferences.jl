@@ -18,7 +18,7 @@ let
             CImGui.PushStyleColor(CImGui.ImGuiCol_ChildBg, MORESTYLE.Colors.ToolBarBg)
             CImGui.BeginChild("Toolbar")
             CImGui.PopStyleColor()
-            width = CImGui.GetContentRegionAvailWidth()
+            width = CImGui.GetContentRegionAvail().x
             ftsz = CImGui.GetFontSize()
             CImGui.SameLine((width - 6ftsz) / 2)
             CImGui.SetCursorPos((width - 6ftsz) / 2, ftsz)
@@ -43,7 +43,7 @@ let
             CImGui.EndChild()
 
             CImGui.SetCursorPosY(
-                CImGui.GetWindowContentRegionMax().y - 2CImGui.GetFrameHeight() - unsafe_load(IMGUISTYLE.ItemSpacing.y)
+                CImGui.GetWindowHeight() - 2CImGui.GetFrameHeight() - unsafe_load(IMGUISTYLE.ItemSpacing.y)
             )
             CImGui.Separator()
             CImGui.PushStyleColor(CImGui.ImGuiCol_Button, (0, 0, 0, 0))
@@ -74,12 +74,13 @@ let
                 @c(CImGui.Checkbox(
                     CONF.Basic.viewportenable ? mlstr("multi-viewport mode on") : mlstr("multi-viewport mode off"),
                     &CONF.Basic.viewportenable
-                )) && (CONF.Basic.viewportenable || (CONF.Basic.hidewindow = false))
+                )) 
+                #&& (CONF.Basic.viewportenable || (CONF.Basic.hidewindow = false))
                 @c CImGui.Checkbox(mlstr("hold main window"), &CONF.Basic.holdmainwindow)
-                @c CImGui.Checkbox(
-                    CONF.Basic.scale ? mlstr("scale on") : mlstr("scale off"),
-                    &CONF.Basic.scale
-                )
+                # @c CImGui.Checkbox(
+                #     CONF.Basic.scale ? mlstr("scale on") : mlstr("scale off"),
+                #     &CONF.Basic.scale
+                # )
                 # if unsafe_load(CImGui.GetIO().ConfigFlags) & CImGui.ImGuiConfigFlags_ViewportsEnable == CImGui.ImGuiConfigFlags_ViewportsEnable
                 #     @c CImGui.Checkbox(mlstr("hide window"), &CONF.Basic.hidewindow)
                 # end
@@ -96,24 +97,24 @@ let
                     1, 1, 100, "%d",
                     CImGui.ImGuiSliderFlags_AlwaysClamp
                 )
-                @c CImGui.DragInt(
-                    mlstr("no action swap interval"),
-                    &CONF.Basic.noactionswapinterval,
-                    1, 1, 12, "%d",
-                    CImGui.ImGuiSliderFlags_AlwaysClamp
-                )
+                # @c CImGui.DragInt(
+                #     mlstr("no action swap interval"),
+                #     &CONF.Basic.noactionswapinterval,
+                #     1, 1, 12, "%d",
+                #     CImGui.ImGuiSliderFlags_AlwaysClamp
+                # )
                 # io = CImGui.GetIO()
                 # if conf.Basic.viewportenable
                 #     io.ConfigFlags = unsafe_load(io.ConfigFlags) | CImGui.ImGuiConfigFlags_ViewportsEnable
                 # else
                 #     io.ConfigFlags = unsafe_load(io.ConfigFlags) & ~CImGui.ImGuiConfigFlags_ViewportsEnable
                 # end
-                @c CImGui.DragInt(
-                    mlstr("sampling threshold"),
-                    &CONF.Basic.samplingthreshold,
-                    100, 10000, 1000000, "%d",
-                    CImGui.ImGuiSliderFlags_AlwaysClamp
-                )
+                # @c CImGui.DragInt(
+                #     mlstr("sampling threshold"),
+                #     &CONF.Basic.samplingthreshold,
+                #     100, 10000, 1000000, "%d",
+                #     CImGui.ImGuiSliderFlags_AlwaysClamp
+                # )
                 CImGui.DragInt2(
                     mlstr("window size"),
                     CONF.Basic.windowsize,
@@ -144,10 +145,10 @@ let
                 if inputvisapath || selectvisapath || autovisapath
                     isvalidpath(visapath) && (CONF.Communication.visapath = visapath)
                     if isfile(CONF.Communication.visapath)
-                        QInsControlCore.Instruments.libvisa = CONF.Communication.visapath
+                        QInsControlCore.set_libvisa(CONF.Communication.visapath)
                         remotecall_wait(workers()[1], CONF.Communication.visapath) do visapath
                             CONF.Communication.visapath = visapath
-                            QInsControlCore.Instruments.libvisa = visapath
+                            QInsControlCore.set_libvisa(visapath)
                         end
                     end
                 end
@@ -282,21 +283,21 @@ let
                 CImGui.Text(stcstr(mlstr("font"), " ", 2))
                 selectft2 && (ft2 = basename(pick_file(joinpath(abspath(fontdir), ft2); filterlist="ttf,ttc,otf")))
                 (inputft2 || selectft2) && isvalidpath(joinpath(fontdir, ft2)) && (CONF.Fonts.second = ft2)
-                ftp = CONF.Fonts.plotfont
-                inputftp = @c InputTextRSZ("##plotfont", &ftp)
+                ftp = CONF.Fonts.bigfont
+                inputftp = @c InputTextRSZ("##bigfont", &ftp)
                 CImGui.SameLine()
                 selectftp = CImGui.Button(stcstr(MORESTYLE.Icons.SelectPath, "##Fonts-plot"))
                 CImGui.SameLine()
-                CImGui.Text(mlstr("plot font"))
+                CImGui.Text(mlstr("big font"))
                 selectftp && (ftp = basename(pick_file(joinpath(abspath(fontdir), ftp); filterlist="ttf,ttc,otf")))
-                (inputftp || selectftp) && isvalidpath(joinpath(fontdir, ftp)) && (CONF.Fonts.plotfont = ftp)
+                (inputftp || selectftp) && isvalidpath(joinpath(fontdir, ftp)) && (CONF.Fonts.bigfont = ftp)
                 @c CImGui.DragInt(
                     mlstr("font size"),
                     &CONF.Fonts.size, 1.0, 6, 60, "%d",
                     CImGui.ImGuiSliderFlags_AlwaysClamp
                 )
                 @c CImGui.DragInt(
-                    mlstr("plot font size"),
+                    mlstr("big font size"),
                     &CONF.Fonts.plotfontsize, 1.0, 6, 60, "%d",
                     CImGui.ImGuiSliderFlags_AlwaysClamp
                 )

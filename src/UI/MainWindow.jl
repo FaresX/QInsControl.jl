@@ -107,13 +107,14 @@ let
             CImGui.EndChild()
             CImGui.NextColumn()
             CImGui.BeginChild("right")
-            CImGui.PushFont(PLOTFONT)
+            CImGui.PushFont(BIGFONT)
             isopenfiles = false
             isopenfolder = false
             isopenformatter = false
             ftsz = CImGui.GetFontSize()
             sbsz = (3ftsz / 2, CImGui.GetFrameHeight())
             CImGui.PushStyleColor(CImGui.ImGuiCol_Header, MORESTYLE.Colors.ToolBarBg)
+            CImGui.PushStyleColor(CImGui.ImGuiCol_HeaderHovered, MORESTYLE.Colors.ToolBarBg)
             CImGui.PushStyleVar(CImGui.ImGuiStyleVar_ItemSpacing, (0, 0))
             CImGui.PushStyleVar(CImGui.ImGuiStyleVar_SelectableTextAlign, (0.5, 0.5))
             CImGui.Selectable(MORESTYLE.Icons.Instruments, menuidx == 0, 0, sbsz) && (menuidx = 0)
@@ -121,7 +122,7 @@ let
             CImGui.Selectable(MORESTYLE.Icons.File, menuidx == 1, 0, sbsz) && (menuidx = 1)
             CImGui.SameLine()
             CImGui.Selectable(MORESTYLE.Icons.Help, menuidx == 2, 0, sbsz) && (menuidx = 2)
-            CImGui.PopStyleColor()
+            CImGui.PopStyleColor(2)
             CImGui.SameLine()
             CImGui.PushStyleColor(CImGui.ImGuiCol_Text, MORESTYLE.Colors.IconButton)
             @c CImGui.Selectable(MORESTYLE.Icons.Preferences, &show_preferences, 0, sbsz)
@@ -130,8 +131,8 @@ let
             CImGui.AddRectFilled(
                 CImGui.GetWindowDrawList(),
                 CImGui.GetCursorScreenPos(),
-                CImGui.GetCursorScreenPos() .+ (CImGui.GetWindowContentRegionMax().x, CImGui.GetFrameHeight() + unsafe_load(IMGUISTYLE.ItemSpacing.y)),
-                CImGui.ColorConvertFloat4ToU32(MORESTYLE.Colors.ToolBarBg)
+                CImGui.GetCursorScreenPos() .+ (CImGui.GetWindowWidth(), CImGui.GetFrameHeight() + unsafe_load(IMGUISTYLE.ItemSpacing.y)),
+                MORESTYLE.Colors.ToolBarBg
             )
             if menuidx == 0
                 CImGui.PushStyleColor(CImGui.ImGuiCol_Text, MORESTYLE.Colors.IconButton)
@@ -229,7 +230,7 @@ let
                 showst && CImGui.PopStyleColor()
                 CImGui.SameLine()
                 CImGui.BeginGroup()
-                CImGui.PushItemWidth(CImGui.GetContentRegionAvailWidth() - unsafe_load(IMGUISTYLE.ItemSpacing.x) - CImGui.GetFrameHeight())
+                CImGui.PushItemWidth(CImGui.GetContentRegionAvail().x - unsafe_load(IMGUISTYLE.ItemSpacing.x) - CImGui.GetFrameHeight())
                 showst1, st1 = manualadd_from_others()
                 showst2, st2 = manualadd_from_input()
                 showst = showst1 || showst2

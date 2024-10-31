@@ -30,6 +30,7 @@ macro trypass(sv, default)
     esc(ex)
 end
 showbacktrace() = (Base.show_backtrace(LOGIO, catch_backtrace()); println(LOGIO, "\n\r"))
+# showbacktrace() = rethrow()
 macro trycatch(msg, ex)
     esc(
         quote
@@ -73,7 +74,7 @@ function packtake!(c, n=12)
     buf
 end
 
-function resize(z, m, n; fillms=0)
+function resize(z, m, n; fillms=NaN)
     return if length(z) > m * n
         @views reshape(z[1:m*n], m, n)
     else
@@ -218,62 +219,6 @@ function swapvalue!(dict::OrderedDict, key1, key2)
     merge!(dict, newdict)
 end
 
-function Base.iterate(v::Union{ImVec2,ImPlot.ImPlotPoint}, state=1)
-    if state == 1
-        return v.x, 2
-    elseif state == 2
-        return v.y, 3
-    else
-        return nothing
-    end
-end
-function Base.getindex(v::Union{ImVec2,ImPlot.ImPlotPoint}, i)
-    if i == 1
-        return v.x
-    elseif i == 2
-        return v.y
-    else
-        throw(BoundsError(v, i))
-    end
-end
-Base.length(::Union{ImVec2,ImPlot.ImPlotPoint}) = 2
-function Base.getindex(v::ImVec4, i)
-    if i == 1
-        return v.x
-    elseif i == 2
-        return v.y
-    elseif i == 3
-        return v.z
-    elseif i == 4
-        return v.w
-    else
-        throw(BoundsError(v, i))
-    end
-end
-
-function Base.getproperty(x::Ptr{LibCImGui.ImNodesStyle}, f::Symbol)
-    f === :GridSpacing && return Ptr{Cfloat}(x + 0)
-    f === :NodeCornerRounding && return Ptr{Cfloat}(x + 4)
-    f === :NodePadding && return Ptr{ImVec2}(x + 8)
-    f === :NodeBorderThickness && return Ptr{Cfloat}(x + 16)
-    f === :LinkThickness && return Ptr{Cfloat}(x + 20)
-    f === :LinkLineSegmentsPerLength && return Ptr{Cfloat}(x + 24)
-    f === :LinkHoverDistance && return Ptr{Cfloat}(x + 28)
-    f === :PinCircleRadius && return Ptr{Cfloat}(x + 32)
-    f === :PinQuadSideLength && return Ptr{Cfloat}(x + 36)
-    f === :PinTriangleSideLength && return Ptr{Cfloat}(x + 40)
-    f === :PinLineThickness && return Ptr{Cfloat}(x + 44)
-    f === :PinHoverRadius && return Ptr{Cfloat}(x + 48)
-    f === :PinOffset && return Ptr{Cfloat}(x + 52)
-    f === :MiniMapPadding && return Ptr{ImVec2}(x + 56)
-    f === :MiniMapOffset && return Ptr{ImVec2}(x + 64)
-    f === :Flags && return Ptr{UInt32}(x + 72)
-    f === :Colors && return Ptr{NTuple{29,Cuint}}(x + 76)
-    return getfield(x, f)
-end
-
-Base.setproperty!(x::Ptr{LibCImGui.ImNodesStyle}, f::Symbol, v) = unsafe_store!(getproperty(x, f), v)
-
 function newtuple(t::Tuple, i, v)
     newt = []
     for (j, val) in enumerate(t)
@@ -316,26 +261,6 @@ function uniformy!(y, z)
         end
     end
 end
-
-mutable struct LoopVector{T}
-    data::Vector{T}
-    index::Integer
-    LoopVector{T}(::UndefInitializer, len) where {T} = new(Vector{T}(undef, len), 1)
-    LoopVector(vec::Vector{T}) where {T} = new{T}(vec, 1)
-end
-
-Base.length(lv::LoopVector) = length(lv.data)
-function __find_index(lv::LoopVector, i)
-    l = length(lv)
-    r = (i + lv.index) % l |> abs
-    return r == 0 ? l : r
-end
-Base.getindex(lv::LoopVector, i=0) = lv.data[__find_index(lv, i)]
-Base.setindex!(lv::LoopVector, x, i=0) = (lv.data[__find_index(lv, i)] = x)
-
-move!(lv::LoopVector, i=1) = (lv.index += i)
-
-Base.push!(lv::LoopVector, x) = push!(lv.data, x)
 
 function waittofetch(f, timeout=2; pollint=0.001)
     waittask = errormonitor(@async fetch(f))
@@ -420,7 +345,7 @@ end
 
 function calcmaxwidth(labels, padding=0)
     maxwidth = max([CImGui.CalcTextSize(label).x for label in labels]...) + padding
-    availwidth = CImGui.GetContentRegionAvailWidth()
+    availwidth = CImGui.GetContentRegionAvail().x
     itemspacing = unsafe_load(IMGUISTYLE.ItemSpacing)
     cols = floor(Int, availwidth / (maxwidth + itemspacing.x))
     cols == 0 && (cols = 1)
@@ -429,43 +354,16 @@ function calcmaxwidth(labels, padding=0)
     return cols, labelwidth
 end
 
-function imgsampling(x, y; num=100000)
-    if num > 1000
-        xl, yl = length(x), length(y)
-        xidxleft = round.(Int, range(1, xl, length=min(num, xl)))
-        yidxleft = round.(Int, range(1, yl, length=min(num, yl)))
-        return x[xidxleft], y[yidxleft]
-    else
-        return x, y
-    end
-end
-
-function imgsampling(x, y, z; num=100000)
-    if num > 1000
-        scale = √(num / length(z))
-        xl, yl = size(z)
-        nxl, nyl = round.(Int, (xl, yl) .* scale)
-        z_reducex = similar(z, nxl, yl)
-        linearx = range(extrema(x)..., length=nxl)
-        @views for i in axes(z, 2)
-            interp = LinearInterpolation(z[:, i], x; extrapolate=true)
-            z_reducex[:, i] = interp.(linearx)
-        end
-        nz = similar(z_reducex, nxl, nyl)
-        lineary = range(extrema(y)..., length=nyl)
-        @views for j in axes(z_reducex, 1)
-            interp = LinearInterpolation(z_reducex[j, :], y; extrapolate=true)
-            nz[j, :] = interp.(lineary)
-        end
-        return linearx, lineary, nz
-    else
-        return x, y, z
-    end
-end
-
 function resizefill!(sv::Vector{String}, n; fillv="")
     resize!(sv, n)
     for i in eachindex(sv)
         isassigned(sv, i) || (sv[i] = fillv)
     end
+end
+
+function resizebool!(v::Vector{Bool}, n)
+    lv = length(v)
+    resize!(v, n)
+    lv < n && @views v[lv+1:n] .= false
+    return v
 end

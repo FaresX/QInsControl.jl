@@ -301,7 +301,7 @@ let
                     TextRect(stcstr(reading[], "\n "), updatecontent; size=(Cfloat(0), 12CImGui.GetFontSize()))
                     CImGui.Spacing()
                     CImGui.PushStyleVar(CImGui.ImGuiStyleVar_FrameRounding, 24)
-                    btw = (CImGui.GetContentRegionAvailWidth() - 2unsafe_load(IMGUISTYLE.ItemSpacing.x)) / 3
+                    btw = (CImGui.GetContentRegionAvail().x - 2unsafe_load(IMGUISTYLE.ItemSpacing.x)) / 3
                     bth = 2CImGui.GetFrameHeight()
                     if CImGui.Button(stcstr(MORESTYLE.Icons.WriteBlock, "  ", mlstr("Write")), (btw, bth))
                         if addr != ""
@@ -576,7 +576,7 @@ function edit(insbuf::InstrBuffer, addr)
         &insbuf.filtervarname
     )) && update_passfilter!(insbuf)
     CImGui.BeginChild("InstrBuffer")
-    btsize = (CImGui.GetContentRegionAvailWidth() - unsafe_load(IMGUISTYLE.ItemSpacing.x) * (CONF.InsBuf.showcol - 1)) / CONF.InsBuf.showcol
+    btsize = (CImGui.GetContentRegionAvail().x - unsafe_load(IMGUISTYLE.ItemSpacing.x) * (CONF.InsBuf.showcol - 1)) / CONF.InsBuf.showcol
     showi = 0
     for (i, qt) in enumerate(values(insbuf.quantities))
         qt.enable || insbuf.showdisable || continue
@@ -652,7 +652,7 @@ let
             )
         )
         qt.show_edit == "" && updatefront!(qt)
-        # CImGui.PushFont(PLOTFONT)
+        # CImGui.PushFont(BIGFONT)
         ColoredButton(
             stcstr(centermultiline(qt.show_edit), "###for refresh");
             size=btsize,
@@ -670,7 +670,7 @@ let
             pgcol = [phcol.x, phcol.y, phcol.z, min(0.6, phcol.w)]
             CImGui.AddRectFilled(
                 CImGui.GetWindowDrawList(), rmin, (rmin.x + frac * rsz.x, rmin.y + rsz.y),
-                CImGui.ColorConvertFloat4ToU32(pgcol), unsafe_load(IMGUISTYLE.FrameRounding)
+                pgcol, unsafe_load(IMGUISTYLE.FrameRounding)
             )
             if CImGui.IsItemHovered() && CImGui.BeginTooltip()
                 CImGui.ProgressBar(
@@ -757,7 +757,7 @@ let
             qt.isautorefresh ? MORESTYLE.Colors.DAQTaskRunning : CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_ButtonHovered)
         )
         qt.show_edit == "" && updatefront!(qt)
-        # CImGui.PushFont(PLOTFONT)
+        # CImGui.PushFont(BIGFONT)
         ColoredButton(
             stcstr(centermultiline(qt.show_edit), "###for refresh");
             size=btsize,
@@ -851,7 +851,7 @@ let
             qt.isautorefresh ? MORESTYLE.Colors.DAQTaskRunning : CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_ButtonHovered)
         )
         qt.show_edit == "" && updatefront!(qt)
-        # CImGui.PushFont(PLOTFONT)
+        # CImGui.PushFont(BIGFONT)
         ColoredButton(
             stcstr(centermultiline(qt.show_edit), "###for refresh");
             size=btsize,
@@ -994,16 +994,17 @@ function apply!(qt::SweepQuantity, instrnm, addr)
                 workers()[1], instrnm, addr, sweeplist, sweep_rc, qt.name, qt.delay, idxbuf, timebuf
             ) do instrnm, addr, sweeplist, sweep_rc, qtnm, delay, idxbuf, timebuf
                 haskey(SWEEPCTS, instrnm) || (SWEEPCTS[instrnm] = Dict())
-                if haskey(SWEEPCTS[instrnm], addr)
-                    SWEEPCTS[instrnm][addr][1][] = true
+                haskey(SWEEPCTS[instrnm], addr) || (SWEEPCTS[instrnm][addr] = Dict())
+                if haskey(SWEEPCTS[instrnm][addr], qt.name)
+                    SWEEPCTS[instrnm][addr][qt.name][1][] = true
                 else
-                    SWEEPCTS[instrnm][addr] = (
+                    SWEEPCTS[instrnm][addr][qt.name] = (
                         Ref(true),
                         Controller(instrnm, addr; buflen=CONF.DAQ.ctbuflen, timeout=CONF.DAQ.cttimeout)
                     )
                 end
                 sweep_lc = Channel{String}(CONF.DAQ.channelsize)
-                login!(CPU, SWEEPCTS[instrnm][addr][2]; quiet=false, attr=getattr(addr))
+                login!(CPU, SWEEPCTS[instrnm][addr][qt.name][2]; quiet=false, attr=getattr(addr))
                 try
                     setfunc = Symbol(instrnm, :_, qtnm, :_set) |> eval
                     getfunc = Symbol(instrnm, :_, qtnm, :_get) |> eval
@@ -1011,10 +1012,10 @@ function apply!(qt::SweepQuantity, instrnm, addr)
                         sweeptask = @async @trycatch mlstr("sweeping task failed!!!") begin
                             tstart = time()
                             for (i, sv) in enumerate(sweeplist)
-                                SWEEPCTS[instrnm][addr][1][] || break
-                                SWEEPCTS[instrnm][addr][2](setfunc, CPU, string(sv), Val(:write))
+                                SWEEPCTS[instrnm][addr][qt.name][1][] || break
+                                SWEEPCTS[instrnm][addr][qt.name][2](setfunc, CPU, string(sv), Val(:write))
                                 sleep(delay)
-                                put!(sweep_lc, CONF.InsBuf.retreading ? SWEEPCTS[instrnm][addr][2](getfunc, CPU, Val(:read)) : string(sv))
+                                put!(sweep_lc, CONF.InsBuf.retreading ? SWEEPCTS[instrnm][addr][qt.name][2](getfunc, CPU, Val(:read)) : string(sv))
                                 idxbuf[1] = i
                                 timebuf[1] = time() - tstart
                             end
@@ -1032,14 +1033,14 @@ function apply!(qt::SweepQuantity, instrnm, addr)
                     )
                     showbacktrace()
                 finally
-                    logout!(CPU, SWEEPCTS[instrnm][addr][2]; quiet=false)
-                    SWEEPCTS[instrnm][addr][1][] = false
+                    logout!(CPU, SWEEPCTS[instrnm][addr][qt.name][2]; quiet=false)
+                    SWEEPCTS[instrnm][addr][qt.name][1][] = false
                 end
             end
             ## local
             while !istaskdone(sweepcalltask) || isready(sweep_rc)
                 qt.issweeping || remotecall_wait(workers()[1], instrnm, addr) do instrnm, addr
-                    SWEEPCTS[instrnm][addr][1][] = false
+                    SWEEPCTS[instrnm][addr][qt.name][1][] = false
                 end
                 isready(sweep_rc) ? for val in take!(sweep_rc)
                     qt.read = val
@@ -1306,7 +1307,7 @@ let
     global function stoprefresh()
         stoptask = true
         sleep(0.1)
-        istaskdone(task[]) && istaskdone(monitortask[]) || schedule(AUTOREFRESHTASK, mlstr("Stop"); error=true)
+        istaskdone(task[]) && istaskdone(monitortask[]) || schedule(task[], mlstr("Stop"); error=true)
     end
     global function autorefresh()
         stoptask = false

@@ -134,6 +134,7 @@ function edit(qtw::QuantityWidget, insbuf::InstrBuffer, instrnm, addr)
         opts.vertices[1] *= scale
     end
     CImGui.SetCursorScreenPos(CImGui.GetWindowPos() .+ opts.vertices[1])
+    opts.allowoverlap && igSetNextItemAllowOverlap()
     trig = if haskey(insbuf.quantities, qtw.name)
         edit(opts, insbuf.quantities[qtw.name], instrnm, addr, Val(Symbol(qtw.options.uitype)))
     elseif qtw.name == "_Panel_"
@@ -147,7 +148,6 @@ function edit(qtw::QuantityWidget, insbuf::InstrBuffer, instrnm, addr)
     else
         false
     end
-    opts.allowoverlap && CImGui.SetItemAllowOverlap()
     if scaling
         opts.itemsize = itemsizeo
         opts.vertices[1] = csposo
@@ -156,7 +156,7 @@ function edit(qtw::QuantityWidget, insbuf::InstrBuffer, instrnm, addr)
 end
 
 function editPanel(qtw::QuantityWidget, opts::QuantityWidgetOption)
-    opts.textsize == "big" && CImGui.PushFont(PLOTFONT)
+    opts.textsize == "big" && CImGui.PushFont(BIGFONT)
     originscale = unsafe_load(CImGui.GetIO().FontGlobalScale)
     CImGui.SetWindowFontScale(opts.textscale)
     isempty(opts.pathes) && push!(opts.pathes, "")
@@ -192,11 +192,11 @@ function editShape(opts::QuantityWidgetOption, ::Val{:rect})
     cspos = CImGui.GetCursorScreenPos()
     b = cspos .+ opts.itemsize
     CImGui.AddRectFilled(
-        drawlist, cspos, b, CImGui.ColorConvertFloat4ToU32(opts.bgcolor),
+        drawlist, cspos, b, opts.bgcolor,
         opts.rounding, ImDrawFlags_RoundCornersAll
     )
     CImGui.AddRect(
-        drawlist, cspos, b, CImGui.ColorConvertFloat4ToU32(opts.bdcolor),
+        drawlist, cspos, b, opts.bdcolor,
         opts.bdrounding, ImDrawFlags_RoundCornersAll, opts.bdthickness
     )
     return false
@@ -208,8 +208,8 @@ function editShape(opts::QuantityWidgetOption, ::Val{:triangle})
     a = cspos .+ opts.vertices[1]
     b = a .+ opts.vertices[2]
     c = a .+ opts.vertices[3]
-    CImGui.AddTriangleFilled(drawlist, a, b, c, CImGui.ColorConvertFloat4ToU32(opts.bgcolor))
-    CImGui.AddTriangle(drawlist, a, b, c, CImGui.ColorConvertFloat4ToU32(opts.bdcolor), opts.bdthickness)
+    CImGui.AddTriangleFilled(drawlist, a, b, c, opts.bgcolor)
+    CImGui.AddTriangle(drawlist, a, b, c, opts.bdcolor, opts.bdthickness)
     return false
 end
 
@@ -218,8 +218,8 @@ function editShape(opts::QuantityWidgetOption, ::Val{:circle})
     cspos = CImGui.GetCursorScreenPos()
     O = cspos .+ opts.itemsize ./ 2
     r = min(opts.itemsize...) / 2
-    CImGui.AddCircleFilled(drawlist, O, r, CImGui.ColorConvertFloat4ToU32(opts.bgcolor), opts.circlesegments)
-    CImGui.AddCircle(drawlist, O, r, CImGui.ColorConvertFloat4ToU32(opts.bdcolor), opts.circlesegments, opts.bdthickness)
+    CImGui.AddCircleFilled(drawlist, O, r, opts.bgcolor, opts.circlesegments)
+    CImGui.AddCircle(drawlist, O, r, opts.bdcolor, opts.circlesegments, opts.bdthickness)
     return false
 end
 
@@ -228,7 +228,7 @@ function editShape(opts::QuantityWidgetOption, ::Val{:line})
     cspos = CImGui.GetWindowPos()
     a = cspos .+ opts.vertices[1]
     b = a .+ opts.vertices[2]
-    CImGui.AddLine(drawlist, a, b, CImGui.ColorConvertFloat4ToU32(opts.bdcolor), opts.bdthickness)
+    CImGui.AddLine(drawlist, a, b, opts.bdcolor, opts.bdthickness)
     return false
 end
 
@@ -251,7 +251,7 @@ function editImage(::QuantityWidget, opts::QuantityWidgetOption)
 end
 
 function editQuantitySelector(qtw::QuantityWidget, opts::QuantityWidgetOption, ::Val{:combo})
-    opts.textsize == "big" && CImGui.PushFont(PLOTFONT)
+    opts.textsize == "big" && CImGui.PushFont(BIGFONT)
     originscale = unsafe_load(CImGui.GetIO().FontGlobalScale)
     CImGui.SetWindowFontScale(opts.textscale)
     trig = if opts.globaloptions
@@ -281,7 +281,7 @@ function editQuantitySelector(qtw::QuantityWidget, opts::QuantityWidgetOption, :
 end
 
 function editQuantitySelector(qtw::QuantityWidget, opts::QuantityWidgetOption, ::Val{:slider})
-    opts.textsize == "big" && CImGui.PushFont(PLOTFONT)
+    opts.textsize == "big" && CImGui.PushFont(BIGFONT)
     originscale = unsafe_load(CImGui.GetIO().FontGlobalScale)
     CImGui.SetWindowFontScale(opts.textscale)
     trig = if opts.globaloptions
@@ -317,7 +317,7 @@ function editQuantitySelector(qtw::QuantityWidget, opts::QuantityWidgetOption, :
 end
 
 function editQuantitySelector(qtw::QuantityWidget, opts::QuantityWidgetOption, ::Val{:vslider})
-    opts.textsize == "big" && CImGui.PushFont(PLOTFONT)
+    opts.textsize == "big" && CImGui.PushFont(BIGFONT)
     originscale = unsafe_load(CImGui.GetIO().FontGlobalScale)
     CImGui.SetWindowFontScale(opts.textscale)
     trig = if opts.globaloptions
@@ -355,7 +355,7 @@ end
 edit(::QuantityWidgetOption, ::AbstractQuantity, _, _, ::Val) = CImGui.Button(mlstr("Invalid UI Type"))
 
 function edit(opts::QuantityWidgetOption, qt::AbstractQuantity, instrnm, addr, ::Val{:read})
-    opts.textsize == "big" && CImGui.PushFont(PLOTFONT)
+    opts.textsize == "big" && CImGui.PushFont(BIGFONT)
     originscale = unsafe_load(CImGui.GetIO().FontGlobalScale)
     CImGui.SetWindowFontScale(opts.textscale)
     trig = if opts.globaloptions
@@ -381,7 +381,7 @@ function edit(opts::QuantityWidgetOption, qt::AbstractQuantity, instrnm, addr, :
 end
 
 function edit(opts::QuantityWidgetOption, qt::AbstractQuantity, instrnm, addr, ::Val{:unit})
-    opts.textsize == "big" && CImGui.PushFont(PLOTFONT)
+    opts.textsize == "big" && CImGui.PushFont(BIGFONT)
     originscale = unsafe_load(CImGui.GetIO().FontGlobalScale)
     CImGui.SetWindowFontScale(opts.textscale)
     trig = if opts.globaloptions
@@ -407,7 +407,7 @@ function edit(opts::QuantityWidgetOption, qt::AbstractQuantity, instrnm, addr, :
 end
 
 function edit(opts::QuantityWidgetOption, qt::AbstractQuantity, instrnm, addr, ::Val{:readunit})
-    opts.textsize == "big" && CImGui.PushFont(PLOTFONT)
+    opts.textsize == "big" && CImGui.PushFont(BIGFONT)
     originscale = unsafe_load(CImGui.GetIO().FontGlobalScale)
     CImGui.SetWindowFontScale(opts.textscale)
     trig = if opts.globaloptions
@@ -436,7 +436,7 @@ function edit(opts::QuantityWidgetOption, qt::AbstractQuantity, instrnm, addr, :
 end
 
 function edit(opts::QuantityWidgetOption, qt::AbstractQuantity, instrnm, addr, ::Val{:readdashboard})
-    opts.textsize == "big" && CImGui.PushFont(PLOTFONT)
+    opts.textsize == "big" && CImGui.PushFont(BIGFONT)
     originscale = unsafe_load(CImGui.GetIO().FontGlobalScale)
     CImGui.SetWindowFontScale(opts.textscale)
     val, mrange1, mrange2, start = parseforreaddashboard(qt)
@@ -464,7 +464,7 @@ function edit(opts::QuantityWidgetOption, qt::AbstractQuantity, instrnm, addr, :
     return false
 end
 function edit(opts::QuantityWidgetOption, qt::AbstractQuantity, instrnm, addr, ::Val{:readdashboarddigits})
-    opts.textsize == "big" && CImGui.PushFont(PLOTFONT)
+    opts.textsize == "big" && CImGui.PushFont(BIGFONT)
     originscale = unsafe_load(CImGui.GetIO().FontGlobalScale)
     CImGui.SetWindowFontScale(opts.textscale)
     trig = if opts.globaloptions
@@ -489,7 +489,7 @@ function edit(opts::QuantityWidgetOption, qt::AbstractQuantity, instrnm, addr, :
     return trig
 end
 function edit(opts::QuantityWidgetOption, qt::AbstractQuantity, instrnm, addr, ::Val{:readdashboarddigitsunit})
-    opts.textsize == "big" && CImGui.PushFont(PLOTFONT)
+    opts.textsize == "big" && CImGui.PushFont(BIGFONT)
     originscale = unsafe_load(CImGui.GetIO().FontGlobalScale)
     CImGui.SetWindowFontScale(opts.textscale)
     trig = if opts.globaloptions
@@ -539,7 +539,7 @@ function parseforreaddashboard(qt::AbstractQuantity)
 end
 
 function edit(opts::QuantityWidgetOption, qt::SweepQuantity, _, _, ::Val{:inputstep})
-    opts.textsize == "big" && CImGui.PushFont(PLOTFONT)
+    opts.textsize == "big" && CImGui.PushFont(BIGFONT)
     originscale = unsafe_load(CImGui.GetIO().FontGlobalScale)
     CImGui.SetWindowFontScale(opts.textscale)
     trig = if opts.globaloptions
@@ -563,7 +563,7 @@ function edit(opts::QuantityWidgetOption, qt::SweepQuantity, _, _, ::Val{:inputs
 end
 
 function edit(opts::QuantityWidgetOption, qt::SweepQuantity, _, _, ::Val{:inputstop})
-    opts.textsize == "big" && CImGui.PushFont(PLOTFONT)
+    opts.textsize == "big" && CImGui.PushFont(BIGFONT)
     originscale = unsafe_load(CImGui.GetIO().FontGlobalScale)
     CImGui.SetWindowFontScale(opts.textscale)
     trig = if opts.globaloptions
@@ -587,7 +587,7 @@ function edit(opts::QuantityWidgetOption, qt::SweepQuantity, _, _, ::Val{:inputs
 end
 
 function edit(opts::QuantityWidgetOption, qt::SweepQuantity, _, _, ::Val{:dragdelay})
-    opts.textsize == "big" && CImGui.PushFont(PLOTFONT)
+    opts.textsize == "big" && CImGui.PushFont(BIGFONT)
     originscale = unsafe_load(CImGui.GetIO().FontGlobalScale)
     CImGui.SetWindowFontScale(opts.textscale)
     trig = if opts.globaloptions
@@ -617,7 +617,7 @@ function edit(opts::QuantityWidgetOption, qt::SweepQuantity, _, _, ::Val{:dragde
 end
 
 function edit(opts::QuantityWidgetOption, qt::SweepQuantity, _, _, ::Val{:progressbar})
-    opts.textsize == "big" && CImGui.PushFont(PLOTFONT)
+    opts.textsize == "big" && CImGui.PushFont(BIGFONT)
     originscale = unsafe_load(CImGui.GetIO().FontGlobalScale)
     CImGui.SetWindowFontScale(opts.textscale)
     trig = if opts.globaloptions
@@ -646,7 +646,7 @@ function edit(opts::QuantityWidgetOption, qt::SweepQuantity, _, _, ::Val{:progre
 end
 
 function edit(opts::QuantityWidgetOption, qt::SweepQuantity, instrnm, addr, ::Val{:ctrlsweep})
-    opts.textsize == "big" && CImGui.PushFont(PLOTFONT)
+    opts.textsize == "big" && CImGui.PushFont(BIGFONT)
     originscale = unsafe_load(CImGui.GetIO().FontGlobalScale)
     CImGui.SetWindowFontScale(opts.textscale)
     trig = if opts.globaloptions
@@ -674,7 +674,7 @@ function edit(opts::QuantityWidgetOption, qt::SweepQuantity, instrnm, addr, ::Va
 end
 
 function edit(opts::QuantityWidgetOption, qt::SetQuantity, _, _, ::Val{:inputset})
-    opts.textsize == "big" && CImGui.PushFont(PLOTFONT)
+    opts.textsize == "big" && CImGui.PushFont(BIGFONT)
     originscale = unsafe_load(CImGui.GetIO().FontGlobalScale)
     CImGui.SetWindowFontScale(opts.textscale)
     trig = if opts.globaloptions
@@ -697,7 +697,7 @@ function edit(opts::QuantityWidgetOption, qt::SetQuantity, _, _, ::Val{:inputset
 end
 
 function edit(opts::QuantityWidgetOption, qt::SetQuantity, instrnm, addr, ::Val{:ctrlset})
-    opts.textsize == "big" && CImGui.PushFont(PLOTFONT)
+    opts.textsize == "big" && CImGui.PushFont(BIGFONT)
     originscale = unsafe_load(CImGui.GetIO().FontGlobalScale)
     CImGui.SetWindowFontScale(opts.textscale)
     trig = if opts.globaloptions
@@ -723,7 +723,7 @@ function edit(opts::QuantityWidgetOption, qt::SetQuantity, instrnm, addr, ::Val{
 end
 
 function edit(opts::QuantityWidgetOption, qt::SetQuantity, instrnm, addr, ::Val{:inputctrlset})
-    opts.textsize == "big" && CImGui.PushFont(PLOTFONT)
+    opts.textsize == "big" && CImGui.PushFont(BIGFONT)
     originscale = unsafe_load(CImGui.GetIO().FontGlobalScale)
     CImGui.SetWindowFontScale(opts.textscale)
     if opts.globaloptions
@@ -761,7 +761,7 @@ end
 
 function edit(opts::QuantityWidgetOption, qt::SetQuantity, instrnm, addr, ::Val{:combo})
     presentv = qt.optkeys[qt.optedidx]
-    opts.textsize == "big" && CImGui.PushFont(PLOTFONT)
+    opts.textsize == "big" && CImGui.PushFont(BIGFONT)
     originscale = unsafe_load(CImGui.GetIO().FontGlobalScale)
     CImGui.SetWindowFontScale(opts.textscale)
     trig = if opts.globaloptions
@@ -793,7 +793,7 @@ function edit(opts::QuantityWidgetOption, qt::SetQuantity, instrnm, addr, ::Val{
 end
 
 function edit(opts::QuantityWidgetOption, qt::SetQuantity, instrnm, addr, ::Val{:radio})
-    opts.textsize == "big" && CImGui.PushFont(PLOTFONT)
+    opts.textsize == "big" && CImGui.PushFont(BIGFONT)
     originscale = unsafe_load(CImGui.GetIO().FontGlobalScale)
     CImGui.SetWindowFontScale(opts.textscale)
     trig = if opts.globaloptions
@@ -822,7 +822,7 @@ function edit(opts::QuantityWidgetOption, qt::SetQuantity, instrnm, addr, ::Val{
 end
 
 function edit(opts::QuantityWidgetOption, qt::SetQuantity, instrnm, addr, ::Val{:slider})
-    opts.textsize == "big" && CImGui.PushFont(PLOTFONT)
+    opts.textsize == "big" && CImGui.PushFont(BIGFONT)
     originscale = unsafe_load(CImGui.GetIO().FontGlobalScale)
     CImGui.SetWindowFontScale(opts.textscale)
     trig = if opts.globaloptions
@@ -861,7 +861,7 @@ function edit(opts::QuantityWidgetOption, qt::SetQuantity, instrnm, addr, ::Val{
 end
 
 function edit(opts::QuantityWidgetOption, qt::SetQuantity, instrnm, addr, ::Val{:vslider})
-    opts.textsize == "big" && CImGui.PushFont(PLOTFONT)
+    opts.textsize == "big" && CImGui.PushFont(BIGFONT)
     originscale = unsafe_load(CImGui.GetIO().FontGlobalScale)
     CImGui.SetWindowFontScale(opts.textscale)
     trig = if opts.globaloptions
@@ -901,7 +901,7 @@ end
 
 function edit(opts::QuantityWidgetOption, qt::SetQuantity, instrnm, addr, ::Val{:toggle})
     ison = qt.optedidx == opts.bindingonoff[1]
-    opts.textsize == "big" && CImGui.PushFont(PLOTFONT)
+    opts.textsize == "big" && CImGui.PushFont(BIGFONT)
     originscale = unsafe_load(CImGui.GetIO().FontGlobalScale)
     CImGui.SetWindowFontScale(opts.textscale)
     trig = if opts.globaloptions
@@ -1048,17 +1048,17 @@ let
                                         c = a .+ qtw.options.vertices[3]
                                         CImGui.AddTriangleFilled(
                                             drawlist, a, b, c,
-                                            CImGui.ColorConvertFloat4ToU32(MORESTYLE.Colors.WidgetRectSelected)
+                                            MORESTYLE.Colors.WidgetRectSelected
                                         )
                                         CImGui.AddTriangle(
                                             drawlist, a, b, c,
-                                            CImGui.ColorConvertFloat4ToU32(MORESTYLE.Colors.WidgetBorderSelected),
+                                            MORESTYLE.Colors.WidgetBorderSelected,
                                             max(4, 2qtw.options.bdthickness)
                                         )
                                     elseif qtw.options.uitype == "line"
                                         CImGui.AddLine(
                                             drawlist, a, b,
-                                            CImGui.ColorConvertFloat4ToU32(MORESTYLE.Colors.WidgetBorderSelected),
+                                            MORESTYLE.Colors.WidgetBorderSelected,
                                             max(4, 2qtw.options.bdthickness)
                                         )
                                     end
@@ -1067,13 +1067,11 @@ let
                                     b = a .+ qtw.options.itemsize
                                     CImGui.AddRectFilled(
                                         drawlist, a, b,
-                                        CImGui.ColorConvertFloat4ToU32(MORESTYLE.Colors.WidgetRectSelected)
+                                        MORESTYLE.Colors.WidgetRectSelected
                                     )
                                     CImGui.AddRect(
                                         drawlist, a, b,
-                                        CImGui.ColorConvertFloat4ToU32(
-                                            isselected ? MORESTYLE.Colors.SelectedWidgetBt : MORESTYLE.Colors.WidgetBorderSelected
-                                        ),
+                                        isselected ? MORESTYLE.Colors.SelectedWidgetBt : MORESTYLE.Colors.WidgetBorderSelected,
                                         0, 0, max(4, 2qtw.options.bdthickness)
                                     )
                                 end
@@ -1221,7 +1219,7 @@ let
         CImGui.Columns(2)
         SeparatorTextColored(MORESTYLE.Colors.HighlightText, mlstr("Widgets"))
         CImGui.BeginChild("view widgets", (0, 0), false, CImGui.ImGuiWindowFlags_HorizontalScrollbar)
-        btw = (CImGui.GetContentRegionAvailWidth() - unsafe_load(IMGUISTYLE.ItemSpacing.x) * (showcols - 1)) / showcols
+        btw = (CImGui.GetContentRegionAvail().x - unsafe_load(IMGUISTYLE.ItemSpacing.x) * (showcols - 1)) / showcols
         for (i, qtw) in enumerate(insw.qtws)
             CImGui.PushID(i)
             showcols == 1 || i % showcols == 1 || CImGui.SameLine()
@@ -1288,10 +1286,10 @@ let
         CImGui.IsItemClicked() && (selectedqtw = 0)
 
         CImGui.NextColumn()
-        coloffsetminus = CImGui.GetWindowContentRegionWidth() - CImGui.GetColumnOffset(1)
+        coloffsetminus = CImGui.GetWindowWidth() - CImGui.GetColumnOffset(1)
         CImGui.BeginChild("options")
         SeparatorTextColored(MORESTYLE.Colors.HighlightText, mlstr("Options"))
-        stbw = CImGui.GetContentRegionAvailWidth() / 2
+        stbw = CImGui.GetContentRegionAvail().x / 2
         if CImGui.Button(stcstr(MORESTYLE.Icons.Undo, " ", mlstr("Undo"))) && !isempty(redolist[insw][-1].qtws)
             move!(redolist[insw], -1)
             copyinsw!(insw, deepcopy(redolist[insw][]))
@@ -1461,7 +1459,7 @@ let
             ftsz = CImGui.GetFontSize()
             CImGui.AddText(
                 CImGui.GetWindowDrawList(), GLOBALFONT, ftsz, (posmax.x - ftsz, posmin.y),
-                CImGui.ColorConvertFloat4ToU32(CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_Text)),
+                CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_Text),
                 MORESTYLE.Icons.HoldPin
             )
         end
@@ -1470,7 +1468,7 @@ let
             ftsz = CImGui.GetFontSize()
             CImGui.AddText(
                 CImGui.GetWindowDrawList(), GLOBALFONT, ftsz, posmin,
-                CImGui.ColorConvertFloat4ToU32(CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_Text)),
+                CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_Text),
                 MORESTYLE.Icons.InstrumentsAutoRef
             )
         end
@@ -1939,7 +1937,7 @@ let
             for (i, lb) in enumerate(qtw.options.selectorlabels)
                 @c(InputTextRSZ(stcstr(mlstr("option"), " ", i), &lb)) && (qtw.options.selectorlabels[i] = lb)
             end
-            width = CImGui.GetContentRegionAvailWidth() / 3
+            width = CImGui.GetContentRegionAvail().x / 3
             if CImGui.Button(stcstr(MORESTYLE.Icons.NewFile, "##addselectorgroup"), (width, Cfloat(0)))
                 push!(qtw.options.selectorlist, [])
                 push!(qtw.options.bindingqtwidxes, [])

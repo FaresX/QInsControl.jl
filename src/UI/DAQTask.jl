@@ -41,7 +41,7 @@ let
             CImGui.SameLine()
             CImGui.Button(stcstr(" ", mlstr("Edit queue: Task"), " ", id + OLDI, " ", daqtask.name))
             CImGui.PopStyleColor(3)
-            CImGui.SameLine(CImGui.GetContentRegionAvailWidth() - 3ftsz - tbtx - unsafe_load(IMGUISTYLE.ItemSpacing.x))
+            CImGui.SameLine(CImGui.GetContentRegionAvail().x - 3ftsz - tbtx - unsafe_load(IMGUISTYLE.ItemSpacing.x))
             if @c ToggleButton(mlstr(daqtask.textmode ? "Text" : "Block"), &daqtask.textmode)
                 try
                     daqtask.textmode && (daqtask.viewcodes = string(prettify(interpret(daqtask.blocks))))
@@ -51,7 +51,7 @@ let
                 end
             end
             tbtx = CImGui.GetItemRectSize().x
-            CImGui.SameLine(CImGui.GetContentRegionAvailWidth() - 3ftsz)
+            CImGui.SameLine(CImGui.GetContentRegionAvail().x - 3ftsz)
             CImGui.Button(
                 daqtask.viewmode ? MORESTYLE.Icons.View : MORESTYLE.Icons.Edit, (3ftsz / 2, Cfloat(0))
             ) && (daqtask.viewmode ⊻= true)
@@ -72,13 +72,12 @@ let
                     @c InputTextMultilineRSZ(stcstr("##Script", id), &daqtask.viewcodes, (-1, -1), ImGuiInputTextFlags_ReadOnly)
                 else
                     if CImGui.Button(mlstr("Open with Editor"))
-                        isdir(joinpath(ENV["QInsControlAssets"], "temp")) || mkdir(joinpath(ENV["QInsControlAssets"], "temp"))
                         Threads.@spawn @trycatch mlstr("error editing text!!!") begin
                             file = joinpath(ENV["QInsControlAssets"], "temp", string(basename(tempname()), ".jl"))
                             open(file, "w") do io
                                 write(io, daqtask.editcodes)
                             end
-                            Base.run(Cmd([CONF.Basic.editor, file]))
+                            DefaultApplication.open(file; wait=true)
                             daqtask.editcodes = read(file, String)
                         end
                     end
@@ -103,6 +102,7 @@ let
                         CImGui.OpenPopup("##Blocks Buffer$id")
                     end
                     @c InputTextMultilineRSZ(stcstr("##Script", id), &daqtask.editcodes, (-1, -1), ImGuiInputTextFlags_AllowTabInput)
+                    CImGui.SetNextWindowSize((1200, 800), CImGui.ImGuiCond_Once)
                     if CImGui.BeginPopupModal(stcstr("##Blocks Buffer", id))
                         CImGui.Button(stcstr(MORESTYLE.Icons.CloseFile, " ", mlstr("Close"))) && CImGui.CloseCurrentPopup()
                         CImGui.SameLine()
@@ -256,11 +256,12 @@ function run_remote(daqtask::DAQTask)
     end
     ex = quote
         $ex1
-        function remote_do_block(databuf_rc, progress_rc, SYNCSTATES, rn)
+        function remote_do_block(databuf_rc, progress_rc, extradatabuf_rc, SYNCSTATES, rn)
             controllers = $controllers
             try
                 databuf_lc = Channel{Tuple{String,String}}(CONF.DAQ.channelsize)
                 progress_lc = Channel{Tuple{UUID,Int,Int,Float64}}(CONF.DAQ.channelsize)
+                extradatabuf_lc = Channel{Tuple{String,Vector{String}}}(CONF.DAQ.channelsize)
                 @sync begin
                     remotedotask = @async @trycatch mlstr("remotedotask failed!!!") begin
                         start!(CPU)
@@ -268,16 +269,19 @@ function run_remote(daqtask::DAQTask)
                         for ct in values(controllers)
                             login!(CPU, ct; quiet=false, attr=getattr(ct.addr))
                         end
-                        remote_sweep_block(controllers, databuf_lc, progress_lc, SYNCSTATES)
+                        remote_sweep_block(controllers, databuf_lc, progress_lc, extradatabuf_lc, SYNCSTATES)
                     end
                     @async @trycatch mlstr("transfering data task failded!!!") while true
-                        if istaskdone(remotedotask) && all(.!isready.([databuf_lc, databuf_rc, progress_lc, progress_rc]))
+                        if istaskdone(remotedotask) && all(.!isready.(
+                            [databuf_lc, databuf_rc, progress_lc, progress_rc, extradatabuf_lc, extradatabuf_rc]
+                        ))
                             remotecall_wait(eval, 1, :(log_instrbufferviewers()))
                             SYNCSTATES[Int(IsDAQTaskDone)] = true
                             break
                         else
                             isready(databuf_lc) && put!(databuf_rc, packtake!(databuf_lc, 2rn * CONF.DAQ.packsize))
                             isready(progress_lc) && put!(progress_rc, packtake!(progress_lc, CONF.DAQ.packsize))
+                            isready(extradatabuf_lc) && put!(extradatabuf_rc, take!(extradatabuf_lc))
                         end
                         yield()
                     end
@@ -304,10 +308,12 @@ function run_remote(daqtask::DAQTask)
         end
     end
     SYNCSTATES[Int(IsDAQTaskDone)] && return
-    remote_do(workers()[1], DATABUFRC, PROGRESSRC, SYNCSTATES, rn) do databuf_rc, progress_rc, syncstates, rn
+    remote_do(
+        workers()[1], DATABUFRC, PROGRESSRC, EXTRADATABUFRC, SYNCSTATES, rn
+    ) do databuf_rc, progress_rc, extradatabuf_rc, syncstates, rn
         try
             global BLOCK = Threads.Condition()
-            remote_do_block(databuf_rc, progress_rc, syncstates, rn)
+            remote_do_block(databuf_rc, progress_rc, extradatabuf_rc, syncstates, rn)
         catch e
             syncstates[Int(IsDAQTaskDone)] = true
             @error "[$(now())]\n$(mlstr("executing program failed!!!"))" exception = e
@@ -373,6 +379,13 @@ let
             waittime("savecfgcache", 60CONF.DAQ.savetime) && savecfgcache()
             waittime("savedatabuf", 3600CONF.DAQ.savetime) && saveqdt()
         end
+        if isready(EXTRADATABUFRC)
+            key, val = take!(EXTRADATABUFRC)
+            DATABUF[key] = val
+            DATABUFPARSED[key] = replace(tryparse.(Float64, val), nothing => NaN)
+            haskey(CFGBUF, "EXTRADATA") || (CFGBUF["EXTRADATA"] = Dict())
+            CFGBUF["EXTRADATA"][key] = val
+        end
     end
 end
 
@@ -390,8 +403,9 @@ function saveqdt()
             file["data"] = datafloat
         end
         file["circuit"] = CIRCUIT
-        file["dataplot"] = empty!(deepcopy(DAQDATAPLOT))
+        file["dataplot"] = norealtime!(deepcopy(DAQDATAPLOT))
         for (key, val) in CFGBUF
+            key == "EXTRADATA" && continue
             file[key] = val
         end
         file["valid"] = false
@@ -411,7 +425,7 @@ end
 function savecfgcache()
     jldopen(CFGCACHESAVEPATH, "w") do file
         file["circuit"] = CIRCUIT
-        file["dataplot"] = empty!(deepcopy(DAQDATAPLOT))
+        file["dataplot"] = deepcopy(DAQDATAPLOT)
         for (key, val) in CFGBUF
             file[key] = val
         end
@@ -475,8 +489,19 @@ end
 #################################################################
 function view(daqtask::DAQTask)
     CImGui.BeginChild("view DAQTask")
-    CImGui.TextColored(MORESTYLE.Colors.HighlightText, mlstr("Experimental Records"))
+    BoxTextColored(mlstr("Experimental Records"); col=MORESTYLE.Colors.HighlightText)
+    CImGui.SameLine()
+    if @c ToggleButton(mlstr(daqtask.textmode ? "Text" : "Block"), &daqtask.textmode)
+        try
+            daqtask.textmode && (daqtask.viewcodes = string(prettify(interpret(daqtask.blocks))))
+        catch e
+            @error "[$(now())]\nan error occurs during interpreting blocks" exception = e
+            showbacktrace()
+        end
+    end
     TextRect(string(daqtask.explog, "\n "); nochild=true)
-    view(daqtask.blocks)
+    daqtask.textmode ? @c(InputTextMultilineRSZ(
+        "##Script", &daqtask.viewcodes, (-1, -1), ImGuiInputTextFlags_ReadOnly
+    )) : view(daqtask.blocks)
     CImGui.EndChild()
 end

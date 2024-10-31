@@ -3,8 +3,7 @@ types = [
     :CodeBlock, :StrideCodeBlock, :SweepBlock, :SettingBlock, :ReadingBlock,
     :WriteBlock, :QueryBlock, :ReadBlock, :FeedbackBlock,
     :Node, :ResizeGrip, :ImagePin, :ImageRegion, :SampleHolderNode, :NodeEditor, :DAQTask,
-    :Layout, :DataSeries, :DataPicker,
-    :Xaxis, :Yaxis, :Zaxis, :Axis, :Linecut, :Annotation, :PlotSeries, :Plot, :DataPlot,
+    :QPlot, :Layout, :DataSeries, :DataPicker, :DataPlot,
     :ImNodesStyle, :MoreStyleVariable, :MoreStyleColor, :MoreStyleIcon, :MoreStyle, :UnionStyle
 ]
 

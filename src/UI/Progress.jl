@@ -16,6 +16,25 @@ macro progress(exfor)
     esc(ex)
 end
 
+macro progress(mark, exfor)
+    @gensym pgid pgi pgn tn
+    ex = quote
+        let
+            put!(extradatabuf_lc, ($(string("Marked ", mark)), string.(collect($(exfor.args[1].args[2])))))
+            $pgid = uuid4()
+            $pgn = length($(exfor.args[1].args[2]))
+            $pgi = 0
+            put!(progress_lc, ($pgid, $pgi, $pgn, 0))
+            $tn = time()
+            for ($pgi, $(exfor.args[1].args[1])) in enumerate($(exfor.args[1].args[2]))
+                $(exfor.args[2])
+                put!(progress_lc, ($pgid, $pgi, $pgn, time() - $tn))
+            end
+        end
+    end
+    esc(ex)
+end
+
 macro progress(observables, getdatacmd, stop, duration, exwhile)
     @gensym pgid pgi pgn tn fraction
     ex = quote

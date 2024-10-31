@@ -17,13 +17,13 @@ let
         # CImGui.SetColumnOffset(1, 6ftsz)
         CImGui.PushStyleColor(CImGui.ImGuiCol_ChildBg, MORESTYLE.Colors.ToolBarBg)
         CImGui.PushStyleColor(CImGui.ImGuiCol_Text, MORESTYLE.Colors.IconButton)
-        CImGui.PushFont(PLOTFONT)
+        CImGui.PushFont(BIGFONT)
         ftsz = CImGui.GetFontSize()
         CImGui.BeginChild("Toolbar", (3ftsz, Cfloat(0)))
         CImGui.SetCursorPos(ftsz / 2, ftsz / 2)
         CImGui.Image(Ptr{Cvoid}(ICONID), (2ftsz, 2ftsz))
         CImGui.SetCursorPosY(CImGui.GetCursorPosY() + ftsz / 2)
-        btwidth = Cfloat(CImGui.GetContentRegionAvailWidth() - unsafe_load(IMGUISTYLE.WindowPadding.x))
+        btwidth = Cfloat(CImGui.GetContentRegionAvail().x - unsafe_load(IMGUISTYLE.WindowPadding.x))
         btheight = 2ftsz
         CImGui.PushStyleColor(CImGui.ImGuiCol_Button, (0, 0, 0, 0))
         if SYNCSTATES[Int(IsBlocked)]
@@ -116,15 +116,15 @@ let
             end
         end
         igSeparatorText("")
-        halfwidth = (CImGui.GetContentRegionAvailWidth() - unsafe_load(IMGUISTYLE.ItemSpacing.x)) / 2
+        halfwidth = (CImGui.GetContentRegionAvail().x - unsafe_load(IMGUISTYLE.ItemSpacing.x)) / 2
         btsz = (halfwidth, 2ftsz + unsafe_load(IMGUISTYLE.FramePadding.y))
         CImGui.PushStyleColor(CImGui.ImGuiCol_Text, MORESTYLE.Colors.IconButton)
         CImGui.Button(stcstr(MORESTYLE.Icons.NewFile, " ", mlstr("New Task")), btsz) && push!(daqtasks, DAQTask())
         CImGui.SameLine()
         CImGui.Button(stcstr(MORESTYLE.Icons.NewFile, " ", mlstr("New Plot")), btsz) && newplot!(DAQDATAPLOT)
         CImGui.PopStyleColor()
-        length(show_daq_editors) == length(daqtasks) || resize!(show_daq_editors, length(daqtasks))
-        length(torunstates) == length(daqtasks) || resize!(torunstates, length(daqtasks))
+        length(show_daq_editors) == length(daqtasks) || resizebool!(show_daq_editors, length(daqtasks))
+        length(torunstates) == length(daqtasks) || resizebool!(torunstates, length(daqtasks))
         daqtaskscdy = (length(daqtasks) + SYNCSTATES[Int(IsDAQTaskRunning)] * length(PROGRESSLIST)) *
                       CImGui.GetFrameHeightWithSpacing() - unsafe_load(IMGUISTYLE.ItemSpacing.y) +
                       2unsafe_load(IMGUISTYLE.WindowPadding.y)
@@ -311,27 +311,7 @@ let
         ### show daq datapickers ###
         showdtpks(DAQDATAPLOT, "DAQ", DATABUF, DATABUFPARSED)
         for i in DAQDATAPLOT.layout.selectedidx
-            if DAQDATAPLOT.linkidx[i] == 0
-                syncplotdata(DAQDATAPLOT.plots[i], DAQDATAPLOT.dtpks[i], DATABUF, DATABUFPARSED)
-            else
-                if true in [
-                    dtss.isrealtime && waittime(stcstr("DataPicker-link", DAQDATAPLOT.plots[i].id, "-", j), dtss.refreshrate)
-                    for (j, dtss) in enumerate(DAQDATAPLOT.dtpks[i].series)
-                ]
-                    pltlink = DAQDATAPLOT.plots[DAQDATAPLOT.linkidx[i]]
-                    dtpklink = DAQDATAPLOT.dtpks[DAQDATAPLOT.linkidx[i]]
-                    linkeddata = Dict{String,VecOrMat{Cdouble}}()
-                    for (j, pss) in enumerate(pltlink.series)
-                        linkeddata["x$j"] = copy(pss.x)
-                        linkeddata["y$j"] = copy(pss.y)
-                        linkeddata["z$j"] = copy(pss.z)
-                        dtpklink.series[j].hflipz && reverse!(linkeddata["z$j"], dims=1)
-                        dtpklink.series[j].vflipz && reverse!(linkeddata["z$j"], dims=2)
-                        linkeddata["z$j"] = transpose(linkeddata["z$j"]) |> collect
-                    end
-                    syncplotdata(DAQDATAPLOT.plots[i], DAQDATAPLOT.dtpks[i], Dict{String,Vector{String}}(), linkeddata)
-                end
-            end
+            syncplotdata(DAQDATAPLOT.plots[i], DAQDATAPLOT.dtpks[i], DATABUF, DATABUFPARSED)
         end
         renderplots(DAQDATAPLOT, "DAQ")
     end
@@ -366,7 +346,7 @@ let
                 jldsave(daqsvpath;
                     daqtasks=daqtasks,
                     circuit=CIRCUIT,
-                    dataplot=empty!(deepcopy(DAQDATAPLOT))
+                    dataplot=deepcopy(DAQDATAPLOT)
                 )
             end
         end
@@ -387,8 +367,8 @@ let
                             @trycatch mlstr("loading image failed!!!") begin
                                 img = RGBA.(jpeg_decode(node.imgr.image))
                                 imgsize = size(img)
-                                node.imgr.id = ImGui_ImplOpenGL3_CreateImageTexture(imgsize...)
-                                ImGui_ImplOpenGL3_UpdateImageTexture(node.imgr.id, img, imgsize...)
+                                node.imgr.id = CImGui.create_image_texture(imgsize...)
+                                CImGui.update_image_texture(node.imgr.id, img, imgsize...)
                             end
                         end
                     end

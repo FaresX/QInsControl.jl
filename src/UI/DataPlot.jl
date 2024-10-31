@@ -60,8 +60,7 @@ end
 @kwdef mutable struct DataPlot
     dtpks::Vector{DataPicker} = [DataPicker()]
     showdtpks::Vector{Bool} = [false]
-    linkidx::Vector{Cint} = [0]
-    plots::Vector{Plot} = [Plot()]
+    plots::Vector{QPlot} = [QPlot()]
     layout::Layout = Layout()
     isdelplot::Bool = false
     delplot_i::Int = 0
@@ -69,9 +68,7 @@ end
 
 function editmenu(dtp::DataPlot)
     ldtpks = length(dtp.dtpks)
-    length(dtp.showdtpks) == ldtpks || resize!(dtp.showdtpks, ldtpks)
-    llink = length(dtp.linkidx)
-    llink == ldtpks || (resize!(dtp.linkidx, ldtpks); llink < ldtpks && (dtp.linkidx[llink+1:end] .= 0))
+    length(dtp.showdtpks) == ldtpks || resizebool!(dtp.showdtpks, ldtpks)
     dtp.layout.labels = [stcstr(MORESTYLE.Icons.Plot, " ", mlstr("Plot"), " ", i) for i in eachindex(dtp.layout.labels)]
     edit(
         dtp.layout, dtp;
@@ -97,19 +94,8 @@ function editmenu(dtp::DataPlot)
             @c InputTextRSZ(dtp.layout.labels[dtp.layout.idxing], &markbuf)
             CImGui.PopItemWidth()
             dtp.layout.marks[dtp.layout.idxing] = markbuf
-            CImGui.Text(mlstr("Link to"))
-            CImGui.SameLine()
-            linkedidx = dtp.linkidx[dtp.layout.idxing]
-            CImGui.PushItemWidth(4CImGui.GetFontSize())
-            @c CImGui.DragInt(
-                "##Link to", &linkedidx, 1, 0, length(dtp.dtpks), "%d",
-                CImGui.ImGuiSliderFlags_AlwaysClamp
-            )
-            CImGui.PopItemWidth()
-            dtp.linkidx[dtp.layout.idxing] = linkedidx
             CImGui.EndPopup()
         end
-        # dealwithlinkidx(dtp)
         return openright
     end
 end
@@ -118,9 +104,8 @@ function newplot!(dtp::DataPlot)
     push!(dtp.layout.labels, string(length(dtp.layout.labels) + 1))
     push!(dtp.layout.marks, "")
     push!(dtp.layout.states, false)
-    push!(dtp.plots, Plot())
+    push!(dtp.plots, QPlot())
     push!(dtp.dtpks, DataPicker())
-    push!(dtp.linkidx, 0)
 end
 
 function insertplotbefore!(si, ti, dtp::DataPlot)
@@ -129,14 +114,12 @@ function insertplotbefore!(si, ti, dtp::DataPlot)
     insert!(dtp.layout.states, ti, dtp.layout.states[si])
     insert!(dtp.plots, ti, dtp.plots[si])
     insert!(dtp.dtpks, ti, dtp.dtpks[si])
-    insert!(dtp.linkidx, ti, dtp.linkidx[si])
     insert!(dtp.showdtpks, ti, dtp.showdtpks[si])
     deleteat!(dtp.layout.labels, si < ti ? si : si + 1)
     deleteat!(dtp.layout.marks, si < ti ? si : si + 1)
     deleteat!(dtp.layout.states, si < ti ? si : si + 1)
     deleteat!(dtp.plots, si < ti ? si : si + 1)
     deleteat!(dtp.dtpks, si < ti ? si : si + 1)
-    deleteat!(dtp.linkidx, si < ti ? si : si + 1)
     deleteat!(dtp.showdtpks, si < ti ? si : si + 1)
 end
 
@@ -158,41 +141,12 @@ function showdtpks(
                 dtp.showdtpks[i] = false
                 continue
             end
-            if dtp.linkidx[i] == 0
-                dtpk = dtp.dtpks[i]
-                datakeys = [sort(collect(keys(isempty(datastr) ? datafloat : datastr))); ""]
-                datakeys == dtpk.datalist || (dtpk.datalist = datakeys)
-                @c edit(dtpk, stcstr(id, "-", i), &isshowdtpk)
-                dtp.showdtpks[i] = isshowdtpk
-                syncplotdata(dtp.plots[i], dtpk, datastr, datafloat)
-            else
-                dtpk = dtp.dtpks[i]
-                pltlink = dtp.plots[dtp.linkidx[i]]
-                dtpklink = dtp.dtpks[dtp.linkidx[i]]
-                xkeys = "x" .* string.(1:length(pltlink.series))
-                ykeys = "y" .* string.(1:length(pltlink.series))
-                zkeys = "z" .* string.(1:length(pltlink.series))
-                datakeys = [xkeys; ykeys; zkeys; ""]
-                datakeys == dtpk.datalist || (dtpk.datalist = datakeys)
-                @c edit(dtpk, stcstr(id, "-", i), &isshowdtpk)
-                dtp.showdtpks[i] = isshowdtpk
-                if true in [
-                    dtss.update ||
-                    (dtss.isrealtime && waittime(stcstr("DataPicker-link", dtp.plots[i].id, "-", j), dtss.refreshrate))
-                    for (j, dtss) in enumerate(dtpk.series)
-                ]
-                    linkeddata = Dict{String,VecOrMat{Cdouble}}()
-                    for (j, pss) in enumerate(pltlink.series)
-                        linkeddata["x$j"] = copy(pss.x)
-                        linkeddata["y$j"] = copy(pss.y)
-                        linkeddata["z$j"] = copy(pss.z)
-                        dtpklink.series[j].hflipz && reverse!(linkeddata["z$j"], dims=1)
-                        dtpklink.series[j].vflipz && reverse!(linkeddata["z$j"], dims=2)
-                        linkeddata["z$j"] = transpose(linkeddata["z$j"]) |> collect
-                    end
-                    syncplotdata(dtp.plots[i], dtpk, Dict{String,Vector{String}}(), linkeddata)
-                end
-            end
+            dtpk = dtp.dtpks[i]
+            datakeys = [sort(collect(keys(isempty(datastr) ? datafloat : datastr))); ""]
+            datakeys == dtpk.datalist || (dtpk.datalist = datakeys)
+            @c edit(dtpk, stcstr(id, "-", i), &isshowdtpk)
+            dtp.showdtpks[i] = isshowdtpk
+            syncplotdata(dtp.plots[i], dtpk, datastr, datafloat)
         end
     end
 
@@ -204,11 +158,11 @@ function showdtpks(
         CImGui.ImGuiWindowFlags_AlwaysAutoResize
     )
         if length(dtp.plots) > 1
+            # delete!(FIGURES, dtp.plots[dtp.delplot_i].id)
             deleteat!(dtp.layout, dtp.delplot_i)
             deleteat!(dtp.plots, dtp.delplot_i)
             deleteat!(dtp.dtpks, dtp.delplot_i)
             deleteat!(dtp.showdtpks, dtp.delplot_i)
-            deleteat!(dtp.linkidx, dtp.delplot_i)
         end
     end
 end
@@ -226,7 +180,7 @@ function renderplots(dtp::DataPlot, id)
             ),
             &isopenplot
         )
-            Plot(dtp.plots[idx], stcstr(id, "-", idx))
+            QPlot(dtp.plots[idx], stcstr(id, "-", idx))
         end
         CImGui.End()
         dtp.layout.states[idx] = isopenplot
@@ -234,29 +188,18 @@ function renderplots(dtp::DataPlot, id)
     end
 end
 
-function Base.empty!(dtp::DataPlot)
-    for plt in dtp.plots
-        empty!(plt.xaxes)
-        empty!(plt.yaxes)
-        empty!(plt.zaxes)
-        for pss in plt.series
-            empty!(pss.x)
-            empty!(pss.axis.xaxis.ticklabels)
-            empty!(pss.axis.xaxis.tickvalues)
-            empty!(pss.y)
-            empty!(pss.axis.yaxis.ticklabels)
-            empty!(pss.axis.yaxis.tickvalues)
-            pss.z = Matrix{eltype(pss.z)}(undef, 0, 0)
-            empty!(pss.axis.zaxis.ticklabels)
-            empty!(pss.axis.zaxis.tickvalues)
-        end
-    end
-    return dtp
-end
-
 function update!(dtp::DataPlot, datastr, datafloat::Dict{String,VecOrMat{Cdouble}}=Dict{String,VecOrMat{Cdouble}}())
     for (i, dtpk) in enumerate(dtp.dtpks)
         dtpk.update = true
-        syncplotdata(dtp.plots[i], dtpk, datastr, datafloat; force=true)
+        syncplotdata(dtp.plots[i], dtpk, datastr, datafloat)
     end
+end
+
+function norealtime!(dtp::DataPlot)
+    for dtpk in dtp.dtpks
+        for dtss in dtpk.series
+            dtss.isrealtime = false
+        end
+    end
+    return dtp
 end

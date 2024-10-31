@@ -28,15 +28,21 @@ function edit(fv::FileViewer, id)
         InputTextRSZ(stcstr(mlstr("Filter"), "##", id), fv.filetree.filter)
         CImGui.SameLine()
         CImGui.Checkbox(mlstr("Valid"), fv.filetree.valid)
+        CImGui.BeginChild("FileTree")
         CImGui.PushStyleColor(CImGui.ImGuiCol_ChildBg, MORESTYLE.Colors.ToolBarBg)
         edit(fv.filetree, fv.isrename, false)
         if fv.filetree.selectedpathes != oldfiles
             for path in fv.filetree.selectedpathes
                 haskey(fv.dtviewers, path) || push!(fv.dtviewers, path => DataViewer())
-                path in oldfiles || loaddtviewer!(fv.dtviewers[path], path)
+                path in oldfiles || loaddtviewer!(fv.dtviewers[path], path, stcstr("DataViewer", id, path))
             end
             for path in keys(fv.dtviewers)
-                path in fv.filetree.selectedpathes || delete!(fv.dtviewers, path)
+                if path ∉ fv.filetree.selectedpathes
+                    for plt in fv.dtviewers[path].dtp.plots
+                        rmplot!(plt)
+                    end
+                    delete!(fv.dtviewers, path)
+                end
             end
         end
         CImGui.PopStyleColor()
@@ -53,6 +59,7 @@ function edit(fv::FileViewer, id)
             end
             CImGui.EndPopup()
         end
+        CImGui.EndChild()
     end
     CImGui.End()
     for path in fv.filetree.selectedpathes
@@ -64,6 +71,9 @@ function edit(fv::FileViewer, id)
         if dtviewer.p_open
             haskey(dtviewer.data, "data") && renderplots(dtviewer.dtp, stcstr("DataViewer", id, path))
         else
+            for plt in fv.dtviewers[path].dtp.plots
+                rmplot!(plt)
+            end
             delete!(fv.dtviewers, path)
             deleteat!(fv.filetree.selectedpathes, findall(==(path), fv.filetree.selectedpathes))
         end
@@ -214,16 +224,19 @@ function edit(dtviewer::DataViewer, path, id)
     haskey(dtviewer.data, "data") && showdtpks(dtviewer.dtp, stcstr("DataViewer", id), dtviewer.data["data"])
 end
 
-function loaddtviewer!(dtviewer::DataViewer, path)
-    loaddtviewer!(dtviewer, split(basename(path), '.')[end] in ["qdt", "cfg"] ? @trypasse(compatload(path), Dict()) : Dict())
+function loaddtviewer!(dtviewer::DataViewer, path, id)
+    loaddtviewer!(dtviewer, split(basename(path), '.')[end] in ["qdt", "cfg"] ? @trypasse(load(path), Dict()) : Dict(), id)
 end
-function loaddtviewer!(dtviewer::DataViewer, data::Dict)
+function loaddtviewer!(dtviewer::DataViewer, data::Dict, id)
     dtviewer.data = data
     if haskey(dtviewer.data, "data") && !(dtviewer.data["data"] isa Dict{String,Vector{String}})
         dtviewer.data["data"] = Dict(key => string.(val) for (key, val) in dtviewer.data["data"])
     end
     if haskey(dtviewer.data, "dataplot")
         dtviewer.dtp = dtviewer.data["dataplot"]
+        for (i, plt) in enumerate(dtviewer.dtp.plots)
+            plt.id = stcstr(id, "-", i)
+        end
         haskey(dtviewer.data, "data") && update!(dtviewer.dtp, dtviewer.data["data"])
     end
     if !isempty(dtviewer.data)
@@ -233,8 +246,8 @@ function loaddtviewer!(dtviewer::DataViewer, data::Dict)
                     @trycatch mlstr("loading image failed!!!") begin
                         img = RGBA.(jpeg_decode(node.imgr.image))
                         imgsize = size(img)
-                        node.imgr.id = ImGui_ImplOpenGL3_CreateImageTexture(imgsize...)
-                        ImGui_ImplOpenGL3_UpdateImageTexture(node.imgr.id, img, imgsize...)
+                        node.imgr.id = CImGui.create_image_texture(imgsize...)
+                        CImGui.update_image_texture(node.imgr.id, img, imgsize...)
                     end
                 end
             end
@@ -245,8 +258,8 @@ function loaddtviewer!(dtviewer::DataViewer, data::Dict)
                     @trycatch mlstr("loading image failed!!!") begin
                         img = RGBA.(jpeg_decode(node.imgr.image))
                         imgsize = size(img)
-                        node.imgr.id = ImGui_ImplOpenGL3_CreateImageTexture(imgsize...)
-                        ImGui_ImplOpenGL3_UpdateImageTexture(node.imgr.id, img, imgsize...)
+                        node.imgr.id = CImGui.create_image_texture(imgsize...)
+                        CImGui.update_image_texture(node.imgr.id, img, imgsize...)
                     end
                 end
             end
@@ -258,7 +271,7 @@ function saveqdt(dtviewer::DataViewer, path)
     if !isempty(dtviewer.data)
         jldopen(path, "w") do file
             for key in keys(dtviewer.data)
-                key == "dataplot" && (file[key] = empty!(deepcopy(dtviewer.dtp)); continue)
+                key == "dataplot" && (file[key] = deepcopy(dtviewer.dtp); continue)
                 if key == "data"
                     savetype = eval(Symbol(CONF.DAQ.savetype))
                     if savetype == String
@@ -295,7 +308,7 @@ let
         pages = ceil(Int, lmax / CONF.DtViewer.showdatarow)
         pagei[id] > pages && (pagei[id] = 1)
         showpagewidth = CImGui.CalcTextSize(stcstr(" ", pagei[id], " / ", pages, " ")).x
-        contentwidth = CImGui.GetContentRegionAvailWidth()
+        contentwidth = CImGui.GetContentRegionAvail().x
         CImGui.PushID(id)
         if CImGui.Button(ICONS.ICON_CARET_LEFT, ((contentwidth - showpagewidth) / 2, Cfloat(0)))
             pagei[id] > 1 && (pagei[id] -= 1)
