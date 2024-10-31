@@ -123,8 +123,6 @@ function UI()
     global MORESTYLE = MoreStyle()
     haskey(STYLES, CONF.Style.default) && loadstyle(STYLES[CONF.Style.default])
 
-    GLMakie.activate!(scalefactor=unsafe_load(CImGui.GetIO().FontGlobalScale))
-
     # temp files
     isdir(joinpath(ENV["QInsControlAssets"], "temp")) || mkdir(joinpath(ENV["QInsControlAssets"], "temp"))
 
