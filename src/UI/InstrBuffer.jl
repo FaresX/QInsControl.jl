@@ -1146,12 +1146,16 @@ function viewactions(actions::Vector{Tuple{DateTime,String,String,AbstractQuanti
         CImGui.SameLine()
         CImGui.Button(mlstr("Unrecorded"), (-1, -1))
     elseif length(actions) == 2
+        CImGui.PushID("before")
         CImGui.Button(mlstr("B\ne\nf\no\nr\ne"), (2CImGui.GetFontSize(), Cfloat(0)))
         CImGui.SameLine()
         viewaction(actions[1], sz1 + 2unsafe_load(IMGUISTYLE.FramePadding.y))
+        CImGui.PopID()
+        CImGui.PushID("after")
         CImGui.Button(mlstr("A\nf\nt\ne\nr"), (2CImGui.GetFontSize(), Cfloat(0)))
         CImGui.SameLine()
         viewaction(actions[2], sz2 + 2unsafe_load(IMGUISTYLE.FramePadding.y))
+        CImGui.PopID()
     end
     CImGui.EndChild()
     CImGui.PopStyleVar()
