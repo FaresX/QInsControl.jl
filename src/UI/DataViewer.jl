@@ -38,9 +38,7 @@ function edit(fv::FileViewer, id)
             end
             for path in keys(fv.dtviewers)
                 if path ∉ fv.filetree.selectedpathes
-                    for plt in fv.dtviewers[path].dtp.plots
-                        rmplot!(plt)
-                    end
+                    rmplots!(fv.dtviewers[path])
                     delete!(fv.dtviewers, path)
                 end
             end
@@ -71,9 +69,7 @@ function edit(fv::FileViewer, id)
         if dtviewer.p_open
             haskey(dtviewer.data, "data") && renderplots(dtviewer.dtp, stcstr("DataViewer", id, path))
         else
-            for plt in fv.dtviewers[path].dtp.plots
-                rmplot!(plt)
-            end
+            rmplots!(dtviewers[path])
             delete!(fv.dtviewers, path)
             deleteat!(fv.filetree.selectedpathes, findall(==(path), fv.filetree.selectedpathes))
         end
@@ -266,6 +262,8 @@ function loaddtviewer!(dtviewer::DataViewer, data::Dict, id)
         end
     end
 end
+
+rmplots!(dtv::DataViewer) = rmplots!(dtv.dtp)
 
 function saveqdt(dtviewer::DataViewer, path)
     if !isempty(dtviewer.data)

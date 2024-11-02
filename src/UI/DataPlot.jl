@@ -203,3 +203,9 @@ function norealtime!(dtp::DataPlot)
     end
     return dtp
 end
+
+function rmplots!(dtp::DataPlot)
+    for plt in dtp.plots
+        rmplot!(plt)
+    end
+end
