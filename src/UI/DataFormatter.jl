@@ -136,6 +136,10 @@ function edit(fdg::FormatDataGroup, id)
     end
     CImGui.PopStyleColor()
     CImGui.SameLine()
+    if CImGui.Button(ICONS.ICON_ROTATE, (2ftsz, Cfloat(0)))
+        fdg.dtviewer.p_open || (fdg.dtviewer = DataViewer(p_open=false))
+    end
+    CImGui.SameLine()
     if @c CImGui.Checkbox(ICONS.ICON_CODE_MERGE, &fdg.merge)
         fdg.dtviewer.p_open || (fdg.dtviewer = DataViewer(p_open=false))
     end
