@@ -69,7 +69,7 @@ function edit(fv::FileViewer, id)
         if dtviewer.p_open
             haskey(dtviewer.data, "data") && renderplots(dtviewer.dtp, stcstr("DataViewer", id, path))
         else
-            rmplots!(dtviewers[path])
+            rmplots!(fv.dtviewers[path])
             delete!(fv.dtviewers, path)
             deleteat!(fv.filetree.selectedpathes, findall(==(path), fv.filetree.selectedpathes))
         end
