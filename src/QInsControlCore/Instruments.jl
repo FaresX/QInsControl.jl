@@ -38,6 +38,10 @@ end
 end
 
 @kwdef mutable struct VirtualInstrAttr <: InstrAttr
+    timeoutw::Real = 6
+    timeoutr::Real = 6
+    querydelay::Real = 0
+    termchar::Char = '\n'
 end
 
 struct VISAInstr <: Instrument

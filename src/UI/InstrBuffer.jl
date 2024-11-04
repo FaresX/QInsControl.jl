@@ -1075,8 +1075,11 @@ function apply!(qt::SetQuantity, instrnm, addr, byoptvalues=false)
                 setfunc = Symbol(instrnm, :_, qt.name, :_set) |> eval
                 getfunc = Symbol(instrnm, :_, qt.name, :_get) |> eval
                 login!(CPU, ct; attr=getattr(addr))
-                ct(setfunc, CPU, sv, Val(:write))
-                ct(getfunc, CPU, Val(:read))
+                ct(CPU, sv, Val(:query)) do instr, sv
+                    setfunc(instr, sv)
+                    sleep(instr.attr.querydelay)
+                    getfunc(instr)
+                end
             catch e
                 @error(
                     "[$(now())]\n$(mlstr("instrument communication failed!!!"))",
