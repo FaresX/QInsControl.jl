@@ -1077,7 +1077,7 @@ function apply!(qt::SetQuantity, instrnm, addr, byoptvalues=false)
                 login!(CPU, ct; attr=getattr(addr))
                 ct(CPU, sv, Val(:query)) do instr, sv
                     setfunc(instr, sv)
-                    sleep(instr.attr.querydelay)
+                    instr.attr.querydelay < 0.001 ? yield() : sleep(instr.attr.querydelay)
                     getfunc(instr)
                 end
             catch e
