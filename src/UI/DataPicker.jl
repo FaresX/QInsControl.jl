@@ -259,19 +259,21 @@ let
                     end
                     delete!(synctasks[plt.id], i)
                 end
-                pdtask = Threads.@spawn preprocess(dtss, datastr, datafloat)
-                synctasks[plt.id][i] = pdtask
-                if dtss.update
-                    try
-                        wait(pdtask)
-                    catch
+                if !haskey(synctasks[plt.id], i)
+                    pdtask = Threads.@spawn preprocess(dtss, datastr, datafloat)
+                    synctasks[plt.id][i] = pdtask
+                    if dtss.update
+                        try
+                            wait(pdtask)
+                        catch
+                        end
+                        if !istaskfailed(pdtask)
+                            x, y, z = fetch(pdtask)
+                            setobservables!(dtss, x, y, z)
+                            postprocess(plt, dtss, x, y, z)
+                        end
+                        delete!(synctasks[plt.id], i)
                     end
-                    if !istaskfailed(pdtask)
-                        x, y, z = fetch(pdtask)
-                        setobservables!(dtss, x, y, z)
-                        postprocess(plt, dtss, x, y, z)
-                    end
-                    delete!(synctasks[plt.id], i)
                 end
                 dtss.update = false
             end
