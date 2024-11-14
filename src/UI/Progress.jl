@@ -36,10 +36,11 @@ macro progress(mark, exfor)
 end
 
 macro progress(observables, getdatacmd, stop, duration, exwhile)
-    @gensym pgid pgi pgn tn fraction
+    @gensym pgid pgi pgn tn fraction val
     ex = quote
         let
-            push!($observables, (time(), parse(Float64, $getdatacmd)))
+            $val = tryparse(Float64, $getdatacmd)
+            isnothing($val) || push!($observables, (time(), $val))
             $pgid = uuid4()
             $pgn = 100
             $pgi = 0
@@ -47,10 +48,13 @@ macro progress(observables, getdatacmd, stop, duration, exwhile)
             $tn = time()
             while $(exwhile.args[1])
                 $(exwhile.args[2])
-                time() - $observables[end][1] > $duration && push!($observables, (time(), parse(Float64, $getdatacmd)))
+                if !isempty($observables) && time() - $observables[end][1] > $duration
+                    $val = tryparse(Float64, $getdatacmd)
+                    isnothing($val) || push!($observables, (time(), $val))
+                end
                 $pgi += 1
                 $fraction = abs(($observables[end][2] - $observables[1][2]) / ($stop - $observables[1][2]))
-                $fraction > 1 && ($fraction = 1/$fraction)
+                $fraction > 1 && ($fraction = 1 / $fraction)
                 $pgn = isinf($fraction) || isnan($fraction) || iszero($fraction) ? 100 + $pgi : ceil(Int, $pgi / $fraction)
                 put!(progress_lc, ($pgid, $pgi, $pgn, time() - $tn))
             end

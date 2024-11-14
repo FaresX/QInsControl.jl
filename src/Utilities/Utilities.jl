@@ -308,6 +308,7 @@ function timeaverage(data, τ)
     return mv, stdv
 end
 function isarrived(data, target, δ, τ)
+    isempty(data) && return false
     δ, τ = abs(δ), abs(τ)
     data[end][1] - data[1][1] < τ && return false
     arrive = abs(timeaverage(data, τ)[1] - target) < δ
@@ -317,11 +318,13 @@ function isarrived(data, target, δ, τ)
     return arrive
 end
 function isless(data, target, δ, τ)
+    isempty(data) && return false
     δ, τ = abs(δ), abs(τ)
     data[end][1] - data[1][1] < τ && return false
     return timeaverage(data, τ)[1] - target < δ
 end
 function isgreater(data, target, δ, τ)
+    isempty(data) && return false
     δ, τ = abs(δ), abs(τ)
     data[end][1] - data[1][1] < τ && return false
     return timeaverage(data, τ)[1] - target > -δ
