@@ -117,11 +117,20 @@ let
         end
         igSeparatorText("")
         halfwidth = (CImGui.GetContentRegionAvail().x - unsafe_load(IMGUISTYLE.ItemSpacing.x)) / 2
-        btsz = (halfwidth, 2ftsz + unsafe_load(IMGUISTYLE.FramePadding.y))
+        bth = 2ftsz + unsafe_load(IMGUISTYLE.FramePadding.y)
         CImGui.PushStyleColor(CImGui.ImGuiCol_Text, MORESTYLE.Colors.IconButton)
-        CImGui.Button(stcstr(MORESTYLE.Icons.NewFile, " ", mlstr("New Task")), btsz) && push!(daqtasks, DAQTask())
+        CImGui.Button(
+            stcstr(MORESTYLE.Icons.NewFile, " ", mlstr("New Task")), (halfwidth, bth)
+        ) && push!(daqtasks, DAQTask())
         CImGui.SameLine()
-        CImGui.Button(stcstr(MORESTYLE.Icons.NewFile, " ", mlstr("New Plot")), btsz) && newplot!(DAQDATAPLOT)
+        CImGui.Button(
+            stcstr(MORESTYLE.Icons.NewFile, " ", mlstr("New Plot")),
+            (halfwidth - 2ftsz - unsafe_load(IMGUISTYLE.ItemSpacing.x), bth)
+        ) && newplot!(DAQDATAPLOT)
+        CImGui.SameLine()
+        CImGui.Button(
+            stcstr(MORESTYLE.Icons.Update, "##update showing plots"), (2ftsz, bth)
+        ) && update!(DAQDATAPLOT, DATABUF, DATABUFPARSED)
         CImGui.PopStyleColor()
         length(show_daq_editors) == length(daqtasks) || resizebool!(show_daq_editors, length(daqtasks))
         length(torunstates) == length(daqtasks) || resizebool!(torunstates, length(daqtasks))

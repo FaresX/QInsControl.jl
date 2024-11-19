@@ -188,8 +188,9 @@ function renderplots(dtp::DataPlot, id)
     end
 end
 
-function update!(dtp::DataPlot, datastr, datafloat::Dict{String,VecOrMat{Cdouble}}=Dict{String,VecOrMat{Cdouble}}())
+function update!(dtp::DataPlot, datastr, datafloat::Dict{String,VecOrMat{Cdouble}}=Dict{String,VecOrMat{Cdouble}}(); all=false)
     for (i, dtpk) in enumerate(dtp.dtpks)
+        (all || dtp.layout.states[i]) || continue
         dtpk.update = true
         syncplotdata(dtp.plots[i], dtpk, datastr, datafloat)
     end
