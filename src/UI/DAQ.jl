@@ -325,7 +325,7 @@ let
                     for (i, task) in enumerate(daqtasks)
                         torunstates[i] || continue
                         running_i = i
-                        run(task)
+                        saferun(task)
                         torunstates[running_i] = false
                         SYNCSTATES[Int(IsInterrupted)] && (SYNCSTATES[Int(IsInterrupted)] = false; break)
                     end

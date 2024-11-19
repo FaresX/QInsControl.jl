@@ -180,6 +180,33 @@ let
     end
 end
 
+function saferun(daqtask::DAQTask)
+    try
+        run(daqtask)
+    catch e
+        @error "[$(now())]\n$(mlstr("running task terminated unexpectedly!!!"))" exception = e
+        showbacktrace()
+        if SYNCSTATES[Int(IsDAQTaskRunning)]
+            SYNCSTATES[Int(IsInterrupted)] = true
+            if SYNCSTATES[Int(IsBlocked)]
+                SYNCSTATES[Int(IsBlocked)] = false
+                remote_do(workers()[1]) do
+                    lock(() -> notify(BLOCK), BLOCK)
+                end
+            end
+        end
+        t1 = time()
+        while time() - t1 < 2CONF.DAQ.cttimeout && (!SYNCSTATES[Int(IsDAQTaskDone)] || isready(DATABUFRC) || isready(PROGRESSRC))
+            isready(DATABUFRC) && take!(DATABUFRC)
+            isready(PROGRESSRC) && take!(PROGRESSRC)
+            sleep(0.001)
+        end
+        @warn "[$(now())]\n$(mlstr("terminates the task successfully!"))"
+        SYNCSTATES[Int(IsDAQTaskDone)] = false
+        SYNCSTATES[Int(IsDAQTaskRunning)] = false
+    end
+end
+
 function run(daqtask::DAQTask)
     global WORKPATH
     global SAVEPATH
@@ -207,32 +234,11 @@ function run(daqtask::DAQTask)
     end
     run_remote(daqtask)
     wait(
-        Threads.@spawn try
+        Threads.@spawn begin
             savecfgcache()
             while update_all()
                 yield()
             end
-        catch e
-            @error "[$(now())]\n$(mlstr("updating data task terminated!!!"))" exception = e
-            showbacktrace()
-            if SYNCSTATES[Int(IsDAQTaskRunning)]
-                SYNCSTATES[Int(IsInterrupted)] = true
-                if SYNCSTATES[Int(IsBlocked)]
-                    SYNCSTATES[Int(IsBlocked)] = false
-                    remote_do(workers()[1]) do
-                        lock(() -> notify(BLOCK), BLOCK)
-                    end
-                end
-            end
-            t1 = time()
-            while time() - t1 < 2CONF.DAQ.cttimeout && (!SYNCSTATES[Int(IsDAQTaskDone)] || isready(DATABUFRC) || isready(PROGRESSRC))
-                isready(DATABUFRC) && take!(DATABUFRC)
-                isready(PROGRESSRC) && take!(PROGRESSRC)
-                sleep(0.001)
-            end
-            @warn "[$(now())]\n$(mlstr("terminates the task successfully!"))"
-            SYNCSTATES[Int(IsDAQTaskDone)] = false
-            SYNCSTATES[Int(IsDAQTaskRunning)] = false
         end
     )
 end
