@@ -158,7 +158,7 @@ function showdtpks(
         CImGui.ImGuiWindowFlags_AlwaysAutoResize
     )
         if length(dtp.plots) > 1
-            # delete!(FIGURES, dtp.plots[dtp.delplot_i].id)
+            rmplot!(dtp.plots[end])
             deleteat!(dtp.layout, dtp.delplot_i)
             deleteat!(dtp.plots, dtp.delplot_i)
             deleteat!(dtp.dtpks, dtp.delplot_i)
