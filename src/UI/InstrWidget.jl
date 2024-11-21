@@ -1247,7 +1247,6 @@ let
                 addwidgetmenu(insw, i; mode=:after)
                 convertmenu(insw, i)
                 CImGui.MenuItem(stcstr(MORESTYLE.Icons.CloseFile, " ", mlstr("Delete"))) && (deleteat!(insw.qtws, i); break)
-                CImGui.PopID()
                 CImGui.EndPopup()
             end
             CImGui.Indent()
