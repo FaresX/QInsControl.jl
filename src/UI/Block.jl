@@ -538,10 +538,11 @@ macro gencontroller(key, val, retval=nothing, quiet=false)
 end
 
 ############macro block-------------------------------------------------------------------------------------------------
-macro sweepblock(instrnm, addr, qtnm, step, stop, u, delay, istrycatch, ex)
+macro sweepblock(rangemark, instrnm, addr, qtnm, step, stop, u, delay, istrycatch, ex)
     esc(
         tocodes(
             SweepBlock(
+                rangemark=rangemark,
                 instrnm=instrnm,
                 addr=addr,
                 quantity=qtnm,
@@ -655,7 +656,7 @@ macro feedbackblock(instrnm, addr, action)
 end
 
 function utoui(instrnm, qtnm, u)
-    utype = INSCONF[instrnm].quantities[qtnm].U
+    utype = haskey(INSCONF, instrnm) && haskey(INSCONF[instrnm].quantities, qtnm) ? INSCONF[instrnm].quantities[qtnm].U : ""
     Us = haskey(CONF.U, utype) ? CONF.U[utype] : [""]
     return u in Us ? findfirst(==(u), Us) : 1
 end
@@ -743,7 +744,7 @@ function interpret(bk::StrideCodeBlock)
 end
 
 function interpret(bk::SweepBlock)
-    utype = INSCONF[bk.instrnm].quantities[bk.quantity].U
+    utype = haskey(INSCONF, bk.instrnm) && haskey(INSCONF[bk.instrnm].quantities, bk.quantity) ? INSCONF[bk.instrnm].quantities[bk.quantity].U : ""
     u, _ = @c getU(utype, &bk.ui)
     quote
         @sweepblock $(bk.rangemark) $(bk.instrnm) $(bk.addr) $(bk.quantity) $(bk.step) $(bk.stop) $u $(bk.delay) $(bk.istrycatch) begin
@@ -752,7 +753,7 @@ function interpret(bk::SweepBlock)
     end
 end
 function interpret(bk::FreeSweepBlock)
-    utype = INSCONF[bk.instrnm].quantities[bk.quantity].U
+    utype = haskey(INSCONF, bk.instrnm) && haskey(INSCONF[bk.instrnm].quantities, bk.quantity) ? INSCONF[bk.instrnm].quantities[bk.quantity].U : ""
     u, _ = @c getU(utype, &bk.ui)
     quote
         @freesweepblock $(bk.instrnm) $(bk.addr) $(bk.quantity) $(bk.mode) $(bk.stop) $u $(bk.delta) $(bk.duration) $(bk.delay) $(bk.istrycatch) begin
@@ -761,7 +762,7 @@ function interpret(bk::FreeSweepBlock)
     end
 end
 function interpret(bk::SettingBlock)
-    utype = INSCONF[bk.instrnm].quantities[bk.quantity].U
+    utype = haskey(INSCONF, bk.instrnm) && haskey(INSCONF[bk.instrnm].quantities, bk.quantity) ? INSCONF[bk.instrnm].quantities[bk.quantity].U : ""
     u, _ = @c getU(utype, &bk.ui)
     :(@settingblock $(bk.instrnm) $(bk.addr) $(bk.quantity) $(bk.setvalue) $u $(bk.delay) $(bk.istrycatch))
 end
