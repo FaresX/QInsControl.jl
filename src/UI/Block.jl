@@ -1163,7 +1163,8 @@ let
         CImGui.SameLine()
         width = (CImGui.GetContentRegionAvail().x - 3CImGui.GetFontSize()) / 5
         CImGui.PushItemWidth(width)
-        @c ComboSFiltered("##SweepBlock instrument", &bk.instrnm, sort(collect(keys(INSCONF))), CImGui.ImGuiComboFlags_NoArrowButton)
+        inses = sort([ins for ins in keys(INSCONF) if haskey(INSTRBUFFERVIEWERS, ins) && !isempty(INSTRBUFFERVIEWERS[ins])])
+        @c ComboSFiltered("##SweepBlock instrument", &bk.instrnm, inses, CImGui.ImGuiComboFlags_NoArrowButton)
         CImGui.PopItemWidth()
         CImGui.SameLine()
 
@@ -1261,7 +1262,8 @@ let
         CImGui.SameLine()
         width = (CImGui.GetContentRegionAvail().x - 3CImGui.GetFontSize()) / 5
         CImGui.PushItemWidth(width)
-        @c ComboSFiltered("##FreeSweepBlock instrument", &bk.instrnm, sort(collect(keys(INSCONF))), CImGui.ImGuiComboFlags_NoArrowButton)
+        inses = sort([ins for ins in keys(INSCONF) if haskey(INSTRBUFFERVIEWERS, ins) && !isempty(INSTRBUFFERVIEWERS[ins])])
+        @c ComboSFiltered("##FreeSweepBlock instrument", &bk.instrnm, inses, CImGui.ImGuiComboFlags_NoArrowButton)
         CImGui.PopItemWidth()
         CImGui.SameLine()
 
@@ -1346,7 +1348,8 @@ let
         CImGui.SameLine()
         width = (CImGui.GetContentRegionAvail().x - 3CImGui.GetFontSize()) / 5
         CImGui.PushItemWidth(width)
-        @c ComboSFiltered("##SettingBlock instrument", &bk.instrnm, sort(collect(keys(INSCONF))), CImGui.ImGuiComboFlags_NoArrowButton)
+        inses = sort([ins for ins in keys(INSCONF) if haskey(INSTRBUFFERVIEWERS, ins) && !isempty(INSTRBUFFERVIEWERS[ins])])
+        @c ComboSFiltered("##SettingBlock instrument", &bk.instrnm, inses, CImGui.ImGuiComboFlags_NoArrowButton)
         CImGui.PopItemWidth()
         CImGui.SameLine()
 
@@ -1440,7 +1443,8 @@ let
         CImGui.SameLine()
         width = (CImGui.GetContentRegionAvail().x - 2CImGui.GetFontSize()) / 5
         CImGui.PushItemWidth(width)
-        @c ComboSFiltered("##ReadingBlock instrument", &bk.instrnm, sort(collect(keys(INSCONF))), CImGui.ImGuiComboFlags_NoArrowButton)
+        inses = sort([ins for ins in keys(INSCONF) if haskey(INSTRBUFFERVIEWERS, ins) && !isempty(INSTRBUFFERVIEWERS[ins])])
+        @c ComboSFiltered("##ReadingBlock instrument", &bk.instrnm, inses, CImGui.ImGuiComboFlags_NoArrowButton)
         CImGui.PopItemWidth()
         CImGui.SameLine()
 
@@ -1523,7 +1527,8 @@ function edit(bk::WriteBlock)
     CImGui.SameLine()
     width = (CImGui.GetContentRegionAvail().x - 2CImGui.GetFontSize()) / 5
     CImGui.PushItemWidth(width)
-    @c ComboSFiltered("##WriteBlock instrument", &bk.instrnm, sort(collect(keys(INSCONF))), CImGui.ImGuiComboFlags_NoArrowButton)
+    inses = sort([ins for ins in keys(INSCONF) if haskey(INSTRBUFFERVIEWERS, ins) && !isempty(INSTRBUFFERVIEWERS[ins])])
+    @c ComboSFiltered("##WriteBlock instrument", &bk.instrnm, inses, CImGui.ImGuiComboFlags_NoArrowButton)
     CImGui.PopItemWidth()
     CImGui.SameLine() #选仪器
 
@@ -1564,7 +1569,8 @@ function edit(bk::QueryBlock)
     CImGui.SameLine()
     width = (CImGui.GetContentRegionAvail().x - 2CImGui.GetFontSize()) / 5
     CImGui.PushItemWidth(width)
-    @c ComboSFiltered("##QueryBlock instrument", &bk.instrnm, sort(collect(keys(INSCONF))), CImGui.ImGuiComboFlags_NoArrowButton)
+    inses = sort([ins for ins in keys(INSCONF) if haskey(INSTRBUFFERVIEWERS, ins) && !isempty(INSTRBUFFERVIEWERS[ins])])
+    @c ComboSFiltered("##QueryBlock instrument", &bk.instrnm, inses, CImGui.ImGuiComboFlags_NoArrowButton)
     CImGui.PopItemWidth()
     CImGui.SameLine() #选仪器
 
@@ -1630,7 +1636,8 @@ function edit(bk::ReadBlock)
     CImGui.SameLine()
     width = (CImGui.GetContentRegionAvail().x - 2CImGui.GetFontSize()) / 5
     CImGui.PushItemWidth(width)
-    @c ComboSFiltered("##ReadBlock instrument", &bk.instrnm, sort(collect(keys(INSCONF))), CImGui.ImGuiComboFlags_NoArrowButton)
+    inses = sort([ins for ins in keys(INSCONF) if haskey(INSTRBUFFERVIEWERS, ins) && !isempty(INSTRBUFFERVIEWERS[ins])])
+    @c ComboSFiltered("##ReadBlock instrument", &bk.instrnm, inses, CImGui.ImGuiComboFlags_NoArrowButton)
     CImGui.PopItemWidth()
     CImGui.SameLine() #选仪器
 
@@ -1681,7 +1688,8 @@ let
         CImGui.SameLine()
         width = (CImGui.GetContentRegionAvail().x - 2CImGui.GetFontSize()) / 3
         CImGui.PushItemWidth(width)
-        @c ComboSFiltered("##FeedbackBlock instrument", &bk.instrnm, sort(collect(keys(INSCONF))), CImGui.ImGuiComboFlags_NoArrowButton)
+        inses = sort([ins for ins in keys(INSCONF) if haskey(INSTRBUFFERVIEWERS, ins) && !isempty(INSTRBUFFERVIEWERS[ins])])
+        @c ComboSFiltered("##FeedbackBlock instrument", &bk.instrnm, inses, CImGui.ImGuiComboFlags_NoArrowButton)
         CImGui.PopItemWidth()
         CImGui.SameLine() #选仪器
 
