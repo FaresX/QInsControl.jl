@@ -25,13 +25,15 @@ function timedwhile(f::Function, timeout::Real)
     return false
 end
 
-function timedwaitfetch(t::Task, timeout::Real; msg="force to stop task", pollint=0.001)
-    isok = timedwait(() -> istaskdone(t), timeout; pollint=pollint)
+function timedwhilefetch(t::Task, timeout::Real; msg="force to stop task", throwerror=false)
+    isok = timedwhile(() -> istaskdone(t), timeout)
     try
-        isok == :ok || schedule(t, msg; error=true)
-        fetch(t)
+        isok || schedule(t, msg; error=true)
+        return fetch(t)
     catch e
         @error "fetching task error" exception = e
+        throwerror && rethrow()
+        return nothing
     end
 end
 

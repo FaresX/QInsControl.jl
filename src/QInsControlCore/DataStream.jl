@@ -153,7 +153,7 @@ function logout!(cpu::Processor, ct::Controller; quiet=true)
                 instr = cpu.instrs[ct.addr]
                 if cpu.running[]
                     cpu.taskhandlers[instr.addr] = false
-                    haskey(cpu.tasks, instr.addr) && timedwaitfetch(cpu.tasks[instr.addr], 6; msg="force to stop task for $(instr.addr)")
+                    haskey(cpu.tasks, instr.addr) && timedwhilefetch(cpu.tasks[instr.addr], 6; msg="force to stop task for $(instr.addr)")
                     delete!(cpu.taskbusy, instr.addr)
                     delete!(cpu.taskhandlers, instr.addr)
                     delete!(cpu.tasks, instr.addr)
@@ -177,7 +177,7 @@ function logout!(cpu::Processor, addr::String; quiet=true)
             instr = cpu.instrs[addr]
             if cpu.running[]
                 cpu.taskhandlers[instr.addr] = false
-                haskey(cpu.tasks, instr.addr) && timedwaitfetch(cpu.tasks[instr.addr], 6; msg="force to stop task for $(instr.addr)")
+                haskey(cpu.tasks, instr.addr) && timedwhilefetch(cpu.tasks[instr.addr], 6; msg="force to stop task for $(instr.addr)")
                 delete!(cpu.taskbusy, instr.addr)
                 delete!(cpu.taskhandlers, instr.addr)
                 delete!(cpu.tasks, instr.addr)
@@ -372,11 +372,11 @@ function stop!(cpu::Processor)
             cpu.taskhandlers[addr] = false
         end
         for t in values(cpu.tasks)
-            timedwaitfetch(t, 6)
+            timedwhilefetch(t, 6)
         end
         cpu.running[] = false
         cpu.fast[] = false
-        timedwaitfetch(cpu.processtask[], 6; msg="force to stop processing task")
+        timedwhilefetch(cpu.processtask[], 6; msg="force to stop processing task")
         for instr in values(cpu.instrs)
             disconnect!(instr)
         end
