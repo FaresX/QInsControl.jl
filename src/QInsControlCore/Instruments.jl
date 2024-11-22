@@ -237,3 +237,20 @@ query(::VirtualInstr, ::AbstractString; delay=0) = "query"
 determine if the instrument is connected.
 """
 isconnected(instr::Instrument) = instr.connected[]
+
+function clearbuffer(instr::Instrument)
+    try
+        read(instr)
+    catch
+    end
+    i = 0
+    while i < 6
+        try
+            read(instr)
+        catch
+            break
+        end
+        i += 1
+        yield()
+    end
+end

@@ -58,11 +58,12 @@ struct Processor
     processtask::Ref{Task}
     tasks::Dict{String,Task}
     taskhandlers::Dict{String,Bool}
+    taskbusy::Dict{String,Bool}
     resourcemanager::Ref{UInt32}
     instrs::Dict{String,Instrument}
     running::Ref{Bool}
     fast::Ref{Bool}
-    Processor() = new(Threads.Condition(), [], [], Dict(), Ref{Task}(), Dict(), Dict(), 0, Dict(), false, false)
+    Processor() = new(Threads.Condition(), [], [], Dict(), Ref{Task}(), Dict(), Dict(), Dict(), 0, Dict(), false, false)
 end
 function Base.show(io::IO, cpu::Processor)
     str1 = """
@@ -117,6 +118,7 @@ function login!(cpu::Processor, ct::Controller; quiet=true, attr=nothing)
                 cpu.instrs[ct.addr] = instr
                 cpu.exechannels[ct.addr] = []
                 cpu.taskhandlers[ct.addr] = true
+                cpu.taskbusy[ct.addr] = false
                 cpu.tasks[ct.addr] = errormonitor(
                     @async while cpu.taskhandlers[ct.addr]
                         if isempty(cpu.exechannels[ct.addr])
@@ -152,6 +154,7 @@ function logout!(cpu::Processor, ct::Controller; quiet=true)
                 if cpu.running[]
                     cpu.taskhandlers[instr.addr] = false
                     haskey(cpu.tasks, instr.addr) && timedwaitfetch(cpu.tasks[instr.addr], 6; msg="force to stop task for $(instr.addr)")
+                    delete!(cpu.taskbusy, instr.addr)
                     delete!(cpu.taskhandlers, instr.addr)
                     delete!(cpu.tasks, instr.addr)
                     delete!(cpu.exechannels, instr.addr)
@@ -175,6 +178,7 @@ function logout!(cpu::Processor, addr::String; quiet=true)
             if cpu.running[]
                 cpu.taskhandlers[instr.addr] = false
                 haskey(cpu.tasks, instr.addr) && timedwaitfetch(cpu.tasks[instr.addr], 6; msg="force to stop task for $(instr.addr)")
+                delete!(cpu.taskbusy, instr.addr)
                 delete!(cpu.taskhandlers, instr.addr)
                 delete!(cpu.tasks, instr.addr)
                 delete!(cpu.exechannels, instr.addr)
@@ -200,6 +204,7 @@ function (ct::Controller)(f::Function, cpu::Processor, val::String, ::Val{:write
     i = availi[]
     ct.ready[i] = false
     push!(cpu.cmdchannel, (ct, i, f, val, Val(:write)))
+    timedwhile(() -> !cpu.taskbusy[ct.addr], ct.timeout)
     isok = timedwhile(() -> ct.ready[i], ct.timeout)
     ct.available[i] = true
     return isok ? ct.databuf[i] : error("write timeout with ($f, $val)")
@@ -218,6 +223,7 @@ function (ct::Controller)(f::Function, cpu::Processor, ::Val{:read})
     i = availi[]
     ct.ready[i] = false
     push!(cpu.cmdchannel, (ct, i, f, "", Val(:read)))
+    timedwhile(() -> !cpu.taskbusy[ct.addr], ct.timeout)
     isok = timedwhile(() -> ct.ready[i], ct.timeout)
     ct.available[i] = true
     return isok ? ct.databuf[i] : error("read timeout with $f")
@@ -236,6 +242,7 @@ function (ct::Controller)(f::Function, cpu::Processor, val::String, ::Val{:query
     i = availi[]
     ct.ready[i] = false
     push!(cpu.cmdchannel, (ct, i, f, val, Val(:query)))
+    timedwhile(() -> !cpu.taskbusy[ct.addr], ct.timeout)
     isok = timedwhile(() -> ct.ready[i], ct.timeout)
     ct.available[i] = true
     return isok ? ct.databuf[i] : error("query timeout with ($f, $val)")
@@ -264,6 +271,7 @@ function init!(cpu::Processor)
         empty!(cpu.exechannels)
         empty!(cpu.tasks)
         empty!(cpu.taskhandlers)
+        empty!(cpu.taskbusy)
         cpu.resourcemanager[] = try
             ResourceManager()
         catch e
@@ -278,6 +286,7 @@ function init!(cpu::Processor)
             end
             cpu.exechannels[addr] = []
             cpu.taskhandlers[addr] = false
+            cpu.taskbusy[addr] = false
         end
         cpu.running[] = false
     end
@@ -299,6 +308,7 @@ function run!(cpu::Processor)
         )
         for (addr, exec) in cpu.exechannels
             cpu.taskhandlers[addr] = true
+            cpu.taskbusy[addr] = false
             t = @async while cpu.taskhandlers[addr]
                 isempty(exec) ? (cpu.fast[] ? yield() : sleep(0.001)) : runcmd(cpu, popfirst!(exec)...)
             end
@@ -324,7 +334,9 @@ function run!(cpu::Processor)
                     end
                     for (addr, t) in cpu.tasks
                         if istaskfailed(t) && haskey(cpu.exechannels, addr) && haskey(cpu.taskhandlers, addr)
-                            @warn "task(address: $addr) failed, recreating..."
+                            cpu.taskbusy[addr] = true
+                            @warn "task(address: $addr) failed, clearing buffer and recreating..."
+                            clearbuffer(cpu.instrs[addr])
                             cpu.tasks[addr] = errormonitor(
                                 @async while cpu.taskhandlers[addr]
                                     if isempty(cpu.exechannels[addr])
@@ -335,6 +347,7 @@ function run!(cpu::Processor)
                                 end
                             )
                             @info "task(address: $addr) has been recreated"
+                            cpu.taskbusy[addr] = false
                         end
                     end
                 catch e
@@ -355,6 +368,7 @@ stop the Processor.
 function stop!(cpu::Processor)
     if cpu.running[]
         for addr in keys(cpu.taskhandlers)
+            cpu.taskbusy[addr] = false
             cpu.taskhandlers[addr] = false
         end
         for t in values(cpu.tasks)
@@ -370,6 +384,7 @@ function stop!(cpu::Processor)
         empty!(cpu.cmdchannel)
         empty!(cpu.exechannels)
         empty!(cpu.taskhandlers)
+        empty!(cpu.taskbusy)
         empty!(cpu.tasks)
         empty!(cpu.instrs)
     end
