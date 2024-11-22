@@ -25,6 +25,16 @@ function timedwhile(f::Function, timeout::Real)
     return false
 end
 
+function timedwaitfetch(t::Task, timeout::Real; msg="force to stop task", pollint=0.001)
+    isok = timedwait(() -> istaskdone(t), timeout; pollint=pollint)
+    try
+        isok == :ok || schedule(t, msg; error=true)
+        fetch(t)
+    catch e
+        @error "fetching task error" exception = e
+    end
+end
+
 include("VISA.jl")
 include("constants.jl")
 include("Instruments.jl")

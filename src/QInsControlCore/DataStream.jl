@@ -151,11 +151,7 @@ function logout!(cpu::Processor, ct::Controller; quiet=true)
                 instr = cpu.instrs[ct.addr]
                 if cpu.running[]
                     cpu.taskhandlers[instr.addr] = false
-                    try
-                        haskey(cpu.tasks, instr.addr) && wait(cpu.tasks[instr.addr])
-                    catch e
-                        @error "an error occurs during logging out" exception = e
-                    end
+                    haskey(cpu.tasks, instr.addr) && timedwaitfetch(cpu.tasks[instr.addr], 6; msg="force to stop task for $(instr.addr)")
                     delete!(cpu.taskhandlers, instr.addr)
                     delete!(cpu.tasks, instr.addr)
                     delete!(cpu.exechannels, instr.addr)
@@ -178,11 +174,7 @@ function logout!(cpu::Processor, addr::String; quiet=true)
             instr = cpu.instrs[addr]
             if cpu.running[]
                 cpu.taskhandlers[instr.addr] = false
-                try
-                    haskey(cpu.tasks, instr.addr) && wait(cpu.tasks[instr.addr])
-                catch e
-                    @error "an error occurs during logging out" exception = e
-                end
+                haskey(cpu.tasks, instr.addr) && timedwaitfetch(cpu.tasks[instr.addr], 6; msg="force to stop task for $(instr.addr)")
                 delete!(cpu.taskhandlers, instr.addr)
                 delete!(cpu.tasks, instr.addr)
                 delete!(cpu.exechannels, instr.addr)
@@ -366,19 +358,11 @@ function stop!(cpu::Processor)
             cpu.taskhandlers[addr] = false
         end
         for t in values(cpu.tasks)
-            try
-                wait(t)
-            catch e
-                @error "an error occurs during stopping Processor:\n$cpu" exception = e
-            end
+            timedwaitfetch(t, 6)
         end
         cpu.running[] = false
         cpu.fast[] = false
-        try
-            wait(cpu.processtask[])
-        catch e
-            @error "an error occurs during stopping Processor:\n$cpu" exception = e
-        end
+        timedwaitfetch(cpu.processtask[], 6; msg="force to stop processing task")
         for instr in values(cpu.instrs)
             disconnect!(instr)
         end

@@ -60,12 +60,27 @@ function parsedollar(str)
     end
 end
 
+function timedwaitfetch(t::Task, timeout::Real; msg="force to stop", pollint=0.001)
+    isok = timedwait(() -> istaskdone(t), timeout; pollint=pollint)
+    try
+        isok == :ok || schedule(t, msg; error=true)
+        return fetch(t)
+    catch e
+        @error "fetching task error" exception = e
+        showbacktrace()
+        return nothing
+    end
+end
+
 function packtake!(c, n=12)
     buf = eltype(c)[]
     taking = true
     t = errormonitor(
-        @async while taking
-            isready(c) ? push!(buf, take!(c)) : yield()
+        @async begin
+            t1 = time()
+            while taking && time() - t1 < 0.1
+                isready(c) ? push!(buf, take!(c)) : yield()
+            end
         end
     )
     timedwait(() -> length(buf) > n, 0.01; pollint=0.001)
@@ -262,19 +277,10 @@ function uniformy!(y, z)
     end
 end
 
-function waittofetch(f, timeout=2; pollint=0.001)
-    waittask = errormonitor(@async fetch(f))
-    isok = timedwait(() -> istaskdone(waittask), timeout; pollint=pollint)
-    isok == :ok && return fetch(waittask)
-    return nothing
-end
-
 function wait_remotecall_fetch(f, id::Integer, args...; timeout=2, pollint=0.001, kwargs...)
-    future = remotecall_fetch(f, id, args...; kwargs...)
-    waittask = @async @trycatch mlstr("fetch task failed!!!") fetch(future)
-    isok = timedwait(() -> istaskdone(waittask), timeout; pollint=pollint)
-    isok == :ok && return fetch(waittask)
-    return nothing
+    future = remotecall(f, id, args...; kwargs...)
+    t = @async @trycatch mlstr("fetch task failed!!!") fetch(future)
+    timedwaitfetch(t, timeout; msg=mlstr("timeout waiting to fetch"), pollint=pollint)
 end
 
 function counter(f, times::Integer=3)

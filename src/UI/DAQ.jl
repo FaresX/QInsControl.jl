@@ -330,15 +330,15 @@ let
             global WORKPATH
             if ispath(WORKPATH)
                 saveproject(projpath)
-                runalltask = @async @trycatch mlstr("runing daq tasks failed!!!") begin
+                @async @trycatch mlstr("runing daq tasks failed!!!") begin
                     for (i, task) in enumerate(daqtasks)
                         torunstates[i] || continue
                         running_i = i
                         saferun(task)
                         torunstates[running_i] = false
+                        saveproject(projpath)
                         SYNCSTATES[Int(IsInterrupted)] && (SYNCSTATES[Int(IsInterrupted)] = false; break)
                     end
-                    saveproject(projpath)
                 end
                 DAQDATAPLOT.showdtpks .= false
             else

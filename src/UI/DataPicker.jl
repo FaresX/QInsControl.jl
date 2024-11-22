@@ -263,10 +263,7 @@ let
                     pdtask = Threads.@spawn preprocess(dtss, datastr, datafloat)
                     synctasks[plt.id][i] = pdtask
                     if dtss.update
-                        try
-                            wait(pdtask)
-                        catch
-                        end
+                        timedwaitfetch(pdtask, 6; msg=mlstr("force to stop processing data due to timeout"))
                         if !istaskfailed(pdtask)
                             x, y, z = fetch(pdtask)
                             setobservables!(dtss, x, y, z)
@@ -332,10 +329,7 @@ let
 
     processfuncs::Dict{DataSeries,Function} = Dict()
     function preprocess(dtss::DataSeries, datastr::Dict{String,Vector{String}}, datafloat::Dict{String,VecOrMat{Cdouble}})
-        try
-            dtss.isrunning = true
-            dtss.runtime = 0
-            errormonitor(
+        timingtask = errormonitor(
                 @async begin
                     t1 = time()
                     while dtss.isrunning
@@ -344,6 +338,9 @@ let
                     end
                 end
             )
+        try
+            dtss.isrunning = true
+            dtss.runtime = 0
             xbuf = dtss.xtype ? loaddata(datastr, datafloat, dtss.x) : haskey(datastr, dtss.x) ? copy(datastr[dtss.x]) : String[]
             ybuf = loaddata(datastr, datafloat, dtss.y)
             zbuf = loaddata(datastr, datafloat, dtss.z)
@@ -371,6 +368,7 @@ let
         finally
             dtss.updateprocessfunc = false
             dtss.isrunning = false
+            timedwaitfetch(timingtask, 0.1; msg=mlstr("force to stop timing task"))
         end
     end
     processfigurefuncs::Dict{DataSeries,Function} = Dict()
