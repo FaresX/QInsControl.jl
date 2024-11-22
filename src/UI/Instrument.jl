@@ -13,7 +13,7 @@ function manualadd(addr)
     if occursin("VIRTUAL", addr)
         idn = split(addr, "::")[end]
     else
-        idnr = wait_remotecall_fetch(workers()[1], addr; timeout=CONF.DAQ.cttimeout) do addr
+        idnr = timed_remotecall_fetch(workers()[1], addr; timeout=CONF.DAQ.cttimeout) do addr
             ct = Controller("", addr; buflen=1, timeout=CONF.DAQ.cttimeout)
             try
                 login!(CPU, ct; attr=getattr(addr))

@@ -207,6 +207,7 @@ Base.write(::VirtualInstr, ::AbstractString) = nothing
 read the instrument.
 """
 function Base.read(instr::Instrument)
+    "test"
     t = @async readuntil(instr.handle, instr.attr.termchar)
     timedwhilefetch(t, instr.attr.timeoutr; msg="read $(instr.addr) time out", throwerror=true)
 end

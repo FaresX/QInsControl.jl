@@ -2220,7 +2220,7 @@ end
 function refresh1(insw::InstrWidget, addr; blacklist=[])
     lock(REFRESHLOCK) do
         if haskey(INSTRBUFFERVIEWERS, insw.instrnm) && haskey(INSTRBUFFERVIEWERS[insw.instrnm], addr)
-            fetchibvs = wait_remotecall_fetch(
+            fetchibvs = timed_remotecall_fetch(
                 workers()[1], INSTRBUFFERVIEWERS, insw.instrnm, addr, insw.qtlist, blacklist; timeout=120
             ) do ibvs, ins, addr, qtlist, blacklist
                 merge!(INSTRBUFFERVIEWERS, ibvs)
