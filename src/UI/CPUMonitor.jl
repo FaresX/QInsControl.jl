@@ -4,7 +4,7 @@ let
     global function CPUMonitor()
         if isempty(cpuinfo) || unsafe_load(CImGui.GetIO().Framerate) > 20
             empty!(cpuinfo)
-            cpuinfofetch = timed_remotecall_fetch(workers()[1]; timeout=0.1, quiet=true) do
+            cpuinfofetch = timed_remotecall_fetch(workers()[1]; timeout=0.033, quiet=true) do
                 lock(CPU.lock) do
                     Dict(
                         :running => CPU.running[],
