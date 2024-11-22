@@ -146,7 +146,7 @@ let
                     isvalidpath(visapath) && (CONF.Communication.visapath = visapath)
                     if isfile(CONF.Communication.visapath)
                         QInsControlCore.set_libvisa(CONF.Communication.visapath)
-                        remotecall_wait(workers()[1], CONF.Communication.visapath) do visapath
+                        timed_remotecall_wait(workers()[1], CONF.Communication.visapath) do visapath
                             CONF.Communication.visapath = visapath
                             QInsControlCore.set_libvisa(visapath)
                         end
@@ -169,11 +169,11 @@ let
                 @c(RadioButton2(
                     mlstr("log all quantities"), mlstr("log enabled quantities"), &CONF.DAQ.logall;
                     local_pos_x=12ftsz
-                )) && remotecall_wait(x -> CONF.DAQ.logall = x, workers()[1], CONF.DAQ.logall)
+                )) && timed_remotecall_wait(x -> CONF.DAQ.logall = x, workers()[1], CONF.DAQ.logall)
                 @c(RadioButton2(
                     mlstr("equal step sampling"), mlstr("fixed step sampling"), &CONF.DAQ.equalstep;
                     local_pos_x=12ftsz
-                )) && remotecall_wait(x -> CONF.DAQ.equalstep = x, workers()[1], CONF.DAQ.equalstep)
+                )) && timed_remotecall_wait(x -> CONF.DAQ.equalstep = x, workers()[1], CONF.DAQ.equalstep)
                 @c RadioButton2(mlstr("eval in Main"), mlstr("eval in QInsControl"), &CONF.DAQ.externaleval; local_pos_x=12ftsz)
                 @c ComboS(mlstr("stored data type"), &CONF.DAQ.savetype, datatypes)
                 @c CImGui.DragInt(
@@ -193,25 +193,25 @@ let
                     &CONF.DAQ.channelsize,
                     1.0, 4, 2048, "%d",
                     CImGui.ImGuiSliderFlags_AlwaysClamp
-                )) && remotecall_wait(x -> (CONF.DAQ.channelsize = x), workers()[1], CONF.DAQ.channelsize)
+                )) && timed_remotecall_wait(x -> (CONF.DAQ.channelsize = x), workers()[1], CONF.DAQ.channelsize)
                 @c(CImGui.DragInt(
                     mlstr("packing size"),
                     &CONF.DAQ.packsize,
                     1.0, 6, 2048, "%d",
                     CImGui.ImGuiSliderFlags_AlwaysClamp
-                )) && remotecall_wait(x -> (CONF.DAQ.packsize = x), workers()[1], CONF.DAQ.packsize)
+                )) && timed_remotecall_wait(x -> (CONF.DAQ.packsize = x), workers()[1], CONF.DAQ.packsize)
                 @c(CImGui.DragInt(
                     mlstr("controller buffer size"),
                     &CONF.DAQ.ctbuflen,
                     1.0, 1, 1024, "%d",
                     CImGui.ImGuiSliderFlags_AlwaysClamp
-                )) && remotecall_wait(x -> (CONF.DAQ.ctbuflen = x), workers()[1], CONF.DAQ.ctbuflen)
+                )) && timed_remotecall_wait(x -> (CONF.DAQ.ctbuflen = x), workers()[1], CONF.DAQ.ctbuflen)
                 @c(CImGui.DragFloat(
                     stcstr(mlstr("controller timeout"), " (s)"),
                     &CONF.DAQ.cttimeout,
                     0.1, 0.1, 240, "%.1f",
                     CImGui.ImGuiSliderFlags_AlwaysClamp
-                )) && remotecall_wait(x -> (CONF.DAQ.cttimeout = x), workers()[1], CONF.DAQ.cttimeout)
+                )) && timed_remotecall_wait(x -> (CONF.DAQ.cttimeout = x), workers()[1], CONF.DAQ.cttimeout)
                 @c CImGui.DragInt(
                     stcstr(mlstr("history blocks"), "##DAQ"),
                     &CONF.DAQ.historylen,
@@ -223,13 +223,13 @@ let
                     &CONF.DAQ.retrysendtimes,
                     1.0, 1, 60, "%d",
                     CImGui.ImGuiSliderFlags_AlwaysClamp
-                )) && remotecall_wait(x -> (CONF.DAQ.retrysendtimes = x), workers()[1], CONF.DAQ.retrysendtimes)
+                )) && timed_remotecall_wait(x -> (CONF.DAQ.retrysendtimes = x), workers()[1], CONF.DAQ.retrysendtimes)
                 @c(CImGui.DragInt(
                     stcstr(mlstr("times of retrying connecting"), "##DAQ"),
                     &CONF.DAQ.retryconnecttimes,
                     1.0, 1, 60, "%d",
                     CImGui.ImGuiSliderFlags_AlwaysClamp
-                )) && remotecall_wait(x -> (CONF.DAQ.retryconnecttimes = x), workers()[1], CONF.DAQ.retryconnecttimes)
+                )) && timed_remotecall_wait(x -> (CONF.DAQ.retryconnecttimes = x), workers()[1], CONF.DAQ.retryconnecttimes)
                 CImGui.Text(" ")
 
 
@@ -237,7 +237,7 @@ let
                 SeparatorTextColored(MORESTYLE.Colors.HighlightText, mlstr("Instrument Control"))
                 @c(CImGui.Checkbox(
                     mlstr("read after sweeping"), &CONF.InsBuf.retreading)
-                ) && remotecall_wait(x -> (CONF.InsBuf.retreading = x), workers()[1], CONF.InsBuf.retreading)
+                ) && timed_remotecall_wait(x -> (CONF.InsBuf.retreading = x), workers()[1], CONF.InsBuf.retreading)
                 @c CImGui.Checkbox(mlstr("show help"), &CONF.InsBuf.showhelp)
                 @c CImGui.DragInt(
                     mlstr("display columns"),

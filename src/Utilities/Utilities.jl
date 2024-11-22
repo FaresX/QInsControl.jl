@@ -250,10 +250,10 @@ end
 
 reencoding(s, encoding) = @trypasse decode(unsafe_wrap(Array, pointer(s), ncodeunits(s)), encoding) s
 
-function synccall_wait(f, ids, args...)
+function synccall_wait(f, ids, args...; timeout=2)
     f(args...)
     for i in ids
-        remotecall_wait(f, i, args...)
+        timed_remotecall_wait(f, i, args...; timeout=timeout)
     end
 end
 
@@ -283,6 +283,12 @@ function timed_remotecall_fetch(f, id::Integer, args...; timeout=2, pollint=0.00
     future = remotecall(f, id, args...; kwargs...)
     t = quiet ? @async(fetch(future)) : @async @trycatch mlstr("fetch task failed!!!") fetch(future)
     timedwaitfetch(t, timeout; msg=mlstr("timeout waiting to fetch"), pollint=pollint, quiet=quiet)
+end
+
+function timed_remotecall_wait(f, id::Integer, args...; timeout=2, pollint=0.001, quiet=false, kwargs...)
+    future = remotecall(f, id, args...; kwargs...)
+    t = quiet ? @async(fetch(future)) : @async @trycatch mlstr("fetch task failed!!!") wait(future)
+    timedwaitfetch(t, timeout; msg=mlstr("timeout waiting for future"), pollint=pollint, quiet=quiet)
 end
 
 function counter(f, times::Integer=3)

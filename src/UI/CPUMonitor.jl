@@ -33,7 +33,7 @@ let
             CImGui.Indent()
             if cpuinfo[:running]
                 igBeginDisabled(SYNCSTATES[Int(IsDAQTaskRunning)] || SYNCSTATES[Int(IsAutoRefreshing)])
-                ToggleButton(mlstr("Running"), Ref(true)) && remotecall_wait(() -> stop!(CPU), workers()[1])
+                ToggleButton(mlstr("Running"), Ref(true)) && timed_remotecall_wait(() -> stop!(CPU), workers()[1])
                 igEndDisabled()
                 CImGui.SameLine()
                 ColoredButton(
@@ -44,10 +44,10 @@ let
                 )
                 CImGui.SameLine()
                 if CImGui.Checkbox(mlstr(cpuinfo[:fast] ? "Fast Mode" : "Slow Mode"), Ref(cpuinfo[:fast]))
-                    remotecall_wait((isfast) -> CPU.fast[] = !isfast, workers()[1], cpuinfo[:fast])
+                    timed_remotecall_wait((isfast) -> CPU.fast[] = !isfast, workers()[1], cpuinfo[:fast])
                 end
             else
-                ToggleButton(mlstr("Stopped"), Ref(false)) && remotecall_wait(() -> start!(CPU), workers()[1])
+                ToggleButton(mlstr("Stopped"), Ref(false)) && timed_remotecall_wait(() -> start!(CPU), workers()[1])
             end
             CImGui.Unindent()
             CImGui.Spacing()
@@ -84,14 +84,14 @@ let
                                 )
                                 if !cpuinfo[:isconnected][addr]
                                     CImGui.SameLine()
-                                    CImGui.Button(mlstr("Connect")) && remotecall_wait(workers()[1], addr) do addr
+                                    CImGui.Button(mlstr("Connect")) && timed_remotecall_wait(workers()[1], addr) do addr
                                         @trycatch mlstr("connection failded!!!") connect!(CPU.resourcemanager[], CPU.instrs[addr])
                                     end
                                     CImGui.SameLine()
                                 end
                                 CImGui.SameLine()
                                 igBeginDisabled(SYNCSTATES[Int(IsDAQTaskRunning)] && hasct)
-                                CImGui.Button(mlstr("Log Out")) && remotecall_wait(addr -> logout!(CPU, addr), workers()[1], addr)
+                                CImGui.Button(mlstr("Log Out")) && timed_remotecall_wait(addr -> logout!(CPU, addr), workers()[1], addr)
                                 igEndDisabled()
                                 CImGui.Text(stcstr(mlstr("Status"), mlstr(": ")))
                                 CImGui.SameLine()

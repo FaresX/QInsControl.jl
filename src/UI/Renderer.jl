@@ -177,7 +177,7 @@ let
     ctxi = nothing
     global setctxi(ctx) = (ctxi = ctx)
     global function onexitaction()
-        SYNCSTATES[Int(IsDAQTaskRunning)] || remotecall_wait(() -> stop!(CPU), workers()[1])
+        SYNCSTATES[Int(IsDAQTaskRunning)] || timed_remotecall_wait(() -> stop!(CPU), workers()[1])
         stoprefresh()
         empty!(STATICSTRINGS)
         empty!(MLSTRINGS)

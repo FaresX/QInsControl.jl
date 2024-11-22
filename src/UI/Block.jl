@@ -663,7 +663,7 @@ end
 ############functionality-----------------------------------------------------------------------------------------------
 macro logblock()
     esc(
-        :(remotecall_wait(eval, 1, :(log_instrbufferviewers())))
+        :(timed_remotecall_wait(eval, 1, :(log_instrbufferviewers()); timeout=60))
     )
 end
 

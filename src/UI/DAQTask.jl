@@ -281,7 +281,7 @@ function run_remote(daqtask::DAQTask)
                         if istaskdone(remotedotask) && all(.!isready.(
                             [databuf_lc, databuf_rc, progress_lc, progress_rc, extradatabuf_lc, extradatabuf_rc]
                         ))
-                            remotecall_wait(eval, 1, :(log_instrbufferviewers()))
+                            timed_remotecall_wait(eval, 1, :(log_instrbufferviewers()); timeout=60)
                             SYNCSTATES[Int(IsDAQTaskDone)] = true
                             break
                         else
@@ -303,7 +303,7 @@ function run_remote(daqtask::DAQTask)
             end
         end
     end
-    remotecall_wait(workers()[1], ex1, ex, SYNCSTATES) do ex1, ex, SYNCSTATES
+    timed_remotecall_wait(workers()[1], ex1, ex, SYNCSTATES; timeout=60) do ex1, ex, SYNCSTATES
         try
             @info "[$(now())]\n" task = prettify(ex1)
             eval(ex)

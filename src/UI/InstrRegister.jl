@@ -18,7 +18,7 @@ let
         if CImGui.Button(MORESTYLE.Icons.InstrumentsManualRef)
             for file in readdir(joinpath(ENV["QInsControlAssets"], "ExtraLoad"), join=true)
                 try
-                    endswith(basename(file), ".jl") && remotecall_wait(include, workers()[1], file)
+                    endswith(basename(file), ".jl") && timed_remotecall_wait(include, workers()[1], file; timeout=60)
                 catch e
                     @error mlstr("reloading drivers failed") exception = e file = file
                     showbacktrace()
@@ -138,7 +138,7 @@ let
                 if !(newinsnm == "" || haskey(INSCONF, newinsnm))
                     if isrename[oldinsnm] && !renamei
                         setvalue!(INSCONF, oldinsnm, newinsnm => inscf)
-                        remotecall_wait(workers()[1], oldinsnm, newinsnm, inscf) do oldinsnm, newinsnm, inscf
+                        timed_remotecall_wait(workers()[1], oldinsnm, newinsnm, inscf) do oldinsnm, newinsnm, inscf
                             setvalue!(INSCONF, oldinsnm, newinsnm => inscf)
                         end
                         INSTRBUFFERVIEWERS[newinsnm] = pop!(INSTRBUFFERVIEWERS, oldinsnm)
@@ -165,7 +165,7 @@ let
                     CImGui.ImGuiWindowFlags_AlwaysAutoResize
                 )
                     pop!(INSCONF, oldinsnm, 0)
-                    remotecall_wait(workers()[1], oldinsnm) do oldinsnm
+                    timed_remotecall_wait(workers()[1], oldinsnm) do oldinsnm
                         pop!(INSCONF, oldinsnm, 0)
                     end
                     pop!(INSTRBUFFERVIEWERS, oldinsnm, 0)
@@ -271,7 +271,7 @@ let
                         CImGui.SameLine()
                         if CImGui.Button(stcstr(MORESTYLE.Icons.CloseFile, "##QuantityConf"))
                             pop!(selectedinscf.quantities, selectedqt, 0)
-                            remotecall_wait(workers()[1], selectedins, selectedqt) do selectedins, selectedqt
+                            timed_remotecall_wait(workers()[1], selectedins, selectedqt) do selectedins, selectedqt
                                 pop!(INSCONF[selectedins].quantities, selectedqt, 0)
                             end
                             for ibv in values(INSTRBUFFERVIEWERS[selectedins])
@@ -285,7 +285,7 @@ let
                         # CImGui.SameLine()
                         if CImGui.Button(stcstr(MORESTYLE.Icons.SaveButton, " ", mlstr("Save"), "##QuantityConf to INSCONF"))
                             selectedinscf.quantities[qtname] = deepcopy(editqt)
-                            remotecall_wait(workers()[1], selectedins, qtname, editqt) do selectedins, qtname, editqt
+                            timed_remotecall_wait(workers()[1], selectedins, qtname, editqt) do selectedins, qtname, editqt
                                 INSCONF[selectedins].quantities[qtname] = editqt
                             end
                             cmdtype = Symbol("@", INSCONF[selectedins].conf.cmdtype)

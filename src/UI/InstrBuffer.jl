@@ -1045,7 +1045,7 @@ function apply!(qt::SweepQuantity, instrnm, addr)
             end
             ## local
             while !istaskdone(sweepcalltask) || isready(sweep_rc)
-                qt.issweeping || remotecall_wait(workers()[1], instrnm, addr) do instrnm, addr
+                qt.issweeping || timed_remotecall_wait(workers()[1], instrnm, addr) do instrnm, addr
                     SWEEPCTS[instrnm][addr][qt.name][1][] = false
                 end
                 isready(sweep_rc) ? for val in take!(sweep_rc)
