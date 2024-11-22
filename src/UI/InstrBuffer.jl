@@ -329,7 +329,9 @@ let
                     if CImGui.Button(stcstr(MORESTYLE.Icons.QueryBlock, "  ", mlstr("Query")), (btw, bth))
                         if addr != ""
                             reading[] *= string("Write: ", inputcmd[], "\n")
-                            fetchdata = wait_remotecall_fetch(workers()[1], ins, addr, inputcmd[]) do ins, addr, inputcmd
+                            fetchdata = wait_remotecall_fetch(
+                                workers()[1], ins, addr, inputcmd[]; timeout=CONF.DAQ.cttimeout
+                            ) do ins, addr, inputcmd
                                 ct = Controller(ins, addr; buflen=CONF.DAQ.ctbuflen, timeout=CONF.DAQ.cttimeout)
                                 try
                                     login!(CPU, ct; attr=getattr(addr))
@@ -352,7 +354,9 @@ let
                     CImGui.SameLine()
                     if CImGui.Button(stcstr(MORESTYLE.Icons.ReadBlock, "  ", mlstr("Read")), (btw, bth))
                         if addr != ""
-                            fetchdata = wait_remotecall_fetch(workers()[1], ins, addr) do ins, addr
+                            fetchdata = wait_remotecall_fetch(
+                                workers()[1], ins, addr; timeout=CONF.DAQ.cttimeout
+                            ) do ins, addr
                                 ct = Controller(ins, addr; buflen=CONF.DAQ.ctbuflen, timeout=CONF.DAQ.cttimeout)
                                 try
                                     login!(CPU, ct; attr=getattr(addr))
@@ -953,7 +957,9 @@ function apply!(qt::SweepQuantity, instrnm, addr)
     addr == "" && return nothing
     U, Us = @c getU(qt.utype, &qt.uindex)
     U == "" || (Uchange::Float64 = Us[1] isa Unitful.FreeUnits ? ustrip(Us[1], 1U) : 1.0)
-    start = wait_remotecall_fetch(workers()[1], instrnm, addr) do instrnm, addr
+    start = wait_remotecall_fetch(
+        workers()[1], instrnm, addr; timeout=CONF.DAQ.cttimeout
+    ) do instrnm, addr
         ct = Controller(instrnm, addr; buflen=CONF.DAQ.ctbuflen, timeout=CONF.DAQ.cttimeout)
         try
             getfunc = Symbol(instrnm, :_, qt.name, :_get) |> eval
@@ -1069,7 +1075,9 @@ function apply!(qt::SetQuantity, instrnm, addr, byoptvalues=false)
         @info "[$(now())]\nBefore setting" instrument = instrnm address = addr quantity = qt
         actionidx = 1
         SYNCSTATES[Int(IsDAQTaskRunning)] && (actionidx = logaction(qt, instrnm, addr))
-        fetchdata = wait_remotecall_fetch(workers()[1], instrnm, addr, sv) do instrnm, addr, sv
+        fetchdata = wait_remotecall_fetch(
+            workers()[1], instrnm, addr, sv; timeout=CONF.DAQ.cttimeout
+        ) do instrnm, addr, sv
             ct = Controller(instrnm, addr; buflen=CONF.DAQ.ctbuflen, timeout=CONF.DAQ.cttimeout)
             try
                 setfunc = Symbol(instrnm, :_, qt.name, :_set) |> eval
@@ -1206,7 +1214,7 @@ function getread!(qt::AbstractQuantity, instrnm, addr)
 end
 
 function refresh_qt(instrnm, addr, qtnm)
-    wait_remotecall_fetch(workers()[1], instrnm, addr) do instrnm, addr
+    wait_remotecall_fetch(workers()[1], instrnm, addr; timeout=CONF.DAQ.cttimeout) do instrnm, addr
         ct = Controller(instrnm, addr; buflen=CONF.DAQ.ctbuflen, timeout=CONF.DAQ.cttimeout)
         try
             getfunc = Symbol(instrnm, :_, qtnm, :_get) |> eval
