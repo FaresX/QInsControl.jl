@@ -212,9 +212,9 @@ let
 
             CImGui.PopStyleVar(2)
             CImGui.PopFont()
-            igSeparatorText("")
+            CImGui.SeparatorText("")
 
-
+            CImGui.BeginChild("right content")
             if showwhat == 0
                 btw = 2CImGui.GetFrameHeight() + unsafe_load(IMGUISTYLE.ItemSpacing.y)
                 CImGui.PushStyleColor(CImGui.ImGuiCol_Border, MORESTYLE.Colors.ItemBorder)
@@ -368,6 +368,8 @@ let
             elseif showwhat == 2
                 CPUMonitor()
             end
+            CImGui.EndChild()
+
             CImGui.EndChild()
             CImGui.EndChild()
 
