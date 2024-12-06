@@ -480,12 +480,21 @@ macro gentrycatch(instrnm, addr, cmd, len=0)
         quote
             let
                 state, getval = counter(CONF.DAQ.retryconnecttimes) do tout
-                    @gencontroller $(mlstr("retry connecting to instrument")) string($instrnm, " ", $addr) (false, "") true
+                    if tout != 1
+                        @gencontroller(
+                            $(mlstr("retry connecting to instrument")), string($instrnm, " ", $addr),
+                            (false, $(len == 0 ? "" : fill("", len))), true
+                        )
+                    end
                     state, getval = counter(CONF.DAQ.retrysendtimes) do tin
-                        @gencontroller $(mlstr("retry sending command")) string($instrnm, " ", $addr) (false, "") true
-                        try
-                            getval = $cmd
-                            return true, getval
+                        if tin != 1 && tout != 1
+                            @gencontroller(
+                                $(mlstr("retry sending command")), string($instrnm, " ", $addr),
+                                (false, $(len == 0 ? "" : fill("", len))), true
+                            )
+                        end
+                        state, getval = try
+                            true, $cmd
                         catch e
                             @error(
                                 "[$(now())]\n$(mlstr("instrument communication failed!!!"))",
@@ -493,30 +502,35 @@ macro gentrycatch(instrnm, addr, cmd, len=0)
                                 exception = e
                             )
                             showbacktrace()
-                            @warn stcstr("[", now(), "]\n", mlstr("retry sending command"), " ", tin)
-                            return false, $(len == 0 ? "" : fill("", len))
+                            @warn(
+                                stcstr("[", now(), "]\n", mlstr("retry sending command"), " ", tin),
+                                intrument=string($instrnm, "-", $addr)
+                            )
+                            false, $(len == 0 ? "" : fill("", len))
                         end
+                        return state, getval
                     end
-                    if state
-                        return true, getval
-                    else
+                    SYNCSTATES[Int(IsInterrupted)] && return state, getval
+                    if !state
                         try
                             disconnect!(CPU.instrs[$addr])
                             connect!(CPU.resourcemanager, CPU.instrs[$addr])
                         catch
                         end
-                        @warn stcstr("[", now(), "]\n", mlstr("retry reconnecting to instrument"), " ", tout)
-                        return false, $(len == 0 ? "" : fill("", len))
+                        @warn(
+                            stcstr("[", now(), "]\n", mlstr("retry reconnecting to instrument"), " ", tout),
+                            intrument=string($instrnm, "-", $addr)
+                        )
                     end
+                    return state, getval
                 end
-                if state
-                    getval
-                elseif SYNCSTATES[Int(IsInterrupted)]
-                    @warn "[$(now())]\n$(mlstr("interrupt!"))" $(mlstr("retry connecting and sending command")) = string($instrnm, " ", $addr)
-                    return nothing
-                else
-                    error(string("instrument ", $instrnm, " ", $addr, " response time out!!!"))
+                if SYNCSTATES[Int(IsInterrupted)]
+                    @warn(
+                        "[$(now())]\n$(mlstr("interrupt!"))",
+                        $(mlstr("retry connecting and sending command")) = string($instrnm, " ", $addr)
+                    )
                 end
+                state ? getval : error(string("instrument ", $instrnm, " ", $addr, " response time out!!!"))
             end
         end
     )
