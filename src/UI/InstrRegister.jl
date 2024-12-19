@@ -71,7 +71,7 @@ let
         CImGui.Text(mlstr("optional values"))
         @c ComboS(mlstr("variable type"), &qtcf.type, ["sweep", "set", "read"])
         CImGui.PushItemWidth((CImGui.CalcItemWidth() - unsafe_load(IMGUISTYLE.ItemSpacing.x)) / 2)
-        @c InputTextRSZ(mlstr("##separator"), &qtcf.separator)
+        @c InputTextRSZ(mlstr("##separator"), &qtcf.separator, ImGuiInputTextFlags_AllowTabInput)
         CImGui.SameLine()
         qtcf.separator == "" && (qtcf.numread = 1)
         @c CImGui.DragInt(mlstr("separator"), &qtcf.numread, 1, 1, 36, "%d", CImGui.ImGuiSliderFlags_AlwaysClamp)
