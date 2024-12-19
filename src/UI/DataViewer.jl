@@ -202,6 +202,17 @@ function edit(dtviewer::DataViewer, path, id)
             CImGui.EndTabItem()
         end
         CImGui.PopStyleColor()
+        if CImGui.BeginTabItem(mlstr("Information"))
+            if haskey(dtviewer.data, "info")
+                for (key, info) in dtviewer.data["info"]
+                    SeparatorTextColored(MORESTYLE.Colors.HighlightText, key)
+                    CImGui.Text(string(info))
+                end
+            else
+                CImGui.Text(mlstr("no available information!"))
+            end
+            CImGui.EndTabItem()
+        end
         if igTabItemButton(stcstr(MORESTYLE.Icons.SaveButton, " ", mlstr("Save")), 0)
             if isfile(path)
                 saveqdt(dtviewer, path)
@@ -221,7 +232,22 @@ function edit(dtviewer::DataViewer, path, id)
 end
 
 function loaddtviewer!(dtviewer::DataViewer, path, id)
-    loaddtviewer!(dtviewer, split(basename(path), '.')[end] in ["qdt", "cfg"] ? @trypasse(load(path), Dict()) : Dict(), id)
+    data = if split(basename(path), '.')[end] in ["qdt", "daq", "cfg"]
+        dataload = @trypasse load(path) nothing
+        if isnothing(dataload)
+            datadict = Dict()
+            for key in ["actions", "daqtask", "circuit", "data", "revision", "info", "valid"]
+                loadval = @trypass load(path, key) nothing
+                isnothing(loadval) || push!(datadict, key => loadval)
+            end
+            datadict
+        else
+            dataload
+        end
+    else
+        Dict()
+    end
+    loaddtviewer!(dtviewer, data, id)
 end
 function loaddtviewer!(dtviewer::DataViewer, data::Dict, id)
     dtviewer.data = data
@@ -269,6 +295,7 @@ function saveqdt(dtviewer::DataViewer, path)
     if !isempty(dtviewer.data)
         jldopen(path, "w") do file
             for key in keys(dtviewer.data)
+                key == "info" && continue
                 key == "dataplot" && (file[key] = deepcopy(dtviewer.dtp); continue)
                 if key == "data"
                     savetype = eval(Symbol(CONF.DAQ.savetype))
@@ -286,6 +313,7 @@ function saveqdt(dtviewer::DataViewer, path)
                 end
                 file[key] = dtviewer.data[key]
             end
+            file["info"] = fileinfo()
         end
     end
 end

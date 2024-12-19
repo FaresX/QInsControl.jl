@@ -66,6 +66,7 @@ include("Utilities/LoopVector.jl")
 include("Configurations.jl")
 include("Utilities/MultiLanguage.jl")
 include("Utilities/StaticString.jl")
+include("Utilities/FileInfo.jl")
 
 include("UI/Extensions.jl")
 include("UI/Block.jl")

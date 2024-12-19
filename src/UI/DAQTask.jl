@@ -414,6 +414,7 @@ function saveqdt()
             key == "EXTRADATA" && continue
             file[key] = val
         end
+        file["info"] = fileinfo()
         file["valid"] = false
     end
     if sum(length(data) for data in values(DATABUF); init=0) > CONF.DAQ.cuttingfile
@@ -435,6 +436,7 @@ function savecfgcache()
         for (key, val) in CFGBUF
             file[key] = val
         end
+        file["info"] = fileinfo()
         file["valid"] = false
     end
 end
