@@ -439,8 +439,8 @@ function savecfgcache()
     end
 end
 function saveqdtcache(cache)
+    data = join(map(x -> string(x[1], ",", x[2]), cache), '\n')
     open(QDTCACHESAVEPATH, "a+") do file
-        data = join(map(x -> string(x[1], ",", x[2]), cache), '\n')
         write(file, data)
     end
 end
