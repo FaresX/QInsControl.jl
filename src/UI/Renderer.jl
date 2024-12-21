@@ -129,44 +129,49 @@ function UI()
     global ICONID = nothing
 
     rendertask = Threads.@spawn CImGui.render(ctx; window_size=CONF.Basic.windowsize, window_title="QInsControl", on_exit=onexitaction, opengl_version=v"3.3") do
-        # 加载图标
-        if isnothing(ICONID)
-            icons = FileIO.load.([joinpath(ENV["QInsControlAssets"], "Necessity/QInsControl.ico")])
-            icons_8bit = reinterpret.(NTuple{4,UInt8}, icons)
-            GLFW.SetWindowIcon(CImGui.current_window(), icons_8bit)
-            GLFW.PollEvents()
-            iconsize = reverse(size(icons[1]))
-            global ICONID = CImGui.create_image_texture(iconsize...)
-            CImGui.update_image_texture(ICONID, transpose(icons[1]), iconsize...)
-        end
-        ###### 检查 STATICSTRINGS ######
-        waittime("Check STATICSTRINGS", 36) && checklifetime()
+        try
+            # 加载图标
+            if isnothing(ICONID)
+                icons = FileIO.load.([joinpath(ENV["QInsControlAssets"], "Necessity/QInsControl.ico")])
+                icons_8bit = reinterpret.(NTuple{4,UInt8}, icons)
+                GLFW.SetWindowIcon(CImGui.current_window(), icons_8bit)
+                GLFW.PollEvents()
+                iconsize = reverse(size(icons[1]))
+                global ICONID = CImGui.create_image_texture(iconsize...)
+                CImGui.update_image_texture(ICONID, transpose(icons[1]), iconsize...)
+            end
+            ###### 检查 STATICSTRINGS ######
+            waittime("Check STATICSTRINGS", 36) && checklifetime()
 
-        MainWindow()
-        if CImGui.BeginPopupModal("##windowshouldclose?", C_NULL, CImGui.ImGuiWindowFlags_AlwaysAutoResize)
-            CImGui.TextColored(
-                MORESTYLE.Colors.LogError,
-                stcstr("\n\n", mlstr("data acquiring or sweeping, please wait......"), "\n\n\n")
-            )
-            CImGui.Button(mlstr("Confirm"), (-1, 0)) && CImGui.CloseCurrentPopup()
-            CImGui.EndPopup()
-        end
-        if GLFW.WindowShouldClose(CImGui.current_window()) != 0 || !isshowapp()[]
-            hasrefreshing = false
-            for inses in values(INSTRBUFFERVIEWERS)
-                for ibv in values(inses)
-                    for (_, qt) in filter(x -> x.second isa SweepQuantity, ibv.insbuf.quantities)
-                        hasrefreshing |= qt.issweeping
+            MainWindow()
+            if CImGui.BeginPopupModal("##windowshouldclose?", C_NULL, CImGui.ImGuiWindowFlags_AlwaysAutoResize)
+                CImGui.TextColored(
+                    MORESTYLE.Colors.LogError,
+                    stcstr("\n\n", mlstr("data acquiring or sweeping, please wait......"), "\n\n\n")
+                )
+                CImGui.Button(mlstr("Confirm"), (-1, 0)) && CImGui.CloseCurrentPopup()
+                CImGui.EndPopup()
+            end
+            if GLFW.WindowShouldClose(CImGui.current_window()) != 0 || !isshowapp()[]
+                hasrefreshing = false
+                for inses in values(INSTRBUFFERVIEWERS)
+                    for ibv in values(inses)
+                        for (_, qt) in filter(x -> x.second isa SweepQuantity, ibv.insbuf.quantities)
+                            hasrefreshing |= qt.issweeping
+                        end
                     end
                 end
+                if SYNCSTATES[Int(IsDAQTaskRunning)] || hasrefreshing
+                    CImGui.OpenPopup("##windowshouldclose?")
+                    GLFW.SetWindowShouldClose(CImGui.current_window(), false)
+                    isshowapp()[] = true
+                else
+                    return
+                end
             end
-            if SYNCSTATES[Int(IsDAQTaskRunning)] || hasrefreshing
-                CImGui.OpenPopup("##windowshouldclose?")
-                GLFW.SetWindowShouldClose(CImGui.current_window(), false)
-                isshowapp()[] = true
-            else
-                return
-            end
+        catch e
+            @error mlstr("error in render loop!") exception = e
+            showbacktrace()
         end
     end
 
