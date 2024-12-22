@@ -191,7 +191,7 @@ let
                 @c CImGui.Selectable(MORESTYLE.Icons.Logger, &show_logger, 0, sbsz)
                 SYNCSTATES[Int(FatalError)] && CImGui.PopStyleColor()
                 CImGui.PushFont(GLOBALFONT)
-                if CImGui.BeginPopupContextItem()
+                if SYNCSTATES[Int(FatalError)] && CImGui.BeginPopupContextItem()
                     CImGui.MenuItem(mlstr("Clear Fatal Error")) && (SYNCSTATES[Int(FatalError)] = false)
                     CImGui.EndPopup()
                 end
