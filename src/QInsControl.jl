@@ -47,6 +47,7 @@ import .QInsControlCore: VISAInstrAttr, SerialInstrAttr, TCPSocketInstrAttr, Vir
     IsBlocked
     IsAutoRefreshing
     NewLogging
+    FatalError
 end
 
 const CPU = Processor()
@@ -108,7 +109,7 @@ function julia_main()::Cint
         databuf_c::Channel{Vector{Tuple{String,String}}} = Channel{Vector{NTuple{2,String}}}(CONF.DAQ.channelsize)
         extradatabuf_c::Channel{Tuple{String,Vector{Any}}} = Channel{Tuple{String,Vector{Any}}}(CONF.DAQ.channelsize)
         progress_c::Channel{Vector{Tuple{UUID,Int,Int,Float64}}} = Channel{Vector{Tuple{UUID,Int,Int,Float64}}}(CONF.DAQ.channelsize)
-        global SYNCSTATES = SharedVector{Bool}(8)
+        global SYNCSTATES = SharedVector{Bool}(length(instances(SyncStatesIndex)))
         global DATABUFRC = RemoteChannel(() -> databuf_c)
         global EXTRADATABUFRC = RemoteChannel(() -> extradatabuf_c)
         global PROGRESSRC = RemoteChannel(() -> progress_c)
@@ -128,7 +129,7 @@ function julia_main()::Cint
             ENV["JULIA_NUM_THREADS"] = CONF.Basic.nthreads_2
             nprocs() == 1 && addprocs(1)
             @eval @everywhere using QInsControl
-            global SYNCSTATES = SharedVector{Bool}(8)
+            global SYNCSTATES = SharedVector{Bool}(length(instances(SyncStatesIndex)))
             global DATABUFRC = RemoteChannel(() -> databuf_c)
             global EXTRADATABUFRC = RemoteChannel(() -> extradatabuf_c)
             global PROGRESSRC = RemoteChannel(() -> progress_c)
@@ -181,13 +182,16 @@ start() = (get!(ENV, "QInsControlAssets", joinpath(Base.@__DIR__, "../Assets"));
 
 @compile_workload begin
     get!(ENV, "QInsControlAssets", joinpath(Base.@__DIR__, "../Assets"))
-    global SYNCSTATES = SharedVector{Bool}(8)
+    global SYNCSTATES = SharedVector{Bool}(length(instances(SyncStatesIndex)))
     loadconf(true)
     try
+        UI()
+        sleep(6)
         window = CImGui.current_window()
         GLFW.HideWindow(window)
         sleep(6)
         GLFW.SetWindowShouldClose(window, true)
+        sleep(1)
     catch
     end
 end

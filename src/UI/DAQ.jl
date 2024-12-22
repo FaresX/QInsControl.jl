@@ -12,6 +12,13 @@ let
 
     projpath::String = ""
 
+    global function closedaqwindows()
+        show_daq_editors .= false
+        show_circuit_editor = false
+        DAQDATAPLOT.showdtpks .= false
+        DAQDATAPLOT.layout.states .= false
+    end
+
     global function DAQtoolbar()
         # CImGui.Columns(2, C_NULL, false)
         # CImGui.SetColumnOffset(1, 6ftsz)

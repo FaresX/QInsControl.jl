@@ -246,8 +246,8 @@ let
             end
         end
         if dtpk.updatelayout
-            plotfigurelayout(plt, dtpk)
             dtpk.updatelayout = false
+            plotfigurelayout(plt, dtpk)
         end
         for (i, dtss) in enumerate(dtpk.series)
             if dtss.update || (dtss.isrealtime && waittime(stcstr("DataPicker", plt.id, "-", i), dtss.refreshrate))

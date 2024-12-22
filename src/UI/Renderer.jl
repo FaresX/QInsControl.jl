@@ -170,7 +170,9 @@ function UI()
                 end
             end
         catch e
-            @error mlstr("error in render loop!") exception = e
+            @error mlstr("error in renderloop!") exception = e
+            SYNCSTATES[Int(FatalError)] = true
+            closeallwindows()
             showbacktrace()
         end
     end
