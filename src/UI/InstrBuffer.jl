@@ -1320,6 +1320,7 @@ let
     monitortask::Ref{Task} = Ref{Task}()
     stoptask::Bool = false
     global function stoprefresh()
+        isassigned(task) && isassigned(monitortask) || return nothing
         stoptask = true
         sleep(0.1)
         istaskdone(task[]) && istaskdone(monitortask[]) || schedule(task[], mlstr("Stop"); error=true)
