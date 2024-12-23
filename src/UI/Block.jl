@@ -36,7 +36,7 @@ end
     rangemark::String = ""
     level::Int = 1
     blocks::Vector{AbstractBlock} = AbstractBlock[]
-    istrycatch::Bool = false
+    istrycatch::Bool = true
     hideblocks::Bool = false
     regmin::Vector{Cfloat} = [0, 0]
     regmax::Vector{Cfloat} = [0, 0]
@@ -67,7 +67,7 @@ end
     setvalue::String = ""
     delay::Cfloat = 0.1
     ui::Int = 1
-    istrycatch::Bool = false
+    istrycatch::Bool = true
     regmin::Vector{Cfloat} = [0, 0]
     regmax::Vector{Cfloat} = [0, 0]
 end
@@ -91,7 +91,7 @@ end
     addr::String = mlstr("address")
     cmd::String = ""
     isasync::Bool = false
-    istrycatch::Bool = false
+    istrycatch::Bool = true
     regmin::Vector{Cfloat} = [0, 0]
     regmax::Vector{Cfloat} = [0, 0]
 end
@@ -212,6 +212,7 @@ function tocodes(bk::SweepBlock)
         return nothing
     end
     start = :(parse(Float64, controllers[$instr]($getfunc, CPU, Val(:read))))
+    satrt = bk.istrycatch ? :(@gentrycatch $(bk.instrnm) $(bk.addr) $start) : start
     Uchange = U isa Unitful.MixedUnits ? 1 : ustrip(Us[1], 1U)
     step = Expr(:call, :*, stepc, Uchange)
     stop = Expr(:call, :*, stopc, Uchange)
