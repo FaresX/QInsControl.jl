@@ -238,20 +238,18 @@ determine if the instrument is connected.
 isconnected(instr::Instrument) = instr.connected[]
 
 function clearbuffer(instr::Instrument)
-    if instr isa SerialInstr || instr isa TCPSocketInstr || (instr isa VISAInstr && occursin("ASRL", instr.addr))
+    try
+        read(instr)
+    catch
+    end
+    i = 0
+    while i < 6
         try
             read(instr)
         catch
+            break
         end
-        i = 0
-        while i < 6
-            try
-                read(instr)
-            catch
-                break
-            end
-            i += 1
-            yield()
-        end
+        i += 1
+        yield()
     end
 end
