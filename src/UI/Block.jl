@@ -1135,8 +1135,9 @@ function edit(bk::StrideCodeBlock)
     CImGui.PopStyleColor()
     CImGui.PushStyleVar(CImGui.ImGuiStyleVar_WindowPadding, wp)
     bk.hideblocks || isempty(skipnull(bk.blocks)) || edit(bk.blocks, bk.level + 1)
+    CImGui.PopStyleVar()
     CImGui.EndChild()
-    CImGui.PopStyleVar(2)
+    CImGui.PopStyleVar()
 end
 
 function edit(bk::BranchBlock)
@@ -1987,8 +1988,9 @@ function view(bk::StrideCodeBlock)
     CImGui.PopStyleColor()
     CImGui.PushStyleVar(CImGui.ImGuiStyleVar_WindowPadding, wp)
     bk.hideblocks || isempty(skipnull(bk.blocks)) || view(bk.blocks)
+    CImGui.PopStyleVar()
     CImGui.EndChild()
-    CImGui.PopStyleVar(2)
+    CImGui.PopStyleVar()
 end
 
 function view(bk::BranchBlock)
@@ -2048,8 +2050,9 @@ function view(bk::SweepBlock)
     CImGui.PopStyleColor()
     CImGui.PushStyleVar(CImGui.ImGuiStyleVar_WindowPadding, wp)
     bk.hideblocks || isempty(skipnull(bk.blocks)) || view(bk.blocks)
+    CImGui.PopStyleVar()
     CImGui.EndChild()
-    CImGui.PopStyleVar(2)
+    CImGui.PopStyleVar()
 end
 
 function view(bk::FreeSweepBlock)
@@ -2100,8 +2103,9 @@ function view(bk::FreeSweepBlock)
     CImGui.PopStyleColor()
     CImGui.PushStyleVar(CImGui.ImGuiStyleVar_WindowPadding, wp)
     bk.hideblocks || isempty(skipnull(bk.blocks)) || view(bk.blocks)
+    CImGui.PopStyleVar()
     CImGui.EndChild()
-    CImGui.PopStyleVar(2)
+    CImGui.PopStyleVar()
 end
 
 function view(bk::SettingBlock)

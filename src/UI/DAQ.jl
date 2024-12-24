@@ -80,9 +80,10 @@ let
             stcstr(MORESTYLE.Icons.SaveButton, "##Save Project"),
             (btwidth, btheight)
         ) && saveproject()
-        CImGui.PopFont()
+        CImGui.PopStyleColor()
         CImGui.EndChild()
-        CImGui.PopStyleColor(3)
+        CImGui.PopFont()
+        CImGui.PopStyleColor(2)
         show_circuit_editor && @c edit(CIRCUIT, "Circuit Editor", &show_circuit_editor)
     end
 

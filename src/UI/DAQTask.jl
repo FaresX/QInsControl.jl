@@ -133,6 +133,7 @@ let
                 CImGui.PopStyleVar()
                 CImGui.PopStyleColor()
                 CImGui.EndChild()
+                CImGui.PopID()
                 if !haskey(redolist, id)
                     redolist[id] = LoopVector(fill(AbstractBlock[], CONF.DAQ.historylen))
                     redolist[id][] = deepcopy(daqtask.blocks)
