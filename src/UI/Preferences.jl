@@ -22,7 +22,7 @@ let
             ftsz = CImGui.GetFontSize()
             CImGui.SameLine((width - 6ftsz) / 2)
             CImGui.SetCursorPos((width - 6ftsz) / 2, ftsz)
-            CImGui.Image(Ptr{Cvoid}(ICONID), (6ftsz, 6ftsz))
+            CImGui.Image(CImGui.ImTextureID(ICONID), (6ftsz, 6ftsz))
             CImGui.SetCursorPosY(8ftsz)
 
             CImGui.BeginChild("Options", (Cfloat(0), -2CImGui.GetFrameHeight() - 2unsafe_load(IMGUISTYLE.ItemSpacing.y)))

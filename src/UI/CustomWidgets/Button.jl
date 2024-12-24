@@ -107,7 +107,7 @@ let
             framecount = CImGui.GetFrameCount()
             framecount % rate == 0 && move!(IMAGES[path])
         end
-        CImGui.Image(Ptr{Cvoid}(IMAGES[path][]), size, uv0, uv1, tint_col, border_col)
+        CImGui.Image(CImGui.ImTextureID(IMAGES[path][]), size, uv0, uv1, tint_col, border_col)
     end
 end
 
@@ -149,7 +149,7 @@ let
             framecount % rate == 0 && move!(IMAGES[path])
         end
         CImGui.PushStyleVar(CImGui.ImGuiStyleVar_FramePadding, frame_padding)
-        clicked = CImGui.ImageButton(label, Ptr{Cvoid}(IMAGES[path][]), size .- 2frame_padding, uv0, uv1, bg_col, tint_col)
+        clicked = CImGui.ImageButton(label, CImGui.ImTextureID(IMAGES[path][]), size .- 2frame_padding, uv0, uv1, bg_col, tint_col)
         CImGui.PopStyleVar()
         return clicked
     end
