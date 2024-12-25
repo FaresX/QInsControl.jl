@@ -315,13 +315,15 @@ let
                 if isempty(filelist)
                     CImGui.TextDisabled(stcstr("(", mlstr("Null"), ")"))
                 else
-                    for fv in filelist
+                    for (i, fv) in enumerate(filelist)
+                        CImGui.PushID(i)
                         title = isempty(fv.filetree.filetrees) ? mlstr("no file opened") : basename(fv.filetree.filetrees[1].filepath)
                         @c CImGui.MenuItem(title, C_NULL, &fv.p_open)
                         if CImGui.BeginPopupContextItem()
                             CImGui.MenuItem(stcstr(MORESTYLE.Icons.CloseFile, " ", mlstr("Close"))) && (fv.noclose = false)
                             CImGui.EndPopup()
                         end
+                        CImGui.PopID()
                     end
                 end
                 SeparatorTextColored(MORESTYLE.Colors.HighlightText, mlstr("Folders"))
