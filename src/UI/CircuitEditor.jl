@@ -427,6 +427,7 @@ function minimaphoveringcallback(nodeid::Cint, userdata::ImNodesMiniMapNodeHover
 end
 
 let
+    nodeeditor_contexts::Dict{String,Ptr{lib.ImNodesEditorContext}} = Dict()
     isanynodehovered::Bool = false
     isanylinkhovered::Bool = false
     newnode::Bool = false
@@ -502,7 +503,9 @@ let
         end
     end
 
-    global function edit(nodeeditor::NodeEditor)
+    global function edit(nodeeditor::NodeEditor, id)
+        haskey(nodeeditor_contexts, id) || (nodeeditor_contexts[id] = imnodes_EditorContextCreate())
+        imnodes_EditorContextSet(nodeeditor_contexts[id])
         !(isanynodehovered || isanylinkhovered) && CImGui.IsMouseDoubleClicked(0) && imnodes_EditorContextResetPanning((0, 0))
         imnodes_BeginNodeEditor()
         dragnodemenu()
@@ -615,6 +618,33 @@ let
                 CImGui.EndMenu()
             end
             CImGui.EndPopup()
+        end
+    end
+
+    global function view(nodeeditor::NodeEditor, id)
+        haskey(nodeeditor_contexts, id) || (nodeeditor_contexts[id] = imnodes_EditorContextCreate())
+        imnodes_EditorContextSet(nodeeditor_contexts[id])
+        !(isanynodehovered || isanylinkhovered) && CImGui.IsMouseDoubleClicked(0) && imnodes_EditorContextResetPanning((0, 0))
+        imnodes_BeginNodeEditor()
+        for (id, node) in nodeeditor.nodes
+            imnodes_SetNodeGridSpacePos(id, node.position)
+            view(node)
+            empty!(node.connected_ids)
+        end
+        for (i, link) in enumerate(nodeeditor.links)
+            imnodes_Link(i, link...)
+            push!(nodeeditor.nodes[link[1]÷1000].connected_ids, link[1])
+            push!(nodeeditor.nodes[link[2]÷1000].connected_ids, link[2])
+        end
+        imnodes_MiniMap(
+            MORESTYLE.Variables.MiniMapFraction,
+            MORESTYLE.Variables.MiniMapLocation,
+            @cfunction(minimaphoveringcallback, Cvoid, (Cint, ImNodesMiniMapNodeHoveringCallbackUserData)),
+            Ref{NodeEditor}(nodeeditor)
+        )
+        imnodes_EndNodeEditor()
+        for (id, node) in nodeeditor.nodes
+            @c imnodes_GetNodeGridSpacePos(&node.position, id)
         end
     end
 end
@@ -789,41 +819,40 @@ function editnodepopup(nodeeditor::NodeEditor)
     end
 end
 
-let
-    hold::Bool = false
-    holdsz::Cfloat = 0
-    nodeeditor_contexts::Dict{String,Ptr{lib.ImNodesEditorContext}} = Dict()
+# let
+#     hold::Bool = false
+#     holdsz::Cfloat = 0
 
-    global function edit(nodeeditor::NodeEditor, id, p_open::Ref{Bool})
-        CImGui.SetNextWindowSize((1200, 600), CImGui.ImGuiCond_Once)
-        CImGui.PushStyleColor(CImGui.ImGuiCol_WindowBg, CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_PopupBg))
-        CImGui.PushStyleVar(CImGui.ImGuiStyleVar_WindowRounding, unsafe_load(IMGUISTYLE.PopupRounding))
-        isfocus = true
-        if CImGui.Begin(id, p_open, CImGui.ImGuiWindowFlags_NoTitleBar | CImGui.ImGuiWindowFlags_NoDocking)
-            CImGui.PushStyleColor(CImGui.ImGuiCol_Button, (0, 0, 0, 0))
-            CImGui.PushStyleColor(CImGui.ImGuiCol_ButtonHovered, (0, 0, 0, 0))
-            CImGui.PushStyleColor(CImGui.ImGuiCol_ButtonActive, (0, 0, 0, 0))
-            CImGui.PushStyleColor(CImGui.ImGuiCol_Text, MORESTYLE.Colors.HighlightText)
-            # CImGui.TextColored(MORESTYLE.Colors.HighlightText, MORESTYLE.Icons.Circuit)
-            CImGui.Button(MORESTYLE.Icons.Circuit)
-            CImGui.PopStyleColor()
-            CImGui.SameLine()
-            CImGui.Button(stcstr(" ", mlstr("Circuit")))
-            CImGui.PopStyleColor(3)
-            CImGui.SameLine(CImGui.GetContentRegionAvail().x - holdsz)
-            @c ToggleButton(MORESTYLE.Icons.HoldPin, &hold)
-            holdsz = CImGui.GetItemRectSize().x
-            haskey(nodeeditor_contexts, id) || (nodeeditor_contexts[id] = imnodes_EditorContextCreate())
-            imnodes_EditorContextSet(nodeeditor_contexts[id])
-            edit(nodeeditor)
-            isfocus &= CImGui.IsWindowFocused(CImGui.ImGuiFocusedFlags_ChildWindows)
-        end
-        CImGui.End()
-        CImGui.PopStyleVar()
-        CImGui.PopStyleColor()
-        p_open[] &= (isfocus | hold)
+function edit(nodeeditor::NodeEditor, id, p_open::Ref{Bool})
+    CImGui.SetNextWindowSize((1200, 600), CImGui.ImGuiCond_Once)
+    # CImGui.PushStyleColor(CImGui.ImGuiCol_WindowBg, CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_PopupBg))
+    # CImGui.PushStyleVar(CImGui.ImGuiStyleVar_WindowRounding, unsafe_load(IMGUISTYLE.PopupRounding))
+    # isfocus = true
+    if CImGui.Begin(stcstr(MORESTYLE.Icons.Circuit, " ", mlstr("Circuit"), "##", id), p_open)
+        SetWindowBgImage()
+        # CImGui.PushStyleColor(CImGui.ImGuiCol_Button, (0, 0, 0, 0))
+        # CImGui.PushStyleColor(CImGui.ImGuiCol_ButtonHovered, (0, 0, 0, 0))
+        # CImGui.PushStyleColor(CImGui.ImGuiCol_ButtonActive, (0, 0, 0, 0))
+        # CImGui.PushStyleColor(CImGui.ImGuiCol_Text, MORESTYLE.Colors.HighlightText)
+        # CImGui.TextColored(MORESTYLE.Colors.HighlightText, MORESTYLE.Icons.Circuit)
+        # CImGui.Button(MORESTYLE.Icons.Circuit)
+        # CImGui.PopStyleColor()
+        # CImGui.SameLine()
+        # CImGui.Button(stcstr(" ", mlstr("Circuit")))
+        # CImGui.PopStyleColor(3)
+        # CImGui.SameLine(CImGui.GetContentRegionAvail().x - holdsz)
+        # @c ToggleButton(MORESTYLE.Icons.HoldPin, &hold)
+        # holdsz = CImGui.GetItemRectSize().x
+
+        edit(nodeeditor, id)
+        # isfocus &= CImGui.IsWindowFocused(CImGui.ImGuiFocusedFlags_ChildWindows)
     end
+    CImGui.End()
+    # CImGui.PopStyleVar()
+    # CImGui.PopStyleColor()
+    # p_open[] &= (isfocus | hold)
 end
+# end
 
 ### view ###------------------------------------------------------------------------------------------------------------
 view(node::Node) = edit(node)
@@ -884,34 +913,5 @@ function view(node::SampleHolderNode)
     imnodes_EndNode()
     for pin in node.imgr.pins
         pin.linked = pin.link_idx in node.connected_ids .% 100 ? true : false
-    end
-end
-
-let
-    nodeeditor_contexts::Dict{String,Ptr{lib.ImNodesEditorContext}} = Dict()
-    global function view(nodeeditor::NodeEditor, id)
-        haskey(nodeeditor_contexts, id) || (nodeeditor_contexts[id] = imnodes_EditorContextCreate())
-        imnodes_EditorContextSet(nodeeditor_contexts[id])
-        imnodes_BeginNodeEditor()
-        for (id, node) in nodeeditor.nodes
-            imnodes_SetNodeGridSpacePos(id, node.position)
-            view(node)
-            empty!(node.connected_ids)
-        end
-        for (i, link) in enumerate(nodeeditor.links)
-            imnodes_Link(i, link...)
-            push!(nodeeditor.nodes[link[1]÷1000].connected_ids, link[1])
-            push!(nodeeditor.nodes[link[2]÷1000].connected_ids, link[2])
-        end
-        imnodes_MiniMap(
-            MORESTYLE.Variables.MiniMapFraction,
-            MORESTYLE.Variables.MiniMapLocation,
-            @cfunction(minimaphoveringcallback, Cvoid, (Cint, ImNodesMiniMapNodeHoveringCallbackUserData)),
-            Ref{NodeEditor}(nodeeditor)
-        )
-        imnodes_EndNodeEditor()
-        for (id, node) in nodeeditor.nodes
-            @c imnodes_GetNodeGridSpacePos(&node.position, id)
-        end
     end
 end

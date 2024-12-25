@@ -127,7 +127,7 @@ function edit(dtviewer::DataViewer, path, id)
         if CImGui.BeginTabItem(mlstr("Circuit"))
             if haskey(dtviewer.data, "circuit")
                 CImGui.PushID(id)
-                view(dtviewer.data["circuit"], stcstr("Nodes Editor", id))
+                view(dtviewer.data["circuit"], stcstr("DataViewerCircuit", id))
                 CImGui.PopID()
             else
                 CImGui.Text(mlstr("data not loaded or data format not supported!"))
@@ -187,7 +187,7 @@ function edit(dtviewer::DataViewer, path, id)
                         2unsafe_load(IMGUISTYLE.FramePadding.y)
                     @c InputTextMultilineRSZ("##Description", &desp, (Cfloat(-1), y))
                     dtviewer.data["revision"]["description"] = desp
-                    edit(dtviewer.data["revision"]["circuit"])
+                    edit(dtviewer.data["revision"]["circuit"], stcstr("DataViewerRevision", id))
                 else
                     if CImGui.Button(stcstr(MORESTYLE.Icons.NewFile, "##new revision"), (-1, -1))
                         dtviewer.data["revision"] = Dict(
