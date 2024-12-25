@@ -30,7 +30,6 @@ let
                 isinblock = false
                 for (i, s) in enumerate(allmsg[end-limitline+1:end])
                     occursin(markerlist[1], s) && (textc = ImVec4(MORESTYLE.Colors.HighlightText...))
-                    occursin(markerlist[2], s) && (textc = ImVec4(MORESTYLE.Colors.LogInfo...))
                     length(s) > CONF.Console.showiolength && (s = s[1:CONF.Console.showiolength])
                     if occursin("[End]", s)
                         isinblock || (iomsg *= "\n")
@@ -54,12 +53,12 @@ let
             lineheigth = (1 + length(findall('\n', buffer))) * CImGui.GetTextLineHeight() +
                          2unsafe_load(IMGUISTYLE.FramePadding.y)
             CImGui.BeginChild("STD OUT", (Float32(0), -lineheigth - unsafe_load(IMGUISTYLE.ItemSpacing.y)))
-            for (i, colmsg) in enumerate(iomsgshow)
-                CImGui.PushStyleColor(CImGui.ImGuiCol_Text, colmsg[1])
+            for (i, (col, msg)) in enumerate(iomsgshow)
+                CImGui.PushStyleColor(CImGui.ImGuiCol_Text, col)
                 CImGui.PushTextWrapPos(0)
                 CopyableText(
-                    stcstr("##consolemsg", i), colmsg[2];
-                    size=(Cfloat(-1), (1 + length(findall("\n", colmsg[2]))) * CImGui.GetTextLineHeightWithSpacing())
+                    stcstr("##consolemsg", i), msg;
+                    size=(Cfloat(-1), (1 + length(findall("\n", msg))) * CImGui.GetTextLineHeightWithSpacing())
                 )
                 CImGui.PopTextWrapPos()
                 CImGui.PopStyleColor()
