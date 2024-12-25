@@ -76,7 +76,7 @@ let
         qtcf.separator == "" && (qtcf.numread = 1)
         @c CImGui.DragInt(mlstr("separator"), &qtcf.numread, 1, 1, 36, "%d", CImGui.ImGuiSliderFlags_AlwaysClamp)
         CImGui.PopItemWidth()
-        CImGui.TextColored(MORESTYLE.Colors.LogInfo, mlstr("help document"))
+        CImGui.TextColored(MORESTYLE.Colors.InfoText, mlstr("help document"))
         if edithelp
             lines = split(qtcf.help, '\n')
             x = CImGui.CalcTextSize(lines[argmax(lengthpr.(lines))]).x
@@ -217,7 +217,7 @@ let
                         end
                         @c ComboS(mlstr("command type"), &selectedinscf.conf.cmdtype, ["scpi", "tsp", ""])
                         width = CImGui.GetItemRectSize().x / 3
-                        CImGui.TextColored(MORESTYLE.Colors.LogInfo, mlstr("interface"))
+                        CImGui.TextColored(MORESTYLE.Colors.InfoText, mlstr("interface"))
                         CImGui.BeginGroup()
                         if CImGui.Button(stcstr(MORESTYLE.Icons.NewFile, " ", mlstr("input")), (width, Cfloat(0)))
                             push!(selectedinscf.conf.input_labels, string("Input ", length(selectedinscf.conf.input_labels) + 1))

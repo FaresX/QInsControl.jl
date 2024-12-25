@@ -130,7 +130,7 @@ function showdtpks(
     datafloat::Dict{String,VecOrMat{Cdouble}}=Dict{String,VecOrMat{Cdouble}}()
 )
     if CImGui.BeginPopupModal(stcstr("##no data", id), C_NULL, CImGui.ImGuiWindowFlags_AlwaysAutoResize)
-        CImGui.TextColored(MORESTYLE.Colors.LogError, stcstr("\n", mlstr("No data!"), "\n "))
+        CImGui.TextColored(MORESTYLE.Colors.ErrorText, stcstr("\n", mlstr("No data!"), "\n "))
         CImGui.Button(stcstr(mlstr("Confirm"), "##no data"), (180, 0)) && CImGui.CloseCurrentPopup()
         CImGui.EndPopup()
     end

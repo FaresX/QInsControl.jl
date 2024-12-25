@@ -172,7 +172,7 @@ let
             CImGui.PopItemWidth()
         end
 
-        SeparatorTextColored(MORESTYLE.Colors.LogInfo, mlstr("Data Processing"))
+        SeparatorTextColored(MORESTYLE.Colors.InfoText, mlstr("Data Processing"))
         if dtss.isrealtime
             CImGui.Button(stcstr(MORESTYLE.Icons.Update, " ", mlstr("Update Function"))) && (dtss.updateprocessfunc = true)
             CImGui.SameLine(CImGui.GetContentRegionAvail().x - dtss.alsz)

@@ -490,7 +490,7 @@ function isvalidpath(path; file=true)
     else
         CImGui.SameLine()
         CImGui.TextColored(
-            MORESTYLE.Colors.LogError, file ? mlstr("file does not exist!!!") : mlstr("path does not exist!!!")
+            MORESTYLE.Colors.ErrorText, file ? mlstr("file does not exist!!!") : mlstr("path does not exist!!!")
         )
         return false
     end

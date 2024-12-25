@@ -1900,7 +1900,7 @@ let
                     qtw.options.pathes[1] = imgpath
                 else
                     CImGui.SameLine()
-                    CImGui.TextColored(MORESTYLE.Colors.LogError, mlstr("path does not exist!!!"))
+                    CImGui.TextColored(MORESTYLE.Colors.ErrorText, mlstr("path does not exist!!!"))
                 end
             end
             @c CImGui.DragInt(mlstr("Rate"), &qtw.options.rate, 1, 1, 120, "%d", CImGui.ImGuiSliderFlags_AlwaysClamp)
@@ -2143,7 +2143,7 @@ function globalwidgetoptionsmenu(insw::InstrWidget)
                 insw.wallpaperpath = bgpath
             else
                 CImGui.SameLine()
-                CImGui.TextColored(MORESTYLE.Colors.LogError, mlstr("path does not exist!!!"))
+                CImGui.TextColored(MORESTYLE.Colors.ErrorText, mlstr("path does not exist!!!"))
             end
         end
         @c CImGui.DragInt(mlstr("Rate"), &insw.rate, 1, 1, 120, "%d", CImGui.ImGuiSliderFlags_AlwaysClamp)

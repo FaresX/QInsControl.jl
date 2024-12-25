@@ -28,10 +28,10 @@ let
                 limitline::Int = length(allmsg) > CONF.Logs.showlogline ? CONF.Logs.showlogline : length(allmsg)
                 logmsg = ""
                 for (i, s) in enumerate(allmsg[end-limitline+1:end])
-                    occursin(markerlist[1], s) && (textbg = ImVec4(MORESTYLE.Colors.LogInfo...); texttype = "Info")
-                    occursin(markerlist[2], s) && (textbg = ImVec4(MORESTYLE.Colors.LogWarn...); texttype = "Warn")
-                    occursin(markerlist[3], s) && (textbg = ImVec4(MORESTYLE.Colors.LogError...); texttype = "Error")
-                    occursin(markerlist[4], s) && (textbg = ImVec4(MORESTYLE.Colors.LogError...); texttype = "Stacktrace")
+                    occursin(markerlist[1], s) && (textbg = ImVec4(MORESTYLE.Colors.InfoBg...); texttype = "Info")
+                    occursin(markerlist[2], s) && (textbg = ImVec4(MORESTYLE.Colors.WarnBg...); texttype = "Warn")
+                    occursin(markerlist[3], s) && (textbg = ImVec4(MORESTYLE.Colors.ErrorBg...); texttype = "Error")
+                    occursin(markerlist[4], s) && (textbg = ImVec4(MORESTYLE.Colors.ErrorBg...); texttype = "Stacktrace")
                     length(s) > CONF.Logs.showloglength && (s = s[1:CONF.Logs.showloglength])
                     if occursin("└", s) || s == "\r"
                         logmsg *= @sprintf "%-8d%s\n\n" i s

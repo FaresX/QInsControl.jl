@@ -663,7 +663,7 @@ let
             colbt=if qt.enable
                 qt.isautorefresh ? MORESTYLE.Colors.DAQTaskRunning : MORESTYLE.Colors.SweepQuantityBt
             else
-                MORESTYLE.Colors.LogError
+                MORESTYLE.Colors.ErrorBg
             end
         ) && Threads.@spawn @trycatch mlstr("reading task failed!!!") getread!(qt, instrnm, addr)
         if qt.issweeping
@@ -768,7 +768,7 @@ let
             colbt=if qt.enable
                 qt.isautorefresh ? MORESTYLE.Colors.DAQTaskRunning : MORESTYLE.Colors.SetQuantityBt
             else
-                MORESTYLE.Colors.LogError
+                MORESTYLE.Colors.ErrorBg
             end
         ) && Threads.@spawn @trycatch mlstr("reading task failed!!!") getread!(qt, instrnm, addr)
         # CImGui.PopFont()
@@ -862,7 +862,7 @@ let
             colbt=if qt.enable
                 qt.isautorefresh ? MORESTYLE.Colors.DAQTaskRunning : MORESTYLE.Colors.ReadQuantityBt
             else
-                MORESTYLE.Colors.LogError
+                MORESTYLE.Colors.ErrorBg
             end
         ) && Threads.@spawn @trycatch mlstr("reading task failed!!!") getread!(qt, instrnm, addr)
         # CImGui.PopFont()
@@ -924,7 +924,7 @@ function view(qt::AbstractQuantity, size=(-1, 0))
     qt.show_view == "" && updatefront!(qt; show_edit=false)
     CImGui.PushStyleColor(
         CImGui.ImGuiCol_Button,
-        qt.enable ? CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_Button) : MORESTYLE.Colors.LogError
+        qt.enable ? CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_Button) : MORESTYLE.Colors.ErrorBg
     )
     if CImGui.Button(centermultiline(qt.show_view), size)
         _, Us = @c getU(qt.utype, &qt.uindex)

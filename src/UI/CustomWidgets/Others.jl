@@ -27,7 +27,7 @@ end
 
 function YesNoDialog(id, msg, flags=0)::Bool
     if CImGui.BeginPopupModal(id, C_NULL, flags)
-        CImGui.TextColored(MORESTYLE.Colors.LogError, string("\n", msg, "\n\n"))
+        CImGui.TextColored(MORESTYLE.Colors.ErrorText, string("\n", msg, "\n\n"))
         CImGui.Button(mlstr("Confirm")) && (CImGui.CloseCurrentPopup(); return true)
         CImGui.SameLine(240)
         CImGui.Button(mlstr("Cancel")) && (CImGui.CloseCurrentPopup(); return false)

@@ -14,9 +14,9 @@ let
             CImGui.SameLine()
             ColoredButton(
                 mlstr(cpuinfo[:taskfailed] ? "Failed" : "Well");
-                colbt=cpuinfo[:taskfailed] ? MORESTYLE.Colors.LogError : MORESTYLE.Colors.LogInfo,
-                colbth=cpuinfo[:taskfailed] ? MORESTYLE.Colors.LogError : MORESTYLE.Colors.LogInfo,
-                colbta=cpuinfo[:taskfailed] ? MORESTYLE.Colors.LogError : MORESTYLE.Colors.LogInfo
+                colbt=cpuinfo[:taskfailed] ? MORESTYLE.Colors.ErrorBg : MORESTYLE.Colors.InfoBg,
+                colbth=cpuinfo[:taskfailed] ? MORESTYLE.Colors.ErrorBg : MORESTYLE.Colors.InfoBg,
+                colbta=cpuinfo[:taskfailed] ? MORESTYLE.Colors.ErrorBg : MORESTYLE.Colors.InfoBg
             )
             CImGui.SameLine()
             if CImGui.Checkbox(mlstr(cpuinfo[:fast] ? "Fast Mode" : "Slow Mode"), Ref(cpuinfo[:fast]))
@@ -55,7 +55,7 @@ let
                         hasct && CImGui.PopStyleColor()
                         if addrnode
                             CImGui.TextColored(
-                                cpuinfo[:isconnected][addr] ? MORESTYLE.Colors.LogInfo : MORESTYLE.Colors.LogError,
+                                cpuinfo[:isconnected][addr] ? MORESTYLE.Colors.InfoText : MORESTYLE.Colors.ErrorText,
                                 mlstr(cpuinfo[:isconnected][addr] ? "Connected" : "Unconnected")
                             )
                             if !cpuinfo[:isconnected][addr]
@@ -72,12 +72,12 @@ let
                             CImGui.Text(stcstr(mlstr("Status"), mlstr(": ")))
                             CImGui.SameLine()
                             CImGui.TextColored(
-                                cpuinfo[:taskhandlers][addr] ? MORESTYLE.Colors.LogInfo : MORESTYLE.Colors.LogError,
+                                cpuinfo[:taskhandlers][addr] ? MORESTYLE.Colors.InfoText : MORESTYLE.Colors.ErrorText,
                                 mlstr(cpuinfo[:taskhandlers][addr] ? "Running" : "Stopped")
                             )
                             CImGui.SameLine()
                             CImGui.TextColored(
-                                cpuinfo[:tasksfailed][addr] ? MORESTYLE.Colors.LogError : MORESTYLE.Colors.LogInfo,
+                                cpuinfo[:tasksfailed][addr] ? MORESTYLE.Colors.ErrorText : MORESTYLE.Colors.InfoText,
                                 mlstr(cpuinfo[:tasksfailed][addr] ? "Failed" : "Well")
                             )
                             for ct in cts
@@ -95,7 +95,7 @@ let
                                             CImGui.Text(ct.databuf[i])
                                             ct.available[i] || CImGui.TableSetBgColor(
                                                 CImGui.ImGuiTableBgTarget_CellBg,
-                                                CImGui.ColorConvertFloat4ToU32(MORESTYLE.Colors.LogError)
+                                                CImGui.ColorConvertFloat4ToU32(MORESTYLE.Colors.ErrorBg)
                                             )
                                         end
                                     end

@@ -124,7 +124,7 @@ let
             CImGui.SameLine()
             CImGui.Selectable(MORESTYLE.Icons.File, menuidx == 1, 0, sbsz) && (menuidx = 1)
             CImGui.SameLine()
-            SYNCSTATES[Int(FatalError)] && CImGui.PushStyleColor(CImGui.ImGuiCol_Text, MORESTYLE.Colors.LogError)
+            SYNCSTATES[Int(FatalError)] && CImGui.PushStyleColor(CImGui.ImGuiCol_Text, MORESTYLE.Colors.ErrorText)
             CImGui.Selectable(MORESTYLE.Icons.Help, menuidx == 2, 0, sbsz) && (menuidx = 2)
             SYNCSTATES[Int(FatalError)] && CImGui.PopStyleColor()
             CImGui.PopStyleColor(2)
@@ -201,7 +201,7 @@ let
                 CImGui.PopFont()
                 CImGui.SameLine()
                 CImGui.PushStyleColor(CImGui.ImGuiCol_Text, MORESTYLE.Colors.IconButton)
-                SYNCSTATES[Int(FatalError)] && CImGui.PushStyleColor(CImGui.ImGuiCol_Text, MORESTYLE.Colors.LogError)
+                SYNCSTATES[Int(FatalError)] && CImGui.PushStyleColor(CImGui.ImGuiCol_Text, MORESTYLE.Colors.ErrorText)
                 @c CImGui.Selectable(MORESTYLE.Icons.Logger, &show_logger, 0, sbsz)
                 SYNCSTATES[Int(FatalError)] && CImGui.PopStyleColor()
                 CImGui.PopStyleColor()
@@ -234,7 +234,7 @@ let
                 showst |= SYNCSTATES[Int(AutoDetecting)]
                 showst && CImGui.PushStyleColor(
                     CImGui.ImGuiCol_Button,
-                    SYNCSTATES[Int(AutoDetecting)] ? MORESTYLE.Colors.LogInfo : st ? MORESTYLE.Colors.HighlightText : MORESTYLE.Colors.LogError
+                    SYNCSTATES[Int(AutoDetecting)] ? MORESTYLE.Colors.InfoBg : st ? MORESTYLE.Colors.HighlightText : MORESTYLE.Colors.ErrorBg
                 )
                 igBeginDisabled(SYNCSTATES[Int(IsDAQTaskRunning)] || hassweeping())
                 CImGui.Button(MORESTYLE.Icons.InstrumentsAutoDetect, (btw, btw)) && refresh_instrlist()

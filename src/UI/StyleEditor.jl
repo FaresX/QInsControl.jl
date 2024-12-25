@@ -197,9 +197,12 @@ end
     ClearColor::Vector{Cfloat} = [1.000, 1.000, 1.000, 1.000]
     BgImageTint::Vector{Cfloat} = [1.000, 1.000, 1.000, 0.600]
     HighlightText::Vector{Cfloat} = [1.000, 1.000, 0.000, 1.000]
-    LogInfo::Vector{Cfloat} = [0.000, 0.855, 1.000, 1.000]
-    LogError::Vector{Cfloat} = [1.000, 0.000, 0.000, 1.000]
-    LogWarn::Vector{Cfloat} = [1.000, 1.000, 0.000, 1.000]
+    InfoText::Vector{Cfloat} = [0.000, 0.855, 1.000, 1.000]
+    ErrorText::Vector{Cfloat} = [1.000, 0.000, 0.000, 1.000]
+    WarnText::Vector{Cfloat} = [1.000, 1.000, 0.000, 1.000]
+    InfoBg::Vector{Cfloat} = [0.000, 0.855, 1.000, 0.6]
+    ErrorBg::Vector{Cfloat} = [1.000, 0.000, 0.000, 0.6]
+    WarnBg::Vector{Cfloat} = [1.000, 1.000, 0.000, 0.6]
     SweepQuantityBt::Vector{Cfloat} = [0.000, 1.000, 1.000, 0.400]
     SetQuantityBt::Vector{Cfloat} = [1.000, 1.000, 0.000, 0.400]
     ReadQuantityBt::Vector{Cfloat} = [1.000, 0.000, 1.000, 0.400]
@@ -757,7 +760,7 @@ let
         hinttext = nmerr ? "Illegal Name" : "Style Name"
         CImGui.PushStyleColor(
             CImGui.ImGuiCol_TextDisabled,
-            nmerr ? MORESTYLE.Colors.LogError : CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_TextDisabled)
+            nmerr ? MORESTYLE.Colors.ErrorText : CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_TextDisabled)
         )
         CImGui.PushItemWidth(ws / 2 - bw - unsafe_load(IMGUISTYLE.ItemSpacing.x))
         @c InputTextWithHintRSZ("##Input Style Name", hinttext, &style_name)
@@ -792,7 +795,7 @@ let
                 createimage(bgpath; showsize=CONF.Basic.windowsize)
             else
                 CImGui.SameLine()
-                CImGui.TextColored(MORESTYLE.Colors.LogError, mlstr("path does not exist!!!"))
+                CImGui.TextColored(MORESTYLE.Colors.ErrorText, mlstr("path does not exist!!!"))
             end
         end
         if CONF.BGImage.useall

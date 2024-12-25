@@ -150,7 +150,7 @@ function UI()
             MainWindow()
             if CImGui.BeginPopupModal("##windowshouldclose?", C_NULL, CImGui.ImGuiWindowFlags_AlwaysAutoResize)
                 CImGui.TextColored(
-                    MORESTYLE.Colors.LogError,
+                    MORESTYLE.Colors.ErrorText,
                     stcstr("\n\n", mlstr("data acquiring or sweeping, please wait......"), "\n\n\n")
                 )
                 CImGui.Button(mlstr("Confirm"), (-1, 0)) && CImGui.CloseCurrentPopup()

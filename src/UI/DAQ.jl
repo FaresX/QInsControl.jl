@@ -109,7 +109,7 @@ let
             WORKPATH;
             size=(Cfloat(0), bth),
             coltxt=if WORKPATH == mlstr("no workplace selected!!!")
-                MORESTYLE.Colors.LogError
+                MORESTYLE.Colors.ErrorText
             else
                 CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_Text)
             end
