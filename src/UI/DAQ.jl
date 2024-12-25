@@ -242,7 +242,7 @@ let
                         confldpath = pick_file(filterlist="cfg,qdt")
                         if isfile(confldpath)
                             loadcfg = @trypass load(confldpath, "daqtask") begin
-                                @error mlstr("unsupported file!!!") filepath = confldpath
+                                @error "[$(now())]\n$(mlstr("unsupported file!!!"))" filepath = confldpath
                             end
                             daqtasks[i] = isnothing(loadcfg) ? task : loadcfg
                         end
@@ -309,7 +309,7 @@ let
                     confldpath = pick_file(filterlist="cfg")
                     if isfile(confldpath)
                         newdaqtask = @trypasse load(confldpath, "daqtask") begin
-                            @error mlstr("unsupported file!!!") filepath = confldpath
+                            @error "[$(now())]\n$(mlstr("unsupported file!!!"))" filepath = confldpath
                         end
                         isnothing(newdaqtask) || push!(daqtasks, newdaqtask)
                     end
@@ -372,7 +372,7 @@ let
     global function loadproject(daqloadpath)
         if isfile(daqloadpath)
             loaddaqproj = @trypasse load(daqloadpath) begin
-                @error mlstr("unsupported file!!!") filepath = daqloadpath
+                @error "[$(now())]\n$(mlstr("unsupported file!!!"))" filepath = daqloadpath
             end
             if !isnothing(loaddaqproj)
                 projpath = daqloadpath

@@ -170,7 +170,7 @@ function UI()
                 end
             end
         catch e
-            @error mlstr("error in renderloop!") exception = e
+            @error "[$(now())]\n$(mlstr("error in renderloop!"))" exception = e
             SYNCSTATES[Int(FatalError)] = true
             closeallwindows()
             showbacktrace()

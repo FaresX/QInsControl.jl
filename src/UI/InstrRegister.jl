@@ -20,7 +20,7 @@ let
                 try
                     endswith(basename(file), ".jl") && timed_remotecall_wait(include, workers()[1], file; timeout=60)
                 catch e
-                    @error mlstr("reloading drivers failed") exception = e file = file
+                    @error "[$(now())]\n$(mlstr("reloading drivers failed"))" exception = e file = file
                     showbacktrace()
                 end
             end

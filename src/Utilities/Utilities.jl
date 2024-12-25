@@ -6,7 +6,7 @@ macro trypasse(sv, default)
             try
                 x = $sv
             catch e
-                @error "$(now())\nerror in @trypass" exception = e code = $code
+                @error "[$(now())]\nerror in @trypass" exception = e code = $code
                 showbacktrace()
                 x = $default
             end
@@ -67,7 +67,7 @@ function timedwaitfetch(t::Task, timeout::Real; msg="force to stop", pollint=0.0
         return fetch(t)
     catch e
         if !quiet
-            @error "fetching task error" exception = e
+            @error "[$(now())]\nfetching task error" exception = e
             showbacktrace()
         end
         return nothing

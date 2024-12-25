@@ -172,7 +172,7 @@ function try_from_dict(t::Type, dict)
     try
         cf = from_dict(t, dict)
     catch e
-        @error mlstr("invalid configuration file, trying refactoring") exception = e
+        @error "[$(now())]\n$(mlstr("invalid configuration file, trying refactoring"))" exception = e
         showbacktrace()
         cfdict = to_dict(cf)
         cf = from_dict(t, mergeconf!(cfdict, dict))
