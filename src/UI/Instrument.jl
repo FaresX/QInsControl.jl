@@ -6,6 +6,7 @@ function autodetect()
 end
 
 function manualadd(addr)
+    addr == "" && return false
     addr == "VirtualAddress" && return true
     idn = "IDN"
     st = true
@@ -43,8 +44,8 @@ function manualadd(addr)
             end
         end
     end
-    addr == "" || (INSTRBUFFERVIEWERS["Others"][addr] = InstrBufferViewer("Others", addr))
-    return st
+    INSTRBUFFERVIEWERS["Others"][addr] = InstrBufferViewer("Others", addr)
+    return false
 end
 
 function refresh_instrlist()
