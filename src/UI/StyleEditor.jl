@@ -487,12 +487,14 @@ let
                     CImGui.ColorEdit4(stcstr(col), col_arr, CImGui.ImGuiColorEditFlags_AlphaBar | alpha_flags)
                     CImGui.c_set!(IMNODESSTYLE.Colors, col, CImGui.ColorConvertFloat4ToU32(col_arr))
                     if CImGui.ColorConvertFloat4ToU32(style_ref.Colors[Int(col)+1]) != CImGui.c_get(IMNODESSTYLE.Colors, col)
+                        CImGui.PushID(stcstr(col))
                         CImGui.SameLine()
                         CImGui.Button("Save") && (style_ref.Colors[Int(col)+1] = CImGui.ColorConvertU32ToFloat4(CImGui.c_get(IMNODESSTYLE.Colors, col)))
                         CImGui.SameLine()
                         CImGui.Button("Revert") && CImGui.c_set!(
                             IMNODESSTYLE.Colors, col, CImGui.ColorConvertFloat4ToU32(style_ref.Colors[Int(col)+1])
                         )
+                        CImGui.PopID()
                     end
                     CImGui.PopID()
                 end
@@ -632,6 +634,7 @@ let
                         CImGui.ImGuiColorEditFlags_AlphaBar | alpha_flags
                     )
                     if getproperty(style_ref.Colors, color) != getproperty(MORESTYLE.Colors, color)
+                        CImGui.PushID(stcstr(color))
                         CImGui.SameLine()
                         if CImGui.Button("Save")
                             getproperty(style_ref.Colors, color) .= getproperty(MORESTYLE.Colors, color)
@@ -640,6 +643,7 @@ let
                         if CImGui.Button("Revert")
                             getproperty(MORESTYLE.Colors, color) .= getproperty(style_ref.Colors, color)
                         end
+                        CImGui.PopID()
                     end
                 end
                 CImGui.EndChild()
