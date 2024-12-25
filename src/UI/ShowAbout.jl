@@ -17,6 +17,7 @@ function ShowAbout()
         CImGui.SameLine()
         CImGui.TextLinkOpenURL("https://github.com/FaresX/QInsControl.jl", "https://github.com/FaresX/QInsControl.jl")
         CImGui.Text("\n")
+        CImGui.Text(stcstr("OpenGL ", mlstr("version"), " : ", unsafe_string(glGetString(GL_VERSION))))
         CImGui.Text(stcstr("JLD2 ", mlstr("version"), " : ", JLD2VERSION))
         CImGui.Text("\n")
         global JLVERINFO

@@ -128,7 +128,11 @@ function UI()
 
     global ICONID = nothing
 
-    rendertask = Threads.@spawn CImGui.render(ctx; window_size=CONF.Basic.windowsize, window_title="QInsControl", on_exit=onexitaction, opengl_version=v"3.3") do
+    rendertask = Threads.@spawn CImGui.render(
+        ctx;
+        window_size=CONF.Basic.windowsize, window_title="QInsControl", on_exit=onexitaction,
+        opengl_version=VersionNumber(CONF.Basic.openglversion)
+    ) do
         try
             # 加载图标
             if isnothing(ICONID)

@@ -9,6 +9,7 @@
     # noactionswapinterval::Cint = 6
     # samplingthreshold::Cint = 200000
     windowsize::Vector{Cint} = [960, 540]
+    openglversion::String = "4.6"
     encoding::String = "GBK"
     editor::String = "notepad"
     language::String = "English"

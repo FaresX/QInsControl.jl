@@ -2,6 +2,7 @@ let
     selectedpref::String = "General"
     ecds::Vector{String} = encodings()
     datatypes::Vector{String} = ["String", "Float16", "Float32", "Float64"]
+    openglversions::Vector{String} = ["3.0", "3.1", "3.2", "3.3", "4.0", "4.1", "4.2", "4.3", "4.4", "4.5", "4.6"]
     global function Preferences(p_open::Ref)
         # CImGui.SetNextWindowPos((100, 100), CImGui.ImGuiCond_Once)
         CImGui.SetNextWindowSize((800, 600), CImGui.ImGuiCond_Once)
@@ -121,6 +122,7 @@ let
                     2.0, 100, 4000, "%d",
                     CImGui.ImGuiSliderFlags_AlwaysClamp
                 )
+                @c ComboS(stcstr("OpenGL ", mlstr("version")), &CONF.Basic.openglversion, openglversions)
                 @c ComboS(mlstr("system encoding"), &CONF.Basic.encoding, ecds)
                 editor = CONF.Basic.editor
                 @c InputTextRSZ(mlstr("text editor"), &editor)
