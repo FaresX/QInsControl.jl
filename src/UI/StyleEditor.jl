@@ -789,6 +789,7 @@ let
         if inputbgpath || selectbgpath
             if isfile(bgpath)
                 CONF.BGImage.path = bgpath
+                createimage(bgpath; showsize=CONF.Basic.windowsize)
             else
                 CImGui.SameLine()
                 CImGui.TextColored(MORESTYLE.Colors.LogError, mlstr("path does not exist!!!"))
