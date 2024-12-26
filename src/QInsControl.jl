@@ -12,6 +12,7 @@ using DataInterpolations
 import DefaultApplication
 import FileIO
 using GLMakie
+using MakieThemes
 import ImageMagick
 using JLD2
 using JpegTurbo
