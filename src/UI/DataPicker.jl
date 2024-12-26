@@ -58,7 +58,7 @@ let
             CImGui.Button(MORESTYLE.Icons.NewFile) && push!(dtpk.series, DataSeries())
             holdsz += CImGui.GetItemRectSize().x
             CImGui.SameLine()
-            CImGui.Button(MORESTYLE.Icons.CloseFile) && (isempty(dtpk.series) || pop!(dtpk.series))
+            CImGui.Button(MORESTYLE.Icons.Delete) && (isempty(dtpk.series) || pop!(dtpk.series))
             holdsz += CImGui.GetItemRectSize().x + 2unsafe_load(IMGUISTYLE.ItemSpacing.x)
             CImGui.SameLine()
             @c ToggleButton(MORESTYLE.Icons.HoldPin, &dtpk.hold)
@@ -78,7 +78,7 @@ let
                 if CImGui.BeginPopupContextItem()
                     CImGui.MenuItem(stcstr(MORESTYLE.Icons.Copy, " ", mlstr("Copy"))) && (copyseries = deepcopy(dtss))
                     CImGui.MenuItem(stcstr(MORESTYLE.Icons.Paste, " ", mlstr("Paste"))) && insert!(dtpk.series, i + 1, deepcopy(copyseries))
-                    CImGui.MenuItem(stcstr(MORESTYLE.Icons.CloseFile, " ", mlstr("Delete"))) && deleteat!(dtpk.series, i)
+                    CImGui.MenuItem(stcstr(MORESTYLE.Icons.Delete, " ", mlstr("Delete"))) && deleteat!(dtpk.series, i)
                     CImGui.EndPopup()
                 end
                 if CImGui.BeginDragDropSource(0)
@@ -126,7 +126,7 @@ let
     global function edit(dtss::DataSeries, datalist)
         CImGui.Button(stcstr(MORESTYLE.Icons.NewFile)) && push!(dtss.aux, "")
         CImGui.SameLine()
-        CImGui.Button(stcstr(MORESTYLE.Icons.CloseFile)) && (isempty(dtss.aux) || pop!(dtss.aux))
+        CImGui.Button(stcstr(MORESTYLE.Icons.Delete)) && (isempty(dtss.aux) || pop!(dtss.aux))
         CImGui.SameLine()
         CImGui.Text(mlstr("Aux Dims"))
         CImGui.Separator()

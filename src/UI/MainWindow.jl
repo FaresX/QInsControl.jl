@@ -274,7 +274,7 @@ let
                                 if CImGui.BeginPopupContextItem()
                                     sweeping = hassweeping(ibv)
                                     if CImGui.MenuItem(
-                                        stcstr(MORESTYLE.Icons.CloseFile, " ", mlstr("Delete")),
+                                        stcstr(MORESTYLE.Icons.Delete, " ", mlstr("Delete")),
                                         C_NULL,
                                         false,
                                         ins != "VirtualInstr" && !SYNCSTATES[Int(IsDAQTaskRunning)] && !sweeping
@@ -336,7 +336,7 @@ let
                         title = isempty(fv.filetree.filetrees) ? mlstr("no file opened") : basename(fv.filetree.filetrees[1].filepath)
                         @c CImGui.MenuItem(title, C_NULL, &fv.p_open)
                         if CImGui.BeginPopupContextItem()
-                            CImGui.MenuItem(stcstr(MORESTYLE.Icons.CloseFile, " ", mlstr("Close"))) && (fv.noclose = false)
+                            CImGui.MenuItem(stcstr(MORESTYLE.Icons.Delete, " ", mlstr("Close"))) && (fv.noclose = false)
                             CImGui.EndPopup()
                         end
                         CImGui.PopID()
@@ -358,7 +358,7 @@ let
                                     fv.filetree.valid
                                 ).filetrees
                             end
-                            CImGui.MenuItem(stcstr(MORESTYLE.Icons.CloseFile, " ", mlstr("Close"))) && (fv.noclose = false)
+                            CImGui.MenuItem(stcstr(MORESTYLE.Icons.Delete, " ", mlstr("Close"))) && (fv.noclose = false)
                             CImGui.EndPopup()
                         end
                         CImGui.PopID()
@@ -372,7 +372,7 @@ let
                         CImGui.PushID(i)
                         @c CImGui.MenuItem(stcstr(mlstr("Formatter"), " ", i), C_NULL, &dft.p_open)
                         if CImGui.BeginPopupContextItem()
-                            CImGui.MenuItem(stcstr(MORESTYLE.Icons.CloseFile, " ", mlstr("Close"))) && (dft.noclose = false)
+                            CImGui.MenuItem(stcstr(MORESTYLE.Icons.Delete, " ", mlstr("Close"))) && (dft.noclose = false)
                             CImGui.EndPopup()
                         end
                         CImGui.PopID()

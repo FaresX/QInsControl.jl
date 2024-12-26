@@ -104,7 +104,7 @@ let
                     @c InputTextMultilineRSZ(stcstr("##Script", id), &daqtask.editcodes, (-1, -1), ImGuiInputTextFlags_AllowTabInput)
                     CImGui.SetNextWindowSize((1200, 800), CImGui.ImGuiCond_Once)
                     if CImGui.BeginPopupModal(stcstr("##Blocks Buffer", id))
-                        CImGui.Button(stcstr(MORESTYLE.Icons.CloseFile, " ", mlstr("Close"))) && CImGui.CloseCurrentPopup()
+                        CImGui.Button(stcstr(MORESTYLE.Icons.Delete, " ", mlstr("Close"))) && CImGui.CloseCurrentPopup()
                         CImGui.SameLine()
                         if CImGui.Button(stcstr(MORESTYLE.Icons.SaveButton, " ", mlstr("Save")))
                             daqtask.blocks = copy(blocksbuf)

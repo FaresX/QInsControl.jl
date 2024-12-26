@@ -250,7 +250,7 @@ end
     OpenFile::String = ICONS.ICON_FILE
     OpenFolder::String = ICONS.ICON_FOLDER
     NewFile::String = ICONS.ICON_CIRCLE_PLUS
-    CloseFile::String = ICONS.ICON_TRASH_CAN
+    Delete::String = ICONS.ICON_TRASH_CAN
     DataFormatter::String = ICONS.ICON_FILE_EXPORT
 
     Preferences::String = ICONS.ICON_GEAR
@@ -771,7 +771,7 @@ let
         CImGui.PopItemWidth()
         CImGui.PopStyleColor()
         CImGui.SameLine()
-        CImGui.Button(MORESTYLE.Icons.CloseFile) && CImGui.OpenPopup("##if delete style")
+        CImGui.Button(MORESTYLE.Icons.Delete) && CImGui.OpenPopup("##if delete style")
         CImGui.SameLine()
         ShowHelpMarker("This operation will delete the selected IMGUISTYLE. Please be careful!")
         if YesNoDialog("##if delete style", mlstr("confirm delete?"), CImGui.ImGuiWindowFlags_AlwaysAutoResize)

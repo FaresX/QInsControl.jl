@@ -49,7 +49,7 @@ let
                 end
                 CImGui.PopItemWidth()
                 CImGui.SameLine()
-                if CImGui.Button(MORESTYLE.Icons.CloseFile)
+                if CImGui.Button(MORESTYLE.Icons.Delete)
                     deleteat!(qtcf.optkeys, i)
                     deleteat!(qtcf.optvalues, i)
                 end
@@ -153,7 +153,7 @@ let
                 end
                 if CImGui.BeginPopupContextItem()
                     CImGui.MenuItem(
-                        stcstr(MORESTYLE.Icons.CloseFile, " ", mlstr("Delete"), "##INSCONF"),
+                        stcstr(MORESTYLE.Icons.Delete, " ", mlstr("Delete"), "##INSCONF"),
                         C_NULL,
                         false,
                         oldinsnm ∉ ["VirtualInstr", "Others"]
@@ -231,7 +231,7 @@ let
                             end
                             CImGui.PopItemWidth()
                             CImGui.SameLine()
-                            CImGui.Button(MORESTYLE.Icons.CloseFile) && deleteat!(selectedinscf.conf.input_labels, i)
+                            CImGui.Button(MORESTYLE.Icons.Delete) && deleteat!(selectedinscf.conf.input_labels, i)
                             CImGui.PopID()
                         end
                         CImGui.EndGroup()
@@ -251,7 +251,7 @@ let
                             end
                             CImGui.PopItemWidth()
                             CImGui.SameLine()
-                            CImGui.Button(MORESTYLE.Icons.CloseFile) && deleteat!(selectedinscf.conf.output_labels, i)
+                            CImGui.Button(MORESTYLE.Icons.Delete) && deleteat!(selectedinscf.conf.output_labels, i)
                             CImGui.PopID()
                         end
                         CImGui.EndGroup()
@@ -266,7 +266,7 @@ let
                             end
                         end
                         CImGui.SameLine()
-                        if CImGui.Button(stcstr(MORESTYLE.Icons.CloseFile, "##QuantityConf"))
+                        if CImGui.Button(stcstr(MORESTYLE.Icons.Delete, "##QuantityConf"))
                             pop!(selectedinscf.quantities, selectedqt, 0)
                             timed_remotecall_wait(workers()[1], selectedins, selectedqt) do selectedins, selectedqt
                                 pop!(INSCONF[selectedins].quantities, selectedqt, 0)

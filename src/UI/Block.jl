@@ -1866,9 +1866,9 @@ let
                 CImGui.Separator()
                 CImGui.MenuItem(stcstr(MORESTYLE.Icons.Copy, " ", mlstr("Copy"))) && (copyblock = deepcopy(blocks[i]))
                 CImGui.MenuItem(stcstr(MORESTYLE.Icons.Paste, " ", mlstr("Paste"))) && insert!(blocks, i + 1, deepcopy(copyblock))
-                CImGui.MenuItem(stcstr(MORESTYLE.Icons.CloseFile, " ", mlstr("Delete"))) && (blocks[i] = NullBlock())
+                CImGui.MenuItem(stcstr(MORESTYLE.Icons.Delete, " ", mlstr("Delete"))) && (blocks[i] = NullBlock())
                 if typeof(bk) in [CodeBlock, StrideCodeBlock]
-                    CImGui.MenuItem(stcstr(MORESTYLE.Icons.CloseFile, " ", mlstr("Clear"))) && (bk.codes = "")
+                    CImGui.MenuItem(stcstr(MORESTYLE.Icons.Delete, " ", mlstr("Clear"))) && (bk.codes = "")
                 end
                 ### specific menu for blocks
                 if bk isa SweepBlock

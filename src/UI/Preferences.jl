@@ -414,7 +414,7 @@ let
                     CImGui.PopItemWidth()
                     if CImGui.BeginPopupContextItem()
                         CImGui.MenuItem(
-                            stcstr(MORESTYLE.Icons.CloseFile, " ", mlstr("Delete")), C_NULL, false, length(CONF.U) > 2
+                            stcstr(MORESTYLE.Icons.Delete, " ", mlstr("Delete")), C_NULL, false, length(CONF.U) > 2
                         ) && pop!(CONF.U, ut)
                         if CImGui.MenuItem(stcstr(MORESTYLE.Icons.NewFile, " ", mlstr("Add")))
                             insert!(
@@ -467,7 +467,7 @@ function showonesetu(up)
         if !isa(up.second[1], Unitful.MixedUnits)
             if CImGui.BeginPopupContextItem()
                 CImGui.MenuItem(
-                    stcstr(MORESTYLE.Icons.CloseFile, " ", mlstr("Delete")), C_NULL, false, length(up.second) > 1
+                    stcstr(MORESTYLE.Icons.Delete, " ", mlstr("Delete")), C_NULL, false, length(up.second) > 1
                 ) && deleteat!(CONF.U[up.first], j)
                 CImGui.MenuItem(
                     stcstr(MORESTYLE.Icons.NewFile, " ", mlstr("Add Left"))

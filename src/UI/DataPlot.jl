@@ -85,7 +85,7 @@ function editmenu(dtp::DataPlot)
                 # end
                 dtp.showdtpks[dtp.layout.idxing] = true
             end
-            if CImGui.MenuItem(stcstr(MORESTYLE.Icons.CloseFile, " ", mlstr("Delete")))
+            if CImGui.MenuItem(stcstr(MORESTYLE.Icons.Delete, " ", mlstr("Delete")))
                 dtp.isdelplot = true
                 dtp.delplot_i = dtp.layout.idxing
             end

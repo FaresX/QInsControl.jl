@@ -251,7 +251,7 @@ let
                 CImGui.Separator()
                 CImGui.MenuItem(stcstr(MORESTYLE.Icons.Rename, " ", mlstr("Rename"))) && (isrename = true)
                 CImGui.MenuItem(
-                    stcstr(MORESTYLE.Icons.CloseFile, " ", mlstr("Delete")),
+                    stcstr(MORESTYLE.Icons.Delete, " ", mlstr("Delete")),
                     C_NULL, false, !isrunning_i
                 ) && (isdeldaqtask = true)
                 CImGui.EndPopup()

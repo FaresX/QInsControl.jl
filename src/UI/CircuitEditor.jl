@@ -260,7 +260,7 @@ function draw(imgr::ImageRegion)
             @c CImGui.DragInt(mlstr("segments"), &pin.num_segments, 1.0, 1, 100, "%d", CImGui.ImGuiSliderFlags_AlwaysClamp)
             @c CImGui.DragFloat(mlstr("size"), &pin.radius, 1.0, 1, 100, "%.3f", CImGui.ImGuiSliderFlags_AlwaysClamp)
             CImGui.SameLine()
-            CImGui.Button(MORESTYLE.Icons.CloseFile) && (deleteat!(imgr.pins, i); deleteat!(imgr.pin_relds, i))
+            CImGui.Button(MORESTYLE.Icons.Delete) && (deleteat!(imgr.pins, i); deleteat!(imgr.pin_relds, i))
             CImGui.EndPopup()
         end
     end
@@ -527,7 +527,7 @@ let
         editnodeeditorpopup(nodeeditor)
         editnodepopup(nodeeditor)
         if CImGui.BeginPopup("Edit Link")
-            if CImGui.MenuItem(stcstr(MORESTYLE.Icons.CloseFile, " ", mlstr("Delete")))
+            if CImGui.MenuItem(stcstr(MORESTYLE.Icons.Delete, " ", mlstr("Delete")))
                 deleteat!(nodeeditor.links, nodeeditor.hoveredlink_id)
             end
             CImGui.EndPopup()
@@ -592,7 +592,7 @@ let
     global function editnodeeditorpopup(nodeeditor::NodeEditor)
         if CImGui.BeginPopup("NodeEditor")
             if nodeeditor.selectednodesnum > 0 || nodeeditor.selectedlinksnum > 0
-                if CImGui.MenuItem(stcstr(MORESTYLE.Icons.CloseFile, " ", mlstr("Delete")))
+                if CImGui.MenuItem(stcstr(MORESTYLE.Icons.Delete, " ", mlstr("Delete")))
                     for id in nodeeditor.selectedlinks
                         length(nodeeditor.links) < id || deleteat!(nodeeditor.links, id)
                     end
@@ -702,7 +702,7 @@ function editnodepopup(nodeeditor::NodeEditor)
                 CImGui.BeginGroup()
                 CImGui.Text("")
                 for i in eachindex(hoverednode.input_ids)
-                    if CImGui.Button(stcstr(MORESTYLE.Icons.CloseFile, "##input ", i))
+                    if CImGui.Button(stcstr(MORESTYLE.Icons.Delete, "##input ", i))
                         deleteat!(hoverednode.input_ids, i)
                         deleteat!(hoverednode.input_labels, i)
                         break
@@ -728,7 +728,7 @@ function editnodepopup(nodeeditor::NodeEditor)
                 CImGui.BeginGroup()
                 CImGui.Text("")
                 for i in eachindex(hoverednode.output_ids)
-                    if CImGui.Button(stcstr(MORESTYLE.Icons.CloseFile, "##Output ", i))
+                    if CImGui.Button(stcstr(MORESTYLE.Icons.Delete, "##Output ", i))
                         deleteat!(hoverednode.output_ids, i)
                         deleteat!(hoverednode.output_labels, i)
                         break
@@ -760,7 +760,7 @@ function editnodepopup(nodeeditor::NodeEditor)
                 CImGui.SameLine()
                 CImGui.BeginGroup()
                 for i in filter(isodd, eachindex(hoverednode.attr_ids))
-                    if CImGui.Button(stcstr(MORESTYLE.Icons.CloseFile, "##attr ", i))
+                    if CImGui.Button(stcstr(MORESTYLE.Icons.Delete, "##attr ", i))
                         deleteat!(hoverednode.attr_ids, i)
                         deleteat!(hoverednode.attr_labels, i)
                         deleteat!(hoverednode.attr_types, i)
@@ -793,7 +793,7 @@ function editnodepopup(nodeeditor::NodeEditor)
                 CImGui.SameLine()
                 CImGui.BeginGroup()
                 for i in filter(iseven, eachindex(hoverednode.attr_ids))
-                    if CImGui.Button(stcstr(MORESTYLE.Icons.CloseFile, "##attr ", i))
+                    if CImGui.Button(stcstr(MORESTYLE.Icons.Delete, "##attr ", i))
                         deleteat!(hoverednode.attr_ids, i)
                         deleteat!(hoverednode.attr_labels, i)
                         deleteat!(hoverednode.attr_types, i)
@@ -816,7 +816,7 @@ function editnodepopup(nodeeditor::NodeEditor)
             end
             CImGui.EndMenu()
         end
-        CImGui.MenuItem(stcstr(MORESTYLE.Icons.CloseFile, " ", mlstr("Delete"))) && deletenode!(nodeeditor, hoverednode.id)
+        CImGui.MenuItem(stcstr(MORESTYLE.Icons.Delete, " ", mlstr("Delete"))) && deletenode!(nodeeditor, hoverednode.id)
         CImGui.EndPopup()
     end
 end

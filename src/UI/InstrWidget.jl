@@ -1242,7 +1242,7 @@ let
                 addwidgetmenu(insw, i; mode=:before)
                 addwidgetmenu(insw, i; mode=:after)
                 convertmenu(insw, i)
-                if CImGui.MenuItem(stcstr(MORESTYLE.Icons.CloseFile, " ", mlstr("Delete")))
+                if CImGui.MenuItem(stcstr(MORESTYLE.Icons.Delete, " ", mlstr("Delete")))
                     qtwi = insw.qtws[i]
                     if qtwi.name == "_Image_" || (qtwi.name == "_Panel_" && qtwi.options.useimage)
                         destroyimage!(qtwi.options.pathes[1])
@@ -1309,7 +1309,7 @@ let
             insw.posoffset == [0, 0] || (insw.posoffset .= [0, 0])
             insw.sizeoffset == [0, 0] || (insw.sizeoffset .= [0, 0])
         else
-            CImGui.Button(stcstr(MORESTYLE.Icons.CloseFile, "##emptygroup"), (-1, 0)) && emptygroup!(insw)
+            CImGui.Button(stcstr(MORESTYLE.Icons.Delete, "##emptygroup"), (-1, 0)) && emptygroup!(insw)
             CImGui.DragFloat2(
                 mlstr("Position Offset"), insw.posoffset, 1, -6000, 6000, "%.1f", CImGui.ImGuiSliderFlags_AlwaysClamp
             ) && updategrouppos!(insw)
@@ -1944,7 +1944,7 @@ let
                 push!(qtw.options.bindingqtwidxes, [])
             end
             CImGui.SameLine()
-            if CImGui.Button(stcstr(MORESTYLE.Icons.CloseFile, "##deleteselectorgroup"), (width, Cfloat(0)))
+            if CImGui.Button(stcstr(MORESTYLE.Icons.Delete, "##deleteselectorgroup"), (width, Cfloat(0)))
                 pop!(qtw.options.selectorlist)
                 pop!(qtw.options.bindingqtwidxes)
             end
@@ -1993,7 +1993,7 @@ let
                     CImGui.PushID(j)
                     CImGui.Selectable(alias)
                     if CImGui.BeginPopupContextItem()
-                        CImGui.MenuItem(stcstr(MORESTYLE.Icons.CloseFile, " ", mlstr("Delete"))) && deleteat!(group, j)
+                        CImGui.MenuItem(stcstr(MORESTYLE.Icons.Delete, " ", mlstr("Delete"))) && deleteat!(group, j)
                         CImGui.EndPopup()
                     end
                     CImGui.PopID()
