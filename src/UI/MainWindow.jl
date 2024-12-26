@@ -394,13 +394,13 @@ let
             fv.p_open && edit(fv, i)
         end
         for (i, fv) in enumerate(fileviewers)
-            fv.noclose || (atclosefileviewer(fv); deleteat!(fileviewers, i))
+            fv.noclose || (atclosefileviewer!(fv); deleteat!(fileviewers, i))
         end
         for (i, dft) in enumerate(dataformatters)
             dft.p_open && edit(dft, i)
         end
         for (i, dft) in enumerate(dataformatters)
-            dft.noclose || (atclosedataformatter(dft); deleteat!(dataformatters, i))
+            dft.noclose || (atclosedataformatter!(dft); deleteat!(dataformatters, i))
         end
         show_preferences && @c Preferences(&show_preferences)
 
@@ -473,14 +473,3 @@ function hasref(ibv::InstrBufferViewer)
     end
     return false
 end
-
-function atclosefileviewer(fv::FileViewer)
-    for dtv in values(fv.dtviewers)
-        dtv.p_open && rmplots!(dtv)
-    end
-end
-
-atclosedataformatter(dft::DataFormatter) = atcloseformatdata.(dft.data)
-atcloseformatdata(d::FormatData) = d.dtviewer.p_open && rmplots!(d.dtviewer)
-atcloseformatdata(d::FormatDataGroup) = (atcloseformatdata.(d.data); d.dtviewer.p_open && rmplots!(d.dtviewer))
-atcloseformatdata(d::FormatCodes) = nothing

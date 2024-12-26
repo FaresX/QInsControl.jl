@@ -32,7 +32,7 @@ function edit(fv::FileViewer, id)
             end
             for path in keys(fv.dtviewers)
                 if path ∉ fv.filetree.selectedpathes
-                    rmplots!(fv.dtviewers[path])
+                    atclosedtviewer!(fv.dtviewers[path])
                     delete!(fv.dtviewers, path)
                 end
             end
@@ -58,20 +58,27 @@ function edit(fv::FileViewer, id)
         haskey(fv.dtviewers, path) || push!(fv.dtviewers, path => DataViewer())
         dtviewer = fv.dtviewers[path]
         CImGui.SetNextWindowSize((600, 600), CImGui.ImGuiCond_Once)
-        @c CImGui.Begin(stcstr(basename(path), "##", id, path), &dtviewer.p_open)
-        SetWindowBgImage(
-            CONF.BGImage.fileviewer.path;
-            rate=CONF.BGImage.fileviewer.rate,
-            use=CONF.BGImage.fileviewer.use
-        )
-        edit(dtviewer, path, string(id, path))
+        if @c CImGui.Begin(stcstr(basename(path), "##", id, path), &dtviewer.p_open)
+            SetWindowBgImage(
+                CONF.BGImage.fileviewer.path;
+                rate=CONF.BGImage.fileviewer.rate,
+                use=CONF.BGImage.fileviewer.use
+            )
+            edit(dtviewer, path, string(id, path))
+        end
         CImGui.End()
         if dtviewer.p_open
             haskey(dtviewer.data, "data") && renderplots(dtviewer.dtp, stcstr("DataViewer", id, path))
         else
-            rmplots!(fv.dtviewers[path])
+            atclosedtviewer!(fv.dtviewers[path])
             delete!(fv.dtviewers, path)
             deleteat!(fv.filetree.selectedpathes, findall(==(path), fv.filetree.selectedpathes))
         end
+    end
+end
+
+function atclosefileviewer!(fv::FileViewer)
+    for dtv in values(fv.dtviewers)
+        dtv.p_open && atclosedtviewer!(dtv)
     end
 end

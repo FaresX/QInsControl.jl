@@ -242,6 +242,11 @@ function edit(dft::DataFormatter, id)
     end
 end
 
+atclosedataformatter!(dft::DataFormatter) = atcloseformatdata!.(dft.data)
+atcloseformatdata!(d::FormatData) = d.dtviewer.p_open && atclosedtviewer!(d.dtviewer)
+atcloseformatdata!(d::FormatDataGroup) = (atcloseformatdata!.(d.data); d.dtviewer.p_open && atclosedtviewer!(d.dtviewer))
+atcloseformatdata!(::FormatCodes) = nothing
+
 function loaddtviewer!(fdg::FormatDataGroup, id)
     haskey(fdg.dtviewer.data, "data") ? (return) : fdg.dtviewer.data["data"] = Dict{String,Vector{String}}()
     if length(fdg.data) == 2

@@ -206,6 +206,28 @@ function loaddtviewer!(dtviewer::DataViewer, data::Dict, id)
     end
 end
 
+
+atclosedtviewer!(dtviewer::DataViewer) = (rmtextures!(dtviewer); rmplots!(dtviewer))
+function rmtextures!(dtv::DataViewer)
+    if haskey(dtv.data, "circuit")
+        for (_, node) in dtv.data["circuit"].nodes
+            node isa SampleHolderNode && try
+                CImGui.destroy_image_texture(node.imgr.id)
+            catch e
+                @error "[$(now())]\nerror in destroying image texture" exception = e
+            end
+        end
+    end
+    if haskey(dtv.data, "revision")
+        for (_, node) in dtv.data["revision"]["circuit"].nodes
+            node isa SampleHolderNode && try
+                CImGui.destroy_image_texture(node.imgr.id)
+            catch e
+                @error "[$(now())]\nerror in destroying image texture" exception = e
+            end
+        end
+    end
+end
 rmplots!(dtv::DataViewer) = rmplots!(dtv.dtp)
 
 function saveqdt(dtviewer::DataViewer, path)
