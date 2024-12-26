@@ -2,9 +2,6 @@ function UI()
     CImGui.set_backend(:GlfwOpenGL3)
     ctx = CImGui.CreateContext()
 
-    # 加载背景
-    createimage(CONF.BGImage.main.path)
-
     #setup ImNodes context
     ctxi = imnodes_CreateContext()
     setctxi(ctxi)
