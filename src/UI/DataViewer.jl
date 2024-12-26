@@ -111,6 +111,7 @@ function edit(dtviewer::DataViewer, path, id)
                             "description" => "",
                             "circuit" => deepcopy(dtviewer.data["circuit"])
                         )
+                        loadsamplebasenode!(dtviewer.data["revision"]["circuit"])
                     end
                 end
             else
@@ -179,18 +180,7 @@ function loaddtviewer!(dtviewer::DataViewer, data::Dict, id)
         haskey(dtviewer.data, "data") && update!(dtviewer.dtp, dtviewer.data["data"])
     end
     if !isempty(dtviewer.data)
-        if haskey(dtviewer.data, "circuit")
-            for (_, node) in dtviewer.data["circuit"].nodes
-                if node isa SampleHolderNode
-                    @trycatch mlstr("loading image failed!!!") begin
-                        img = RGBA.(jpeg_decode(node.imgr.image))
-                        imgsize = size(img)
-                        node.imgr.id = CImGui.create_image_texture(imgsize...)
-                        CImGui.update_image_texture(node.imgr.id, img, imgsize...)
-                    end
-                end
-            end
-        end
+        haskey(dtviewer.data, "circuit") && loadsamplebasenode!(dtviewer.data["circuit"])
         if haskey(dtviewer.data, "revision")
             for (_, node) in dtviewer.data["revision"]["circuit"].nodes
                 if node isa SampleHolderNode
@@ -201,6 +191,18 @@ function loaddtviewer!(dtviewer::DataViewer, data::Dict, id)
                         CImGui.update_image_texture(node.imgr.id, img, imgsize...)
                     end
                 end
+            end
+        end
+    end
+end
+function loadsamplebasenode!(circuit::NodeEditor)
+    for (_, node) in circuit.nodes
+        if node isa SampleHolderNode
+            @trycatch mlstr("loading image failed!!!") begin
+                img = RGBA.(jpeg_decode(node.imgr.image))
+                imgsize = size(img)
+                node.imgr.id = CImGui.create_image_texture(imgsize...)
+                CImGui.update_image_texture(node.imgr.id, img, imgsize...)
             end
         end
     end

@@ -68,9 +68,7 @@ function edit(fd::FormatData, id)
         if fd.dtviewer.p_open
             loaddtviewer!(fd.dtviewer, fd.path, stcstr("formatdata", id))
         else
-            for plt in fd.dtviewer.dtp.plots
-                rmplot!(plt)
-            end
+            atclosedtviewer!(fd.dtviewer)
             fd.dtviewer = DataViewer(p_open=false)
         end
     end
@@ -303,9 +301,7 @@ function showdtviewer(fd::FormatData, id)
         CImGui.End()
         fd.dtviewer.p_open && haskey(fd.dtviewer.data, "data") && renderplots(fd.dtviewer.dtp, stcstr("formatdata", id))
         if !fd.dtviewer.p_open
-            for plt in fd.dtviewer.dtp.plots
-                rmplot!(plt)
-            end
+            atclosedtviewer!(fd.dtviewer)
             fd.dtviewer = DataViewer(p_open=false)
         end
     end
