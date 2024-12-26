@@ -978,11 +978,7 @@ let
             insw.windowflags | (addr == "" ? CImGui.ImGuiWindowFlags_NoDocking : 0)
         )
             isanyitemdragging = false
-            if insw.globaloptions
-                SetWindowBgImage()
-            else
-                SetWindowBgImage(insw.wallpaperpath; rate=insw.rate, use=insw.usewallpaper, tint_col=insw.bgtintcolor)
-            end
+            SetWindowBgImage(insw.wallpaperpath; rate=insw.rate, use=insw.usewallpaper, tint_col=insw.bgtintcolor)
             CImGui.BeginChild("drawing area")
             for (i, qtw) in enumerate(insw.qtws)
                 CImGui.PushID(i)
