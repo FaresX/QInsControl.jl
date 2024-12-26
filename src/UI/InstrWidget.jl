@@ -1983,11 +1983,13 @@ let
                 CImGui.PopStyleVar()
                 CImGui.PopStyleColor(3)
                 for (j, alias) in enumerate(group)
+                    CImGui.PushID(j)
                     CImGui.Selectable(alias)
                     if CImGui.BeginPopupContextItem()
                         CImGui.MenuItem(stcstr(MORESTYLE.Icons.CloseFile, " ", mlstr("Delete"))) && deleteat!(group, j)
                         CImGui.EndPopup()
                     end
+                    CImGui.PopID()
                     j % CONF.InsBuf.showcol != 0 && j != length(group) && CImGui.SameLine()
                 end
                 bindingqtwidxesstr = join(qtw.options.bindingqtwidxes[i], ',')
