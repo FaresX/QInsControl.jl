@@ -159,6 +159,11 @@ function CImGui.PathArcTo(self, center::Vector, radius, a_min, a_max, num_segmen
     CImGui.PathArcTo(self, CImGui.ImVec2(center...), radius, a_min, a_max, num_segments)
 end
 
+function destroytexture!(id)
+    extension_module = Base.get_extension(CImGui, :GlfwOpenGLBackend)
+    haskey(extension_module.g_ImageTexture, id) && CImGui.destroy_image_texture(id)
+end
+
 function Base.iterate(v::ImVec2, state=1)
     if state == 1
         return v.x, 2

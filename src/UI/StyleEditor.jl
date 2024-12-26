@@ -837,6 +837,7 @@ let
                     CImGui.Text(windows[i])
                     if inputbgpath || selectbgpath
                         if isfile(bgpath)
+                            destroyimage!(bg.path)
                             bg.path = bgpath
                             createimage(bgpath; showsize=CONF.Basic.windowsize)
                         else

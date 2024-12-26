@@ -111,7 +111,16 @@ let
     end
 end
 
+function destroyimage!(path)
+    if haskey(IMAGES, path) && !isempty(IMAGES[path].data)
+        for id in IMAGES[path].data
+            destroytexture!(id)
+        end
+    end
+end
+
 function createimage(path; showsize=(100, 100))
+    destroyimage!(path)
     IMAGES[path] = LoopVector(Int[])
     if isfile(path)
         try
@@ -149,7 +158,7 @@ let
             framecount % rate == 0 && move!(IMAGES[path])
         end
         CImGui.PushStyleVar(CImGui.ImGuiStyleVar_FramePadding, frame_padding)
-        clicked = CImGui.ImageButton(label, CImGui.ImTextureID(IMAGES[path][]), size .- 2frame_padding, uv0, uv1, bg_col, tint_col)
+        clicked = CImGui.ImageButton(label, CImGui.ImTextureID(IMAGES[path][]), size .- 2 .* frame_padding, uv0, uv1, bg_col, tint_col)
         CImGui.PopStyleVar()
         return clicked
     end

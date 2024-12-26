@@ -1242,7 +1242,13 @@ let
                 addwidgetmenu(insw, i; mode=:before)
                 addwidgetmenu(insw, i; mode=:after)
                 convertmenu(insw, i)
-                CImGui.MenuItem(stcstr(MORESTYLE.Icons.CloseFile, " ", mlstr("Delete"))) && deleteat!(insw.qtws, i)
+                if CImGui.MenuItem(stcstr(MORESTYLE.Icons.CloseFile, " ", mlstr("Delete")))
+                    qtwi = insw.qtws[i]
+                    if qtwi.name == "_Image_" || (qtwi.name == "_Panel_" && qtwi.options.useimage)
+                        destroyimage!(qtwi.options.pathes[1])
+                    end
+                    deleteat!(insw.qtws, i)
+                end
                 CImGui.EndPopup()
             end
             CImGui.Indent()
@@ -1892,6 +1898,7 @@ let
             CImGui.Text(mlstr("Path"))
             if inputimgpath || selectimgpath
                 if isfile(imgpath)
+                    destroyimage!(qtw.options.pathes[1])
                     qtw.options.pathes[1] = imgpath
                 else
                     CImGui.SameLine()
@@ -2137,6 +2144,7 @@ function globalwidgetoptionsmenu(insw::InstrWidget)
         CImGui.Text(mlstr("Wallpaper"))
         if inputbgpath || selectbgpath
             if isfile(bgpath)
+                destroyimage!(insw.wallpaperpath)
                 insw.wallpaperpath = bgpath
             else
                 CImGui.SameLine()

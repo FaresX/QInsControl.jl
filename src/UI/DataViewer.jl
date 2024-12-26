@@ -183,6 +183,7 @@ function loaddtviewer!(dtviewer::DataViewer, data::Dict, id)
             for (_, node) in dtviewer.data["circuit"].nodes
                 if node isa SampleHolderNode
                     @trycatch mlstr("loading image failed!!!") begin
+                        destroytexture!(node.imgr.id)
                         img = RGBA.(jpeg_decode(node.imgr.image))
                         imgsize = size(img)
                         node.imgr.id = CImGui.create_image_texture(imgsize...)
@@ -195,6 +196,7 @@ function loaddtviewer!(dtviewer::DataViewer, data::Dict, id)
             for (_, node) in dtviewer.data["revision"]["circuit"].nodes
                 if node isa SampleHolderNode
                     @trycatch mlstr("loading image failed!!!") begin
+                        destroytexture!(node.imgr.id)
                         img = RGBA.(jpeg_decode(node.imgr.image))
                         imgsize = size(img)
                         node.imgr.id = CImGui.create_image_texture(imgsize...)
@@ -206,25 +208,16 @@ function loaddtviewer!(dtviewer::DataViewer, data::Dict, id)
     end
 end
 
-
 atclosedtviewer!(dtviewer::DataViewer) = (rmtextures!(dtviewer); rmplots!(dtviewer))
 function rmtextures!(dtv::DataViewer)
     if haskey(dtv.data, "circuit")
         for (_, node) in dtv.data["circuit"].nodes
-            node isa SampleHolderNode && try
-                CImGui.destroy_image_texture(node.imgr.id)
-            catch e
-                @error "[$(now())]\nerror in destroying image texture" exception = e
-            end
+            node isa SampleHolderNode && destroytexture!(node.imgr.id)
         end
     end
     if haskey(dtv.data, "revision")
         for (_, node) in dtv.data["revision"]["circuit"].nodes
-            node isa SampleHolderNode && try
-                CImGui.destroy_image_texture(node.imgr.id)
-            catch e
-                @error "[$(now())]\nerror in destroying image texture" exception = e
-            end
+            node isa SampleHolderNode && destroytexture!(node.imgr.id)
         end
     end
 end
