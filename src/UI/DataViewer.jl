@@ -22,7 +22,7 @@ function edit(fv::FileViewer, id)
         end,
         &fv.p_open
     )
-        SetWindowBgImage()
+        SetWindowBgImage(CONF.BGImage.filetree.path; rate=CONF.BGImage.filetree.rate, use=CONF.BGImage.filetree.use)
 
         oldfiles = copy(fv.filetree.selectedpathes)
         InputTextRSZ(stcstr(mlstr("Filter"), "##", id), fv.filetree.filter)
@@ -64,7 +64,13 @@ function edit(fv::FileViewer, id)
         haskey(fv.dtviewers, path) || push!(fv.dtviewers, path => DataViewer())
         dtviewer = fv.dtviewers[path]
         CImGui.SetNextWindowSize((600, 600), CImGui.ImGuiCond_Once)
-        @c(CImGui.Begin(stcstr(basename(path), "##", id, path), &dtviewer.p_open)) && edit(dtviewer, path, string(id, path))
+        @c CImGui.Begin(stcstr(basename(path), "##", id, path), &dtviewer.p_open)
+        SetWindowBgImage(
+            CONF.BGImage.fileviewer.path;
+            rate=CONF.BGImage.fileviewer.rate,
+            use=CONF.BGImage.fileviewer.use
+        )
+        edit(dtviewer, path, string(id, path))
         CImGui.End()
         if dtviewer.p_open
             haskey(dtviewer.data, "data") && renderplots(dtviewer.dtp, stcstr("DataViewer", id, path))

@@ -13,7 +13,7 @@ let
             p_open,
             CImGui.ImGuiWindowFlags_HorizontalScrollbar
         )
-            SetWindowBgImage()
+            SetWindowBgImage(CONF.BGImage.logger.path; rate=CONF.BGImage.logger.rate, use=CONF.BGImage.logger.use)
             if SYNCSTATES[Int(NewLogging)] || waittime("Logger", CONF.Logs.refreshrate)
                 empty!(logmsgshow)
                 textbg = ImVec4(0, 0, 0, 0)

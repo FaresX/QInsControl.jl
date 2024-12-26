@@ -726,6 +726,10 @@ let
     nmerr::Bool = false
     selected_style::String = ""
     showmorestyle::Bool = false
+    windows::Vector{String} = [
+        "Main", "Circuit", "Instruments", "Registration",
+        "FileTree", "FileViewer", "Formatter", "Console", "Logger", "Preferences"
+    ]
     global function StyleEditor()
         ws = CImGui.GetWindowWidth()
         styledir = CONF.Style.dir
@@ -776,32 +780,6 @@ let
             selected_style = ""
         end
 
-        ###wallpaper###
-        bgpath = CONF.BGImage.path
-        CImGui.PushItemWidth(ws / 2)
-        inputbgpath = @c InputTextRSZ("##BGImage-path", &bgpath)
-        CImGui.PopItemWidth()
-        CImGui.SameLine()
-        selectbgpath = CImGui.Button(stcstr(MORESTYLE.Icons.SelectPath, "##BGImage-path"))
-        selectbgpath && (bgpath = pick_file(abspath(bgpath); filterlist="png,jpg,jpeg,tif,bmp;gif"))
-        CImGui.SameLine()
-        @c CImGui.Checkbox("##useall", &CONF.BGImage.useall)
-        ItemTooltip("apply to all the windows ?")
-        CImGui.SameLine()
-        CImGui.Text("Wallpaper")
-        if inputbgpath || selectbgpath
-            if isfile(bgpath)
-                CONF.BGImage.path = bgpath
-                createimage(bgpath; showsize=CONF.Basic.windowsize)
-            else
-                CImGui.SameLine()
-                CImGui.TextColored(MORESTYLE.Colors.ErrorText, mlstr("path does not exist!!!"))
-            end
-        end
-        if CONF.BGImage.useall
-            @c CImGui.DragInt("Rate", &CONF.BGImage.rate, 1, 1, 120, "%d", CImGui.ImGuiSliderFlags_AlwaysClamp)
-        end
-
         CImGui.PushItemWidth(ws / 2)
         if selected_style == "" && haskey(STYLES, CONF.Style.default)
             selected_style = CONF.Style.default
@@ -837,6 +815,40 @@ let
             if CImGui.BeginTabItem("More Style")
                 CImGui.BeginChild("More Style")
                 ShowStyleEditor(ustyle.morestyle)
+                CImGui.EndChild()
+                CImGui.EndTabItem()
+            end
+            if CImGui.BeginTabItem("Wallpapers")
+                CImGui.BeginChild("Wallpapers")
+                for (i, fnm) in enumerate(fieldnames(OptBGImage))
+                    CImGui.PushID(i)
+                    bg = getproperty(CONF.BGImage, fnm)
+                    bgpath = bg.path
+                    CImGui.PushItemWidth(ws / 2)
+                    inputbgpath = @c InputTextRSZ("##BGImage-path", &bgpath)
+                    CImGui.PopItemWidth()
+                    CImGui.SameLine()
+                    selectbgpath = CImGui.Button(stcstr(MORESTYLE.Icons.SelectPath, "##BGImage-path"))
+                    selectbgpath && (bgpath = pick_file(abspath(bgpath); filterlist="png,jpg,jpeg,tif,bmp;gif"))
+                    CImGui.SameLine()
+                    @c CImGui.Checkbox("##useall", &bg.use)
+                    ItemTooltip("apply to all the windows ?")
+                    CImGui.SameLine()
+                    CImGui.Text(windows[i])
+                    if inputbgpath || selectbgpath
+                        if isfile(bgpath)
+                            bg.path = bgpath
+                            createimage(bgpath; showsize=CONF.Basic.windowsize)
+                        else
+                            CImGui.SameLine()
+                            CImGui.TextColored(MORESTYLE.Colors.ErrorText, mlstr("path does not exist!!!"))
+                        end
+                    end
+                    if bg.use
+                        @c CImGui.DragInt("Rate", &bg.rate, 1, 1, 120, "%d", CImGui.ImGuiSliderFlags_AlwaysClamp)
+                    end
+                    CImGui.PopID()
+                end
                 CImGui.EndChild()
                 CImGui.EndTabItem()
             end

@@ -273,7 +273,11 @@ function edit(ibv::InstrBufferViewer)
     CImGui.SetNextWindowSize((800, 600), CImGui.ImGuiCond_Once)
     ins, addr = ibv.instrnm, ibv.addr
     if @c CImGui.Begin(stcstr(INSCONF[ins].conf.icon, "  ", ins, "  ", addr), &ibv.p_open)
-        SetWindowBgImage()
+        SetWindowBgImage(
+            CONF.BGImage.instrbufferviewer.path;
+            rate=CONF.BGImage.instrbufferviewer.rate,
+            use=CONF.BGImage.instrbufferviewer.use
+        )
         @c testcmd(ins, addr, &ibv.inputcmd, &ibv.reading)
         edit(ibv.insbuf, addr)
         CImGui.IsKeyPressed(ImGuiKey_F5, false) && refresh1(true)

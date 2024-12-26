@@ -30,7 +30,7 @@ function loadconf(precompile=false)
     isdir(CONF.Fonts.dir) || (CONF.Fonts.dir = joinpath(ENV["QInsControlAssets"], "Fonts"))
     isdir(CONF.Console.dir) || (CONF.Console.dir = joinpath(ENV["QInsControlAssets"], "IOs"))
     isdir(CONF.Logs.dir) || (CONF.Logs.dir = joinpath(ENV["QInsControlAssets"], "Logs"))
-    isfile(CONF.BGImage.path) || (CONF.BGImage.path = joinpath(ENV["QInsControlAssets"], "Necessity/defaultwallpaper.png"))
+    isfile(CONF.BGImage.main.path) || (CONF.BGImage.main.path = joinpath(ENV["QInsControlAssets"], "Necessity/defaultwallpaper.png"))
     isfile(CONF.Style.dir) || (CONF.Style.dir = joinpath(ENV["QInsControlAssets"], "Styles"))
 
     ###### load language ######
@@ -183,7 +183,7 @@ end
 function mergeconf!(cfdict, dict)
     for (key, val) in cfdict
         if haskey(dict, key)
-            if val isa AbstractDict
+            if val isa AbstractDict && dict[key] isa AbstractDict
                 mergeconf!(val, dict[key])
             else
                 oldval = @trypass convert(typeof(val), dict[key]) nothing

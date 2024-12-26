@@ -591,8 +591,8 @@ end
 let
     framecount::Cint = 0
     global function SetWindowBgImage(
-        path=CONF.BGImage.path;
-        rate=CONF.BGImage.rate, use=CONF.BGImage.useall, tint_col=MORESTYLE.Colors.BgImageTint
+        path=CONF.BGImage.main.path;
+        rate=CONF.BGImage.main.rate, use=CONF.BGImage.main.use, tint_col=MORESTYLE.Colors.BgImageTint
     )
         if use
             wpos = CImGui.GetWindowPos()

@@ -829,7 +829,7 @@ function edit(nodeeditor::NodeEditor, id, p_open::Ref{Bool})
     # CImGui.PushStyleVar(CImGui.ImGuiStyleVar_WindowRounding, unsafe_load(IMGUISTYLE.PopupRounding))
     # isfocus = true
     if CImGui.Begin(stcstr(MORESTYLE.Icons.Circuit, " ", mlstr("Circuit"), "##", id), p_open)
-        SetWindowBgImage()
+        SetWindowBgImage(CONF.BGImage.circuit.path; rate=CONF.BGImage.circuit.rate, use=CONF.BGImage.circuit.use)
         # CImGui.PushStyleColor(CImGui.ImGuiCol_Button, (0, 0, 0, 0))
         # CImGui.PushStyleColor(CImGui.ImGuiCol_ButtonHovered, (0, 0, 0, 0))
         # CImGui.PushStyleColor(CImGui.ImGuiCol_ButtonActive, (0, 0, 0, 0))

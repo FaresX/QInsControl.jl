@@ -10,7 +10,11 @@ let
         CImGui.PushStyleColor(CImGui.ImGuiCol_Separator, (0, 0, 0, 0))
         if CImGui.Begin(stcstr(MORESTYLE.Icons.Preferences, "  ", mlstr("Preferences"), "###pref"), p_open)
             CImGui.PopStyleColor()
-            SetWindowBgImage()
+            SetWindowBgImage(
+                CONF.BGImage.preferences.path;
+                rate=CONF.BGImage.preferences.rate,
+                use=CONF.BGImage.preferences.use
+            )
 
             CImGui.Columns(2)
             @cstatic firsttime::Bool = true begin
@@ -75,7 +79,7 @@ let
                 @c(CImGui.Checkbox(
                     CONF.Basic.viewportenable ? mlstr("multi-viewport mode on") : mlstr("multi-viewport mode off"),
                     &CONF.Basic.viewportenable
-                )) 
+                ))
                 #&& (CONF.Basic.viewportenable || (CONF.Basic.hidewindow = false))
                 @c CImGui.Checkbox(mlstr("hold main window"), &CONF.Basic.holdmainwindow)
                 # @c CImGui.Checkbox(

@@ -3,7 +3,7 @@ function UI()
     ctx = CImGui.CreateContext()
 
     # 加载背景
-    createimage(CONF.BGImage.path)
+    createimage(CONF.BGImage.main.path)
 
     #setup ImNodes context
     ctxi = imnodes_CreateContext()

@@ -110,7 +110,11 @@ let
             stcstr(MORESTYLE.Icons.InstrumentsRegister, "  ", mlstr("Instrument Registration"), "###ins reg"),
             p_open
         )
-            SetWindowBgImage()
+            SetWindowBgImage(
+                CONF.BGImage.registration.path;
+                rate=CONF.BGImage.registration.rate,
+                use=CONF.BGImage.registration.use
+            )
             CImGui.Columns(2)
             firsttime && (CImGui.SetColumnOffset(1, CImGui.GetWindowWidth() * 0.25); firsttime = false)
             CImGui.PushStyleColor(CImGui.ImGuiCol_ChildBg, MORESTYLE.Colors.ToolBarBg)

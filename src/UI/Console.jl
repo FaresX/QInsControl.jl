@@ -10,7 +10,7 @@ let
         # CImGui.SetNextWindowPos((100, 100), CImGui.ImGuiCond_Once)
         CImGui.SetNextWindowSize((600, 400), CImGui.ImGuiCond_Once)
         if CImGui.Begin(stcstr(MORESTYLE.Icons.Console, "  ", mlstr("Console"), "###console"), p_open)
-            SetWindowBgImage()
+            SetWindowBgImage(CONF.BGImage.console.path; rate=CONF.BGImage.console.rate, use=CONF.BGImage.console.use)
             if length(historycmd) != CONF.Console.historylen
                 resize!(historycmd.data, CONF.Console.historylen)
                 fill!(historycmd.data, "")
