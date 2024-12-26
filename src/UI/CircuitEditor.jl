@@ -100,7 +100,7 @@ end
 end
 
 @kwdef mutable struct SampleHolderNode <: AbstractNode
-    id::Cint = 1
+    id::Cint = 0
     title::String = MORESTYLE.Icons.SampleHolderNode * " " * mlstr("Sample Holder")
     content::String = ""
     attr_ids::Vector{Cint} = []
@@ -341,7 +341,7 @@ let
                 imgpath = pick_file(filterlist="png,jpg,jpeg,tif,bmp")
                 if isfile(imgpath)
                     @trycatch mlstr("loading image failed!!!") begin
-                        destroytexture!(imgr.id)
+                        imgr.id == 0 || destroytexture!(imgr.id)
                         img = RGBA.(collect(transpose(FileIO.load(imgpath))))
                         imgsize = size(img)
                         imgr.id = CImGui.create_image_texture(imgsize...)

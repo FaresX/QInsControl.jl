@@ -183,7 +183,6 @@ function loaddtviewer!(dtviewer::DataViewer, data::Dict, id)
             for (_, node) in dtviewer.data["circuit"].nodes
                 if node isa SampleHolderNode
                     @trycatch mlstr("loading image failed!!!") begin
-                        destroytexture!(node.imgr.id)
                         img = RGBA.(jpeg_decode(node.imgr.image))
                         imgsize = size(img)
                         node.imgr.id = CImGui.create_image_texture(imgsize...)
@@ -196,7 +195,6 @@ function loaddtviewer!(dtviewer::DataViewer, data::Dict, id)
             for (_, node) in dtviewer.data["revision"]["circuit"].nodes
                 if node isa SampleHolderNode
                     @trycatch mlstr("loading image failed!!!") begin
-                        destroytexture!(node.imgr.id)
                         img = RGBA.(jpeg_decode(node.imgr.image))
                         imgsize = size(img)
                         node.imgr.id = CImGui.create_image_texture(imgsize...)
