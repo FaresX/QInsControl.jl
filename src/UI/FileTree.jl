@@ -82,6 +82,7 @@ end
 
 let
     deldialog::Bool = false
+    dtviewertemp = DataViewer(p_open=false)
     global function filemenu(filetree::FileFileTree, isrename)
         path = filetree.filepath
         file = filetree.filepath_bnm
@@ -112,6 +113,11 @@ let
             isrename[path] = isrnm
         end
         if CImGui.BeginPopupContextItem()
+            if CImGui.MenuItem(stcstr(MORESTYLE.Icons.DataFormatter, " ", mlstr("Export")))
+                loaddtviewer!(dtviewertemp, path, "temp")
+                haskey(dtviewertemp.data, "data") && exportdata(dtviewertemp.data["data"])
+                empty!(dtviewertemp.data)
+            end
             CImGui.MenuItem(stcstr(MORESTYLE.Icons.CloseFile, " ", mlstr("Delete"))) && (deldialog = true)
             CImGui.EndPopup()
         end

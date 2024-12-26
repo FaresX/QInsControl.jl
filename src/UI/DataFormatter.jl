@@ -76,6 +76,15 @@ function edit(fd::FormatData, id)
     end
     CImGui.PopStyleColor()
     CImGui.SameLine()
+    if CImGui.Button(MORESTYLE.Icons.DataFormatter, (2ftsz, Cfloat(0)))
+        if haskey(fd.dtviewer.data, "data")
+            exportdata(fd.dtviewer.data["data"])
+        else
+            loaddtviewer!(fd.dtviewer, fd.path, stcstr("formatdata", id))
+            haskey(fd.dtviewer.data, "data") && exportdata(fd.dtviewer.data["data"])
+        end
+    end
+    CImGui.SameLine()
     CImGui.PushStyleVar(CImGui.ImGuiStyleVar_ItemSpacing, (0, 0))
     CImGui.PushItemWidth(2ftsz)
     @c CImGui.DragInt("##which dtpk", &fd.dtpki, 1, 1, 60)
@@ -192,10 +201,10 @@ function edit(dft::DataFormatter, id)
         )
         CImGui.SameLine()
         CImGui.Button(MORESTYLE.Icons.CloseFile, (3ftsz / 2, Cfloat(0))) && (isempty(dft.data) || pop!(dft.data))
-        CImGui.SameLine()
-        if CImGui.Button(MORESTYLE.Icons.DataFormatter, (3ftsz / 2, Cfloat(0)))
-            @trycatch mlstr("formatting data failed!") formatdata(dft.data)
-        end
+        # CImGui.SameLine()
+        # if CImGui.Button(MORESTYLE.Icons.DataFormatter, (3ftsz / 2, Cfloat(0)))
+        #     @trycatch mlstr("formatting data failed!") formatdata(dft.data)
+        # end
         CImGui.PopStyleColor(2)
         CImGui.PopFont()
         # igSeparatorText("")
