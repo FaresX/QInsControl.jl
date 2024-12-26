@@ -157,9 +157,7 @@ function edit(dtviewer::DataViewer, path, id)
                     end
                     CImGui.EndPopup()
                 end
-                CImGui.BeginChild("ShowData")
                 showdata(dtviewer.data["data"], id)
-                CImGui.EndChild()
             else
                 CImGui.Text(mlstr("data not loaded or data format not supported!"))
             end
@@ -326,6 +324,7 @@ end
 
 let
     flags::Cint = 0
+    flags |= CImGui.ImGuiTableFlags_ScrollY
     flags |= CImGui.ImGuiTableFlags_Resizable
     flags |= CImGui.ImGuiTableFlags_Reorderable
     # flags |= CImGui.ImGuiTableFlags_Sortable
@@ -364,7 +363,9 @@ let
             pagei[id] < pages && (pagei[id] += 1)
         end
         CImGui.BeginChild("showdatatable")
-        if CImGui.BeginTable("showdata", length(data), flags)
+        if CImGui.BeginTable("showdata", length(data) + 1, flags)
+            CImGui.TableSetupScrollFreeze(0, 1)
+            CImGui.TableSetupColumn(mlstr("Rows"), CImGui.ImGuiTableColumnFlags_WidthFixed, 4CImGui.GetFontSize())
             for key in keys(data)
                 CImGui.TableSetupColumn(key)
             end
@@ -374,9 +375,11 @@ let
             stoppage = pagei[id] * CONF.DtViewer.showdatarow
             for i in startpage:(pagei[id] == pages ? lmax : stoppage)
                 CImGui.TableNextRow()
-                for (_, val) in data
-                    CImGui.TableNextColumn()
-                    CImGui.Text(i > length(val) ? "" : val[i])
+                CImGui.TableSetColumnIndex(0)
+                CImGui.Text(stcstr(i))
+                for (j, val) in enumerate(values(data))
+                    CImGui.TableSetColumnIndex(j)
+                    CImGui.Text(i > length(val) ? "" : string(val[i]))
                 end
             end
             CImGui.EndTable()
