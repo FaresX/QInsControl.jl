@@ -33,7 +33,7 @@ let
         if !isempty(qtcf.optkeys)
             CImGui.BeginGroup()
             for (i, key) in enumerate(qtcf.optkeys)
-                CImGui.PushID(i)
+                CImGui.PushID(stcstr("optvalue", i))
                 CImGui.PushItemWidth(width)
                 if @c InputTextRSZ("##optkey", &key)
                     key == "" || (qtcf.optkeys[i] = key)
@@ -49,13 +49,10 @@ let
                 end
                 CImGui.PopItemWidth()
                 CImGui.SameLine()
-                CImGui.PushID("optvalue")
                 if CImGui.Button(MORESTYLE.Icons.CloseFile)
                     deleteat!(qtcf.optkeys, i)
                     deleteat!(qtcf.optvalues, i)
-                    break
                 end
-                CImGui.PopID()
                 CImGui.PopID()
             end
             CImGui.EndGroup()
@@ -227,16 +224,14 @@ let
                             push!(selectedinscf.conf.input_labels, string("Input ", length(selectedinscf.conf.input_labels) + 1))
                         end
                         for (i, input) in enumerate(selectedinscf.conf.input_labels)
-                            CImGui.PushID(i)
+                            CImGui.PushID(stcstr("Input", i))
                             CImGui.PushItemWidth(width)
                             if @c InputTextRSZ("##Input", &input)
                                 input == "" || (selectedinscf.conf.input_labels[i] = input)
                             end
                             CImGui.PopItemWidth()
                             CImGui.SameLine()
-                            CImGui.PushID("Input")
-                            CImGui.Button(MORESTYLE.Icons.CloseFile) && (deleteat!(selectedinscf.conf.input_labels, i); break)
-                            CImGui.PopID()
+                            CImGui.Button(MORESTYLE.Icons.CloseFile) && deleteat!(selectedinscf.conf.input_labels, i)
                             CImGui.PopID()
                         end
                         CImGui.EndGroup()
@@ -249,16 +244,14 @@ let
                             )
                         end
                         for (i, output) in enumerate(selectedinscf.conf.output_labels)
-                            CImGui.PushID(i)
+                            CImGui.PushID(stcstr("Output", i))
                             CImGui.PushItemWidth(width)
                             if @c InputTextRSZ("##Output", &output)
                                 output == "" || (selectedinscf.conf.output_labels[i] = output)
                             end
                             CImGui.PopItemWidth()
                             CImGui.SameLine()
-                            CImGui.PushID("Output")
-                            CImGui.Button(MORESTYLE.Icons.CloseFile) && (deleteat!(selectedinscf.conf.output_labels, i); break)
-                            CImGui.PopID()
+                            CImGui.Button(MORESTYLE.Icons.CloseFile) && deleteat!(selectedinscf.conf.output_labels, i)
                             CImGui.PopID()
                         end
                         CImGui.EndGroup()

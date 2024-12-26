@@ -78,7 +78,7 @@ let
                 if CImGui.BeginPopupContextItem()
                     CImGui.MenuItem(stcstr(MORESTYLE.Icons.Copy, " ", mlstr("Copy"))) && (copyseries = deepcopy(dtss))
                     CImGui.MenuItem(stcstr(MORESTYLE.Icons.Paste, " ", mlstr("Paste"))) && insert!(dtpk.series, i + 1, deepcopy(copyseries))
-                    CImGui.MenuItem(stcstr(MORESTYLE.Icons.CloseFile, " ", mlstr("Delete"))) && (deleteat!(dtpk.series, i); break)
+                    CImGui.MenuItem(stcstr(MORESTYLE.Icons.CloseFile, " ", mlstr("Delete"))) && deleteat!(dtpk.series, i)
                     CImGui.EndPopup()
                 end
                 if CImGui.BeginDragDropSource(0)
@@ -330,14 +330,14 @@ let
     processfuncs::Dict{DataSeries,Function} = Dict()
     function preprocess(dtss::DataSeries, datastr::Dict{String,Vector{String}}, datafloat::Dict{String,VecOrMat{Cdouble}})
         timingtask = errormonitor(
-                @async begin
-                    t1 = time()
-                    while dtss.isrunning
-                        dtss.runtime = round(time() - t1; digits=1)
-                        sleep(0.05)
-                    end
+            @async begin
+                t1 = time()
+                while dtss.isrunning
+                    dtss.runtime = round(time() - t1; digits=1)
+                    sleep(0.05)
                 end
-            )
+            end
+        )
         try
             dtss.isrunning = true
             dtss.runtime = 0

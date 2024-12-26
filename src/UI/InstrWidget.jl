@@ -1242,7 +1242,7 @@ let
                 addwidgetmenu(insw, i; mode=:before)
                 addwidgetmenu(insw, i; mode=:after)
                 convertmenu(insw, i)
-                CImGui.MenuItem(stcstr(MORESTYLE.Icons.CloseFile, " ", mlstr("Delete"))) && (deleteat!(insw.qtws, i); break)
+                CImGui.MenuItem(stcstr(MORESTYLE.Icons.CloseFile, " ", mlstr("Delete"))) && deleteat!(insw.qtws, i)
                 CImGui.EndPopup()
             end
             CImGui.Indent()
@@ -1266,7 +1266,6 @@ let
                             insw.qtws[i] = insw.qtws[payload_i]
                             insw.qtws[payload_i] = qtw
                         end
-                        break
                     end
                 end
                 CImGui.EndDragDropTarget()
@@ -1986,7 +1985,7 @@ let
                 for (j, alias) in enumerate(group)
                     CImGui.Selectable(alias)
                     if CImGui.BeginPopupContextItem()
-                        CImGui.MenuItem(stcstr(MORESTYLE.Icons.CloseFile, " ", mlstr("Delete"))) && (deleteat!(group, j); break)
+                        CImGui.MenuItem(stcstr(MORESTYLE.Icons.CloseFile, " ", mlstr("Delete"))) && deleteat!(group, j)
                         CImGui.EndPopup()
                     end
                     j % CONF.InsBuf.showcol != 0 && j != length(group) && CImGui.SameLine()

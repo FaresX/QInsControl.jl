@@ -26,14 +26,15 @@ function ShowUnit(id, utype, ui::Ref{Int}, flags=CImGui.ImGuiComboFlags_NoArrowB
 end
 
 function YesNoDialog(id, msg, flags=0)::Bool
+    retval = false
     if CImGui.BeginPopupModal(id, C_NULL, flags)
         CImGui.TextColored(MORESTYLE.Colors.ErrorText, string("\n", msg, "\n\n"))
-        CImGui.Button(mlstr("Confirm")) && (CImGui.CloseCurrentPopup(); return true)
+        CImGui.Button(mlstr("Confirm")) && (CImGui.CloseCurrentPopup(); retval = true)
         CImGui.SameLine(240)
-        CImGui.Button(mlstr("Cancel")) && (CImGui.CloseCurrentPopup(); return false)
+        CImGui.Button(mlstr("Cancel")) && CImGui.CloseCurrentPopup()
         CImGui.EndPopup()
     end
-    return false
+    return retval
 end
 
 function TextRect(
