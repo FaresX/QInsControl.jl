@@ -7,7 +7,7 @@
     xtype::Bool = true # true = > Number false = > String
     processcodes::CodeBlock = CodeBlock()
     processfigurecodes::CodeBlock = CodeBlock(codes="autolimits!(content(figure[1,1]))")
-    plotcodes::CodeBlock = CodeBlock(codes="lines!(content(figure[1,1]), x, y)")
+    plotcodes::CodeBlock = CodeBlock(codes="scatterlines!(content(figure[1,1]), x, y)")
     update::Bool = false
     updateprocessfunc::Bool = false
     updateprocessfigurefunc::Bool = false
@@ -22,7 +22,7 @@ end
 @kwdef mutable struct DataPicker
     datalist::Vector{String} = String[]
     series::Vector{DataSeries} = [DataSeries()]
-    codes::CodeBlock = CodeBlock(codes="Axis(figure[1,1])\nDataInspector(figure)")
+    codes::CodeBlock = CodeBlock(codes="Axis(figure[1,1])\nDataInspector(figure; backgroundcolor=:grey)")
     hold::Bool = false
     update::Bool = false
     updatelayout::Bool = false
