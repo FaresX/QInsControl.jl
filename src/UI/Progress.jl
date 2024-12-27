@@ -87,13 +87,17 @@ function update_progress()
     end
 end
 
-function ShowProgressBar(; size=(-1, 0))
-    for pgb in values(PROGRESSLIST)
-        if pgb[2] == pgb[3]
-            delete!(PROGRESSLIST, pgb[1])
-        else
-            CImGui.ProgressBar(calcfraction(pgb[2], pgb[3]), size, progressmark(pgb[2:4]...))
+let
+    dellist::Vector{UUID} = []
+    global function ShowProgressBar(; size=(-1, 0))
+        for (key, pgb) in PROGRESSLIST
+            if pgb[2] == pgb[3]
+                push!(dellist, key)
+            else
+                CImGui.ProgressBar(calcfraction(pgb[2], pgb[3]), size, progressmark(pgb[2:4]...))
+            end
         end
+        isempty(dellist) || map(x -> delete!(PROGRESSLIST, x), dellist)
     end
 end
 
