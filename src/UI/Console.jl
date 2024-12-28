@@ -2,7 +2,7 @@ let
     buffer::String = ""
     historycmd::LoopVector{String} = LoopVector([""])
     historycmd_max::Int = 0
-    iomsgshow = Tuple{CImGui.LibCImGui.ImVec4,String}[]
+    iomsgshow = Tuple{CImGui.lib.ImVec4,String}[]
     iofile::String = ""
     newmsg::Bool = true
     newmsg_updated::Bool = false
@@ -10,7 +10,7 @@ let
         # CImGui.SetNextWindowPos((100, 100), CImGui.ImGuiCond_Once)
         CImGui.SetNextWindowSize((600, 400), CImGui.ImGuiCond_Once)
         if CImGui.Begin(stcstr(MORESTYLE.Icons.Console, "  ", mlstr("Console"), "###console"), p_open)
-            SetWindowBgImage()
+            SetWindowBgImage(CONF.BGImage.console.path; rate=CONF.BGImage.console.rate, use=CONF.BGImage.console.use)
             if length(historycmd) != CONF.Console.historylen
                 resize!(historycmd.data, CONF.Console.historylen)
                 fill!(historycmd.data, "")
@@ -30,7 +30,6 @@ let
                 isinblock = false
                 for (i, s) in enumerate(allmsg[end-limitline+1:end])
                     occursin(markerlist[1], s) && (textc = ImVec4(MORESTYLE.Colors.HighlightText...))
-                    occursin(markerlist[2], s) && (textc = ImVec4(MORESTYLE.Colors.LogInfo...))
                     length(s) > CONF.Console.showiolength && (s = s[1:CONF.Console.showiolength])
                     if occursin("[End]", s)
                         isinblock || (iomsg *= "\n")
@@ -54,12 +53,12 @@ let
             lineheigth = (1 + length(findall('\n', buffer))) * CImGui.GetTextLineHeight() +
                          2unsafe_load(IMGUISTYLE.FramePadding.y)
             CImGui.BeginChild("STD OUT", (Float32(0), -lineheigth - unsafe_load(IMGUISTYLE.ItemSpacing.y)))
-            for (i, colmsg) in enumerate(iomsgshow)
-                CImGui.PushStyleColor(CImGui.ImGuiCol_Text, colmsg[1])
+            for (i, (col, msg)) in enumerate(iomsgshow)
+                CImGui.PushStyleColor(CImGui.ImGuiCol_Text, col)
                 CImGui.PushTextWrapPos(0)
                 CopyableText(
-                    stcstr("##consolemsg", i), colmsg[2];
-                    size=(Cfloat(-1), (1 + length(findall("\n", colmsg[2]))) * CImGui.GetTextLineHeightWithSpacing())
+                    stcstr("##consolemsg", i), msg;
+                    size=(Cfloat(-1), (1 + length(findall("\n", msg))) * CImGui.GetTextLineHeightWithSpacing())
                 )
                 CImGui.PopTextWrapPos()
                 CImGui.PopStyleColor()

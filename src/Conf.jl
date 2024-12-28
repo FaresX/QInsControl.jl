@@ -30,7 +30,7 @@ function loadconf(precompile=false)
     isdir(CONF.Fonts.dir) || (CONF.Fonts.dir = joinpath(ENV["QInsControlAssets"], "Fonts"))
     isdir(CONF.Console.dir) || (CONF.Console.dir = joinpath(ENV["QInsControlAssets"], "IOs"))
     isdir(CONF.Logs.dir) || (CONF.Logs.dir = joinpath(ENV["QInsControlAssets"], "Logs"))
-    isfile(CONF.BGImage.path) || (CONF.BGImage.path = joinpath(ENV["QInsControlAssets"], "Necessity/defaultwallpaper.png"))
+    isfile(CONF.BGImage.main.path) || (CONF.BGImage.main.path = joinpath(ENV["QInsControlAssets"], "Necessity/defaultwallpaper.png"))
     isfile(CONF.Style.dir) || (CONF.Style.dir = joinpath(ENV["QInsControlAssets"], "Styles"))
 
     ###### load language ######
@@ -76,7 +76,7 @@ function loadconf(precompile=false)
         for file in readdir(CONF.Style.dir, join=true)
             bnm = basename(file)
             @trycatch mlstr("loading file failed!!!") begin
-                endswith(bnm, ".sty") && merge!(STYLES, load(file))
+                endswith(bnm, ".toml") && (STYLES[bnm[1:end-5]] = from_toml(UnionStyle, file))
             end
         end
 
@@ -172,7 +172,7 @@ function try_from_dict(t::Type, dict)
     try
         cf = from_dict(t, dict)
     catch e
-        @error mlstr("invalid configuration file, trying refactoring") exception = e
+        @error "[$(now())]\n$(mlstr("invalid configuration file, trying refactoring"))" exception = e
         showbacktrace()
         cfdict = to_dict(cf)
         cf = from_dict(t, mergeconf!(cfdict, dict))
@@ -183,7 +183,7 @@ end
 function mergeconf!(cfdict, dict)
     for (key, val) in cfdict
         if haskey(dict, key)
-            if val isa AbstractDict
+            if val isa AbstractDict && dict[key] isa AbstractDict
                 mergeconf!(val, dict[key])
             else
                 oldval = @trypass convert(typeof(val), dict[key]) nothing

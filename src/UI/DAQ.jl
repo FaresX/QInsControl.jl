@@ -12,18 +12,25 @@ let
 
     projpath::String = ""
 
+    global function closedaqwindows()
+        show_daq_editors .= false
+        show_circuit_editor = false
+        DAQDATAPLOT.showdtpks .= false
+        DAQDATAPLOT.layout.states .= false
+    end
+
     global function DAQtoolbar()
         # CImGui.Columns(2, C_NULL, false)
         # CImGui.SetColumnOffset(1, 6ftsz)
         CImGui.PushStyleColor(CImGui.ImGuiCol_ChildBg, MORESTYLE.Colors.ToolBarBg)
         CImGui.PushStyleColor(CImGui.ImGuiCol_Text, MORESTYLE.Colors.IconButton)
-        CImGui.PushFont(PLOTFONT)
+        CImGui.PushFont(BIGFONT)
         ftsz = CImGui.GetFontSize()
         CImGui.BeginChild("Toolbar", (3ftsz, Cfloat(0)))
         CImGui.SetCursorPos(ftsz / 2, ftsz / 2)
-        CImGui.Image(Ptr{Cvoid}(ICONID), (2ftsz, 2ftsz))
+        CImGui.Image(CImGui.ImTextureID(ICONID), (2ftsz, 2ftsz))
         CImGui.SetCursorPosY(CImGui.GetCursorPosY() + ftsz / 2)
-        btwidth = Cfloat(CImGui.GetContentRegionAvailWidth() - unsafe_load(IMGUISTYLE.WindowPadding.x))
+        btwidth = Cfloat(CImGui.GetContentRegionAvail().x - unsafe_load(IMGUISTYLE.WindowPadding.x))
         btheight = 2ftsz
         CImGui.PushStyleColor(CImGui.ImGuiCol_Button, (0, 0, 0, 0))
         if SYNCSTATES[Int(IsBlocked)]
@@ -73,9 +80,10 @@ let
             stcstr(MORESTYLE.Icons.SaveButton, "##Save Project"),
             (btwidth, btheight)
         ) && saveproject()
-        CImGui.PopFont()
+        CImGui.PopStyleColor()
         CImGui.EndChild()
-        CImGui.PopStyleColor(3)
+        CImGui.PopFont()
+        CImGui.PopStyleColor(2)
         show_circuit_editor && @c edit(CIRCUIT, "Circuit Editor", &show_circuit_editor)
     end
 
@@ -101,7 +109,7 @@ let
             WORKPATH;
             size=(Cfloat(0), bth),
             coltxt=if WORKPATH == mlstr("no workplace selected!!!")
-                MORESTYLE.Colors.LogError
+                MORESTYLE.Colors.ErrorText
             else
                 CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_Text)
             end
@@ -116,15 +124,24 @@ let
             end
         end
         igSeparatorText("")
-        halfwidth = (CImGui.GetContentRegionAvailWidth() - unsafe_load(IMGUISTYLE.ItemSpacing.x)) / 2
-        btsz = (halfwidth, 2ftsz + unsafe_load(IMGUISTYLE.FramePadding.y))
+        halfwidth = (CImGui.GetContentRegionAvail().x - unsafe_load(IMGUISTYLE.ItemSpacing.x)) / 2
+        bth = 2ftsz + unsafe_load(IMGUISTYLE.FramePadding.y)
         CImGui.PushStyleColor(CImGui.ImGuiCol_Text, MORESTYLE.Colors.IconButton)
-        CImGui.Button(stcstr(MORESTYLE.Icons.NewFile, " ", mlstr("New Task")), btsz) && push!(daqtasks, DAQTask())
+        CImGui.Button(
+            stcstr(MORESTYLE.Icons.NewFile, " ", mlstr("New Task")), (halfwidth, bth)
+        ) && push!(daqtasks, DAQTask())
         CImGui.SameLine()
-        CImGui.Button(stcstr(MORESTYLE.Icons.NewFile, " ", mlstr("New Plot")), btsz) && newplot!(DAQDATAPLOT)
+        CImGui.Button(
+            stcstr(MORESTYLE.Icons.NewFile, " ", mlstr("New Plot")),
+            (halfwidth - 2ftsz - unsafe_load(IMGUISTYLE.ItemSpacing.x), bth)
+        ) && newplot!(DAQDATAPLOT)
+        CImGui.SameLine()
+        CImGui.Button(
+            stcstr(MORESTYLE.Icons.Update, "##update showing plots"), (2ftsz, bth)
+        ) && update!(DAQDATAPLOT, DATABUF, DATABUFPARSED)
         CImGui.PopStyleColor()
-        length(show_daq_editors) == length(daqtasks) || resize!(show_daq_editors, length(daqtasks))
-        length(torunstates) == length(daqtasks) || resize!(torunstates, length(daqtasks))
+        length(show_daq_editors) == length(daqtasks) || resizebool!(show_daq_editors, length(daqtasks))
+        length(torunstates) == length(daqtasks) || resizebool!(torunstates, length(daqtasks))
         daqtaskscdy = (length(daqtasks) + SYNCSTATES[Int(IsDAQTaskRunning)] * length(PROGRESSLIST)) *
                       CImGui.GetFrameHeightWithSpacing() - unsafe_load(IMGUISTYLE.ItemSpacing.y) +
                       2unsafe_load(IMGUISTYLE.WindowPadding.y)
@@ -225,7 +242,7 @@ let
                         confldpath = pick_file(filterlist="cfg,qdt")
                         if isfile(confldpath)
                             loadcfg = @trypass load(confldpath, "daqtask") begin
-                                @error mlstr("unsupported file!!!") filepath = confldpath
+                                @error "[$(now())]\n$(mlstr("unsupported file!!!"))" filepath = confldpath
                             end
                             daqtasks[i] = isnothing(loadcfg) ? task : loadcfg
                         end
@@ -234,7 +251,7 @@ let
                 CImGui.Separator()
                 CImGui.MenuItem(stcstr(MORESTYLE.Icons.Rename, " ", mlstr("Rename"))) && (isrename = true)
                 CImGui.MenuItem(
-                    stcstr(MORESTYLE.Icons.CloseFile, " ", mlstr("Delete")),
+                    stcstr(MORESTYLE.Icons.Delete, " ", mlstr("Delete")),
                     C_NULL, false, !isrunning_i
                 ) && (isdeldaqtask = true)
                 CImGui.EndPopup()
@@ -277,7 +294,7 @@ let
         CImGui.BeginChild("scrobarplot", (halfwidth, Cfloat(0)))
         CImGui.PushStyleColor(CImGui.ImGuiCol_Border, MORESTYLE.Colors.ItemBorder)
         CImGui.PushStyleVar(CImGui.ImGuiStyleVar_ChildBorderSize, 1)
-        editmenu(DAQDATAPLOT)
+        editmenu(DAQDATAPLOT, DATABUF, DATABUFPARSED)
         CImGui.PopStyleVar()
         CImGui.PopStyleColor()
         CImGui.EndChild()
@@ -292,7 +309,7 @@ let
                     confldpath = pick_file(filterlist="cfg")
                     if isfile(confldpath)
                         newdaqtask = @trypasse load(confldpath, "daqtask") begin
-                            @error mlstr("unsupported file!!!") filepath = confldpath
+                            @error "[$(now())]\n$(mlstr("unsupported file!!!"))" filepath = confldpath
                         end
                         isnothing(newdaqtask) || push!(daqtasks, newdaqtask)
                     end
@@ -311,27 +328,7 @@ let
         ### show daq datapickers ###
         showdtpks(DAQDATAPLOT, "DAQ", DATABUF, DATABUFPARSED)
         for i in DAQDATAPLOT.layout.selectedidx
-            if DAQDATAPLOT.linkidx[i] == 0
-                syncplotdata(DAQDATAPLOT.plots[i], DAQDATAPLOT.dtpks[i], DATABUF, DATABUFPARSED)
-            else
-                if true in [
-                    dtss.isrealtime && waittime(stcstr("DataPicker-link", DAQDATAPLOT.plots[i].id, "-", j), dtss.refreshrate)
-                    for (j, dtss) in enumerate(DAQDATAPLOT.dtpks[i].series)
-                ]
-                    pltlink = DAQDATAPLOT.plots[DAQDATAPLOT.linkidx[i]]
-                    dtpklink = DAQDATAPLOT.dtpks[DAQDATAPLOT.linkidx[i]]
-                    linkeddata = Dict{String,VecOrMat{Cdouble}}()
-                    for (j, pss) in enumerate(pltlink.series)
-                        linkeddata["x$j"] = copy(pss.x)
-                        linkeddata["y$j"] = copy(pss.y)
-                        linkeddata["z$j"] = copy(pss.z)
-                        dtpklink.series[j].hflipz && reverse!(linkeddata["z$j"], dims=1)
-                        dtpklink.series[j].vflipz && reverse!(linkeddata["z$j"], dims=2)
-                        linkeddata["z$j"] = transpose(linkeddata["z$j"]) |> collect
-                    end
-                    syncplotdata(DAQDATAPLOT.plots[i], DAQDATAPLOT.dtpks[i], Dict{String,Vector{String}}(), linkeddata)
-                end
-            end
+            syncplotdata(DAQDATAPLOT.plots[i], DAQDATAPLOT.dtpks[i], DATABUF, DATABUFPARSED)
         end
         renderplots(DAQDATAPLOT, "DAQ")
     end
@@ -341,15 +338,15 @@ let
             global WORKPATH
             if ispath(WORKPATH)
                 saveproject(projpath)
-                runalltask = @async @trycatch mlstr("runing daq tasks failed!!!") begin
+                @async @trycatch mlstr("runing daq tasks failed!!!") begin
                     for (i, task) in enumerate(daqtasks)
                         torunstates[i] || continue
                         running_i = i
-                        run(task)
+                        saferun(task)
                         torunstates[running_i] = false
+                        saveproject(projpath)
                         SYNCSTATES[Int(IsInterrupted)] && (SYNCSTATES[Int(IsInterrupted)] = false; break)
                     end
-                    saveproject(projpath)
                 end
                 DAQDATAPLOT.showdtpks .= false
             else
@@ -366,7 +363,7 @@ let
                 jldsave(daqsvpath;
                     daqtasks=daqtasks,
                     circuit=CIRCUIT,
-                    dataplot=empty!(deepcopy(DAQDATAPLOT))
+                    dataplot=deepcopy(DAQDATAPLOT)
                 )
             end
         end
@@ -375,7 +372,7 @@ let
     global function loadproject(daqloadpath)
         if isfile(daqloadpath)
             loaddaqproj = @trypasse load(daqloadpath) begin
-                @error mlstr("unsupported file!!!") filepath = daqloadpath
+                @error "[$(now())]\n$(mlstr("unsupported file!!!"))" filepath = daqloadpath
             end
             if !isnothing(loaddaqproj)
                 projpath = daqloadpath
@@ -387,8 +384,8 @@ let
                             @trycatch mlstr("loading image failed!!!") begin
                                 img = RGBA.(jpeg_decode(node.imgr.image))
                                 imgsize = size(img)
-                                node.imgr.id = ImGui_ImplOpenGL3_CreateImageTexture(imgsize...)
-                                ImGui_ImplOpenGL3_UpdateImageTexture(node.imgr.id, img, imgsize...)
+                                node.imgr.id = CImGui.create_image_texture(imgsize...)
+                                CImGui.update_image_texture(node.imgr.id, img, imgsize...)
                             end
                         end
                     end

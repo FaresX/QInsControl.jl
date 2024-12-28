@@ -7,16 +7,20 @@ let
         width = CImGui.GetItemRectSize().x / 2 - 2CImGui.CalcTextSize(" =>  ").x
         CImGui.SameLine()
         if CImGui.Button(mlstr("Drivers"))
-            driverfile = joinpath(ENV["QInsControlAssets"], "ExtraLoad/$instrnm.jl") |> abspath
-            Threads.@spawn @trycatch mlstr("error editing text!!!") Base.run(Cmd([CONF.Basic.editor, driverfile]))
+            Threads.@spawn @trycatch mlstr("error editing driver!!!") begin
+                driverfile = joinpath(ENV["QInsControlAssets"], "ExtraLoad/$instrnm.jl") |> abspath
+                isfile(driverfile) || FileIO.open(() -> (), driverfile, "w")
+                DefaultApplication.open(driverfile; wait=true)
+                isempty(read(driverfile)) && Base.Filesystem.rm(driverfile; force=true)
+            end
         end
         CImGui.SameLine()
         if CImGui.Button(MORESTYLE.Icons.InstrumentsManualRef)
             for file in readdir(joinpath(ENV["QInsControlAssets"], "ExtraLoad"), join=true)
                 try
-                    endswith(basename(file), ".jl") && remotecall_wait(include, workers()[1], file)
+                    endswith(basename(file), ".jl") && timed_remotecall_wait(include, workers()[1], file; timeout=60)
                 catch e
-                    @error mlstr("reloading drivers failed") exception = e file = file
+                    @error "[$(now())]\n$(mlstr("reloading drivers failed"))" exception = e file = file
                     showbacktrace()
                 end
             end
@@ -25,39 +29,35 @@ let
         # optvalues = join(qtcf.optvalues, "\n")
         # @c(InputTextRSZ("可选值", &optkeys)) && (qtcf.optkeys = split(optkeys, '\n'))
         # @c(InputTextRSZ("可选值", &optvalues)) && (qtcf.optvalues = split(optvalues, '\n'))
-        CImGui.BeginGroup()
 
-        CImGui.BeginGroup()
-        for (i, key) in enumerate(qtcf.optkeys)
-            CImGui.PushID(i)
-            CImGui.PushItemWidth(width)
-            if @c InputTextRSZ("##optkey", &key)
-                key == "" || (qtcf.optkeys[i] = key)
+        if !isempty(qtcf.optkeys)
+            CImGui.BeginGroup()
+            for (i, key) in enumerate(qtcf.optkeys)
+                CImGui.PushID(stcstr("optvalue", i))
+                CImGui.PushItemWidth(width)
+                if @c InputTextRSZ("##optkey", &key)
+                    key == "" || (qtcf.optkeys[i] = key)
+                end
+                CImGui.PopItemWidth()
+                CImGui.SameLine()
+                CImGui.Text(" => ")
+                CImGui.SameLine()
+                CImGui.PushItemWidth(width)
+                val = qtcf.optvalues[i]
+                if @c InputTextRSZ("##optvalue", &val)
+                    val == "" || (qtcf.optvalues[i] = val)
+                end
+                CImGui.PopItemWidth()
+                CImGui.SameLine()
+                if CImGui.Button(MORESTYLE.Icons.Delete)
+                    deleteat!(qtcf.optkeys, i)
+                    deleteat!(qtcf.optvalues, i)
+                end
+                CImGui.PopID()
             end
-            CImGui.PopItemWidth()
+            CImGui.EndGroup()
             CImGui.SameLine()
-            CImGui.Text(" => ")
-            CImGui.SameLine()
-            CImGui.PushItemWidth(width)
-            val = qtcf.optvalues[i]
-            if @c InputTextRSZ("##optvalue", &val)
-                val == "" || (qtcf.optvalues[i] = val)
-            end
-            CImGui.PopItemWidth()
-            CImGui.SameLine()
-            CImGui.PushID("optvalue")
-            if CImGui.Button(MORESTYLE.Icons.CloseFile)
-                deleteat!(qtcf.optkeys, i)
-                deleteat!(qtcf.optvalues, i)
-                break
-            end
-            CImGui.PopID()
-            CImGui.PopID()
         end
-        CImGui.EndGroup()
-
-        CImGui.EndGroup()
-        CImGui.SameLine()
         CImGui.PushID("addopt")
         if CImGui.Button(MORESTYLE.Icons.NewFile)
             push!(qtcf.optkeys, string("key", length(qtcf.optkeys) + 1))
@@ -68,16 +68,16 @@ let
         CImGui.Text(mlstr("optional values"))
         @c ComboS(mlstr("variable type"), &qtcf.type, ["sweep", "set", "read"])
         CImGui.PushItemWidth((CImGui.CalcItemWidth() - unsafe_load(IMGUISTYLE.ItemSpacing.x)) / 2)
-        @c InputTextRSZ(mlstr("##separator"), &qtcf.separator)
+        @c InputTextRSZ(mlstr("##separator"), &qtcf.separator, ImGuiInputTextFlags_AllowTabInput)
         CImGui.SameLine()
         qtcf.separator == "" && (qtcf.numread = 1)
         @c CImGui.DragInt(mlstr("separator"), &qtcf.numread, 1, 1, 36, "%d", CImGui.ImGuiSliderFlags_AlwaysClamp)
         CImGui.PopItemWidth()
-        CImGui.TextColored(MORESTYLE.Colors.LogInfo, mlstr("help document"))
+        CImGui.TextColored(MORESTYLE.Colors.InfoText, mlstr("help document"))
         if edithelp
             lines = split(qtcf.help, '\n')
             x = CImGui.CalcTextSize(lines[argmax(lengthpr.(lines))]).x
-            width = CImGui.GetContentRegionAvailWidth()
+            width = CImGui.GetContentRegionAvail().x
             x = x > width ? x : width
             y = (1 + length(findall("\n", qtcf.help))) * CImGui.GetTextLineHeight() + 2unsafe_load(IMGUISTYLE.FramePadding.y)
             CImGui.BeginChild("edit help", (Cfloat(0), y), false, CImGui.ImGuiWindowFlags_HorizontalScrollbar)
@@ -107,7 +107,11 @@ let
             stcstr(MORESTYLE.Icons.InstrumentsRegister, "  ", mlstr("Instrument Registration"), "###ins reg"),
             p_open
         )
-            SetWindowBgImage()
+            SetWindowBgImage(
+                CONF.BGImage.registration.path;
+                rate=CONF.BGImage.registration.rate,
+                use=CONF.BGImage.registration.use
+            )
             CImGui.Columns(2)
             firsttime && (CImGui.SetColumnOffset(1, CImGui.GetWindowWidth() * 0.25); firsttime = false)
             CImGui.PushStyleColor(CImGui.ImGuiCol_ChildBg, MORESTYLE.Colors.ToolBarBg)
@@ -135,7 +139,7 @@ let
                 if !(newinsnm == "" || haskey(INSCONF, newinsnm))
                     if isrename[oldinsnm] && !renamei
                         setvalue!(INSCONF, oldinsnm, newinsnm => inscf)
-                        remotecall_wait(workers()[1], oldinsnm, newinsnm, inscf) do oldinsnm, newinsnm, inscf
+                        timed_remotecall_wait(workers()[1], oldinsnm, newinsnm, inscf) do oldinsnm, newinsnm, inscf
                             setvalue!(INSCONF, oldinsnm, newinsnm => inscf)
                         end
                         INSTRBUFFERVIEWERS[newinsnm] = pop!(INSTRBUFFERVIEWERS, oldinsnm)
@@ -149,7 +153,7 @@ let
                 end
                 if CImGui.BeginPopupContextItem()
                     CImGui.MenuItem(
-                        stcstr(MORESTYLE.Icons.CloseFile, " ", mlstr("Delete"), "##INSCONF"),
+                        stcstr(MORESTYLE.Icons.Delete, " ", mlstr("Delete"), "##INSCONF"),
                         C_NULL,
                         false,
                         oldinsnm ∉ ["VirtualInstr", "Others"]
@@ -162,7 +166,7 @@ let
                     CImGui.ImGuiWindowFlags_AlwaysAutoResize
                 )
                     pop!(INSCONF, oldinsnm, 0)
-                    remotecall_wait(workers()[1], oldinsnm) do oldinsnm
+                    timed_remotecall_wait(workers()[1], oldinsnm) do oldinsnm
                         pop!(INSCONF, oldinsnm, 0)
                     end
                     pop!(INSTRBUFFERVIEWERS, oldinsnm, 0)
@@ -174,9 +178,9 @@ let
             end
             CImGui.PopStyleVar()
             CImGui.EndChild()
-            btwidth = CImGui.GetContentRegionAvailWidth() - unsafe_load(IMGUISTYLE.ItemSpacing.x)
+            btwidth = CImGui.GetContentRegionAvail().x - unsafe_load(IMGUISTYLE.ItemSpacing.x)
             CImGui.SetCursorPosY(
-                CImGui.GetWindowContentRegionMax().y - 2CImGui.GetFrameHeight() - unsafe_load(IMGUISTYLE.ItemSpacing.y)
+                CImGui.GetWindowHeight() - 2CImGui.GetFrameHeight() - unsafe_load(IMGUISTYLE.ItemSpacing.y)
             )
             CImGui.Separator()
             CImGui.PushStyleColor(CImGui.ImGuiCol_Button, (0, 0, 0, 0))
@@ -214,22 +218,20 @@ let
                         end
                         @c ComboS(mlstr("command type"), &selectedinscf.conf.cmdtype, ["scpi", "tsp", ""])
                         width = CImGui.GetItemRectSize().x / 3
-                        CImGui.TextColored(MORESTYLE.Colors.LogInfo, mlstr("interface"))
+                        CImGui.TextColored(MORESTYLE.Colors.InfoText, mlstr("interface"))
                         CImGui.BeginGroup()
                         if CImGui.Button(stcstr(MORESTYLE.Icons.NewFile, " ", mlstr("input")), (width, Cfloat(0)))
                             push!(selectedinscf.conf.input_labels, string("Input ", length(selectedinscf.conf.input_labels) + 1))
                         end
                         for (i, input) in enumerate(selectedinscf.conf.input_labels)
-                            CImGui.PushID(i)
+                            CImGui.PushID(stcstr("Input", i))
                             CImGui.PushItemWidth(width)
                             if @c InputTextRSZ("##Input", &input)
                                 input == "" || (selectedinscf.conf.input_labels[i] = input)
                             end
                             CImGui.PopItemWidth()
                             CImGui.SameLine()
-                            CImGui.PushID("Input")
-                            CImGui.Button(MORESTYLE.Icons.CloseFile) && (deleteat!(selectedinscf.conf.input_labels, i); break)
-                            CImGui.PopID()
+                            CImGui.Button(MORESTYLE.Icons.Delete) && deleteat!(selectedinscf.conf.input_labels, i)
                             CImGui.PopID()
                         end
                         CImGui.EndGroup()
@@ -242,16 +244,14 @@ let
                             )
                         end
                         for (i, output) in enumerate(selectedinscf.conf.output_labels)
-                            CImGui.PushID(i)
+                            CImGui.PushID(stcstr("Output", i))
                             CImGui.PushItemWidth(width)
                             if @c InputTextRSZ("##Output", &output)
                                 output == "" || (selectedinscf.conf.output_labels[i] = output)
                             end
                             CImGui.PopItemWidth()
                             CImGui.SameLine()
-                            CImGui.PushID("Output")
-                            CImGui.Button(MORESTYLE.Icons.CloseFile) && (deleteat!(selectedinscf.conf.output_labels, i); break)
-                            CImGui.PopID()
+                            CImGui.Button(MORESTYLE.Icons.Delete) && deleteat!(selectedinscf.conf.output_labels, i)
                             CImGui.PopID()
                         end
                         CImGui.EndGroup()
@@ -266,9 +266,9 @@ let
                             end
                         end
                         CImGui.SameLine()
-                        if CImGui.Button(stcstr(MORESTYLE.Icons.CloseFile, "##QuantityConf"))
+                        if CImGui.Button(stcstr(MORESTYLE.Icons.Delete, "##QuantityConf"))
                             pop!(selectedinscf.quantities, selectedqt, 0)
-                            remotecall_wait(workers()[1], selectedins, selectedqt) do selectedins, selectedqt
+                            timed_remotecall_wait(workers()[1], selectedins, selectedqt) do selectedins, selectedqt
                                 pop!(INSCONF[selectedins].quantities, selectedqt, 0)
                             end
                             for ibv in values(INSTRBUFFERVIEWERS[selectedins])
@@ -282,7 +282,7 @@ let
                         # CImGui.SameLine()
                         if CImGui.Button(stcstr(MORESTYLE.Icons.SaveButton, " ", mlstr("Save"), "##QuantityConf to INSCONF"))
                             selectedinscf.quantities[qtname] = deepcopy(editqt)
-                            remotecall_wait(workers()[1], selectedins, qtname, editqt) do selectedins, qtname, editqt
+                            timed_remotecall_wait(workers()[1], selectedins, qtname, editqt) do selectedins, qtname, editqt
                                 INSCONF[selectedins].quantities[qtname] = editqt
                             end
                             cmdtype = Symbol("@", INSCONF[selectedins].conf.cmdtype)
@@ -407,7 +407,7 @@ function saveinswconf()
     for (ins, widgets) in INSWCONF
         cfpath = joinpath(ENV["QInsControlAssets"], "Widgets/$ins.toml")
         readcf = @trypasse TOML.parsefile(cfpath) nothing
-        if readcf != Dict(w => Dict(to_dict(w)) for w in widgets)
+        if readcf != Dict(w.name => Dict(to_dict(w)) for w in widgets)
             @trycatch mlstr("saving INSWCONF failed!!!") begin
                 open(cfpath, "w") do file
                     TOML.print(file, Dict(w.name => to_dict(w) for w in widgets))

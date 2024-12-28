@@ -26,14 +26,15 @@ function ShowUnit(id, utype, ui::Ref{Int}, flags=CImGui.ImGuiComboFlags_NoArrowB
 end
 
 function YesNoDialog(id, msg, flags=0)::Bool
+    retval = false
     if CImGui.BeginPopupModal(id, C_NULL, flags)
-        CImGui.TextColored(MORESTYLE.Colors.LogError, string("\n", msg, "\n\n"))
-        CImGui.Button(mlstr("Confirm")) && (CImGui.CloseCurrentPopup(); return true)
+        CImGui.TextColored(MORESTYLE.Colors.ErrorText, string("\n", msg, "\n\n"))
+        CImGui.Button(mlstr("Confirm")) && (CImGui.CloseCurrentPopup(); retval = true)
         CImGui.SameLine(240)
-        CImGui.Button(mlstr("Cancel")) && (CImGui.CloseCurrentPopup(); return false)
+        CImGui.Button(mlstr("Cancel")) && CImGui.CloseCurrentPopup()
         CImGui.EndPopup()
     end
-    return false
+    return retval
 end
 
 function TextRect(
@@ -46,9 +47,9 @@ function TextRect(
     coltxt=CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_Text)
 )
     draw_list = CImGui.GetWindowDrawList()
-    availwidth = CImGui.GetContentRegionAvailWidth()
+    availwidth = CImGui.GetContentRegionAvail().x
     nochild || CImGui.SetCursorScreenPos(CImGui.GetCursorScreenPos() .+ padding)
-    nochild || CImGui.BeginChild("TextRect", size .- 2padding, true)
+    nochild || CImGui.BeginChild("TextRect", size .- 2padding, ImGuiChildFlags_Borders)
     CImGui.SetCursorScreenPos(CImGui.GetCursorScreenPos() .+ padding .+ thickness)
     CImGui.PushTextWrapPos(nochild ? availwidth - padding[1] : 0)
     CImGui.PushStyleColor(CImGui.ImGuiCol_Text, coltxt)
@@ -64,7 +65,7 @@ function TextRect(
     CImGui.AddRect(
         draw_list,
         recta, rectb,
-        CImGui.ColorConvertFloat4ToU32(MORESTYLE.Colors.ShowTextRect),
+        MORESTYLE.Colors.ShowTextRect,
         bdrounding,
         0,
         thickness
@@ -127,11 +128,11 @@ function (rszcd::ResizeChild)(f, id, args...; kwargs...)
         CImGui.GetWindowDrawList(),
         (rszcd.posmax.x - rszcd.rszgripsize, rszcd.posmax.y), rszcd.posmax, (rszcd.posmax.x, rszcd.posmax.y - rszcd.rszgripsize),
         if rszcd.hovered && rszcd.dragging
-            CImGui.ColorConvertFloat4ToU32(CImGui.c_get(IMGUISTYLE.Colors, ImGuiCol_ResizeGripActive))
+            CImGui.c_get(IMGUISTYLE.Colors, ImGuiCol_ResizeGripActive)
         elseif rszcd.hovered
-            CImGui.ColorConvertFloat4ToU32(CImGui.c_get(IMGUISTYLE.Colors, ImGuiCol_ResizeGripHovered))
+            CImGui.c_get(IMGUISTYLE.Colors, ImGuiCol_ResizeGripHovered)
         else
-            CImGui.ColorConvertFloat4ToU32(CImGui.c_get(IMGUISTYLE.Colors, ImGuiCol_ResizeGrip))
+            CImGui.c_get(IMGUISTYLE.Colors, ImGuiCol_ResizeGrip)
         end
     )
     rszcd.posmin = CImGui.GetItemRectMin()
@@ -189,7 +190,7 @@ end
 function draw(dp::DragPoint)
     CImGui.AddCircleFilled(
         CImGui.GetWindowDrawList(), dp.pos, dp.radius,
-        CImGui.ColorConvertFloat4ToU32(dp.dragging ? dp.cola : dp.hovered ? dp.colh : dp.col)
+        dp.dragging ? dp.cola : dp.hovered ? dp.colh : dp.col
     )
 end
 
@@ -236,22 +237,20 @@ function draw(dr::DragRect)
     drawlist = CImGui.GetWindowDrawList()
     CImGui.AddRectFilled(
         drawlist, dr.posmin, dr.posmax,
-        CImGui.ColorConvertFloat4ToU32(dr.dragging ? dr.cola : dr.hovered && !dr.griphovered && !dr.gripdragging ? dr.colh : dr.col),
+        dr.dragging ? dr.cola : dr.hovered && !dr.griphovered && !dr.gripdragging ? dr.colh : dr.col,
         dr.rounding
     )
     CImGui.AddTriangleFilled(
         drawlist,
         (dr.posmax.x - dr.rszgripsize, dr.posmax.y), dr.posmax, (dr.posmax.x, dr.posmax.y - dr.rszgripsize),
-        CImGui.ColorConvertFloat4ToU32(
-            CImGui.c_get(
-                IMGUISTYLE.Colors,
-                dr.gripdragging ? ImGuiCol_ResizeGripActive : dr.griphovered ? ImGuiCol_ResizeGripHovered : ImGuiCol_ResizeGrip
-            )
+        CImGui.c_get(
+            IMGUISTYLE.Colors,
+            dr.gripdragging ? ImGuiCol_ResizeGripActive : dr.griphovered ? ImGuiCol_ResizeGripHovered : ImGuiCol_ResizeGrip
         )
     )
     CImGui.AddRect(
         drawlist, dr.posmin, dr.posmax,
-        CImGui.ColorConvertFloat4ToU32(dr.dragging ? dr.colbda : dr.hovered && !dr.griphovered && !dr.gripdragging ? dr.colbdh : dr.colbd),
+        dr.dragging ? dr.colbda : dr.hovered && !dr.griphovered && !dr.gripdragging ? dr.colbdh : dr.colbd,
         dr.bdrounding, ImDrawFlags_RoundCornersAll, dr.thickness
     )
 end
@@ -320,7 +319,7 @@ function ExtDrawLine(point0, point1, color, linewidth)
         CImGui.GetWindowDrawList(),
         ImVec2(CImGui.GetCursorScreenPos()[1] + point0[1], CImGui.GetCursorScreenPos()[2] + point0[2]),
         ImVec2(CImGui.GetCursorScreenPos()[1] + point1[1], CImGui.GetCursorScreenPos()[2] + point1[2]),
-        CImGui.ColorConvertFloat4ToU32(color),
+        color,
         linewidth
     )
 end
@@ -328,7 +327,7 @@ function ExtDrawText(position, color, text)
     CImGui.AddText(
         CImGui.GetWindowDrawList(),
         ImVec2(CImGui.GetCursorScreenPos()[1] + position[1], CImGui.GetCursorScreenPos()[2] + position[2]),
-        CImGui.ColorConvertFloat4ToU32(color),
+        color,
         text
     )
 end
@@ -337,7 +336,7 @@ function ExtDrawRectangleFill(position, size, color; rounding=0)
         CImGui.GetWindowDrawList(),
         ImVec2(CImGui.GetCursorScreenPos()[1] + position[1], CImGui.GetCursorScreenPos()[2] + position[2]),
         ImVec2(CImGui.GetCursorScreenPos()[1] + position[1] + size[1], CImGui.GetCursorScreenPos()[2] + position[2] + size[2]),
-        CImGui.ColorConvertFloat4ToU32(color), rounding
+        color, rounding
     )
 end
 function ExtDrawRectangle(position, size, color; thickness=0, rounding=0)
@@ -345,7 +344,7 @@ function ExtDrawRectangle(position, size, color; thickness=0, rounding=0)
         CImGui.GetWindowDrawList(),
         ImVec2(CImGui.GetCursorScreenPos()[1] + position[1], CImGui.GetCursorScreenPos()[2] + position[2]),
         ImVec2(CImGui.GetCursorScreenPos()[1] + position[1] + size[1], CImGui.GetCursorScreenPos()[2] + position[2] + size[2]),
-        CImGui.ColorConvertFloat4ToU32(color), rounding, thickness
+        color, rounding, 0, thickness
     )
 end
 function ExtDrawCircleFill(position, size, color; num_segments=24)
@@ -353,7 +352,7 @@ function ExtDrawCircleFill(position, size, color; num_segments=24)
         CImGui.GetWindowDrawList(),
         ImVec2(CImGui.GetCursorScreenPos()[1] + position[1], CImGui.GetCursorScreenPos()[2] + position[2]),
         size,
-        CImGui.ColorConvertFloat4ToU32(color),
+        color,
         num_segments
     )
 end
@@ -593,8 +592,8 @@ end
 let
     framecount::Cint = 0
     global function SetWindowBgImage(
-        path=CONF.BGImage.path;
-        rate=CONF.BGImage.rate, use=CONF.BGImage.useall, tint_col=MORESTYLE.Colors.BgImageTint
+        path=CONF.BGImage.main.path;
+        rate=CONF.BGImage.main.rate, use=CONF.BGImage.main.use, tint_col=MORESTYLE.Colors.BgImageTint
     )
         if use
             wpos = CImGui.GetWindowPos()
@@ -605,8 +604,8 @@ let
                 framecount % rate == 0 && move!(IMAGES[path])
             end
             CImGui.AddImage(
-                CImGui.GetWindowDrawList(), Ptr{Cvoid}(IMAGES[path][]), wpos, wpos .+ wsz, (0, 0), (1, 1),
-                CImGui.ColorConvertFloat4ToU32(tint_col)
+                CImGui.GetWindowDrawList(), CImGui.ImTextureID(IMAGES[path][]), wpos, wpos .+ wsz, (0, 0), (1, 1),
+                tint_col
             )
         end
     end

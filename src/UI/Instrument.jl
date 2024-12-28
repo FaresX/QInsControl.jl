@@ -6,6 +6,7 @@ function autodetect()
 end
 
 function manualadd(addr)
+    addr == "" && return false
     addr == "VirtualAddress" && return true
     idn = "IDN"
     st = true
@@ -13,7 +14,7 @@ function manualadd(addr)
     if occursin("VIRTUAL", addr)
         idn = split(addr, "::")[end]
     else
-        idnr = wait_remotecall_fetch(workers()[1], addr) do addr
+        idnr = timed_remotecall_fetch(workers()[1], addr; timeout=CONF.DAQ.cttimeout) do addr
             ct = Controller("", addr; buflen=1, timeout=CONF.DAQ.cttimeout)
             try
                 login!(CPU, ct; attr=getattr(addr))
@@ -43,8 +44,8 @@ function manualadd(addr)
             end
         end
     end
-    addr == "" || (INSTRBUFFERVIEWERS["Others"][addr] = InstrBufferViewer("Others", addr))
-    return st
+    INSTRBUFFERVIEWERS["Others"][addr] = InstrBufferViewer("Others", addr)
+    return false
 end
 
 function refresh_instrlist()

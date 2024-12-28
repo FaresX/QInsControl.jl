@@ -38,6 +38,10 @@ end
 end
 
 @kwdef mutable struct VirtualInstrAttr <: InstrAttr
+    timeoutw::Real = 6
+    timeoutr::Real = 6
+    querydelay::Real = 0
+    termchar::Char = '\n'
 end
 
 struct VISAInstr <: Instrument
@@ -204,8 +208,7 @@ read the instrument.
 """
 function Base.read(instr::Instrument)
     t = @async readuntil(instr.handle, instr.attr.termchar)
-    isok = timedwhile(() -> istaskdone(t), instr.attr.timeoutr)
-    return isok ? fetch(t) : (schedule(t, "read $(instr.addr) time out"; error=true); error("read $(instr.addr) time out"))
+    timedwhilefetch(t, instr.attr.timeoutr; msg="read $(instr.addr) time out", throwerror=true)
 end
 Base.read(instr::VISAInstr) = (instr.attr.async ? readasync : Instruments.read)(instr.handle)
 Base.read(::VirtualInstr) = "read"
@@ -233,3 +236,20 @@ query(::VirtualInstr, ::AbstractString; delay=0) = "query"
 determine if the instrument is connected.
 """
 isconnected(instr::Instrument) = instr.connected[]
+
+function clearbuffer(instr::Instrument)
+    try
+        read(instr)
+    catch
+    end
+    i = 0
+    while i < 6
+        try
+            read(instr)
+        catch
+            break
+        end
+        i += 1
+        yield()
+    end
+end

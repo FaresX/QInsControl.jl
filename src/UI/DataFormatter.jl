@@ -31,7 +31,7 @@ const FORMATTERCODEMODES = ["default"]
 function edit(fc::FormatCodes, _)
     lines = split(fc.codes, '\n')
     x = CImGui.CalcTextSize(lines[argmax(lengthpr.(lines))]).x + 2CImGui.GetFontSize()
-    width = CImGui.GetContentRegionAvailWidth()
+    width = CImGui.GetContentRegionAvail().x
     x = x > width ? x : width
     y = (1 + length(findall("\n", fc.codes))) * CImGui.GetTextLineHeight() + 2unsafe_load(IMGUISTYLE.FramePadding.y)
     CImGui.BeginChild("##FormatCodes", (Cfloat(0), y), false, CImGui.ImGuiWindowFlags_HorizontalScrollbar)
@@ -46,7 +46,7 @@ function edit(fc::FormatCodes, _)
     CImGui.Button(mlstr("Codes"), (-1, 0))
 end
 
-function edit(fd::FormatData, _)
+function edit(fd::FormatData, id)
     ftsz = CImGui.GetFontSize()
     CImGui.PushStyleColor(CImGui.ImGuiCol_Border, MORESTYLE.Colors.FormatDataBorder)
     CImGui.PushStyleVar(CImGui.ImGuiStyleVar_ChildBorderSize, 1)
@@ -65,9 +65,23 @@ function edit(fd::FormatData, _)
     )
     if CImGui.Button(ICONS.ICON_EYE, (2ftsz, Cfloat(0)))
         fd.dtviewer.p_open ⊻= true
-        fd.dtviewer.p_open ? loaddtviewer!(fd.dtviewer, fd.path) : (fd.dtviewer = DataViewer(p_open=false))
+        if fd.dtviewer.p_open
+            loaddtviewer!(fd.dtviewer, fd.path, stcstr("formatdata", id))
+        else
+            atclosedtviewer!(fd.dtviewer)
+            fd.dtviewer = DataViewer(p_open=false)
+        end
     end
     CImGui.PopStyleColor()
+    CImGui.SameLine()
+    if CImGui.Button(MORESTYLE.Icons.DataFormatter, (2ftsz, Cfloat(0)))
+        if haskey(fd.dtviewer.data, "data")
+            exportdata(fd.dtviewer.data["data"])
+        else
+            loaddtviewer!(fd.dtviewer, fd.path, stcstr("formatdata", id))
+            haskey(fd.dtviewer.data, "data") && exportdata(fd.dtviewer.data["data"])
+        end
+    end
     CImGui.SameLine()
     CImGui.PushStyleVar(CImGui.ImGuiStyleVar_ItemSpacing, (0, 0))
     CImGui.PushItemWidth(2ftsz)
@@ -93,7 +107,7 @@ function edit(fdg::FormatDataGroup, id)
         CImGui.PushID(i)
         edit(fd, stcstr(id, '-', i))
         if CImGui.BeginPopupContextItem()
-            CImGui.MenuItem(stcstr(MORESTYLE.Icons.CloseFile, " ", mlstr("Delete"))) && (deleteat!(fdg.data, i); break)
+            CImGui.MenuItem(stcstr(MORESTYLE.Icons.Delete, " ", mlstr("Delete"))) && deleteat!(fdg.data, i)
             CImGui.EndPopup()
         end
         CImGui.PopID()
@@ -125,9 +139,13 @@ function edit(fdg::FormatDataGroup, id)
     )
     if CImGui.Button(ICONS.ICON_EYE, (2ftsz, Cfloat(0)))
         fdg.dtviewer.p_open ⊻= true
-        fdg.dtviewer.p_open && loaddtviewer!(fdg)
+        fdg.dtviewer.p_open && loaddtviewer!(fdg, id)
     end
     CImGui.PopStyleColor()
+    CImGui.SameLine()
+    if CImGui.Button(ICONS.ICON_ROTATE, (2ftsz, Cfloat(0)))
+        fdg.dtviewer.p_open || (fdg.dtviewer = DataViewer(p_open=false))
+    end
     CImGui.SameLine()
     if @c CImGui.Checkbox(ICONS.ICON_CODE_MERGE, &fdg.merge)
         fdg.dtviewer.p_open || (fdg.dtviewer = DataViewer(p_open=false))
@@ -154,13 +172,13 @@ end
 function edit(dft::DataFormatter, id)
     CImGui.SetNextWindowSize((400, 600), CImGui.ImGuiCond_Once)
     if @c CImGui.Begin(stcstr(MORESTYLE.Icons.DataFormatter, " ", mlstr("Data Formatter"), "##", id), &dft.p_open)
-        SetWindowBgImage()
-        CImGui.PushFont(PLOTFONT)
+        SetWindowBgImage(CONF.BGImage.formatter.path; rate=CONF.BGImage.formatter.rate, use=CONF.BGImage.formatter.use)
+        CImGui.PushFont(BIGFONT)
         CImGui.AddRectFilled(
             CImGui.GetWindowDrawList(),
             CImGui.GetCursorScreenPos(),
-            CImGui.GetCursorScreenPos() .+ (CImGui.GetWindowContentRegionMax().x, CImGui.GetFrameHeight() + unsafe_load(IMGUISTYLE.ItemSpacing.y)),
-            CImGui.ColorConvertFloat4ToU32(MORESTYLE.Colors.ToolBarBg)
+            CImGui.GetCursorScreenPos() .+ (CImGui.GetWindowWidth(), CImGui.GetFrameHeight() + unsafe_load(IMGUISTYLE.ItemSpacing.y)),
+            MORESTYLE.Colors.ToolBarBg
         )
         CImGui.Button(MORESTYLE.Icons.NewFile)
         rmin = CImGui.GetItemRectMin()
@@ -176,15 +194,15 @@ function edit(dft::DataFormatter, id)
         rmax = CImGui.GetItemRectMax()
         CImGui.AddRect(
             CImGui.GetWindowDrawList(), rmin, rmax,
-            CImGui.ColorConvertFloat4ToU32(MORESTYLE.Colors.ShowTextRect),
+            MORESTYLE.Colors.ShowTextRect,
             MORESTYLE.Variables.TextRectRounding, ImDrawFlags_RoundCornersAll, MORESTYLE.Variables.TextRectThickness
         )
         CImGui.SameLine()
-        CImGui.Button(MORESTYLE.Icons.CloseFile, (3ftsz / 2, Cfloat(0))) && (isempty(dft.data) || pop!(dft.data))
-        CImGui.SameLine()
-        if CImGui.Button(MORESTYLE.Icons.DataFormatter, (3ftsz / 2, Cfloat(0)))
-            @trycatch mlstr("formatting data failed!") formatdata(dft.data)
-        end
+        CImGui.Button(MORESTYLE.Icons.Delete, (3ftsz / 2, Cfloat(0))) && (isempty(dft.data) || pop!(dft.data))
+        # CImGui.SameLine()
+        # if CImGui.Button(MORESTYLE.Icons.DataFormatter, (3ftsz / 2, Cfloat(0)))
+        #     @trycatch mlstr("formatting data failed!") formatdata(dft.data)
+        # end
         CImGui.PopStyleColor(2)
         CImGui.PopFont()
         # igSeparatorText("")
@@ -192,7 +210,7 @@ function edit(dft::DataFormatter, id)
             CImGui.PushID(i)
             edit(fd, stcstr(id, '-', i))
             if CImGui.BeginPopupContextItem()
-                CImGui.MenuItem(stcstr(MORESTYLE.Icons.CloseFile, " ", mlstr("Delete"))) && (deleteat!(dft.data, i); break)
+                CImGui.MenuItem(stcstr(MORESTYLE.Icons.Delete, " ", mlstr("Delete"))) && deleteat!(dft.data, i)
                 CImGui.EndPopup()
             end
             CImGui.Spacing()
@@ -222,7 +240,12 @@ function edit(dft::DataFormatter, id)
     end
 end
 
-function loaddtviewer!(fdg::FormatDataGroup)
+atclosedataformatter!(dft::DataFormatter) = atcloseformatdata!.(dft.data)
+atcloseformatdata!(d::FormatData) = d.dtviewer.p_open && atclosedtviewer!(d.dtviewer)
+atcloseformatdata!(d::FormatDataGroup) = (atcloseformatdata!.(d.data); d.dtviewer.p_open && atclosedtviewer!(d.dtviewer))
+atcloseformatdata!(::FormatCodes) = nothing
+
+function loaddtviewer!(fdg::FormatDataGroup, id)
     haskey(fdg.dtviewer.data, "data") ? (return) : fdg.dtviewer.data["data"] = Dict{String,Vector{String}}()
     if length(fdg.data) == 2
         bnm1 = basename(fdg.data[1].path)
@@ -233,9 +256,9 @@ function loaddtviewer!(fdg::FormatDataGroup)
            bnm1s[end-1] in ["cfg", "qdt"] && bnm2s[end-1] in ["cfg", "qdt"] &&
            join(bnm1s[1:end-2], ".") == join(bnm2s[1:end-2], ".")
             if bnm1s[end-1] == "cfg"
-                mergecache!(fdg.dtviewer, fdg.data[1].path, fdg.data[2].path)
+                mergecache!(fdg.dtviewer, fdg.data[1].path, fdg.data[2].path, id)
             else
-                mergecache!(fdg.dtviewer, fdg.data[2].path, fdg.data[1].path)
+                mergecache!(fdg.dtviewer, fdg.data[2].path, fdg.data[1].path, id)
             end
             return nothing
         end
@@ -262,7 +285,7 @@ function loaddtviewer!(fdg::FormatDataGroup)
             end
         end
     end
-    fdg.dtviewer.data["dataplot"] = empty!(deepcopy(fdg.dtviewer.dtp))
+    fdg.dtviewer.data["dataplot"] = deepcopy(fdg.dtviewer.dtp)
     fdg.dtviewer.data["daqtask"] = DAQTask(
         explog=join([string("Data ", i, '\n', fd.path) for (i, fd) in enumerate(fdg.data)], '\n'),
         blocks=[]
@@ -277,7 +300,10 @@ function showdtviewer(fd::FormatData, id)
         @c(CImGui.Begin(stcstr("FormatData", id), &fd.dtviewer.p_open)) && edit(fd.dtviewer, fd.path, stcstr("FormatData", id))
         CImGui.End()
         fd.dtviewer.p_open && haskey(fd.dtviewer.data, "data") && renderplots(fd.dtviewer.dtp, stcstr("formatdata", id))
-        fd.dtviewer.p_open || (fd.dtviewer = DataViewer(p_open=false))
+        if !fd.dtviewer.p_open
+            atclosedtviewer!(fd.dtviewer)
+            fd.dtviewer = DataViewer(p_open=false)
+        end
     end
 end
 function showdtviewer(fdg::FormatDataGroup, id)
@@ -335,9 +361,14 @@ function readqdtcache(path)
     end
     return data
 end
-function mergecache!(dtviewer::DataViewer, cfgcachepath, qdtcachepath)
+function mergecache!(dtviewer::DataViewer, cfgcachepath, qdtcachepath, id)
     qdata = readqdtcache(qdtcachepath)
     cfg = load(cfgcachepath)
+    if haskey(cfg, "EXTRADATA")
+        for (key, val) in cfg["EXTRADATA"]
+            qdata[key] = val
+        end
+    end
     data = Dict()
     savetype = eval(Symbol(CONF.DAQ.savetype))
     if savetype == String
@@ -351,7 +382,8 @@ function mergecache!(dtviewer::DataViewer, cfgcachepath, qdtcachepath)
         data["data"] = datafloat
     end
     for (key, val) in cfg
+        key == "EXTRADATA" && continue
         data[key] = val
     end
-    loaddtviewer!(dtviewer, data)
+    loaddtviewer!(dtviewer, data, stcstr("formatdatagroup", id))
 end

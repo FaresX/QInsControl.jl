@@ -4,72 +4,6 @@
     p_open::Bool = true
 end
 
-@kwdef mutable struct FileViewer
-    filetree::FileTree = FileTree()
-    isrename::Dict{String,Bool} = Dict()
-    dtviewers::Dict{String,DataViewer} = Dict()
-    p_open::Bool = true
-    noclose::Bool = true
-end
-
-function edit(fv::FileViewer, id)
-    CImGui.SetNextWindowSize((400, 600), CImGui.ImGuiCond_Once)
-    if @c CImGui.Begin(
-        if fv.filetree.rootpath_bnm == ""
-            stcstr(MORESTYLE.Icons.OpenFile, "  ", mlstr("Data Browse"), "###dtv", id)
-        else
-            stcstr(MORESTYLE.Icons.OpenFolder, "  ", mlstr("Data Browse"), "###dtv", id)
-        end,
-        &fv.p_open
-    )
-        SetWindowBgImage()
-
-        oldfiles = copy(fv.filetree.selectedpathes)
-        InputTextRSZ(stcstr(mlstr("Filter"), "##", id), fv.filetree.filter)
-        CImGui.SameLine()
-        CImGui.Checkbox(mlstr("Valid"), fv.filetree.valid)
-        CImGui.PushStyleColor(CImGui.ImGuiCol_ChildBg, MORESTYLE.Colors.ToolBarBg)
-        edit(fv.filetree, fv.isrename, false)
-        if fv.filetree.selectedpathes != oldfiles
-            for path in fv.filetree.selectedpathes
-                haskey(fv.dtviewers, path) || push!(fv.dtviewers, path => DataViewer())
-                path in oldfiles || loaddtviewer!(fv.dtviewers[path], path)
-            end
-            for path in keys(fv.dtviewers)
-                path in fv.filetree.selectedpathes || delete!(fv.dtviewers, path)
-            end
-        end
-        CImGui.PopStyleColor()
-        fv.filetree.rootpath_bnm != "" && CImGui.IsMouseClicked(1) && !CImGui.IsAnyItemHovered() &&
-            CImGui.IsWindowHovered(CImGui.ImGuiHoveredFlags_RootAndChildWindows) && CImGui.OpenPopup("File Menu")
-        if CImGui.BeginPopup("File Menu")
-            if CImGui.MenuItem(stcstr(MORESTYLE.Icons.InstrumentsAutoRef, " ", mlstr("Refresh")))
-                fv.filetree.filetrees = FolderFileTree(
-                    fv.filetree.rootpath,
-                    fv.filetree.selectedpathes,
-                    fv.filetree.filter,
-                    fv.filetree.valid
-                ).filetrees
-            end
-            CImGui.EndPopup()
-        end
-    end
-    CImGui.End()
-    for path in fv.filetree.selectedpathes
-        haskey(fv.dtviewers, path) || push!(fv.dtviewers, path => DataViewer())
-        dtviewer = fv.dtviewers[path]
-        CImGui.SetNextWindowSize((600, 600), CImGui.ImGuiCond_Once)
-        @c(CImGui.Begin(stcstr(basename(path), "##", id, path), &dtviewer.p_open)) && edit(dtviewer, path, string(id, path))
-        CImGui.End()
-        if dtviewer.p_open
-            haskey(dtviewer.data, "data") && renderplots(dtviewer.dtp, stcstr("DataViewer", id, path))
-        else
-            delete!(fv.dtviewers, path)
-            deleteat!(fv.filetree.selectedpathes, findall(==(path), fv.filetree.selectedpathes))
-        end
-    end
-end
-
 function edit(dtviewer::DataViewer, path, id)
     CImGui.BeginChild("DataViewer")
     if CImGui.BeginTabBar("Data Viewer")
@@ -86,7 +20,7 @@ function edit(dtviewer::DataViewer, path, id)
                 CImGui.BeginChild("instrument status")
                 for insbuf in insbufkeys
                     logtime::String = split(insbuf, "/")[2]
-                    CImGui.PushStyleColor(CImGui.ImGuiCol_Text, MORESTYLE.Colors.LogWarn)
+                    CImGui.PushStyleColor(CImGui.ImGuiCol_Text, MORESTYLE.Colors.WarnText)
                     CImGui.Button(logtime, (-0.1, 0.0))
                     CImGui.PopStyleColor()
                     CImGui.PushID(logtime)
@@ -121,7 +55,7 @@ function edit(dtviewer::DataViewer, path, id)
         if CImGui.BeginTabItem(mlstr("Circuit"))
             if haskey(dtviewer.data, "circuit")
                 CImGui.PushID(id)
-                view(dtviewer.data["circuit"], stcstr("Nodes Editor", id))
+                view(dtviewer.data["circuit"], stcstr("DataViewerCircuit", id))
                 CImGui.PopID()
             else
                 CImGui.Text(mlstr("data not loaded or data format not supported!"))
@@ -131,23 +65,12 @@ function edit(dtviewer::DataViewer, path, id)
         if CImGui.BeginTabItem(mlstr("Data"))
             if haskey(dtviewer.data, "data")
                 if CImGui.BeginPopupContextItem()
-                    if CImGui.MenuItem(stcstr(MORESTYLE.Icons.SaveButton, " ", mlstr("Export")))
-                        exportpath = save_file(; filterlist="csv")
-                        if exportpath != ""
-                            @trycatch mlstr("exporting data failed!!!") begin
-                                exportdata(
-                                    exportpath,
-                                    dtviewer.data["data"],
-                                    Val(Symbol(split(basename(exportpath), '.')[end]))
-                                )
-                            end
-                        end
+                    if CImGui.MenuItem(stcstr(MORESTYLE.Icons.DataFormatter, " ", mlstr("Export")))
+                        exportdata(dtviewer.data["data"])
                     end
                     CImGui.EndPopup()
                 end
-                CImGui.BeginChild("ShowData")
                 showdata(dtviewer.data["data"], id)
-                CImGui.EndChild()
             else
                 CImGui.Text(mlstr("data not loaded or data format not supported!"))
             end
@@ -158,7 +81,7 @@ function edit(dtviewer::DataViewer, path, id)
                 if CImGui.Button(stcstr(MORESTYLE.Icons.NewFile, " ", mlstr("New Plot")), (Cfloat(-1), 2CImGui.GetFontSize()))
                     newplot!(dtviewer.dtp)
                 end
-                editmenu(dtviewer.dtp)
+                editmenu(dtviewer.dtp, dtviewer.data["data"])
             else
                 CImGui.Text(mlstr("data not loaded or data format not supported!"))
             end
@@ -181,13 +104,14 @@ function edit(dtviewer::DataViewer, path, id)
                         2unsafe_load(IMGUISTYLE.FramePadding.y)
                     @c InputTextMultilineRSZ("##Description", &desp, (Cfloat(-1), y))
                     dtviewer.data["revision"]["description"] = desp
-                    edit(dtviewer.data["revision"]["circuit"])
+                    edit(dtviewer.data["revision"]["circuit"], stcstr("DataViewerRevision", id))
                 else
                     if CImGui.Button(stcstr(MORESTYLE.Icons.NewFile, "##new revision"), (-1, -1))
                         dtviewer.data["revision"] = Dict(
                             "description" => "",
                             "circuit" => deepcopy(dtviewer.data["circuit"])
                         )
+                        loadsamplebasenode!(dtviewer.data["revision"]["circuit"])
                     end
                 end
             else
@@ -196,6 +120,17 @@ function edit(dtviewer::DataViewer, path, id)
             CImGui.EndTabItem()
         end
         CImGui.PopStyleColor()
+        if CImGui.BeginTabItem(mlstr("Information"))
+            if haskey(dtviewer.data, "info")
+                for (key, info) in dtviewer.data["info"]
+                    SeparatorTextColored(MORESTYLE.Colors.HighlightText, key)
+                    CImGui.Text(string(info))
+                end
+            else
+                CImGui.Text(mlstr("no available information!"))
+            end
+            CImGui.EndTabItem()
+        end
         if igTabItemButton(stcstr(MORESTYLE.Icons.SaveButton, " ", mlstr("Save")), 0)
             if isfile(path)
                 saveqdt(dtviewer, path)
@@ -214,51 +149,86 @@ function edit(dtviewer::DataViewer, path, id)
     haskey(dtviewer.data, "data") && showdtpks(dtviewer.dtp, stcstr("DataViewer", id), dtviewer.data["data"])
 end
 
-function loaddtviewer!(dtviewer::DataViewer, path)
-    loaddtviewer!(dtviewer, split(basename(path), '.')[end] in ["qdt", "cfg"] ? @trypasse(load(path), Dict()) : Dict())
+function loaddtviewer!(dtviewer::DataViewer, path, id)
+    data = if split(basename(path), '.')[end] in ["qdt", "daq", "cfg"]
+        dataload = @trypasse load(path) nothing
+        if isnothing(dataload)
+            datadict = Dict()
+            for key in ["actions", "daqtask", "circuit", "data", "revision", "info", "valid"]
+                loadval = @trypass load(path, key) nothing
+                isnothing(loadval) || push!(datadict, key => loadval)
+            end
+            datadict
+        else
+            dataload
+        end
+    else
+        Dict()
+    end
+    loaddtviewer!(dtviewer, data, id)
 end
-function loaddtviewer!(dtviewer::DataViewer, data::Dict)
+function loaddtviewer!(dtviewer::DataViewer, data::Dict, id)
     dtviewer.data = data
     if haskey(dtviewer.data, "data") && !(dtviewer.data["data"] isa Dict{String,Vector{String}})
         dtviewer.data["data"] = Dict(key => string.(val) for (key, val) in dtviewer.data["data"])
     end
     if haskey(dtviewer.data, "dataplot")
         dtviewer.dtp = dtviewer.data["dataplot"]
+        for (i, plt) in enumerate(dtviewer.dtp.plots)
+            plt.id = stcstr(id, "-", i)
+        end
         haskey(dtviewer.data, "data") && update!(dtviewer.dtp, dtviewer.data["data"])
     end
     if !isempty(dtviewer.data)
-        if haskey(dtviewer.data, "circuit")
-            for (_, node) in dtviewer.data["circuit"].nodes
-                if node isa SampleHolderNode
-                    @trycatch mlstr("loading image failed!!!") begin
-                        img = RGBA.(jpeg_decode(node.imgr.image))
-                        imgsize = size(img)
-                        node.imgr.id = ImGui_ImplOpenGL3_CreateImageTexture(imgsize...)
-                        ImGui_ImplOpenGL3_UpdateImageTexture(node.imgr.id, img, imgsize...)
-                    end
-                end
-            end
-        end
+        haskey(dtviewer.data, "circuit") && loadsamplebasenode!(dtviewer.data["circuit"])
         if haskey(dtviewer.data, "revision")
             for (_, node) in dtviewer.data["revision"]["circuit"].nodes
                 if node isa SampleHolderNode
                     @trycatch mlstr("loading image failed!!!") begin
                         img = RGBA.(jpeg_decode(node.imgr.image))
                         imgsize = size(img)
-                        node.imgr.id = ImGui_ImplOpenGL3_CreateImageTexture(imgsize...)
-                        ImGui_ImplOpenGL3_UpdateImageTexture(node.imgr.id, img, imgsize...)
+                        node.imgr.id = CImGui.create_image_texture(imgsize...)
+                        CImGui.update_image_texture(node.imgr.id, img, imgsize...)
                     end
                 end
             end
         end
     end
 end
+function loadsamplebasenode!(circuit::NodeEditor)
+    for (_, node) in circuit.nodes
+        if node isa SampleHolderNode
+            @trycatch mlstr("loading image failed!!!") begin
+                img = RGBA.(jpeg_decode(node.imgr.image))
+                imgsize = size(img)
+                node.imgr.id = CImGui.create_image_texture(imgsize...)
+                CImGui.update_image_texture(node.imgr.id, img, imgsize...)
+            end
+        end
+    end
+end
+
+atclosedtviewer!(dtviewer::DataViewer) = (rmtextures!(dtviewer); rmplots!(dtviewer))
+function rmtextures!(dtv::DataViewer)
+    if haskey(dtv.data, "circuit")
+        for (_, node) in dtv.data["circuit"].nodes
+            node isa SampleHolderNode && destroytexture!(node.imgr.id)
+        end
+    end
+    if haskey(dtv.data, "revision")
+        for (_, node) in dtv.data["revision"]["circuit"].nodes
+            node isa SampleHolderNode && destroytexture!(node.imgr.id)
+        end
+    end
+end
+rmplots!(dtv::DataViewer) = rmplots!(dtv.dtp)
 
 function saveqdt(dtviewer::DataViewer, path)
     if !isempty(dtviewer.data)
         jldopen(path, "w") do file
             for key in keys(dtviewer.data)
-                key == "dataplot" && (file[key] = empty!(deepcopy(dtviewer.dtp)); continue)
+                key == "info" && continue
+                key == "dataplot" && (file[key] = deepcopy(dtviewer.dtp); continue)
                 if key == "data"
                     savetype = eval(Symbol(CONF.DAQ.savetype))
                     if savetype == String
@@ -275,12 +245,14 @@ function saveqdt(dtviewer::DataViewer, path)
                 end
                 file[key] = dtviewer.data[key]
             end
+            file["info"] = fileinfo()
         end
     end
 end
 
 let
     flags::Cint = 0
+    flags |= CImGui.ImGuiTableFlags_ScrollY
     flags |= CImGui.ImGuiTableFlags_Resizable
     flags |= CImGui.ImGuiTableFlags_Reorderable
     # flags |= CImGui.ImGuiTableFlags_Sortable
@@ -295,7 +267,7 @@ let
         pages = ceil(Int, lmax / CONF.DtViewer.showdatarow)
         pagei[id] > pages && (pagei[id] = 1)
         showpagewidth = CImGui.CalcTextSize(stcstr(" ", pagei[id], " / ", pages, " ")).x
-        contentwidth = CImGui.GetContentRegionAvailWidth()
+        contentwidth = CImGui.GetContentRegionAvail().x
         CImGui.PushID(id)
         if CImGui.Button(ICONS.ICON_CARET_LEFT, ((contentwidth - showpagewidth) / 2, Cfloat(0)))
             pagei[id] > 1 && (pagei[id] -= 1)
@@ -319,7 +291,9 @@ let
             pagei[id] < pages && (pagei[id] += 1)
         end
         CImGui.BeginChild("showdatatable")
-        if CImGui.BeginTable("showdata", length(data), flags)
+        if CImGui.BeginTable("showdata", length(data) + 1, flags)
+            CImGui.TableSetupScrollFreeze(0, 1)
+            CImGui.TableSetupColumn(mlstr("Rows"), CImGui.ImGuiTableColumnFlags_WidthFixed, 4CImGui.GetFontSize())
             for key in keys(data)
                 CImGui.TableSetupColumn(key)
             end
@@ -329,8 +303,10 @@ let
             stoppage = pagei[id] * CONF.DtViewer.showdatarow
             for i in startpage:(pagei[id] == pages ? lmax : stoppage)
                 CImGui.TableNextRow()
-                for (_, val) in data
-                    CImGui.TableNextColumn()
+                CImGui.TableSetColumnIndex(0)
+                CImGui.Text(stcstr(i))
+                for (j, val) in enumerate(values(data))
+                    CImGui.TableSetColumnIndex(j)
                     CImGui.Text(i > length(val) ? "" : val[i])
                 end
             end
@@ -338,6 +314,15 @@ let
         end
         CImGui.EndChild()
         CImGui.PopID()
+    end
+end
+
+function exportdata(data::Dict{String,Vector{String}})
+    exportpath = save_file(; filterlist="csv")
+    if exportpath != ""
+        @trycatch mlstr("exporting data failed!!!") begin
+            exportdata(exportpath, data, Val(Symbol(split(basename(exportpath), '.')[end])))
+        end
     end
 end
 

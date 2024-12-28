@@ -1,45 +1,29 @@
 let
     cpuinfo::Dict = Dict()
+    lastrefreshtime::String = string(now())
     global function CPUMonitor()
-        if isempty(cpuinfo) || unsafe_load(CImGui.GetIO().Framerate) > 20
-            empty!(cpuinfo)
-            merge!(
-                cpuinfo, remotecall_fetch(workers()[1]) do
-                    lock(CPU.lock) do
-                        Dict(
-                            :running => CPU.running[],
-                            :taskfailed => istaskfailed(CPU.processtask[]),
-                            :fast => CPU.fast[],
-                            :resourcemanager => CPU.resourcemanager[],
-                            :instrs => Dict(ins.addr => ins.name for ins in values(CPU.instrs)),
-                            :isconnected => Dict(addr => QInsControlCore.isconnected(instr) for (addr, instr) in CPU.instrs),
-                            :controllers => CPU.controllers,
-                            :taskhandlers => CPU.taskhandlers,
-                            :tasksfailed => Dict(addr => istaskfailed(task) for (addr, task) in CPU.tasks)
-                        )
-                    end
-                end
-            )
-        end
+        refreshcpuinfo()
+        CImGui.SeparatorText(lastrefreshtime)
+        isempty(cpuinfo) && return nothing
         SeparatorTextColored(MORESTYLE.Colors.HighlightText, mlstr("Processor"))
         CImGui.Indent()
         if cpuinfo[:running]
             igBeginDisabled(SYNCSTATES[Int(IsDAQTaskRunning)] || SYNCSTATES[Int(IsAutoRefreshing)])
-            ToggleButton(mlstr("Running"), Ref(true)) && remotecall_wait(() -> stop!(CPU), workers()[1])
+            ToggleButton(mlstr("Running"), Ref(true)) && timed_remotecall_wait(() -> stop!(CPU), workers()[1])
             igEndDisabled()
             CImGui.SameLine()
             ColoredButton(
                 mlstr(cpuinfo[:taskfailed] ? "Failed" : "Well");
-                colbt=cpuinfo[:taskfailed] ? MORESTYLE.Colors.LogError : MORESTYLE.Colors.LogInfo,
-                colbth=cpuinfo[:taskfailed] ? MORESTYLE.Colors.LogError : MORESTYLE.Colors.LogInfo,
-                colbta=cpuinfo[:taskfailed] ? MORESTYLE.Colors.LogError : MORESTYLE.Colors.LogInfo
+                colbt=cpuinfo[:taskfailed] ? MORESTYLE.Colors.ErrorBg : MORESTYLE.Colors.InfoBg,
+                colbth=cpuinfo[:taskfailed] ? MORESTYLE.Colors.ErrorBg : MORESTYLE.Colors.InfoBg,
+                colbta=cpuinfo[:taskfailed] ? MORESTYLE.Colors.ErrorBg : MORESTYLE.Colors.InfoBg
             )
             CImGui.SameLine()
             if CImGui.Checkbox(mlstr(cpuinfo[:fast] ? "Fast Mode" : "Slow Mode"), Ref(cpuinfo[:fast]))
-                remotecall_wait((isfast) -> CPU.fast[] = !isfast, workers()[1], cpuinfo[:fast])
+                timed_remotecall_wait((isfast) -> CPU.fast[] = !isfast, workers()[1], cpuinfo[:fast])
             end
         else
-            ToggleButton(mlstr("Stopped"), Ref(false)) && remotecall_wait(() -> start!(CPU), workers()[1])
+            ToggleButton(mlstr("Stopped"), Ref(false)) && timed_remotecall_wait(() -> start!(CPU), workers()[1])
         end
         CImGui.Unindent()
         CImGui.Spacing()
@@ -71,29 +55,29 @@ let
                         hasct && CImGui.PopStyleColor()
                         if addrnode
                             CImGui.TextColored(
-                                cpuinfo[:isconnected][addr] ? MORESTYLE.Colors.LogInfo : MORESTYLE.Colors.LogError,
+                                cpuinfo[:isconnected][addr] ? MORESTYLE.Colors.InfoText : MORESTYLE.Colors.ErrorText,
                                 mlstr(cpuinfo[:isconnected][addr] ? "Connected" : "Unconnected")
                             )
                             if !cpuinfo[:isconnected][addr]
                                 CImGui.SameLine()
-                                CImGui.Button(mlstr("Connect")) && remotecall_wait(workers()[1], addr) do addr
+                                CImGui.Button(mlstr("Connect")) && timed_remotecall_wait(workers()[1], addr) do addr
                                     @trycatch mlstr("connection failded!!!") connect!(CPU.resourcemanager[], CPU.instrs[addr])
                                 end
                                 CImGui.SameLine()
                             end
                             CImGui.SameLine()
                             igBeginDisabled(SYNCSTATES[Int(IsDAQTaskRunning)] && hasct)
-                            CImGui.Button(mlstr("Log Out")) && remotecall_wait(addr -> logout!(CPU, addr), workers()[1], addr)
+                            CImGui.Button(mlstr("Log Out")) && timed_remotecall_wait(addr -> logout!(CPU, addr), workers()[1], addr)
                             igEndDisabled()
                             CImGui.Text(stcstr(mlstr("Status"), mlstr(": ")))
                             CImGui.SameLine()
                             CImGui.TextColored(
-                                cpuinfo[:taskhandlers][addr] ? MORESTYLE.Colors.LogInfo : MORESTYLE.Colors.LogError,
+                                cpuinfo[:taskhandlers][addr] ? MORESTYLE.Colors.InfoText : MORESTYLE.Colors.ErrorText,
                                 mlstr(cpuinfo[:taskhandlers][addr] ? "Running" : "Stopped")
                             )
                             CImGui.SameLine()
                             CImGui.TextColored(
-                                cpuinfo[:tasksfailed][addr] ? MORESTYLE.Colors.LogError : MORESTYLE.Colors.LogInfo,
+                                cpuinfo[:tasksfailed][addr] ? MORESTYLE.Colors.ErrorText : MORESTYLE.Colors.InfoText,
                                 mlstr(cpuinfo[:tasksfailed][addr] ? "Failed" : "Well")
                             )
                             for ct in cts
@@ -111,7 +95,7 @@ let
                                             CImGui.Text(ct.databuf[i])
                                             ct.available[i] || CImGui.TableSetBgColor(
                                                 CImGui.ImGuiTableBgTarget_CellBg,
-                                                CImGui.ColorConvertFloat4ToU32(MORESTYLE.Colors.LogError)
+                                                CImGui.ColorConvertFloat4ToU32(MORESTYLE.Colors.ErrorBg)
                                             )
                                         end
                                     end
@@ -126,5 +110,28 @@ let
             end
         end
         CImGui.Unindent()
+    end
+
+    function refreshcpuinfo()
+        cpuinfofetch = timed_remotecall_fetch(workers()[1]; timeout=0.03, quiet=true) do
+            lock(CPU.lock) do
+                Dict(
+                    :running => CPU.running[],
+                    :taskfailed => istaskfailed(CPU.processtask[]),
+                    :fast => CPU.fast[],
+                    :resourcemanager => CPU.resourcemanager[],
+                    :instrs => Dict(ins.addr => ins.name for ins in values(CPU.instrs)),
+                    :isconnected => Dict(addr => QInsControlCore.isconnected(instr) for (addr, instr) in CPU.instrs),
+                    :controllers => CPU.controllers,
+                    :taskhandlers => CPU.taskhandlers,
+                    :tasksfailed => Dict(addr => istaskfailed(task) for (addr, task) in CPU.tasks)
+                )
+            end
+        end
+        if !isnothing(cpuinfofetch)
+            empty!(cpuinfo)
+            merge!(cpuinfo, cpuinfofetch)
+            lastrefreshtime = string(now())
+        end
     end
 end

@@ -16,11 +16,31 @@ macro progress(exfor)
     esc(ex)
 end
 
-macro progress(observables, getdatacmd, stop, duration, exwhile)
-    @gensym pgid pgi pgn tn fraction
+macro progress(mark, exfor)
+    @gensym pgid pgi pgn tn
     ex = quote
         let
-            push!($observables, (time(), parse(Float64, $getdatacmd)))
+            put!(extradatabuf_lc, ($(string("Marked ", mark)), string.(collect($(exfor.args[1].args[2])))))
+            $pgid = uuid4()
+            $pgn = length($(exfor.args[1].args[2]))
+            $pgi = 0
+            put!(progress_lc, ($pgid, $pgi, $pgn, 0))
+            $tn = time()
+            for ($pgi, $(exfor.args[1].args[1])) in enumerate($(exfor.args[1].args[2]))
+                $(exfor.args[2])
+                put!(progress_lc, ($pgid, $pgi, $pgn, time() - $tn))
+            end
+        end
+    end
+    esc(ex)
+end
+
+macro progress(observables, getdatacmd, stop, duration, exwhile)
+    @gensym pgid pgi pgn tn fraction val
+    ex = quote
+        let
+            $val = tryparse(Float64, $getdatacmd)
+            isnothing($val) || push!($observables, (time(), $val))
             $pgid = uuid4()
             $pgn = 100
             $pgi = 0
@@ -28,10 +48,13 @@ macro progress(observables, getdatacmd, stop, duration, exwhile)
             $tn = time()
             while $(exwhile.args[1])
                 $(exwhile.args[2])
-                time() - $observables[end][1] > $duration && push!($observables, (time(), parse(Float64, $getdatacmd)))
+                if !isempty($observables) && time() - $observables[end][1] > $duration
+                    $val = tryparse(Float64, $getdatacmd)
+                    isnothing($val) || push!($observables, (time(), $val))
+                end
                 $pgi += 1
                 $fraction = abs(($observables[end][2] - $observables[1][2]) / ($stop - $observables[1][2]))
-                $fraction > 1 && ($fraction = 1/$fraction)
+                $fraction > 1 && ($fraction = 1 / $fraction)
                 $pgn = isinf($fraction) || isnan($fraction) || iszero($fraction) ? 100 + $pgi : ceil(Int, $pgi / $fraction)
                 put!(progress_lc, ($pgid, $pgi, $pgn, time() - $tn))
             end
@@ -64,13 +87,17 @@ function update_progress()
     end
 end
 
-function ShowProgressBar(; size=(-1, 0))
-    for pgb in values(PROGRESSLIST)
-        if pgb[2] == pgb[3]
-            delete!(PROGRESSLIST, pgb[1])
-        else
-            CImGui.ProgressBar(calcfraction(pgb[2], pgb[3]), size, progressmark(pgb[2:4]...))
+let
+    dellist::Vector{UUID} = []
+    global function ShowProgressBar(; size=(-1, 0))
+        for (key, pgb) in PROGRESSLIST
+            if pgb[2] == pgb[3]
+                push!(dellist, key)
+            else
+                CImGui.ProgressBar(calcfraction(pgb[2], pgb[3]), size, progressmark(pgb[2:4]...))
+            end
         end
+        isempty(dellist) || map(x -> delete!(PROGRESSLIST, x), dellist)
     end
 end
 

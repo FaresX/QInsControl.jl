@@ -112,7 +112,11 @@ let
             isrename[path] = isrnm
         end
         if CImGui.BeginPopupContextItem()
-            CImGui.MenuItem(stcstr(MORESTYLE.Icons.CloseFile, " ", mlstr("Delete"))) && (deldialog = true)
+            if CImGui.MenuItem(stcstr(MORESTYLE.Icons.DataFormatter, " ", mlstr("Export")))
+                data = @trypasse load(path, "data") Dict()
+                isempty(data) || exportdata(data)
+            end
+            CImGui.MenuItem(stcstr(MORESTYLE.Icons.Delete, " ", mlstr("Delete"))) && (deldialog = true)
             CImGui.EndPopup()
         end
         if YesNoDialog(stcstr("##if delete", path), mlstr("Confirm delete?"), CImGui.ImGuiWindowFlags_AlwaysAutoResize)

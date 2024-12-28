@@ -6,6 +6,7 @@ let
     show_metrics::Bool = false
     show_logger::Bool = false
     show_about::Bool = false
+    show_debugger::Bool = false
 
     showapp::Ref{Bool} = true
 
@@ -38,8 +39,9 @@ let
     no_bring_to_front && (window_flags |= CImGui.ImGuiWindowFlags_NoBringToFrontOnFocus)
     no_docking && (window_flags |= CImGui.ImGuiWindowFlags_NoDocking)
 
+    global debugger() = show_debugger = true
     global isshowapp() = showapp
-    global function closeallwindow()
+    global function closeallwindows()
         show_preferences = false
         show_instr_register = false
 
@@ -47,6 +49,7 @@ let
         show_metrics = false
         show_logger = false
         show_about = false
+        show_debugger = false
         for fv in fileviewers
             fv.p_open = false
         end
@@ -59,6 +62,9 @@ let
             end
         end
         empty!(instrwidgets)
+        closedaqwindows()
+        menuidx = 2
+        showwhat = 1
     end
 
     selectedins::String = ""
@@ -107,21 +113,26 @@ let
             CImGui.EndChild()
             CImGui.NextColumn()
             CImGui.BeginChild("right")
-            CImGui.PushFont(PLOTFONT)
+            CImGui.PushFont(BIGFONT)
             isopenfiles = false
             isopenfolder = false
             isopenformatter = false
             ftsz = CImGui.GetFontSize()
             sbsz = (3ftsz / 2, CImGui.GetFrameHeight())
             CImGui.PushStyleColor(CImGui.ImGuiCol_Header, MORESTYLE.Colors.ToolBarBg)
+            CImGui.PushStyleColor(CImGui.ImGuiCol_HeaderHovered, MORESTYLE.Colors.ToolBarBg)
             CImGui.PushStyleVar(CImGui.ImGuiStyleVar_ItemSpacing, (0, 0))
             CImGui.PushStyleVar(CImGui.ImGuiStyleVar_SelectableTextAlign, (0.5, 0.5))
             CImGui.Selectable(MORESTYLE.Icons.Instruments, menuidx == 0, 0, sbsz) && (menuidx = 0)
             CImGui.SameLine()
             CImGui.Selectable(MORESTYLE.Icons.File, menuidx == 1, 0, sbsz) && (menuidx = 1)
             CImGui.SameLine()
+            SYNCSTATES[Int(NewVersion)] && CImGui.PushStyleColor(CImGui.ImGuiCol_Text, MORESTYLE.Colors.InfoText)
+            SYNCSTATES[Int(FatalError)] && CImGui.PushStyleColor(CImGui.ImGuiCol_Text, MORESTYLE.Colors.ErrorText)
             CImGui.Selectable(MORESTYLE.Icons.Help, menuidx == 2, 0, sbsz) && (menuidx = 2)
-            CImGui.PopStyleColor()
+            SYNCSTATES[Int(FatalError)] && CImGui.PopStyleColor()
+            SYNCSTATES[Int(NewVersion)] && CImGui.PopStyleColor()
+            CImGui.PopStyleColor(2)
             CImGui.SameLine()
             CImGui.PushStyleColor(CImGui.ImGuiCol_Text, MORESTYLE.Colors.IconButton)
             @c CImGui.Selectable(MORESTYLE.Icons.Preferences, &show_preferences, 0, sbsz)
@@ -130,8 +141,8 @@ let
             CImGui.AddRectFilled(
                 CImGui.GetWindowDrawList(),
                 CImGui.GetCursorScreenPos(),
-                CImGui.GetCursorScreenPos() .+ (CImGui.GetWindowContentRegionMax().x, CImGui.GetFrameHeight() + unsafe_load(IMGUISTYLE.ItemSpacing.y)),
-                CImGui.ColorConvertFloat4ToU32(MORESTYLE.Colors.ToolBarBg)
+                CImGui.GetCursorScreenPos() .+ (CImGui.GetWindowWidth(), CImGui.GetFrameHeight() + unsafe_load(IMGUISTYLE.ItemSpacing.y)),
+                MORESTYLE.Colors.ToolBarBg
             )
             if menuidx == 0
                 CImGui.PushStyleColor(CImGui.ImGuiCol_Text, MORESTYLE.Colors.IconButton)
@@ -195,14 +206,22 @@ let
                 CImGui.PopFont()
                 CImGui.SameLine()
                 CImGui.PushStyleColor(CImGui.ImGuiCol_Text, MORESTYLE.Colors.IconButton)
+                SYNCSTATES[Int(FatalError)] && CImGui.PushStyleColor(CImGui.ImGuiCol_Text, MORESTYLE.Colors.ErrorText)
                 @c CImGui.Selectable(MORESTYLE.Icons.Logger, &show_logger, 0, sbsz)
+                SYNCSTATES[Int(FatalError)] && CImGui.PopStyleColor()
                 CImGui.PopStyleColor()
                 CImGui.PushFont(GLOBALFONT)
+                if SYNCSTATES[Int(FatalError)] && CImGui.BeginPopupContextItem()
+                    CImGui.MenuItem(mlstr("Clear Fatal Error")) && (SYNCSTATES[Int(FatalError)] = false)
+                    CImGui.EndPopup()
+                end
                 ItemTooltip(mlstr("Logger"))
                 CImGui.PopFont()
                 CImGui.SameLine()
                 CImGui.PushStyleColor(CImGui.ImGuiCol_Text, MORESTYLE.Colors.IconButton)
+                SYNCSTATES[Int(NewVersion)] && CImGui.PushStyleColor(CImGui.ImGuiCol_Text, MORESTYLE.Colors.InfoText)
                 @c CImGui.Selectable(MORESTYLE.Icons.About, &show_about, 0, sbsz)
+                SYNCSTATES[Int(NewVersion)] && CImGui.PopStyleColor()
                 CImGui.PopStyleColor()
                 CImGui.PushFont(GLOBALFONT)
                 ItemTooltip(mlstr("About"))
@@ -211,9 +230,9 @@ let
 
             CImGui.PopStyleVar(2)
             CImGui.PopFont()
-            igSeparatorText("")
+            CImGui.SeparatorText("")
 
-
+            CImGui.BeginChild("right content")
             if showwhat == 0
                 btw = 2CImGui.GetFrameHeight() + unsafe_load(IMGUISTYLE.ItemSpacing.y)
                 CImGui.PushStyleColor(CImGui.ImGuiCol_Border, MORESTYLE.Colors.ItemBorder)
@@ -222,14 +241,14 @@ let
                 showst |= SYNCSTATES[Int(AutoDetecting)]
                 showst && CImGui.PushStyleColor(
                     CImGui.ImGuiCol_Button,
-                    SYNCSTATES[Int(AutoDetecting)] ? MORESTYLE.Colors.LogInfo : st ? MORESTYLE.Colors.HighlightText : MORESTYLE.Colors.LogError
+                    SYNCSTATES[Int(AutoDetecting)] ? MORESTYLE.Colors.InfoBg : st ? MORESTYLE.Colors.HighlightText : MORESTYLE.Colors.ErrorBg
                 )
                 igBeginDisabled(SYNCSTATES[Int(IsDAQTaskRunning)] || hassweeping())
                 CImGui.Button(MORESTYLE.Icons.InstrumentsAutoDetect, (btw, btw)) && refresh_instrlist()
                 showst && CImGui.PopStyleColor()
                 CImGui.SameLine()
                 CImGui.BeginGroup()
-                CImGui.PushItemWidth(CImGui.GetContentRegionAvailWidth() - unsafe_load(IMGUISTYLE.ItemSpacing.x) - CImGui.GetFrameHeight())
+                CImGui.PushItemWidth(CImGui.GetContentRegionAvail().x - unsafe_load(IMGUISTYLE.ItemSpacing.x) - CImGui.GetFrameHeight())
                 showst1, st1 = manualadd_from_others()
                 showst2, st2 = manualadd_from_input()
                 showst = showst1 || showst2
@@ -247,7 +266,9 @@ let
                     isrefreshingdict = Dict(addr => hasref(ibv) for (addr, ibv) in inses)
                     hasrefreshing = !isempty(inses) && SYNCSTATES[Int(IsAutoRefreshing)] && (|)(values(isrefreshingdict)...)
                     hasrefreshing && CImGui.PushStyleColor(CImGui.ImGuiCol_Text, MORESTYLE.Colors.DAQTaskRunning)
-                    insnode = CImGui.TreeNode(stcstr(INSCONF[ins].conf.icon, " ", ins, "  ", "(", length(inses), ")"))
+                    insnode = CImGui.TreeNode(
+                        stcstr(INSCONF[ins].conf.icon, " ", ins, "  ", "(", length(inses), ")", "###", ins)
+                    )
                     hasrefreshing && CImGui.PopStyleColor()
                     if insnode
                         if isempty(inses)
@@ -262,7 +283,7 @@ let
                                 if CImGui.BeginPopupContextItem()
                                     sweeping = hassweeping(ibv)
                                     if CImGui.MenuItem(
-                                        stcstr(MORESTYLE.Icons.CloseFile, " ", mlstr("Delete")),
+                                        stcstr(MORESTYLE.Icons.Delete, " ", mlstr("Delete")),
                                         C_NULL,
                                         false,
                                         ins != "VirtualInstr" && !SYNCSTATES[Int(IsDAQTaskRunning)] && !sweeping
@@ -319,13 +340,15 @@ let
                 if isempty(filelist)
                     CImGui.TextDisabled(stcstr("(", mlstr("Null"), ")"))
                 else
-                    for fv in filelist
+                    for (i, fv) in enumerate(filelist)
+                        CImGui.PushID(i)
                         title = isempty(fv.filetree.filetrees) ? mlstr("no file opened") : basename(fv.filetree.filetrees[1].filepath)
                         @c CImGui.MenuItem(title, C_NULL, &fv.p_open)
                         if CImGui.BeginPopupContextItem()
-                            CImGui.MenuItem(stcstr(MORESTYLE.Icons.CloseFile, " ", mlstr("Close"))) && (fv.noclose = false)
+                            CImGui.MenuItem(stcstr(MORESTYLE.Icons.Delete, " ", mlstr("Close"))) && (fv.noclose = false)
                             CImGui.EndPopup()
                         end
+                        CImGui.PopID()
                     end
                 end
                 SeparatorTextColored(MORESTYLE.Colors.HighlightText, mlstr("Folders"))
@@ -344,7 +367,7 @@ let
                                     fv.filetree.valid
                                 ).filetrees
                             end
-                            CImGui.MenuItem(stcstr(MORESTYLE.Icons.CloseFile, " ", mlstr("Close"))) && (fv.noclose = false)
+                            CImGui.MenuItem(stcstr(MORESTYLE.Icons.Delete, " ", mlstr("Close"))) && (fv.noclose = false)
                             CImGui.EndPopup()
                         end
                         CImGui.PopID()
@@ -358,7 +381,7 @@ let
                         CImGui.PushID(i)
                         @c CImGui.MenuItem(stcstr(mlstr("Formatter"), " ", i), C_NULL, &dft.p_open)
                         if CImGui.BeginPopupContextItem()
-                            CImGui.MenuItem(stcstr(MORESTYLE.Icons.CloseFile, " ", mlstr("Close"))) && (dft.noclose = false)
+                            CImGui.MenuItem(stcstr(MORESTYLE.Icons.Delete, " ", mlstr("Close"))) && (dft.noclose = false)
                             CImGui.EndPopup()
                         end
                         CImGui.PopID()
@@ -367,6 +390,8 @@ let
             elseif showwhat == 2
                 CPUMonitor()
             end
+            CImGui.EndChild()
+
             CImGui.EndChild()
             CImGui.EndChild()
 
@@ -378,13 +403,13 @@ let
             fv.p_open && edit(fv, i)
         end
         for (i, fv) in enumerate(fileviewers)
-            fv.noclose || deleteat!(fileviewers, i)
+            fv.noclose || (atclosefileviewer!(fv); deleteat!(fileviewers, i))
         end
         for (i, dft) in enumerate(dataformatters)
             dft.p_open && edit(dft, i)
         end
         for (i, dft) in enumerate(dataformatters)
-            dft.noclose || deleteat!(dataformatters, i)
+            dft.noclose || (atclosedataformatter!(dft); deleteat!(dataformatters, i))
         end
         show_preferences && @c Preferences(&show_preferences)
 
@@ -411,6 +436,7 @@ let
         ShowAbout()
         show_about && (CImGui.OpenPopup(mlstr("About"));
         show_about = false)
+        show_debugger && @c Debugger(&show_debugger)
 
         ######快捷键######
         if isopenfiles || (unsafe_load(CImGui.GetIO().KeyCtrl) && CImGui.IsKeyDown(ImGuiKey_O))

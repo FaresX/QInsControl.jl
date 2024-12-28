@@ -2,13 +2,14 @@
     isremote::Bool = true
     viewportenable::Bool = true
     holdmainwindow::Bool = true
-    scale::Bool = false
+    # scale::Bool = false
     hidewindow::Bool = false
     nthreads::Cint = 2
     nthreads_2::Cint = 1
-    noactionswapinterval::Cint = 6
-    samplingthreshold::Cint = 200000
+    # noactionswapinterval::Cint = 6
+    # samplingthreshold::Cint = 200000
     windowsize::Vector{Cint} = [960, 540]
+    openglversion::String = "4.6"
     encoding::String = "GBK"
     editor::String = "notepad"
     language::String = "English"
@@ -58,7 +59,7 @@ end
     plotfontsize::Cint = 30
     first::String = "HarmonyOS_Sans_SC_Regular.subset.ttf"
     second::String = "arial.ttf"
-    plotfont::String = "arial.ttf"
+    bigfont::String = "arial.ttf"
 end
 
 # @option mutable struct OptIcons
@@ -80,10 +81,22 @@ end
     showloglength::Cint = 1000
 end
 
-@option mutable struct OptBGImage
+@option mutable struct OptOneBGImage
     path::String = ""
     rate::Cint = 1
-    useall::Bool = true
+    use::Bool = false
+end
+@option mutable struct OptBGImage
+    main::OptOneBGImage = OptOneBGImage(path=joinpath(ENV["QInsControlAssets"], "Necessity/defaultwallpaper.png"), use=true)
+    circuit::OptOneBGImage = OptOneBGImage()
+    instrbufferviewer::OptOneBGImage = OptOneBGImage()
+    registration::OptOneBGImage = OptOneBGImage()
+    filetree::OptOneBGImage = OptOneBGImage()
+    fileviewer::OptOneBGImage = OptOneBGImage()
+    formatter::OptOneBGImage = OptOneBGImage()
+    console::OptOneBGImage = OptOneBGImage()
+    logger::OptOneBGImage = OptOneBGImage()
+    preferences::OptOneBGImage = OptOneBGImage()
 end
 
 @option mutable struct OptComAddr

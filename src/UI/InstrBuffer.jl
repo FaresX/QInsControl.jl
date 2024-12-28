@@ -273,7 +273,11 @@ function edit(ibv::InstrBufferViewer)
     CImGui.SetNextWindowSize((800, 600), CImGui.ImGuiCond_Once)
     ins, addr = ibv.instrnm, ibv.addr
     if @c CImGui.Begin(stcstr(INSCONF[ins].conf.icon, "  ", ins, "  ", addr), &ibv.p_open)
-        SetWindowBgImage()
+        SetWindowBgImage(
+            CONF.BGImage.instrbufferviewer.path;
+            rate=CONF.BGImage.instrbufferviewer.rate,
+            use=CONF.BGImage.instrbufferviewer.use
+        )
         @c testcmd(ins, addr, &ibv.inputcmd, &ibv.reading)
         edit(ibv.insbuf, addr)
         CImGui.IsKeyPressed(ImGuiKey_F5, false) && refresh1(true)
@@ -301,7 +305,7 @@ let
                     TextRect(stcstr(reading[], "\n "), updatecontent; size=(Cfloat(0), 12CImGui.GetFontSize()))
                     CImGui.Spacing()
                     CImGui.PushStyleVar(CImGui.ImGuiStyleVar_FrameRounding, 24)
-                    btw = (CImGui.GetContentRegionAvailWidth() - 2unsafe_load(IMGUISTYLE.ItemSpacing.x)) / 3
+                    btw = (CImGui.GetContentRegionAvail().x - 2unsafe_load(IMGUISTYLE.ItemSpacing.x)) / 3
                     bth = 2CImGui.GetFrameHeight()
                     if CImGui.Button(stcstr(MORESTYLE.Icons.WriteBlock, "  ", mlstr("Write")), (btw, bth))
                         if addr != ""
@@ -329,7 +333,9 @@ let
                     if CImGui.Button(stcstr(MORESTYLE.Icons.QueryBlock, "  ", mlstr("Query")), (btw, bth))
                         if addr != ""
                             reading[] *= string("Write: ", inputcmd[], "\n")
-                            fetchdata = wait_remotecall_fetch(workers()[1], ins, addr, inputcmd[]) do ins, addr, inputcmd
+                            fetchdata = timed_remotecall_fetch(
+                                workers()[1], ins, addr, inputcmd[]; timeout=CONF.DAQ.cttimeout
+                            ) do ins, addr, inputcmd
                                 ct = Controller(ins, addr; buflen=CONF.DAQ.ctbuflen, timeout=CONF.DAQ.cttimeout)
                                 try
                                     login!(CPU, ct; attr=getattr(addr))
@@ -352,7 +358,9 @@ let
                     CImGui.SameLine()
                     if CImGui.Button(stcstr(MORESTYLE.Icons.ReadBlock, "  ", mlstr("Read")), (btw, bth))
                         if addr != ""
-                            fetchdata = wait_remotecall_fetch(workers()[1], ins, addr) do ins, addr
+                            fetchdata = timed_remotecall_fetch(
+                                workers()[1], ins, addr; timeout=CONF.DAQ.cttimeout
+                            ) do ins, addr
                                 ct = Controller(ins, addr; buflen=CONF.DAQ.ctbuflen, timeout=CONF.DAQ.cttimeout)
                                 try
                                     login!(CPU, ct; attr=getattr(addr))
@@ -576,7 +584,7 @@ function edit(insbuf::InstrBuffer, addr)
         &insbuf.filtervarname
     )) && update_passfilter!(insbuf)
     CImGui.BeginChild("InstrBuffer")
-    btsize = (CImGui.GetContentRegionAvailWidth() - unsafe_load(IMGUISTYLE.ItemSpacing.x) * (CONF.InsBuf.showcol - 1)) / CONF.InsBuf.showcol
+    btsize = (CImGui.GetContentRegionAvail().x - unsafe_load(IMGUISTYLE.ItemSpacing.x) * (CONF.InsBuf.showcol - 1)) / CONF.InsBuf.showcol
     showi = 0
     for (i, qt) in enumerate(values(insbuf.quantities))
         qt.enable || insbuf.showdisable || continue
@@ -652,14 +660,14 @@ let
             )
         )
         qt.show_edit == "" && updatefront!(qt)
-        # CImGui.PushFont(PLOTFONT)
+        # CImGui.PushFont(BIGFONT)
         ColoredButton(
             stcstr(centermultiline(qt.show_edit), "###for refresh");
             size=btsize,
             colbt=if qt.enable
                 qt.isautorefresh ? MORESTYLE.Colors.DAQTaskRunning : MORESTYLE.Colors.SweepQuantityBt
             else
-                MORESTYLE.Colors.LogError
+                MORESTYLE.Colors.ErrorBg
             end
         ) && Threads.@spawn @trycatch mlstr("reading task failed!!!") getread!(qt, instrnm, addr)
         if qt.issweeping
@@ -670,7 +678,7 @@ let
             pgcol = [phcol.x, phcol.y, phcol.z, min(0.6, phcol.w)]
             CImGui.AddRectFilled(
                 CImGui.GetWindowDrawList(), rmin, (rmin.x + frac * rsz.x, rmin.y + rsz.y),
-                CImGui.ColorConvertFloat4ToU32(pgcol), unsafe_load(IMGUISTYLE.FrameRounding)
+                pgcol, unsafe_load(IMGUISTYLE.FrameRounding)
             )
             if CImGui.IsItemHovered() && CImGui.BeginTooltip()
                 CImGui.ProgressBar(
@@ -757,14 +765,14 @@ let
             qt.isautorefresh ? MORESTYLE.Colors.DAQTaskRunning : CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_ButtonHovered)
         )
         qt.show_edit == "" && updatefront!(qt)
-        # CImGui.PushFont(PLOTFONT)
+        # CImGui.PushFont(BIGFONT)
         ColoredButton(
             stcstr(centermultiline(qt.show_edit), "###for refresh");
             size=btsize,
             colbt=if qt.enable
                 qt.isautorefresh ? MORESTYLE.Colors.DAQTaskRunning : MORESTYLE.Colors.SetQuantityBt
             else
-                MORESTYLE.Colors.LogError
+                MORESTYLE.Colors.ErrorBg
             end
         ) && Threads.@spawn @trycatch mlstr("reading task failed!!!") getread!(qt, instrnm, addr)
         # CImGui.PopFont()
@@ -851,14 +859,14 @@ let
             qt.isautorefresh ? MORESTYLE.Colors.DAQTaskRunning : CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_ButtonHovered)
         )
         qt.show_edit == "" && updatefront!(qt)
-        # CImGui.PushFont(PLOTFONT)
+        # CImGui.PushFont(BIGFONT)
         ColoredButton(
             stcstr(centermultiline(qt.show_edit), "###for refresh");
             size=btsize,
             colbt=if qt.enable
                 qt.isautorefresh ? MORESTYLE.Colors.DAQTaskRunning : MORESTYLE.Colors.ReadQuantityBt
             else
-                MORESTYLE.Colors.LogError
+                MORESTYLE.Colors.ErrorBg
             end
         ) && Threads.@spawn @trycatch mlstr("reading task failed!!!") getread!(qt, instrnm, addr)
         # CImGui.PopFont()
@@ -920,7 +928,7 @@ function view(qt::AbstractQuantity, size=(-1, 0))
     qt.show_view == "" && updatefront!(qt; show_edit=false)
     CImGui.PushStyleColor(
         CImGui.ImGuiCol_Button,
-        qt.enable ? CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_Button) : MORESTYLE.Colors.LogError
+        qt.enable ? CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_Button) : MORESTYLE.Colors.ErrorBg
     )
     if CImGui.Button(centermultiline(qt.show_view), size)
         _, Us = @c getU(qt.utype, &qt.uindex)
@@ -953,7 +961,9 @@ function apply!(qt::SweepQuantity, instrnm, addr)
     addr == "" && return nothing
     U, Us = @c getU(qt.utype, &qt.uindex)
     U == "" || (Uchange::Float64 = Us[1] isa Unitful.FreeUnits ? ustrip(Us[1], 1U) : 1.0)
-    start = wait_remotecall_fetch(workers()[1], instrnm, addr) do instrnm, addr
+    start = timed_remotecall_fetch(
+        workers()[1], instrnm, addr; timeout=CONF.DAQ.cttimeout
+    ) do instrnm, addr
         ct = Controller(instrnm, addr; buflen=CONF.DAQ.ctbuflen, timeout=CONF.DAQ.cttimeout)
         try
             getfunc = Symbol(instrnm, :_, qt.name, :_get) |> eval
@@ -994,16 +1004,17 @@ function apply!(qt::SweepQuantity, instrnm, addr)
                 workers()[1], instrnm, addr, sweeplist, sweep_rc, qt.name, qt.delay, idxbuf, timebuf
             ) do instrnm, addr, sweeplist, sweep_rc, qtnm, delay, idxbuf, timebuf
                 haskey(SWEEPCTS, instrnm) || (SWEEPCTS[instrnm] = Dict())
-                if haskey(SWEEPCTS[instrnm], addr)
-                    SWEEPCTS[instrnm][addr][1][] = true
+                haskey(SWEEPCTS[instrnm], addr) || (SWEEPCTS[instrnm][addr] = Dict())
+                if haskey(SWEEPCTS[instrnm][addr], qt.name)
+                    SWEEPCTS[instrnm][addr][qt.name][1][] = true
                 else
-                    SWEEPCTS[instrnm][addr] = (
+                    SWEEPCTS[instrnm][addr][qt.name] = (
                         Ref(true),
                         Controller(instrnm, addr; buflen=CONF.DAQ.ctbuflen, timeout=CONF.DAQ.cttimeout)
                     )
                 end
                 sweep_lc = Channel{String}(CONF.DAQ.channelsize)
-                login!(CPU, SWEEPCTS[instrnm][addr][2]; quiet=false, attr=getattr(addr))
+                login!(CPU, SWEEPCTS[instrnm][addr][qt.name][2]; quiet=false, attr=getattr(addr))
                 try
                     setfunc = Symbol(instrnm, :_, qtnm, :_set) |> eval
                     getfunc = Symbol(instrnm, :_, qtnm, :_get) |> eval
@@ -1011,10 +1022,10 @@ function apply!(qt::SweepQuantity, instrnm, addr)
                         sweeptask = @async @trycatch mlstr("sweeping task failed!!!") begin
                             tstart = time()
                             for (i, sv) in enumerate(sweeplist)
-                                SWEEPCTS[instrnm][addr][1][] || break
-                                SWEEPCTS[instrnm][addr][2](setfunc, CPU, string(sv), Val(:write))
+                                SWEEPCTS[instrnm][addr][qt.name][1][] || break
+                                SWEEPCTS[instrnm][addr][qt.name][2](setfunc, CPU, string(sv), Val(:write))
                                 sleep(delay)
-                                put!(sweep_lc, CONF.InsBuf.retreading ? SWEEPCTS[instrnm][addr][2](getfunc, CPU, Val(:read)) : string(sv))
+                                put!(sweep_lc, CONF.InsBuf.retreading ? SWEEPCTS[instrnm][addr][qt.name][2](getfunc, CPU, Val(:read)) : string(sv))
                                 idxbuf[1] = i
                                 timebuf[1] = time() - tstart
                             end
@@ -1032,14 +1043,14 @@ function apply!(qt::SweepQuantity, instrnm, addr)
                     )
                     showbacktrace()
                 finally
-                    logout!(CPU, SWEEPCTS[instrnm][addr][2]; quiet=false)
-                    SWEEPCTS[instrnm][addr][1][] = false
+                    logout!(CPU, SWEEPCTS[instrnm][addr][qt.name][2]; quiet=false)
+                    SWEEPCTS[instrnm][addr][qt.name][1][] = false
                 end
             end
             ## local
             while !istaskdone(sweepcalltask) || isready(sweep_rc)
-                qt.issweeping || remotecall_wait(workers()[1], instrnm, addr) do instrnm, addr
-                    SWEEPCTS[instrnm][addr][1][] = false
+                qt.issweeping || timed_remotecall_wait(workers()[1], instrnm, addr) do instrnm, addr
+                    SWEEPCTS[instrnm][addr][qt.name][1][] = false
                 end
                 isready(sweep_rc) ? for val in take!(sweep_rc)
                     qt.read = val
@@ -1068,14 +1079,19 @@ function apply!(qt::SetQuantity, instrnm, addr, byoptvalues=false)
         @info "[$(now())]\nBefore setting" instrument = instrnm address = addr quantity = qt
         actionidx = 1
         SYNCSTATES[Int(IsDAQTaskRunning)] && (actionidx = logaction(qt, instrnm, addr))
-        fetchdata = wait_remotecall_fetch(workers()[1], instrnm, addr, sv) do instrnm, addr, sv
+        fetchdata = timed_remotecall_fetch(
+            workers()[1], instrnm, addr, sv; timeout=CONF.DAQ.cttimeout
+        ) do instrnm, addr, sv
             ct = Controller(instrnm, addr; buflen=CONF.DAQ.ctbuflen, timeout=CONF.DAQ.cttimeout)
             try
                 setfunc = Symbol(instrnm, :_, qt.name, :_set) |> eval
                 getfunc = Symbol(instrnm, :_, qt.name, :_get) |> eval
                 login!(CPU, ct; attr=getattr(addr))
-                ct(setfunc, CPU, sv, Val(:write))
-                ct(getfunc, CPU, Val(:read))
+                ct(CPU, sv, Val(:query)) do instr, sv
+                    setfunc(instr, sv)
+                    instr.attr.querydelay < 0.001 ? yield() : sleep(instr.attr.querydelay)
+                    getfunc(instr)
+                end
             catch e
                 @error(
                     "[$(now())]\n$(mlstr("instrument communication failed!!!"))",
@@ -1145,12 +1161,16 @@ function viewactions(actions::Vector{Tuple{DateTime,String,String,AbstractQuanti
         CImGui.SameLine()
         CImGui.Button(mlstr("Unrecorded"), (-1, -1))
     elseif length(actions) == 2
+        CImGui.PushID("before")
         CImGui.Button(mlstr("B\ne\nf\no\nr\ne"), (2CImGui.GetFontSize(), Cfloat(0)))
         CImGui.SameLine()
         viewaction(actions[1], sz1 + 2unsafe_load(IMGUISTYLE.FramePadding.y))
+        CImGui.PopID()
+        CImGui.PushID("after")
         CImGui.Button(mlstr("A\nf\nt\ne\nr"), (2CImGui.GetFontSize(), Cfloat(0)))
         CImGui.SameLine()
         viewaction(actions[2], sz2 + 2unsafe_load(IMGUISTYLE.FramePadding.y))
+        CImGui.PopID()
     end
     CImGui.EndChild()
     CImGui.PopStyleVar()
@@ -1198,7 +1218,7 @@ function getread!(qt::AbstractQuantity, instrnm, addr)
 end
 
 function refresh_qt(instrnm, addr, qtnm)
-    wait_remotecall_fetch(workers()[1], instrnm, addr) do instrnm, addr
+    timed_remotecall_fetch(workers()[1], instrnm, addr; timeout=CONF.DAQ.cttimeout) do instrnm, addr
         ct = Controller(instrnm, addr; buflen=CONF.DAQ.ctbuflen, timeout=CONF.DAQ.cttimeout)
         try
             getfunc = Symbol(instrnm, :_, qtnm, :_get) |> eval
@@ -1226,7 +1246,7 @@ end
 const REFRESHLOCK = Threads.Condition()
 function refresh1(log=false; instrlist=keys(INSTRBUFFERVIEWERS))
     fetchibvs = lock(REFRESHLOCK) do
-        wait_remotecall_fetch(workers()[1], INSTRBUFFERVIEWERS; timeout=120) do ibvs
+        timed_remotecall_fetch(workers()[1], INSTRBUFFERVIEWERS; timeout=120) do ibvs
             merge!(INSTRBUFFERVIEWERS, ibvs)
             for (ins, inses) in filter(x -> x.first in instrlist && !isempty(x.second), INSTRBUFFERVIEWERS)
                 ins == "Others" && continue
@@ -1304,9 +1324,10 @@ let
     monitortask::Ref{Task} = Ref{Task}()
     stoptask::Bool = false
     global function stoprefresh()
+        isassigned(task) && isassigned(monitortask) || return nothing
         stoptask = true
         sleep(0.1)
-        istaskdone(task[]) && istaskdone(monitortask[]) || schedule(AUTOREFRESHTASK, mlstr("Stop"); error=true)
+        istaskdone(task[]) && istaskdone(monitortask[]) || schedule(task[], mlstr("Stop"); error=true)
     end
     global function autorefresh()
         stoptask = false
