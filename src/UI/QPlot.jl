@@ -5,6 +5,7 @@ end
 const FIGURES::Dict{String,Figure} = Dict()
 
 function QPlot(plt::QPlot, id; auto_resize_x=true, auto_resize_y=true, tooltip=false, stats=false)
+    id == "" && return nothing
     plt.id = id
     haskey(FIGURES, id) || (FIGURES[id] = Figure())
     CImGui.MakieFigure(

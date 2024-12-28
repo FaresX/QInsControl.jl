@@ -234,7 +234,7 @@ let
         datastr::Dict{String,Vector{String}},
         datafloat::Dict{String,VecOrMat{Cdouble}}=Dict{String,VecOrMat{Cdouble}}()
     )
-        haskey(FIGURES, plt.id) || (FIGURES[plt.id] = Figure())
+        haskey(FIGURES, plt.id) || return nothing
         haskey(synctasks, plt.id) || (synctasks[plt.id] = Dict())
         if dtpk.update
             dtpk.updatelayout = true
@@ -280,6 +280,7 @@ let
             end
         end
         dtpk.update = false
+        return nothing
     end
 
     observables::Dict{DataSeries,NTuple{3,Observable}} = Dict()
