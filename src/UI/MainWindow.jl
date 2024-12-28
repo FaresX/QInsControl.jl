@@ -6,7 +6,7 @@ let
     show_metrics::Bool = false
     show_logger::Bool = false
     show_about::Bool = false
-    show_debugger::Bool = true
+    show_debugger::Bool = false
 
     showapp::Ref{Bool} = true
 
