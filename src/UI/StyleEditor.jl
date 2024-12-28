@@ -831,12 +831,17 @@ let
                     selectbgpath = CImGui.Button(stcstr(MORESTYLE.Icons.SelectPath, "##BGImage-path"))
                     selectbgpath && (bgpath = pick_file(abspath(bgpath); filterlist="png,jpg,jpeg,tif,bmp;gif"))
                     CImGui.SameLine()
-                    @c CImGui.Checkbox("##useall", &bg.use)
+                    if @c CImGui.Checkbox("##useall", &bg.use)
+                        bg.use ? createimage(bgpath; showsize=CONF.Basic.windowsize) : destroyimage!(bgpath)
+                    end
                     ItemTooltip("apply to all the windows ?")
                     CImGui.SameLine()
                     CImGui.Text(windows[i])
                     if inputbgpath || selectbgpath
-                        if isfile(bgpath)
+                        if fnm != :main && bgpath == ""
+                            destroyimage!(bg.path)
+                            bg.path = bgpath
+                        elseif isfile(bgpath)
                             destroyimage!(bg.path)
                             bg.path = bgpath
                             createimage(bgpath; showsize=CONF.Basic.windowsize)

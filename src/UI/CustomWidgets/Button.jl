@@ -116,6 +116,7 @@ function destroyimage!(path)
         for id in IMAGES[path].data
             destroytexture!(id)
         end
+        delete!(IMAGES, path)
     end
 end
 
