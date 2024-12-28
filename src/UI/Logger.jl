@@ -5,6 +5,7 @@ let
     showwarn::Bool = true
     showerror::Bool = true
     showstacktrace::Bool = false
+    expandall::Bool = false
     global function LogWindow(p_open::Ref)
         # CImGui.SetNextWindowPos((100, 100), CImGui.ImGuiCond_Once)
         CImGui.SetNextWindowSize((800, 600), CImGui.ImGuiCond_Once)
@@ -60,6 +61,8 @@ let
             @c(CImGui.Checkbox(mlstr("Error"), &showerror)) && (SYNCSTATES[Int(NewLogging)] = true)
             CImGui.SameLine()
             @c(CImGui.Checkbox(mlstr("Stacktrace"), &showstacktrace)) && (SYNCSTATES[Int(NewLogging)] = true)
+            CImGui.SameLine()
+            @c(CImGui.Checkbox(mlstr("Expand All"), &expandall))
             igSeparatorText("")
 
             if CImGui.BeginTable(
@@ -88,7 +91,7 @@ let
 
                     CImGui.TableSetColumnIndex(2)
                     CImGui.PushTextWrapPos(0)
-                    CImGui.TextUnformatted(expanded[] ? msg : title)
+                    CImGui.TextUnformatted(expandall || expanded[] ? msg : title)
                     CImGui.PopTextWrapPos()
                     CImGui.IsItemHovered() && CImGui.IsMouseDoubleClicked(0) && (expanded[] = !expanded[])
                 end
