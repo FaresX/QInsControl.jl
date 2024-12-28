@@ -12,6 +12,7 @@ using DataInterpolations
 import DefaultApplication
 import FileIO
 using GLMakie
+using GitHub
 using MakieThemes
 import ImageMagick
 using JLD2
@@ -48,6 +49,7 @@ import .QInsControlCore: VISAInstrAttr, SerialInstrAttr, TCPSocketInstrAttr, Vir
     IsBlocked
     IsAutoRefreshing
     NewLogging
+    NewVersion
     FatalError
 end
 

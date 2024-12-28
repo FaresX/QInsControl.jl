@@ -143,6 +143,8 @@ function UI()
             end
             ###### 检查 STATICSTRINGS ######
             waittime("Check STATICSTRINGS", 36) && checklifetime()
+            ###### 检查新版本 ######
+            waittime("Check new version", 3600) && getnewestversion()
 
             MainWindow()
             if CImGui.BeginPopupModal("##windowshouldclose?", C_NULL, CImGui.ImGuiWindowFlags_AlwaysAutoResize)
