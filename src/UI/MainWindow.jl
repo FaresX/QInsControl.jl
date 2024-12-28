@@ -6,6 +6,7 @@ let
     show_metrics::Bool = false
     show_logger::Bool = false
     show_about::Bool = false
+    show_debugger::Bool = true
 
     showapp::Ref{Bool} = true
 
@@ -38,6 +39,7 @@ let
     no_bring_to_front && (window_flags |= CImGui.ImGuiWindowFlags_NoBringToFrontOnFocus)
     no_docking && (window_flags |= CImGui.ImGuiWindowFlags_NoDocking)
 
+    global debugger() = show_debugger = true
     global isshowapp() = showapp
     global function closeallwindows()
         show_preferences = false
@@ -47,6 +49,7 @@ let
         show_metrics = false
         show_logger = false
         show_about = false
+        show_debugger = false
         for fv in fileviewers
             fv.p_open = false
         end
@@ -259,7 +262,9 @@ let
                     isrefreshingdict = Dict(addr => hasref(ibv) for (addr, ibv) in inses)
                     hasrefreshing = !isempty(inses) && SYNCSTATES[Int(IsAutoRefreshing)] && (|)(values(isrefreshingdict)...)
                     hasrefreshing && CImGui.PushStyleColor(CImGui.ImGuiCol_Text, MORESTYLE.Colors.DAQTaskRunning)
-                    insnode = CImGui.TreeNode(stcstr(INSCONF[ins].conf.icon, " ", ins, "  ", "(", length(inses), ")"))
+                    insnode = CImGui.TreeNode(
+                        stcstr(INSCONF[ins].conf.icon, " ", ins, "  ", "(", length(inses), ")", "###", ins)
+                    )
                     hasrefreshing && CImGui.PopStyleColor()
                     if insnode
                         if isempty(inses)
@@ -427,6 +432,7 @@ let
         ShowAbout()
         show_about && (CImGui.OpenPopup(mlstr("About"));
         show_about = false)
+        show_debugger && @c Debugger(&show_debugger)
 
         ######快捷键######
         if isopenfiles || (unsafe_load(CImGui.GetIO().KeyCtrl) && CImGui.IsKeyDown(ImGuiKey_O))

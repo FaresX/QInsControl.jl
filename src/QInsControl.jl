@@ -97,6 +97,7 @@ include("UI/DAQ.jl")
 include("UI/Console.jl")
 include("UI/Logger.jl")
 include("UI/ShowAbout.jl")
+include("UI/Debugger.jl")
 include("UI/MainWindow.jl")
 include("UI/Renderer.jl")
 
