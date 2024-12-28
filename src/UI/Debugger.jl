@@ -81,7 +81,7 @@ let
                     CImGui.TreePop()
                 end
 
-                if CImGui.TreeNode("MLSTRINGS ($(length(MLSTRINGS))))###MLSTRINGS")
+                if CImGui.TreeNode("MLSTRINGS ($(length(MLSTRINGS)))###MLSTRINGS")
                     for (key, val) in MLSTRINGS
                         CImGui.TextColored(MORESTYLE.Colors.HighlightText, string(key, " : "))
                         CImGui.SameLine()
@@ -90,7 +90,7 @@ let
                     CImGui.TreePop()
                 end
 
-                if CImGui.TreeNode("STATICSTRINGS ($(length(STATICSTRINGS))))###STATICSTRINGS")
+                if CImGui.TreeNode("STATICSTRINGS ($(length(STATICSTRINGS)))###STATICSTRINGS")
                     for (key, val) in STATICSTRINGS
                         CImGui.TextColored(MORESTYLE.Colors.HighlightText, string(key, " : "))
                         CImGui.SameLine()
