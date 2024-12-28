@@ -66,7 +66,7 @@ end
     delplot_i::Int = 0
 end
 
-function editmenu(dtp::DataPlot)
+function editmenu(dtp::DataPlot, datastr, datafloat::Dict{String,VecOrMat{Cdouble}}=Dict{String,VecOrMat{Cdouble}}())
     ldtpks = length(dtp.dtpks)
     length(dtp.showdtpks) == ldtpks || resizebool!(dtp.showdtpks, ldtpks)
     dtp.layout.labels = [stcstr(MORESTYLE.Icons.Plot, " ", mlstr("Plot"), " ", i) for i in eachindex(dtp.layout.labels)]
@@ -84,6 +84,11 @@ function editmenu(dtp::DataPlot)
                 #     end
                 # end
                 dtp.showdtpks[dtp.layout.idxing] = true
+            end
+            if dtp.layout.states[dtp.layout.idxing] && CImGui.MenuItem(stcstr(MORESTYLE.Icons.Update, " ", mlstr("Update")))
+                idx = dtp.layout.idxing
+                dtp.dtpks[idx].update = true
+                syncplotdata(dtp.plots[idx], dtp.dtpks[idx], datastr, datafloat)
             end
             if CImGui.MenuItem(stcstr(MORESTYLE.Icons.Delete, " ", mlstr("Delete")))
                 dtp.isdelplot = true

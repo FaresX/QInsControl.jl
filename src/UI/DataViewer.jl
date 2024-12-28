@@ -81,7 +81,7 @@ function edit(dtviewer::DataViewer, path, id)
                 if CImGui.Button(stcstr(MORESTYLE.Icons.NewFile, " ", mlstr("New Plot")), (Cfloat(-1), 2CImGui.GetFontSize()))
                     newplot!(dtviewer.dtp)
                 end
-                editmenu(dtviewer.dtp)
+                editmenu(dtviewer.dtp, dtviewer.data["data"])
             else
                 CImGui.Text(mlstr("data not loaded or data format not supported!"))
             end

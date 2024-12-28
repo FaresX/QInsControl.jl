@@ -294,7 +294,7 @@ let
         CImGui.BeginChild("scrobarplot", (halfwidth, Cfloat(0)))
         CImGui.PushStyleColor(CImGui.ImGuiCol_Border, MORESTYLE.Colors.ItemBorder)
         CImGui.PushStyleVar(CImGui.ImGuiStyleVar_ChildBorderSize, 1)
-        editmenu(DAQDATAPLOT)
+        editmenu(DAQDATAPLOT, DATABUF, DATABUFPARSED)
         CImGui.PopStyleVar()
         CImGui.PopStyleColor()
         CImGui.EndChild()
