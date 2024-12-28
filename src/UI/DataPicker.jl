@@ -234,7 +234,8 @@ let
         datastr::Dict{String,Vector{String}},
         datafloat::Dict{String,VecOrMat{Cdouble}}=Dict{String,VecOrMat{Cdouble}}()
     )
-        haskey(FIGURES, plt.id) || return nothing
+        plt.id == "" && return nothing
+        haskey(FIGURES, plt.id) || (FIGURES[plt.id] = Figure())
         haskey(synctasks, plt.id) || (synctasks[plt.id] = Dict())
         if dtpk.update
             dtpk.updatelayout = true
