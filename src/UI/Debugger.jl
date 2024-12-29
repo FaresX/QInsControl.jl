@@ -1,7 +1,8 @@
 let
     DATABUFranges = Dict{String,Tuple{Ref{Cint},Ref{Cint}}}()
     DATABUFPARSEDranges = Dict{String,Tuple{Ref{Cint},Ref{Cint}}}()
-    extension_module = Base.get_extension(CImGui, :GlfwOpenGLBackend)
+    GlfwOpenGLBackend = Base.get_extension(CImGui, :GlfwOpenGLBackend)
+    MakieIntegration = Base.get_extension(CImGui, :MakieIntegration)
     global function Debugger(p_open::Ref{Bool})
         CImGui.SetNextWindowSize(CImGui.ImVec2(400, 600), CImGui.ImGuiCond_Once)
         if CImGui.Begin("Debugger", p_open)
@@ -32,13 +33,13 @@ let
                     for (key, val) in DATABUF
                         n = length(val)
                         haskey(DATABUFranges, key) || (DATABUFranges[key] = (1, min(10, n)))
+                        SeparatorTextColored(MORESTYLE.Colors.HighlightText, key)
                         CImGui.DragIntRange2(
                             stcstr("##", key),
                             DATABUFranges[key][1], DATABUFranges[key][2],
                             1, 1, n, "begin: %d", "end: %d",
                             CImGui.ImGuiSliderFlags_AlwaysClamp
                         )
-                        SeparatorTextColored(MORESTYLE.Colors.HighlightText, key)
                         CImGui.PushTextWrapPos(0)
                         CImGui.TextUnformatted(string(val[DATABUFranges[key][1][]:DATABUFranges[key][2][]]))
                         CImGui.PopTextWrapPos()
@@ -50,13 +51,13 @@ let
                     for (key, val) in DATABUFPARSED
                         n = length(val)
                         haskey(DATABUFPARSEDranges, key) || (DATABUFPARSEDranges[key] = (1, min(10, n)))
+                        SeparatorTextColored(MORESTYLE.Colors.HighlightText, key)
                         CImGui.DragIntRange2(
                             stcstr("##", key),
                             DATABUFPARSEDranges[key][1], DATABUFPARSEDranges[key][2],
                             1, 1, n, "begin: %d", "end: %d",
                             CImGui.ImGuiSliderFlags_AlwaysClamp
                         )
-                        SeparatorTextColored(MORESTYLE.Colors.HighlightText, key)
                         CImGui.PushTextWrapPos(0)
                         CImGui.TextUnformatted(string(val[DATABUFPARSEDranges[key][1][]:DATABUFPARSEDranges[key][2][]]))
                         CImGui.PopTextWrapPos()
@@ -122,15 +123,15 @@ let
                     CImGui.TreePop()
                 end
 
-                if CImGui.TreeNode("Textures ($(length(extension_module.g_ImageTexture)))###Textures")
+                if CImGui.TreeNode("Textures ($(length(GlfwOpenGLBackend.g_ImageTexture)))###Textures")
                     availwidth = CImGui.GetCursorScreenPos().x + CImGui.GetContentRegionAvail().x
-                    for (i, id) in enumerate(keys(extension_module.g_ImageTexture))
+                    for (i, id) in enumerate(keys(GlfwOpenGLBackend.g_ImageTexture))
                         CImGui.BeginGroup()
                         CImGui.Text(string(id))
                         CImGui.Image(CImGui.ImTextureID(id), CImGui.ImVec2(60, 60))
                         CImGui.EndGroup()
                         CImGui.GetItemRectMax().x + 60 + unsafe_load(IMGUISTYLE.ItemSpacing.x) < availwidth &&
-                            i != length(extension_module.g_ImageTexture) && CImGui.SameLine()
+                            i != length(GlfwOpenGLBackend.g_ImageTexture) && CImGui.SameLine()
                     end
                     CImGui.TreePop()
                 end
@@ -139,6 +140,20 @@ let
                     CImGui.PushTextWrapPos(0)
                     CImGui.TextUnformatted(string(keys(FIGURES)))
                     CImGui.PopTextWrapPos()
+                    CImGui.TreePop()
+                end
+
+                if CImGui.TreeNode("ImMakieFigures ($(length(MakieIntegration.makie_context)))###ImMakieFigures")
+                    for (imid, imfig) in MakieIntegration.makie_context
+                        CImGui.TextColored(MORESTYLE.Colors.HighlightText, string(imid, " => "))
+                        for (id, fig) in FIGURES
+                            if fig == imfig.figure
+                                CImGui.SameLine()
+                                CImGui.Text(id)
+                                break
+                            end
+                        end
+                    end
                     CImGui.TreePop()
                 end
 
