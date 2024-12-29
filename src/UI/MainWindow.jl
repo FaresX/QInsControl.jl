@@ -260,75 +260,77 @@ let
 
                 CImGui.BeginChild("border2", (0, 0), true)
                 for (ins, inses) in INSTRBUFFERVIEWERS
-                    isempty(inses) && CImGui.PushStyleColor(
-                        CImGui.ImGuiCol_Text, CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_TextDisabled)
-                    )
+                    isempty(inses) && continue
+                    # isempty(inses) && CImGui.PushStyleColor(
+                    #     CImGui.ImGuiCol_Text, CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_TextDisabled)
+                    # )
                     isrefreshingdict = Dict(addr => hasref(ibv) for (addr, ibv) in inses)
-                    hasrefreshing = !isempty(inses) && SYNCSTATES[Int(IsAutoRefreshing)] && (|)(values(isrefreshingdict)...)
+                    # hasrefreshing = !isempty(inses) && SYNCSTATES[Int(IsAutoRefreshing)] && (|)(values(isrefreshingdict)...)
+                    hasrefreshing = SYNCSTATES[Int(IsAutoRefreshing)] && (|)(values(isrefreshingdict)...)
                     hasrefreshing && CImGui.PushStyleColor(CImGui.ImGuiCol_Text, MORESTYLE.Colors.DAQTaskRunning)
                     insnode = CImGui.TreeNode(
                         stcstr(INSCONF[ins].conf.icon, " ", ins, "  ", "(", length(inses), ")", "###", ins)
                     )
                     hasrefreshing && CImGui.PopStyleColor()
                     if insnode
-                        if isempty(inses)
-                            CImGui.TextDisabled(stcstr("(", mlstr("Null"), ")"))
-                        else
-                            for (addr, ibv) in inses
-                                isrefreshingdict[addr] && CImGui.PushStyleColor(
-                                    CImGui.ImGuiCol_Text, MORESTYLE.Colors.DAQTaskRunning
+                        # if isempty(inses)
+                        #     CImGui.TextDisabled(stcstr("(", mlstr("Null"), ")"))
+                        # else
+                        for (addr, ibv) in inses
+                            isrefreshingdict[addr] && CImGui.PushStyleColor(
+                                CImGui.ImGuiCol_Text, MORESTYLE.Colors.DAQTaskRunning
+                            )
+                            addrnode = CImGui.TreeNode(addr)
+                            isrefreshingdict[addr] && CImGui.PopStyleColor()
+                            if CImGui.BeginPopupContextItem()
+                                sweeping = hassweeping(ibv)
+                                if CImGui.MenuItem(
+                                    stcstr(MORESTYLE.Icons.Delete, " ", mlstr("Delete")),
+                                    C_NULL,
+                                    false,
+                                    ins != "VirtualInstr" && !SYNCSTATES[Int(IsDAQTaskRunning)] && !sweeping
                                 )
-                                addrnode = CImGui.TreeNode(addr)
-                                isrefreshingdict[addr] && CImGui.PopStyleColor()
-                                if CImGui.BeginPopupContextItem()
-                                    sweeping = hassweeping(ibv)
-                                    if CImGui.MenuItem(
-                                        stcstr(MORESTYLE.Icons.Delete, " ", mlstr("Delete")),
-                                        C_NULL,
-                                        false,
-                                        ins != "VirtualInstr" && !SYNCSTATES[Int(IsDAQTaskRunning)] && !sweeping
-                                    )
-                                        delete!(INSTRBUFFERVIEWERS[ins], addr)
-                                        remotecall_fetch(addr -> logout!(CPU, addr), workers()[1], addr)
-                                    end
-                                    if CImGui.BeginMenu(
-                                        stcstr(MORESTYLE.Icons.NewFile, " ", mlstr("Add to")),
-                                        ins == "Others" && !SYNCSTATES[Int(IsDAQTaskRunning)] && !sweeping
-                                    )
-                                        for (cfins, cf) in INSCONF
-                                            cfins in ["Others", "VirtualInstr"] && continue
-                                            if CImGui.MenuItem(stcstr(cf.conf.icon, " ", cfins))
-                                                delete!(INSTRBUFFERVIEWERS[ins], addr)
-                                                get!(INSTRBUFFERVIEWERS[cfins], addr, InstrBufferViewer(cfins, addr))
-                                            end
-                                        end
-                                        CImGui.EndMenu()
-                                    end
-                                    CImGui.EndPopup()
+                                    delete!(INSTRBUFFERVIEWERS[ins], addr)
+                                    remotecall_fetch(addr -> logout!(CPU, addr), workers()[1], addr)
                                 end
-                                if addrnode
-                                    @c CImGui.MenuItem(mlstr("Common"), C_NULL, &ibv.p_open)
-                                    if haskey(INSWCONF, ins)
-                                        haskey(instrwidgets, addr) || (instrwidgets[addr] = Dict())
-                                        for w in INSWCONF[ins]
-                                            if !haskey(instrwidgets[addr], w.name)
-                                                instrwidgets[addr][w.name] = (Ref(false), [])
-                                            end
-                                            if CImGui.MenuItem(w.name, C_NULL, instrwidgets[addr][w.name][1])
-                                                if instrwidgets[addr][w.name][1][]
-                                                    push!(instrwidgets[addr][w.name][2], deepcopy(w))
-                                                    initialize!(only(instrwidgets[addr][w.name][2]), addr)
-                                                end
+                                if CImGui.BeginMenu(
+                                    stcstr(MORESTYLE.Icons.NewFile, " ", mlstr("Add to")),
+                                    ins == "Others" && !SYNCSTATES[Int(IsDAQTaskRunning)] && !sweeping
+                                )
+                                    for (cfins, cf) in INSCONF
+                                        cfins in ["Others", "VirtualInstr"] && continue
+                                        if CImGui.MenuItem(stcstr(cf.conf.icon, " ", cfins))
+                                            delete!(INSTRBUFFERVIEWERS[ins], addr)
+                                            get!(INSTRBUFFERVIEWERS[cfins], addr, InstrBufferViewer(cfins, addr))
+                                        end
+                                    end
+                                    CImGui.EndMenu()
+                                end
+                                CImGui.EndPopup()
+                            end
+                            if addrnode
+                                @c CImGui.MenuItem(mlstr("Common"), C_NULL, &ibv.p_open)
+                                if haskey(INSWCONF, ins)
+                                    haskey(instrwidgets, addr) || (instrwidgets[addr] = Dict())
+                                    for w in INSWCONF[ins]
+                                        if !haskey(instrwidgets[addr], w.name)
+                                            instrwidgets[addr][w.name] = (Ref(false), [])
+                                        end
+                                        if CImGui.MenuItem(w.name, C_NULL, instrwidgets[addr][w.name][1])
+                                            if instrwidgets[addr][w.name][1][]
+                                                push!(instrwidgets[addr][w.name][2], deepcopy(w))
+                                                initialize!(only(instrwidgets[addr][w.name][2]), addr)
                                             end
                                         end
                                     end
-                                    CImGui.TreePop()
                                 end
+                                CImGui.TreePop()
                             end
                         end
+                        # end
                         CImGui.TreePop()
                     end
-                    isempty(inses) && CImGui.PopStyleColor()
+                    # isempty(inses) && CImGui.PopStyleColor()
                 end
                 CImGui.EndChild()
                 CImGui.PopStyleVar()
