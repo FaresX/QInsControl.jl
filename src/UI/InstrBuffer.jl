@@ -897,24 +897,27 @@ let
     end
 end
 
-function view(instrbufferviewers_local)
+function view(instrbufferviewers_local; filterins="", filteraddr="", filterqt="", filteron=false)
     for (ins, inses) in filter(x -> !isempty(x.second), instrbufferviewers_local)
         ins == "Others" && continue
+        filteron && ins != filterins && continue
         for (addr, ibv) in inses
+            filteron && filteraddr != "" && addr != filteraddr && continue
             CImGui.TextColored(MORESTYLE.Colors.HighlightText, stcstr(ins, "：", addr))
             CImGui.PushID(addr)
-            view(ibv.insbuf)
+            view(ibv.insbuf; filterqt=filterqt, filteron=filteron)
             CImGui.PopID()
         end
     end
 end
 
-function view(insbuf::InstrBuffer)
+function view(insbuf::InstrBuffer; filterqt="", filteron=false)
     y = ceil(Int, length(insbuf.quantities) / CONF.InsBuf.showcol) * 2CImGui.GetFrameHeight()
     CImGui.BeginChild("view insbuf", (Float32(0), y))
     CImGui.Columns(CONF.InsBuf.showcol, C_NULL, false)
     CImGui.PushID(insbuf.instrnm)
     for (name, qt) in insbuf.quantities
+        filteron && filterqt != "" && qt.alias != filterqt && continue
         CImGui.PushID(name)
         view(qt)
         CImGui.NextColumn()

@@ -4,149 +4,178 @@
     p_open::Bool = true
 end
 
-function edit(dtviewer::DataViewer, path, id)
-    CImGui.BeginChild("DataViewer")
-    if CImGui.BeginTabBar("Data Viewer")
-        if CImGui.BeginTabItem(mlstr("Instrument Status"))
-            if true in occursin.(r"instrbufferviewers/.*", keys(dtviewer.data))
+let
+    filteron::Bool = false
+    filterins::String = ""
+    filteraddr::String = ""
+    filterqt::String = ""
+    global function edit(dtviewer::DataViewer, path, id)
+        CImGui.BeginChild("DataViewer")
+        if CImGui.BeginTabBar("Data Viewer")
+            if CImGui.BeginTabItem(mlstr("Instrument Status"))
+                if true in occursin.(r"instrbufferviewers/.*", keys(dtviewer.data))
+                    if CImGui.BeginPopupContextItem()
+                        CImGui.Text(mlstr("Display Columns"))
+                        @c CImGui.SliderInt("##InsBuf col num", &CONF.InsBuf.showcol, 1, 6)
+                        CImGui.EndPopup()
+                    end
+                    insbufkeys::Vector{String} = sort(
+                        [key for key in keys(dtviewer.data) if occursin(r"instrbufferviewers/.*", key)]
+                    )
+                    CImGui.Text(mlstr("Filter"))
+                    CImGui.SameLine()
+                    @c CImGui.Checkbox("##Filter", &filteron)
+                    if filteron
+                        w = (CImGui.GetContentRegionAvail().x - 3unsafe_load(IMGUISTYLE.ItemInnerSpacing.x))/4
+                        CImGui.SameLine()
+                        ibvs1 = dtviewer.data[insbufkeys[1]]
+                        inses = Dict{String,Vector{String}}()
+                        for (ins, instrs) in ibvs1
+                            isempty(instrs) || (inses[ins] = collect(keys(instrs)))
+                        end
+                        CImGui.PushItemWidth(w)
+                        @c ComboS("##Instruments", &filterins, keys(inses))
+                        CImGui.SameLine()
+                        @c ComboS("##Addresses", &filteraddr, haskey(inses, filterins) ? [inses[filterins]; ""] : [""])
+                        CImGui.SameLine()
+                        aliases = haskey(INSCONF, filterins) ? [[qt.alias for qt in values(INSCONF[filterins].quantities)]; ""] : [""]
+                        @c ComboS("##Quantities", &filterqt, aliases)
+                        CImGui.PopItemWidth()
+                    end
+                    CImGui.BeginChild("instrument status")
+                    for insbuf in insbufkeys
+                        logtime::String = split(insbuf, "/")[2]
+                        CImGui.PushStyleColor(CImGui.ImGuiCol_Text, MORESTYLE.Colors.WarnText)
+                        CImGui.Button(logtime, (-0.1, 0.0))
+                        CImGui.PopStyleColor()
+                        CImGui.PushID(logtime)
+                        view(
+                            dtviewer.data[insbuf];
+                            filterins=filterins, filteraddr=filteraddr, filterqt=filterqt, filteron=filteron
+                        )
+                        CImGui.PopID()
+                    end
+                    CImGui.EndChild()
+                else
+                    CImGui.Text(mlstr("data not loaded or data format not supported!"))
+                end
+                CImGui.EndTabItem()
+            end
+            if CImGui.BeginTabItem(mlstr("Actions"))
                 if CImGui.BeginPopupContextItem()
                     CImGui.Text(mlstr("Display Columns"))
                     @c CImGui.SliderInt("##InsBuf col num", &CONF.InsBuf.showcol, 1, 6)
                     CImGui.EndPopup()
                 end
-                insbufkeys::Vector{String} = sort(
-                    [key for key in keys(dtviewer.data) if occursin(r"instrbufferviewers/.*", key)]
-                )
-                CImGui.BeginChild("instrument status")
-                for insbuf in insbufkeys
-                    logtime::String = split(insbuf, "/")[2]
-                    CImGui.PushStyleColor(CImGui.ImGuiCol_Text, MORESTYLE.Colors.WarnText)
-                    CImGui.Button(logtime, (-0.1, 0.0))
-                    CImGui.PopStyleColor()
-                    CImGui.PushID(logtime)
-                    view(dtviewer.data[insbuf])
+                haskey(dtviewer.data, "actions") ? viewactions(dtviewer.data["actions"]) : CImGui.Text(mlstr("No actions!"))
+                CImGui.EndTabItem()
+            end
+            if CImGui.BeginTabItem(mlstr("Script"))
+                if haskey(dtviewer.data, "daqtask")
+                    CImGui.PushID(id)
+                    view(dtviewer.data["daqtask"])
                     CImGui.PopID()
-                end
-                CImGui.EndChild()
-            else
-                CImGui.Text(mlstr("data not loaded or data format not supported!"))
-            end
-            CImGui.EndTabItem()
-        end
-        if CImGui.BeginTabItem(mlstr("Actions"))
-            if CImGui.BeginPopupContextItem()
-                CImGui.Text(mlstr("Display Columns"))
-                @c CImGui.SliderInt("##InsBuf col num", &CONF.InsBuf.showcol, 1, 6)
-                CImGui.EndPopup()
-            end
-            haskey(dtviewer.data, "actions") ? viewactions(dtviewer.data["actions"]) : CImGui.Text(mlstr("No actions!"))
-            CImGui.EndTabItem()
-        end
-        if CImGui.BeginTabItem(mlstr("Script"))
-            if haskey(dtviewer.data, "daqtask")
-                CImGui.PushID(id)
-                view(dtviewer.data["daqtask"])
-                CImGui.PopID()
-            else
-                CImGui.Text(mlstr("data not loaded or data format not supported!"))
-            end
-            CImGui.EndTabItem()
-        end
-        if CImGui.BeginTabItem(mlstr("Circuit"))
-            if haskey(dtviewer.data, "circuit")
-                CImGui.PushID(id)
-                view(dtviewer.data["circuit"], stcstr("DataViewerCircuit", id))
-                CImGui.PopID()
-            else
-                CImGui.Text(mlstr("data not loaded or data format not supported!"))
-            end
-            CImGui.EndTabItem()
-        end
-        if CImGui.BeginTabItem(mlstr("Data"))
-            if haskey(dtviewer.data, "data")
-                if CImGui.BeginPopupContextItem()
-                    if CImGui.MenuItem(stcstr(MORESTYLE.Icons.DataFormatter, " ", mlstr("Export")))
-                        exportdata(dtviewer.data["data"])
-                    end
-                    CImGui.EndPopup()
-                end
-                showdata(dtviewer.data["data"], id)
-            else
-                CImGui.Text(mlstr("data not loaded or data format not supported!"))
-            end
-            CImGui.EndTabItem()
-        end
-        if CImGui.BeginTabItem(mlstr("Plots"))
-            if haskey(dtviewer.data, "data")
-                if CImGui.Button(stcstr(MORESTYLE.Icons.NewFile, " ", mlstr("New Plot")), (Cfloat(-1), 2CImGui.GetFontSize()))
-                    newplot!(dtviewer.dtp)
-                end
-                editmenu(dtviewer.dtp, dtviewer.data["data"])
-            else
-                CImGui.Text(mlstr("data not loaded or data format not supported!"))
-            end
-            CImGui.EndTabItem()
-        end
-        CImGui.PushStyleColor(
-            CImGui.ImGuiCol_Tab,
-            if haskey(dtviewer.data, "revision")
-                MORESTYLE.Colors.HighlightText
-            else
-                CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_Tab)
-            end
-        )
-        if CImGui.BeginTabItem(mlstr("Revision"))
-            if haskey(dtviewer.data, "daqtask") || haskey(dtviewer.data, "circuit")
-                if haskey(dtviewer.data, "revision")
-                    CImGui.TextColored(MORESTYLE.Colors.HighlightText, mlstr("Description"))
-                    desp = dtviewer.data["revision"]["description"]
-                    y = (1 + length(findall("\n", desp))) * CImGui.GetTextLineHeight() +
-                        2unsafe_load(IMGUISTYLE.FramePadding.y)
-                    @c InputTextMultilineRSZ("##Description", &desp, (Cfloat(-1), y))
-                    dtviewer.data["revision"]["description"] = desp
-                    edit(dtviewer.data["revision"]["circuit"], stcstr("DataViewerRevision", id))
                 else
-                    if CImGui.Button(stcstr(MORESTYLE.Icons.NewFile, "##new revision"), (-1, -1))
-                        dtviewer.data["revision"] = Dict(
-                            "description" => "",
-                            "circuit" => deepcopy(dtviewer.data["circuit"])
-                        )
-                        loadsamplebasenode!(dtviewer.data["revision"]["circuit"])
+                    CImGui.Text(mlstr("data not loaded or data format not supported!"))
+                end
+                CImGui.EndTabItem()
+            end
+            if CImGui.BeginTabItem(mlstr("Circuit"))
+                if haskey(dtviewer.data, "circuit")
+                    CImGui.PushID(id)
+                    view(dtviewer.data["circuit"], stcstr("DataViewerCircuit", id))
+                    CImGui.PopID()
+                else
+                    CImGui.Text(mlstr("data not loaded or data format not supported!"))
+                end
+                CImGui.EndTabItem()
+            end
+            if CImGui.BeginTabItem(mlstr("Data"))
+                if haskey(dtviewer.data, "data")
+                    if CImGui.BeginPopupContextItem()
+                        if CImGui.MenuItem(stcstr(MORESTYLE.Icons.DataFormatter, " ", mlstr("Export")))
+                            exportdata(dtviewer.data["data"])
+                        end
+                        CImGui.EndPopup()
                     end
+                    showdata(dtviewer.data["data"], id)
+                else
+                    CImGui.Text(mlstr("data not loaded or data format not supported!"))
                 end
-            else
-                CImGui.Text(mlstr("data not loaded or data format not supported!"))
+                CImGui.EndTabItem()
             end
-            CImGui.EndTabItem()
-        end
-        CImGui.PopStyleColor()
-        if CImGui.BeginTabItem(mlstr("Information"))
-            if haskey(dtviewer.data, "info")
-                for (key, info) in dtviewer.data["info"]
-                    SeparatorTextColored(MORESTYLE.Colors.HighlightText, key)
-                    CImGui.Text(string(info))
+            if CImGui.BeginTabItem(mlstr("Plots"))
+                if haskey(dtviewer.data, "data")
+                    if CImGui.Button(stcstr(MORESTYLE.Icons.NewFile, " ", mlstr("New Plot")), (Cfloat(-1), 2CImGui.GetFontSize()))
+                        newplot!(dtviewer.dtp)
+                    end
+                    editmenu(dtviewer.dtp, dtviewer.data["data"])
+                else
+                    CImGui.Text(mlstr("data not loaded or data format not supported!"))
                 end
-            else
-                CImGui.Text(mlstr("no available information!"))
+                CImGui.EndTabItem()
             end
-            CImGui.EndTabItem()
-        end
-        if igTabItemButton(stcstr(MORESTYLE.Icons.SaveButton, " ", mlstr("Save")), 0)
-            if isfile(path)
-                saveqdt(dtviewer, path)
-            else
-                savepath = save_file(; filterlist="qdt")
-                savepath == "" || saveqdt(dtviewer, savepath)
+            CImGui.PushStyleColor(
+                CImGui.ImGuiCol_Tab,
+                if haskey(dtviewer.data, "revision")
+                    MORESTYLE.Colors.HighlightText
+                else
+                    CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_Tab)
+                end
+            )
+            if CImGui.BeginTabItem(mlstr("Revision"))
+                if haskey(dtviewer.data, "daqtask") || haskey(dtviewer.data, "circuit")
+                    if haskey(dtviewer.data, "revision")
+                        CImGui.TextColored(MORESTYLE.Colors.HighlightText, mlstr("Description"))
+                        desp = dtviewer.data["revision"]["description"]
+                        y = (1 + length(findall("\n", desp))) * CImGui.GetTextLineHeight() +
+                            2unsafe_load(IMGUISTYLE.FramePadding.y)
+                        @c InputTextMultilineRSZ("##Description", &desp, (Cfloat(-1), y))
+                        dtviewer.data["revision"]["description"] = desp
+                        edit(dtviewer.data["revision"]["circuit"], stcstr("DataViewerRevision", id))
+                    else
+                        if CImGui.Button(stcstr(MORESTYLE.Icons.NewFile, "##new revision"), (-1, -1))
+                            dtviewer.data["revision"] = Dict(
+                                "description" => "",
+                                "circuit" => deepcopy(dtviewer.data["circuit"])
+                            )
+                            loadsamplebasenode!(dtviewer.data["revision"]["circuit"])
+                        end
+                    end
+                else
+                    CImGui.Text(mlstr("data not loaded or data format not supported!"))
+                end
+                CImGui.EndTabItem()
             end
+            CImGui.PopStyleColor()
+            if CImGui.BeginTabItem(mlstr("Information"))
+                if haskey(dtviewer.data, "info")
+                    for (key, info) in dtviewer.data["info"]
+                        SeparatorTextColored(MORESTYLE.Colors.HighlightText, key)
+                        CImGui.Text(string(info))
+                    end
+                else
+                    CImGui.Text(mlstr("no available information!"))
+                end
+                CImGui.EndTabItem()
+            end
+            if igTabItemButton(stcstr(MORESTYLE.Icons.SaveButton, " ", mlstr("Save")), 0)
+                if isfile(path)
+                    saveqdt(dtviewer, path)
+                else
+                    savepath = save_file(; filterlist="qdt")
+                    savepath == "" || saveqdt(dtviewer, savepath)
+                end
+            end
+            CImGui.SameLine()
+            haskey(dtviewer.data, "valid") || push!(dtviewer.data, "valid" => false)
+            valid = dtviewer.data["valid"]
+            @c(CImGui.Checkbox(mlstr("Valid"), &valid)) && (dtviewer.data["valid"] = valid)
+            CImGui.EndTabBar()
         end
-        CImGui.SameLine()
-        haskey(dtviewer.data, "valid") || push!(dtviewer.data, "valid" => false)
-        valid = dtviewer.data["valid"]
-        @c(CImGui.Checkbox(mlstr("Valid"), &valid)) && (dtviewer.data["valid"] = valid)
-        CImGui.EndTabBar()
+        CImGui.EndChild()
+        haskey(dtviewer.data, "data") && showdtpks(dtviewer.dtp, stcstr("DataViewer", id), dtviewer.data["data"])
     end
-    CImGui.EndChild()
-    haskey(dtviewer.data, "data") && showdtpks(dtviewer.dtp, stcstr("DataViewer", id), dtviewer.data["data"])
 end
 
 function loaddtviewer!(dtviewer::DataViewer, path, id)
