@@ -78,8 +78,8 @@ function edit(fd::FormatData, id)
         if haskey(fd.dtviewer.data, "data")
             exportdata(fd.dtviewer.data["data"])
         else
-            loaddtviewer!(fd.dtviewer, fd.path, stcstr("formatdata", id))
-            haskey(fd.dtviewer.data, "data") && exportdata(fd.dtviewer.data["data"])
+            data = @trypasse load(fd.path, "data") Dict()
+            isempty(data) || exportdata(data)
         end
     end
     CImGui.SameLine()
