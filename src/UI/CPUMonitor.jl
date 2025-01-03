@@ -54,6 +54,7 @@ let
                         addrnode = CImGui.TreeNode(addr)
                         hasct && CImGui.PopStyleColor()
                         if addrnode
+                            CImGui.PushID(stcstr(ins, addr))
                             CImGui.TextColored(
                                 cpuinfo[:isconnected][addr] ? MORESTYLE.Colors.InfoText : MORESTYLE.Colors.ErrorText,
                                 mlstr(cpuinfo[:isconnected][addr] ? "Connected" : "Unconnected")
@@ -82,6 +83,7 @@ let
                             )
                             for ct in cts
                                 idx = findfirst(==(ct), cpuinfo[:controllers])
+                                CImGui.PushID(idx)
                                 CImGui.BulletText(stcstr(mlstr("Controller"), " ", idx))
                                 @cstatic cols::Cint = 2 begin
                                     CImGui.PushItemWidth(6CImGui.GetFontSize())
@@ -101,7 +103,9 @@ let
                                     end
                                     CImGui.EndTable()
                                 end
+                                CImGui.PopID()
                             end
+                            CImGui.PopID()
                             CImGui.TreePop()
                         end
                     end
