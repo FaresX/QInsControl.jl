@@ -110,6 +110,12 @@ include("Conf.jl")
 function julia_main()::Cint
     try
         initialize!()
+        global LOGIO = IOBuffer()
+        global_logger(SimpleLogger(LOGIO))
+        @async @trycatch mlstr("error in logging task") while true
+            update_log()
+            sleep(1)
+        end
         loadconf()
         databuf_c::Channel{Vector{Tuple{String,String}}} = Channel{Vector{NTuple{2,String}}}(CONF.DAQ.channelsize)
         extradatabuf_c::Channel{Tuple{String,Vector{Any}}} = Channel{Tuple{String,Vector{Any}}}(CONF.DAQ.channelsize)
@@ -118,12 +124,6 @@ function julia_main()::Cint
         global DATABUFRC = RemoteChannel(() -> databuf_c)
         global EXTRADATABUFRC = RemoteChannel(() -> extradatabuf_c)
         global PROGRESSRC = RemoteChannel(() -> progress_c)
-        global LOGIO = IOBuffer()
-        global_logger(SimpleLogger(LOGIO))
-        @async @trycatch mlstr("error in logging task") while true
-            update_log()
-            sleep(1)
-        end
         jlverinfobuf = IOBuffer()
         versioninfo(jlverinfobuf)
         global JLVERINFO = wrapmultiline(String(take!(jlverinfobuf)), 48)
@@ -140,13 +140,13 @@ function julia_main()::Cint
             global PROGRESSRC = RemoteChannel(() -> progress_c)
             remotecall_wait(workers()[1], SYNCSTATES) do syncstates
                 initialize!()
-                loadconf()
                 global LOGIO = IOBuffer()
                 global_logger(SimpleLogger(LOGIO))
                 @async @trycatch mlstr("error in logging task") while true
                     update_log(syncstates)
                     sleep(1)
                 end
+                loadconf()
             end
         end
         remotecall_wait(workers()[1]) do
@@ -180,6 +180,7 @@ function initialize!()
     empty!(INSCONF)
     empty!(INSWCONF)
     empty!(INSTRBUFFERVIEWERS)
+    empty!(IMAGES)
     empty!(FIGURES)
 end
 
