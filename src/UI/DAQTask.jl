@@ -332,7 +332,7 @@ end
 function update_all()
     if SYNCSTATES[Int(IsDAQTaskDone)]
         (isfile(SAVEPATH) | !isempty(DATABUF)) && (saveqdt(); global OLDI += 1)
-        empty!(PROGRESSLIST)
+        lock(empty!, PROGRESSLIST)
         empty!(CFGBUF)
         SYNCSTATES[Int(IsDAQTaskDone)] = false
         SYNCSTATES[Int(IsDAQTaskRunning)] = false

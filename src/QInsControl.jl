@@ -56,7 +56,7 @@ end
 const CPU = Processor()
 const DATABUF = Dict{String,Vector{String}}() #数据缓存
 const DATABUFPARSED = Dict{String,VecOrMat{Cdouble}}()
-const PROGRESSLIST = OrderedDict{UUID,Tuple{UUID,Int,Int,Float64}}() #进度条缓存
+const PROGRESSLIST = Base.Lockable(OrderedDict{UUID,Tuple{UUID,Int,Int,Float64}}()) #进度条缓存
 
 global SYNCSTATES::SharedVector{Bool}
 global DATABUFRC::RemoteChannel{Channel{Vector{NTuple{2,String}}}}
@@ -175,7 +175,7 @@ end
 function initialize!()
     empty!(DATABUF)
     empty!(DATABUFPARSED)
-    empty!(PROGRESSLIST)
+    lock(empty!, PROGRESSLIST)
     empty!(STYLES)
     empty!(INSCONF)
     empty!(INSWCONF)

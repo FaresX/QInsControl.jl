@@ -65,12 +65,14 @@ let
                     CImGui.TreePop()
                 end
 
-                if CImGui.TreeNode("PROGRESSLIST ($(length(PROGRESSLIST)))###PROGRESSLIST")
-                    for (key, val) in PROGRESSLIST
-                        SeparatorTextColored(MORESTYLE.Colors.HighlightText, string(key))
-                        CImGui.PushTextWrapPos(0)
-                        CImGui.TextUnformatted(string(val))
-                        CImGui.PopTextWrapPos()
+                if CImGui.TreeNode("PROGRESSLIST ($(lock(length, PROGRESSLIST)))###PROGRESSLIST")
+                    lock(PROGRESSLIST) do PROGRESSLIST
+                        for (key, val) in PROGRESSLIST
+                            SeparatorTextColored(MORESTYLE.Colors.HighlightText, string(key))
+                            CImGui.PushTextWrapPos(0)
+                            CImGui.TextUnformatted(string(val))
+                            CImGui.PopTextWrapPos()
+                        end
                     end
                     CImGui.TreePop()
                 end

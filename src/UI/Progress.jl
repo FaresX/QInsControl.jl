@@ -84,24 +84,24 @@ end
 function update_progress()
     if isready(PROGRESSRC)
         packpb = take!(PROGRESSRC)
-        for pb in packpb
-            haskey(PROGRESSLIST, pb[1]) || (PROGRESSLIST[pb[1]] = pb)
-            PROGRESSLIST[pb[1]] = pb
+        lock(PROGRESSLIST) do PROGRESSLIST
+            for pb in packpb
+                haskey(PROGRESSLIST, pb[1]) || (PROGRESSLIST[pb[1]] = pb)
+                PROGRESSLIST[pb[1]] = pb
+            end
         end
     end
 end
 
-let
-    dellist::Vector{UUID} = []
-    global function ShowProgressBar(; size=(-1, 0))
+function ShowProgressBar(; size=(-1, 0))
+    lock(PROGRESSLIST) do PROGRESSLIST
         for (key, pgb) in PROGRESSLIST
             if pgb[2] == pgb[3]
-                push!(dellist, key)
+                delete!(PROGRESSLIST, key)
             else
                 CImGui.ProgressBar(calcfraction(pgb[2], pgb[3]), size, progressmark(pgb[2:4]...))
             end
         end
-        isempty(dellist) || (map(x -> delete!(PROGRESSLIST, x), dellist); empty!(dellist))
     end
 end
 
