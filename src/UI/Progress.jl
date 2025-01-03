@@ -58,10 +58,11 @@ macro progress(observables, getdatacmd, stop, duration, exwhile)
                 end
                 $pgi += 1
                 $fraction = $path / ($path + abs($stop - $observables[end][2]))
-                $pgn = isinf($fraction) || isnan($fraction) || iszero($fraction) ? 100 + $pgi : ceil(Int, $pgi / $fraction)
+                $pgn = isinf($fraction) || isnan($fraction) || iszero($fraction) ? $pgi + 1 : ceil(Int, $pgi / $fraction)
+                $pgi == $pgn && ($pgn = $pgi + 1)
                 put!(progress_lc, ($pgid, $pgi, $pgn, time() - $tn))
             end
-            $pgi == $pgn || put!(progress_lc, ($pgid, $pgn, $pgn, time() - $tn))
+            put!(progress_lc, ($pgid, $pgn, $pgn, time() - $tn))
             empty!($observables)
         end
     end
@@ -100,7 +101,7 @@ let
                 CImGui.ProgressBar(calcfraction(pgb[2], pgb[3]), size, progressmark(pgb[2:4]...))
             end
         end
-        isempty(dellist) || map(x -> delete!(PROGRESSLIST, x), dellist)
+        isempty(dellist) || (map(x -> delete!(PROGRESSLIST, x), dellist); empty!(dellist))
     end
 end
 
