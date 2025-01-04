@@ -77,10 +77,16 @@ let
                                 mlstr(cpuinfo[:taskhandlers][addr] ? "Running" : "Stopped")
                             )
                             CImGui.SameLine()
-                            CImGui.TextColored(
-                                cpuinfo[:tasksfailed][addr] ? MORESTYLE.Colors.ErrorText : MORESTYLE.Colors.InfoText,
-                                mlstr(cpuinfo[:tasksfailed][addr] ? "Failed" : "Well")
-                            )
+                            ColoredButton(
+                                mlstr(cpuinfo[:tasksfailed][addr] ? "Failed" : cpuinfo[:taskbusy][addr] ? "Busy" : "Well");
+                                colbt=if cpuinfo[:tasksfailed][addr]
+                                    MORESTYLE.Colors.ErrorBg
+                                else
+                                    cpuinfo[:taskbusy][addr] ? MORESTYLE.Colors.WarnBg : MORESTYLE.Colors.InfoBg
+                                end
+                            ) && timed_remotecall_wait(workers()[1], cpuinfo[:taskbusy][addr], addr) do busy, addr
+                                busy ? unsetbusy!(CPU, addr) : setbusy!(CPU, addr)
+                            end
                             for ct in cts
                                 idx = findfirst(==(ct), cpuinfo[:controllers])
                                 CImGui.PushID(idx)

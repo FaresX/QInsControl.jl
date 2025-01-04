@@ -246,6 +246,7 @@ end
 
 
 function run_remote(daqtask::DAQTask)
+    remotecall_wait(() -> unsetbusy!(CPU), workers()[1])
     controllers, st = remotecall_fetch(extract_controllers, workers()[1], daqtask.blocks)
     empty!(DATABUF)
     empty!(DATABUFPARSED)
@@ -297,6 +298,7 @@ function run_remote(daqtask::DAQTask)
                 @error "[$(now())]\n$(mlstr("task failed!!!"))" exeption = e
                 showbacktrace()
             finally
+                unsetbusy!(CPU)
                 for ct in values(controllers)
                     logout!(CPU, ct; quiet=false)
                 end
@@ -466,7 +468,11 @@ function extract_controllers(bkch::Vector{AbstractBlock})
     for bk in bkch
         if isinstr(bk)
             bk.instrnm == "VirtualInstr" && bk.addr != "VirtualAddress" && return controllers, false
-            ct = Controller(bk.instrnm, bk.addr; buflen=CONF.DAQ.ctbuflen, timeout=CONF.DAQ.cttimeout)
+            ct = Controller(
+                bk.instrnm, bk.addr;
+                buflen=CONF.DAQ.ctbuflen, timeout=CONF.DAQ.cttimeout,
+                busytimeout=CONF.DAQ.cttimeout * CONF.DAQ.retryconnecttimes * CONF.DAQ.retrysendtimes
+            )
             try
                 @assert haskey(INSTRBUFFERVIEWERS, bk.instrnm) mlstr("$(bk.instrnm) has not been added")
                 @assert haskey(INSTRBUFFERVIEWERS[bk.instrnm], bk.addr) mlstr("$(bk.addr) has not been added")

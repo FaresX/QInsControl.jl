@@ -524,6 +524,7 @@ function serialsettings(attr::SerialInstrAttr)
     ) && (attr.querydelay = querydelay)
     termchar = TERMCHARDICTINV[attr.termchar]
     @c(ComboS(mlstr("Termination Character"), &termchar, keys(TERMCHARDICT))) && (attr.termchar = TERMCHARDICT[termchar])
+    @c CImGui.Checkbox(mlstr("Clear buffer when error occurs"), &attr.clearbuffer)
 end
 function tcpipsettings(attr::TCPSocketInstrAttr)
     timeoutw = Cfloat(attr.timeoutw)
@@ -543,6 +544,7 @@ function tcpipsettings(attr::TCPSocketInstrAttr)
     ) && (attr.querydelay = querydelay)
     termchar = TERMCHARDICTINV[attr.termchar]
     @c(ComboS(mlstr("Termination Character"), &termchar, keys(TERMCHARDICT))) && (attr.termchar = TERMCHARDICT[termchar])
+    @c CImGui.Checkbox(mlstr("Clear buffer when error occurs"), &attr.clearbuffer)
 end
 function virtualsettings(attr::VirtualInstrAttr)
     querydelay = Cfloat(attr.querydelay)
@@ -552,6 +554,7 @@ function virtualsettings(attr::VirtualInstrAttr)
     ) && (attr.querydelay = querydelay)
     termchar = TERMCHARDICTINV[attr.termchar]
     @c(ComboS(mlstr("Termination Character"), &termchar, keys(TERMCHARDICT))) && (attr.termchar = TERMCHARDICT[termchar])
+    @c CImGui.Checkbox(mlstr("Clear buffer when error occurs"), &attr.clearbuffer)
 end
 function visasettings(attr::VISAInstrAttr)
     SeparatorTextColored(MORESTYLE.Colors.HighlightText, "ASRL")
@@ -572,6 +575,7 @@ function visasettings(attr::VISAInstrAttr)
     ) && (attr.querydelay = querydelay)
     termchar = TERMCHARDICTINV[attr.termchar]
     @c(ComboS(mlstr("Termination Character"), &termchar, keys(TERMCHARDICT))) && (attr.termchar = TERMCHARDICT[termchar])
+    @c CImGui.Checkbox(mlstr("Clear buffer when error occurs"), &attr.clearbuffer)
 end
 
 function edit(insbuf::InstrBuffer, addr)
