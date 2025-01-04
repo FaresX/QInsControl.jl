@@ -495,8 +495,7 @@ macro gentrycatch(instrnm, addr, cmd, len=0)
                                 $(mlstr("retry sending command")), string($instrnm, " ", $addr),
                                 (false, $(len == 0 ? "" : fill("", len))), true
                             )
-                            setbusy!(CPU)
-                            unsetbusy!(CPU, $addr)
+                            CPU.taskbusy[$addr] || (setbusy!(CPU); unsetbusy!(CPU, $addr))
                         end
                         state, getval = try
                             true, $cmd
