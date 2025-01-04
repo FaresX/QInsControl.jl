@@ -128,6 +128,7 @@ let
                     :isconnected => Dict(addr => QInsControlCore.isconnected(instr) for (addr, instr) in CPU.instrs),
                     :controllers => CPU.controllers,
                     :taskhandlers => CPU.taskhandlers,
+                    :taskbusy => CPU.taskbusy,
                     :tasksfailed => Dict(addr => istaskfailed(task) for (addr, task) in CPU.tasks)
                 )
             end
