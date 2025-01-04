@@ -325,10 +325,11 @@ function isarrived(data, target, δ, τ)
     isempty(data) && return false
     δ, τ = abs(δ), abs(τ)
     data[end][1] - data[1][1] < τ && return false
-    arrive = abs(timeaverage(data, τ)[1] - target) < δ
+    mv, stdv = timeaverage(data, τ)
+    arrive = abs(mv - target) < δ && stdv < 4δ
     arrive && return true
     data[end][1] - data[1][1] < 10τ && return false
-    arrive |= abs(timeaverage(data, τ)[1] - target) < 5δ && all(abs.(timeaverage(data, τ) .- timeaverage(data, 10τ)) .< δ)
+    arrive |= abs(mv - target) < 5δ && all(abs.((mv, stdv) .- timeaverage(data, 10τ)) .< δ)
     return arrive
 end
 function isless(data, target, δ, τ)
