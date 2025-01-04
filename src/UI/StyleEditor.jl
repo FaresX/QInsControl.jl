@@ -834,7 +834,6 @@ let
                     if @c CImGui.Checkbox("##useall", &bg.use)
                         bg.use ? createimage(bgpath; showsize=CONF.Basic.windowsize) : destroyimage!(bgpath)
                     end
-                    ItemTooltip("apply to all the windows ?")
                     CImGui.SameLine()
                     CImGui.Text(windows[i])
                     if inputbgpath || selectbgpath
