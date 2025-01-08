@@ -404,7 +404,8 @@ start!(cpu::Processor) = (init!(cpu); run!(cpu))
 
 reconnect the instruments that log in the Processor.
 """
-reconnect!(cpu::Processor) = (disconnect!.(values(cpu.instrs)); connect!.(cpu.resourcemanager[], values(cpu.instrs)))
+reconnect!(cpu::Processor, addr::String) = haskey(cpu.instrs, addr) && (disconnect!(cpu.instrs[addr]); connect!(cpu.resourcemanager[], cpu.instrs[addr]))
+reconnect!(cpu::Processor) = map(addr -> reconnect!(cpu, addr), collect(keys(cpu.instrs)))
 
 """
     slow!(cpu::Processor)
@@ -422,5 +423,5 @@ fast!(cpu::Processor) = cpu.fast[] = true
 
 setbusy!(cpu::Processor, addr::String) = haskey(cpu.taskbusy, addr) && (cpu.taskbusy[addr] = true)
 unsetbusy!(cpu::Processor, addr::String) = haskey(cpu.taskbusy, addr) && (cpu.taskbusy[addr] = false)
-setbusy!(cpu::Processor) = for addr in keys(cpu.taskbusy) setbusy!(cpu, addr) end
-unsetbusy!(cpu::Processor) = for addr in keys(cpu.taskbusy) unsetbusy!(cpu, addr) end
+setbusy!(cpu::Processor) = map(addr -> setbusy!(cpu, addr), collect(keys(cpu.taskbusy)))
+unsetbusy!(cpu::Processor) = map(addr -> unsetbusy!(cpu, addr), collect(keys(cpu.taskbusy)))
