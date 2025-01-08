@@ -522,12 +522,7 @@ macro gentrycatch(instrnm, addr, cmd, len=0)
                     SYNCSTATES[Int(IsInterrupted)] && return state, getval
                     if !state
                         try
-                            if tout == CONF.DAQ.retryconnecttimes + 1
-                                reconnect!(CPU)
-                            else
-                                disconnect!(CPU.instrs[$addr])
-                                connect!(CPU.resourcemanager, CPU.instrs[$addr])
-                            end
+                            reconnect!(CPU)
                         catch
                         end
                     end
