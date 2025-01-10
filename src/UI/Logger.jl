@@ -39,7 +39,8 @@ let
                         matchdate = match(r"(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}.\d{3})", logmsg)
                         date = isnothing(matchdate) ? "none" : matchdate[1]
                         strs = split(logmsg, "\n")
-                        title = length(strs) > 0 ? (length(strs) > 1 ? string(strs[1], "\n", strs[2]) : string(strs[1])) : "none"
+                        n = min(length(strs), 3)
+                        title = n == 0 ? "none" : join(strs[1:n], "\n")
                         push!(logmsgshow, (texttype, date, title, textbg, false, logmsg))
                         textbg = ImVec4(0, 0, 0, 0)
                         texttype = "Info"
@@ -49,7 +50,8 @@ let
                         matchdate = match(r"(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}.\d{3})", logmsg)
                         date = isnothing(matchdate) ? "none" : matchdate[1]
                         strs = split(logmsg, "\n")
-                        title = length(strs) > 0 ? (length(strs) > 1 ? string(strs[1], "\n", strs[2]) : string(strs[1])) : "none"
+                        n = min(length(strs), 3)
+                        title = n == 0 ? "none" : join(strs[1:n], "\n")
                         i == limitline && push!(logmsgshow, (texttype, date, title, textbg, false, logmsg))
                     end
                 end
