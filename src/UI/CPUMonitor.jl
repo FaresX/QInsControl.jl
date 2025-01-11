@@ -62,7 +62,9 @@ let
                             if !cpuinfo[:isconnected][addr]
                                 CImGui.SameLine()
                                 CImGui.Button(mlstr("Connect")) && timed_remotecall_wait(workers()[1], addr) do addr
-                                    @trycatch mlstr("connection failded!!!") connect!(CPU.resourcemanager[], CPU.instrs[addr])
+                                    @trycatch mlstr("connection failded!!!") QInsControlCore.connect!(
+                                        CPU.resourcemanager[], CPU.instrs[addr]
+                                    )
                                 end
                                 CImGui.SameLine()
                             end
