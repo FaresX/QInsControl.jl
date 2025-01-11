@@ -321,6 +321,13 @@ function timeaverage(data, τ)
     stdv = stdm(datasubset, mv)
     return mv, stdv
 end
+function _ismoving(data, δ, τ)
+    isempty(data) && return true
+    δ, τ = abs(δ), abs(τ)
+    data[end][1] - data[1][1] < τ && return true
+    _, stdv = timeaverage(data, τ)
+    return stdv > 5δ
+end
 function isarrived(data, target, δ, τ)
     isempty(data) && return false
     δ, τ = abs(δ), abs(τ)
