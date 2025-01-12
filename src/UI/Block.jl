@@ -1141,7 +1141,7 @@ bkheight(_) = 2unsafe_load(IMGUISTYLE.WindowPadding.y) + CImGui.GetFrameHeight()
 
 ############ edit-------------------------------------------------------------------------------------------------------
 
-function edit(bk::CodeBlock, openpopup::Ref{Bool}=false)
+function edit(bk::CodeBlock, openpopup::Ref{Bool}=Ref(false))
     CImGui.BeginChild("##CodeBlock", (Float32(0), bkheight(bk)), true)
     ColoredButton(
         MORESTYLE.Icons.CodeBlock; size=(CImGui.GetFrameHeight(), Cfloat(0)),
@@ -1153,7 +1153,7 @@ function edit(bk::CodeBlock, openpopup::Ref{Bool}=false)
     CImGui.EndChild()
 end
 
-function edit(bk::StrideCodeBlock, openpopup::Ref{Bool}=false)
+function edit(bk::StrideCodeBlock, openpopup::Ref{Bool}=Ref(false))
     CImGui.PushStyleColor(
         CImGui.ImGuiCol_Border,
         if isempty(skipnull(bk.blocks))
@@ -1187,7 +1187,7 @@ function edit(bk::StrideCodeBlock, openpopup::Ref{Bool}=false)
     CImGui.PopStyleVar()
 end
 
-function edit(bk::BranchBlock, openpopup::Ref{Bool}=false)
+function edit(bk::BranchBlock, openpopup::Ref{Bool}=Ref(false))
     CImGui.BeginChild("##BranchBlock", (Float32(0), bkheight(bk)), true)
     ColoredButton(
         MORESTYLE.Icons.BranchBlock; size=(CImGui.GetFrameHeight(), Cfloat(0)),
@@ -1203,7 +1203,7 @@ end
 
 let
     filter::String = ""
-    global function edit(bk::SweepBlock, openpopup::Ref{Bool}=false)
+    global function edit(bk::SweepBlock, openpopup::Ref{Bool}=Ref(false))
         CImGui.PushStyleVar(CImGui.ImGuiStyleVar_ItemSpacing, (Float32(2), unsafe_load(IMGUISTYLE.ItemSpacing.y)))
         CImGui.PushStyleColor(
             CImGui.ImGuiCol_Border,
@@ -1308,7 +1308,7 @@ end
 
 let
     filter::String = ""
-    global function edit(bk::FreeSweepBlock, openpopup::Ref{Bool}=false)
+    global function edit(bk::FreeSweepBlock, openpopup::Ref{Bool}=Ref(false))
         CImGui.PushStyleVar(CImGui.ImGuiStyleVar_ItemSpacing, (Float32(2), unsafe_load(IMGUISTYLE.ItemSpacing.y)))
         CImGui.PushStyleColor(
             CImGui.ImGuiCol_Border,
@@ -1414,7 +1414,7 @@ end
 
 let
     filter::String = ""
-    global function edit(bk::SettingBlock, openpopup::Ref{Bool}=false)
+    global function edit(bk::SettingBlock, openpopup::Ref{Bool}=Ref(false))
         CImGui.PushStyleVar(CImGui.ImGuiStyleVar_ItemSpacing, (Float32(2), unsafe_load(IMGUISTYLE.ItemSpacing.y)))
         CImGui.BeginChild("##SettingBlock", (Float32(0), bkheight(bk)), true)
         ColoredButton(
@@ -1503,7 +1503,7 @@ end
 
 let
     filter::String = ""
-    global function edit(bk::ReadingBlock, openpopup::Ref{Bool}=false)
+    global function edit(bk::ReadingBlock, openpopup::Ref{Bool}=Ref(false))
         CImGui.PushStyleVar(CImGui.ImGuiStyleVar_ItemSpacing, (Float32(2), unsafe_load(IMGUISTYLE.ItemSpacing.y)))
         CImGui.PushStyleColor(
             CImGui.ImGuiCol_Border,
@@ -1586,7 +1586,7 @@ let
     end
 end
 
-function edit(bk::WriteBlock, openpopup::Ref{Bool}=false)
+function edit(bk::WriteBlock, openpopup::Ref{Bool}=Ref(false))
     CImGui.PushStyleColor(
         CImGui.ImGuiCol_Border,
         if bk.isasync
@@ -1628,7 +1628,7 @@ function edit(bk::WriteBlock, openpopup::Ref{Bool}=false)
     CImGui.PopStyleColor()
 end
 
-function edit(bk::QueryBlock, openpopup::Ref{Bool}=false)
+function edit(bk::QueryBlock, openpopup::Ref{Bool}=Ref(false))
     CImGui.PushStyleColor(
         CImGui.ImGuiCol_Border,
         if bk.isasync && !bk.isobserve
@@ -1694,7 +1694,7 @@ function edit(bk::QueryBlock, openpopup::Ref{Bool}=false)
     CImGui.PopStyleColor()
 end
 
-function edit(bk::ReadBlock, openpopup::Ref{Bool}=false)
+function edit(bk::ReadBlock, openpopup::Ref{Bool}=Ref(false))
     CImGui.PushStyleColor(
         CImGui.ImGuiCol_Border,
         if bk.isasync && !bk.isobserve
@@ -1757,7 +1757,7 @@ end
 
 let
     actions::Vector{String} = ["Pause", "Interrupt", "Continue"]
-    global function edit(bk::FeedbackBlock, openpopup::Ref{Bool}=false)
+    global function edit(bk::FeedbackBlock, openpopup::Ref{Bool}=Ref(false))
         CImGui.PushStyleVar(CImGui.ImGuiStyleVar_ItemSpacing, (Float32(2), unsafe_load(IMGUISTYLE.ItemSpacing.y)))
         CImGui.BeginChild("##FeedbackBlock", (Float32(0), bkheight(bk)), true)
         ColoredButton(
