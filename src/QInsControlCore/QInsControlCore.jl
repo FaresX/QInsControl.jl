@@ -13,7 +13,7 @@ export VI_ASRL_STOP_ONE, VI_ASRL_STOP_ONE5, VI_ASRL_STOP_TWO
 export TERMCHARDICT, TERMCHARDICTINV
 
 export Controller, Processor
-export login!, logout!, start!, stop!, reconnect!, find_resources, slow!, fast!, setbusy!, unsetbusy!
+export login!, logout!, start!, stop!, reconnect!, find_resources, slow!, fast!, isbusy, setbusy!, unsetbusy!
 export instrument, connect!, disconnect!, write, read, query
 
 function timedwhile(f::Function, timeout::Real)

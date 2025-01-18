@@ -335,7 +335,7 @@ function run!(cpu::Processor)
                     end
                     for (addr, t) in cpu.tasks
                         if istaskfailed(t) && haskey(cpu.exechannels, addr) && haskey(cpu.taskhandlers, addr)
-                            cpu.taskbusy[addr] = true
+                            setbusy!(cpu, addr)
                             @warn "task(address: $addr) failed, clearing buffer and recreating..."
                             cpu.instrs[addr].attr.clearbuffer && clearbuffer(cpu.instrs[addr])
                             cpu.tasks[addr] = errormonitor(
@@ -348,7 +348,7 @@ function run!(cpu::Processor)
                                 end
                             )
                             @info "task(address: $addr) has been recreated"
-                            cpu.taskbusy[addr] = false
+                            unsetbusy!(cpu, addr)
                         end
                     end
                 catch e
@@ -425,3 +425,4 @@ setbusy!(cpu::Processor, addr::String) = haskey(cpu.taskbusy, addr) && (cpu.task
 unsetbusy!(cpu::Processor, addr::String) = haskey(cpu.taskbusy, addr) && (cpu.taskbusy[addr] = false)
 setbusy!(cpu::Processor) = map(addr -> setbusy!(cpu, addr), collect(keys(cpu.taskbusy)))
 unsetbusy!(cpu::Processor) = map(addr -> unsetbusy!(cpu, addr), collect(keys(cpu.taskbusy)))
+isbusy(cpu::Processor, addr::String) = haskey(cpu.taskbusy, addr) && cpu.taskbusy[addr]

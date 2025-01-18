@@ -511,6 +511,7 @@ macro gentrycatch(instrnm, addr, cmd, len=0)
                 state, getval = try
                     true, $cmd
                 catch e
+                    isbusy(CPU, $addr) || (setbusy!(CPU); unsetbusy!(CPU, $addr))
                     @error(
                         "[$(now())]\n$(mlstr("instrument communication failed!!!"))",
                         instrument = $(string(instrnm, ": ", addr)),
@@ -520,9 +521,7 @@ macro gentrycatch(instrnm, addr, cmd, len=0)
                     false, $(len == 0 ? "" : fill("", len))
                 end
                 if !state
-                    timesout::Ref{Int} = 1
                     state, getval = counter($(CONF.DAQ.retryconnecttimes)) do tout
-                        timesout[] = tout
                         @gencontroller(
                             $(mlstr("retry connecting to instrument")), string($instrnm, " ", $addr),
                             (false, $(len == 0 ? "" : fill("", len))), true
@@ -532,7 +531,14 @@ macro gentrycatch(instrnm, addr, cmd, len=0)
                                 $(mlstr("retry sending command")), string($instrnm, " ", $addr),
                                 (false, $(len == 0 ? "" : fill("", len))), true
                             )
-                            CPU.taskbusy[$addr] || (setbusy!(CPU); unsetbusy!(CPU, $addr))
+                            @warn(
+                                stcstr(
+                                    "[", now(), "]\n",
+                                    mlstr("retry sending command"), " ", tin, "\n",
+                                    mlstr("retry reconnecting to instrument"), " ", tout
+                                ),
+                                intrument = string($instrnm, "-", $addr)
+                            )
                             state, getval = try
                                 true, $cmd
                             catch e
@@ -542,15 +548,6 @@ macro gentrycatch(instrnm, addr, cmd, len=0)
                                     exception = e
                                 )
                                 showbacktrace()
-                                println(LOGIO, "\n")
-                                @warn(
-                                    stcstr(
-                                        "[", now(), "]\n",
-                                        mlstr("retry sending command"), " ", tin, "\n",
-                                        mlstr("retry reconnecting to instrument"), " ", tout
-                                    ),
-                                    intrument = string($instrnm, "-", $addr)
-                                )
                                 false, $(len == 0 ? "" : fill("", len))
                             end
                             return state, getval
@@ -564,7 +561,7 @@ macro gentrycatch(instrnm, addr, cmd, len=0)
                         end
                         return state, getval
                     end
-                    timesout[] == 1 || unsetbusy!(CPU)
+                    unsetbusy!(CPU)
                 end
                 if SYNCSTATES[Int(IsInterrupted)]
                     @warn(
