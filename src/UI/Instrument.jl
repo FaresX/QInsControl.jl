@@ -15,7 +15,7 @@ function manualadd(addr)
         idn = split(addr, "::")[end]
     else
         idnr = timed_remotecall_fetch(workers()[1], addr; timeout=CONF.DAQ.cttimeout) do addr
-            ct = Controller("", addr; buflen=1, timeout=CONF.DAQ.cttimeout)
+            ct = Controller("", addr; buflen=1, timeout=CONF.DAQ.cttimeout / 4)
             try
                 login!(CPU, ct; attr=getattr(addr))
                 ct(query, CPU, "*IDN?", Val(:query))
