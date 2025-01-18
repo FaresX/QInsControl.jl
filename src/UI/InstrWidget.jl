@@ -1708,7 +1708,7 @@ function convertmenu(insw::InstrWidget, i)
                 for (qtnm, qt) in INSCONF[insw.instrnm].quantities
                     qt.type == "set" || continue
                     if CImGui.MenuItem(qt.alias)
-                        insw.qtws[i] = QuantityWidget(
+                        newqtw = QuantityWidget(
                             name=qtnm,
                             alias=qt.alias,
                             qtype="set",
@@ -1716,7 +1716,9 @@ function convertmenu(insw::InstrWidget, i)
                             numread=qt.numread,
                             options=insw.qtws[i].options
                         )
-                        insw.qtws[i].options.selectedidx = 1
+                        newqtw.options.selectedidx = 1
+                        iscompatible(insw.qtws[i], newqtw) || (newqtw.options.uitype = "read")
+                        insw.qtws[i] = newqtw
                     end
                 end
             end
@@ -1743,6 +1745,10 @@ function convertmenu(insw::InstrWidget, i)
         end
         CImGui.EndMenu()
     end
+end
+function iscompatible(qtw1::QuantityWidget, qtw2::QuantityWidget)
+    optionaltypes = ["combo", "radio", "slider", "vslider", "toggle"]
+    return !(qtw1.options.uitype in optionaltypes && qtw2.numoptvs == 0)
 end
 
 let
