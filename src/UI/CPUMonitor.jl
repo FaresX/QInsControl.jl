@@ -50,7 +50,11 @@ let
                 if insnode
                     for (addr, cts) in inses
                         hasct = !isempty(cts)
-                        hasct && CImGui.PushStyleColor(CImGui.ImGuiCol_Text, MORESTYLE.Colors.DAQTaskRunning)
+                        busyct = cpuinfo[:taskbusy][addr]
+                        hasct && CImGui.PushStyleColor(
+                            CImGui.ImGuiCol_Text,
+                            busyct ? MORESTYLE.Colors.WarnText : MORESTYLE.Colors.DAQTaskRunning
+                        )
                         addrnode = CImGui.TreeNode(addr)
                         hasct && CImGui.PopStyleColor()
                         if addrnode
