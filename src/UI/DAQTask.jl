@@ -235,7 +235,7 @@ function run(daqtask::DAQTask)
     end
     run_remote(daqtask)
     wait(
-        Threads.@spawn begin
+        Threads.@spawn @trycatch mlstr("updating data failed!") begin
             savecfgcache()
             while update_all()
                 yield()
