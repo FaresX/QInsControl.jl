@@ -393,28 +393,11 @@ end
 
 function gencodes_read(bk::Union{ReadingBlock,QueryBlock,ReadBlock})
     instr = string(bk.instrnm, "/", bk.addr)
-    index = @trypasse eval(Meta.parse(bk.index)) begin
-        @error "[$(now())]\n$(mlstr("codes are wrong in parsing time (ReadingBlock)!!!"))" bk = bk
-        return
-    end
-    index isa Integer && (index = [index])
+    index = genindex(bk)
     bk isa ReadingBlock && (getfunc = Symbol(bk.instrnm, :_, bk.quantity, :_get))
     bk isa QueryBlock && (cmd = parsedollar(bk.cmd))
     if isnothing(index) || (bk isa ReadingBlock && INSCONF[bk.instrnm].quantities[bk.quantity].separator == "")
-        mark = parsedollar(replace(bk.mark, "/" => "_"))
-        key = if bk isa ReadingBlock
-            if mark isa Expr
-                :(string($mark, "/", $(bk.instrnm), "/", $(bk.quantity), "/", $(bk.addr)))
-            else
-                string(mark, "/", bk.instrnm, "/", bk.quantity, "/", bk.addr)
-            end
-        else
-            if mark isa Expr
-                :(string($mark, "/", $(bk.instrnm), "/", $(bk.addr)))
-            else
-                string(mark, "/", bk.instrnm, "/", bk.addr)
-            end
-        end
+        key = genkey(bk)
         getcmd = if bk isa ReadingBlock
             :(controllers[$instr]($getfunc, CPU, Val(:read)))
         elseif bk isa QueryBlock
@@ -438,36 +421,7 @@ function gencodes_read(bk::Union{ReadingBlock,QueryBlock,ReadBlock})
             end : ex
         end
     else
-        marks = Vector{Union{AbstractString,Expr}}(undef, length(index))
-        fill!(marks, "")
-        for (i, v) in enumerate(split(bk.mark, ","))
-            marks[i] = parsedollar(replace(v, "/" => "_"))
-        end
-        for (i, idx) in enumerate(index)
-            marks[i] == "" && (marks[i] = "mark$idx")
-        end
-        keyall = if bk isa ReadingBlock
-            if true in isa.(marks, Expr)
-                [
-                    :(string($mark, "/", $(bk.instrnm), "/", $(bk.quantity), "[", $ind, "]", "/", $(bk.addr)))
-                    for (mark, ind) in zip(marks, index)
-                ]
-            else
-                [
-                    string(mark, "/", bk.instrnm, "/", bk.quantity, "[", ind, "]", "/", bk.addr)
-                    for (mark, ind) in zip(marks, index)
-                ]
-            end
-        else
-            if true in isa.(marks, Expr)
-                [
-                    :(string($mark, "/", $(bk.instrnm), "[", $ind, "]", "/", $(bk.addr)))
-                    for (mark, ind) in zip(marks, index)
-                ]
-            else
-                [string(mark, "/", bk.instrnm, "[", ind, "]", "/", bk.addr) for (mark, ind) in zip(marks, index)]
-            end
-        end
+        keyall = genkeys(bk, index)
         separator = bk isa ReadingBlock ? INSCONF[bk.instrnm].quantities[bk.quantity].separator : ","
         separator == "" && (separator = ",")
         getcmd = if bk isa ReadingBlock
@@ -501,6 +455,68 @@ function gencodes_read(bk::Union{ReadingBlock,QueryBlock,ReadBlock})
                 end
             end
         end
+    end
+end
+
+function genindex(bk)
+    index = @trypasse eval(Meta.parse(bk.index)) begin
+        @error "[$(now())]\n$(mlstr("codes are wrong in parsing time ($(typeof(bk)))!!!"))" bk = bk
+        return
+    end
+    index isa Integer && (index = [index])
+    return index
+end
+genmark(bk) = parsedollar(replace(bk.mark, "/" => "_"))
+function genkey(bk::ReadingBlock)
+    mark = genmark(bk)
+    if mark isa Expr
+        :(string($mark, "/", $(bk.instrnm), "/", $(bk.quantity), "/", $(bk.addr)))
+    else
+        string(mark, "/", bk.instrnm, "/", bk.quantity, "/", bk.addr)
+    end
+end
+function genkey(bk)
+    mark = genmark(bk)
+    if mark isa Expr
+        :(string($mark, "/", $(bk.instrnm), "/", $(bk.addr)))
+    else
+        string(mark, "/", bk.instrnm, "/", bk.addr)
+    end
+end
+function genmarks(bk, index)
+    marks = Vector{Union{AbstractString,Expr}}(undef, length(index))
+    fill!(marks, "")
+    for (i, v) in enumerate(split(bk.mark, ","))
+        marks[i] = parsedollar(replace(v, "/" => "_"))
+    end
+    for (i, idx) in enumerate(index)
+        marks[i] == "" && (marks[i] = "mark$idx")
+    end
+    return marks
+end
+function genkeys(bk::ReadingBlock, index)
+    marks = genmarks(bk, index)
+    if true in isa.(marks, Expr)
+        [
+            :(string($mark, "/", $(bk.instrnm), "/", $(bk.quantity), "[", $ind, "]", "/", $(bk.addr)))
+            for (mark, ind) in zip(marks, index)
+        ]
+    else
+        [
+            string(mark, "/", bk.instrnm, "/", bk.quantity, "[", ind, "]", "/", bk.addr)
+            for (mark, ind) in zip(marks, index)
+        ]
+    end
+end
+function genkeys(bk, index)
+    marks = genmarks(bk, index)
+    if true in isa.(marks, Expr)
+        [
+            :(string($mark, "/", $(bk.instrnm), "[", $ind, "]", "/", $(bk.addr)))
+            for (mark, ind) in zip(marks, index)
+        ]
+    else
+        [string(mark, "/", bk.instrnm, "[", ind, "]", "/", bk.addr) for (mark, ind) in zip(marks, index)]
     end
 end
 
@@ -585,6 +601,10 @@ macro gencontroller(key, val, retval=nothing, quiet=false)
                 @warn "[$(now())]\n$(mlstr("pause!"))" $key = $val
                 lock(() -> wait(BLOCK), BLOCK)
                 @info "[$(now())]\n$(mlstr("continue!"))" $key = $val
+                if SYNCSTATES[Int(IsInterrupted)]
+                    $quiet || @warn "[$(now())]\n$(mlstr("interrupt!"))" $key = $val
+                    return $retval
+                end
             end
         end
     )
@@ -1500,6 +1520,7 @@ end
 
 let
     filter::String = ""
+    keysbuf::String = ""
     global function edit(bk::ReadingBlock, openpopup::Ref{Bool}=Ref(false))
         CImGui.PushStyleVar(CImGui.ImGuiStyleVar_ItemSpacing, (Float32(2), unsafe_load(IMGUISTYLE.ItemSpacing.y)))
         CImGui.PushStyleColor(
@@ -1516,6 +1537,20 @@ let
             colbt=[0, 0, 0, 0], colbta=[0, 0, 0, 0], colbth=[0, 0, 0, 0],
             coltxt=bk.istrycatch ? MORESTYLE.Colors.BlockTrycatch : MORESTYLE.Colors.BlockIcons
         ) && (bk.istrycatch ⊻= true)
+        if CImGui.BeginPopupContextItem("##ReadingBlockiconmenu")
+            openpopup[] = true
+            if CImGui.Button(mlstr("Generate Keys"))
+                index = genindex(bk)
+                keysbuf = isnothing(index) ? genkey(bk) : join(genkeys(bk, index), '\n')
+            end
+            y = length(split(keysbuf, '\n')) * CImGui.GetTextLineHeight() +
+                2unsafe_load(IMGUISTYLE.FramePadding.y)
+            CImGui.InputTextMultiline(
+                "##generatedkeys", keysbuf, length(keysbuf), (Cfloat(0), y),
+                CImGui.ImGuiInputTextFlags_ReadOnly
+            )
+            CImGui.EndPopup()
+        end
         CImGui.SameLine()
         width = (CImGui.GetContentRegionAvail().x - 2CImGui.GetFontSize()) / 6
         CImGui.PushItemWidth(width)
