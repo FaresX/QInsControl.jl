@@ -205,6 +205,7 @@ function saferun(daqtask::DAQTask)
         @warn "[$(now())]\n$(mlstr("terminates the task successfully!"))"
         SYNCSTATES[Int(IsDAQTaskDone)] = false
         SYNCSTATES[Int(IsDAQTaskRunning)] = false
+        SYNCSTATES[Int(IsInterrupted)] = false
     end
 end
 
@@ -235,11 +236,15 @@ function run(daqtask::DAQTask)
     end
     run_remote(daqtask)
     wait(
-        Threads.@spawn @trycatch mlstr("updating data failed!") begin
+        Threads.@spawn try
             savecfgcache()
             while update_all()
                 yield()
             end
+        catch e
+            @error string("[", now(), "]\n", mlstr("updating data failed!")) exception = e
+            showbacktrace()
+            rethrow()
         end
     )
 end
