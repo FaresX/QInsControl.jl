@@ -1069,7 +1069,7 @@ antiinterpret(ex, ::Val{:sweepblock}) = SweepBlock(
     ui=utoui(ex.args[4], ex.args[6], strtoU(string(ex.args[9]))),
     delay=ex.args[10],
     istrycatch=ex.args[11],
-    blocks=(bk = antiinterpret(ex.args[12]); iscontainer(bk) ? bk.blocks : [bk])
+    blocks=(bk = antiinterpret(ex.args[12]); bk isa StrideCodeBlock && occursin("begin", bk.codes) ? bk.blocks : [bk])
 )
 antiinterpret(ex, ::Val{:freesweepblock}) = FreeSweepBlock(
     instrnm=ex.args[3],
@@ -1082,7 +1082,7 @@ antiinterpret(ex, ::Val{:freesweepblock}) = FreeSweepBlock(
     duration=ex.args[10],
     delay=ex.args[11],
     istrycatch=ex.args[12],
-    blocks=(bk = antiinterpret(ex.args[13]); iscontainer(bk) ? bk.blocks : [bk])
+    blocks=(bk = antiinterpret(ex.args[13]); bk isa StrideCodeBlock && occursin("begin", bk.codes) ? bk.blocks : [bk])
 )
 antiinterpret(ex, ::Val{:settingblock}) = SettingBlock(
     instrnm=ex.args[3],
