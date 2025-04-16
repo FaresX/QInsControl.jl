@@ -352,10 +352,16 @@ let
                             end
                         end
                     end
-                    if igTabItemButton(MORESTYLE.Icons.NewFile, ImGuiTabItemFlags_Trailing | ImGuiTabItemFlags_NoTooltip)
+                    if CImGui.TabItemButton(MORESTYLE.Icons.NewFile)
                         haskey(INSWCONF, selectedins) || (INSWCONF[selectedins] = [])
                         newwnm = "new widget $(length(INSWCONF[selectedins])+1)"
                         push!(INSWCONF[selectedins], InstrWidget(instrnm=selectedins, name=newwnm))
+                    end
+                    if CImGui.TabItemButton(
+                        stcstr(MORESTYLE.Icons.SelectPath, "##configfolder"),
+                        ImGuiTabItemFlags_Trailing
+                    )
+                        DefaultApplication.open(abspath(ENV["QInsControlAssets"]))
                     end
                     CImGui.EndTabBar()
                 end
