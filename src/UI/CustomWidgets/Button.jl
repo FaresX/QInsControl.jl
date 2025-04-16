@@ -87,9 +87,7 @@ function RenameSelectable(
         InputTextRSZ(str_id, label)
         CImGui.PopItemWidth()
         size2[2] > 0 && CImGui.PopStyleVar()
-        if (!CImGui.IsItemHovered() && !CImGui.IsItemActive() && CImGui.IsMouseClicked(0)) || CImGui.IsMouseClicked(1)
-            isrename[] = false
-        end
+        CImGui.IsItemDeactivated() && (isrename[] = false)
     else
         trig = CImGui.Selectable(stcstr(fixedlabel, label[]), selected, flags, size1)
         CImGui.IsItemHovered() && CImGui.IsMouseDoubleClicked(0) && (isrename[] = true)
