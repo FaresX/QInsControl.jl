@@ -213,7 +213,7 @@ function tocodes(bk::SweepBlock)
         return nothing
     end
     start = :(parse(Float64, controllers[$instr]($getfunc, CPU, Val(:read))))
-    satrt = bk.istrycatch ? :(@gentrycatch $(bk.instrnm) $(bk.addr) $start) : start
+    start = bk.istrycatch ? :(@gentrycatch $(bk.instrnm) $(bk.addr) $start) : start
     Uchange = U isa Unitful.MixedUnits ? 1 : ustrip(Us[1], 1U)
     step = Expr(:call, :*, stepc, Uchange)
     stop = Expr(:call, :*, stopc, Uchange)
