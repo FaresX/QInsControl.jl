@@ -107,33 +107,34 @@ log the Controller in the Processor which can be done before and after the cpu s
 """
 function login!(cpu::Processor, ct::Controller; quiet=true, attr=nothing)
     lock(cpu.lock) do
-        ct in cpu.controllers || push!(cpu.controllers, ct)
-        if cpu.running[]
+        if ct ∉ cpu.controllers
             if !haskey(cpu.instrs, ct.addr)
                 instr = instrument(ct.instrnm, ct.addr; attr=attr)
-                try
-                    connect!(cpu.resourcemanager[], instr)
-                catch e
-                    @error "an error occurs during connecting" exception = e
-                end
                 cpu.instrs[ct.addr] = instr
-                cpu.exechannels[ct.addr] = []
-                cpu.taskhandlers[ct.addr] = true
-                cpu.taskbusy[ct.addr] = false
-                cpu.tasks[ct.addr] = errormonitor(
-                    @async while cpu.taskhandlers[ct.addr]
-                        if isempty(cpu.exechannels[ct.addr]) || cpu.taskbusy[ct.addr]
-                            cpu.fast[] ? yield() : sleep(0.001)
-                        else
-                            runcmd(cpu, popfirst!(cpu.exechannels[ct.addr])...)
-                        end
+                if cpu.running[]
+                    try
+                        connect!(cpu.resourcemanager[], instr)
+                    catch e
+                        @error "an error occurs during connecting" exception = e
                     end
-                )
+                    cpu.exechannels[ct.addr] = []
+                    cpu.taskhandlers[ct.addr] = true
+                    cpu.taskbusy[ct.addr] = false
+                    cpu.tasks[ct.addr] = errormonitor(
+                        @async while cpu.taskhandlers[ct.addr]
+                            if isempty(cpu.exechannels[ct.addr]) || cpu.taskbusy[ct.addr]
+                                cpu.fast[] ? yield() : sleep(0.001)
+                            else
+                                runcmd(cpu, popfirst!(cpu.exechannels[ct.addr])...)
+                            end
+                        end
+                    )
+                    cpu.instrs[ct.addr] = instr
+                end
             end
-        else
-            haskey(cpu.instrs, ct.addr) || (cpu.instrs[ct.addr] = instrument(ct.instrnm, ct.addr; attr=attr))
+            push!(cpu.controllers, ct)
+            quiet || @info "controller $(findfirst(==(ct), cpu.controllers)) has logged in"
         end
-        quiet || @info "controller $(findfirst(==(ct), cpu.controllers)) has logged in"
     end
     return nothing
 end
