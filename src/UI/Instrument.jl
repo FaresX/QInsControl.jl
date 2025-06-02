@@ -40,6 +40,7 @@ function manualadd(addr)
         for (ins, cf) in INSCONF
             if true in occursin.(split(cf.conf.idn, ';'), idn)
                 get!(INSTRBUFFERVIEWERS[ins], addr, InstrBufferViewer(ins, addr))
+                delete!(INSTRBUFFERVIEWERS["Others"], addr)
                 return true
             end
         end
@@ -91,14 +92,12 @@ let
         @c ComboS("##OthersIns", &addinstr, keys(INSTRBUFFERVIEWERS["Others"]))
         CImGui.SameLine()
         if CImGui.Button(stcstr(MORESTYLE.Icons.NewFile))
-            @async @trycatch mlstr("task failed!!!") begin
-                if !SYNCSTATES[Int(AutoDetecting)] && !SYNCSTATES[Int(AutoDetectDone)]
-                    SYNCSTATES[Int(AutoDetecting)] = true
-                    st = manualadd(addinstr)
-                    st && (addinstr = "")
-                    time_old = time()
-                    SYNCSTATES[Int(AutoDetecting)] = false
-                end
+            if !SYNCSTATES[Int(AutoDetecting)] && !SYNCSTATES[Int(AutoDetectDone)]
+                SYNCSTATES[Int(AutoDetecting)] = true
+                st = manualadd(addinstr)
+                st && (addinstr = "")
+                time_old = time()
+                SYNCSTATES[Int(AutoDetecting)] = false
             end
         end
         return time() - time_old < 2, st
@@ -124,14 +123,12 @@ let
         end
         CImGui.SameLine()
         if CImGui.Button(stcstr(MORESTYLE.Icons.NewFile, "##manual input addr"))
-            @async @trycatch mlstr("task failed!!!") begin
-                if !SYNCSTATES[Int(AutoDetecting)] && !SYNCSTATES[Int(AutoDetectDone)]
-                    SYNCSTATES[Int(AutoDetecting)] = true
-                    st = manualadd(newinsaddr)
-                    st && (newinsaddr = "")
-                    time_old = time()
-                    SYNCSTATES[Int(AutoDetecting)] = false
-                end
+            if !SYNCSTATES[Int(AutoDetecting)] && !SYNCSTATES[Int(AutoDetectDone)]
+                SYNCSTATES[Int(AutoDetecting)] = true
+                st = manualadd(newinsaddr)
+                st && (newinsaddr = "")
+                time_old = time()
+                SYNCSTATES[Int(AutoDetecting)] = false
             end
         end
         return time() - time_old < 2, st
