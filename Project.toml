@@ -55,6 +55,7 @@ MakieThemes = "0.1.2"
 NativeFileDialog = "0.2"
 OrderedCollections = "1"
 PrecompileTools = "1"
+Statistics = "1"
 StringEncodings = "0.3"
 julia = "1.6"
 
