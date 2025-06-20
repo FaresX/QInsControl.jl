@@ -22,6 +22,8 @@ function edit(fv::FileViewer, id)
         InputTextRSZ(stcstr(mlstr("Filter"), "##", id), fv.filetree.filter)
         CImGui.SameLine()
         CImGui.Checkbox(mlstr("Valid"), fv.filetree.valid)
+        CImGui.SameLine()
+        CImGui.Button(MORESTYLE.Icons.InstrumentsAutoRef) && refresh!(fv.filetree)
         CImGui.BeginChild("FileTree")
         CImGui.PushStyleColor(CImGui.ImGuiCol_ChildBg, MORESTYLE.Colors.ToolBarBg)
         edit(fv.filetree, fv.isrename, false)
@@ -41,14 +43,7 @@ function edit(fv::FileViewer, id)
         fv.filetree.rootpath_bnm != "" && CImGui.IsMouseClicked(1) && !CImGui.IsAnyItemHovered() &&
             CImGui.IsWindowHovered(CImGui.ImGuiHoveredFlags_RootAndChildWindows) && CImGui.OpenPopup("File Menu")
         if CImGui.BeginPopup("File Menu")
-            if CImGui.MenuItem(stcstr(MORESTYLE.Icons.InstrumentsAutoRef, " ", mlstr("Refresh")))
-                fv.filetree.filetrees = FolderFileTree(
-                    fv.filetree.rootpath,
-                    fv.filetree.selectedpathes,
-                    fv.filetree.filter,
-                    fv.filetree.valid
-                ).filetrees
-            end
+            CImGui.MenuItem(stcstr(MORESTYLE.Icons.InstrumentsAutoRef, " ", mlstr("Refresh"))) && refresh!(fv.filetree)
             CImGui.EndPopup()
         end
         CImGui.EndChild()

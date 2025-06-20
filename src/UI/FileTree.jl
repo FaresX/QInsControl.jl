@@ -32,7 +32,7 @@ mutable struct FolderFileTree <: FileTree
                     ft.filetrees,
                     FileFileTree(
                         p, basename(p), ft.selectedpathes, ft.filter,
-                        split(basename(p), '.')[end] in ["qdt", "cfg"] ? loadvalid(p) : false,
+                        valid[] ? (split(basename(p), '.')[end] in ["qdt", "cfg"] ? loadvalid(p) : false) : false,
                         false
                     )
                 )
@@ -53,7 +53,7 @@ mutable struct FolderFileTree <: FileTree
                 ft.filetrees,
                 FileFileTree(
                     p, basename(p), ft.selectedpathes, ft.filter,
-                    split(basename(p), '.')[end] in ["qdt", "cfg"] ? loadvalid(p) : false,
+                    valid[] ? (split(basename(p), '.')[end] in ["qdt", "cfg"] ? loadvalid(p) : false) : false,
                     false
                 )
             )
@@ -130,3 +130,5 @@ let
 end
 
 loadvalid(path) = (valid = @trypasse load(path, "valid") false; valid isa Bool ? valid : false)
+
+refresh!(ft::FolderFileTree) = (ft.filetrees = FolderFileTree(ft.rootpath, ft.selectedpathes, ft.filter, ft.valid).filetrees)
