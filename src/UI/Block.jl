@@ -1970,9 +1970,6 @@ let
                 CImGui.EndPopup()
             end
         end
-        for (i, bk) in enumerate(blocks)
-            bk isa NullBlock && deleteat!(blocks, i)
-        end
         if n == 1 && draggingid == presentid
             if isdragging && !CImGui.IsMouseDown(0)
                 isdragging = false
@@ -1987,6 +1984,9 @@ let
                 empty!(dragblock)
                 empty!(dropblock)
             end
+        end
+        for (i, bk) in enumerate(blocks)
+            bk isa NullBlock && deleteat!(blocks, i)
         end
     end
 end #let
