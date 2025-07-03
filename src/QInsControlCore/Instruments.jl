@@ -12,7 +12,7 @@ abstract type InstrAttr end
     idnfunc::String = "idn"
     querydelay::Real = 0
     termchar::Char = '\n'
-    clearbuffer::Bool = false
+    clearbuffer::Bool = true
 end
 
 @kwdef mutable struct SerialInstrAttr <: InstrAttr
@@ -31,7 +31,7 @@ end
     timeoutr::Real = 6
     querydelay::Real = 0
     termchar::Char = '\n'
-    clearbuffer::Bool = false
+    clearbuffer::Bool = true
 end
 
 @kwdef mutable struct TCPSocketInstrAttr <: InstrAttr
@@ -40,7 +40,7 @@ end
     timeoutr::Real = 6
     querydelay::Real = 0
     termchar::Char = '\n'
-    clearbuffer::Bool = false
+    clearbuffer::Bool = true
 end
 
 @kwdef mutable struct VirtualInstrAttr <: InstrAttr
@@ -49,7 +49,7 @@ end
     timeoutr::Real = 6
     querydelay::Real = 0
     termchar::Char = '\n'
-    clearbuffer::Bool = false
+    clearbuffer::Bool = true
 end
 
 struct VISAInstr <: Instrument
