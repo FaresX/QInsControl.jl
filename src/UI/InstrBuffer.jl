@@ -507,6 +507,7 @@ function serialsettings(attr::SerialInstrAttr)
     @c(ComboS(mlstr("Data Set Ready"), &dsr, string.(instances(SPdsr)))) && (attr.dsr = getproperty(LibSerialPort, Symbol(dsr)))
     xonxoff = string(attr.xonxoff)
     @c(ComboS(mlstr("XON/XOFF"), &xonxoff, string.(instances(SPXonXoff)))) && (attr.xonxoff = getproperty(LibSerialPort, Symbol(xonxoff)))
+    @c InputTextRSZ(mlstr("IDN function"), &attr.idnfunc)
     timeoutw = Cfloat(attr.timeoutw)
     @c(CImGui.DragFloat(
         stcstr(mlstr("Write Timeout"), " (s)"), &timeoutw,
@@ -527,6 +528,7 @@ function serialsettings(attr::SerialInstrAttr)
     @c CImGui.Checkbox(mlstr("Clear buffer when error occurs"), &attr.clearbuffer)
 end
 function tcpipsettings(attr::TCPSocketInstrAttr)
+    @c InputTextRSZ(mlstr("IDN function"), &attr.idnfunc)
     timeoutw = Cfloat(attr.timeoutw)
     @c(CImGui.DragFloat(
         stcstr(mlstr("Write Timeout"), " (s)"), &timeoutw,
@@ -547,6 +549,7 @@ function tcpipsettings(attr::TCPSocketInstrAttr)
     @c CImGui.Checkbox(mlstr("Clear buffer when error occurs"), &attr.clearbuffer)
 end
 function virtualsettings(attr::VirtualInstrAttr)
+    @c InputTextRSZ(mlstr("IDN function"), &attr.idnfunc)
     querydelay = Cfloat(attr.querydelay)
     @c(CImGui.DragFloat(
         stcstr(mlstr("Query Delay"), " (s)"), &querydelay,
@@ -568,6 +571,7 @@ function visasettings(attr::VISAInstrAttr)
     @c(ComboS(mlstr("Stop Bits"), &nstopbits, string.(instances(QInsControlCore.VI_ASRL_STOP)))) && (attr.nstopbits = getproperty(QInsControlCore, Symbol(nstopbits)))
     SeparatorTextColored(MORESTYLE.Colors.HighlightText, mlstr("Common"))
     @c CImGui.Checkbox(mlstr(attr.async ? "Asynchronous" : "Synchronous"), &attr.async)
+    @c InputTextRSZ(mlstr("IDN function"), &attr.idnfunc)
     querydelay = Cfloat(attr.querydelay)
     @c(CImGui.DragFloat(
         stcstr(mlstr("Query Delay"), " (s)"), &querydelay,

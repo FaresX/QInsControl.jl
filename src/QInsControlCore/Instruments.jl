@@ -9,6 +9,7 @@ abstract type InstrAttr end
     nstopbits::VI_ASRL_STOP = VI_ASRL_STOP_ONE
     #Common
     async::Bool = false
+    idnfunc::String = "idn"
     querydelay::Real = 0
     termchar::Char = '\n'
     clearbuffer::Bool = false
@@ -25,6 +26,7 @@ end
     dtr::SPdtr = SP_DTR_OFF
     dsr::SPdsr = SP_DSR_IGNORE
     xonxoff::SPXonXoff = SP_XONXOFF_DISABLED
+    idnfunc::String = "idn"
     timeoutw::Real = 6
     timeoutr::Real = 6
     querydelay::Real = 0
@@ -33,6 +35,7 @@ end
 end
 
 @kwdef mutable struct TCPSocketInstrAttr <: InstrAttr
+    idnfunc::String = "idn"
     timeoutw::Real = 6
     timeoutr::Real = 6
     querydelay::Real = 0
@@ -41,6 +44,7 @@ end
 end
 
 @kwdef mutable struct VirtualInstrAttr <: InstrAttr
+    idnfunc::String = "idn"
     timeoutw::Real = 6
     timeoutr::Real = 6
     querydelay::Real = 0
@@ -83,13 +87,35 @@ end
     attr::VirtualInstrAttr = VirtualInstrAttr()
 end
 
+@kwdef mutable struct ISOBUSInstr{T<:Instrument} <: Instrument
+    name::String
+    addr::String
+    rootaddr::String
+    port::Int
+    handle::T
+    connected::Ref{Bool}
+    attr::InstrAttr
+end
+
 """
     instrument(name, addr)
 
 generate an instrument with (name, addr) which automatically determines the type of this instrument.
 """
 function instrument(name, addr; attr=nothing)
-    if occursin("SERIAL", addr)
+    if occursin("ISOBUS", addr)
+        try
+            strs = split(addr, "::")
+            port = parse(Int, strs[end])
+            rootaddr = join(strs[1:end-2], "::")
+            instr = instrument(name, rootaddr; attr=attr)
+            return ISOBUSInstr{typeof(instr)}(name, addr, rootaddr, port, instr, false, instr.attr)
+        catch e
+            @error "address $addr is not valid" exception=e
+            setattr = isnothing(attr) || !isa(attr, VISAInstrAttr) ? VISAInstrAttr() : attr
+            return VISAInstr(name, addr, GenericInstrument(), false, setattr)
+        end
+    elseif occursin("SERIAL", addr)
         try
             _, portstr = split(addr, "::")
             setattr = isnothing(attr) || !isa(attr, SerialInstrAttr) ? SerialInstrAttr() : attr
@@ -180,6 +206,7 @@ function connect!(_, instr::TCPSocketInstr)
     return instr.connected[]
 end
 connect!(_, instr::VirtualInstr) = instr.connected[] = true
+connect!(rm, instr::ISOBUSInstr) = instr.connected[] = connect!(rm, instr.handle)
 
 """
     disconnect!(instr)
@@ -195,15 +222,17 @@ function disconnect!(instr::Instrument)
 end
 disconnect!(instr::VISAInstr) = (Instruments.disconnect!(instr.handle); instr.connected[] = instr.handle.connected)
 disconnect!(instr::VirtualInstr) = instr.connected[] = false
+disconnect!(instr::ISOBUSInstr) = instr.connected[] = disconnect!(instr.handle)
 
 """
     write(instr, msg)
 
 write some message string to the instrument.
 """
-Base.write(instr::Instrument, msg) = write(instr.handle, string(msg, instr.attr.termchar))
+Base.write(instr::Instrument, msg::AbstractString) = write(instr.handle, string(msg, instr.attr.termchar))
 Base.write(instr::VISAInstr, msg::AbstractString) = (instr.attr.async ? writeasync : Instruments.write)(instr.handle, string(msg, instr.attr.termchar))
 Base.write(::VirtualInstr, ::AbstractString) = nothing
+Base.write(instr::ISOBUSInstr, msg::AbstractString) = write(instr.handle, string("@", instr.port, msg))
 
 """
     read(instr)
@@ -216,6 +245,7 @@ function Base.read(instr::Instrument)
 end
 Base.read(instr::VISAInstr) = (instr.attr.async ? readasync : Instruments.read)(instr.handle)
 Base.read(::VirtualInstr) = "read"
+Base.read(instr::ISOBUSInstr) = read(instr.handle)
 
 """
     query(instr, msg; delay=0)
@@ -233,6 +263,7 @@ end
 query(instr::SerialInstr, msg::AbstractString; delay=instr.attr.querydelay) = _query_(instr, msg; delay=delay)
 query(instr::TCPSocketInstr, msg::AbstractString; delay=instr.attr.querydelay) = _query_(instr, msg; delay=delay)
 query(::VirtualInstr, ::AbstractString; delay=0) = "query"
+query(instr::ISOBUSInstr, msg::AbstractString; delay=0) = _query_(instr, msg; delay=delay)
 
 """
     isconnected(instr)
@@ -257,3 +288,5 @@ function clearbuffer(instr::Instrument)
         yield()
     end
 end
+
+idn(instr) = query(instr, "*IDN?")

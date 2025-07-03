@@ -1,3 +1,5 @@
+idn_get(instr) = eval(Symbol(instr.attr.idnfunc))(instr)
+
 function autodetect()
     addrs = remotecall_fetch(() -> find_resources(CPU), workers()[1])
     for addr in addrs
@@ -18,7 +20,7 @@ function manualadd(addr)
             ct = Controller("", addr; buflen=1, timeout=CONF.DAQ.cttimeout / 4)
             try
                 login!(CPU, ct; attr=getattr(addr))
-                ct(query, CPU, "*IDN?", Val(:query))
+                ct(idn_get, CPU, Val(:read))
             catch e
                 @error "[$(now())]\n$(mlstr("instrument communication failed!!!"))" instrument_address = addr exception = e
                 showbacktrace()

@@ -14,7 +14,7 @@ export TERMCHARDICT, TERMCHARDICTINV
 
 export Controller, Processor
 export login!, logout!, start!, stop!, reconnect!, find_resources, slow!, fast!, isbusy, setbusy!, unsetbusy!
-export instrument, connect!, disconnect!, write, read, query
+export instrument, connect!, disconnect!, write, read, query, idn
 
 function timedwhile(f::Function, timeout::Real)
     t = time()

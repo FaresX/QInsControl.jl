@@ -207,6 +207,7 @@ function saferun(daqtask::DAQTask)
         SYNCSTATES[Int(IsDAQTaskRunning)] = false
         SYNCSTATES[Int(IsInterrupted)] = false
     end
+    SYNCSTATES[Int(IsAutoRefreshing)] = true
 end
 
 function run(daqtask::DAQTask)
@@ -482,7 +483,7 @@ function extract_controllers(bkch::Vector{AbstractBlock})
                 @assert haskey(INSTRBUFFERVIEWERS, bk.instrnm) mlstr("$(bk.instrnm) has not been added")
                 @assert haskey(INSTRBUFFERVIEWERS[bk.instrnm], bk.addr) mlstr("$(bk.addr) has not been added")
                 login!(CPU, ct; attr=getattr(bk.addr))
-                ct(query, CPU, "*IDN?", Val(:query))
+                ct(idn_get, CPU, Val(:read))
                 controllers[string(bk.instrnm, "/", bk.addr)] = ct
             catch e
                 @error(
