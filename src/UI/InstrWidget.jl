@@ -995,6 +995,7 @@ let
                 end
                 igEndDisabled()
                 if !usingit
+                    qtw.options.uitype == "radio" && (qtw.options.itemsize .= CImGui.GetItemRectSize())
                     if haskey(draglayers, i)
                         isselected = selectedqtw == i
                         isselectedoringroup = isselected || qtw.selected
