@@ -56,50 +56,88 @@ let
                     end
                 end
             end
-            @c(CImGui.Checkbox(mlstr("Info"), &showinfo)) && (SYNCSTATES[Int(NewLogging)] = true)
-            CImGui.SameLine()
-            @c(CImGui.Checkbox(mlstr("Warn"), &showwarn)) && (SYNCSTATES[Int(NewLogging)] = true)
-            CImGui.SameLine()
-            @c(CImGui.Checkbox(mlstr("Error"), &showerror)) && (SYNCSTATES[Int(NewLogging)] = true)
-            CImGui.SameLine()
-            @c(CImGui.Checkbox(mlstr("Stacktrace"), &showstacktrace)) && (SYNCSTATES[Int(NewLogging)] = true)
-            CImGui.SameLine()
-            @c(CImGui.Checkbox(mlstr("Expand All"), &expandall))
-            igSeparatorText("")
+            if CImGui.BeginTabBar("Logging")
+                if CImGui.BeginTabItem(mlstr("System Logs"))
+                    @c(CImGui.Checkbox(mlstr("Info"), &showinfo)) && (SYNCSTATES[Int(NewLogging)] = true)
+                    CImGui.SameLine()
+                    @c(CImGui.Checkbox(mlstr("Warn"), &showwarn)) && (SYNCSTATES[Int(NewLogging)] = true)
+                    CImGui.SameLine()
+                    @c(CImGui.Checkbox(mlstr("Error"), &showerror)) && (SYNCSTATES[Int(NewLogging)] = true)
+                    CImGui.SameLine()
+                    @c(CImGui.Checkbox(mlstr("Stacktrace"), &showstacktrace)) && (SYNCSTATES[Int(NewLogging)] = true)
+                    CImGui.SameLine()
+                    @c(CImGui.Checkbox(mlstr("Expand All"), &expandall))
+                    igSeparatorText("")
 
-            if CImGui.BeginTable(
-                "LogTable", 3,
-                CImGui.ImGuiTableFlags_Borders | CImGui.ImGuiTableFlags_Resizable | CImGui.ImGuiTableFlags_ScrollY
-            )
-                CImGui.TableSetupScrollFreeze(0, 1)
-                CImGui.TableSetupColumn(mlstr("Type"), CImGui.ImGuiTableColumnFlags_WidthFixed, 4CImGui.GetFontSize())
-                CImGui.TableSetupColumn(mlstr("Date"), CImGui.ImGuiTableColumnFlags_WidthFixed, 12CImGui.GetFontSize())
-                CImGui.TableSetupColumn(mlstr("Message"), CImGui.ImGuiTableColumnFlags_WidthStretch)
-                CImGui.TableHeadersRow()
+                    if CImGui.BeginTable(
+                        "LogTable", 3,
+                        CImGui.ImGuiTableFlags_Borders | CImGui.ImGuiTableFlags_Resizable | CImGui.ImGuiTableFlags_ScrollY
+                    )
+                        CImGui.TableSetupScrollFreeze(0, 1)
+                        CImGui.TableSetupColumn(mlstr("Type"), CImGui.ImGuiTableColumnFlags_WidthFixed, 4CImGui.GetFontSize())
+                        CImGui.TableSetupColumn(mlstr("Date"), CImGui.ImGuiTableColumnFlags_WidthFixed, 12CImGui.GetFontSize())
+                        CImGui.TableSetupColumn(mlstr("Message"), CImGui.ImGuiTableColumnFlags_WidthStretch)
+                        CImGui.TableHeadersRow()
 
-                for (type, date, title, col, expanded, msg) in logmsgshow
-                    !showinfo && type == "Info" && continue
-                    !showwarn && type == "Warn" && continue
-                    !showerror && type == "Error" && continue
-                    !showstacktrace && type == "Stacktrace" && continue
-                    CImGui.TableNextRow()
-                    CImGui.TableSetBgColor(CImGui.ImGuiTableBgTarget_RowBg0, CImGui.ColorConvertFloat4ToU32(col))
+                        for (type, date, title, col, expanded, msg) in logmsgshow
+                            !showinfo && type == "Info" && continue
+                            !showwarn && type == "Warn" && continue
+                            !showerror && type == "Error" && continue
+                            !showstacktrace && type == "Stacktrace" && continue
+                            CImGui.TableNextRow()
+                            CImGui.TableSetBgColor(CImGui.ImGuiTableBgTarget_RowBg0, CImGui.ColorConvertFloat4ToU32(col))
 
-                    CImGui.TableSetColumnIndex(0)
-                    CImGui.Text(type)
+                            CImGui.TableSetColumnIndex(0)
+                            CImGui.Text(type)
 
-                    CImGui.TableSetColumnIndex(1)
-                    CImGui.Text(date)
+                            CImGui.TableSetColumnIndex(1)
+                            CImGui.Text(date)
 
-                    CImGui.TableSetColumnIndex(2)
-                    CImGui.PushTextWrapPos(0)
-                    CImGui.TextUnformatted(expandall || expanded[] ? msg : title)
-                    CImGui.PopTextWrapPos()
-                    CImGui.IsItemHovered() && CImGui.IsMouseDoubleClicked(0) && (expanded[] = !expanded[])
+                            CImGui.TableSetColumnIndex(2)
+                            CImGui.PushTextWrapPos(0)
+                            CImGui.TextUnformatted(expandall || expanded[] ? msg : title)
+                            CImGui.PopTextWrapPos()
+                            CImGui.IsItemHovered() && CImGui.IsMouseDoubleClicked(0) && (expanded[] = !expanded[])
+                        end
+                        SYNCSTATES[Int(NewLogging)] && (CImGui.SetScrollHereY(1); SYNCSTATES[Int(NewLogging)] = false)
+                        firsttime && (CImGui.SetScrollHereY(1); firsttime = false)
+                        CImGui.EndTable()
+                    end
+                    CImGui.EndTabItem()
                 end
-                SYNCSTATES[Int(NewLogging)] && (CImGui.SetScrollHereY(1); SYNCSTATES[Int(NewLogging)] = false)
-                firsttime && (CImGui.SetScrollHereY(1); firsttime = false)
-                CImGui.EndTable()
+                if CImGui.BeginTabItem(mlstr("Server Logs"))
+                    if CImGui.BeginTable(
+                        "Server Buffer Table", 4,
+                        CImGui.ImGuiTableFlags_Borders | CImGui.ImGuiTableFlags_Resizable | CImGui.ImGuiTableFlags_ScrollY
+                    )
+                        CImGui.TableSetupScrollFreeze(0, 1)
+                        CImGui.TableSetupColumn(mlstr("DateTime"), CImGui.ImGuiTableColumnFlags_WidthFixed, 12CImGui.GetFontSize())
+                        CImGui.TableSetupColumn(mlstr("IP Address"), CImGui.ImGuiTableColumnFlags_WidthFixed, 6CImGui.GetFontSize())
+                        CImGui.TableSetupColumn(mlstr("Port"), CImGui.ImGuiTableColumnFlags_WidthFixed, 4CImGui.GetFontSize())
+                        CImGui.TableSetupColumn(mlstr("Message"), CImGui.ImGuiTableColumnFlags_WidthStretch)
+                        CImGui.TableHeadersRow()
+
+                        @lock QICSERVER.buffer for (date, ip, port, msg) in QICSERVER.buffer[]
+                            CImGui.TableNextRow()
+
+                            CImGui.TableSetColumnIndex(0)
+                            CImGui.Text(string(date))
+
+                            CImGui.TableSetColumnIndex(1)
+                            CImGui.Text(string(ip))
+
+                            CImGui.TableSetColumnIndex(2)
+                            CImGui.Text(string(port))
+
+                            CImGui.TableSetColumnIndex(3)
+                            CImGui.Text(msg)
+                        end
+                        QICSERVER.newmsg && (CImGui.SetScrollHereY(1); QICSERVER.newmsg = false)
+                        CImGui.EndTable()
+                    end
+                    CImGui.EndTabItem()
+                end
+                CImGui.EndTabBar()
             end
         end
         CImGui.End()

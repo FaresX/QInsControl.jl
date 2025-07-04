@@ -260,6 +260,7 @@ end
     SelectPath::String = ICONS.ICON_MAP
 
     CPUMonitor::String = ICONS.ICON_COMPUTER
+    ServerMonitor::String = ICONS.ICON_SERVER
 
     Instruments::String = ICONS.ICON_BIOHAZARD
     InstrumentsSetting::String = ICONS.ICON_BOOK_JOURNAL_WHILLS

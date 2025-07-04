@@ -31,6 +31,7 @@ using InteractiveUtils
 using Logging
 using Printf
 using SharedArrays
+using Sockets
 using Statistics
 using TOML
 using UUIDs
@@ -39,6 +40,7 @@ include("QInsControlCore/QInsControlCore.jl")
 using .QInsControlCore
 using .QInsControlCore.LibSerialPort
 import .QInsControlCore: VISAInstrAttr, SerialInstrAttr, TCPSocketInstrAttr, VirtualInstrAttr
+import .QInsControlCore: init!, run!, start!, stop!
 
 @enum SyncStatesIndex begin
     AutoDetecting = 1 #是否正在自动查询仪器
@@ -88,11 +90,14 @@ include("UI/DataPlot.jl")
 include("UI/DataViewer.jl")
 include("UI/FileTree.jl")
 include("UI/FileViewer.jl")
+include("UI/OpenFileMonitor.jl")
 include("UI/DataFormatter.jl")
 include("UI/StyleEditor.jl")
 include("UI/Preferences.jl")
 include("UI/CPUMonitor.jl")
 include("UI/InstrBuffer.jl")
+include("UI/InstrumentMonitor.jl")
+include("UI/QICServer.jl")
 include("UI/InstrRegister.jl")
 include("UI/InstrWidget.jl")
 include("UI/DAQ.jl")

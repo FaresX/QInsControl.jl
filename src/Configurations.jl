@@ -49,6 +49,11 @@ end
     unitlist::Dict{String,Dict{String,Dict{String,Int}}} = Dict()
 end
 
+@option mutable struct OptServer
+    port::Cint = 6060
+    buflen::Cint = 1024
+end
+
 @option mutable struct OptRegister
     historylen::Cint = 120
 end
@@ -114,6 +119,7 @@ end
     DtViewer::OptDtViewer = OptDtViewer()
     DAQ::OptDAQ = OptDAQ()
     InsBuf::OptInsBuf = OptInsBuf()
+    Server::OptServer = OptServer()
     Register::OptRegister = OptRegister()
     Fonts::OptFonts = OptFonts()
     # Icons::OptIcons = OptIcons()

@@ -253,6 +253,26 @@ let
                 )
                 CImGui.Text(" ")
 
+                ###Server###
+                SeparatorTextColored(MORESTYLE.Colors.HighlightText, mlstr("Server"))
+                @c(CImGui.DragInt(
+                    mlstr("port"),
+                    &CONF.Server.port,
+                    1.0, 1, 65535, "%d",
+                    CImGui.ImGuiSliderFlags_AlwaysClamp
+                )) && (QICSERVER.port = CONF.Server.port) 
+                @c(CImGui.DragInt(
+                    mlstr("buffer size"),
+                    &CONF.Server.buflen,
+                    1.0, 4, 4096, "%d",
+                    CImGui.ImGuiSliderFlags_AlwaysClamp
+                )) && (QICSERVER.buflen = CONF.Server.buflen)
+                # termchar = TERMCHARDICTINV[CONF.Server.termchar]
+                # @c(ComboS(
+                #     mlstr("Termination Character"), &termchar, keys(TERMCHARDICT)
+                # )) && (CONF.Server.termchar = TERMCHARDICT[termchar])
+                CImGui.Text(" ")
+
                 ###Register###
                 SeparatorTextColored(MORESTYLE.Colors.HighlightText, mlstr("Instrument Registration"))
                 @c CImGui.DragInt(
