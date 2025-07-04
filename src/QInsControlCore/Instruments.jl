@@ -257,7 +257,7 @@ Base.write(instr::Instrument, msg::AbstractString) = write(instr.handle, string(
 Base.write(instr::VISAInstr, msg::AbstractString) = (instr.attr.async ? writeasync : Instruments.write)(instr.handle, string(msg, instr.attr.termchar))
 Base.write(::VirtualInstr, ::AbstractString) = nothing
 Base.write(instr::ISOBUSInstr, msg::AbstractString) = write(instr.handle, string("@", instr.subaddr, msg))
-Base.write(instr::QICInstr, msg::AbstractString) = write(instr.handle, string(instr.subaddr, "::QIC::", msg, "::QIC::QICWRITE", ))
+Base.write(instr::QICInstr, msg::AbstractString) = write(instr.handle, string(instr.subaddr, ":Q:", msg, ":Q:W", ))
 
 """
     read(instr)
@@ -272,7 +272,7 @@ Base.read(instr::VISAInstr) = (instr.attr.async ? readasync : Instruments.read)(
 Base.read(::VirtualInstr) = "read"
 Base.read(instr::ISOBUSInstr) = read(instr.handle)
 function Base.read(instr::QICInstr)
-    write(instr.handle, string(instr.subaddr, "::QIC::::QIC::QICREAD"))
+    write(instr.handle, string(instr.subaddr, ":Q::Q:R"))
     return read(instr.handle)
 end
 
@@ -294,7 +294,7 @@ query(instr::TCPSocketInstr, msg::AbstractString; delay=instr.attr.querydelay) =
 query(::VirtualInstr, ::AbstractString; delay=0) = "query"
 query(instr::ISOBUSInstr, msg::AbstractString; delay=0) = _query_(instr, msg; delay=delay)
 function query(instr::QICInstr, msg::AbstractString; delay=0)
-    write(instr.handle, string(instr.subaddr, "::QIC::", msg, "::QIC::QICQUERY"))
+    write(instr.handle, string(instr.subaddr, ":Q:", msg, ":Q:Q"))
     delay < 0.001 ? yield() : sleep(delay)
     return read(instr.handle)
 end
