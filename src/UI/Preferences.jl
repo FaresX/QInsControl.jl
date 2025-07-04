@@ -260,13 +260,13 @@ let
                     &CONF.Server.port,
                     1.0, 1, 65535, "%d",
                     CImGui.ImGuiSliderFlags_AlwaysClamp
-                )) && (QICSERVER.port = CONF.Server.port) 
+                )) && timed_remotecall_wait(x -> (CONF.Server.port = x), workers()[1], CONF.Server.port)
                 @c(CImGui.DragInt(
                     mlstr("buffer size"),
                     &CONF.Server.buflen,
                     1.0, 4, 4096, "%d",
                     CImGui.ImGuiSliderFlags_AlwaysClamp
-                )) && (QICSERVER.buflen = CONF.Server.buflen)
+                )) && timed_remotecall_wait(x -> (QICSERVER.buflen = CONF.Server.buflen = x), workers()[1], CONF.Server.buflen)
                 # termchar = TERMCHARDICTINV[CONF.Server.termchar]
                 # @c(ComboS(
                 #     mlstr("Termination Character"), &termchar, keys(TERMCHARDICT)

@@ -188,7 +188,7 @@ let
     global setctxi(ctx) = (ctxi = ctx)
     global function onexitaction()
         SYNCSTATES[Int(IsDAQTaskRunning)] || timed_remotecall_wait(() -> stop!(CPU), workers()[1])
-        stop!(QICSERVER)
+        timed_remotecall_wait(() -> stop!(QICSERVER), workers()[1])
         stoprefresh()
         empty!(STATICSTRINGS)
         empty!(MLSTRINGS)
