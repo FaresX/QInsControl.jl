@@ -71,7 +71,9 @@ function process_message(socket, msg::String; termchar='\n')
     try
         occursin("::QIC::", msg) || (@warn "Invalid message format!"; return)
         addr, cmd, action = split(msg, "::QIC::")
-        fetchdata = timed_remotecall_fetch(workers()[1], addr, String(cmd), action; timeout=CONF.DAQ.cttimeout) do addr, cmd, action
+        fetchdata = timed_remotecall_fetch(
+            workers()[1], addr, String(cmd), action; timeout=CONF.DAQ.cttimeout
+        ) do addr, cmd, action
             ct = Controller("", addr; buflen=CONF.DAQ.ctbuflen, timeout=CONF.DAQ.cttimeout)
             try
                 login!(CPU, ct; attr=getattr(addr))
