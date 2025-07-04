@@ -67,9 +67,6 @@ let
         showwhat = 1
     end
 
-    selectedins::String = ""
-    showst::Bool = false
-    st::Bool = false
     showwhat::Cint = 0
     menuidx::Cint = 0
     global function MainWindow()
@@ -160,6 +157,13 @@ let
                 CImGui.PopFont()
                 CImGui.SameLine()
                 CImGui.PushStyleColor(CImGui.ImGuiCol_Text, MORESTYLE.Colors.IconButton)
+                CImGui.Selectable(MORESTYLE.Icons.ServerMonitor, showwhat == 3, 0, sbsz) && (showwhat = 3)
+                CImGui.PopStyleColor()
+                CImGui.PushFont(GLOBALFONT)
+                ItemTooltip(mlstr("Server Monitor"))
+                CImGui.PopFont()
+                CImGui.SameLine()
+                CImGui.PushStyleColor(CImGui.ImGuiCol_Text, MORESTYLE.Colors.IconButton)
                 CImGui.Selectable(MORESTYLE.Icons.InstrumentsSetting, showwhat == 0, 0, sbsz) && (showwhat = 0)
                 CImGui.PopStyleColor()
                 CImGui.PushFont(GLOBALFONT)
@@ -234,163 +238,13 @@ let
 
             CImGui.BeginChild("right content")
             if showwhat == 0
-                btw = 2CImGui.GetFrameHeight() + unsafe_load(IMGUISTYLE.ItemSpacing.y)
-                CImGui.PushStyleColor(CImGui.ImGuiCol_Border, MORESTYLE.Colors.ItemBorder)
-                CImGui.PushStyleVar(CImGui.ImGuiStyleVar_ChildBorderSize, 1)
-                CImGui.BeginChild("border1", (Cfloat(0), btw + 2unsafe_load(IMGUISTYLE.WindowPadding.y)), true)
-                showst |= SYNCSTATES[Int(AutoDetecting)]
-                showst && CImGui.PushStyleColor(
-                    CImGui.ImGuiCol_Button,
-                    SYNCSTATES[Int(AutoDetecting)] ? MORESTYLE.Colors.InfoBg : st ? MORESTYLE.Colors.HighlightText : MORESTYLE.Colors.ErrorBg
-                )
-                igBeginDisabled(SYNCSTATES[Int(IsDAQTaskRunning)] || hassweeping())
-                CImGui.Button(MORESTYLE.Icons.InstrumentsAutoDetect, (btw, btw)) && refresh_instrlist()
-                showst && CImGui.PopStyleColor()
-                CImGui.SameLine()
-                CImGui.BeginGroup()
-                CImGui.PushItemWidth(CImGui.GetContentRegionAvail().x - unsafe_load(IMGUISTYLE.ItemSpacing.x) - CImGui.GetFrameHeight())
-                showst1, st1 = manualadd_from_others()
-                showst2, st2 = manualadd_from_input()
-                showst = showst1 || showst2
-                st = st1 || st2
-                CImGui.PopItemWidth()
-                CImGui.EndGroup()
-                igEndDisabled()
-                CImGui.EndChild()
-
-                CImGui.BeginChild("border2", (0, 0), true)
-                for (ins, inses) in INSTRBUFFERVIEWERS
-                    isempty(inses) && continue
-                    # isempty(inses) && CImGui.PushStyleColor(
-                    #     CImGui.ImGuiCol_Text, CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_TextDisabled)
-                    # )
-                    isrefreshingdict = Dict(addr => hasref(ibv) for (addr, ibv) in inses)
-                    # hasrefreshing = !isempty(inses) && SYNCSTATES[Int(IsAutoRefreshing)] && (|)(values(isrefreshingdict)...)
-                    hasrefreshing = SYNCSTATES[Int(IsAutoRefreshing)] && (|)(values(isrefreshingdict)...)
-                    hasrefreshing && CImGui.PushStyleColor(CImGui.ImGuiCol_Text, MORESTYLE.Colors.DAQTaskRunning)
-                    insnode = CImGui.TreeNode(
-                        stcstr(INSCONF[ins].conf.icon, " ", ins, "  ", "(", length(inses), ")", "###", ins)
-                    )
-                    hasrefreshing && CImGui.PopStyleColor()
-                    if insnode
-                        # if isempty(inses)
-                        #     CImGui.TextDisabled(stcstr("(", mlstr("Null"), ")"))
-                        # else
-                        for (addr, ibv) in inses
-                            isrefreshingdict[addr] && CImGui.PushStyleColor(
-                                CImGui.ImGuiCol_Text, MORESTYLE.Colors.DAQTaskRunning
-                            )
-                            addrnode = CImGui.TreeNode(addr)
-                            isrefreshingdict[addr] && CImGui.PopStyleColor()
-                            if CImGui.BeginPopupContextItem()
-                                sweeping = hassweeping(ibv)
-                                if CImGui.MenuItem(
-                                    stcstr(MORESTYLE.Icons.Delete, " ", mlstr("Delete")),
-                                    C_NULL,
-                                    false,
-                                    ins != "VirtualInstr" && !SYNCSTATES[Int(IsDAQTaskRunning)] && !sweeping
-                                )
-                                    delete!(INSTRBUFFERVIEWERS[ins], addr)
-                                    remotecall_fetch(addr -> logout!(CPU, addr), workers()[1], addr)
-                                end
-                                if CImGui.BeginMenu(
-                                    stcstr(MORESTYLE.Icons.NewFile, " ", mlstr("Add to")),
-                                    ins == "Others" && !SYNCSTATES[Int(IsDAQTaskRunning)] && !sweeping
-                                )
-                                    for (cfins, cf) in INSCONF
-                                        cfins in ["Others", "VirtualInstr"] && continue
-                                        if CImGui.MenuItem(stcstr(cf.conf.icon, " ", cfins))
-                                            delete!(INSTRBUFFERVIEWERS[ins], addr)
-                                            get!(INSTRBUFFERVIEWERS[cfins], addr, InstrBufferViewer(cfins, addr))
-                                        end
-                                    end
-                                    CImGui.EndMenu()
-                                end
-                                CImGui.EndPopup()
-                            end
-                            if addrnode
-                                @c CImGui.MenuItem(mlstr("Common"), C_NULL, &ibv.p_open)
-                                if haskey(INSWCONF, ins)
-                                    haskey(instrwidgets, addr) || (instrwidgets[addr] = Dict())
-                                    for w in INSWCONF[ins]
-                                        if !haskey(instrwidgets[addr], w.name)
-                                            instrwidgets[addr][w.name] = (Ref(false), [])
-                                        end
-                                        if CImGui.MenuItem(w.name, C_NULL, instrwidgets[addr][w.name][1])
-                                            if instrwidgets[addr][w.name][1][]
-                                                push!(instrwidgets[addr][w.name][2], deepcopy(w))
-                                                initialize!(only(instrwidgets[addr][w.name][2]), addr)
-                                            end
-                                        end
-                                    end
-                                end
-                                CImGui.TreePop()
-                            end
-                        end
-                        # end
-                        CImGui.TreePop()
-                    end
-                    # isempty(inses) && CImGui.PopStyleColor()
-                end
-                CImGui.EndChild()
-                CImGui.PopStyleVar()
-                CImGui.PopStyleColor()
+                InstrumentMonitor(instrwidgets)
             elseif showwhat == 1
-                filelist = filter(fv -> fv.filetree.rootpath_bnm == "", fileviewers)
-                folderlist = filter(fv -> fv.filetree.rootpath_bnm != "", fileviewers)
-                SeparatorTextColored(MORESTYLE.Colors.HighlightText, mlstr("Files"))
-                if isempty(filelist)
-                    CImGui.TextDisabled(stcstr("(", mlstr("Null"), ")"))
-                else
-                    for (i, fv) in enumerate(filelist)
-                        CImGui.PushID(i)
-                        title = isempty(fv.filetree.filetrees) ? mlstr("no file opened") : basename(fv.filetree.filetrees[1].filepath)
-                        @c CImGui.MenuItem(title, C_NULL, &fv.p_open)
-                        if CImGui.BeginPopupContextItem()
-                            CImGui.MenuItem(stcstr(MORESTYLE.Icons.Delete, " ", mlstr("Close"))) && (fv.noclose = false)
-                            CImGui.EndPopup()
-                        end
-                        CImGui.PopID()
-                    end
-                end
-                SeparatorTextColored(MORESTYLE.Colors.HighlightText, mlstr("Folders"))
-                if isempty(folderlist)
-                    CImGui.TextDisabled(stcstr("(", mlstr("Null"), ")"))
-                else
-                    for (i, fv) in enumerate(folderlist)
-                        CImGui.PushID(i)
-                        @c CImGui.MenuItem(basename(fv.filetree.rootpath), C_NULL, &fv.p_open)
-                        if CImGui.BeginPopupContextItem()
-                            if CImGui.MenuItem(stcstr(MORESTYLE.Icons.InstrumentsAutoRef, " ", mlstr("Refresh")))
-                                fv.filetree.filetrees = FolderFileTree(
-                                    fv.filetree.rootpath,
-                                    fv.filetree.selectedpathes,
-                                    fv.filetree.filter,
-                                    fv.filetree.valid
-                                ).filetrees
-                            end
-                            CImGui.MenuItem(stcstr(MORESTYLE.Icons.Delete, " ", mlstr("Close"))) && (fv.noclose = false)
-                            CImGui.EndPopup()
-                        end
-                        CImGui.PopID()
-                    end
-                end
-                SeparatorTextColored(MORESTYLE.Colors.HighlightText, mlstr("Formatters"))
-                if isempty(dataformatters)
-                    CImGui.TextDisabled(stcstr("(", mlstr("Null"), ")"))
-                else
-                    for (i, dft) in enumerate(dataformatters)
-                        CImGui.PushID(i)
-                        @c CImGui.MenuItem(stcstr(mlstr("Formatter"), " ", i), C_NULL, &dft.p_open)
-                        if CImGui.BeginPopupContextItem()
-                            CImGui.MenuItem(stcstr(MORESTYLE.Icons.Delete, " ", mlstr("Close"))) && (dft.noclose = false)
-                            CImGui.EndPopup()
-                        end
-                        CImGui.PopID()
-                    end
-                end
+                OpenFileMonitor(fileviewers, dataformatters)
             elseif showwhat == 2
                 CPUMonitor()
+            elseif showwhat == 3
+                ServerMonitor()
             end
             CImGui.EndChild()
 
