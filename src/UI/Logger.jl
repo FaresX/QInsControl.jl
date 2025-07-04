@@ -6,6 +6,7 @@ let
     showerror::Bool = true
     showstacktrace::Bool = false
     expandall::Bool = false
+    serverbuffer::QICServer = QICServer()
     global function LogWindow(p_open::Ref)
         # CImGui.SetNextWindowPos((100, 100), CImGui.ImGuiCond_Once)
         CImGui.SetNextWindowSize((800, 600), CImGui.ImGuiCond_Once)
@@ -106,6 +107,7 @@ let
                     CImGui.EndTabItem()
                 end
                 if CImGui.BeginTabItem(mlstr("Server Logs"))
+                    refreshserverbuffer()
                     if CImGui.BeginTable(
                         "Server Buffer Table", 4,
                         CImGui.ImGuiTableFlags_Borders | CImGui.ImGuiTableFlags_Resizable | CImGui.ImGuiTableFlags_ScrollY
@@ -117,7 +119,7 @@ let
                         CImGui.TableSetupColumn(mlstr("Message"), CImGui.ImGuiTableColumnFlags_WidthStretch)
                         CImGui.TableHeadersRow()
 
-                        @lock QICSERVER.buffer for (date, ip, port, msg) in QICSERVER.buffer[]
+                        @lock serverbuffer.buffer for (date, ip, port, msg) in serverbuffer.buffer[]
                             CImGui.TableNextRow()
 
                             CImGui.TableSetColumnIndex(0)
@@ -132,7 +134,10 @@ let
                             CImGui.TableSetColumnIndex(3)
                             CImGui.Text(msg)
                         end
-                        QICSERVER.newmsg && (CImGui.SetScrollHereY(1); QICSERVER.newmsg = false)
+                        if serverbuffer.newmsg
+                            CImGui.SetScrollHereY(1)
+                            timed_remotecall_wait(() -> QICSERVER.newmsg = false, workers()[1])
+                        end
                         CImGui.EndTable()
                     end
                     CImGui.EndTabItem()
@@ -142,6 +147,10 @@ let
         end
         CImGui.End()
         p_open.x || (firsttime = true)
+    end
+    function refreshserverbuffer()
+        serverfetch = timed_remotecall_fetch(() -> QICSERVER, workers()[1]; timeout=0.03, quiet=true)
+        isnothing(serverfetch) || (serverbuffer = serverfetch)
     end
 end
 

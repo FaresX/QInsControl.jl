@@ -69,17 +69,18 @@ function run!(server::QICServer)
 end
 
 function process_message(socket, msg::String; termchar='\n')
-    occursin(":Q:", msg) || (@warn "Invalid message format!"; return)
-    ct = Controller("", addr; buflen=CONF.DAQ.ctbuflen, timeout=CONF.DAQ.cttimeout)
+    ct = Controller("", "")
     try
+        occursin(":Q:", msg) || (@warn "Invalid message format!"; return)
         addr, cmd, action = split(msg, ":Q:")
+        ct = Controller("", addr; buflen=CONF.DAQ.ctbuflen, timeout=CONF.DAQ.cttimeout)
         login!(CPU, ct; attr=getattr(addr))
         if action == "R"
             write(socket, string(ct(read, CPU, Val(:read)), termchar))
         elseif action == "W"
-            ct(write, CPU, cmd, Val(:write))
+            ct(write, CPU, String(cmd), Val(:write))
         elseif action == "Q"
-            write(socket, string(ct(query, CPU, cmd, Val(:query)), termchar))
+            write(socket, string(ct(query, CPU, String(cmd), Val(:query)), termchar))
         end
     catch e
         @error "Error processing message" exception = e

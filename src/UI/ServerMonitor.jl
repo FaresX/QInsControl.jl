@@ -63,7 +63,10 @@ let
                 CImGui.TableSetColumnIndex(1)
                 CImGui.Text(msg)
             end
-            serverbuffer.newmsg && (CImGui.SetScrollHereY(1); serverbuffer.newmsg = false)
+            if serverbuffer.newmsg
+                CImGui.SetScrollHereY(1)
+                timed_remotecall_wait(() -> QICSERVER.newmsg = false, workers()[1])
+            end
             CImGui.EndTable()
         end
     end
