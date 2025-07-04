@@ -769,6 +769,12 @@ macro psleep(seconds)
     )
 end
 
+macro newfile()
+    esc(
+        :(timed_remotecall_wait(eval, 1, :(newfile()); timeout=60))
+    )
+end
+
 ############compile-----------------------------------------------------------------------------------------------------
 function compile(blocks::Vector{AbstractBlock})
     return quote

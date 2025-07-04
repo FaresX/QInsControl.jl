@@ -14,6 +14,7 @@ global WORKPATH::String = ""
 global SAVEPATH::String = ""
 global CFGCACHESAVEPATH::String = ""
 global QDTCACHESAVEPATH::String = ""
+global RUNNINGTASK::String = ""
 const CFGBUF = Dict{String,Any}()
 
 let
@@ -216,8 +217,10 @@ function run(daqtask::DAQTask)
     global CFGCACHESAVEPATH
     global QDTCACHESAVEPATH
     global OLDI
+    global RUNNINGTASK
     SYNCSTATES[Int(IsDAQTaskRunning)] = true
     SYNCSTATES[Int(IsAutoRefreshing)] = false
+    RUNNINGTASK = daqtask.name
     date = today()
     find_old_i(joinpath(WORKPATH, string(year(date)), string(year(date), "-", month(date)), string(date)))
     cfgsvdir = joinpath(WORKPATH, string(year(date)), string(year(date), "-", month(date)), string(date))
@@ -504,6 +507,46 @@ function extract_controllers(bkch::Vector{AbstractBlock})
         end
     end
     controllers, true
+end
+
+function newfile()
+    global WORKPATH
+    global SAVEPATH
+    global CFGCACHESAVEPATH
+    global QDTCACHESAVEPATH
+    global OLDI
+    global RUNNINGTASK
+
+    try
+        log_instrbufferviewers()
+    catch e
+        @error "[$(now())]\n$(mlstr("instrument logging error, continue..."))" exception = e
+        showbacktrace()
+    end
+    (isfile(SAVEPATH) | !isempty(DATABUF)) && (saveqdt(); global OLDI += 1)
+    Base.Filesystem.rm(CFGCACHESAVEPATH; force=true)
+    Base.Filesystem.rm(QDTCACHESAVEPATH; force=true)
+
+    date = today()
+    find_old_i(joinpath(WORKPATH, string(year(date)), string(year(date), "-", month(date)), string(date)))
+    cfgsvdir = joinpath(WORKPATH, string(year(date)), string(year(date), "-", month(date)), string(date))
+    ispath(cfgsvdir) || mkpath(cfgsvdir)
+    fileprename = replace("[$(now())] $(mlstr("Task")) $(1+OLDI) $RUNNINGTASK", ':' => '.')
+    SAVEPATH = joinpath(cfgsvdir, "$fileprename.qdt")
+    CFGCACHESAVEPATH = joinpath(cfgsvdir, "$fileprename.cfg.cache")
+    QDTCACHESAVEPATH = joinpath(cfgsvdir, "$fileprename.qdt.cache")
+    for k in keys(CFGBUF)
+        k == "daqtask" || delete!(CFGBUF, k)
+    end
+    try
+        log_instrbufferviewers()
+    catch e
+        @error "[$(now())]\n$(mlstr("instrument logging error, continue..."))" exception = e
+        showbacktrace()
+    end
+
+    empty!(DATABUF)
+    empty!(DATABUFPARSED)
 end
 
 #DAQTask Viewer
