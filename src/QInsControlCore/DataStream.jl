@@ -76,8 +76,9 @@ function Base.show(io::IO, cpu::Processor)
     print(io, str1)
     for ct in cpu.controllers
         print(io, "\t\t\tController\n")
-        ct_strs = split(string(ct), '\n')[1:end-1]
-        print(io, string(join(fill("\t\t", 4) .* ct_strs, "\n"), "\n\n"))
+        print(io, ct)
+        # ct_strs = split(string(ct), '\n')[1:end-1]
+        # print(io, string(join(fill("\t\t", 4) .* ct_strs, "\n"), "\n\n"))
     end
     str2 = """
               tasks : 
