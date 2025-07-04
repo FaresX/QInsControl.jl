@@ -23,7 +23,7 @@ let
         end
         CImGui.SameLine()
         CImGui.Text(string(serverbuffer.port))
-        CImGui.BeginChild("Clients Table", (Cfloat(0), 6CImGui.GetFrameHeight()))
+        CImGui.BeginChild("Clients Table", (Cfloat(0), 4CImGui.GetFrameHeight()))
         if CImGui.BeginTable(
             "Clients Table", 2,
             CImGui.ImGuiTableFlags_Borders | CImGui.ImGuiTableFlags_Resizable | CImGui.ImGuiTableFlags_ScrollY
