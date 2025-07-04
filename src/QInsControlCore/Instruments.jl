@@ -91,7 +91,17 @@ end
     name::String
     addr::String
     rootaddr::String
-    port::Int
+    subaddr::Int
+    handle::T
+    connected::Ref{Bool}
+    attr::InstrAttr
+end
+
+@kwdef mutable struct QICInstr{T<:Instrument} <: Instrument
+    name::String
+    addr::String
+    rootaddr::String
+    subaddr::String
     handle::T
     connected::Ref{Bool}
     attr::InstrAttr
@@ -103,15 +113,27 @@ end
 generate an instrument with (name, addr) which automatically determines the type of this instrument.
 """
 function instrument(name, addr; attr=nothing)
-    if occursin("ISOBUS", addr)
+    if occursin("QIC", addr)
         try
-            strs = split(addr, "::")
-            port = parse(Int, strs[end])
-            rootaddr = join(strs[1:end-2], "::")
+            strs = split(addr, "::QIC::")
+            rootaddr = strs[1]
+            subaddr = length(strs) == 2 ? strs[2] : join(strs[2:end], "::QIC::")
             instr = instrument(name, rootaddr; attr=attr)
-            return ISOBUSInstr{typeof(instr)}(name, addr, rootaddr, port, instr, false, instr.attr)
+            return QICInstr{typeof(instr)}(name, addr, rootaddr, subaddr, instr, false, instr.attr)
         catch e
-            @error "address $addr is not valid" exception=e
+            @error "address $addr is not valid" exception = e
+            setattr = isnothing(attr) || !isa(attr, VISAInstrAttr) ? VISAInstrAttr() : attr
+            return VISAInstr(name, addr, GenericInstrument(), false, setattr)
+        end
+    elseif occursin("ISOBUS", addr)
+        try
+            strs = split(addr, "::ISOBUS::")
+            rootaddr = strs[1]
+            subaddr = parse(Int, strs[2])
+            instr = instrument(name, rootaddr; attr=attr)
+            return ISOBUSInstr{typeof(instr)}(name, addr, rootaddr, subaddr, instr, false, instr.attr)
+        catch e
+            @error "address $addr is not valid" exception = e
             setattr = isnothing(attr) || !isa(attr, VISAInstrAttr) ? VISAInstrAttr() : attr
             return VISAInstr(name, addr, GenericInstrument(), false, setattr)
         end
@@ -207,6 +229,7 @@ function connect!(_, instr::TCPSocketInstr)
 end
 connect!(_, instr::VirtualInstr) = instr.connected[] = true
 connect!(rm, instr::ISOBUSInstr) = instr.connected[] = connect!(rm, instr.handle)
+connect!(rm, instr::QICInstr) = instr.connected[] = connect!(rm, instr.handle)
 
 """
     disconnect!(instr)
@@ -223,6 +246,7 @@ end
 disconnect!(instr::VISAInstr) = (Instruments.disconnect!(instr.handle); instr.connected[] = instr.handle.connected)
 disconnect!(instr::VirtualInstr) = instr.connected[] = false
 disconnect!(instr::ISOBUSInstr) = instr.connected[] = disconnect!(instr.handle)
+disconnect!(instr::QICInstr) = instr.connected[] = disconnect!(instr.handle)
 
 """
     write(instr, msg)
@@ -232,7 +256,8 @@ write some message string to the instrument.
 Base.write(instr::Instrument, msg::AbstractString) = write(instr.handle, string(msg, instr.attr.termchar))
 Base.write(instr::VISAInstr, msg::AbstractString) = (instr.attr.async ? writeasync : Instruments.write)(instr.handle, string(msg, instr.attr.termchar))
 Base.write(::VirtualInstr, ::AbstractString) = nothing
-Base.write(instr::ISOBUSInstr, msg::AbstractString) = write(instr.handle, string("@", instr.port, msg))
+Base.write(instr::ISOBUSInstr, msg::AbstractString) = write(instr.handle, string("@", instr.subaddr, msg))
+Base.write(instr::QICInstr, msg::AbstractString) = write(instr.handle, string(instr.subaddr, "::", msg, "::QICWRITE"))
 
 """
     read(instr)
@@ -246,6 +271,10 @@ end
 Base.read(instr::VISAInstr) = (instr.attr.async ? readasync : Instruments.read)(instr.handle)
 Base.read(::VirtualInstr) = "read"
 Base.read(instr::ISOBUSInstr) = read(instr.handle)
+function Base.read(instr::QICInstr)
+    write(instr.handle, string(instr.subaddr, "::::QICREAD"))
+    return read(instr.handle)
+end
 
 """
     query(instr, msg; delay=0)
@@ -264,6 +293,11 @@ query(instr::SerialInstr, msg::AbstractString; delay=instr.attr.querydelay) = _q
 query(instr::TCPSocketInstr, msg::AbstractString; delay=instr.attr.querydelay) = _query_(instr, msg; delay=delay)
 query(::VirtualInstr, ::AbstractString; delay=0) = "query"
 query(instr::ISOBUSInstr, msg::AbstractString; delay=0) = _query_(instr, msg; delay=delay)
+function query(instr::QICInstr, msg::AbstractString; delay=0)
+    write(instr, string(instr.subaddr, "::", msg, "::QICQUERY"))
+    delay < 0.001 ? yield() : sleep(delay)
+    return read(instr.handle)
+end
 
 """
     isconnected(instr)
