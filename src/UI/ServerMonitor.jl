@@ -42,9 +42,9 @@ let
             CImGui.ImGuiTableFlags_Borders | CImGui.ImGuiTableFlags_Resizable | CImGui.ImGuiTableFlags_ScrollY
         )
             CImGui.TableSetupScrollFreeze(0, 1)
-            CImGui.TableSetupColumn(mlstr("IP Address"), CImGui.ImGuiTableColumnFlags_WidthFixed, 8CImGui.GetFontSize())
-            CImGui.TableSetupColumn(mlstr("Port"), CImGui.ImGuiTableColumnFlags_WidthFixed, 6CImGui.GetFontSize())
-            CImGui.TableSetupColumn("", CImGui.ImGuiTableColumnFlags_WidthStretch)
+            CImGui.TableSetupColumn(mlstr("IP Address"))
+            CImGui.TableSetupColumn(mlstr("Port"))
+            CImGui.TableSetupColumn("")
             CImGui.TableHeadersRow()
 
             for client in serverbuffer.clients
@@ -55,12 +55,12 @@ let
 
                 CImGui.TableSetColumnIndex(1)
                 CImGui.Text(string(client.port))
-                CImGui.SameLine()
+
+                CImGui.TableSetColumnIndex(2)
                 addrstr = stcstr(client.addr, ":", client.port)
                 haskey(showmsg, addrstr) || (showmsg[addrstr] = true)
                 CImGui.Checkbox(stcstr("##", addrstr), Ref(showmsg[addrstr])) && (showmsg[addrstr] = !showmsg[addrstr])
-
-                CImGui.TableSetColumnIndex(2)
+                CImGui.SameLine()
                 client.connected || CImGui.PushStyleColor(CImGui.ImGuiCol_Text, MORESTYLE.Colors.ErrorText)
                 if CImGui.Button(stcstr(MORESTYLE.Icons.Delete, "##", client.addr, ":", client.port))
                     timed_remotecall_wait(workers()[1], client.addr, client.port) do addr, port
