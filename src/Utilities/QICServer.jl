@@ -90,10 +90,12 @@ function process_message(server::QICServer, client::QICClient, msg::String)
             strs = split(msg, ":Q:")
             length(strs) == 3 || (@warn "Invalid message format!"; return)
             addr, cmd, action = strs
-            length(client.buffer) < server.buflen && push!(client.buffer, (now(), addr, cmd, action))
+            push!(client.buffer, (now(), addr, cmd, action))
+            length(client.buffer) > server.buflen && popfirst!(client.buffer)
             server.newmsg = true
         else
-            length(client.buffer) < server.buflen && push!(client.buffer, (now(), "", msg, ""))
+            push!(client.buffer, (now(), "", msg, ""))
+            length(client.buffer) > server.buflen && popfirst!(client.buffer)
             server.newmsg = true
             @warn "Invalid message format!"; return
         end
