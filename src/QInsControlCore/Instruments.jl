@@ -107,6 +107,32 @@ end
     attr::InstrAttr
 end
 
+const PROXYSTATES = Dict{String,Bool}()
+const PROXYTIMEOUT = 6
+macro proxy(instr, ex)
+    esc(
+        quote
+            isok = timedwhile(PROXYTIMEOUT) do
+                avail = PROXYSTATES[$instr.rootaddr]
+                avail && (PROXYSTATES[$instr.rootaddr] = false)
+                return avail
+            end
+            if isok
+                result = try
+                    $ex
+                catch e
+                    rethrow(e)
+                finally
+                    PROXYSTATES[$instr.rootaddr] = true
+                end
+                return result
+            else
+                error(string($instr.addr, " timeout"))
+            end
+        end
+    )
+end
+
 """
     instrument(name, addr)
 
@@ -131,6 +157,7 @@ function instrument(name, addr; attr=nothing)
             rootaddr = strs[1]
             subaddr = parse(Int, strs[2])
             instr = instrument(name, rootaddr; attr=attr)
+            get!(PROXYSTATES, rootaddr, true)
             return ISOBUSInstr{typeof(instr)}(name, addr, rootaddr, subaddr, instr, false, instr.attr)
         catch e
             @error "address $addr is not valid" exception = e
@@ -256,8 +283,8 @@ write some message string to the instrument.
 Base.write(instr::Instrument, msg::AbstractString) = write(instr.handle, string(msg, instr.attr.termchar))
 Base.write(instr::VISAInstr, msg::AbstractString) = (instr.attr.async ? writeasync : Instruments.write)(instr.handle, string(msg, instr.attr.termchar))
 Base.write(::VirtualInstr, ::AbstractString) = nothing
-Base.write(instr::ISOBUSInstr, msg::AbstractString) = write(instr.handle, string("@", instr.subaddr, msg))
-Base.write(instr::QICInstr, msg::AbstractString) = write(instr.handle, string(instr.subaddr, ":Q:", msg, ":Q:W", ))
+Base.write(instr::ISOBUSInstr, msg::AbstractString) = @proxy instr write(instr.handle, string("@", instr.subaddr, msg))
+Base.write(instr::QICInstr, msg::AbstractString) = write(instr.handle, string(instr.subaddr, ":Q:", msg, ":Q:W"))
 
 """
     read(instr)
@@ -266,14 +293,15 @@ read the instrument.
 """
 function Base.read(instr::Instrument)
     t = @async readuntil(instr.handle, instr.attr.termchar)
-    timedwhilefetch(t, instr.attr.timeoutr; msg="read $(instr.addr) time out", throwerror=true)
+    timedwhilefetch(t, instr.attr.timeoutr; msg="read $(instr.addr) timeout", throwerror=true)
 end
 Base.read(instr::VISAInstr) = (instr.attr.async ? readasync : Instruments.read)(instr.handle)
 Base.read(::VirtualInstr) = "read"
-Base.read(instr::ISOBUSInstr) = read(instr.handle)
+Base.read(instr::ISOBUSInstr) = @proxy instr read(instr.handle)
 function Base.read(instr::QICInstr)
     write(instr.handle, string(instr.subaddr, ":Q::Q:R"))
-    return read(instr.handle)
+    yield()
+    read(instr.handle)
 end
 
 """
@@ -292,7 +320,13 @@ end
 query(instr::SerialInstr, msg::AbstractString; delay=instr.attr.querydelay) = _query_(instr, msg; delay=delay)
 query(instr::TCPSocketInstr, msg::AbstractString; delay=instr.attr.querydelay) = _query_(instr, msg; delay=delay)
 query(::VirtualInstr, ::AbstractString; delay=0) = "query"
-query(instr::ISOBUSInstr, msg::AbstractString; delay=0) = _query_(instr, msg; delay=delay)
+function query(instr::ISOBUSInstr, msg::AbstractString; delay=0)
+    @proxy instr begin
+        write(instr.handle, string("@", instr.subaddr, msg))
+        delay < 0.001 ? yield() : sleep(delay)
+        read(instr.handle)
+    end
+end
 function query(instr::QICInstr, msg::AbstractString; delay=0)
     write(instr.handle, string(instr.subaddr, ":Q:", msg, ":Q:Q"))
     delay < 0.001 ? yield() : sleep(delay)
