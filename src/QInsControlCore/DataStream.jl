@@ -254,17 +254,14 @@ end
 function runcmd(cpu::Processor, ct::Controller, i::Int, f::Function, val::String, ::Val{:write})
     wait(Threads.@spawn f(cpu.instrs[ct.addr], val))
     ct.ready[i] = true
-    return nothing
 end
 function runcmd(cpu::Processor, ct::Controller, i::Int, f::Function, ::String, ::Val{:read})
     ct.databuf[i] = fetch(Threads.@spawn f(cpu.instrs[ct.addr]))
     ct.ready[i] = true
-    return nothing
 end
 function runcmd(cpu::Processor, ct::Controller, i::Int, f::Function, val::String, ::Val{:query})
     ct.databuf[i] = fetch(Threads.@spawn f(cpu.instrs[ct.addr], val))
     ct.ready[i] = true
-    return nothing
 end
 
 function init!(cpu::Processor)

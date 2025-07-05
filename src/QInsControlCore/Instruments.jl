@@ -296,7 +296,7 @@ query(instr::ISOBUSInstr, msg::AbstractString; delay=0) = _query_(instr, msg; de
 function query(instr::QICInstr, msg::AbstractString; delay=0)
     write(instr.handle, string(instr.subaddr, ":Q:", msg, ":Q:Q"))
     delay < 0.001 ? yield() : sleep(delay)
-    return read(instr.handle)
+    read(instr.handle)
 end
 
 """
