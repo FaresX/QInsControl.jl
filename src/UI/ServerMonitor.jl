@@ -1,6 +1,7 @@
 let
     serverbuffer::QICServer = QICServer()
     showmsg::Dict{String,Bool} = Dict()
+    shownewest::Bool = true
     global function ServerMonitor()
         refreshserverbuffer()
         @c(CImGui.DragInt(
@@ -36,6 +37,7 @@ let
     end
 
     global function manageclients(; clientline=4, simplifiedmsg=true)
+        @c CImGui.Checkbox(mlstr("Newest Message"), &shownewest)
         CImGui.BeginChild("Clients Table", (Cfloat(0), clientline * CImGui.GetFrameHeightWithSpacing()))
         if CImGui.BeginTable(
             "Clients Table", 3,
@@ -109,14 +111,14 @@ let
                 end
             end
             if serverbuffer.newmsg
-                CImGui.SetScrollHereY(1)
+                shownewest && CImGui.SetScrollHereY(1)
                 timed_remotecall_wait(() -> QICSERVER.newmsg = false, workers()[1])
             end
             CImGui.EndTable()
         end
     end
 
-    function refreshserverbuffer()
+    global function refreshserverbuffer()
         serverfetch = timed_remotecall_fetch(() -> QICSERVER, workers()[1]; timeout=0.03, quiet=true)
         isnothing(serverfetch) || (serverbuffer = serverfetch)
     end

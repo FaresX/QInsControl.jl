@@ -107,6 +107,7 @@ let
                     CImGui.EndTabItem()
                 end
                 if CImGui.BeginTabItem(mlstr("Server Logs"))
+                    refreshserverbuffer()
                     manageclients(; clientline=6, simplifiedmsg=false)
                     CImGui.EndTabItem()
                 end
