@@ -107,39 +107,7 @@ let
                     CImGui.EndTabItem()
                 end
                 if CImGui.BeginTabItem(mlstr("Server Logs"))
-                    refreshserverbuffer()
-                    if CImGui.BeginTable(
-                        "Server Buffer Table", 4,
-                        CImGui.ImGuiTableFlags_Borders | CImGui.ImGuiTableFlags_Resizable | CImGui.ImGuiTableFlags_ScrollY
-                    )
-                        CImGui.TableSetupScrollFreeze(0, 1)
-                        CImGui.TableSetupColumn(mlstr("DateTime"), CImGui.ImGuiTableColumnFlags_WidthFixed, 12CImGui.GetFontSize())
-                        CImGui.TableSetupColumn(mlstr("IP Address"), CImGui.ImGuiTableColumnFlags_WidthFixed, 6CImGui.GetFontSize())
-                        CImGui.TableSetupColumn(mlstr("Port"), CImGui.ImGuiTableColumnFlags_WidthFixed, 4CImGui.GetFontSize())
-                        CImGui.TableSetupColumn(mlstr("Message"), CImGui.ImGuiTableColumnFlags_WidthStretch)
-                        CImGui.TableHeadersRow()
-
-                        @lock serverbuffer.buffer for (date, ip, port, msg) in serverbuffer.buffer[]
-                            CImGui.TableNextRow()
-
-                            CImGui.TableSetColumnIndex(0)
-                            CImGui.Text(string(date))
-
-                            CImGui.TableSetColumnIndex(1)
-                            CImGui.Text(string(ip))
-
-                            CImGui.TableSetColumnIndex(2)
-                            CImGui.Text(string(port))
-
-                            CImGui.TableSetColumnIndex(3)
-                            CImGui.Text(msg)
-                        end
-                        if serverbuffer.newmsg
-                            CImGui.SetScrollHereY(1)
-                            timed_remotecall_wait(() -> QICSERVER.newmsg = false, workers()[1])
-                        end
-                        CImGui.EndTable()
-                    end
+                    manageclients(; clientline=6, simplifiedmsg=false)
                     CImGui.EndTabItem()
                 end
                 CImGui.EndTabBar()
@@ -147,10 +115,6 @@ let
         end
         CImGui.End()
         p_open.x || (firsttime = true)
-    end
-    function refreshserverbuffer()
-        serverfetch = timed_remotecall_fetch(() -> QICSERVER, workers()[1]; timeout=0.03, quiet=true)
-        isnothing(serverfetch) || (serverbuffer = serverfetch)
     end
 end
 

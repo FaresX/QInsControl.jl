@@ -1,10 +1,19 @@
+@kwdef mutable struct QICClient
+    socket::TCPSocket = TCPSocket()
+    addr::IPv4 = ip"127.0.0.1"
+    port::Int = 0
+    controllers::Dict{String,Controller} = Dict()
+    buffer::Vector{Tuple{DateTime,String,String,String}} = []
+    connected::Bool = false
+end
+
 @kwdef mutable struct QICServer
     server::Sockets.TCPServer = Sockets.TCPServer()
     port::Int = 6060
-    clients::Base.Lockable{Vector{Tuple{IPAddr,UInt16}},ReentrantLock} = Base.Lockable(Tuple{IPAddr,UInt16}[])
+    clients::Vector{QICClient} = []
     termchar::Char = '\n'
+    maxclients::Int = 36
     buflen::Int = 1024
-    buffer::Base.Lockable{Vector{Tuple{DateTime,IPv4,Int,String}},ReentrantLock} = Base.Lockable(Tuple{DateTime,IPv4,Int,String}[])
     running::Bool = false
     fast::Bool = false
     newmsg::Bool = false
@@ -16,8 +25,10 @@ function init!(server::QICServer)
     server.running = false
     server.fast = false
     server.newmsg = false
-    @lock server.clients empty!(server.clients[])
-    @lock server.buffer empty!(server.buffer[])
+    for client in server.clients
+        isopen(client.socket) && close(client.socket)
+    end
+    empty!(server.clients)
 end
 
 function run!(server::QICServer)
@@ -25,37 +36,16 @@ function run!(server::QICServer)
         server.running = true
         server.server = listen(server.port)
         while server.running
-            socket = accept(server.server)
-            @lock server.clients push!(server.clients[], getpeername(socket))
-            @async try
-                while server.running
-                    msg = readuntil(socket, server.termchar)
-                    if msg == ""
-                        @lock server.clients begin
-                            idx = findfirst(==(getpeername(socket)), server.clients[])
-                            deleteat!(server.clients[], idx)
-                            close(socket)
-                        end
-                        break
-                    end
-                    if server.fast
-                        yield()
-                    else
-                        ip, port = getpeername(socket)
-                        @lock server.buffer begin
-                            push!(server.buffer[], (now(), ip, port, msg))
-                            length(server.buffer[]) > server.buflen && popfirst!(server.buffer[])
-                        end
-                        server.newmsg = true
-                        sleep(0.001)
-                    end
-                    process_message(socket, msg; termchar=server.termchar)
-                end
-            catch e
-                @error "comunication error" exception = e
-                showbacktrace()
-            finally
-                close(socket)
+            if length(server.clients) < server.maxclients
+                socket = accept(server.server)
+                ip, port = getpeername(socket)
+                push!(
+                    server.clients,
+                    QICClient(socket=socket, addr=ip, port=port, connected=true)
+                )
+                @async handle_client(server, server.clients[end])
+            else
+                sleep(1)
             end
             server.fast ? yield() : sleep(0.001)
         end
@@ -68,30 +58,74 @@ function run!(server::QICServer)
     end
 end
 
-function process_message(socket, msg::String; termchar='\n')
-    ct = Controller("", "")
+function handle_client(server::QICServer, client::QICClient)
     try
-        occursin(":Q:", msg) || (@warn "Invalid message format!"; return)
-        addr, cmd, action = split(msg, ":Q:")
-        ct = Controller("", addr; buflen=CONF.DAQ.ctbuflen, timeout=CONF.DAQ.cttimeout)
+        while server.running
+            msg = readuntil(client.socket, server.termchar)
+            msg == "" && (client.connected = false)
+            client.connected || break
+            process_message(server, client, msg)
+            server.fast ? yield() : sleep(0.001)
+        end
+    catch e
+        @error "Client error" exception = e
+        showbacktrace()
+    finally
+        client.connected = false
+        for ct in values(client.controllers)
+            logout!(CPU, ct)
+        end
+        close(client.socket)
+        dellist = []
+        for (i, client) in enumerate(server.clients)
+            client.connected || push!(dellist, i)
+        end
+        deleteat!(server.clients, dellist)
+    end
+end
+
+function process_message(server::QICServer, client::QICClient, msg::String)
+    try
+        if occursin(":Q:", msg)
+            strs = split(msg, ":Q:")
+            length(strs) == 3 || (@warn "Invalid message format!"; return)
+            addr, cmd, action = strs
+            length(client.buffer) < server.buflen && push!(client.buffer, (now(), addr, cmd, action))
+            server.newmsg = true
+        else
+            length(client.buffer) < server.buflen && push!(client.buffer, (now(), "", msg, ""))
+            server.newmsg = true
+            @warn "Invalid message format!"; return
+        end
+        if !haskey(client.controllers, addr)
+            client.controllers[addr] = Controller("", addr; buflen=CONF.DAQ.ctbuflen, timeout=CONF.DAQ.cttimeout)
+        end
+        ct = client.controllers[addr]
         login!(CPU, ct; attr=getattr(addr))
         if action == "R"
-            write(socket, string(ct(read, CPU, Val(:read)), termchar))
+            write(client.socket, string(ct(read, CPU, Val(:read)), server.termchar))
         elseif action == "W"
             ct(write, CPU, String(cmd), Val(:write))
         elseif action == "Q"
-            write(socket, string(ct(query, CPU, String(cmd), Val(:query)), termchar))
+            write(client.socket, string(ct(query, CPU, String(cmd), Val(:query)), server.termchar))
         end
     catch e
         @error "Error processing message" exception = e
         showbacktrace()
-    finally
-        logout!(CPU, ct)
     end
 end
 
 start!(server::QICServer) = (init!(server); run!(server))
 
-stop!(server::QICServer) = server.running && (server.running = false; close(server.server))
+function stop!(server::QICServer)
+    server.running && (server.running = false; close(server.server))
+    for client in server.clients
+        for ct in values(client.controllers)
+            logout!(CPU, ct)
+        end
+        isopen(client.socket) && close(client.socket)
+    end
+    empty!(server.clients)
+end
 
 const QICSERVER = QICServer()
