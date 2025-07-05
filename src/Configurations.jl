@@ -51,6 +51,7 @@ end
 
 @option mutable struct OptServer
     port::Cint = 6060
+    maxclients::Cint = 36
     buflen::Cint = 1024
 end
 

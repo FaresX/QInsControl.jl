@@ -262,6 +262,14 @@ let
                     CImGui.ImGuiSliderFlags_AlwaysClamp
                 )) && timed_remotecall_wait(x -> (CONF.Server.port = x), workers()[1], CONF.Server.port)
                 @c(CImGui.DragInt(
+                    mlstr("max clients"),
+                    &CONF.Server.maxclients,
+                    1.0, 1, 128, "%d",
+                    CImGui.ImGuiSliderFlags_AlwaysClamp
+                )) && timed_remotecall_wait(workers()[1], CONF.Server.maxclients) do x
+                    QICSERVER.maxclients = CONF.Server.maxclients = x
+                end
+                @c(CImGui.DragInt(
                     mlstr("buffer size"),
                     &CONF.Server.buflen,
                     1.0, 4, 4096, "%d",
