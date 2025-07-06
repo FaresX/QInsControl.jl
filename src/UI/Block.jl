@@ -201,6 +201,8 @@ function tocodes(bk::SweepBlock)
     quantity = bk.quantity
     setfunc = Symbol(bk.instrnm, :_, bk.quantity, :_set)
     getfunc = Symbol(bk.instrnm, :_, bk.quantity, :_get)
+    timeoutw = INSCONF[bk.instrnm].quantities[quantity].timeoutw
+    timeoutr = INSCONF[bk.instrnm].quantities[quantity].timeoutr
     U, Us = @c getU(INSCONF[bk.instrnm].quantities[quantity].U, &bk.ui)
     U == "" && (@error "[$(now())]\n$(mlstr("input data error!!!"))" bk = bk;
     return)
@@ -212,7 +214,7 @@ function tocodes(bk::SweepBlock)
         @error "[$(now())]\n$(mlstr("codes are wrong in parsing time (SweepBlock)!!!"))" bk = bk
         return nothing
     end
-    start = :(parse(Float64, controllers[$instr]($getfunc, CPU, Val(:read))))
+    start = :(parse(Float64, controllers[$instr]($getfunc, CPU, Val(:read); timeout=$timeoutr)))
     start = bk.istrycatch ? :(@gentrycatch $(bk.instrnm) $(bk.addr) $start) : start
     Uchange = U isa Unitful.MixedUnits ? 1 : ustrip(Us[1], 1U)
     step = Expr(:call, :*, stepc, Uchange)
@@ -230,7 +232,7 @@ function tocodes(bk::SweepBlock)
         $(innercodes...)
     end
     @gensym ijk sweeplist
-    setcmd = :(controllers[$instr]($setfunc, CPU, string($ijk), Val(:write)))
+    setcmd = :(controllers[$instr]($setfunc, CPU, string($ijk), Val(:write); timeout=$timeoutw))
     ex2 = bk.istrycatch ? :(@gentrycatch $(bk.instrnm) $(bk.addr) $setcmd) : setcmd
     ex3 = quote
         @gencontroller SweepBlock $instr
@@ -261,6 +263,7 @@ function tocodes(bk::FreeSweepBlock)
     instr = string(bk.instrnm, "/", bk.addr)
     quantity = bk.quantity
     @assert INSCONF[bk.instrnm].quantities[bk.quantity].separator == "" mlstr("no free sweeping !!!")
+    timeoutr = INSCONF[bk.instrnm].quantities[bk.quantity].timeoutr
     getfunc = Symbol(bk.instrnm, :_, bk.quantity, :_get)
     U, Us = @c getU(INSCONF[bk.instrnm].quantities[quantity].U, &bk.ui)
     U == "" && (@error "[$(now())]\n$(mlstr("input data error!!!"))" bk = bk;
@@ -285,7 +288,7 @@ function tocodes(bk::FreeSweepBlock)
         $(innercodes...)
     end
     @gensym observables lasttime
-    getcmd = :(controllers[$instr]($getfunc, CPU, Val(:read)))
+    getcmd = :(controllers[$instr]($getfunc, CPU, Val(:read); timeout=$timeoutr))
     getdata = bk.istrycatch ? :(@gentrycatch $(bk.instrnm) $(bk.addr) $getcmd) : getcmd
     detfunc = Dict("=" => isarrived, "<" => isless, ">" => isgreater)[bk.mode]
     return quote
@@ -304,6 +307,7 @@ end
 function tocodes(bk::SettingBlock)
     instr = string(bk.instrnm, "/", bk.addr)
     quantity = bk.quantity
+    timeoutw = INSCONF[bk.instrnm].quantities[quantity].timeoutw
     U, Us = @c getU(INSCONF[bk.instrnm].quantities[quantity].U, &bk.ui)
     if U == ""
         setvalue = parsedollar(bk.setvalue)
@@ -316,7 +320,7 @@ function tocodes(bk::SettingBlock)
         setvalue = Expr(:call, float, Expr(:call, :*, setvaluec, Uchange))
     end
     setfunc = Symbol(bk.instrnm, :_, bk.quantity, :_set)
-    setcmd = :(controllers[$instr]($setfunc, CPU, string($setvalue), Val(:write)))
+    setcmd = :(controllers[$instr]($setfunc, CPU, string($setvalue), Val(:write); timeout=$timeoutw))
     setcodes = bk.istrycatch ? quote
         @gentrycatch $(bk.instrnm) $(bk.addr) $setcmd
         sleep($(bk.delay))
@@ -325,8 +329,9 @@ function tocodes(bk::SettingBlock)
         sleep($(bk.delay))
     end
     return if bk.ischeck
+        timeoutr = INSCONF[bk.instrnm].quantities[quantity].timeoutr
         getfunc = Symbol(bk.instrnm, :_, bk.quantity, :_get)
-        getcmd = :(controllers[$instr]($getfunc, CPU, Val(:read)))
+        getcmd = :(controllers[$instr]($getfunc, CPU, Val(:read); timeout=$timeoutr))
         getcodes = bk.istrycatch ? quote
             @gentrycatch $(bk.instrnm) $(bk.addr) $getcmd
         end : quote
@@ -357,7 +362,8 @@ tocodes(bk::ReadingBlock) = gencodes_read(bk)
 function tocodes(bk::WriteBlock)
     instr = string(bk.instrnm, "/", bk.addr)
     cmd = parsedollar(bk.cmd)
-    setcmd = :(controllers[$instr](write, CPU, string($cmd), Val(:write)))
+    timeout = getattr(bk.addr).timeoutw
+    setcmd = :(controllers[$instr](write, CPU, string($cmd), Val(:write); timeout=$timeout))
     ex = bk.istrycatch ? :(@gentrycatch $(bk.instrnm) $(bk.addr) $setcmd) : setcmd
     return bk.isasync ? quote
         @async begin
@@ -398,12 +404,17 @@ function gencodes_read(bk::Union{ReadingBlock,QueryBlock,ReadBlock})
     bk isa QueryBlock && (cmd = parsedollar(bk.cmd))
     if isnothing(index) || (bk isa ReadingBlock && INSCONF[bk.instrnm].quantities[bk.quantity].separator == "")
         key = genkey(bk)
+        timeout = if bk isa ReadingBlock
+            INSCONF[bk.instrnm].quantities[bk.quantity].timeoutr
+        else
+            getattr(bk.addr).timeoutr
+        end
         getcmd = if bk isa ReadingBlock
-            :(controllers[$instr]($getfunc, CPU, Val(:read)))
+            :(controllers[$instr]($getfunc, CPU, Val(:read); timeout = $timeout))
         elseif bk isa QueryBlock
-            :(controllers[$instr](query, CPU, string($cmd), Val(:query)))
+            :(controllers[$instr](query, CPU, string($cmd), Val(:query); timeout=$timeout))
         elseif bk isa ReadBlock
-            :(controllers[$instr](read, CPU, Val(:read)))
+            :(controllers[$instr](read, CPU, Val(:read); timeout=$timeout))
         end
         getdata = bk.istrycatch ? :(@gentrycatch $(bk.instrnm) $(bk.addr) $getcmd) : getcmd
         if bk.isobserve
@@ -424,12 +435,17 @@ function gencodes_read(bk::Union{ReadingBlock,QueryBlock,ReadBlock})
         keyall = genkeys(bk, index)
         separator = bk isa ReadingBlock ? INSCONF[bk.instrnm].quantities[bk.quantity].separator : ","
         separator == "" && (separator = ",")
+        timeout = if bk isa ReadingBlock
+            INSCONF[bk.instrnm].quantities[bk.quantity].timeoutr
+        else
+            getattr(bk.addr).timeoutr
+        end
         getcmd = if bk isa ReadingBlock
-            :(string.(split(controllers[$instr]($getfunc, CPU, Val(:read)), $separator)[collect($index)]))
+            :(string.(split(controllers[$instr]($getfunc, CPU, Val(:read); timeout=$timeout), $separator)[collect($index)]))
         elseif bk isa QueryBlock
-            :(string.(split(controllers[$instr](query, CPU, $cmd, Val(:query)), $separator)[collect($index)]))
+            :(string.(split(controllers[$instr](query, CPU, $cmd, Val(:query); timeout=$timeout), $separator)[collect($index)]))
         elseif bk isa ReadBlock
-            :(string.(split(controllers[$instr](read, CPU, Val(:read)), $separator)[collect($index)]))
+            :(string.(split(controllers[$instr](read, CPU, Val(:read); timeout=$timeout), $separator)[collect($index)]))
         end
         getdata = bk.istrycatch ? :(@gentrycatch $(bk.instrnm) $(bk.addr) $getcmd $(length(index))) : getcmd
         if bk.isobserve

@@ -16,11 +16,12 @@ function manualadd(addr)
     if occursin("VIRTUAL", addr)
         idn = split(addr, "::")[end]
     else
-        idnr = timed_remotecall_fetch(workers()[1], addr; timeout=CONF.DAQ.cttimeout) do addr
-            ct = Controller("", addr; buflen=1, timeout=CONF.DAQ.cttimeout / 4)
+        attr=getattr(addr)
+        idnr = timed_remotecall_fetch(workers()[1], addr, attr; timeout=attr.timeoutr) do addr, attr
+            ct = Controller("", addr; buflen=1)
             try
-                login!(CPU, ct; attr=getattr(addr))
-                ct(idn_get, CPU, Val(:read))
+                login!(CPU, ct; attr=attr)
+                ct(idn_get, CPU, Val(:read); timeout=attr.timeoutr)
             catch e
                 @error "[$(now())]\n$(mlstr("instrument communication failed!!!"))" instrument_address = addr exception = e
                 showbacktrace()

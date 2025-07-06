@@ -31,10 +31,9 @@ struct Controller
     databuf::Vector{String}
     available::Vector{Bool}
     ready::Vector{Bool}
-    timeout::Float64
     busytimeout::Float64
-    Controller(instrnm, addr; buflen=16, timeout=6, busytimeout=54) = new(
-        instrnm, addr, fill("", buflen), trues(buflen), falses(buflen), timeout, busytimeout
+    Controller(instrnm, addr; buflen=16, busytimeout=54) = new(
+        instrnm, addr, fill("", buflen), trues(buflen), falses(buflen), busytimeout
     )
 end
 function Base.show(io::IO, ct::Controller)
@@ -106,7 +105,7 @@ find_resources(cpu::Processor) = Instruments.find_resources(cpu.resourcemanager[
 
 log the Controller in the Processor which can be done before and after the cpu started.
 """
-function login!(cpu::Processor, ct::Controller; quiet=true, attr=nothing)
+function login!(cpu::Processor, ct::Controller; quiet=true, attr=VirtualInstrAttr())
     lock(cpu.lock) do
         if ct ∉ cpu.controllers
             if !haskey(cpu.instrs, ct.addr)
@@ -193,11 +192,11 @@ function logout!(cpu::Processor, addr::String; quiet=true)
     return nothing
 end
 
-function (ct::Controller)(f::Function, cpu::Processor, val::String, ::Val{:write})
+function (ct::Controller)(f::Function, cpu::Processor, val::String, ::Val{:write}; timeout=1)
     @assert ct in cpu.controllers "Controller is not logged in"
     @assert cpu.running[] "Processor is not running"
     availi = Ref{Int}(0)
-    isok = timedwhile(ct.timeout) do
+    isok = timedwhile(timeout) do
         for (i, avail) in enumerate(ct.available)
             avail && (ct.available[i] = false; availi[] = i; return true)
         end
@@ -208,15 +207,15 @@ function (ct::Controller)(f::Function, cpu::Processor, val::String, ::Val{:write
     ct.ready[i] = false
     push!(cpu.cmdchannel, (ct, i, f, val, Val(:write)))
     timedwhile(() -> !cpu.taskbusy[ct.addr], ct.busytimeout)
-    isok = timedwhile(() -> ct.ready[i], ct.timeout)
+    isok = timedwhile(() -> ct.ready[i], timeout)
     ct.available[i] = true
     return isok ? ct.databuf[i] : error("write timeout with ($f, $val)")
 end
-function (ct::Controller)(f::Function, cpu::Processor, ::Val{:read})
+function (ct::Controller)(f::Function, cpu::Processor, ::Val{:read}; timeout=1)
     @assert ct in cpu.controllers "Controller is not logged in"
     @assert cpu.running[] "Processor is not running"
     availi = Ref{Int}(0)
-    isok = timedwhile(ct.timeout) do
+    isok = timedwhile(timeout) do
         for (i, avail) in enumerate(ct.available)
             avail && (ct.available[i] = false; availi[] = i; return true)
         end
@@ -227,15 +226,15 @@ function (ct::Controller)(f::Function, cpu::Processor, ::Val{:read})
     ct.ready[i] = false
     push!(cpu.cmdchannel, (ct, i, f, "", Val(:read)))
     timedwhile(() -> !cpu.taskbusy[ct.addr], ct.busytimeout)
-    isok = timedwhile(() -> ct.ready[i], ct.timeout)
+    isok = timedwhile(() -> ct.ready[i], timeout)
     ct.available[i] = true
     return isok ? ct.databuf[i] : error("read timeout with $f")
 end
-function (ct::Controller)(f::Function, cpu::Processor, val::String, ::Val{:query})
+function (ct::Controller)(f::Function, cpu::Processor, val::String, ::Val{:query}; timeout=1)
     @assert ct in cpu.controllers "Controller is not logged in"
     @assert cpu.running[] "Processor is not running"
     availi = Ref{Int}(0)
-    isok = timedwhile(ct.timeout) do
+    isok = timedwhile(timeout) do
         for (i, avail) in enumerate(ct.available)
             avail && (ct.available[i] = false; availi[] = i; return true)
         end
@@ -246,7 +245,7 @@ function (ct::Controller)(f::Function, cpu::Processor, val::String, ::Val{:query
     ct.ready[i] = false
     push!(cpu.cmdchannel, (ct, i, f, val, Val(:query)))
     timedwhile(() -> !cpu.taskbusy[ct.addr], ct.busytimeout)
-    isok = timedwhile(() -> ct.ready[i], ct.timeout)
+    isok = timedwhile(() -> ct.ready[i], timeout)
     ct.available[i] = true
     return isok ? ct.databuf[i] : error("query timeout with ($f, $val)")
 end

@@ -2,6 +2,8 @@ let
     edithelp::Bool = false
     global function edit(qtcf::QuantityConf, instrnm)
         @c InputTextRSZ(mlstr("alias"), &qtcf.alias)
+        @c CImGui.DragFloat(mlstr("write timeout"), &qtcf.timeoutw, 0.1, 0, 60, "%.3f", CImGui.ImGuiSliderFlags_AlwaysClamp)
+        @c CImGui.DragFloat(mlstr("read timeout"), &qtcf.timeoutr, 0.1, 0, 60, "%.3f", CImGui.ImGuiSliderFlags_AlwaysClamp)
         @c ComboS(mlstr("unit type"), &qtcf.U, keys(CONF.U))
         @c InputTextRSZ(mlstr("command"), &qtcf.cmdheader)
         width = CImGui.GetItemRectSize().x / 2 - 2CImGui.CalcTextSize(" =>  ").x

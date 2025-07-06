@@ -100,16 +100,17 @@ function process_message(server::QICServer, client::QICClient, msg::String)
             @warn "Invalid message format!"; return
         end
         if !haskey(client.controllers, addr)
-            client.controllers[addr] = Controller("", addr; buflen=CONF.DAQ.ctbuflen, timeout=CONF.DAQ.cttimeout)
+            client.controllers[addr] = Controller("", addr; buflen=CONF.DAQ.ctbuflen)
         end
         ct = client.controllers[addr]
-        login!(CPU, ct; attr=getattr(addr))
+        attr = getattr(addr)
+        login!(CPU, ct; attr=attr)
         if action == "R"
-            write(client.socket, string(ct(read, CPU, Val(:read)), server.termchar))
+            write(client.socket, string(ct(read, CPU, Val(:read); timeout=attr.timeoutr), server.termchar))
         elseif action == "W"
-            ct(write, CPU, String(cmd), Val(:write))
+            ct(write, CPU, String(cmd), Val(:write); timeout=attr.timeoutw)
         elseif action == "Q"
-            write(client.socket, string(ct(query, CPU, String(cmd), Val(:query)), server.termchar))
+            write(client.socket, string(ct(query, CPU, String(cmd), Val(:query); timeout=attr.timeoutr), server.termchar))
         end
     catch e
         @error "[$(now())]\n$(mlstr("Error processing message"))" exception = e

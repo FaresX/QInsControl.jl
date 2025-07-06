@@ -10,6 +10,8 @@ abstract type InstrAttr end
     #Common
     async::Bool = false
     idnfunc::String = "idn"
+    timeoutw::Real = 6
+    timeoutr::Real = 6
     querydelay::Real = 0
     termchar::Char = '\n'
     clearbuffer::Bool = true
@@ -138,7 +140,7 @@ end
 
 generate an instrument with (name, addr) which automatically determines the type of this instrument.
 """
-function instrument(name, addr; attr=nothing)
+function instrument(name, addr; attr=VirtualInstrAttr())
     if occursin("QIC", addr)
         try
             strs = split(addr, "::QIC::")

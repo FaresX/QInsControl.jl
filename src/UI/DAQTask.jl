@@ -198,7 +198,7 @@ function saferun(daqtask::DAQTask)
             end
         end
         t1 = time()
-        while time() - t1 < 2CONF.DAQ.cttimeout && (!SYNCSTATES[Int(IsDAQTaskDone)] || isready(DATABUFRC) || isready(PROGRESSRC))
+        while time() - t1 < 12 && (!SYNCSTATES[Int(IsDAQTaskDone)] || isready(DATABUFRC) || isready(PROGRESSRC))
             isready(DATABUFRC) && take!(DATABUFRC)
             isready(PROGRESSRC) && take!(PROGRESSRC)
             sleep(0.001)
@@ -477,16 +477,17 @@ function extract_controllers(bkch::Vector{AbstractBlock})
     for bk in bkch
         if isinstr(bk)
             bk.instrnm == "VirtualInstr" && bk.addr != "VirtualAddress" && return controllers, false
+            attr = getattr(bk.addr)
             ct = Controller(
                 bk.instrnm, bk.addr;
-                buflen=CONF.DAQ.ctbuflen, timeout=CONF.DAQ.cttimeout,
-                busytimeout=CONF.DAQ.cttimeout * CONF.DAQ.retryconnecttimes * CONF.DAQ.retrysendtimes
+                buflen=CONF.DAQ.ctbuflen,
+                busytimeout=attr.timeoutr * CONF.DAQ.retryconnecttimes * CONF.DAQ.retrysendtimes
             )
             try
                 @assert haskey(INSTRBUFFERVIEWERS, bk.instrnm) mlstr("$(bk.instrnm) has not been added")
                 @assert haskey(INSTRBUFFERVIEWERS[bk.instrnm], bk.addr) mlstr("$(bk.addr) has not been added")
-                login!(CPU, ct; attr=getattr(bk.addr))
-                ct(idn_get, CPU, Val(:read))
+                login!(CPU, ct; attr=attr)
+                ct(idn_get, CPU, Val(:read); timeout=attr.timeoutr)
                 controllers[string(bk.instrnm, "/", bk.addr)] = ct
             catch e
                 @error(

@@ -212,12 +212,6 @@ let
                     1.0, 1, 1024, "%d",
                     CImGui.ImGuiSliderFlags_AlwaysClamp
                 )) && timed_remotecall_wait(x -> (CONF.DAQ.ctbuflen = x), workers()[1], CONF.DAQ.ctbuflen)
-                @c(CImGui.DragFloat(
-                    stcstr(mlstr("controller timeout"), " (s)"),
-                    &CONF.DAQ.cttimeout,
-                    0.1, 0.1, 240, "%.1f",
-                    CImGui.ImGuiSliderFlags_AlwaysClamp
-                )) && timed_remotecall_wait(x -> (CONF.DAQ.cttimeout = x), workers()[1], CONF.DAQ.cttimeout)
                 @c CImGui.DragInt(
                     stcstr(mlstr("history blocks"), "##DAQ"),
                     &CONF.DAQ.historylen,

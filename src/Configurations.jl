@@ -35,7 +35,6 @@ end
     channelsize::Cint = 512
     packsize::Cint = 6
     ctbuflen::Cint = 4
-    cttimeout::Cfloat = 4
     historylen::Cint = 120
     retrysendtimes::Cint = 3
     retryconnecttimes::Cint = 3
@@ -155,16 +154,18 @@ abstract type InsConf end
     input_labels::Vector{String} = []
     output_labels::Vector{String} = []
 end
-BasicConf(conf::Dict) = BasicConf(
-    conf["icon"],
-    conf["idn"],
-    conf["cmdtype"],
-    conf["input_labels"],
-    conf["output_labels"]
-)
+function BasicConf(conf::Dict)
+    bcf = BasicConf()
+    for fdnm in fieldnames(BasicConf)
+        setproperty!(bcf, fdnm, get!(conf, string(fdnm), getproperty(bcf, fdnm)))
+    end
+    return bcf
+end
 
 @kwdef mutable struct QuantityConf <: InsConf
     alias::String = "quantity"
+    timeoutw::Cfloat = 0.1
+    timeoutr::Cfloat = 1
     U::String = ""
     cmdheader::String = ""
     optkeys::Vector{String} = []
@@ -174,41 +175,21 @@ BasicConf(conf::Dict) = BasicConf(
     numread::Cint = 1
     help::String = ""
 end
-QuantityConf(qt::Dict) = QuantityConf(
-    qt["alias"],
-    qt["U"],
-    qt["cmdheader"],
-    qt["optkeys"],
-    qt["optvalues"],
-    qt["type"],
-    qt["separator"],
-    qt["numread"],
-    qt["help"]
-)
+function QuantityConf(qt::Dict)
+    qtcf = QuantityConf()
+    for fdnm in fieldnames(QuantityConf)
+        setproperty!(qtcf, fdnm, get!(qt, string(fdnm), getproperty(qtcf, fdnm)))
+    end
+    return qtcf
+end
 
 @kwdef mutable struct OneInsConf
     conf::BasicConf = BasicConf()
     quantities::OrderedDict{String,QuantityConf} = Dict()
 end
 
-todict(cf::BasicConf) = Dict(
-    "icon" => cf.icon,
-    "idn" => cf.idn,
-    "cmdtype" => cf.cmdtype,
-    "input_labels" => cf.input_labels,
-    "output_labels" => cf.output_labels
-)
-todict(qtcf::QuantityConf) = Dict(
-    "alias" => qtcf.alias,
-    "U" => qtcf.U,
-    "cmdheader" => qtcf.cmdheader,
-    "optkeys" => qtcf.optkeys,
-    "optvalues" => qtcf.optvalues,
-    "type" => qtcf.type,
-    "separator" => qtcf.separator,
-    "numread" => qtcf.numread,
-    "help" => qtcf.help
-)
+todict(cf::BasicConf) = Dict(string(fdnm) => getproperty(cf, fdnm) for fdnm in fieldnames(BasicConf))
+todict(qtcf::QuantityConf) = Dict(string(fdnm) => getproperty(qtcf, fdnm) for fdnm in fieldnames(QuantityConf))
 function todict(oneinscf::OneInsConf)
     dict = Dict{String,Dict{String,Any}}("conf" => todict(oneinscf.conf))
     for (qt, qtcf) in oneinscf.quantities

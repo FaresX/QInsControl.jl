@@ -2236,7 +2236,7 @@ function refresh1(insw::InstrWidget, addr; blacklist=[])
                 workers()[1], INSTRBUFFERVIEWERS, insw.instrnm, addr, insw.qtlist, blacklist; timeout=120
             ) do ibvs, ins, addr, qtlist, blacklist
                 merge!(INSTRBUFFERVIEWERS, ibvs)
-                ct = Controller(ins, addr; buflen=CONF.DAQ.ctbuflen, timeout=CONF.DAQ.cttimeout)
+                ct = Controller(ins, addr; buflen=CONF.DAQ.ctbuflen)
                 try
                     login!(CPU, ct; attr=getattr(addr))
                     for (qtnm, qt) in filter(
@@ -2244,7 +2244,7 @@ function refresh1(insw::InstrWidget, addr; blacklist=[])
                         INSTRBUFFERVIEWERS[ins][addr].insbuf.quantities
                     )
                         getfunc = Symbol(ins, :_, qtnm, :_get) |> eval
-                        qt.read = ct(getfunc, CPU, Val(:read))
+                        qt.read = ct(getfunc, CPU, Val(:read); timeout=qt.timeoutr)
                     end
                 catch e
                     @error(
