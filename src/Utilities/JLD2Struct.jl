@@ -1,4 +1,4 @@
-types = [
+for T in [
     :SweepQuantity, :SetQuantity, :ReadQuantity, :InstrBuffer, :InstrBufferViewer,
     :CodeBlock, :StrideCodeBlock, :SweepBlock, :SettingBlock, :ReadingBlock,
     :WriteBlock, :QueryBlock, :ReadBlock, :FeedbackBlock,
@@ -6,8 +6,6 @@ types = [
     :QPlot, :Layout, :DataSeries, :DataPicker, :DataPlot,
     :ImNodesStyle, :MoreStyleVariable, :MoreStyleColor, :MoreStyleIcon, :MoreStyle, :UnionStyle
 ]
-
-for T in types
     JLD2T = Symbol(:JLD2, T)
     eval(quote
         struct $JLD2T

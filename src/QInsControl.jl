@@ -111,6 +111,7 @@ include("UI/Renderer.jl")
 
 # include("AuxFunc.jl")
 include("Utilities/JLD2Struct.jl")
+include("Utilities/ConfLoading.jl")
 include("Conf.jl")
 
 function julia_main()::Cint
