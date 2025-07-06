@@ -18,7 +18,7 @@ function loadconf(precompile=false)
             end
             unitslist[""] = [""]
             conf_dict["U"] = unitslist
-            try_from_dict(Conf, conf_dict)
+            Conf(conf_dict)
         end
     else
         Conf()
@@ -59,7 +59,7 @@ function loadconf(precompile=false)
                 widgets = TOML.parsefile(file)
                 INSWCONF[instrnm] = []
                 for (_, widget) in widgets
-                    push!(INSWCONF[instrnm], try_from_dict(InstrWidget, widget))
+                    push!(INSWCONF[instrnm], InstrWidget(widget))
                 end
             end
         end
@@ -165,31 +165,4 @@ function gen_insconf(conf_file)
         end
     end
     INSCONF[string(instrnm)] = oneinsconf
-end
-
-function try_from_dict(t::Type, dict)
-    cf = t()
-    try
-        cf = from_dict(t, dict)
-    catch e
-        @error "[$(now())]\n$(mlstr("invalid configuration file, trying refactoring"))" exception = e
-        showbacktrace()
-        cfdict = to_dict(cf)
-        cf = from_dict(t, mergeconf!(cfdict, dict))
-    end
-    return cf
-end
-
-function mergeconf!(cfdict, dict)
-    for (key, val) in cfdict
-        if haskey(dict, key)
-            if val isa AbstractDict && dict[key] isa AbstractDict
-                mergeconf!(val, dict[key])
-            else
-                oldval = @trypass convert(typeof(val), dict[key]) nothing
-                isnothing(oldval) || (cfdict[key] = dict[key])
-            end
-        end
-    end
-    return cfdict
 end

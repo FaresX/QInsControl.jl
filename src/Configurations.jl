@@ -2,12 +2,9 @@
     isremote::Bool = true
     viewportenable::Bool = true
     holdmainwindow::Bool = true
-    # scale::Bool = false
     hidewindow::Bool = false
     nthreads::Cint = 2
     nthreads_2::Cint = 1
-    # noactionswapinterval::Cint = 6
-    # samplingthreshold::Cint = 200000
     windowsize::Vector{Cint} = [960, 540]
     openglversion::String = "4.6"
     encoding::String = "GBK"
@@ -66,10 +63,6 @@ end
     second::String = "arial.ttf"
     bigfont::String = "arial.ttf"
 end
-
-# @option mutable struct OptIcons
-#     size::Cint = 18
-# end
 
 @option mutable struct OptConsole
     dir::String = ""
@@ -154,13 +147,6 @@ abstract type InsConf end
     input_labels::Vector{String} = []
     output_labels::Vector{String} = []
 end
-function BasicConf(conf::Dict)
-    bcf = BasicConf()
-    for fdnm in fieldnames(BasicConf)
-        setproperty!(bcf, fdnm, get!(conf, string(fdnm), getproperty(bcf, fdnm)))
-    end
-    return bcf
-end
 
 @kwdef mutable struct QuantityConf <: InsConf
     alias::String = "quantity"
@@ -174,13 +160,6 @@ end
     separator::String = ""
     numread::Cint = 1
     help::String = ""
-end
-function QuantityConf(qt::Dict)
-    qtcf = QuantityConf()
-    for fdnm in fieldnames(QuantityConf)
-        setproperty!(qtcf, fdnm, get!(qt, string(fdnm), getproperty(qtcf, fdnm)))
-    end
-    return qtcf
 end
 
 @kwdef mutable struct OneInsConf
@@ -199,3 +178,32 @@ function todict(oneinscf::OneInsConf)
 end
 
 const INSCONF = OrderedDict{String,OneInsConf}() #仪器注册表
+
+for T in [:OptBasic, :OptCommunication, :OptDtViewer, :OptDAQ, :OptInsBuf, :OptServer,
+    :OptRegister, :OptFonts, :OptConsole, :OptLogs, :OptOneBGImage,
+    :OptBGImage, :OptComAddr, :OptStyle, :Conf,
+    :BasicConf, :QuantityConf,
+    :InstrWidget, :QuantityWidget, :QuantityWidgetOption
+]
+    eval(
+        quote
+            function $T(conf::Dict)
+                t = $T()
+                for fdnm in fieldnames($T)
+                    val = get!(conf, string(fdnm), getproperty(t, fdnm))
+                    if val isa Dict
+                        ft = fieldtype($T, fdnm)
+                        if ft <: Dict
+                            setproperty!(t, fdnm, val)
+                        else
+                            setproperty!(t, fdnm, ft(val))
+                        end
+                    else
+                        setproperty!(t, fdnm, val)
+                    end
+                end
+                return t
+            end
+        end
+    )
+end
