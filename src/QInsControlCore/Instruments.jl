@@ -10,8 +10,8 @@ abstract type InstrAttr end
     #Common
     async::Bool = false
     idnfunc::String = "idn"
-    timeoutw::Real = 6
-    timeoutr::Real = 6
+    timeoutw::Real = 0.1
+    timeoutr::Real = 1
     querydelay::Real = 0
     termchar::Char = '\n'
     clearbuffer::Bool = true
@@ -29,8 +29,8 @@ end
     dsr::SPdsr = SP_DSR_IGNORE
     xonxoff::SPXonXoff = SP_XONXOFF_DISABLED
     idnfunc::String = "idn"
-    timeoutw::Real = 6
-    timeoutr::Real = 6
+    timeoutw::Real = 0.1
+    timeoutr::Real = 1
     querydelay::Real = 0
     termchar::Char = '\n'
     clearbuffer::Bool = true
@@ -38,8 +38,8 @@ end
 
 @kwdef mutable struct TCPSocketInstrAttr <: InstrAttr
     idnfunc::String = "idn"
-    timeoutw::Real = 6
-    timeoutr::Real = 6
+    timeoutw::Real = 0.1
+    timeoutr::Real = 1
     querydelay::Real = 0
     termchar::Char = '\n'
     clearbuffer::Bool = true
@@ -47,8 +47,8 @@ end
 
 @kwdef mutable struct VirtualInstrAttr <: InstrAttr
     idnfunc::String = "idn"
-    timeoutw::Real = 6
-    timeoutr::Real = 6
+    timeoutw::Real = 0.1
+    timeoutr::Real = 1
     querydelay::Real = 0
     termchar::Char = '\n'
     clearbuffer::Bool = true
