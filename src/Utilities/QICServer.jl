@@ -13,7 +13,7 @@ end
     clients::Vector{QICClient} = []
     termchar::Char = '\n'
     maxclients::Int = 36
-    buflen::Int = 1024
+    buflen::Int = 64
     running::Bool = false
     fast::Bool = false
     newmsg::Bool = false
