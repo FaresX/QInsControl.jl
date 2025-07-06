@@ -341,18 +341,22 @@ determine if the instrument is connected.
 isconnected(instr::Instrument) = instr.connected[]
 
 function clearbuffer(instr::Instrument)
-    try
-        read(instr)
-    catch
-    end
-    i = 0
-    while i < 6
+    for _ in 1:6
         try
             read(instr)
         catch
             break
         end
-        i += 1
+        yield()
+    end
+end
+function clearbuffer(instr::QICInstr)
+    for _ in 1:6
+        try
+            read(instr.handle)
+        catch
+            break
+        end
         yield()
     end
 end
