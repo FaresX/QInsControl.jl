@@ -50,7 +50,7 @@ function run!(server::QICServer)
             server.fast ? yield() : sleep(0.001)
         end
     catch e
-        @error "Server error" exception = e
+        @error "[$(now())]\n$(mlstr("Server error"))" exception = e
         showbacktrace()
     finally
         close(server.server)
@@ -68,7 +68,7 @@ function handle_client(server::QICServer, client::QICClient)
             server.fast ? yield() : sleep(0.001)
         end
     catch e
-        @error "Client error" exception = e
+        @error "[$(now())]\n$(mlstr("Client error"))" exception = e
         showbacktrace()
     finally
         client.connected = false
@@ -112,7 +112,7 @@ function process_message(server::QICServer, client::QICClient, msg::String)
             write(client.socket, string(ct(query, CPU, String(cmd), Val(:query)), server.termchar))
         end
     catch e
-        @error "Error processing message" exception = e
+        @error "[$(now())]\n$(mlstr("Error processing message"))" exception = e
         showbacktrace()
     end
 end
