@@ -359,12 +359,17 @@ let
                         newwnm = "new widget $(length(INSWCONF[selectedins])+1)"
                         push!(INSWCONF[selectedins], InstrWidget(instrnm=selectedins, name=newwnm))
                     end
-                    if CImGui.TabItemButton(
-                        stcstr(MORESTYLE.Icons.SelectPath, "##configfolder"),
-                        ImGuiTabItemFlags_Trailing
-                    )
+                    if CImGui.TabItemButton(stcstr(MORESTYLE.Icons.SelectPath, "##configfolder"))
                         DefaultApplication.open(abspath(ENV["QInsControlAssets"]))
                     end
+                    ItemTooltip(mlstr("Open configurations folder"))
+                    if CImGui.TabItemButton(
+                        stcstr(MORESTYLE.Icons.InstrumentsManualRef, "##reloading"),
+                        ImGuiTabItemFlags_Trailing
+                    )
+                        loadconf()
+                    end
+                    ItemTooltip(mlstr("Reload"))
                     CImGui.EndTabBar()
                 end
             end
