@@ -350,7 +350,7 @@ let
                     end
                 end
             end
-            if CImGui.CollapsingHeader(mlstr("Pin"))
+            if CImGui.CollapsingHeader(mlstr("Add pin"))
                 @c CImGui.InputInt(mlstr("pin"), &pinbuf.link_idx)
                 @c CImGui.DragInt(mlstr("segments"), &pinbuf.num_segments, 1.0, 1, 100, "%d", CImGui.ImGuiSliderFlags_AlwaysClamp)
                 @c CImGui.DragFloat(
