@@ -4,8 +4,8 @@ abstract type AbstractQuantity end
     enable::Bool = true
     name::String = ""
     alias::String = ""
-    timeoutw::Cfloat = 0.1
-    timeoutr::Cfloat = 1
+    timeoutw::Cfloat = 0.3
+    timeoutr::Cfloat = 3
     step::String = ""
     stop::String = ""
     delay::Cfloat = 0.1
@@ -36,8 +36,8 @@ end
     enable::Bool = true
     name::String = ""
     alias::String = ""
-    timeoutw::Cfloat = 0.1
-    timeoutr::Cfloat = 1
+    timeoutw::Cfloat = 0.3
+    timeoutr::Cfloat = 3
     set::String = ""
     optkeys::Vector{String} = []
     optvalues::Vector{String} = []
@@ -65,8 +65,8 @@ end
     enable::Bool = true
     name::String = ""
     alias::String = ""
-    timeoutw::Cfloat = 0.1
-    timeoutr::Cfloat = 1
+    timeoutw::Cfloat = 0.3
+    timeoutr::Cfloat = 3
     read::String = ""
     utype::String = ""
     uindex::Int = 1

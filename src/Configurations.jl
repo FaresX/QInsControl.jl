@@ -48,7 +48,7 @@ end
 @option mutable struct OptServer
     port::Cint = 6060
     maxclients::Cint = 36
-    buflen::Cint = 1024
+    buflen::Cint = 64
 end
 
 @option mutable struct OptRegister
@@ -150,8 +150,8 @@ end
 
 @kwdef mutable struct QuantityConf <: InsConf
     alias::String = "quantity"
-    timeoutw::Cfloat = 0.1
-    timeoutr::Cfloat = 1
+    timeoutw::Cfloat = 0.3
+    timeoutr::Cfloat = 3
     U::String = ""
     cmdheader::String = ""
     optkeys::Vector{String} = []
