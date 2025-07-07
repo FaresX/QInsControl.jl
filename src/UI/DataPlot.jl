@@ -134,18 +134,18 @@ function showdtpks(
     datastr::Dict{String,Vector{String}},
     datafloat::Dict{String,VecOrMat{Cdouble}}=Dict{String,VecOrMat{Cdouble}}()
 )
-    if CImGui.BeginPopupModal(stcstr("##no data", id), C_NULL, CImGui.ImGuiWindowFlags_AlwaysAutoResize)
-        CImGui.TextColored(MORESTYLE.Colors.ErrorText, stcstr("\n", mlstr("No data!"), "\n "))
-        CImGui.Button(stcstr(mlstr("Confirm"), "##no data"), (180, 0)) && CImGui.CloseCurrentPopup()
-        CImGui.EndPopup()
-    end
+    # if CImGui.BeginPopupModal(stcstr("##no data", id), C_NULL, CImGui.ImGuiWindowFlags_AlwaysAutoResize)
+    #     CImGui.TextColored(MORESTYLE.Colors.ErrorText, stcstr("\n", mlstr("No data!"), "\n "))
+    #     CImGui.Button(stcstr(mlstr("Confirm"), "##no data"), (180, 0)) && CImGui.CloseCurrentPopup()
+    #     CImGui.EndPopup()
+    # end
     for (i, isshowdtpk) in enumerate(dtp.showdtpks)
         if isshowdtpk
-            if isempty(datastr) && isempty(datafloat)
-                CImGui.OpenPopup(stcstr("##no data", id))
-                dtp.showdtpks[i] = false
-                continue
-            end
+            # if isempty(datastr) && isempty(datafloat)
+            #     CImGui.OpenPopup(stcstr("##no data", id))
+            #     dtp.showdtpks[i] = false
+            #     continue
+            # end
             dtpk = dtp.dtpks[i]
             datakeys = [sort(collect(keys(isempty(datastr) ? datafloat : datastr))); ""]
             datakeys == dtpk.datalist || (dtpk.datalist = datakeys)
