@@ -128,27 +128,36 @@ let
         CImGui.Unindent()
     end
 
+    refreshtask::Dict{String,Task} = Dict()
     function refreshcpuinfo()
-        cpuinfofetch = timed_remotecall_fetch(workers()[1]; timeout=0.03, quiet=true) do
-            lock(CPU.lock) do
-                Dict(
-                    :running => CPU.running[],
-                    :taskfailed => istaskfailed(CPU.processtask[]),
-                    :fast => CPU.fast[],
-                    :resourcemanager => CPU.resourcemanager[],
-                    :instrs => Dict(ins.addr => ins.name for ins in values(CPU.instrs)),
-                    :isconnected => Dict(addr => QInsControlCore.isconnected(instr) for (addr, instr) in CPU.instrs),
-                    :controllers => CPU.controllers,
-                    :taskhandlers => CPU.taskhandlers,
-                    :taskbusy => CPU.taskbusy,
-                    :tasksfailed => Dict(addr => istaskfailed(task) for (addr, task) in CPU.tasks)
-                )
+        task = if haskey(refreshtask, "task")
+            refreshtask["task"]
+        else
+            refreshtask["task"] = @async timed_remotecall_fetch(workers()[1]; timeout=1, quiet=true) do
+                lock(CPU.lock) do
+                    Dict(
+                        :running => CPU.running[],
+                        :taskfailed => istaskfailed(CPU.processtask[]),
+                        :fast => CPU.fast[],
+                        :resourcemanager => CPU.resourcemanager[],
+                        :instrs => Dict(ins.addr => ins.name for ins in values(CPU.instrs)),
+                        :isconnected => Dict(addr => QInsControlCore.isconnected(instr) for (addr, instr) in CPU.instrs),
+                        :controllers => CPU.controllers,
+                        :taskhandlers => CPU.taskhandlers,
+                        :taskbusy => CPU.taskbusy,
+                        :tasksfailed => Dict(addr => istaskfailed(task) for (addr, task) in CPU.tasks)
+                    )
+                end
             end
         end
-        if !isnothing(cpuinfofetch)
-            empty!(cpuinfo)
-            merge!(cpuinfo, cpuinfofetch)
-            lastrefreshtime = string(now())
+        if istaskdone(task)
+            cpuinfofetch = istaskfailed(task) ? nothing : fetch(task)
+            if !isnothing(cpuinfofetch)
+                empty!(cpuinfo)
+                merge!(cpuinfo, cpuinfofetch)
+                lastrefreshtime = string(now())
+            end
+            delete!(refreshtask, "task")
         end
     end
 end

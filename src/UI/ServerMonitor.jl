@@ -4,6 +4,7 @@ let
     shownewest::Bool = true
     global function ServerMonitor()
         refreshserverbuffer()
+        CImGui.SeparatorText(lastrefreshtime)
         @c(CImGui.DragInt(
             mlstr("port"),
             &CONF.Server.port,
@@ -37,7 +38,7 @@ let
     end
 
     global function manageclients(; clientline=4, simplifiedmsg=true)
-        @c CImGui.Checkbox(mlstr("Newest Message"), &shownewest)
+        simplifiedmsg || @c CImGui.Checkbox(mlstr("Newest Message"), &shownewest)
         CImGui.BeginChild("Clients Table", (Cfloat(0), clientline * CImGui.GetFrameHeightWithSpacing()))
         if CImGui.BeginTable(
             "Clients Table", 3,
@@ -118,8 +119,18 @@ let
         end
     end
 
+    refreshtask::Dict{String,Task} = Dict()
+    lastrefreshtime::String = string(now())
     global function refreshserverbuffer()
-        serverfetch = timed_remotecall_fetch(() -> QICSERVER, workers()[1]; timeout=0.03, quiet=true)
-        isnothing(serverfetch) || (serverbuffer = serverfetch)
+        task = if haskey(refreshtask, "task")
+            refreshtask["task"]
+        else
+            refreshtask["task"] = @async timed_remotecall_fetch(() -> QICSERVER, workers()[1]; timeout=1, quiet=true)
+        end
+        if istaskdone(task)
+            serverfetch = istaskfailed(task) ? nothing : fetch(task)
+            isnothing(serverfetch) || (serverbuffer = serverfetch; lastrefreshtime = string(now()))
+            delete!(refreshtask, "task")
+        end
     end
 end
