@@ -1011,7 +1011,7 @@ function apply!(qt::SweepQuantity, instrnm, addr)
         try
             getfunc = Symbol(instrnm, :_, qt.name, :_get) |> eval
             login!(CPU, ct; attr=getattr(addr))
-            parse(Float64, ct(getfunc, CPU, Val(:read)); timeout=qt.timeoutr)
+            parse(Float64, ct(getfunc, CPU, Val(:read); timeout=qt.timeoutr))
         catch e
             @error(
                 "[$(now())]\n$(mlstr("error getting start value!!!"))",
@@ -1066,9 +1066,9 @@ function apply!(qt::SweepQuantity, instrnm, addr)
                             tstart = time()
                             for (i, sv) in enumerate(sweeplist)
                                 SWEEPCTS[instrnm][addr][qt.name][1][] || break
-                                SWEEPCTS[instrnm][addr][qt.name][2](setfunc, CPU, string(sv), Val(:write))
+                                SWEEPCTS[instrnm][addr][qt.name][2](setfunc, CPU, string(sv), Val(:write); timeout=qt.timeoutw)
                                 sleep(delay)
-                                put!(sweep_lc, CONF.InsBuf.retreading ? SWEEPCTS[instrnm][addr][qt.name][2](getfunc, CPU, Val(:read)) : string(sv))
+                                put!(sweep_lc, CONF.InsBuf.retreading ? SWEEPCTS[instrnm][addr][qt.name][2](getfunc, CPU, Val(:read); timeout=qt.timeoutr) : string(sv))
                                 idxbuf[1] = i
                                 timebuf[1] = time() - tstart
                             end
@@ -1123,14 +1123,14 @@ function apply!(qt::SetQuantity, instrnm, addr, byoptvalues=false)
         actionidx = 1
         SYNCSTATES[Int(IsDAQTaskRunning)] && (actionidx = logaction(qt, instrnm, addr))
         fetchdata = timed_remotecall_fetch(
-            workers()[1], instrnm, addr, sv; timeout=qt.timeoutw+qt.timeoutr
+            workers()[1], instrnm, addr, sv; timeout=qt.timeoutw + qt.timeoutr
         ) do instrnm, addr, sv
             ct = Controller(instrnm, addr; buflen=CONF.DAQ.ctbuflen)
             try
                 setfunc = Symbol(instrnm, :_, qt.name, :_set) |> eval
                 getfunc = Symbol(instrnm, :_, qt.name, :_get) |> eval
                 login!(CPU, ct; attr=getattr(addr))
-                ct(CPU, sv, Val(:query); timeout=qt.timeoutw+qt.timeoutr) do instr, sv
+                ct(CPU, sv, Val(:query); timeout=qt.timeoutw + qt.timeoutr) do instr, sv
                     setfunc(instr, sv)
                     instr.attr.querydelay < 0.001 ? yield() : sleep(instr.attr.querydelay)
                     getfunc(instr)
