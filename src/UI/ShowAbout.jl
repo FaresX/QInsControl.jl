@@ -6,7 +6,7 @@ let
             ftsz = CImGui.GetFontSize()
             ww = CImGui.GetWindowWidth()
             CImGui.SetCursorPos(ww / 3, CImGui.GetCursorPosY())
-            CImGui.Image(CImGui.ImTextureID(ICONID), (ww / 3, ww / 3))
+            CImGui.Image(CImGui.ImTextureRef(ICONID), (ww / 3, ww / 3))
             CImGui.PushFont(BIGFONT)
             CImGui.SetCursorPos(CImGui.GetCursorPos() .+ ((ww - CImGui.CalcTextSize("QInsControl").x) / 2, ftsz))
             CImGui.TextColored(MORESTYLE.Colors.HighlightText, "QInsControl\n")

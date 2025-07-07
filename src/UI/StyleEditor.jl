@@ -61,11 +61,15 @@ end
 Base.getindex(x::QImGuiColors, i::Int) = getproperty(x, fieldnames(QImGuiColors)[i])
 Base.setindex!(x::QImGuiColors, v, i::Int) = setproperty!(x, fieldnames(QImGuiColors)[i], v)
 @option mutable struct QImGuiStyle
+    FontSizeBase::Cfloat = 18
+    FontScaleMain::Cfloat = 24
+    FontScaleDpi::Cfloat = 1
     Alpha::Cfloat = 0.3
     DisabledAlpha::Cfloat = 0.6
     WindowPadding::Vector{Cfloat} = [8, 8]
     WindowRounding::Cfloat = 0
     WindowBorderSize::Cfloat = 1
+    WindowBorderHoverPadding::Cfloat = 4
     WindowMinSize::Vector{Cfloat} = [6, 6]
     WindowTitleAlign::Vector{Cfloat} = [0.0, 0.5]
     WindowMenuButtonPosition::Int32 = ImGuiDir_Left
@@ -87,13 +91,18 @@ Base.setindex!(x::QImGuiColors, v, i::Int) = setproperty!(x, fieldnames(QImGuiCo
     GrabMinSize::Cfloat = 6
     GrabRounding::Cfloat = 0
     LogSliderDeadzone::Cfloat = 4
+    ImageBorderSize::Cfloat = 4
     TabRounding::Cfloat = 4
     TabBorderSize::Cfloat = 0
-    TabMinWidthForCloseButton::Cfloat = 12
+    TabCloseButtonMinWidthSelected::Cfloat = 4
+    TabCloseButtonMinWidthUnselected::Cfloat = 4
     TabBarBorderSize::Cfloat = 1
     TabBarOverlineSize::Cfloat = 2
     TableAngledHeadersAngle::Cfloat = 35
     TableAngledHeadersTextAlign::Vector{Cfloat} = [0.5, 0.0]
+    TreeLinesFlags::ImGuiTreeNodeFlags = ImGuiTreeNodeFlags_None
+    TreeLinesSize::Cfloat = 4
+    TreeLinesRounding::Cfloat = 4
     ColorButtonPosition::Int32 = ImGuiDir_Right
     ButtonTextAlign::Vector{Cfloat} = [0.5, 0.5]
     SelectableTextAlign::Vector{Cfloat} = [0, 0]
@@ -115,6 +124,8 @@ Base.setindex!(x::QImGuiColors, v, i::Int) = setproperty!(x, fieldnames(QImGuiCo
     HoverDelayNormal::Cfloat = 0
     HoverFlagsForTooltipMouse::ImGuiHoveredFlags = ImGuiHoveredFlags_None
     HoverFlagsForTooltipNav::ImGuiHoveredFlags = ImGuiHoveredFlags_None
+     _MainScale::Cfloat = 1
+    _NextFrameFontSizeBase::Cfloat = 18
 end
 Base.convert(::Type{ImGuiDir}, x::Int32) = ImGuiDir(x)
 function Base.convert(::Type{QImGuiStyle}, x::Ptr{ImGuiStyle})
@@ -581,7 +592,7 @@ let
                     1, 0, 60, "%.1f", CImGui.ImGuiSliderFlags_AlwaysClamp
                 )
                 if @c ComboS("Makie Theme", &MORESTYLE.Variables.MakieTheme, keys(MAKIETHEMES))
-                    toimguitheme!(MAKIETHEMES[MORESTYLE.Variables.MakieTheme])
+                    toimguitheme!(get!(MAKIETHEMES, MORESTYLE.Variables.MakieTheme, "default"))
                 end
                 CImGui.EndTabItem()
             end
@@ -705,7 +716,7 @@ end
 function loadstyle(style_ref::MoreStyle)
     for var in fieldnames(MoreStyleVariable)
         setproperty!(MORESTYLE.Variables, var, getproperty(style_ref.Variables, var))
-        var == :MakieTheme && toimguitheme!(MAKIETHEMES[style_ref.Variables.MakieTheme])
+        var == :MakieTheme && toimguitheme!(get!(MAKIETHEMES, style_ref.Variables.MakieTheme, "default"))
     end
     for var in fieldnames(MoreStyleColor)
         getproperty(MORESTYLE.Colors, var) .= getproperty(style_ref.Colors, var)

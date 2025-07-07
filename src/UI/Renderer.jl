@@ -43,7 +43,7 @@ function UI()
         joinpath(CONF.Fonts.dir, CONF.Fonts.first),
         CONF.Fonts.size,
         C_NULL,
-        ImFontAtlas_GetGlyphRangesChineseFull(fonts)
+        ImFontAtlas_GetGlyphRangesDefault(fonts)
     )
     fontcfg = ImFontConfig_ImFontConfig()
     fontcfg.OversampleH = fontcfg.OversampleV = 1
@@ -79,7 +79,7 @@ function UI()
         joinpath(CONF.Fonts.dir, CONF.Fonts.bigfont),
         CONF.Fonts.plotfontsize,
         C_NULL,
-        ImFontAtlas_GetGlyphRangesChineseFull(fonts)
+        ImFontAtlas_GetGlyphRangesDefault(fonts)
     )
     # fontcfg = ImFontConfig_ImFontConfig()
     # fontcfg.MergeMode = true
@@ -89,7 +89,7 @@ function UI()
         joinpath(CONF.Fonts.dir, CONF.Fonts.first),
         CONF.Fonts.plotfontsize,
         fontcfg,
-        ImFontAtlas_GetGlyphRangesChineseFull(fonts)
+        ImFontAtlas_GetGlyphRangesDefault(fonts)
     )
 
     # 加载绘图图标字体

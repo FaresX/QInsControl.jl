@@ -28,7 +28,7 @@ let
         ftsz = CImGui.GetFontSize()
         CImGui.BeginChild("Toolbar", (3ftsz, Cfloat(0)))
         CImGui.SetCursorPos(ftsz / 2, ftsz / 2)
-        CImGui.Image(CImGui.ImTextureID(ICONID), (2ftsz, 2ftsz))
+        CImGui.Image(CImGui.ImTextureRef(ICONID), (2ftsz, 2ftsz))
         CImGui.SetCursorPosY(CImGui.GetCursorPosY() + ftsz / 2)
         btwidth = Cfloat(CImGui.GetContentRegionAvail().x - unsafe_load(IMGUISTYLE.WindowPadding.x))
         btheight = 2ftsz

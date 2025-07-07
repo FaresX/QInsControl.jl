@@ -112,7 +112,7 @@ let
                         SeparatorTextColored(MORESTYLE.Colors.HighlightText, key)
                         availwidth = CImGui.GetCursorScreenPos().x + CImGui.GetContentRegionAvail().x
                         for (i, id) in enumerate(val.data)
-                            CImGui.Image(CImGui.ImTextureID(id), CImGui.ImVec2(60, 60))
+                            CImGui.Image(CImGui.ImTextureRef(id), CImGui.ImVec2(60, 60))
                             CImGui.GetItemRectMax().x + 60 + unsafe_load(IMGUISTYLE.ItemSpacing.x) < availwidth &&
                                 i != length(val) && CImGui.SameLine()
                             id == val[] && CImGui.AddRect(
@@ -130,7 +130,7 @@ let
                     for (i, id) in enumerate(keys(GlfwOpenGLBackend.g_ImageTexture))
                         CImGui.BeginGroup()
                         CImGui.Text(string(id))
-                        CImGui.Image(CImGui.ImTextureID(id), CImGui.ImVec2(60, 60))
+                        CImGui.Image(CImGui.ImTextureRef(id), CImGui.ImVec2(60, 60))
                         CImGui.EndGroup()
                         CImGui.GetItemRectMax().x + 60 + unsafe_load(IMGUISTYLE.ItemSpacing.x) < availwidth &&
                             i != length(GlfwOpenGLBackend.g_ImageTexture) && CImGui.SameLine()

@@ -603,10 +603,10 @@ let
                 framecount = CImGui.GetFrameCount()
                 framecount % rate == 0 && move!(IMAGES[path])
             end
-            CImGui.AddImage(
-                CImGui.GetWindowDrawList(), CImGui.ImTextureID(IMAGES[path][]), wpos, wpos .+ wsz, (0, 0), (1, 1),
-                tint_col
-            )
+            # CImGui.AddImage(
+            #     CImGui.GetWindowDrawList(), CImGui.ImTextureRef(IMAGES[path][]), wpos, wpos .+ wsz, (0, 0), (1, 1),
+            #     tint_col
+            # )
         end
     end
 end

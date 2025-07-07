@@ -13,7 +13,7 @@ import DefaultApplication
 import FileIO
 using GLMakie
 using GitHub
-using MakieThemes
+# using MakieThemes
 import ImageMagick
 using JLD2
 using JpegTurbo
