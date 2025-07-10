@@ -65,7 +65,6 @@ end
     enable::Bool = true
     name::String = ""
     alias::String = ""
-    timeoutw::Cfloat = 3
     timeoutr::Cfloat = 3
     read::String = ""
     utype::String = ""
@@ -124,7 +123,6 @@ function Base.show(io::IO, qt::ReadQuantity)
     ReadQuantity :
                 name : $(qt.name)
                alias : $(qt.alias)
-            timeoutw : $(qt.timeoutw)
             timeoutr : $(qt.timeoutr)
                 read : $(join(qt.showval, qt.separator)) $(qt.showU)
         auto-refresh : $(qt.refreshrate) $(qt.isautorefresh)
@@ -146,7 +144,7 @@ function quantity(name, qtcf::QuantityConf)
         )
     elseif qtcf.type == "read"
         ReadQuantity(
-            name=name, alias=qtcf.alias, timeoutw=qtcf.timeoutw, timeoutr=qtcf.timeoutr, utype=qtcf.U,
+            name=name, alias=qtcf.alias, timeoutr=qtcf.timeoutr, utype=qtcf.U,
             separator=qtcf.separator, numread=qtcf.numread, help=qtcf.help, showval=fill("", qtcf.numread)
         )
     end
@@ -231,7 +229,7 @@ function InstrBuffer(instrnm)
     instrqts = OrderedDict()
     for qt in quantities
         alias = INSCONF[instrnm].quantities[qt].alias
-        timeoutw = INSCONF[instrnm].quantities[qt].timeoutw
+        timeoutw = qt isa ReadQuantity ? 3 : INSCONF[instrnm].quantities[qt].timeoutw
         timeoutr = INSCONF[instrnm].quantities[qt].timeoutr
         optkeys = INSCONF[instrnm].quantities[qt].optkeys
         optvalues = INSCONF[instrnm].quantities[qt].optvalues
@@ -1130,10 +1128,14 @@ function apply!(qt::SetQuantity, instrnm, addr, byoptvalues=false)
                 setfunc = Symbol(instrnm, :_, qt.name, :_set) |> eval
                 getfunc = Symbol(instrnm, :_, qt.name, :_get) |> eval
                 login!(CPU, ct; attr=getattr(addr))
-                ct(CPU, sv, Val(:query); timeout=qt.timeoutw + qt.timeoutr) do instr, sv
-                    setfunc(instr, sv)
-                    instr.attr.querydelay < 0.001 ? yield() : sleep(instr.attr.querydelay)
-                    getfunc(instr)
+                ct(setfunc, CPU, sv, Val(:write); timeout=qt.timeoutw)
+                if CONF.InsBuf.retreading
+                    ct(CPU, Val(:read); timeout=qt.timeoutr) do instr
+                        instr.attr.querydelay < 0.001 ? yield() : sleep(instr.attr.querydelay)
+                        getfunc(instr)
+                    end
+                else
+                    string(sv)
                 end
             catch e
                 @error(
