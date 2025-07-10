@@ -236,7 +236,7 @@ let
                 ###InsBuf###
                 SeparatorTextColored(MORESTYLE.Colors.HighlightText, mlstr("Instrument Control"))
                 @c(CImGui.Checkbox(
-                    mlstr("read after sweeping"), &CONF.InsBuf.retreading)
+                    mlstr("read after writing"), &CONF.InsBuf.retreading)
                 ) && timed_remotecall_wait(x -> (CONF.InsBuf.retreading = x), workers()[1], CONF.InsBuf.retreading)
                 @c CImGui.Checkbox(mlstr("show help"), &CONF.InsBuf.showhelp)
                 @c CImGui.DragInt(
