@@ -510,21 +510,23 @@ function extract_controllers(bkch::Vector{AbstractBlock})
     controllers, true
 end
 
-function newfile()
+function newfile(filename="")
     global WORKPATH
     global SAVEPATH
     global CFGCACHESAVEPATH
     global QDTCACHESAVEPATH
     global OLDI
     global RUNNINGTASK
-
-    try
-        log_instrbufferviewers()
-    catch e
-        @error "[$(now())]\n$(mlstr("instrument logging error, continue..."))" exception = e
-        showbacktrace()
+    if isfile(SAVEPATH) || !isempty(DATABUF)
+        try
+            log_instrbufferviewers()
+        catch e
+            @error "[$(now())]\n$(mlstr("instrument logging error, continue..."))" exception = e
+            showbacktrace()
+        end
+        saveqdt()
+        global OLDI += 1
     end
-    (isfile(SAVEPATH) | !isempty(DATABUF)) && (saveqdt(); global OLDI += 1)
     Base.Filesystem.rm(CFGCACHESAVEPATH; force=true)
     Base.Filesystem.rm(QDTCACHESAVEPATH; force=true)
 
@@ -532,7 +534,7 @@ function newfile()
     find_old_i(joinpath(WORKPATH, string(year(date)), string(year(date), "-", month(date)), string(date)))
     cfgsvdir = joinpath(WORKPATH, string(year(date)), string(year(date), "-", month(date)), string(date))
     ispath(cfgsvdir) || mkpath(cfgsvdir)
-    fileprename = replace("[$(now())] $(mlstr("Task")) $(1+OLDI) $RUNNINGTASK", ':' => '.')
+    fileprename = replace("[$(now())] $(mlstr("Task")) $(1+OLDI) $(filename == "" ? RUNNINGTASK : filename)", ':' => '.')
     SAVEPATH = joinpath(cfgsvdir, "$fileprename.qdt")
     CFGCACHESAVEPATH = joinpath(cfgsvdir, "$fileprename.cfg.cache")
     QDTCACHESAVEPATH = joinpath(cfgsvdir, "$fileprename.qdt.cache")
