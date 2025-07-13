@@ -453,10 +453,14 @@ function savecfgcache()
     end
 end
 function saveqdtcache(cache)
+    isfile(QDTCACHESAVEPATH) || Base.Filesystem.touch(QDTCACHESAVEPATH)
     data = join(map(x -> string(x[1], ",", x[2]), cache), '\n')
-    open(QDTCACHESAVEPATH, "a+") do file
+    tempfile = QDTCACHESAVEPATH * ".tmp"
+    Base.Filesystem.cp(QDTCACHESAVEPATH, tempfile; force=true)
+    open(tempfile, "a+") do file
         write(file, data)
     end
+    Base.Filesystem.mv(tempfile, QDTCACHESAVEPATH; force=true)
 end
 
 function find_cutting_i(dir, file)
