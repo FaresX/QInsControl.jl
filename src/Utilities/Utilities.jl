@@ -122,7 +122,7 @@ end
 let
     oldtime::Dict{String,Float64} = Dict()
     global function waittime(id, δt=1)
-        haskey(oldtime, id) || (oldtime[id] = time())
+        haskey(oldtime, id) || (oldtime[id] = time(); return true)
         newtime = time()
         trig = newtime - oldtime[id] > δt
         trig && (oldtime[id] = newtime)
