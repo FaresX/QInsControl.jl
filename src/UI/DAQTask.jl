@@ -395,7 +395,7 @@ let
             end
             waittime("saveqdtcache", CONF.DAQ.savetime) && (saveqdtcache(cache); empty!(cache))
             waittime("savecfgcache", 60CONF.DAQ.savetime) && savecfgcache()
-            waittime("savedatabuf", 3600CONF.DAQ.savetime) && saveqdt()
+            waittime("savedatabuf", 60CONF.DAQ.savetime) && saveqdt()
         end
         if isready(EXTRADATABUFRC)
             key, val = take!(EXTRADATABUFRC)

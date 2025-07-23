@@ -183,9 +183,9 @@ let
                 @c RadioButton2(mlstr("eval in Main"), mlstr("eval in QInsControl"), &CONF.DAQ.externaleval; local_pos_x=12ftsz)
                 @c ComboS(mlstr("stored data type"), &CONF.DAQ.savetype, datatypes)
                 @c CImGui.DragInt(
-                    stcstr(mlstr("saving time"), " (h)"),
+                    stcstr(mlstr("saving time"), " (min)"),
                     &CONF.DAQ.savetime,
-                    1.0, 1, 24, "%d",
+                    1.0, 1, 1440, "%d",
                     CImGui.ImGuiSliderFlags_AlwaysClamp
                 )
                 @c CImGui.DragInt(
