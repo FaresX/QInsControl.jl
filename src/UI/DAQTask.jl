@@ -14,7 +14,6 @@ global WORKPATH::String = ""
 global SAVEPATH::String = ""
 global CFGCACHESAVEPATH::String = ""
 global QDTCACHESAVEPATH::String = ""
-global QDTCACHETEMPSAVEPATH::String = ""
 global RUNNINGTASK::String = ""
 const CFGBUF = Dict{String,Any}()
 
@@ -217,7 +216,6 @@ function run(daqtask::DAQTask)
     global SAVEPATH
     global CFGCACHESAVEPATH
     global QDTCACHESAVEPATH
-    global QDTCACHETEMPSAVEPATH
     global OLDI
     global RUNNINGTASK
     SYNCSTATES[Int(IsDAQTaskRunning)] = true
@@ -231,7 +229,6 @@ function run(daqtask::DAQTask)
     SAVEPATH = joinpath(cfgsvdir, "$fileprename.qdt")
     CFGCACHESAVEPATH = joinpath(cfgsvdir, "$fileprename.cfg.cache")
     QDTCACHESAVEPATH = joinpath(cfgsvdir, "$fileprename.qdt.cache")
-    QDTCACHETEMPSAVEPATH = joinpath(cfgsvdir, "$fileprename.qdt.cache.tmp")
     CFGBUF["daqtask"] = deepcopy(daqtask)
     try
         log_instrbufferviewers()
@@ -352,7 +349,6 @@ function update_all()
         SYNCSTATES[Int(IsDAQTaskRunning)] = false
         Base.Filesystem.rm(CFGCACHESAVEPATH; force=true)
         Base.Filesystem.rm(QDTCACHESAVEPATH; force=true)
-        Base.Filesystem.rm(QDTCACHETEMPSAVEPATH; force=true)
         return false
     else
         update_data()
@@ -397,8 +393,7 @@ let
                 end
                 updatefront!(insbuf.quantities[qt])
             end
-            waittime("saveqdtcachetemp", CONF.DAQ.savetime) && (saveqdtcachetemp(cache); empty!(cache))
-            waittime("saveqdtcache", 6CONF.DAQ.savetime) && saveqdtcache()
+            waittime("saveqdtcache", CONF.DAQ.savetime) && (saveqdtcache(cache); empty!(cache))
             waittime("savecfgcache", 60CONF.DAQ.savetime) && savecfgcache()
             waittime("savedatabuf", 3600CONF.DAQ.savetime) && saveqdt()
         end
@@ -457,10 +452,9 @@ function savecfgcache()
         file["valid"] = false
     end
 end
-saveqdtcache() = Base.Filesystem.cp(QDTCACHETEMPSAVEPATH, QDTCACHESAVEPATH; force=true)
-function saveqdtcachetemp(cache)
+function saveqdtcache(cache)
     data = join(map(x -> string(x[1], ",", x[2]), cache), '\n')
-    open(QDTCACHETEMPSAVEPATH, "a+") do file
+    open(QDTCACHESAVEPATH, "a+") do file
         write(file, data)
     end
 end
@@ -521,7 +515,6 @@ function newfile(filename="")
     global SAVEPATH
     global CFGCACHESAVEPATH
     global QDTCACHESAVEPATH
-    global QDTCACHETEMPSAVEPATH
     global OLDI
     global RUNNINGTASK
     if isfile(SAVEPATH) || !isempty(DATABUF)
@@ -536,7 +529,6 @@ function newfile(filename="")
     end
     Base.Filesystem.rm(CFGCACHESAVEPATH; force=true)
     Base.Filesystem.rm(QDTCACHESAVEPATH; force=true)
-    Base.Filesystem.rm(QDTCACHETEMPSAVEPATH; force=true)
 
     date = today()
     find_old_i(joinpath(WORKPATH, string(year(date)), string(year(date), "-", month(date)), string(date)))
@@ -546,7 +538,6 @@ function newfile(filename="")
     SAVEPATH = joinpath(cfgsvdir, "$fileprename.qdt")
     CFGCACHESAVEPATH = joinpath(cfgsvdir, "$fileprename.cfg.cache")
     QDTCACHESAVEPATH = joinpath(cfgsvdir, "$fileprename.qdt.cache")
-    QDTCACHETEMPSAVEPATH = joinpath(cfgsvdir, "$fileprename.qdt.cache.tmp")
     for k in keys(CFGBUF)
         k == "daqtask" || delete!(CFGBUF, k)
     end
