@@ -7,9 +7,7 @@ let
         # CImGui.SetNextWindowPos((100, 100), CImGui.ImGuiCond_Once)
         CImGui.SetNextWindowSize((800, 600), CImGui.ImGuiCond_Once)
 
-        CImGui.PushStyleColor(CImGui.ImGuiCol_Separator, (0, 0, 0, 0))
         if CImGui.Begin(stcstr(MORESTYLE.Icons.Preferences, "  ", mlstr("Preferences"), "###pref"), p_open)
-            CImGui.PopStyleColor()
             SetWindowBgImage(
                 CONF.BGImage.preferences.path;
                 rate=CONF.BGImage.preferences.rate,
