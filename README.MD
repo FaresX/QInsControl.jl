@@ -24,7 +24,21 @@ QInsControl.start()
 ```
 TCPIP address: TCPSOCKET::127.0.0.1::8080 [TCPSOCKET::**ip**::**port**]  
 serial port address: SERIAL::COM1 [SERIAL::**port**]  
-ISOBUS address: ASRL1::INSTR::ISOBUS::1 or SERIAL::COM1::ISOBUS::1 [original address::ISOBUS::**port**]
+ISOBUS address: ASRL1::INSTR::ISOBUS::1 or SERIAL::COM1::ISOBUS::1 [**bus address**::ISOBUS::**port**]
+
+Besides, two QInsControl can comunicate with each other. It is possible to use QInsControl as a monitor to logging the instruments' status. For the server end, you have to run the server first. As for the client end, you can add the server as adding a new instrument to comunicate with the instruments that are connected to the server.  
+QIC address: TCPSOCKET::127.0.0.1::6060::QIC::SERIAL::COM1 [**server**::QIC::**instrument**]
+
+## useful features
+To use with the monitor mode, it is able to save as a new file in a single task. To realize this, just use the macro as follows:
+```julia
+@newfile
+```
+to save as a new file only with modified datetime or
+```julia
+@newfile filename
+```
+to save as a new file with a modified name and modified datetime. Whichever function is used, the file name is always in the format of "[\$(now())] Task i \$(filename).qdt"
 
 ## example
 ![image](example/demo.png)
