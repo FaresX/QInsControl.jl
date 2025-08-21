@@ -7,9 +7,7 @@ let
         # CImGui.SetNextWindowPos((100, 100), CImGui.ImGuiCond_Once)
         CImGui.SetNextWindowSize((800, 600), CImGui.ImGuiCond_Once)
 
-        CImGui.PushStyleColor(CImGui.ImGuiCol_Separator, (0, 0, 0, 0))
         if CImGui.Begin(stcstr(MORESTYLE.Icons.Preferences, "  ", mlstr("Preferences"), "###pref"), p_open)
-            CImGui.PopStyleColor()
             SetWindowBgImage(
                 CONF.BGImage.preferences.path;
                 rate=CONF.BGImage.preferences.rate,
@@ -183,9 +181,9 @@ let
                 @c RadioButton2(mlstr("eval in Main"), mlstr("eval in QInsControl"), &CONF.DAQ.externaleval; local_pos_x=12ftsz)
                 @c ComboS(mlstr("stored data type"), &CONF.DAQ.savetype, datatypes)
                 @c CImGui.DragInt(
-                    stcstr(mlstr("saving time"), " (h)"),
+                    stcstr(mlstr("saving time"), " (min)"),
                     &CONF.DAQ.savetime,
-                    1.0, 1, 24, "%d",
+                    1.0, 1, 1440, "%d",
                     CImGui.ImGuiSliderFlags_AlwaysClamp
                 )
                 @c CImGui.DragInt(
@@ -236,7 +234,7 @@ let
                 ###InsBuf###
                 SeparatorTextColored(MORESTYLE.Colors.HighlightText, mlstr("Instrument Control"))
                 @c(CImGui.Checkbox(
-                    mlstr("read after sweeping"), &CONF.InsBuf.retreading)
+                    mlstr("read after writing"), &CONF.InsBuf.retreading)
                 ) && timed_remotecall_wait(x -> (CONF.InsBuf.retreading = x), workers()[1], CONF.InsBuf.retreading)
                 @c CImGui.Checkbox(mlstr("show help"), &CONF.InsBuf.showhelp)
                 @c CImGui.DragInt(

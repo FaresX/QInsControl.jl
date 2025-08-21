@@ -150,7 +150,7 @@ end
 
 @kwdef mutable struct QuantityConf <: InsConf
     alias::String = "quantity"
-    timeoutw::Cfloat = 0.3
+    timeoutw::Cfloat = 3
     timeoutr::Cfloat = 3
     U::String = ""
     cmdheader::String = ""

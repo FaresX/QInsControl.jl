@@ -753,7 +753,7 @@ end
 ############functionality-----------------------------------------------------------------------------------------------
 macro logblock()
     esc(
-        :(timed_remotecall_wait(eval, 1, :(log_instrbufferviewers()); timeout=60))
+        :(timed_remotecall_wait(log_instrbufferviewers, 1; timeout=60))
     )
 end
 
@@ -787,7 +787,12 @@ end
 
 macro newfile()
     esc(
-        :(timed_remotecall_wait(eval, 1, :(newfile()); timeout=60))
+        :(timed_remotecall_wait(newfile, 1; timeout=60))
+    )
+end
+macro newfile(filename)
+    esc(
+        :(timed_remotecall_wait(newfile, 1, $filename; timeout=60))
     )
 end
 

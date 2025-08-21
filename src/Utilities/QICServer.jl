@@ -109,8 +109,11 @@ function process_message(server::QICServer, client::QICClient, msg::String)
             write(client.socket, string(ct(read, CPU, Val(:read); timeout=attr.timeoutr), server.termchar))
         elseif action == "W"
             ct(write, CPU, String(cmd), Val(:write); timeout=attr.timeoutw)
-        elseif action == "Q"
-            write(client.socket, string(ct(query, CPU, String(cmd), Val(:query); timeout=attr.timeoutr), server.termchar))
+        elseif occursin("Q", action)
+            str = ct(CPU, String(cmd), Val(:query); timeout=attr.timeoutr) do instr, val
+                query(instr, val; delay=parse(Float64, action[2:end]))
+            end
+            write(client.socket, string(str, server.termchar))
         end
     catch e
         @error "[$(now())]\n$(mlstr("Error processing message"))" exception = e
