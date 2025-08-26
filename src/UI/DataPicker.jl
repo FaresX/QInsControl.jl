@@ -173,7 +173,7 @@ let
         end
 
         SeparatorTextColored(MORESTYLE.Colors.InfoText, mlstr("Data Processing"))
-        if dtss.isrealtime
+        if SYNCSTATES[Int(IsDAQTaskRunning)] && dtss.isrealtime
             CImGui.Button(stcstr(MORESTYLE.Icons.Update, " ", mlstr("Update Function"))) && (dtss.updateprocessfunc = true)
             CImGui.SameLine(CImGui.GetContentRegionAvail().x - dtss.alsz)
             CImGui.Text(mlstr("sampling rate"))
@@ -251,7 +251,8 @@ let
             plotfigurelayout(plt, dtpk)
         end
         for (i, dtss) in enumerate(dtpk.series)
-            if dtss.update || (dtss.isrealtime && waittime(stcstr("DataPicker", plt.id, "-", i), dtss.refreshrate))
+            if dtss.update || (SYNCSTATES[Int(IsDAQTaskRunning)] && dtss.isrealtime &&
+                               waittime(stcstr("DataPicker", plt.id, "-", i), dtss.refreshrate))
                 if haskey(synctasks[plt.id], i) && istaskdone(synctasks[plt.id][i])
                     if !istaskfailed(synctasks[plt.id][i])
                         x, y, z = fetch(synctasks[plt.id][i])
@@ -305,7 +306,7 @@ let
                 observables[dtss] = (Observable(collect(cx)), Observable(collect(cy)), Observable(collect(cz)))
             end
         catch e
-            if !dtss.isrealtime
+            if !(SYNCSTATES[Int(IsDAQTaskRunning)] && dtss.isrealtime)
                 @error string("[", now(), "]\n", mlstr("setting observables failed!!!")) exception = e
                 showbacktrace()
             end
@@ -362,7 +363,7 @@ let
             exprocess = :($(processfuncs[dtss])($xbuf, $ybuf, $zbuf, $wbuf, $auxbufs...))
             return CONF.DAQ.externaleval ? @eval(Main, $exprocess) : eval(exprocess)
         catch e
-            if !dtss.isrealtime
+            if !(SYNCSTATES[Int(IsDAQTaskRunning)] && dtss.isrealtime)
                 @error string("[", now(), "]\n", mlstr("pre-processing data failed!!!")) exception = e
                 showbacktrace()
             end
@@ -387,7 +388,7 @@ let
             end
             :($(processfigurefuncs[dtss])(FIGURES[$(plt.id)], $x, $y, $z)) |> eval
         catch e
-            if !dtss.isrealtime
+            if !(SYNCSTATES[Int(IsDAQTaskRunning)] && dtss.isrealtime)
                 @error string("[", now(), "]\n", mlstr("post-processing figure failed!!!")) exception = e
                 showbacktrace()
             end
