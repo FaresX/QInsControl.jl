@@ -66,42 +66,66 @@ end
     delplot_i::Int = 0
 end
 
-function editmenu(dtp::DataPlot, datastr, datafloat::Dict{String,VecOrMat{Cdouble}}=Dict{String,VecOrMat{Cdouble}}())
-    ldtpks = length(dtp.dtpks)
-    length(dtp.showdtpks) == ldtpks || resizebool!(dtp.showdtpks, ldtpks)
-    dtp.layout.labels = [stcstr(MORESTYLE.Icons.Plot, " ", mlstr("Plot"), " ", i) for i in eachindex(dtp.layout.labels)]
-    edit(
-        dtp.layout, dtp;
-        action=insertplotbefore!, size=(0, 0),
-        selectablesize=(Cfloat(0), CImGui.GetFrameHeight() - unsafe_load(IMGUISTYLE.ItemSpacing.y))
-    ) do
-        openright = CImGui.BeginPopupContextItem()
-        if openright
-            if CImGui.MenuItem(stcstr(MORESTYLE.Icons.Plot, " ", mlstr("Select Data")))
-                # if !dtp.layout.states[dtp.layout.idxing]
-                #     for dtss in dtp.dtpks[dtp.layout.idxing].series
-                #         dtss.isrealtime = false
-                #     end
-                # end
-                dtp.showdtpks[dtp.layout.idxing] = true
+let
+    copydatapicker::DataPicker = DataPicker()
+    copymark::String = ""
+    global function editmenu(dtp::DataPlot, datastr, datafloat::Dict{String,VecOrMat{Cdouble}}=Dict{String,VecOrMat{Cdouble}}())
+        ldtpks = length(dtp.dtpks)
+        length(dtp.showdtpks) == ldtpks || resizebool!(dtp.showdtpks, ldtpks)
+        dtp.layout.labels = [stcstr(MORESTYLE.Icons.Plot, " ", mlstr("Plot"), " ", i) for i in eachindex(dtp.layout.labels)]
+        edit(
+            dtp.layout, dtp;
+            action=insertplotbefore!, size=(0, 0),
+            selectablesize=(Cfloat(0), CImGui.GetFrameHeight() - unsafe_load(IMGUISTYLE.ItemSpacing.y))
+        ) do
+            openright = CImGui.BeginPopupContextItem()
+            if openright
+                if CImGui.MenuItem(stcstr(MORESTYLE.Icons.Plot, " ", mlstr("Select Data")))
+                    # if !dtp.layout.states[dtp.layout.idxing]
+                    #     for dtss in dtp.dtpks[dtp.layout.idxing].series
+                    #         dtss.isrealtime = false
+                    #     end
+                    # end
+                    dtp.showdtpks[dtp.layout.idxing] = true
+                end
+                if dtp.layout.states[dtp.layout.idxing] && CImGui.MenuItem(stcstr(MORESTYLE.Icons.Update, " ", mlstr("Update")))
+                    idx = dtp.layout.idxing
+                    dtp.dtpks[idx].update = true
+                    syncplotdata(dtp.plots[idx], dtp.dtpks[idx], datastr, datafloat)
+                end
+                if CImGui.MenuItem(stcstr(MORESTYLE.Icons.Copy, " ", mlstr("Copy")))
+                    copymark = dtp.layout.marks[dtp.layout.idxing]
+                    copydatapicker = deepcopy(dtp.dtpks[dtp.layout.idxing])
+                end
+                CImGui.MenuItem(stcstr(MORESTYLE.Icons.Paste, " ", mlstr("Paste"))) && insertplotafter!(dtp, dtp.layout.idxing)
+                if CImGui.MenuItem(stcstr(MORESTYLE.Icons.Delete, " ", mlstr("Delete")))
+                    dtp.isdelplot = true
+                    dtp.delplot_i = dtp.layout.idxing
+                end
+                markbuf = dtp.layout.marks[dtp.layout.idxing]
+                CImGui.PushItemWidth(6CImGui.GetFontSize())
+                @c InputTextRSZ(dtp.layout.labels[dtp.layout.idxing], &markbuf)
+                CImGui.PopItemWidth()
+                dtp.layout.marks[dtp.layout.idxing] = markbuf
+                CImGui.EndPopup()
             end
-            if dtp.layout.states[dtp.layout.idxing] && CImGui.MenuItem(stcstr(MORESTYLE.Icons.Update, " ", mlstr("Update")))
-                idx = dtp.layout.idxing
-                dtp.dtpks[idx].update = true
-                syncplotdata(dtp.plots[idx], dtp.dtpks[idx], datastr, datafloat)
-            end
-            if CImGui.MenuItem(stcstr(MORESTYLE.Icons.Delete, " ", mlstr("Delete")))
-                dtp.isdelplot = true
-                dtp.delplot_i = dtp.layout.idxing
-            end
-            markbuf = dtp.layout.marks[dtp.layout.idxing]
-            CImGui.PushItemWidth(6CImGui.GetFontSize())
-            @c InputTextRSZ(dtp.layout.labels[dtp.layout.idxing], &markbuf)
-            CImGui.PopItemWidth()
-            dtp.layout.marks[dtp.layout.idxing] = markbuf
-            CImGui.EndPopup()
+            return openright
         end
-        return openright
+    end
+
+    function insertplotafter!(dtp::DataPlot, i)
+        push!(dtp.layout.labels, string(length(dtp.layout.labels) + 1))
+        insert!(dtp.layout.marks, i + 1, copymark)
+        insert!(dtp.layout.states, i+1, false)
+        insert!(dtp.plots, i+1, QPlot())
+        insert!(dtp.dtpks, i+1, copydatapicker)
+        insert!(dtp.showdtpks, i+1, false)
+    end
+
+    global function pasteplot!(dtp::DataPlot)
+        newplot!(dtp)
+        dtp.layout.marks[end] = copymark
+        dtp.dtpks[end] = copydatapicker
     end
 end
 
