@@ -419,8 +419,8 @@ change the cpu mode to fast mode. Default mode is slow mode. The fast mode is no
 """
 fast!(cpu::Processor) = cpu.fast[] = true
 
-setbusy!(cpu::Processor, addr::String) = haskey(cpu.taskbusy, addr) && (cpu.taskbusy[addr] = true)
-unsetbusy!(cpu::Processor, addr::String) = haskey(cpu.taskbusy, addr) && (cpu.taskbusy[addr] = false)
+setbusy!(cpu::Processor, addr::String) = haskey(cpu.taskbusy, addr) && (cpu.taskbusy[addr] = true; @warn "set busy for $addr")
+unsetbusy!(cpu::Processor, addr::String) = haskey(cpu.taskbusy, addr) && (cpu.taskbusy[addr] = false; @info "unset busy for $addr")
 setbusy!(cpu::Processor) = map(addr -> setbusy!(cpu, addr), collect(keys(cpu.taskbusy)))
 unsetbusy!(cpu::Processor) = map(addr -> unsetbusy!(cpu, addr), collect(keys(cpu.taskbusy)))
 isbusy(cpu::Processor, addr::String) = haskey(cpu.taskbusy, addr) && cpu.taskbusy[addr]
