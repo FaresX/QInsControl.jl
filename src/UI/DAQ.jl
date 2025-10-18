@@ -304,6 +304,7 @@ let
         if CImGui.BeginPopup("add task")
             CImGui.MenuItem(stcstr(MORESTYLE.Icons.NewFile, " ", mlstr("New Task"))) && push!(daqtasks, DAQTask())
             CImGui.MenuItem(stcstr(MORESTYLE.Icons.NewFile, " ", mlstr("New Plot"))) && newplot!(DAQDATAPLOT)
+            CImGui.MenuItem(stcstr(MORESTYLE.Icons.Paste, " ", mlstr("Paste Plot"))) && pasteplot!(DAQDATAPLOT)
             if CImGui.MenuItem(stcstr(MORESTYLE.Icons.Load, " ", mlstr("Load")))
                 begin
                     confldpath = pick_file(filterlist="cfg")

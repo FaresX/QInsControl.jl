@@ -278,6 +278,7 @@ function counter(f, times::Integer=3)
 end
 
 function gensweeplist(start, step, stop)
+    step == 0 && return [start]
     if CONF.DAQ.equalstep
         rawsteps = abs((start - stop) / step)
         ceilsteps = ceil(Int, rawsteps)

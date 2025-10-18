@@ -982,16 +982,19 @@ function view(qt::AbstractQuantity, size=(-1, 0))
         end
     end
     CImGui.PopStyleColor()
-    if CImGui.IsItemHovered() && !(qt isa ReadQuantity)
+    if CImGui.IsItemHovered()
         CImGui.BeginTooltip()
         CImGui.PushTextWrapPos(CImGui.GetFontSize() * 36.0)
-        U, _ = @c getU(qt.utype, &qt.uindex)
-        if qt isa SweepQuantity
-            CImGui.Text(stcstr(mlstr("step"), mlstr(": "), qt.step, U))
-            CImGui.Text(stcstr(mlstr("stop"), mlstr(": "), qt.stop, U))
-            CImGui.Text(stcstr(mlstr("delay"), mlstr(": "), qt.delay, "s"))
-        elseif qt isa SetQuantity
-            CImGui.Text(stcstr(mlstr("set"), mlstr(": "), qt.set, U))
+        CImGui.Text(qt.name)
+        if !(qt isa ReadQuantity)
+            U, _ = @c getU(qt.utype, &qt.uindex)
+            if qt isa SweepQuantity
+                CImGui.Text(stcstr(mlstr("step"), mlstr(": "), qt.step, U))
+                CImGui.Text(stcstr(mlstr("stop"), mlstr(": "), qt.stop, U))
+                CImGui.Text(stcstr(mlstr("delay"), mlstr(": "), qt.delay, "s"))
+            elseif qt isa SetQuantity
+                CImGui.Text(stcstr(mlstr("set"), mlstr(": "), qt.set, U))
+            end
         end
         CImGui.PopTextWrapPos()
         CImGui.EndTooltip()

@@ -26,7 +26,7 @@ let
                     CImGui.SameLine()
                     @c CImGui.Checkbox("##Filter", &filteron)
                     if filteron
-                        w = (CImGui.GetContentRegionAvail().x - 3unsafe_load(IMGUISTYLE.ItemInnerSpacing.x))/4
+                        w = (CImGui.GetContentRegionAvail().x - 3unsafe_load(IMGUISTYLE.ItemInnerSpacing.x)) / 4
                         CImGui.SameLine()
                         ibvs1 = dtviewer.data[insbufkeys[1]]
                         inses = Dict{String,Vector{String}}()
@@ -106,10 +106,20 @@ let
             end
             if CImGui.BeginTabItem(mlstr("Plots"))
                 if haskey(dtviewer.data, "data")
+                    CImGui.BeginChild("DataPlots")
                     if CImGui.Button(stcstr(MORESTYLE.Icons.NewFile, " ", mlstr("New Plot")), (Cfloat(-1), 2CImGui.GetFontSize()))
                         newplot!(dtviewer.dtp)
                     end
                     editmenu(dtviewer.dtp, dtviewer.data["data"])
+                    CImGui.EndChild()
+                    if CImGui.BeginPopup("add plot")
+                        CImGui.MenuItem(stcstr(MORESTYLE.Icons.NewFile, " ", mlstr("New Plot"))) && newplot!(dtviewer.dtp)
+                        CImGui.MenuItem(stcstr(MORESTYLE.Icons.Paste, " ", mlstr("Paste Plot"))) && pasteplot!(dtviewer.dtp)
+                        CImGui.EndPopup()
+                    end
+                    if !CImGui.IsAnyItemHovered() && CImGui.IsWindowHovered(CImGui.ImGuiHoveredFlags_ChildWindows)
+                        CImGui.IsMouseClicked(1) && CImGui.OpenPopup("add plot")
+                    end
                 else
                     CImGui.Text(mlstr("data not loaded or data format not supported!"))
                 end

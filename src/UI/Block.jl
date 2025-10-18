@@ -764,8 +764,9 @@ macro saveblock(key, var)
 end
 
 macro saveblock(var)
+    key = string(var)
     esc(
-        :(put!(databuf_lc, (string($(Meta.quot(var))), string($var))))
+        :(put!(databuf_lc, ($key, string($var))))
     )
 end
 
