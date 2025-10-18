@@ -216,8 +216,8 @@ function loaddtviewer!(dtviewer::DataViewer, data::Dict, id)
                     @trycatch mlstr("loading image failed!!!") begin
                         img = RGBA.(jpeg_decode(node.imgr.image))
                         imgsize = size(img)
-                        node.imgr.id = CImGui.create_image_texture(imgsize...)
-                        CImGui.update_image_texture(node.imgr.id, img, imgsize...)
+                        node.imgr.id = CImGui.create_image_texture(imgsize...)._TexID
+                        CImGui.update_image_texture(imtexid(node.imgr.id), img, imgsize...)
                     end
                 end
             end
@@ -230,8 +230,8 @@ function loadsamplebasenode!(circuit::NodeEditor)
             @trycatch mlstr("loading image failed!!!") begin
                 img = RGBA.(jpeg_decode(node.imgr.image))
                 imgsize = size(img)
-                node.imgr.id = CImGui.create_image_texture(imgsize...)
-                CImGui.update_image_texture(node.imgr.id, img, imgsize...)
+                node.imgr.id = CImGui.create_image_texture(imgsize...)._TexID
+                CImGui.update_image_texture(imtexid(node.imgr.id), img, imgsize...)
             end
         end
     end
@@ -241,12 +241,12 @@ atclosedtviewer!(dtviewer::DataViewer) = (rmtextures!(dtviewer); rmplots!(dtview
 function rmtextures!(dtv::DataViewer)
     if haskey(dtv.data, "circuit")
         for (_, node) in dtv.data["circuit"].nodes
-            node isa SampleHolderNode && destroytexture!(node.imgr.id)
+            node isa SampleHolderNode && destroytexture!(imtexid(node.imgr.id))
         end
     end
     if haskey(dtv.data, "revision")
         for (_, node) in dtv.data["revision"]["circuit"].nodes
-            node isa SampleHolderNode && destroytexture!(node.imgr.id)
+            node isa SampleHolderNode && destroytexture!(imtexid(node.imgr.id))
         end
     end
 end

@@ -245,7 +245,7 @@ function draw(imgr::ImageRegion)
     CImGui.PushStyleColor(CImGui.ImGuiCol_ButtonHovered, (0, 0, 0, 0))
     CImGui.PushStyleColor(CImGui.ImGuiCol_ButtonActive, (0, 0, 0, 0))
     CImGui.PushStyleVar(CImGui.ImGuiStyleVar_FramePadding, (0, 0))
-    CImGui.ImageButton("ImageRegion", CImGui.ImTextureRef(CImGui.ImTextureID(imgr.id)), imgr.posmax .- imgr.posmin)
+    CImGui.ImageButton("ImageRegion", imtexid(imgr.id), imgr.posmax .- imgr.posmin)
     CImGui.PopStyleVar()
     CImGui.PopStyleColor(3)
     imgr.posmin = CImGui.GetItemRectMin()
@@ -341,11 +341,11 @@ let
                 imgpath = pick_file(filterlist="png,jpg,jpeg,tif,bmp")
                 if isfile(imgpath)
                     @trycatch mlstr("loading image failed!!!") begin
-                        imgr.id == 0 || destroytexture!(CImGui.ImTextureRef(CImGui.ImTextureID(imgr.id)))
+                        imgr.id == 0 || destroytexture!(imtexid(imgr.id))
                         img = RGBA.(collect(transpose(FileIO.load(imgpath))))
                         imgsize = size(img)
                         imgr.id = CImGui.create_image_texture(imgsize...)._TexID
-                        CImGui.update_image_texture(CImGui.ImTextureRef(CImGui.ImTextureID(imgr.id)), img, imgsize...)
+                        CImGui.update_image_texture(imtexid(imgr.id), img, imgsize...)
                         imgr.image = jpeg_encode(img)
                     end
                 end
@@ -862,7 +862,7 @@ view(node::Node) = edit(node)
 view(pin::ImagePin) = (draw(pin); pin.dragging_in = false; pin.dragging_out = false)
 
 function view(imgr::ImageRegion)
-    CImGui.Image(CImGui.ImTextureRef(CImGui.ImTextureID(imgr.id)), imgr.posmax .- imgr.posmin)
+    CImGui.Image(imtexid(imgr.id), imgr.posmax .- imgr.posmin)
     imgr.posmin = CImGui.GetItemRectMin()
     imgr.posmax = CImGui.GetItemRectMax()
     imgr.rszgrip.pos = imgr.posmax

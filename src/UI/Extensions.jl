@@ -12,6 +12,7 @@ CImGui.VSliderInt(label, size::Vector, v, v_min, v_max, format="%d", flags=0) = 
 CImGui.Button(label, size::Vector) = CImGui.Button(label, CImGui.ImVec2(size...))
 CImGui.ProgressBar(fraction, size_arg::Vector, overlay=C_NULL) = CImGui.ProgressBar(fraction, CImGui.ImVec2(size_arg...), overlay)
 
+imtexid(id) = CImGui.ImTextureRef(CImGui.ImTextureID(id))
 function CImGui.Image(
     tex_ref::CImGui.ImTextureRef,
     image_size::Union{ImVec2,NTuple{2},Vector},
