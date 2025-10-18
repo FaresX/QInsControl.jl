@@ -1,4 +1,5 @@
 @option mutable struct OptBasic
+    waitevents::Bool = false
     isremote::Bool = true
     viewportenable::Bool = true
     holdmainwindow::Bool = true

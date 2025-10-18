@@ -75,6 +75,10 @@ let
                 ### Basic ###
                 SeparatorTextColored(MORESTYLE.Colors.HighlightText, mlstr("Basic Setup"))
                 @c(CImGui.Checkbox(
+                    CONF.Basic.waitevents ? mlstr("wait events") : mlstr("poll events"),
+                    &CONF.Basic.waitevents
+                ))
+                @c(CImGui.Checkbox(
                     CONF.Basic.viewportenable ? mlstr("multi-viewport mode on") : mlstr("multi-viewport mode off"),
                     &CONF.Basic.viewportenable
                 ))

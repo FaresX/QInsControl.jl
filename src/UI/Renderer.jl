@@ -51,8 +51,7 @@ function UI()
     rendertask = Threads.@spawn CImGui.render(
         ctx;
         window_size=CONF.Basic.windowsize, window_title="QInsControl", on_exit=onexitaction,
-        opengl_version=VersionNumber(CONF.Basic.openglversion),
-        wait_events=true
+        opengl_version=VersionNumber(CONF.Basic.openglversion), wait_events=CONF.Basic.waitevents
     ) do
         try
             if firstframe
