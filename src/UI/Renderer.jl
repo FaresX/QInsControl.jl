@@ -66,7 +66,7 @@ function UI()
                 CImGui.update_image_texture(ICONID, transpose(icons[1]), iconsize...)
                 # 缩放设置
                 scale = CImGui.GetWindowDpiScale()
-                ImGuiStyle_ScaleAllSizes(IMGUISTYLE, scale)
+                ImGuiStyle_ScaleAllSizes(IMGUISTYLE, scale / MORESTYLE.Variables.ImGuiScale)
                 IMGUISTYLE.FontScaleDpi = scale
 
                 firstframe = false

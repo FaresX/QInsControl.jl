@@ -976,10 +976,10 @@ let
                                 drawlist = CImGui.GetWindowDrawList()
                                 wpos = CImGui.GetWindowPos()
                                 if qtw.name == "_Shape_" && qtw.options.uitype in ["triangle", "line"]
-                                    a = wpos .+ qtw.options.vertices[1]
-                                    b = a .+ qtw.options.vertices[2]
+                                    a = wpos .+ qtw.options.vertices[1] * scale
+                                    b = a .+ qtw.options.vertices[2] * scale
                                     if qtw.options.uitype == "triangle"
-                                        c = a .+ qtw.options.vertices[3]
+                                        c = a .+ qtw.options.vertices[3] * scale
                                         CImGui.AddTriangleFilled(
                                             drawlist, a, b, c,
                                             MORESTYLE.Colors.WidgetRectSelected
@@ -997,8 +997,8 @@ let
                                         )
                                     end
                                 else
-                                    a = wpos .+ qtw.options.vertices[1]
-                                    b = a .+ qtw.options.itemsize
+                                    a = wpos .+ qtw.options.vertices[1] * scale
+                                    b = a .+ qtw.options.itemsize * scale
                                     CImGui.AddRectFilled(
                                         drawlist, a, b,
                                         MORESTYLE.Colors.WidgetRectSelected

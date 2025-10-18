@@ -342,6 +342,7 @@ end
 end
 
 @option mutable struct MoreStyleVariable
+    ImGuiScale::Cfloat = 1
     BigIconSize::Cint = 24
     TextRectRounding::Cfloat = 0
     TextRectThickness::Cfloat = 2
@@ -770,6 +771,7 @@ let
             if rstrip(style_name, ' ') != ""
                 ustyle.imguistyle = IMGUISTYLE
                 STYLES[style_name] = ustyle
+                ustyle.morestyle.Variables.ImGuiScale = CImGui.GetWindowDpiScale()
                 @trycatch mlstr("saving styles failed!!!") begin
                     to_toml(joinpath(CONF.Style.dir, "$style_name.toml"), ustyle)
                 end
@@ -811,6 +813,7 @@ let
                 style_name = selected_style
                 loadstyle(ustyle)
                 IMGUISTYLE_REF[] = ustyle.imguistyle
+                IMGUISTYLE.FontScaleDpi = CImGui.GetWindowDpiScale()
             end
         end
         CImGui.PopItemWidth()
