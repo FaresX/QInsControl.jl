@@ -56,7 +56,7 @@ function ColoredCombo(
     CImGui.PushStyleVar(CImGui.ImGuiStyleVar_FrameRounding, rounding)
     CImGui.PushStyleVar(
         CImGui.ImGuiStyleVar_FramePadding,
-        (unsafe_load(IMGUISTYLE.FramePadding.x), (size[2] - CImGui.GetFontSize() * unsafe_load(CImGui.GetIO().FontGlobalScale)) / 2)
+        (unsafe_load(IMGUISTYLE.FramePadding.x), (size[2] - CImGui.GetFontSize() * CImGui.GetWindowDpiScale()) / 2)
     )
     CImGui.PushItemWidth(size[1])
     iscombo = ComboS(label, preview_value, item_list, flags)

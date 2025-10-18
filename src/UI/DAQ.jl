@@ -24,11 +24,11 @@ let
         # CImGui.SetColumnOffset(1, 6ftsz)
         CImGui.PushStyleColor(CImGui.ImGuiCol_ChildBg, MORESTYLE.Colors.ToolBarBg)
         CImGui.PushStyleColor(CImGui.ImGuiCol_Text, MORESTYLE.Colors.IconButton)
-        CImGui.PushFont(BIGFONT)
+        CImGui.PushFont(C_NULL, MORESTYLE.Variables.BigIconSize)
         ftsz = CImGui.GetFontSize()
         CImGui.BeginChild("Toolbar", (3ftsz, Cfloat(0)))
         CImGui.SetCursorPos(ftsz / 2, ftsz / 2)
-        CImGui.Image(CImGui.ImTextureRef(ICONID), (2ftsz, 2ftsz))
+        CImGui.Image(ICONID, (2ftsz, 2ftsz))
         CImGui.SetCursorPosY(CImGui.GetCursorPosY() + ftsz / 2)
         btwidth = Cfloat(CImGui.GetContentRegionAvail().x - unsafe_load(IMGUISTYLE.WindowPadding.x))
         btheight = 2ftsz
@@ -93,7 +93,7 @@ let
         global OLDI
         ftsz = CImGui.GetFontSize()
         CImGui.BeginChild("queue")
-        bth = 2CONF.Fonts.plotfontsize * unsafe_load(CImGui.GetIO().FontGlobalScale) +
+        bth = 2 * MORESTYLE.Variables.BigIconSize * CImGui.GetWindowDpiScale() +
               4unsafe_load(IMGUISTYLE.FramePadding.y) - unsafe_load(IMGUISTYLE.ItemSpacing.y)
         if ColoredButtonRect(
             stcstr(MORESTYLE.Icons.SelectPath, " ", mlstr("Workplace"));

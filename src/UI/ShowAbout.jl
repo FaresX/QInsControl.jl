@@ -6,8 +6,8 @@ let
             ftsz = CImGui.GetFontSize()
             ww = CImGui.GetWindowWidth()
             CImGui.SetCursorPos(ww / 3, CImGui.GetCursorPosY())
-            CImGui.Image(CImGui.ImTextureRef(ICONID), (ww / 3, ww / 3))
-            CImGui.PushFont(BIGFONT)
+            CImGui.Image(ICONID, (ww / 3, ww / 3))
+            CImGui.PushFont(C_NULL, MORESTYLE.Variables.BigIconSize)
             CImGui.SetCursorPos(CImGui.GetCursorPos() .+ ((ww - CImGui.CalcTextSize("QInsControl").x) / 2, ftsz))
             CImGui.TextColored(MORESTYLE.Colors.HighlightText, "QInsControl\n")
             CImGui.PopFont()
@@ -18,9 +18,7 @@ let
                 CImGui.SameLine()
                 CImGui.TextLinkOpenURL(newversion, "https://github.com/FaresX/QInsControl.jl/releases/latest")
             else
-                CImGui.SetWindowFontScale(0.6)
                 ColoredButton(MORESTYLE.Icons.Update; colbt=[0, 0, 0, 0]) && (getnewestversion(); hasnewversiontime = time())
-                CImGui.SetWindowFontScale(1)
                 if !SYNCSTATES[Int(NewVersion)] && time() - hasnewversiontime < 4
                     CImGui.SameLine()
                     CImGui.SetCursorPosY(CImGui.GetCursorPosY() - 4)

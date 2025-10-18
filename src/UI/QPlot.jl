@@ -17,7 +17,7 @@ end
 function toimguitheme!(theme)
     theme.GLMakie = Makie.Attributes(fxaa=false)
     Makie.set_theme!(theme)
-    GLMakie.activate!(scalefactor=unsafe_load(CImGui.GetIO().FontGlobalScale))
+    GLMakie.activate!(scalefactor=1)
     return theme
 end
 

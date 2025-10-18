@@ -116,7 +116,7 @@ function cutoff(location, regmin, regmax)
     else
         regmax[2]
     end
-    return (x, y)
+    return [x, y]
 end
 
 let
@@ -254,28 +254,6 @@ function synccall_wait(f, ids, args...; timeout=2)
     f(args...)
     for i in ids
         timed_remotecall_wait(f, i, args...; timeout=timeout)
-    end
-end
-
-function uniformx!(x, z)
-    zxl = size(z, 2)
-    if length(x) == zxl
-        linearx = range(extrema(x)..., length=zxl)
-        @views for i in axes(z, 1)
-            interp = LinearInterpolation(z[i, :], x; extrapolate=true)
-            z[i, :] = interp.(linearx)
-        end
-    end
-end
-
-function uniformy!(y, z)
-    zyl = size(z, 1)
-    if length(y) == zyl
-        lineary = range(extrema(y)..., length=zyl)
-        @views for j in axes(z, 2)
-            interp = LinearInterpolation(z[:, j], y; extrapolate=true)
-            z[:, j] = interp.(lineary)
-        end
     end
 end
 

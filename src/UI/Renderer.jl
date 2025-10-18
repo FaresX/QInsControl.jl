@@ -23,96 +23,19 @@ function UI()
 
     # 加载字体
     fonts = unsafe_load(io.Fonts)
-    ranges = ImVector_ImWchar_create()
-    ImVector_ImWchar_Init(ranges)
-    builder = ImFontGlyphRangesBuilder_ImFontGlyphRangesBuilder()
-    addchar = [
-        'Α', 'Β', 'Γ', 'Δ', 'Ε', 'Ζ', 'Η', 'Θ', 'Ι', 'Κ', 'Λ', 'Ξ', 'Π', 'Ρ', 'Σ', 'Τ', 'Υ', 'Φ', 'Χ', 'Ψ', 'Ω',
-        'α', 'β', 'γ', 'δ', 'ϵ', 'ζ', 'η', 'θ', 'ι', 'κ', 'λ', 'μ', 'ν', 'ξ', 'ο', 'π', 'ρ', 'σ', 'τ', 'υ', 'ϕ', 'χ', 'ψ', 'ω',
-        '┌', '│', '└'
-    ]
-    for c in addchar
-        ImFontGlyphRangesBuilder_AddChar(builder, c)
-    end
-    ImFontGlyphRangesBuilder_AddRanges(builder, ImFontAtlas_GetGlyphRangesDefault(fonts))
-    ImFontGlyphRangesBuilder_BuildRanges(builder, ranges)
-    r = unsafe_wrap(Vector{ImVector_ImWchar}, ranges, 1)
     # 加载全局字体
-    global GLOBALFONT = CImGui.AddFontFromFileTTF(
-        fonts,
-        joinpath(CONF.Fonts.dir, CONF.Fonts.first),
-        CONF.Fonts.size,
-        C_NULL,
-        ImFontAtlas_GetGlyphRangesDefault(fonts)
-    )
+    global GLOBALFONT = CImGui.AddFontFromFileTTF(fonts, joinpath(CONF.Fonts.dir, CONF.Fonts.first))
     fontcfg = ImFontConfig_ImFontConfig()
     fontcfg.OversampleH = fontcfg.OversampleV = 1
     fontcfg.MergeMode = true
-    CImGui.AddFontFromFileTTF(fonts, joinpath(CONF.Fonts.dir, CONF.Fonts.second), CONF.Fonts.size, fontcfg, r[1].Data)
+    CImGui.AddFontFromFileTTF(fonts, joinpath(CONF.Fonts.dir, CONF.Fonts.second), 0, fontcfg)
 
     # 加载全局图标字体
-    icon_ranges = ImVector_ImWchar_create()
-    ImVector_ImWchar_Init(icon_ranges)
-    icon_ranges_ptr = pointer([ICON_MIN, ICON_MAX, ImWchar(0)])
-    icon_builder = ImFontGlyphRangesBuilder_ImFontGlyphRangesBuilder()
-    ImFontGlyphRangesBuilder_AddRanges(icon_builder, icon_ranges_ptr)
-    ImFontGlyphRangesBuilder_BuildRanges(icon_builder, icon_ranges)
-    icon_r = unsafe_wrap(Vector{ImVector_ImWchar}, icon_ranges, 1)
     CImGui.AddFontFromFileTTF(
-        fonts,
-        joinpath(ENV["QInsControlAssets"], "Necessity/fa-regular-400.ttf"),
-        CONF.Fonts.size,
-        fontcfg,
-        icon_r[1].Data
+        fonts, joinpath(ENV["QInsControlAssets"], "Necessity/fa-regular-400.ttf"), 0, fontcfg
     )
     CImGui.AddFontFromFileTTF(
-        fonts,
-        joinpath(ENV["QInsControlAssets"], "Necessity/fa-solid-900.ttf"),
-        CONF.Fonts.size,
-        fontcfg,
-        icon_r[1].Data
-    )
-
-    # 加载绘图字体
-    global BIGFONT = CImGui.AddFontFromFileTTF(
-        fonts,
-        joinpath(CONF.Fonts.dir, CONF.Fonts.bigfont),
-        CONF.Fonts.plotfontsize,
-        C_NULL,
-        ImFontAtlas_GetGlyphRangesDefault(fonts)
-    )
-    # fontcfg = ImFontConfig_ImFontConfig()
-    # fontcfg.MergeMode = true
-    CImGui.AddFontFromFileTTF(fonts, joinpath(CONF.Fonts.dir, CONF.Fonts.second), CONF.Fonts.plotfontsize, fontcfg, r[1].Data)
-    CImGui.AddFontFromFileTTF(
-        fonts,
-        joinpath(CONF.Fonts.dir, CONF.Fonts.first),
-        CONF.Fonts.plotfontsize,
-        fontcfg,
-        ImFontAtlas_GetGlyphRangesDefault(fonts)
-    )
-
-    # 加载绘图图标字体
-    icon_ranges = ImVector_ImWchar_create()
-    ImVector_ImWchar_Init(icon_ranges)
-    icon_ranges_ptr = pointer([ICON_MIN, ICON_MAX, ImWchar(0)])
-    icon_builder = ImFontGlyphRangesBuilder_ImFontGlyphRangesBuilder()
-    ImFontGlyphRangesBuilder_AddRanges(icon_builder, icon_ranges_ptr)
-    ImFontGlyphRangesBuilder_BuildRanges(icon_builder, icon_ranges)
-    icon_r = unsafe_wrap(Vector{ImVector_ImWchar}, icon_ranges, 1)
-    CImGui.AddFontFromFileTTF(
-        fonts,
-        joinpath(ENV["QInsControlAssets"], "Necessity/fa-regular-400.ttf"),
-        CONF.Fonts.plotfontsize,
-        fontcfg,
-        icon_r[1].Data
-    )
-    CImGui.AddFontFromFileTTF(
-        fonts,
-        joinpath(ENV["QInsControlAssets"], "Necessity/fa-solid-900.ttf"),
-        CONF.Fonts.plotfontsize,
-        fontcfg,
-        icon_r[1].Data
+        fonts, joinpath(ENV["QInsControlAssets"], "Necessity/fa-solid-900.ttf"), 0, fontcfg
     )
 
     global IMGUISTYLE = CImGui.GetStyle()
@@ -123,16 +46,17 @@ function UI()
     # temp files
     isdir(joinpath(ENV["QInsControlAssets"], "temp")) || mkdir(joinpath(ENV["QInsControlAssets"], "temp"))
 
-    global ICONID = nothing
+    firstframe = true
 
     rendertask = Threads.@spawn CImGui.render(
         ctx;
         window_size=CONF.Basic.windowsize, window_title="QInsControl", on_exit=onexitaction,
-        opengl_version=VersionNumber(CONF.Basic.openglversion)
+        opengl_version=VersionNumber(CONF.Basic.openglversion),
+        wait_events=true
     ) do
         try
-            # 加载图标
-            if isnothing(ICONID)
+            if firstframe
+                # 加载图标
                 icons = FileIO.load.([joinpath(ENV["QInsControlAssets"], "Necessity/QInsControl.ico")])
                 icons_8bit = reinterpret.(NTuple{4,UInt8}, icons)
                 GLFW.SetWindowIcon(CImGui.current_window(), icons_8bit)
@@ -140,6 +64,12 @@ function UI()
                 iconsize = reverse(size(icons[1]))
                 global ICONID = CImGui.create_image_texture(iconsize...)
                 CImGui.update_image_texture(ICONID, transpose(icons[1]), iconsize...)
+                # 缩放设置
+                scale = CImGui.GetWindowDpiScale()
+                ImGuiStyle_ScaleAllSizes(IMGUISTYLE, scale)
+                IMGUISTYLE.FontScaleDpi = scale
+
+                firstframe = false
             end
             ###### 检查 STATICSTRINGS ######
             waittime("Check STATICSTRINGS", 36) && checklifetime()

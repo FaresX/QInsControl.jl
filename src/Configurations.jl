@@ -57,11 +57,8 @@ end
 
 @option mutable struct OptFonts
     dir::String = ""
-    size::Cint = 18
-    plotfontsize::Cint = 30
     first::String = "HarmonyOS_Sans_SC_Regular.subset.ttf"
     second::String = "arial.ttf"
-    bigfont::String = "arial.ttf"
 end
 
 @option mutable struct OptConsole

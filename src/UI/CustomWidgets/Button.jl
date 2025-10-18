@@ -95,17 +95,17 @@ function RenameSelectable(
     trig
 end
 
-const IMAGES::Dict{String,LoopVector{Int}} = Dict()
+const IMAGES::Dict{String,LoopVector{CImGui.ImTextureRef}} = Dict()
 
 let
     framecount::Cint = 0
-    global function Image(path; size=(100, 100), rate=1, uv0=(0, 0), uv1=(1, 1), tint_col=[1, 1, 1, 1], border_col=[0, 0, 0, 0])
+    global function Image(path; size=(100, 100), rate=1, uv0=(0, 0), uv1=(1, 1), bg_col=[0, 0, 0, 0], tint_col=[1, 1, 1, 1])
         haskey(IMAGES, path) || createimage(path; showsize=size)
         if length(IMAGES[path]) > 1 && framecount != CImGui.GetFrameCount()
             framecount = CImGui.GetFrameCount()
             framecount % rate == 0 && move!(IMAGES[path])
         end
-        CImGui.Image(CImGui.ImTextureRef(IMAGES[path][]), size, uv0, uv1, tint_col, border_col)
+        CImGui.ImageWithBg(IMAGES[path][], size, uv0, uv1, bg_col, tint_col)
     end
 end
 
@@ -120,7 +120,7 @@ end
 
 function createimage(path; showsize=(100, 100))
     destroyimage!(path)
-    IMAGES[path] = LoopVector(Int[])
+    IMAGES[path] = LoopVector(CImGui.ImTextureRef[])
     if isfile(path)
         try
             imgload = FileIO.load(path)
@@ -157,7 +157,7 @@ let
             framecount % rate == 0 && move!(IMAGES[path])
         end
         CImGui.PushStyleVar(CImGui.ImGuiStyleVar_FramePadding, frame_padding)
-        clicked = CImGui.ImageButton(label, CImGui.ImTextureRef(IMAGES[path][]), size .- 2 .* frame_padding, uv0, uv1, bg_col, tint_col)
+        clicked = CImGui.ImageButton(label, IMAGES[path][], size .- 2 .* frame_padding, uv0, uv1, bg_col, tint_col)
         CImGui.PopStyleVar()
         return clicked
     end

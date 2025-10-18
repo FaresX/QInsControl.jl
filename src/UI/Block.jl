@@ -1872,7 +1872,7 @@ let
 
     global function dragblockmenu(id)
         presentid = id
-        CImGui.PushFont(BIGFONT)
+        CImGui.PushFont(C_NULL, MORESTYLE.Variables.BigIconSize)
         ftsz = CImGui.GetFontSize()
         lbk = length(allblocks)
         availw = CImGui.GetContentRegionAvail().x / lbk - unsafe_load(IMGUISTYLE.ItemSpacing.x)
@@ -1882,7 +1882,7 @@ let
             CImGui.Selectable(getproperty(MORESTYLE.Icons, bk), false, 0, (availw, 2ftsz))
             CImGui.PopStyleVar()
             CImGui.PopStyleColor()
-            CImGui.PushFont(GLOBALFONT)
+            CImGui.PushFont(C_NULL, unsafe_load(IMGUISTYLE.FontSizeBase))
             ItemTooltip(mlstr(stcstr(bk)))
             CImGui.PopFont()
             if CImGui.IsItemActive() && !isdragging && isempty(dragblock)

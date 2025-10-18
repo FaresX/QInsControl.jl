@@ -175,9 +175,9 @@ function (acd::AnimateChild)(f, id, border, flags, args...; kwargs...)
 end
 
 @kwdef mutable struct DragPoint
-    pos::CImGui.ImVec2 = (0, 0)
-    limmin::CImGui.ImVec2 = (0, 0)
-    limmax::CImGui.ImVec2 = (Inf, Inf)
+    pos::Vector{Cfloat} = [0, 0]
+    limmin::Vector{Cfloat} = [0, 0]
+    limmax::Vector{Cfloat} = [Inf, Inf]
     radius::Cfloat = 6
     segments::Cint = 12
     col::Vector{Cfloat} = [1, 1, 1, 0.6]
@@ -210,14 +210,15 @@ function edit(dp::DragPoint)
 end
 
 @kwdef mutable struct DragRect
-    posmin::CImGui.ImVec2 = (0, 0)
-    posmax::CImGui.ImVec2 = (100, 100)
-    dragpos::CImGui.ImVec2 = (0, 0)
+    posmin::Vector{Cfloat} = [0, 0]
+    posmax::Vector{Cfloat} = [100, 100]
+    dragpos::Vector{Cfloat} = [0, 0]
     rszgripsize::Cfloat = 24
-    limmin::CImGui.ImVec2 = (0, 0)
-    limmax::CImGui.ImVec2 = (Inf, Inf)
-    limminsize::CImGui.ImVec2 = (0, 0)
-    limmaxsize::CImGui.ImVec2 = (Inf, Inf)
+    limmin::Vector{Cfloat} = [0, 0]
+    limmax::Vector{Cfloat} = [Inf, Inf]
+    limminsize::Vector{Cfloat} = [0, 0]
+    limmaxsize::Vector{Cfloat} = [Inf, Inf]
+    scale::Cfloat = 1
     rounding::Cfloat = 0
     bdrounding::Cfloat = 0
     thickness::Cfloat = 2
@@ -232,6 +233,32 @@ end
     griphovered::Bool = false
     gripdragging::Bool = false
 end
+function pushscale!(dr::DragRect)
+    # dr.posmin .*= dr.scale
+    dr.posmax .= dr.posmin .+ (dr.posmax .- dr.posmin) * dr.scale
+    dr.dragpos .*= dr.scale
+    dr.rszgripsize *= dr.scale
+    dr.limmin .*= dr.scale
+    dr.limmax .*= dr.scale
+    dr.limminsize .*= dr.scale
+    dr.limmaxsize .*= dr.scale
+    dr.rounding *= dr.scale
+    dr.bdrounding *= dr.scale
+    dr.thickness *= dr.scale
+end
+function endscale!(dr::DragRect)
+    # dr.posmin ./= dr.scale
+    dr.posmax .= dr.posmin .+ (dr.posmax .- dr.posmin) / dr.scale
+    dr.dragpos ./= dr.scale
+    dr.rszgripsize /= dr.scale
+    dr.limmin ./= dr.scale
+    dr.limmax ./= dr.scale
+    dr.limminsize ./= dr.scale
+    dr.limmaxsize ./= dr.scale
+    dr.rounding /= dr.scale
+    dr.bdrounding /= dr.scale
+    dr.thickness /= dr.scale
+end
 
 function draw(dr::DragRect)
     drawlist = CImGui.GetWindowDrawList()
@@ -242,7 +269,7 @@ function draw(dr::DragRect)
     )
     CImGui.AddTriangleFilled(
         drawlist,
-        (dr.posmax.x - dr.rszgripsize, dr.posmax.y), dr.posmax, (dr.posmax.x, dr.posmax.y - dr.rszgripsize),
+        (dr.posmax[1] - dr.rszgripsize, dr.posmax[2]), dr.posmax, (dr.posmax[1], dr.posmax[2] - dr.rszgripsize),
         CImGui.c_get(
             IMGUISTYLE.Colors,
             dr.gripdragging ? ImGuiCol_ResizeGripActive : dr.griphovered ? ImGuiCol_ResizeGripHovered : ImGuiCol_ResizeGrip
@@ -258,11 +285,13 @@ end
 function update_state!(dr::DragRect)
     mspos = CImGui.GetMousePos()
     dr.griphovered = inregion(mspos, dr.posmax .- dr.rszgripsize, dr.posmax)
-    dr.griphovered &= -(mspos.x - dr.posmax.x + dr.rszgripsize) < mspos.y - dr.posmax.y
+    dr.griphovered &= -(mspos.x - dr.posmax[1] + dr.rszgripsize) < mspos.y - dr.posmax[2]
     dr.hovered = inregion(mspos, dr.posmin, dr.posmax)
     if dr.gripdragging
         if CImGui.IsMouseDown(0)
-            dr.posmax = cutoff(mspos, dr.posmin .+ dr.limminsize, dr.posmin .+ dr.limmaxsize) .+ dr.rszgripsize ./ 4
+            if CImGui.IsMouseDragging(0)
+                dr.posmax = cutoff(mspos, dr.posmin .+ dr.limminsize, dr.posmin .+ dr.limmaxsize) .+ dr.rszgripsize ./ 4
+            end
         else
             dr.gripdragging = false
         end
@@ -286,8 +315,10 @@ function update_state!(dr::DragRect)
 end
 
 function edit(dr::DragRect)
+    pushscale!(dr)
     update_state!(dr)
     draw(dr)
+    endscale!(dr)
 end
 
 @kwdef mutable struct DashBoard
@@ -603,10 +634,10 @@ let
                 framecount = CImGui.GetFrameCount()
                 framecount % rate == 0 && move!(IMAGES[path])
             end
-            # CImGui.AddImage(
-            #     CImGui.GetWindowDrawList(), CImGui.ImTextureRef(IMAGES[path][]), wpos, wpos .+ wsz, (0, 0), (1, 1),
-            #     tint_col
-            # )
+            CImGui.AddImage(
+                CImGui.GetWindowDrawList(), IMAGES[path][], wpos, wpos .+ wsz, (0, 0), (1, 1),
+                tint_col
+            )
         end
     end
 end

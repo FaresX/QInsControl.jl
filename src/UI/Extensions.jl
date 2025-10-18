@@ -11,33 +11,42 @@ CImGui.TextColored(col::Vector, fmt) = CImGui.TextColored(CImGui.ImVec4(col...),
 CImGui.VSliderInt(label, size::Vector, v, v_min, v_max, format="%d", flags=0) = CImGui.VSliderInt(label, CImGui.ImVec2(size...), v, v_min, v_max, format, flags)
 CImGui.Button(label, size::Vector) = CImGui.Button(label, CImGui.ImVec2(size...))
 CImGui.ProgressBar(fraction, size_arg::Vector, overlay=C_NULL) = CImGui.ProgressBar(fraction, CImGui.ImVec2(size_arg...), overlay)
+
 function CImGui.Image(
-    user_texture_id,
+    tex_ref::CImGui.ImTextureRef,
+    image_size::Union{ImVec2,NTuple{2},Vector},
+    uv0::Union{ImVec2,NTuple{2},Vector}=[0, 0],
+    uv1::Union{ImVec2,NTuple{2},Vector}=[1, 1]
+)
+    CImGui.Image(tex_ref, CImGui.ImVec2(image_size...), CImGui.ImVec2(uv0...), CImGui.ImVec2(uv1...))
+end
+function CImGui.ImageWithBg(
+    tex_ref::CImGui.ImTextureRef,
     image_size::Union{ImVec2,NTuple{2},Vector},
     uv0::Union{ImVec2,NTuple{2},Vector}=[0, 0],
     uv1::Union{ImVec2,NTuple{2},Vector}=[1, 1],
-    tint_col::Union{ImVec4,NTuple{4},Vector}=[1, 1, 1, 1],
-    border_col::Union{ImVec4,NTuple{4},Vector}=[0, 0, 0, 0]
+    bg_col::Union{ImVec4,NTuple{4},Vector}=[1, 1, 1, 1],
+    tint_col::Union{ImVec4,NTuple{4},Vector}=[0, 0, 0, 0]
 )
-    CImGui.Image(
-        user_texture_id,
+    CImGui.ImageWithBg(
+        tex_ref,
         CImGui.ImVec2(image_size...),
         CImGui.ImVec2(uv0...),
         CImGui.ImVec2(uv1...),
-        CImGui.ImVec4(tint_col...),
-        CImGui.ImVec4(border_col...)
+        CImGui.ImVec4(bg_col...),
+        CImGui.ImVec4(tint_col...)
     )
 end
 function CImGui.ImageButton(
-    str_id, user_texture_id,
-    image_size::Union{ImVec2,NTuple{2},Vector},
+    str_id, tex_ref::CImGui.ImTextureRef,
+    image_size::Union{NTuple{2},Vector},
     uv0::Union{ImVec2,NTuple{2},Vector}=[0, 0],
     uv1::Union{ImVec2,NTuple{2},Vector}=[1, 1],
     bg_col::Union{ImVec4,NTuple{4},Vector}=[0, 0, 0, 0],
     tint_col::Union{ImVec4,NTuple{4},Vector}=[1, 1, 1, 1]
 )
     CImGui.ImageButton(
-        str_id, user_texture_id,
+        str_id, tex_ref,
         CImGui.ImVec2(image_size...),
         CImGui.ImVec2(uv0...),
         CImGui.ImVec2(uv1...),
@@ -65,7 +74,7 @@ function CImGui.AddText(
     )
 end
 function CImGui.AddImage(
-    self, user_texture_id,
+    self, user_texture_id::CImGui.ImTextureRef,
     p_min::Union{ImVec2,NTuple{2},Vector},
     p_max::Union{ImVec2,NTuple{2},Vector},
     uv_min::Union{ImVec2,NTuple{2},Vector}=[0, 0],
