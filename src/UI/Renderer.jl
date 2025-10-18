@@ -68,6 +68,8 @@ function UI()
                 scale = CImGui.GetWindowDpiScale()
                 ImGuiStyle_ScaleAllSizes(IMGUISTYLE, scale / MORESTYLE.Variables.ImGuiScale)
                 IMGUISTYLE.FontScaleDpi = scale
+                ws = round.(Int, CONF.Basic.windowsize * scale)
+                GLFW.SetWindowSize(CImGui.current_window(), ws...)
 
                 firstframe = false
             end
