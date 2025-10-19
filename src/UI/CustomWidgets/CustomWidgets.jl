@@ -1,5 +1,6 @@
 include("Button.jl")
 include("Input.jl")
 include("ListView.jl")
-include("Others.jl")
+include("Dashboard.jl")
 include("Slider.jl")
+include("Others.jl")
