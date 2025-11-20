@@ -1,7 +1,7 @@
 name = "QInsControl"
 uuid = "cd8eea83-5d95-422f-a2e4-c18f783a50cc"
-authors = ["FaresX <fyzxst@sina.com> and contributors"]
 version = "0.5.0"
+authors = ["FaresX <fyzxst@sina.com> and contributors"]
 
 [deps]
 BinDeps = "9e28174c-4ba2-5203-b857-d8d62c4213ee"
@@ -55,6 +55,7 @@ MakieThemes = "0.1.2"
 NativeFileDialog = "0.2"
 OrderedCollections = "1"
 PrecompileTools = "1"
+Statistics = "1"
 StringEncodings = "0.3"
 julia = "1.6"
 
