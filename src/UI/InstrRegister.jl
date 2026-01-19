@@ -18,14 +18,15 @@ let
         end
         CImGui.SameLine()
         if CImGui.Button(MORESTYLE.Icons.InstrumentsManualRef)
-            for file in readdir(joinpath(ENV["QInsControlAssets"], "ExtraLoad"), join=true)
-                try
-                    endswith(basename(file), ".jl") && timed_remotecall_wait(include, workers()[1], file; timeout=60)
-                catch e
-                    @error "[$(now())]\n$(mlstr("reloading drivers failed"))" exception = e file = file
-                    showbacktrace()
-                end
-            end
+            # for file in readdir(joinpath(ENV["QInsControlAssets"], "ExtraLoad"), join=true)
+            #     try
+            #         endswith(basename(file), ".jl") && timed_remotecall_wait(include, workers()[1], file; timeout=60)
+            #     catch e
+            #         @error "[$(now())]\n$(mlstr("reloading drivers failed"))" exception = e file = file
+            #         showbacktrace()
+            #     end
+            # end
+            timed_remotecall_wait(loadinsconf, workers()[1]; timeout=60)
         end
         # optkeys = join(qtcf.optkeys, "\n")
         # optvalues = join(qtcf.optvalues, "\n")
@@ -367,7 +368,8 @@ let
                         stcstr(MORESTYLE.Icons.InstrumentsManualRef, "##reloading"),
                         ImGuiTabItemFlags_Trailing
                     )
-                        loadconf()
+                        # loadconf()
+                        loadinswconf()
                     end
                     ItemTooltip(mlstr("Reload"))
                     CImGui.EndTabBar()
