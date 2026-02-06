@@ -256,6 +256,11 @@ end
 
 function run_remote(daqtask::DAQTask)
     remotecall_wait(() -> unsetbusy!(CPU), workers()[1])
+    remotecall_wait(workers()[1]) do
+        for instr in keys(CPU.instrs)
+            logout!(CPU, instr)
+        end
+    end
     controllers, st = remotecall_fetch(extract_controllers, workers()[1], daqtask.blocks)
     empty!(DATABUF)
     empty!(DATABUFPARSED)
