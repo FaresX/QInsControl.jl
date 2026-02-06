@@ -393,3 +393,8 @@ function resizebool!(v::Vector{Bool}, n)
     lv < n && @views v[lv+1:n] .= false
     return v
 end
+
+function equallen(x...)
+    minl = minimum(length.(x))
+    return Tuple(Base.view(xi, 1:minl) for xi in x)
+end
