@@ -33,8 +33,8 @@ end
     packsize::Cint = 6
     ctbuflen::Cint = 4
     historylen::Cint = 120
-    retrysendtimes::Cint = 3
-    retryconnecttimes::Cint = 3
+    retrysendtimes::Cint = 1
+    retryconnecttimes::Cint = 6
 end
 
 @option mutable struct OptInsBuf
