@@ -198,7 +198,11 @@ end
 
 function renderplots(dtp::DataPlot, id)
     for (i, idx) in enumerate(dtp.layout.selectedidx)
-        CImGui.SetNextWindowSize((600, 600), CImGui.ImGuiCond_Once)
+        ws = (
+            dtp.plots[idx].size[1] + 2unsafe_load(IMGUISTYLE.WindowPadding.x),
+            dtp.plots[idx].size[2] + 2unsafe_load(IMGUISTYLE.WindowPadding.y) + CImGui.GetFrameHeight()
+        )
+        CImGui.SetNextWindowSize(ws, CImGui.ImGuiCond_Once)
         isopenplot = dtp.layout.states[idx]
         if @c CImGui.Begin(
             stcstr(

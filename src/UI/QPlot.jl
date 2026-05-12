@@ -1,5 +1,6 @@
 @kwdef mutable struct QPlot
     id::String = ""
+    size::Vector{Float64} = [600, 400]
 end
 
 const FIGURES::Dict{String,Figure} = Dict()
@@ -7,6 +8,7 @@ const FIGURES::Dict{String,Figure} = Dict()
 function QPlot(plt::QPlot, id; auto_resize_x=true, auto_resize_y=true, tooltip=false, stats=false)
     id == "" && return nothing
     plt.id = id
+    plt.size = [CImGui.GetContentRegionAvail()...]
     haskey(FIGURES, id) || (FIGURES[id] = Figure())
     CImGui.MakieFigure(
         id, FIGURES[id];

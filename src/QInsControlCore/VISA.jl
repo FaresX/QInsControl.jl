@@ -87,4 +87,4 @@ function find_visa()
     return isempty(visa_path_found) ? "" : visa_path_found[1][end]
 end
 
-set_libvisa(visapath) = @eval Instruments libvisa = $visapath
+set_libvisa(visapath) = @eval Instruments const libvisa = $visapath

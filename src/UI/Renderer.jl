@@ -86,7 +86,7 @@ function UI()
                 CImGui.Button(mlstr("Confirm"), (-1, 0)) && CImGui.CloseCurrentPopup()
                 CImGui.EndPopup()
             end
-            if GLFW.WindowShouldClose(CImGui.current_window()) != 0 || !isshowapp()[]
+            if GLFW.WindowShouldClose(CImGui.current_window()) || !isshowapp()[]
                 hasrefreshing = false
                 for inses in values(INSTRBUFFERVIEWERS)
                     for ibv in values(inses)

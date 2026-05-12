@@ -317,7 +317,7 @@ function run_remote(daqtask::DAQTask)
     end
     timed_remotecall_wait(workers()[1], ex1, ex, SYNCSTATES; timeout=60) do ex1, ex, SYNCSTATES
         try
-            @info "[$(now())]\n" task = prettify(ex1)
+            @info "[$(now())]\n" task = @trypasse prettify(ex1) ex1
             eval(ex)
         catch e
             SYNCSTATES[Int(IsDAQTaskDone)] = true

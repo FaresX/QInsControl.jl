@@ -317,15 +317,15 @@ let
     function plotfigurelayout(plt::QPlot, dtpk::DataPicker)
         try
             rmplot!(plt)
-            FIGURES[plt.id] = Figure()
+            FIGURES[plt.id] = Figure(size=(floor.(Int, plt.size)...,))
             ex = quote
                 (figure::Figure -> begin
                     $(tocodes(dtpk.codes))
                 end)(FIGURES[$(plt.id)])
             end
             eval(ex)
-        catch
-            @error string("[", now(), "]\n", mlstr("plotting layout failed!!!"))
+        catch e
+            @error string("[", now(), "]\n", mlstr("plotting layout failed!!!")) exception = e
             showbacktrace()
         end
     end
