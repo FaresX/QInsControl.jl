@@ -54,7 +54,7 @@ function ColoredSlider(
     CImGui.PushStyleVar(CImGui.ImGuiStyleVar_GrabRounding, grabrounding)
     CImGui.PushStyleVar(
         CImGui.ImGuiStyleVar_FramePadding,
-        (unsafe_load(IMGUISTYLE.FramePadding.x), (size[2] - CImGui.GetFontSize() * unsafe_load(CImGui.GetIO().FontGlobalScale)) / 2)
+        (unsafe_load(IMGUISTYLE.FramePadding.x), (size[2] - CImGui.GetFontSize() * CImGui.GetWindowDpiScale()) / 2)
     )
     CImGui.PushItemWidth(size[1])
     dragged = sliderfunc(label, v, v_min, v_max, format, flags)

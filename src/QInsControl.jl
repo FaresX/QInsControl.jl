@@ -8,12 +8,11 @@ using ModernGL
 using CImGui.lib
 using ColorTypes
 using Configurations
-using DataInterpolations
 import DefaultApplication
 import FileIO
 using GLMakie
 using GitHub
-using MakieThemes
+# using MakieThemes
 import ImageMagick
 using JLD2
 using JpegTurbo

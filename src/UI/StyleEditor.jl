@@ -32,6 +32,7 @@
     ResizeGrip::Vector{Cfloat} = [0.26, 0.59, 0.98, 0.20]
     ResizeGripHovered::Vector{Cfloat} = [0.26, 0.59, 0.98, 0.67]
     ResizeGripActive::Vector{Cfloat} = [0.26, 0.59, 0.98, 0.95]
+    InputTextCursor::Vector{Cfloat} = [0.26, 0.59, 0.98, 1.00]
     TabHovered::Vector{Cfloat} = [0.26, 0.59, 0.98, 0.80]
     Tab::Vector{Cfloat} = [0.18, 0.35, 0.58, 0.86]
     TabSelected::Vector{Cfloat} = [0.20, 0.41, 0.68, 1.00]
@@ -52,8 +53,11 @@
     TableRowBgAlt::Vector{Cfloat} = [1.00, 1.00, 1.00, 0.06]
     TextLink::Vector{Cfloat} = [0.26, 0.59, 0.98, 1.00]
     TextSelectedBg::Vector{Cfloat} = [0.26, 0.59, 0.98, 0.35]
+    TreeLines::Vector{Cfloat} = [0.26, 0.59, 0.98, 0.20]
     DragDropTarget::Vector{Cfloat} = [1.00, 1.00, 0.00, 0.90]
-    NavHighlight::Vector{Cfloat} = [0.26, 0.59, 0.98, 1.00]
+    DragDropTargetBg::Vector{Cfloat} = [0.26, 0.59, 0.98, 0.35]
+    UnsavedMarker::Vector{Cfloat} = [1.00, 0.60, 0.00, 1.00]
+    NavCursor::Vector{Cfloat} = [0.26, 0.59, 0.98, 1.00]
     NavWindowingHighlight::Vector{Cfloat} = [1.00, 1.00, 1.00, 0.70]
     NavWindowingDimBg::Vector{Cfloat} = [0.80, 0.80, 0.80, 0.20]
     ModalWindowDimBg::Vector{Cfloat} = [0.80, 0.80, 0.80, 0.35]
@@ -61,11 +65,15 @@ end
 Base.getindex(x::QImGuiColors, i::Int) = getproperty(x, fieldnames(QImGuiColors)[i])
 Base.setindex!(x::QImGuiColors, v, i::Int) = setproperty!(x, fieldnames(QImGuiColors)[i], v)
 @option mutable struct QImGuiStyle
+    FontSizeBase::Cfloat = 15
+    FontScaleMain::Cfloat = 1
+    FontScaleDpi::Cfloat = 1
     Alpha::Cfloat = 0.3
     DisabledAlpha::Cfloat = 0.6
     WindowPadding::Vector{Cfloat} = [8, 8]
     WindowRounding::Cfloat = 0
     WindowBorderSize::Cfloat = 1
+    WindowBorderHoverPadding::Cfloat = 4
     WindowMinSize::Vector{Cfloat} = [6, 6]
     WindowTitleAlign::Vector{Cfloat} = [0.0, 0.5]
     WindowMenuButtonPosition::Int32 = ImGuiDir_Left
@@ -84,16 +92,27 @@ Base.setindex!(x::QImGuiColors, v, i::Int) = setproperty!(x, fieldnames(QImGuiCo
     ColumnsMinSpacing::Cfloat = 6
     ScrollbarSize::Cfloat = 14
     ScrollbarRounding::Cfloat = 9
+    ScrollbarPadding::Cfloat = 0
     GrabMinSize::Cfloat = 6
     GrabRounding::Cfloat = 0
     LogSliderDeadzone::Cfloat = 4
+    ImageBorderSize::Cfloat = 1
     TabRounding::Cfloat = 4
     TabBorderSize::Cfloat = 0
-    TabMinWidthForCloseButton::Cfloat = 12
+    TabMinWidthBase::Cfloat = 50
+    TabMinWidthShrink::Cfloat = 5
+    TabCloseButtonMinWidthSelected::Cfloat = 4
+    TabCloseButtonMinWidthUnselected::Cfloat = 4
     TabBarBorderSize::Cfloat = 1
     TabBarOverlineSize::Cfloat = 2
     TableAngledHeadersAngle::Cfloat = 35
     TableAngledHeadersTextAlign::Vector{Cfloat} = [0.5, 0.0]
+    TreeLinesFlags::ImGuiTreeNodeFlags = ImGuiTreeNodeFlags_None
+    TreeLinesSize::Cfloat = 4
+    TreeLinesRounding::Cfloat = 4
+    DragDropTargetRounding::Cfloat = 4
+    DragDropTargetBorderSize::Cfloat = 2
+    DragDropTargetPadding::Cfloat = 4
     ColorButtonPosition::Int32 = ImGuiDir_Right
     ButtonTextAlign::Vector{Cfloat} = [0.5, 0.5]
     SelectableTextAlign::Vector{Cfloat} = [0, 0]
@@ -102,6 +121,7 @@ Base.setindex!(x::QImGuiColors, v, i::Int) = setproperty!(x, fieldnames(QImGuiCo
     SeparatorTextPadding::Vector{Cfloat} = [20, 3]
     DisplayWindowPadding::Vector{Cfloat} = [19, 19]
     DisplaySafeAreaPadding::Vector{Cfloat} = [3, 3]
+    DockingNodeHasCloseButton::Bool = true
     DockingSeparatorSize::Cfloat = 2
     MouseCursorScale::Cfloat = 1
     AntiAliasedLines::Bool = true
@@ -115,6 +135,8 @@ Base.setindex!(x::QImGuiColors, v, i::Int) = setproperty!(x, fieldnames(QImGuiCo
     HoverDelayNormal::Cfloat = 0
     HoverFlagsForTooltipMouse::ImGuiHoveredFlags = ImGuiHoveredFlags_None
     HoverFlagsForTooltipNav::ImGuiHoveredFlags = ImGuiHoveredFlags_None
+    _MainScale::Cfloat = 1
+    _NextFrameFontSizeBase::Cfloat = 18
 end
 Base.convert(::Type{ImGuiDir}, x::Int32) = ImGuiDir(x)
 function Base.convert(::Type{QImGuiStyle}, x::Ptr{ImGuiStyle})
@@ -329,6 +351,8 @@ end
 end
 
 @option mutable struct MoreStyleVariable
+    ImGuiScale::Cfloat = 1
+    BigIconSize::Cint = 24
     TextRectRounding::Cfloat = 0
     TextRectThickness::Cfloat = 2
     TextRectPadding::Vector{Cfloat} = [6, 6]
@@ -542,6 +566,10 @@ let
         )
         if CImGui.BeginTabBar("MoreStyle")
             if CImGui.BeginTabItem("Variables")
+                @c CImGui.DragInt(
+                    "BigIconSize", &MORESTYLE.Variables.BigIconSize,
+                    1, 0, 60, "%d", CImGui.ImGuiSliderFlags_AlwaysClamp
+                )
                 @c CImGui.DragFloat(
                     "TextRectRounding", &MORESTYLE.Variables.TextRectRounding,
                     1, 0, 60, "%.1f", CImGui.ImGuiSliderFlags_AlwaysClamp
@@ -581,7 +609,7 @@ let
                     1, 0, 60, "%.1f", CImGui.ImGuiSliderFlags_AlwaysClamp
                 )
                 if @c ComboS("Makie Theme", &MORESTYLE.Variables.MakieTheme, keys(MAKIETHEMES))
-                    toimguitheme!(MAKIETHEMES[MORESTYLE.Variables.MakieTheme])
+                    toimguitheme!(get!(MAKIETHEMES, MORESTYLE.Variables.MakieTheme, "default"))
                 end
                 CImGui.EndTabItem()
             end
@@ -609,12 +637,12 @@ let
                 CImGui.PushItemWidth(16CImGui.GetFontSize())
                 @c InputTextRSZ("Filter colors", &filter)
                 CImGui.PopItemWidth()
-                if CImGui.RadioButton("Opaque", alpha_flags == ImGuiColorEditFlags_None)
-                    alpha_flags = ImGuiColorEditFlags_None
+                if CImGui.RadioButton("Opaque", alpha_flags == ImGuiColorEditFlags_AlphaOpaque)
+                    alpha_flags = ImGuiColorEditFlags_AlphaOpaque
                 end
                 CImGui.SameLine()
-                if CImGui.RadioButton("Alpha", alpha_flags == ImGuiColorEditFlags_AlphaPreview)
-                    alpha_flags = ImGuiColorEditFlags_AlphaPreview
+                if CImGui.RadioButton("Alpha", alpha_flags == ImGuiColorEditFlags_None)
+                    alpha_flags = ImGuiColorEditFlags_None
                 end
                 CImGui.SameLine()
                 if CImGui.RadioButton("Both", alpha_flags == ImGuiColorEditFlags_AlphaPreviewHalf)
@@ -705,7 +733,7 @@ end
 function loadstyle(style_ref::MoreStyle)
     for var in fieldnames(MoreStyleVariable)
         setproperty!(MORESTYLE.Variables, var, getproperty(style_ref.Variables, var))
-        var == :MakieTheme && toimguitheme!(MAKIETHEMES[style_ref.Variables.MakieTheme])
+        var == :MakieTheme && (toimguitheme!(get!(MAKIETHEMES, style_ref.Variables.MakieTheme, Theme())))
     end
     for var in fieldnames(MoreStyleColor)
         getproperty(MORESTYLE.Colors, var) .= getproperty(style_ref.Colors, var)
@@ -752,6 +780,7 @@ let
             if rstrip(style_name, ' ') != ""
                 ustyle.imguistyle = IMGUISTYLE
                 STYLES[style_name] = ustyle
+                ustyle.morestyle.Variables.ImGuiScale = CImGui.GetWindowDpiScale()
                 @trycatch mlstr("saving styles failed!!!") begin
                     to_toml(joinpath(CONF.Style.dir, "$style_name.toml"), ustyle)
                 end
@@ -793,6 +822,7 @@ let
                 style_name = selected_style
                 loadstyle(ustyle)
                 IMGUISTYLE_REF[] = ustyle.imguistyle
+                IMGUISTYLE.FontScaleDpi = CImGui.GetWindowDpiScale()
             end
         end
         CImGui.PopItemWidth()

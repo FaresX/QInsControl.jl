@@ -1,5 +1,6 @@
 @kwdef mutable struct QPlot
     id::String = ""
+    size::Vector{Float64} = [600, 400]
 end
 
 const FIGURES::Dict{String,Figure} = Dict()
@@ -7,6 +8,7 @@ const FIGURES::Dict{String,Figure} = Dict()
 function QPlot(plt::QPlot, id; auto_resize_x=true, auto_resize_y=true, tooltip=false, stats=false)
     id == "" && return nothing
     plt.id = id
+    plt.size = [CImGui.GetContentRegionAvail()...]
     haskey(FIGURES, id) || (FIGURES[id] = Figure())
     CImGui.MakieFigure(
         id, FIGURES[id];
@@ -17,7 +19,7 @@ end
 function toimguitheme!(theme)
     theme.GLMakie = Makie.Attributes(fxaa=false)
     Makie.set_theme!(theme)
-    GLMakie.activate!(scalefactor=unsafe_load(CImGui.GetIO().FontGlobalScale))
+    GLMakie.activate!(scalefactor=1)
     return theme
 end
 
@@ -40,22 +42,22 @@ const MAKIETHEMES = Dict(
     "light" => theme_light(),
     "dark" => theme_dark(),
     # "latexfonts" => theme_latexfonts(),
-    "bbc" => theme_bbc(),
-    "ggthemr_flat" => ggthemr(:flat),
-    "ggthemr_dust" => ggthemr(:dust),
-    "ggthemr_fresh" => ggthemr(:fresh),
-    "ggthemr_carrot" => ggthemr(:carrot),
-    "ggthemr_flat_dark" => ggthemr(:flat_dark),
-    "ggthemr_sky" => ggthemr(:sky),
-    "ggthemr_copper" => ggthemr(:copper),
-    "ggthemr_light" => ggthemr(:light),
-    "ggthemr_pale" => ggthemr(:pale),
-    "ggthemr_solarized" => ggthemr(:solarized),
-    "ggthemr_sea" => ggthemr(:sea),
-    "ggthemr_chalk" => ggthemr(:chalk),
-    "ggthemr_greyscale" => ggthemr(:greyscale),
-    "ggthemr_earth" => ggthemr(:earth),
-    "ggthemr_lilac" => ggthemr(:lilac),
-    "ggthemr_grass" => ggthemr(:grass),
-    "ggthemr_grape" => ggthemr(:grape),
+    # "bbc" => theme_bbc(),
+    # "ggthemr_flat" => ggthemr(:flat),
+    # "ggthemr_dust" => ggthemr(:dust),
+    # "ggthemr_fresh" => ggthemr(:fresh),
+    # "ggthemr_carrot" => ggthemr(:carrot),
+    # "ggthemr_flat_dark" => ggthemr(:flat_dark),
+    # "ggthemr_sky" => ggthemr(:sky),
+    # "ggthemr_copper" => ggthemr(:copper),
+    # "ggthemr_light" => ggthemr(:light),
+    # "ggthemr_pale" => ggthemr(:pale),
+    # "ggthemr_solarized" => ggthemr(:solarized),
+    # "ggthemr_sea" => ggthemr(:sea),
+    # "ggthemr_chalk" => ggthemr(:chalk),
+    # "ggthemr_greyscale" => ggthemr(:greyscale),
+    # "ggthemr_earth" => ggthemr(:earth),
+    # "ggthemr_lilac" => ggthemr(:lilac),
+    # "ggthemr_grass" => ggthemr(:grass),
+    # "ggthemr_grape" => ggthemr(:grape),
 )
