@@ -7,6 +7,7 @@ let
     running_i::Int = 0
     torunstates::Vector{Bool} = [false]
     daqtasks::Vector{DAQTask} = [DAQTask()] #任务列表
+    hidenorunning::Bool = false
     global CIRCUIT::NodeEditor = NodeEditor()
     global DAQDATAPLOT::DataPlot = DataPlot()
 
@@ -128,8 +129,13 @@ let
         bth = 2ftsz + unsafe_load(IMGUISTYLE.FramePadding.y)
         CImGui.PushStyleColor(CImGui.ImGuiCol_Text, MORESTYLE.Colors.IconButton)
         CImGui.Button(
-            stcstr(MORESTYLE.Icons.NewFile, " ", mlstr("New Task")), (halfwidth, bth)
+            stcstr(MORESTYLE.Icons.NewFile, " ", mlstr("New Task")),
+            (halfwidth - 2ftsz - unsafe_load(IMGUISTYLE.ItemSpacing.x), bth)
         ) && push!(daqtasks, DAQTask())
+        CImGui.SameLine()
+        CImGui.Button(
+           stcstr(hidenorunning ? ICONS.ICON_EYE_SLASH : ICONS.ICON_EYE, "##hide no running tasks"), (2ftsz, bth)
+        ) && (hidenorunning ⊻= true)
         CImGui.SameLine()
         CImGui.Button(
             stcstr(MORESTYLE.Icons.NewFile, " ", mlstr("New Plot")),
@@ -152,6 +158,7 @@ let
         # CImGui.BeginChild("daqtasks", (halfwidth, daqtaskscdy), true)
         CImGui.BeginChild("daqtasks", (0, 0), true)
         for (i, task) in enumerate(daqtasks)
+            hidenorunning && !torunstates[i] && continue
             CImGui.PushID(i)
             isrunning_i = SYNCSTATES[Int(IsDAQTaskRunning)] && i == running_i
             CImGui.PushStyleColor(
