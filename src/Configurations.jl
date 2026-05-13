@@ -6,7 +6,7 @@
     hidewindow::Bool = false
     nthreads::Cint = 2
     nthreads_2::Cint = 1
-    windowsize::Vector{Cint} = [960, 540]
+    windowsize::Vector{Cint} = [720, 400]
     openglversion::String = "4.6"
     encoding::String = "GBK"
     editor::String = "notepad"
