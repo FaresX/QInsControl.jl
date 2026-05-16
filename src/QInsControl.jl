@@ -190,10 +190,10 @@ function initialize!()
     empty!(FIGURES)
 end
 
-start() = (get!(ENV, "QInsControlAssets", joinpath(Base.@__DIR__, "../Assets")); julia_main())
+start() = (get!(ENV, "QInsControlAssets", joinpath(@__DIR__, "../Assets")); julia_main())
 
 @compile_workload begin
-    get!(ENV, "QInsControlAssets", joinpath(Base.@__DIR__, "../Assets"))
+    get!(ENV, "QInsControlAssets", joinpath(@__DIR__, "../Assets"))
     global SYNCSTATES = SharedVector{Bool}(length(instances(SyncStatesIndex)))
     loadconf(true)
     try

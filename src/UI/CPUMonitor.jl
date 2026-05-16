@@ -6,7 +6,7 @@ let
         CImGui.SeparatorText(lastrefreshtime)
         isempty(cpuinfo) && return nothing
         SeparatorTextColored(MORESTYLE.Colors.HighlightText, mlstr("Processor"))
-        CImGui.Indent()
+        # CImGui.Indent()
         if cpuinfo[:running]
             igBeginDisabled(SYNCSTATES[Int(IsDAQTaskRunning)] || SYNCSTATES[Int(IsAutoRefreshing)])
             ToggleButton(mlstr("Running"), Ref(true)) && timed_remotecall_wait(() -> stop!(CPU), workers()[1])
@@ -25,10 +25,10 @@ let
         else
             ToggleButton(mlstr("Stopped"), Ref(false)) && timed_remotecall_wait(() -> start!(CPU), workers()[1])
         end
-        CImGui.Unindent()
+        # CImGui.Unindent()
         CImGui.Spacing()
         SeparatorTextColored(MORESTYLE.Colors.HighlightText, mlstr("Controllers"))
-        CImGui.Indent()
+        # CImGui.Indent()
         if isempty(cpuinfo[:instrs])
             CImGui.TextDisabled(stcstr("(", mlstr("Null"), ")"))
         else
@@ -125,7 +125,7 @@ let
                 end
             end
         end
-        CImGui.Unindent()
+        # CImGui.Unindent()
     end
 
     refreshtask::Dict{String,Task} = Dict()

@@ -6,7 +6,7 @@
     hidewindow::Bool = false
     nthreads::Cint = 2
     nthreads_2::Cint = 1
-    windowsize::Vector{Cint} = [720, 400]
+    windowsize::Vector{Cint} = [864, 486]
     openglversion::String = "4.6"
     encoding::String = "GBK"
     editor::String = "notepad"
@@ -83,7 +83,7 @@ end
     use::Bool = false
 end
 @option mutable struct OptBGImage
-    main::OptOneBGImage = OptOneBGImage(path=joinpath(ENV["QInsControlAssets"], "Necessity/defaultwallpaper.png"), use=true)
+    main::OptOneBGImage = OptOneBGImage(path=joinpath(ENV["QInsControlAssets"], "Necessity/defaultwallpaper.png"), use=false)
     circuit::OptOneBGImage = OptOneBGImage()
     instrbufferviewer::OptOneBGImage = OptOneBGImage()
     registration::OptOneBGImage = OptOneBGImage()
@@ -101,7 +101,7 @@ end
 
 @option mutable struct OptStyle
     dir::String = ""
-    default::String = "Dark"
+    default::String = "OceanBreeze"
 end
 
 @option mutable struct Conf

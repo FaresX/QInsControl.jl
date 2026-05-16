@@ -20,7 +20,9 @@ const CFGBUF = Dict{String,Any}()
 let
     redolist::Dict{Int,LoopVector{Vector{AbstractBlock}}} = Dict()
     blocksbuf::Vector{AbstractBlock} = []
-    tbtx::Cfloat = 0
+    tbtx1::Cfloat = 0
+    tbtx2::Cfloat = 0
+    btx::Cfloat = 0
     global function edit(daqtask::DAQTask, id, p_open::Ref{Bool})
         CImGui.SetNextWindowSize((600, 800), CImGui.ImGuiCond_Once)
         CImGui.PushStyleColor(CImGui.ImGuiCol_WindowBg, CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_PopupBg))
@@ -33,6 +35,9 @@ let
             CImGui.ImGuiWindowFlags_NoTitleBar | CImGui.ImGuiWindowFlags_NoDocking
         )
             ftsz = CImGui.GetFontSize()
+            CImGui.PushStyleVar(CImGui.ImGuiStyleVar_FrameBorderSize, 0)
+            CImGui.PushStyleVar(CImGui.ImGuiStyleVar_ItemSpacing, (Cfloat(0), unsafe_load(IMGUISTYLE.ItemSpacing.y)))
+            CImGui.PushStyleVar(CImGui.ImGuiStyleVar_FramePadding, (Cfloat(0), unsafe_load(IMGUISTYLE.FramePadding.y)))
             CImGui.PushStyleColor(CImGui.ImGuiCol_Button, (0, 0, 0, 0))
             CImGui.PushStyleColor(CImGui.ImGuiCol_ButtonHovered, (0, 0, 0, 0))
             CImGui.PushStyleColor(CImGui.ImGuiCol_ButtonActive, (0, 0, 0, 0))
@@ -42,7 +47,8 @@ let
             CImGui.SameLine()
             CImGui.Button(stcstr(" ", mlstr("Edit queue: Task"), " ", id + OLDI, " ", daqtask.name))
             CImGui.PopStyleColor(3)
-            CImGui.SameLine(CImGui.GetContentRegionAvail().x - 3ftsz - tbtx - unsafe_load(IMGUISTYLE.ItemSpacing.x))
+            CImGui.PopStyleVar(3)
+            CImGui.SameLine(CImGui.GetContentRegionAvail().x - tbtx1 - tbtx2 - btx - 2unsafe_load(IMGUISTYLE.ItemSpacing.x))
             if @c ToggleButton(mlstr(daqtask.textmode ? "Text" : "Block"), &daqtask.textmode)
                 try
                     daqtask.textmode && (daqtask.viewcodes = string(prettify(interpret(daqtask.blocks))))
@@ -51,13 +57,15 @@ let
                     showbacktrace()
                 end
             end
-            tbtx = CImGui.GetItemRectSize().x
-            CImGui.SameLine(CImGui.GetContentRegionAvail().x - 3ftsz)
+            tbtx1 = CImGui.GetItemRectSize().x
+            CImGui.SameLine(CImGui.GetContentRegionAvail().x - tbtx2 - btx - unsafe_load(IMGUISTYLE.ItemSpacing.x))
             CImGui.Button(
-                daqtask.viewmode ? MORESTYLE.Icons.View : MORESTYLE.Icons.Edit, (3ftsz / 2, Cfloat(0))
+                daqtask.viewmode ? MORESTYLE.Icons.View : MORESTYLE.Icons.Edit
             ) && (daqtask.viewmode ⊻= true)
+            btx = CImGui.GetItemRectSize().x
             CImGui.SameLine()
             @c ToggleButton(MORESTYLE.Icons.HoldPin, &daqtask.hold)
+            tbtx2 = CImGui.GetItemRectSize().x
             CImGui.Separator()
             SeparatorTextColored(MORESTYLE.Colors.HighlightText, mlstr("Experimental Records"))
             y = (1 + length(findall("\n", daqtask.explog))) * CImGui.GetTextLineHeight() +

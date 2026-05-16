@@ -28,12 +28,14 @@ let
         if ToggleButton(mlstr(serverbuffer.running ? "Running" : "Stopped"), Ref(serverbuffer.running))
             timed_remotecall_wait(running -> running ? stop!(QICSERVER) : start!(QICSERVER), workers()[1], serverbuffer.running)
         end
-        CImGui.SameLine()
-        if @c CImGui.Checkbox(mlstr(serverbuffer.fast ? "Fast Mode" : "Slow Mode"), &serverbuffer.fast)
-            timed_remotecall_wait(isfast -> (QICSERVER.fast = isfast), workers()[1], serverbuffer.fast)
-        end
         CImGui.SameLine(0, CImGui.GetFontSize())
         CImGui.TextColored(MORESTYLE.Colors.HighlightText, string(serverbuffer.port))
+        if serverbuffer.running
+            CImGui.SameLine()
+            if @c CImGui.Checkbox(mlstr(serverbuffer.fast ? "Fast Mode" : "Slow Mode"), &serverbuffer.fast)
+                timed_remotecall_wait(isfast -> (QICSERVER.fast = isfast), workers()[1], serverbuffer.fast)
+            end
+        end
         manageclients()
     end
 

@@ -583,7 +583,7 @@ let
             end
         end
         for (id, node) in nodeeditor.nodes
-            @c imnodes_GetNodeGridSpacePos(&node.position, id)
+            node.position = imnodes_GetNodeGridSpacePos(id)
         end
         isanynodehovered = @c imnodes_IsNodeHovered(&nodeeditor.hoverednode_id)
         isanylinkhovered = @c imnodes_IsLinkHovered(&nodeeditor.hoveredlink_id)
@@ -645,7 +645,7 @@ let
         )
         imnodes_EndNodeEditor()
         for (id, node) in nodeeditor.nodes
-            @c imnodes_GetNodeGridSpacePos(&node.position, id)
+            node.position = imnodes_GetNodeGridSpacePos(id)
         end
     end
 end

@@ -25,13 +25,15 @@ let
         # CImGui.SetColumnOffset(1, 6ftsz)
         CImGui.PushStyleColor(CImGui.ImGuiCol_ChildBg, MORESTYLE.Colors.ToolBarBg)
         CImGui.PushStyleColor(CImGui.ImGuiCol_Text, MORESTYLE.Colors.IconButton)
+        CImGui.PushStyleVar(CImGui.ImGuiStyleVar_FrameBorderSize, 0)
         CImGui.PushFont(C_NULL, MORESTYLE.Variables.BigIconSize)
         ftsz = CImGui.GetFontSize()
         CImGui.BeginChild("Toolbar", (3ftsz, Cfloat(0)))
         CImGui.SetCursorPos(ftsz / 2, ftsz / 2)
         CImGui.Image(ICONID, (2ftsz, 2ftsz))
         CImGui.SetCursorPosY(CImGui.GetCursorPosY() + ftsz / 2)
-        btwidth = Cfloat(CImGui.GetContentRegionAvail().x - unsafe_load(IMGUISTYLE.WindowPadding.x))
+        # btwidth = Cfloat(CImGui.GetContentRegionAvail().x - unsafe_load(IMGUISTYLE.WindowPadding.x))
+        btwidth = CImGui.GetContentRegionAvail().x
         btheight = 2ftsz
         CImGui.PushStyleColor(CImGui.ImGuiCol_Button, (0, 0, 0, 0))
         if SYNCSTATES[Int(IsBlocked)]
@@ -68,10 +70,15 @@ let
             SYNCSTATES[Int(IsAutoRefreshing)] ⊻= true
         end
         CImGui.PopStyleColor()
+        CImGui.PushStyleColor(
+            CImGui.ImGuiCol_Button,
+            CImGui.c_get(IMGUISTYLE.Colors, show_circuit_editor ? CImGui.ImGuiCol_ButtonHovered : CImGui.ImGuiCol_Button)
+        )
         CImGui.Button(
             stcstr(MORESTYLE.Icons.Circuit, "##circuit"),
             (btwidth, btheight)
         ) && (show_circuit_editor ⊻= true)
+        CImGui.PopStyleColor()
         igBeginDisabled(SYNCSTATES[Int(IsDAQTaskRunning)])
         CImGui.Button(
             stcstr(MORESTYLE.Icons.Load, "##Load Project"), (btwidth, btheight)
@@ -84,11 +91,13 @@ let
         CImGui.PopStyleColor()
         CImGui.EndChild()
         CImGui.PopFont()
+        CImGui.PopStyleVar()
         CImGui.PopStyleColor(2)
         show_circuit_editor && @c edit(CIRCUIT, "Circuit Editor", &show_circuit_editor)
     end
 
     # CImGui.NextColumn()
+    taskpos::Dict{Int, Vector{ImVec2}} = Dict()
     global function DAQtasks()
         global WORKPATH
         global OLDI
@@ -161,31 +170,54 @@ let
             hidenorunning && !torunstates[i] && continue
             CImGui.PushID(i)
             isrunning_i = SYNCSTATES[Int(IsDAQTaskRunning)] && i == running_i
-            CImGui.PushStyleColor(
-                CImGui.ImGuiCol_Button,
-                if isrunning_i
-                    MORESTYLE.Colors.DAQTaskRunning
-                elseif torunstates[i]
-                    MORESTYLE.Colors.DAQTaskToRun
-                else
-                    CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_Button)
-                end
-            )
-            CImGui.PushStyleColor(
-                CImGui.ImGuiCol_ButtonHovered,
-                if isrunning_i
-                    MORESTYLE.Colors.DAQTaskRunning
-                else
-                    CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_ButtonHovered)
-                end
-            )
-            if CImGui.Button(
-                stcstr(MORESTYLE.Icons.TaskButton, " ", mlstr("Task"), " ", i + OLDI, " ", task.name, "###task", i),
-                (-1, 0)
-            )
-                show_daq_editors[i] = true
+            # CImGui.PushStyleColor(
+            #     CImGui.ImGuiCol_Button,
+            #     if isrunning_i
+            #         MORESTYLE.Colors.DAQTaskRunning
+            #     elseif torunstates[i]
+            #         MORESTYLE.Colors.DAQTaskToRun
+            #     else
+            #         show_daq_editors[i] ? CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_Button) : (0, 0, 0, 0)
+            #     end
+            # )
+            # CImGui.PushStyleColor(
+            #     CImGui.ImGuiCol_ButtonHovered,
+            #     if isrunning_i
+            #         MORESTYLE.Colors.DAQTaskRunning
+            #     else
+            #         CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_ButtonHovered)
+            #     end
+            # )
+            # CImGui.PushStyleVar(CImGui.ImGuiStyleVar_FrameBorderSize, 0)
+            # if CImGui.Button(
+            #     stcstr(MORESTYLE.Icons.TaskButton, " ", mlstr("Task"), " ", i + OLDI, " ", task.name, "###task", i),
+            #     (-1, 0)
+            # )
+            #     show_daq_editors[i] ⊻= true
+            # end
+            # CImGui.PopStyleVar()
+            # CImGui.PopStyleColor(2)
+            haskey(taskpos, i) || (taskpos[i] = [ImVec2(0, 0), ImVec2(0, 0)])
+            if isrunning_i || torunstates[i]
+                CImGui.AddRectFilled(
+                    CImGui.GetWindowDrawList(), taskpos[i][1], taskpos[i][2],
+                    isrunning_i ? MORESTYLE.Colors.DAQTaskRunning : MORESTYLE.Colors.DAQTaskToRun
+                )
             end
-            CImGui.PopStyleColor(2)
+            if i == 1
+                ccpos = CImGui.GetCursorScreenPos()
+                CImGui.SetCursorScreenPos(ccpos.x, ccpos.y + unsafe_load(IMGUISTYLE.ItemSpacing.y) / 2)
+            end
+            CImGui.PushStyleVar(CImGui.ImGuiStyleVar_SelectableTextAlign, (0.5, 0.5))
+            CImGui.Selectable(
+                stcstr(MORESTYLE.Icons.TaskButton, " ", mlstr("Task"), " ", i + OLDI, " ", task.name, "###task", i),
+                show_daq_editors[i], 0, (Cfloat(0), CImGui.GetFrameHeight() - unsafe_load(IMGUISTYLE.ItemSpacing.y))
+            ) && (show_daq_editors[i] ⊻= true)
+            CImGui.PopStyleVar()
+            taskpos[i][1] = CImGui.GetItemRectMin()
+            taskpos[i][2] = CImGui.GetItemRectMax()
+            CImGui.Spacing()
+            
 
             CImGui.OpenPopupOnItemClick(stcstr("edit queue menu", i))
             CImGui.Indent()

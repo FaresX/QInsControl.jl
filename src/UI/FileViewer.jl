@@ -52,7 +52,7 @@ function edit(fv::FileViewer, id)
     for path in fv.filetree.selectedpathes
         haskey(fv.dtviewers, path) || push!(fv.dtviewers, path => DataViewer())
         dtviewer = fv.dtviewers[path]
-        CImGui.SetNextWindowSize((600, 600), CImGui.ImGuiCond_Once)
+        CImGui.SetNextWindowSize((600, 800), CImGui.ImGuiCond_Once)
         if @c CImGui.Begin(stcstr(basename(path), "##", id, path), &dtviewer.p_open)
             SetWindowBgImage(
                 CONF.BGImage.fileviewer.path;

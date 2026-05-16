@@ -72,6 +72,7 @@ end
     usewallpaper::Bool = false
     wallpaperpath::String = ""
     rate::Cint = 1
+    framepadding::Vector{Cfloat} = [4, 4]
     windowbgcolor::Vector{Cfloat} = [1.000, 1.000, 1.000, 1.000]
     bgtintcolor::Vector{Cfloat} = [1.000, 1.000, 1.000, 1.000]
     titlebgcolor::Vector{Cfloat} = [1.000, 1.000, 1.000, 1.000]
@@ -906,6 +907,8 @@ let
             insw.globaloptions ? CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_TitleBgCollapsed) : insw.titlebgcollapsedcolor
         )
         CImGui.PushStyleVar(CImGui.ImGuiStyleVar_WindowPadding, (Cfloat(0), Cfloat(0)))
+        CImGui.PushStyleVar(CImGui.ImGuiStyleVar_FrameBorderSize, 0)
+        CImGui.PushStyleVar(CImGui.ImGuiStyleVar_FramePadding, insw.framepadding)
         if CImGui.Begin(
             stcstr(
                 INSCONF[insw.instrnm].conf.icon, " ", insw.instrnm, " ", addr, " ", insw.name,
@@ -1025,7 +1028,7 @@ let
         end
         CImGui.IsWindowCollapsed() || (insw.windowsize .= CImGui.GetWindowSize() ./ scale)
         CImGui.End()
-        CImGui.PopStyleVar()
+        CImGui.PopStyleVar(3)
         CImGui.PopStyleColor(4)
     end
 
@@ -2104,6 +2107,10 @@ function globalwidgetoptionsmenu(insw::InstrWidget)
             CImGui.ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_AlphaPreviewHalf
         )
     end
+    CImGui.DragFloat2(
+        mlstr("Frame Padding"),
+        insw.framepadding, 1, 0, 24, "%.1f", CImGui.ImGuiSliderFlags_AlwaysClamp
+    )
     CImGui.ColorEdit4(
         mlstr("Window"),
         insw.windowbgcolor,

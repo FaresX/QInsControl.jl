@@ -486,12 +486,12 @@ let
                 CImGui.PushItemWidth(16CImGui.GetFontSize())
                 @c InputTextRSZ("Filter colors", &filter)
                 CImGui.PopItemWidth()
-                if CImGui.RadioButton("Opaque", alpha_flags == ImGuiColorEditFlags_None)
-                    alpha_flags = ImGuiColorEditFlags_None
+                if CImGui.RadioButton("Opaque", alpha_flags == ImGuiColorEditFlags_AlphaBar)
+                    alpha_flags = ImGuiColorEditFlags_AlphaOpaque
                 end
                 CImGui.SameLine()
-                if CImGui.RadioButton("Alpha", alpha_flags == ImGuiColorEditFlags_AlphaPreview)
-                    alpha_flags = ImGuiColorEditFlags_AlphaPreview
+                if CImGui.RadioButton("Alpha", alpha_flags == ImGuiColorEditFlags_None)
+                    alpha_flags = ImGuiColorEditFlags_None
                 end
                 CImGui.SameLine()
                 if CImGui.RadioButton("Both", alpha_flags == ImGuiColorEditFlags_AlphaPreviewHalf)
@@ -828,6 +828,8 @@ let
         CImGui.PopItemWidth()
         CImGui.SameLine()
         CImGui.Button("Set as default") && (selected_style == "" || (CONF.Style.default = selected_style))
+        CImGui.SameLine()
+        CImGui.Button(stcstr(MORESTYLE.Icons.InstrumentsManualRef, "##reloading")) && loadstyles()
         CImGui.SameLine()
         CImGui.Text("Style")
         if CImGui.BeginTabBar("Style Editor")

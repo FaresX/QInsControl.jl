@@ -51,12 +51,7 @@ function loadconf(precompile=false)
         INSTRBUFFERVIEWERS["VirtualInstr"] = Dict("VirtualAddress" => InstrBufferViewer("VirtualInstr", "VirtualAddress"))
 
         ###### load style_conf ######
-        for file in readdir(CONF.Style.dir, join=true)
-            bnm = basename(file)
-            @trycatch mlstr("loading file failed!!!") begin
-                endswith(bnm, ".toml") && (STYLES[bnm[1:end-5]] = UnionStyle(TOML.parsefile(file)))
-            end
-        end
+        loadstyles()
 
         ###### save conf.toml ######
         saveconf()
@@ -73,7 +68,7 @@ function loadinsconf()
     end
     for file in readdir(joinpath(ENV["QInsControlAssets"], "Confs"), join=true)
         bnm = basename(file)
-        @trycatch mlstr("loading file failed!!!") begin
+        @trycatch mlstr("loading insconf failed!!!") begin
             endswith(bnm, ".toml") && gen_insconf(file)
         end
     end
@@ -83,7 +78,7 @@ function loadinswconf()
     for file in readdir(joinpath(ENV["QInsControlAssets"], "Widgets"), join=true)
         bnm = basename(file)
         instrnm, filetype = split(bnm, '.')
-        @trycatch mlstr("loading file failed!!!") begin
+        @trycatch mlstr("loading inswconf failed!!!") begin
             if filetype == "toml"
                 widgets = TOML.parsefile(file)
                 INSWCONF[instrnm] = []
@@ -95,6 +90,14 @@ function loadinswconf()
     end
 end
 
+function loadstyles()
+    for file in readdir(CONF.Style.dir, join=true)
+        bnm = basename(file)
+        @trycatch mlstr("loading style failed!!!") begin
+            endswith(bnm, ".toml") && (STYLES[bnm[1:end-5]] = UnionStyle(TOML.parsefile(file)))
+        end
+    end
+end
 
 function saveconf()
     svconf = deepcopy(CONF)
@@ -157,7 +160,7 @@ function gen_insconf(conf_file)
                 Expr(
                     :macrocall,
                     cmdtype,
-                    LineNumberNode(Base.@__LINE__, Base.@__FILE__),
+                    LineNumberNode(@__LINE__, @__FILE__),
                     instrnm,
                     pair.first,
                     pair.second["cmdheader"]

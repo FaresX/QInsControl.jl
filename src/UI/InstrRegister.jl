@@ -96,7 +96,7 @@ end
 
 let
     firsttime::Bool = true
-    selectedins::String = ""
+    selectedins::String = "VirtualInstr"
     selectedqt::String = ""
     deldialog::Bool = false
     isrename::Dict{String,Bool} = Dict()
@@ -186,6 +186,7 @@ let
                 CImGui.GetWindowHeight() - 2CImGui.GetFrameHeight() - unsafe_load(IMGUISTYLE.ItemSpacing.y)
             )
             CImGui.Separator()
+            CImGui.PushStyleVar(CImGui.ImGuiStyleVar_FrameBorderSize, 0)
             CImGui.PushStyleColor(CImGui.ImGuiCol_Button, (0, 0, 0, 0))
             CImGui.Button(
                 stcstr(MORESTYLE.Icons.SaveButton, " ", mlstr("Save"), "##qtcf to toml"),
@@ -204,11 +205,12 @@ let
                 INSTRBUFFERVIEWERS["New Ins"] = Dict{String,InstrBufferViewer}()
             end
             CImGui.PopStyleColor()
+            CImGui.PopStyleVar()
             CImGui.EndChild()
             CImGui.NextColumn()
 
             CImGui.BeginChild("edit qts")
-            if selectedins != ""
+            if selectedins != "" && haskey(INSCONF, selectedins)
                 if CImGui.BeginTabBar("edit confs and widgets")
                     if CImGui.BeginTabItem(mlstr("Configurations"))
                         CImGui.BeginChild("Configurations")
@@ -295,7 +297,7 @@ let
                                         Expr(
                                             :macrocall,
                                             cmdtype,
-                                            LineNumberNode(Base.@__LINE__, Base.@__FILE__),
+                                            LineNumberNode(@__LINE__, @__FILE__),
                                             instrnm,
                                             qtname,
                                             cmd

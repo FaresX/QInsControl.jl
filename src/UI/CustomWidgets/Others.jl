@@ -49,7 +49,7 @@ function TextRect(
     draw_list = CImGui.GetWindowDrawList()
     availwidth = CImGui.GetContentRegionAvail().x
     nochild || CImGui.SetCursorScreenPos(CImGui.GetCursorScreenPos() .+ padding)
-    nochild || CImGui.BeginChild("TextRect", size .- 2padding, ImGuiChildFlags_Borders)
+    nochild || CImGui.BeginChild("TextRect", size .- 2padding, ImGuiChildFlags_None)
     CImGui.SetCursorScreenPos(CImGui.GetCursorScreenPos() .+ padding .+ thickness)
     CImGui.PushTextWrapPos(nochild ? availwidth - padding[1] : 0)
     CImGui.PushStyleColor(CImGui.ImGuiCol_Text, coltxt)

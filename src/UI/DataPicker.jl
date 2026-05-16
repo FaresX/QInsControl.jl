@@ -22,7 +22,7 @@ end
 @kwdef mutable struct DataPicker
     datalist::Vector{String} = String[]
     series::Vector{DataSeries} = [DataSeries()]
-    codes::CodeBlock = CodeBlock(codes="Axis(figure[1,1])\nDataInspector(figure; backgroundcolor=:grey)")
+    codes::CodeBlock = CodeBlock(codes="Axis(figure[1,1])\nDataInspector(figure)")
     hold::Bool = false
     update::Bool = false
     updatelayout::Bool = false
@@ -46,10 +46,14 @@ let
             CImGui.PushStyleColor(CImGui.ImGuiCol_ButtonActive, (0, 0, 0, 0))
             CImGui.PushStyleColor(CImGui.ImGuiCol_Text, MORESTYLE.Colors.HighlightText)
             # CImGui.TextColored(MORESTYLE.Colors.HighlightText, MORESTYLE.Icons.Plot)
+            CImGui.PushStyleVar(CImGui.ImGuiStyleVar_FrameBorderSize, 0)
+            CImGui.PushStyleVar(CImGui.ImGuiStyleVar_ItemSpacing, (Cfloat(0), unsafe_load(IMGUISTYLE.ItemSpacing.y)))
+            CImGui.PushStyleVar(CImGui.ImGuiStyleVar_FramePadding, (Cfloat(0), unsafe_load(IMGUISTYLE.FramePadding.y)))
             CImGui.Button(MORESTYLE.Icons.Plot)
             CImGui.PopStyleColor()
             CImGui.SameLine()
             CImGui.Button(stcstr(" ", mlstr("Data Selecting")))
+            CImGui.PopStyleVar(3)
             CImGui.PopStyleColor(3)
             CImGui.SameLine(CImGui.GetContentRegionAvail().x - holdsz)
             CImGui.Button(MORESTYLE.Icons.Update) && (dtpk.update = true)

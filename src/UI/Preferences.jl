@@ -49,6 +49,7 @@ let
                 CImGui.GetWindowHeight() - 2CImGui.GetFrameHeight() - unsafe_load(IMGUISTYLE.ItemSpacing.y)
             )
             CImGui.Separator()
+            CImGui.PushStyleVar(CImGui.ImGuiStyleVar_FrameBorderSize, 0)
             CImGui.PushStyleColor(CImGui.ImGuiCol_Button, (0, 0, 0, 0))
             if CImGui.Button(
                 stcstr(MORESTYLE.Icons.SaveButton, " ", mlstr("Save")),
@@ -64,6 +65,7 @@ let
                 end
             end
             CImGui.PopStyleColor()
+            CImGui.PopStyleVar()
             CImGui.EndChild()
 
             CImGui.NextColumn()
