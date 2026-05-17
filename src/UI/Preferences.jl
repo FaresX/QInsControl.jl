@@ -77,10 +77,6 @@ let
                 ### Basic ###
                 SeparatorTextColored(MORESTYLE.Colors.HighlightText, mlstr("Basic Setup"))
                 @c(CImGui.Checkbox(
-                    CONF.Basic.waitevents ? mlstr("wait events") : mlstr("poll events"),
-                    &CONF.Basic.waitevents
-                ))
-                @c(CImGui.Checkbox(
                     CONF.Basic.viewportenable ? mlstr("multi-viewport mode on") : mlstr("multi-viewport mode off"),
                     &CONF.Basic.viewportenable
                 ))
@@ -93,6 +89,7 @@ let
                 # if unsafe_load(CImGui.GetIO().ConfigFlags) & CImGui.ImGuiConfigFlags_ViewportsEnable == CImGui.ImGuiConfigFlags_ViewportsEnable
                 #     @c CImGui.Checkbox(mlstr("hide window"), &CONF.Basic.hidewindow)
                 # end
+                @c RadioButton2(mlstr("wait events"), mlstr("poll events"), &CONF.Basic.waitevents; local_pos_x=12ftsz)
                 @c RadioButton2(mlstr("dual core"), mlstr("single core"), &CONF.Basic.isremote; local_pos_x=12ftsz)
                 !isinteractive() && @c(CImGui.DragInt(
                     mlstr("threads"),

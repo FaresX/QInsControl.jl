@@ -241,6 +241,7 @@ end
     BlockIcons::Vector{Cfloat} = [1.000, 0.600, 0.000, 1.000]
     BlockTrycatch::Vector{Cfloat} = [1.000, 0.000, 0.000, 1.000]
     BlockDragdrop::Vector{Cfloat} = [0.000, 0.000, 1.000, 0.400]
+    BlockDragdropBorder::Vector{Cfloat} = [0.000, 0.500, 1.000, 1.000]
     ShowTextRect::Vector{Cfloat} = [1.000, 1.000, 0.000, 1.000]
     DAQTaskRunning::Vector{Cfloat} = [0.000, 1.000, 0.000, 1.000]
     DAQTaskToRun::Vector{Cfloat} = [0.000, 0.000, 0.000, 0.400]
@@ -353,6 +354,7 @@ end
 @option mutable struct MoreStyleVariable
     ImGuiScale::Cfloat = 1
     BigIconSize::Cint = 24
+    BlockDragdropBorderSize::Cfloat = 2
     TextRectRounding::Cfloat = 0
     TextRectThickness::Cfloat = 2
     TextRectPadding::Vector{Cfloat} = [6, 6]
@@ -569,6 +571,10 @@ let
                 @c CImGui.DragInt(
                     "BigIconSize", &MORESTYLE.Variables.BigIconSize,
                     1, 0, 60, "%d", CImGui.ImGuiSliderFlags_AlwaysClamp
+                )
+                @c CImGui.DragFloat(
+                    "BlockDragdropBorderSize", &MORESTYLE.Variables.BlockDragdropBorderSize,
+                    1, 0, 24, "%.1f", CImGui.ImGuiSliderFlags_AlwaysClamp
                 )
                 @c CImGui.DragFloat(
                     "TextRectRounding", &MORESTYLE.Variables.TextRectRounding,

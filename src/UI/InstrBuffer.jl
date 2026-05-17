@@ -663,6 +663,7 @@ function edit(insbuf::InstrBuffer, addr)
             insbuf.isautorefresh = true
             refresh1(true)
         end
+        CImGui.PushStyleVar(CImGui.ImGuiStyleVar_FramePadding, (0, 0))
         CImGui.Text(stcstr(MORESTYLE.Icons.InstrumentsAutoRef, " ", mlstr("Auto Refresh")))
         CImGui.SameLine()
         isautoref = SYNCSTATES[Int(IsAutoRefreshing)]
@@ -681,6 +682,7 @@ function edit(insbuf::InstrBuffer, addr)
         CImGui.Text(stcstr(MORESTYLE.Icons.View, " ", mlstr("Show Disabled")))
         CImGui.SameLine()
         @c CImGui.Checkbox("##show disabled", &insbuf.showdisable)
+        CImGui.PopStyleVar()
         CImGui.EndPopup()
     end
     CImGui.IsKeyPressed(ImGuiKey_F5, false) && refresh1(true)

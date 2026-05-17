@@ -8,7 +8,10 @@ let
             CImGui.SetCursorPos(ww / 3, CImGui.GetCursorPosY())
             CImGui.Image(ICONID, (ww / 3, ww / 3))
             CImGui.PushFont(C_NULL, MORESTYLE.Variables.BigIconSize)
-            CImGui.SetCursorPos(CImGui.GetCursorPos() .+ ((ww - CImGui.CalcTextSize("QInsControl").x) / 2, ftsz))
+            CImGui.SetCursorPos(
+                CImGui.GetCursorPos() .+
+                ((CImGui.GetContentRegionAvail().x - CImGui.CalcTextSize("QInsControl").x) / 2, ftsz)
+            )
             CImGui.TextColored(MORESTYLE.Colors.HighlightText, "QInsControl\n")
             CImGui.PopFont()
             CImGui.Text(stcstr(mlstr("version"), " : ", QINSCONTROLVERSION))
