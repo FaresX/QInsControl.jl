@@ -1136,9 +1136,7 @@ let
         draglayers[i] = newlayer
     end
 
-    global function view(insw::InstrWidget)
-        openmodw = false
-        dragmode == "" && (dragmode = mlstr("swap"))
+    function diff(insw::InstrWidget)
         if !haskey(redolist, insw)
             redolist[insw] = LoopVector(fill(InstrWidget(), CONF.Register.historylen))
             redolist[insw][] = deepcopy(insw)
@@ -1146,14 +1144,27 @@ let
         if !CImGui.IsMouseDown(0)
             redolist[insw][] ≈ insw || (move!(redolist[insw]); redolist[insw][] = deepcopy(insw))
         end
+    end
+    function undo!(insw::InstrWidget)
+        if !isempty(redolist[insw][-1].qtws)
+            move!(redolist[insw], -1)
+            copyinsw!(insw, deepcopy(redolist[insw][]))
+        end
+    end
+    function redo!(insw::InstrWidget)
+        if !isempty(redolist[insw][1].qtws)
+            move!(redolist[insw])
+            copyinsw!(insw, deepcopy(redolist[insw][]))
+        end
+    end
+
+    global function view(insw::InstrWidget)
+        openmodw = false
+        dragmode == "" && (dragmode = mlstr("swap"))
+        diff(insw)
         if unsafe_load(CImGui.GetIO().KeyCtrl)
-            if CImGui.IsKeyPressed(ImGuiKey_Z, false) && !isempty(redolist[insw][-1].qtws)
-                move!(redolist[insw], -1)
-                copyinsw!(insw, deepcopy(redolist[insw][]))
-            elseif CImGui.IsKeyPressed(ImGuiKey_Y, false) && !isempty(redolist[insw][1].qtws)
-                move!(redolist[insw])
-                copyinsw!(insw, deepcopy(redolist[insw][]))
-            end
+            CImGui.IsKeyPressed(ImGuiKey_Z, false) && undo!(insw)
+            CImGui.IsKeyPressed(ImGuiKey_Y, false) && redo!(insw)
         end
         CImGui.BeginChild("view widgets all")
         CImGui.Columns(2)
@@ -1234,15 +1245,9 @@ let
         CImGui.BeginChild("options")
         SeparatorTextColored(MORESTYLE.Colors.HighlightText, mlstr("Options"))
         stbw = CImGui.GetContentRegionAvail().x / 2
-        if CImGui.Button(stcstr(MORESTYLE.Icons.Undo, " ", mlstr("Undo"))) && !isempty(redolist[insw][-1].qtws)
-            move!(redolist[insw], -1)
-            copyinsw!(insw, deepcopy(redolist[insw][]))
-        end
+        CImGui.Button(stcstr(MORESTYLE.Icons.Undo, " ", mlstr("Undo"))) && undo!(insw)
         CImGui.SameLine()
-        if CImGui.Button(stcstr(MORESTYLE.Icons.Redo, " ", mlstr("Redo"))) && !isempty(redolist[insw][1].qtws)
-            move!(redolist[insw])
-            copyinsw!(insw, deepcopy(redolist[insw][]))
-        end
+        CImGui.Button(stcstr(MORESTYLE.Icons.Redo, " ", mlstr("Redo"))) && redo!(insw)
         @c CImGui.Checkbox(mlstr("Show Serial Numbers"), &showslnums)
         @c CImGui.Checkbox(mlstr("Show Positions"), &showpos)
         @c CImGui.Checkbox(mlstr("Draggable"), &draggable)

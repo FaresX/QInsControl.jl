@@ -143,13 +143,7 @@ let
                 CImGui.PopStyleColor()
                 CImGui.EndChild()
                 CImGui.PopID()
-                if !haskey(redolist, id)
-                    redolist[id] = LoopVector(fill(AbstractBlock[], CONF.DAQ.historylen))
-                    redolist[id][] = deepcopy(daqtask.blocks)
-                end
-                if !CImGui.IsMouseDown(0)
-                    redolist[id][] ≈ daqtask.blocks || (move!(redolist[id]); redolist[id][] = deepcopy(daqtask.blocks))
-                end
+                diff(daqtask, id)
                 all(.!mousein.(daqtask.blocks, true)) && CImGui.OpenPopupOnItemClick("add new Block")
                 if CImGui.BeginPopup("add new Block")
                     if CImGui.BeginMenu(stcstr(MORESTYLE.Icons.NewFile, " ", mlstr("Add")))
@@ -158,27 +152,16 @@ let
                         CImGui.EndMenu()
                     end
                     CImGui.Separator()
-                    if CImGui.MenuItem(stcstr(MORESTYLE.Icons.Undo, " ", mlstr("Undo"))) && !isempty(redolist[id][-1])
-                        move!(redolist[id], -1)
-                        daqtask.blocks = deepcopy(redolist[id][])
-                    end
-                    if CImGui.MenuItem(stcstr(MORESTYLE.Icons.Redo, " ", mlstr("Redo"))) && !isempty(redolist[id][1])
-                        move!(redolist[id])
-                        daqtask.blocks = deepcopy(redolist[id][])
-                    end
+                    CImGui.MenuItem(stcstr(MORESTYLE.Icons.Undo, " ", mlstr("Undo"))) && undo!(daqtask, id)
+                    CImGui.MenuItem(stcstr(MORESTYLE.Icons.Redo, " ", mlstr("Redo"))) && redo!(daqtask, id)
                     if CImGui.MenuItem(stcstr(MORESTYLE.Icons.Convert, " ", mlstr("Compile")))
                         @info "[$(now())]\n" codes = @trypasse prettify(compile(daqtask.blocks)) nothing
                     end
                     CImGui.EndPopup()
                 end
                 if unsafe_load(CImGui.GetIO().KeyCtrl) && CImGui.IsWindowFocused(CImGui.ImGuiFocusedFlags_ChildWindows)
-                    if CImGui.IsKeyPressed(ImGuiKey_Z, false) && !isempty(redolist[id][-1])
-                        move!(redolist[id], -1)
-                        daqtask.blocks = deepcopy(redolist[id][])
-                    elseif CImGui.IsKeyPressed(ImGuiKey_Y, false) && !isempty(redolist[id][1])
-                        move!(redolist[id])
-                        daqtask.blocks = deepcopy(redolist[id][])
-                    end
+                    CImGui.IsKeyPressed(ImGuiKey_Z, false) && undo!(daqtask, id)
+                    CImGui.IsKeyPressed(ImGuiKey_Y, false) && redo!(daqtask, id)
                 end
             end
             isfocus &= CImGui.IsWindowFocused(CImGui.ImGuiFocusedFlags_ChildWindows)
@@ -187,6 +170,28 @@ let
         CImGui.PopStyleVar()
         CImGui.PopStyleColor()
         p_open[] &= (isfocus | daqtask.hold)
+    end
+
+    function diff(daqtask::DAQTask, id)
+        if !haskey(redolist, id)
+            redolist[id] = LoopVector(fill(AbstractBlock[], CONF.DAQ.historylen))
+            redolist[id][] = deepcopy(daqtask.blocks)
+        end
+        if !CImGui.IsMouseDown(0)
+            redolist[id][] ≈ daqtask.blocks || (move!(redolist[id]); redolist[id][] = deepcopy(daqtask.blocks))
+        end
+    end
+    function undo!(daqtask::DAQTask, id)
+        if !isempty(redolist[id][-1])
+            move!(redolist[id], -1)
+            daqtask.blocks = deepcopy(redolist[id][])
+        end
+    end
+    function redo!(daqtask::DAQTask, id)
+        if !isempty(redolist[id][1])
+            move!(redolist[id])
+            daqtask.blocks = deepcopy(redolist[id][])
+        end
     end
 end
 
