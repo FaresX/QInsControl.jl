@@ -138,6 +138,35 @@ Node(id, ::Val{:SampleHolder}) = SampleHolderNode(id)
     maxid::Cint = 0
 end
 
+function Base.isapprox(nodeeditor1::NodeEditor, nodeeditor2::NodeEditor)
+    return all(
+        fdnm == :nodes ? nodeeditor1.nodes ≈ nodeeditor2.nodes : getproperty(nodeeditor1, fdnm) == getproperty(nodeeditor2, fdnm)
+        for fdnm in fieldnames(NodeEditor)
+    )
+end
+function Base.isapprox(nodes1::OrderedDict{Cint,AbstractNode}, nodes2::OrderedDict{Cint,AbstractNode})
+    return keys(nodes1) == keys(nodes2) && all(nodes1[id] ≈ nodes2[id] for id in keys(nodes1))
+end
+Base.isapprox(node1::AbstractNode, node2::AbstractNode) = false
+function Base.isapprox(node1::Node, node2::Node)
+    return all(
+        getproperty(node1, fdnm) == getproperty(node2, fdnm)
+        for fdnm in fieldnames(Node) if fdnm != :position
+    )
+end
+function Base.isapprox(node1::SampleHolderNode, node2::SampleHolderNode)
+    return all(
+        getproperty(node1, fdnm) == getproperty(node2, fdnm)
+        for fdnm in fieldnames(SampleHolderNode) if fdnm ∉ [:position, :imgr]
+    )
+end
+
+function copynodeeditor!(nodeeditor1::NodeEditor, nodeeditor2::NodeEditor)
+    for fdnm in fieldnames(NodeEditor)
+        setproperty!(nodeeditor1, fdnm, getproperty(nodeeditor2, fdnm))
+    end
+end
+
 ### update_state ###----------------------------------------------------------------------------------------------------
 function update_state!(rszgrip::ResizeGrip)
     mospos = CImGui.GetMousePos()
@@ -435,6 +464,7 @@ let
     isdragging::Bool = false
     dragnode::Vector{String} = []
     simplenodetypes::Vector{String} = ["Universal", "Ground", "Resistance", "Trilink21", "Trilink12", "SampleHolder"]
+    redolists::Dict{String,Dict{NodeEditor,LoopVector{NodeEditor}}} = Dict()
 
     global function addnewnode(nodeeditor::NodeEditor, nodetype, pos, ::Val{:simple})
         nodeeditor.maxid += 1
@@ -504,10 +534,40 @@ let
         end
     end
 
+    function diff(nodeeditor::NodeEditor, id)
+        haskey(redolists, id) || (redolists[id] = Dict())
+        redolist = redolists[id]
+        if !haskey(redolist, nodeeditor)
+            redolist[nodeeditor] = LoopVector(fill(NodeEditor(), CONF.Register.historylen))
+            redolist[nodeeditor][] = deepcopy(nodeeditor)
+        end
+        if !CImGui.IsMouseDown(0)
+            redolist[nodeeditor][] ≈ nodeeditor || (move!(redolist[nodeeditor]); redolist[nodeeditor][] = deepcopy(nodeeditor))
+        end
+    end
+    function undo!(nodeeditor::NodeEditor, id)
+        redolist = redolists[id]
+        if !isempty(redolist[nodeeditor][-1].nodes)
+            move!(redolist[nodeeditor], -1)
+            copynodeeditor!(nodeeditor, deepcopy(redolist[nodeeditor][]))
+        end
+    end
+    function redo!(nodeeditor::NodeEditor, id)
+        redolist = redolists[id]
+        if !isempty(redolist[nodeeditor][1].nodes)
+            move!(redolist[nodeeditor])
+            copynodeeditor!(nodeeditor, deepcopy(redolist[nodeeditor][]))
+        end
+    end
     global function edit(nodeeditor::NodeEditor, id)
         haskey(nodeeditor_contexts, id) || (nodeeditor_contexts[id] = imnodes_EditorContextCreate())
         imnodes_EditorContextSet(nodeeditor_contexts[id])
         !(isanynodehovered || isanylinkhovered) && CImGui.IsMouseDoubleClicked(0) && imnodes_EditorContextResetPanning((0, 0))
+        diff(nodeeditor, id)
+        if unsafe_load(CImGui.GetIO().KeyCtrl)
+            CImGui.IsKeyPressed(ImGuiKey_Z, false) && undo!(nodeeditor, id)
+            CImGui.IsKeyPressed(ImGuiKey_Y, false) && redo!(nodeeditor, id)
+        end
         imnodes_BeginNodeEditor()
         dragnodemenu()
         if isdragging && !CImGui.IsMouseDown(0)
@@ -524,7 +584,7 @@ let
                 empty!(dragnode)
             end
         end
-        editnodeeditorpopup(nodeeditor)
+        editnodeeditorpopup(nodeeditor, id)
         editnodepopup(nodeeditor)
         if CImGui.BeginPopup("Edit Link")
             if CImGui.MenuItem(stcstr(MORESTYLE.Icons.Delete, " ", mlstr("Delete")))
@@ -584,7 +644,7 @@ let
         isanylinkhovered = @c imnodes_IsLinkHovered(&nodeeditor.hoveredlink_id)
     end
 
-    global function editnodeeditorpopup(nodeeditor::NodeEditor)
+    global function editnodeeditorpopup(nodeeditor::NodeEditor, id)
         if CImGui.BeginPopup("NodeEditor")
             if nodeeditor.selectednodesnum > 0 || nodeeditor.selectedlinksnum > 0
                 if CImGui.MenuItem(stcstr(MORESTYLE.Icons.Delete, " ", mlstr("Delete")))
@@ -613,6 +673,10 @@ let
                 end
                 CImGui.EndMenu()
             end
+            CImGui.Separator()
+            CImGui.Button(stcstr(MORESTYLE.Icons.Undo, " ", mlstr("Undo"))) && undo!(nodeeditor, id)
+            CImGui.SameLine()
+            CImGui.Button(stcstr(MORESTYLE.Icons.Redo, " ", mlstr("Redo"))) && redo!(nodeeditor, id)
             CImGui.EndPopup()
         end
     end
