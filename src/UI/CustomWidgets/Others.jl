@@ -110,47 +110,6 @@ function BoxTextColored(
     CImGui.PopStyleColor()
 end
 
-@kwdef mutable struct ResizeChild
-    posmin::CImGui.ImVec2 = (0, 0)
-    posmax::CImGui.ImVec2 = (200, 400)
-    rszgripsize::Cfloat = 24
-    limminsize::CImGui.ImVec2 = (0, 0)
-    limmaxsize::CImGui.ImVec2 = (Inf, Inf)
-    hovered::Bool = false
-    dragging::Bool = false
-end
-
-function (rszcd::ResizeChild)(f, id, args...; kwargs...)
-    CImGui.BeginChild(id, rszcd.posmax .- rszcd.posmin, true)
-    f(args...; kwargs...)
-    CImGui.EndChild()
-    CImGui.AddTriangleFilled(
-        CImGui.GetWindowDrawList(),
-        (rszcd.posmax.x - rszcd.rszgripsize, rszcd.posmax.y), rszcd.posmax, (rszcd.posmax.x, rszcd.posmax.y - rszcd.rszgripsize),
-        if rszcd.hovered && rszcd.dragging
-            CImGui.c_get(IMGUISTYLE.Colors, ImGuiCol_ResizeGripActive)
-        elseif rszcd.hovered
-            CImGui.c_get(IMGUISTYLE.Colors, ImGuiCol_ResizeGripHovered)
-        else
-            CImGui.c_get(IMGUISTYLE.Colors, ImGuiCol_ResizeGrip)
-        end
-    )
-    rszcd.posmin = CImGui.GetItemRectMin()
-    rszcd.posmax = CImGui.GetItemRectMax()
-    mspos = CImGui.GetMousePos()
-    rszcd.hovered = inregion(mspos, rszcd.posmax .- rszcd.rszgripsize, rszcd.posmax)
-    rszcd.hovered &= -(mspos.x - rszcd.posmax.x + rszcd.rszgripsize) < mspos.y - rszcd.posmax.y
-    if rszcd.dragging
-        if CImGui.IsMouseDown(0)
-            rszcd.posmax = cutoff(mspos, rszcd.posmin .+ rszcd.limminsize, rszcd.posmin .+ rszcd.limmaxsize) .+ rszcd.rszgripsize ./ 4
-        else
-            rszcd.dragging = false
-        end
-    else
-        rszcd.hovered && CImGui.IsMouseDown(0) && CImGui.c_get(CImGui.GetIO().MouseDownDuration, 0) < 0.1 && (rszcd.dragging = true)
-    end
-end
-
 @kwdef mutable struct AnimateChild
     presentsize::CImGui.ImVec2 = (0, 0)
     targetsize::CImGui.ImVec2 = (400, 600)

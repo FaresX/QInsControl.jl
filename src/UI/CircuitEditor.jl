@@ -435,7 +435,6 @@ let
     isdragging::Bool = false
     dragnode::Vector{String} = []
     simplenodetypes::Vector{String} = ["Universal", "Ground", "Resistance", "Trilink21", "Trilink12", "SampleHolder"]
-    rszcd::ResizeChild = ResizeChild(limminsize=(12, 12))
 
     global function addnewnode(nodeeditor::NodeEditor, nodetype, pos, ::Val{:simple})
         nodeeditor.maxid += 1
@@ -452,42 +451,43 @@ let
     end
 
     global function dragnodemenu()
-        rszcd("DragMenu") do
-            CImGui.PushStyleVar(CImGui.ImGuiStyleVar_SelectableTextAlign, (0.5, 0.5))
-            if CImGui.CollapsingHeader(mlstr("Basic"))
-                nodelabels = [
-                    stcstr(getproperty(MORESTYLE.Icons, Symbol(nodetype, :Node)), " ", mlstr(nodetype))
-                    for nodetype in simplenodetypes
-                ]
-                cols, labelwidth = calcmaxwidth(nodelabels, CImGui.GetFontSize())
-                for (i, label) in enumerate(nodelabels)
-                    CImGui.Selectable(label, false, 0, (labelwidth, 3CImGui.GetFrameHeight()))
-                    i % cols == 0 || i == length(simplenodetypes) || CImGui.SameLine()
-                    if CImGui.IsItemActive() && !isdragging && isempty(dragnode)
-                        isempty(dragnode) && push!(dragnode, simplenodetypes[i])
-                        isdragging = true
-                    end
+        ftsz = CImGui.GetFontSize()
+        CImGui.BeginChild("DragMenu", (2ftsz, 2ftsz), ImGuiChildFlags_ResizeX | ImGuiChildFlags_ResizeY | ImGuiChildFlags_Borders)
+        CImGui.PushStyleVar(CImGui.ImGuiStyleVar_SelectableTextAlign, (0.5, 0.5))
+        if CImGui.CollapsingHeader(mlstr("Basic"))
+            nodelabels = [
+                stcstr(getproperty(MORESTYLE.Icons, Symbol(nodetype, :Node)), " ", mlstr(nodetype))
+                for nodetype in simplenodetypes
+            ]
+            cols, labelwidth = calcmaxwidth(nodelabels, CImGui.GetFontSize())
+            for (i, label) in enumerate(nodelabels)
+                CImGui.Selectable(label, false, 0, (labelwidth, 3CImGui.GetFrameHeight()))
+                i % cols == 0 || i == length(simplenodetypes) || CImGui.SameLine()
+                if CImGui.IsItemActive() && !isdragging && isempty(dragnode)
+                    isempty(dragnode) && push!(dragnode, simplenodetypes[i])
+                    isdragging = true
                 end
             end
-            if CImGui.CollapsingHeader(mlstr("Instruments"))
-                inses = setdiff(keys(INSCONF), Set(["Others"]))
-                nodelabels = [stcstr(INSCONF[ins].conf.icon, " ", ins) for ins in inses]
-                cols, labelwidth = calcmaxwidth(nodelabels, CImGui.GetFontSize())
-                for (i, ins) in enumerate(inses)
-                    CImGui.Selectable(stcstr(INSCONF[ins].conf.icon, " ", ins),
-                        false,
-                        0,
-                        (labelwidth, 3CImGui.GetFrameHeight())
-                    )
-                    i % cols == 0 || i == length(inses) || CImGui.SameLine()
-                    if CImGui.IsItemActive() && !isdragging && isempty(dragnode)
-                        isempty(dragnode) && push!(dragnode, ins)
-                        isdragging = true
-                    end
-                end
-            end
-            CImGui.PopStyleVar()
         end
+        if CImGui.CollapsingHeader(mlstr("Instruments"))
+            inses = setdiff(keys(INSCONF), Set(["Others"]))
+            nodelabels = [stcstr(INSCONF[ins].conf.icon, " ", ins) for ins in inses]
+            cols, labelwidth = calcmaxwidth(nodelabels, CImGui.GetFontSize())
+            for (i, ins) in enumerate(inses)
+                CImGui.Selectable(stcstr(INSCONF[ins].conf.icon, " ", ins),
+                    false,
+                    0,
+                    (labelwidth, 3CImGui.GetFrameHeight())
+                )
+                i % cols == 0 || i == length(inses) || CImGui.SameLine()
+                if CImGui.IsItemActive() && !isdragging && isempty(dragnode)
+                    isempty(dragnode) && push!(dragnode, ins)
+                    isdragging = true
+                end
+            end
+        end
+        CImGui.PopStyleVar()
+        CImGui.EndChild()
         if isdragging && length(dragnode) == 1
             draw_list = CImGui.GetWindowDrawList()
             tiptxt = mlstr(only(dragnode))
@@ -562,11 +562,6 @@ let
             Ref{NodeEditor}(nodeeditor)
         )
         imnodes_EndNodeEditor()
-        rszcd.limmaxsize = CImGui.GetItemRectSize()
-        rszcd.posmax = (
-            min(rszcd.posmin[1] + rszcd.limmaxsize[1], rszcd.posmax[1]),
-            min(rszcd.posmin[2] + rszcd.limmaxsize[2], rszcd.posmax[2])
-        )
         nodeeditor.selectednodesnum = imnodes_NumSelectedNodes()
         resize!(nodeeditor.selectednodes, nodeeditor.selectednodesnum)
         imnodes_GetSelectedNodes(nodeeditor.selectednodes)
