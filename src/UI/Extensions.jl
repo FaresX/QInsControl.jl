@@ -171,7 +171,7 @@ end
 
 function destroytexture!(id)
     extension_module = Base.get_extension(CImGui, :GlfwOpenGLBackend)
-    haskey(extension_module.g_ImageTexture, id) && CImGui.destroy_image_texture(id)
+    haskey(extension_module.g_ImageTexture, id._TexID) && CImGui.destroy_image_texture(id)
 end
 
 function Base.iterate(v::ImVec2, state=1)

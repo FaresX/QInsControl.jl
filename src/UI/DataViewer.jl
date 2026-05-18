@@ -22,7 +22,7 @@ let
                     insbufkeys::Vector{String} = sort(
                         [key for key in keys(dtviewer.data) if occursin(r"instrbufferviewers/.*", key)]
                     )
-                    CImGui.Text(mlstr("Filter"))
+                    BoxTextColored(mlstr("Filter"))
                     CImGui.SameLine()
                     @c CImGui.Checkbox("##Filter", &filteron)
                     if filteron
@@ -296,7 +296,7 @@ let
     flags |= CImGui.ImGuiTableFlags_Reorderable
     # flags |= CImGui.ImGuiTableFlags_Sortable
     flags |= CImGui.ImGuiTableFlags_Hideable
-    # flags |= CImGui.ImGuiTableFlags_BordersOuter
+    flags |= CImGui.ImGuiTableFlags_BordersOuter
     flags |= CImGui.ImGuiTableFlags_BordersInnerV
     flags |= CImGui.ImGuiTableFlags_RowBg
     pagei::Dict = Dict()

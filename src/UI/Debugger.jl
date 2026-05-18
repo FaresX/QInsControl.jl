@@ -112,7 +112,7 @@ let
                         SeparatorTextColored(MORESTYLE.Colors.HighlightText, key)
                         availwidth = CImGui.GetCursorScreenPos().x + CImGui.GetContentRegionAvail().x
                         for (i, id) in enumerate(val.data)
-                            CImGui.Image(id, CImGui.ImVec2(60, 60))
+                            CImGui.Image(id, ImVec2(60, 60))
                             CImGui.GetItemRectMax().x + 60 + unsafe_load(IMGUISTYLE.ItemSpacing.x) < availwidth &&
                                 i != length(val) && CImGui.SameLine()
                             id == val[] && CImGui.AddRect(
@@ -125,15 +125,22 @@ let
                     CImGui.TreePop()
                 end
 
+                imref = CImGui.ImTextureRef(CImGui.ImTextureID(0))
                 if CImGui.TreeNode("Textures ($(length(GlfwOpenGLBackend.g_ImageTexture)))###Textures")
                     availwidth = CImGui.GetCursorScreenPos().x + CImGui.GetContentRegionAvail().x
                     for (i, id) in enumerate(keys(GlfwOpenGLBackend.g_ImageTexture))
                         CImGui.BeginGroup()
                         CImGui.Text(string(id))
-                        CImGui.Image(id, CImGui.ImVec2(60, 60))
+                        imref = CImGui.ImTextureRef(CImGui.ImTextureID(id))
+                        CImGui.Image(imref, ImVec2(60, 60))
+                        CImGui.OpenPopupOnItemClick("Delete Texture")
                         CImGui.EndGroup()
                         CImGui.GetItemRectMax().x + 60 + unsafe_load(IMGUISTYLE.ItemSpacing.x) < availwidth &&
                             i != length(GlfwOpenGLBackend.g_ImageTexture) && CImGui.SameLine()
+                    end
+                    if CImGui.BeginPopup("Delete Texture")
+                        CImGui.MenuItem(stcstr(MORESTYLE.Icons.Delete, " ", mlstr("Delete"))) && destroytexture!(imref)
+                        CImGui.EndPopup()
                     end
                     CImGui.TreePop()
                 end

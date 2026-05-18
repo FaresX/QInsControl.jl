@@ -135,6 +135,9 @@ let
             CImGui.PushStyleColor(CImGui.ImGuiCol_Text, MORESTYLE.Colors.IconButton)
             @c CImGui.Selectable(MORESTYLE.Icons.Preferences, &show_preferences, 0, sbsz)
             CImGui.PopStyleColor()
+            CImGui.PushFont(C_NULL, originfontsize)
+            ItemTooltip(mlstr("Preferences"))
+            CImGui.PopFont()
 
             CImGui.AddRectFilled(
                 CImGui.GetWindowDrawList(),

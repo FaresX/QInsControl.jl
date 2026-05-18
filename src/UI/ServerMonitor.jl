@@ -49,7 +49,7 @@ let
             CImGui.TableSetupScrollFreeze(0, 1)
             CImGui.TableSetupColumn(mlstr("IP Address"))
             CImGui.TableSetupColumn(mlstr("Port"))
-            CImGui.TableSetupColumn("")
+            CImGui.TableSetupColumn(mlstr("Control"))
             CImGui.TableHeadersRow()
 
             for client in serverbuffer.clients
@@ -65,6 +65,7 @@ let
                 addrstr = stcstr(client.addr, ":", client.port)
                 haskey(showmsg, addrstr) || (showmsg[addrstr] = true)
                 CImGui.Checkbox(stcstr("##", addrstr), Ref(showmsg[addrstr])) && (showmsg[addrstr] = !showmsg[addrstr])
+                ItemTooltip(mlstr("Show/Hide Messages"))
                 CImGui.SameLine()
                 client.connected || CImGui.PushStyleColor(CImGui.ImGuiCol_Text, MORESTYLE.Colors.ErrorText)
                 if CImGui.Button(stcstr(MORESTYLE.Icons.Delete, "##", client.addr, ":", client.port))

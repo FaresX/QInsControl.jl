@@ -175,7 +175,9 @@ function ColoredButton(
     CImGui.PushStyleColor(CImGui.ImGuiCol_ButtonHovered, colbth)
     CImGui.PushStyleColor(CImGui.ImGuiCol_ButtonActive, colbta)
     CImGui.PushStyleColor(CImGui.ImGuiCol_Text, coltxt)
+    CImGui.PushStyleVar(CImGui.ImGuiStyleVar_FrameBorderSize, 0)
     clicked = CImGui.Button(label, size)
+    CImGui.PopStyleVar()
     CImGui.PopStyleColor(4)
     return clicked
 end

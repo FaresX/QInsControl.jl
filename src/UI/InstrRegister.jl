@@ -85,7 +85,8 @@ let
             y = (1 + length(findall("\n", qtcf.help))) * CImGui.GetTextLineHeight() + 2unsafe_load(IMGUISTYLE.FramePadding.y)
             CImGui.BeginChild("edit help", (Cfloat(0), y), false, CImGui.ImGuiWindowFlags_HorizontalScrollbar)
             @c InputTextMultilineRSZ("##help doc", &qtcf.help, (x, y))
-            !CImGui.IsItemHovered() && !CImGui.IsItemActive() && CImGui.IsMouseClicked(0) && (edithelp = false)
+            # !CImGui.IsItemHovered() && !CImGui.IsItemActive() && CImGui.IsMouseClicked(0) && (edithelp = false)
+            CImGui.IsItemDeactivated() && (edithelp = false)
             CImGui.EndChild()
         else
             region = TextRect(replace(string(qtcf.help, "\n "), "\\\n" => ""); nochild=true)

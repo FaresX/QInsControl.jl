@@ -103,11 +103,10 @@ function BoxTextColored(
     col=CImGui.c_get(IMGUISTYLE.Colors, ImGuiCol_Text),
     colbd=MORESTYLE.Colors.ItemBorder
 )
-    CImGui.PushStyleColor(CImGui.ImGuiCol_Border, colbd)
-    CImGui.PushStyleVar(ImGuiStyleVar_FrameBorderSize, 1)
-    ColoredButton(label; size=size, colbt=[0, 0, 0, 0], colbth=[0, 0, 0, 0], colbta=[0, 0, 0, 0], coltxt=col)
-    CImGui.PopStyleVar()
-    CImGui.PopStyleColor()
+    nonecol = [0, 0, 0, 0]
+    ColoredButtonRect(
+        label; size=size, thickness=1, colbt=nonecol, colbth=nonecol, colbta=nonecol, coltxt=col, colrect=colbd
+    )
 end
 
 @kwdef mutable struct AnimateChild
@@ -310,7 +309,7 @@ let
             CImGui.InputTextMultiline(
                 label, text, length(text), size, CImGui.ImGuiInputTextFlags_ReadOnly
             )
-            !CImGui.IsItemHovered() && CImGui.IsAnyMouseDown() && (states[label] = false)
+            CImGui.IsItemDeactivated() && (states[label] = false)
         else
             CImGui.TextUnformatted(text)
             CImGui.IsItemHovered() && CImGui.IsMouseDoubleClicked(0) && (states[label] = true)

@@ -7,7 +7,7 @@
 end
 
 function edit(fv::FileViewer, id)
-    CImGui.SetNextWindowSize((400, 600), CImGui.ImGuiCond_Once)
+    CImGui.SetNextWindowSize((520, 720), CImGui.ImGuiCond_Once)
     if @c CImGui.Begin(
         if fv.filetree.rootpath_bnm == ""
             stcstr(MORESTYLE.Icons.OpenFile, "  ", mlstr("Data Browse"), "###dtv", id)

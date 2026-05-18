@@ -110,7 +110,7 @@ const INSWCONF = OrderedDict{String,Vector{InstrWidget}}() #仪器注册表
 
 function copyvars!(opts1, opts2)
     fnms = fieldnames(QuantityWidgetOption)
-    for fnm in fnms[1:35]
+    for fnm in fnms[1:34]
         fnm in [:uitype, :vertices] && continue
         setproperty!(opts1, fnm, getproperty(opts2, fnm))
     end
@@ -118,7 +118,7 @@ end
 
 function copycolors!(opts1, opts2)
     fnms = fieldnames(QuantityWidgetOption)
-    for fnm in fnms[36:end]
+    for fnm in fnms[35:end]
         setproperty!(opts1, fnm, getproperty(opts2, fnm))
     end
 end
@@ -1020,8 +1020,8 @@ let
                 end
                 CImGui.PopID()
             end
+            CImGui.SetCursorPos(0, 0)
             if !usingit && draggable
-                CImGui.SetCursorPos(0, 0)
                 ColoredButton("##max"; size=(-1, -1), colbt=(0, 0, 0, 0), colbth=(0, 0, 0, 0), colbta=(0, 0, 0, 0))
             end
             CImGui.EndChild()
