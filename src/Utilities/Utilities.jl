@@ -170,7 +170,7 @@ end
 
 max_with_empty(x) = isempty(x) ? zero(eltype(x)) : max(x...)
 
-function newkey!(dict::AbstractDict, oldkey, newkey)
+function newkey!(dict::OrderedDict, oldkey, newkey)
     newdict = typeof(dict)()
     for p in dict
         if p.first != oldkey
