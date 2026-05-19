@@ -49,6 +49,7 @@ let
                     end
                 end
                 newmsg && (newmsg_updated = true; newmsg = false)
+                dorender(6)
             end
             lineheigth = (1 + length(findall('\n', buffer))) * CImGui.GetTextLineHeight() +
                          2unsafe_load(IMGUISTYLE.FramePadding.y)

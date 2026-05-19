@@ -91,6 +91,12 @@ let
                 # end
                 @c RadioButton2(mlstr("wait events"), mlstr("poll events"), &CONF.Basic.waitevents; local_pos_x=12ftsz)
                 @c RadioButton2(mlstr("dual core"), mlstr("single core"), &CONF.Basic.isremote; local_pos_x=12ftsz)
+                @c CImGui.DragInt(
+                    mlstr("lowest framerate"),
+                    &CONF.Basic.lowestframerate,
+                    1, 4, 600, "%d",
+                    CImGui.ImGuiSliderFlags_AlwaysClamp
+                )
                 !isinteractive() && @c(CImGui.DragInt(
                     mlstr("threads"),
                     &CONF.Basic.nthreads,
@@ -173,6 +179,7 @@ let
 
                 ###DAQ###
                 SeparatorTextColored(MORESTYLE.Colors.HighlightText, "DAQ")
+                @c CImGui.Checkbox(mlstr("high speed data transfer"), &CONF.DAQ.highspeeddatatransfer)
                 @c(RadioButton2(
                     mlstr("log all quantities"), mlstr("log enabled quantities"), &CONF.DAQ.logall;
                     local_pos_x=12ftsz
@@ -401,7 +408,7 @@ let
                 # showunitsetting = CImGui.CollapsingHeader(mlstr("Unit"))
                 # CImGui.PopStyleColor()
                 # if showunitsetting
-                SeparatorTextColored(MORESTYLE.Colors.HighlightText, mlstr("Unit"))
+                SeparatorTextColored(MORESTYLE.Colors.HighlightText, mlstr("Units"))
                 CImGui.BeginGroup()
                 CImGui.Text(stcstr("     ", mlstr("type")))
                 for (i, up) in enumerate(CONF.U)
@@ -409,7 +416,8 @@ let
                     ut == "" && continue
                     CImGui.PushID(i)
                     CImGui.PushItemWidth(5ftsz)
-                    if @c InputTextRSZ("##Utype", &ut)
+                    @c InputTextRSZ("##Utype", &ut)
+                    if CImGui.IsItemDeactivatedAfterEdit()
                         if ut == "" || haskey(CONF.U, ut)
                             ut = up.first
                         else

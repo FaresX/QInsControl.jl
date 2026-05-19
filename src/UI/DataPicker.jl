@@ -279,6 +279,7 @@ let
                     end
                 end
                 dtss.update = false
+                dorender()
             end
             if dtss.updateplot
                 plottofigure(plt, dtss)

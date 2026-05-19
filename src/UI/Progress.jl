@@ -88,6 +88,7 @@ function update_progress()
             for pb in packpb
                 haskey(PROGRESSLIST, pb[1]) || (PROGRESSLIST[pb[1]] = pb)
                 PROGRESSLIST[pb[1]] = pb
+                dorender()
             end
         end
     end

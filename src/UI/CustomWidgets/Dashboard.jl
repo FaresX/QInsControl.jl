@@ -220,8 +220,12 @@ function DrawDashboardWindow(
     else
         db.colorsub[1] = 0.78
         db.value[1] = db.limit[1]
-        db.valuesmoothflag = true
         db.selfinspstatusflag = true
+        if abs(db.value[1] - db.value[2]) < (db.limit[2] - db.limit[1]) / 270
+            db.valuesmoothflag = false
+        else
+            db.valuesmoothflag = true
+        end
     end
 
     ledsz = (40, 20) .* (size[1] / 600)
@@ -257,6 +261,7 @@ function DrawDashboardWindow(
     db.colorsub[2] += (db.colorsub[1] - db.colorsub[2]) * 0.024 * speed
     if db.valuesmoothflag
         db.value[2] += (db.value[1] - db.value[2]) * 0.016 * speed
+        dorender()
     else
         db.value[2] = db.value[1]
     end

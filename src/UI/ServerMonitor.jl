@@ -134,6 +134,7 @@ let
             serverfetch = istaskfailed(task) ? nothing : fetch(task)
             isnothing(serverfetch) || (serverbuffer = serverfetch; lastrefreshtime = string(now()))
             delete!(refreshtask, "task")
+            dorender(6)
         end
     end
 end

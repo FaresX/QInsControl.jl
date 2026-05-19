@@ -51,7 +51,7 @@ function UI()
     rendertask = Threads.@spawn CImGui.render(
         ctx;
         window_size=CONF.Basic.windowsize, window_title="QInsControl", on_exit=onexitaction,
-        opengl_version=VersionNumber(CONF.Basic.openglversion), wait_events=CONF.Basic.waitevents
+        opengl_version=VersionNumber(CONF.Basic.openglversion)
     ) do
         try
             if firstframe
@@ -59,7 +59,7 @@ function UI()
                 icons = FileIO.load.([joinpath(ENV["QInsControlAssets"], "Necessity/QInsControl.ico")])
                 icons_8bit = reinterpret.(NTuple{4,UInt8}, icons)
                 GLFW.SetWindowIcon(CImGui.current_window(), icons_8bit)
-                GLFW.PollEvents()
+                # GLFW.PollEvents()
                 iconsize = reverse(size(icons[1]))
                 global ICONID = CImGui.create_image_texture(iconsize...)
                 CImGui.update_image_texture(ICONID, transpose(icons[1]), iconsize...)
@@ -103,6 +103,15 @@ function UI()
                     return
                 end
             end
+            if CONF.Basic.waitevents
+                # nowait = CImGui.IsAnyItemActive() || CImGui.IsAnyItemHovered() || CImGui.IsAnyMouseDown()
+                if CImGui.IsAnyItemActive() || CImGui.IsAnyItemHovered()
+                    dorender()
+                elseif CImGui.IsAnyMouseDown() || unsafe_load(io.MouseWheel) != 0
+                    dorender(12, false)
+                end
+                waittorender()
+            end
         catch e
             @error "[$(now())]\n$(mlstr("error in renderloop!"))" exception = e
             SYNCSTATES[Int(FatalError)] = true
@@ -111,6 +120,8 @@ function UI()
         end
     end
 
+    startposttask()
+
     return rendertask
 end
 
@@ -118,6 +129,7 @@ let
     ctxi = nothing
     global setctxi(ctx) = (ctxi = ctx)
     global function onexitaction()
+        stopposttask()
         SYNCSTATES[Int(IsDAQTaskRunning)] || timed_remotecall_wait(() -> stop!(CPU), workers()[1])
         timed_remotecall_wait(() -> stop!(QICSERVER), workers()[1])
         stoprefresh()
@@ -131,5 +143,33 @@ let
         end
         CImGui.SaveIniSettingsToDisk(joinpath(ENV["QInsControlAssets"], "Necessity/imgui.ini"))
         imnodes_DestroyContext(ctxi)
+    end
+
+    isrunningpost = Ref(true)
+    eventnum = Ref(0)
+    hasaddevent = Ref(false)
+    global function startposttask()
+        isrunningpost[] = true
+        Threads.@spawn begin
+            while isrunningpost[]
+                eventnum[] += 1
+                sleep(1 / CONF.Basic.lowestframerate)
+            end
+        end
+    end
+    stopposttask() = (isrunningpost[] = false; sleep(1 / CONF.Basic.lowestframerate))
+    global function waittorender()
+        eventnum[] < 0 && (eventnum[] = 0)
+        while eventnum[] == 0
+            sleep(0.001)
+        end
+        eventnum[] -= 1
+        hasaddevent[] = false
+    end
+    global function dorender(n=1, skip=true)
+        if (skip && !hasaddevent[]) || !skip
+            eventnum[] += n
+            hasaddevent[] = true
+        end
     end
 end

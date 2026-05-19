@@ -56,6 +56,7 @@ let
                         i == limitline && push!(logmsgshow, (texttype, date, title, textbg, false, logmsg))
                     end
                 end
+                dorender(6)
             end
             if CImGui.BeginTabBar("Logging")
                 if CImGui.BeginTabItem(mlstr("System Logs"))

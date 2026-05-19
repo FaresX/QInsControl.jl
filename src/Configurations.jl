@@ -4,6 +4,7 @@
     viewportenable::Bool = true
     holdmainwindow::Bool = true
     hidewindow::Bool = false
+    lowestframerate::Cint = 4
     nthreads::Cint = 2
     nthreads_2::Cint = 1
     windowsize::Vector{Cint} = [864, 486]
@@ -28,6 +29,7 @@ end
     logall::Bool = false
     equalstep::Bool = true
     externaleval::Bool = false
+    highspeeddatatransfer::Bool = false
     savetime::Cint = 1
     cuttingfile::Cint = 2000000
     channelsize::Cint = 512

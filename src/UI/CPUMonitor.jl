@@ -158,6 +158,7 @@ let
                 lastrefreshtime = string(now())
             end
             delete!(refreshtask, "task")
+            dorender(6)
         end
     end
 end

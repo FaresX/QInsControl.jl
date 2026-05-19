@@ -168,6 +168,7 @@ end
 function updatefront!(qt::SweepQuantity)
     getvalU!(qt)
     qt.show_edit = string("\n", qt.alias, "\n \n", join(qt.showval, qt.separator), " ", qt.showU, "\n ")
+    dorender()
 end
 
 function updateoptvalue!(qt::SetQuantity)
@@ -194,21 +195,19 @@ function updatefront!(qt::SetQuantity)
     getvalU!(qt)
     updateoptvalue!(qt)
     qt.show_edit = string("\n", qt.alias, "\n \n", join(qt.showval, qt.separator), " ", qt.showU, "\n ")
+    dorender()
 end
 
 function updatefront!(qt::ReadQuantity)
     getvalU!(qt)
     qt.show_edit = string("\n", qt.alias, "\n \n", join(qt.showval, qt.separator), " ", qt.showU, "\n ")
+    dorender()
 end
 
-function updatefront!(qt::AbstractQuantity; show_edit=true)
-    if show_edit
-        updatefront!(qt)
-    else
-        getvalU!(qt)
-        qt isa SetQuantity && updateoptvalue!(qt)
-        qt.show_view = string(qt.alias, "\n", join(qt.showval, qt.separator), " ", qt.showU)
-    end
+function updatefrontview!(qt::AbstractQuantity)
+    getvalU!(qt)
+    qt isa SetQuantity && updateoptvalue!(qt)
+    qt.show_view = string(qt.alias, "\n", join(qt.showval, qt.separator), " ", qt.showU)
 end
 
 @kwdef mutable struct InstrBuffer
@@ -315,7 +314,10 @@ let
                     CImGui.Button(mlstr("Clear History")) && (reading[] = "")
                     updatecontent = newcmd[][1] == addr ? newcmd[][2] : false
                     updatecontent && (newcmd[] = ("", false))
-                    TextRect(stcstr(reading[], "\n "), updatecontent; size=(Cfloat(0), 12CImGui.GetFontSize()))
+                    TextRect(
+                        stcstr(reading[], "\n "), updatecontent;
+                        size=(CImGui.GetContentRegionAvail().x, 12CImGui.GetFontSize())
+                    )
                     CImGui.Spacing()
                     CImGui.PushStyleVar(CImGui.ImGuiStyleVar_FrameRounding, 24)
                     btw = (CImGui.GetContentRegionAvail().x - 2unsafe_load(IMGUISTYLE.ItemSpacing.x)) / 3
@@ -968,7 +970,7 @@ function view(insbuf::InstrBuffer; filterqt="", filteron=false)
 end
 
 function view(qt::AbstractQuantity, size=(-1, 0))
-    qt.show_view == "" && updatefront!(qt; show_edit=false)
+    qt.show_view == "" && updatefrontview!(qt)
     CImGui.PushStyleColor(
         CImGui.ImGuiCol_Button,
         qt.enable ? CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_Button) : MORESTYLE.Colors.ErrorBg
@@ -979,7 +981,7 @@ function view(qt::AbstractQuantity, size=(-1, 0))
         if !isnothing(uindex)
             uindexo = qt.uindex
             qt.uindex = uindex + 1
-            updatefront!(qt; show_edit=false)
+            updatefrontview!(qt)
             qt.uindex = uindexo
         end
     end
