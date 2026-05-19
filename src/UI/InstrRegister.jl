@@ -89,7 +89,10 @@ let
             CImGui.IsItemDeactivated() && (edithelp = false)
             CImGui.EndChild()
         else
-            region = TextRect(replace(string(qtcf.help, "\n "), "\\\n" => ""); nochild=true)
+            region = TextRect(
+                replace(string(qtcf.help, "\n "), "\\\n" => "");
+                nochild=true, size=(CImGui.GetContentRegionAvail().x, Cfloat(0))
+            )
             CImGui.IsMouseDoubleClicked(0) && mousein(region...) && (edithelp = true)
         end
     end

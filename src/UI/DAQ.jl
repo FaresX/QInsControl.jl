@@ -118,7 +118,7 @@ let
         CImGui.SameLine()
         TextRect(
             WORKPATH;
-            size=(Cfloat(0), bth),
+            size=(CImGui.GetContentRegionAvail().x, bth),
             coltxt=if WORKPATH == mlstr("no workplace selected!!!")
                 MORESTYLE.Colors.ErrorText
             else
