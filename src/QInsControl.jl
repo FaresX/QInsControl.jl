@@ -86,6 +86,7 @@ include("UI/QPlot.jl")
 include("UI/Progress.jl")
 include("UI/DataPicker.jl")
 include("UI/DataPlot.jl")
+include("UI/InstrAlias.jl")
 
 include("UI/DataViewer.jl")
 include("UI/FileTree.jl")
