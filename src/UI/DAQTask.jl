@@ -256,7 +256,7 @@ function run(daqtask::DAQTask)
         Threads.@spawn try
             savecfgcache()
             while update_all()
-                yield()
+                CONF.DAQ.highspeeddatatransfer ? yield() : sleep(0.001)
             end
         catch e
             @error string("[", now(), "]\n", mlstr("updating data failed!")) exception = e
@@ -318,7 +318,7 @@ function run_remote(daqtask::DAQTask)
                             isready(progress_lc) && put!(progress_rc, packtake!(progress_lc, CONF.DAQ.packsize))
                             isready(extradatabuf_lc) && put!(extradatabuf_rc, take!(extradatabuf_lc))
                         end
-                        yield()
+                        CPU.fast[] ? yield() : sleep(0.001)
                     end
                 end
             catch e
