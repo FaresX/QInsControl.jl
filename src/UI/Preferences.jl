@@ -94,7 +94,7 @@ let
                 @c CImGui.DragInt(
                     mlstr("lowest framerate"),
                     &CONF.Basic.lowestframerate,
-                    1, 4, 600, "%d",
+                    1, 1, 600, "%d",
                     CImGui.ImGuiSliderFlags_AlwaysClamp
                 )
                 !isinteractive() && @c(CImGui.DragInt(

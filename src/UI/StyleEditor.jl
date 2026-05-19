@@ -234,6 +234,7 @@ end
     ControlButtonPause::Vector{Cfloat} = [0.000, 0.000, 1.000, 1.000]
     StrideCodeBlockBorder::Vector{Cfloat} = [1.000, 0.000, 0.680, 1.000]
     SweepBlockBorder::Vector{Cfloat} = [1.000, 0.750, 0.000, 1.000]
+    FreeSweepBlockBorder::Vector{Cfloat} = [0.300, 0.600, 1.000, 1.000]
     NormalBlockBorder::Vector{Cfloat} = [1.000, 1.000, 1.000, 0.600]
     BlockAsyncBorder::Vector{Cfloat} = [0.000, 1.000, 0.000, 0.600]
     BlockObserveBG::Vector{Cfloat} = [0.000, 0.960, 1.000, 0.700]
@@ -354,6 +355,7 @@ end
 @option mutable struct MoreStyleVariable
     ImGuiScale::Cfloat = 1
     BigIconSize::Cint = 24
+    BlockBorderSize::Cfloat = 2
     BlockDragdropBorderSize::Cfloat = 2
     TextRectRounding::Cfloat = 0
     TextRectThickness::Cfloat = 2
@@ -571,6 +573,10 @@ let
                 @c CImGui.DragInt(
                     "BigIconSize", &MORESTYLE.Variables.BigIconSize,
                     1, 0, 60, "%d", CImGui.ImGuiSliderFlags_AlwaysClamp
+                )
+                @c CImGui.DragFloat(
+                    "BlockBorderSize", &MORESTYLE.Variables.BlockBorderSize,
+                    1, 1, 24, "%.1f", CImGui.ImGuiSliderFlags_AlwaysClamp
                 )
                 @c CImGui.DragFloat(
                     "BlockDragdropBorderSize", &MORESTYLE.Variables.BlockDragdropBorderSize,
