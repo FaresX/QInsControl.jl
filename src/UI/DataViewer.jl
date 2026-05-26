@@ -226,8 +226,9 @@ function loaddtviewer!(dtviewer::DataViewer, data::Dict, id)
                     @trycatch mlstr("loading image failed!!!") begin
                         img = RGBA.(jpeg_decode(node.imgr.image))
                         imgsize = size(img)
-                        node.imgr.id = CImGui.create_image_texture(imgsize...)._TexID
-                        CImGui.update_image_texture(imtexid(node.imgr.id), img, imgsize...)
+                        tex_ref = CImGui.create_image_texture(imgsize...)
+                        node.imgr.id = tex_ref._TexID
+                        CImGui.update_image_texture(tex_ref, img, imgsize...)
                     end
                 end
             end
@@ -240,8 +241,9 @@ function loadsamplebasenode!(circuit::NodeEditor)
             @trycatch mlstr("loading image failed!!!") begin
                 img = RGBA.(jpeg_decode(node.imgr.image))
                 imgsize = size(img)
-                node.imgr.id = CImGui.create_image_texture(imgsize...)._TexID
-                CImGui.update_image_texture(imtexid(node.imgr.id), img, imgsize...)
+                tex_ref = CImGui.create_image_texture(imgsize...)
+                node.imgr.id = tex_ref._TexID
+                CImGui.update_image_texture(tex_ref, img, imgsize...)
             end
         end
     end

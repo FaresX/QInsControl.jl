@@ -373,8 +373,9 @@ let
                         imgr.id == 0 || destroytexture!(imtexid(imgr.id))
                         img = RGBA.(collect(transpose(FileIO.load(imgpath))))
                         imgsize = size(img)
-                        imgr.id = CImGui.create_image_texture(imgsize...)._TexID
-                        CImGui.update_image_texture(imtexid(imgr.id), img, imgsize...)
+                        tex_ref = CImGui.create_image_texture(imgsize...)
+                        imgr.id = tex_ref._TexID
+                        CImGui.update_image_texture(tex_ref, img, imgsize...)
                         imgr.image = jpeg_encode(img)
                     end
                 end
@@ -710,7 +711,7 @@ let
 end
 
 function deletenode!(nodeeditor::NodeEditor, nodeid)
-    nodeeditor.nodes[nodeid] isa SampleHolderNode && destroytexture!(CImGui.ImTextureRef(CImGui.ImTextureID(nodeeditor.nodes[nodeid].imgr.id)))
+    nodeeditor.nodes[nodeid] isa SampleHolderNode && destroytexture!(imtexid(nodeeditor.nodes[nodeid].imgr.id))
     delete!(nodeeditor.nodes, nodeid)
     dellinks = Cint[]
     for (j, link) in enumerate(nodeeditor.links)

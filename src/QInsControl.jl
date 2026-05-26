@@ -113,8 +113,6 @@ function julia_main()::Cint
             nprocs() == 1 && addprocs(1)
         end
         @eval @everywhere using QInsControlCore
-        
-        startlogger(CONF.Logs.dir)
 
         QInsControlCore.REFRESHINRC = RemoteChannel(() -> Channel{Tuple{String,String,String,Cfloat}}(CONF.DAQ.channelsize))
         QInsControlCore.REFRESHOUTRC = RemoteChannel(() -> Channel{Tuple{String,String,String,String}}(CONF.DAQ.channelsize))
@@ -122,6 +120,8 @@ function julia_main()::Cint
         QInsControlCore.EXTRADATABUFRC = RemoteChannel(() -> Channel{Tuple{String,Vector{Any}}}(CONF.DAQ.channelsize))
         QInsControlCore.PROGRESSRC = RemoteChannel(() -> Channel{Vector{Tuple{UUID,Int,Int,Float64}}}(CONF.DAQ.channelsize))
         QInsControlCore.SYNCSTATES = QInsControlCore.SharedVector{Bool}(length(instances(QInsControlCore.SyncStatesIndex)))
+
+        startlogger(CONF.Logs.dir)
 
         loadinsconf()
 
