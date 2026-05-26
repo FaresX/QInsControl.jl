@@ -104,7 +104,6 @@ function UI()
                 end
             end
             if CONF.Basic.waitevents
-                # nowait = CImGui.IsAnyItemActive() || CImGui.IsAnyItemHovered() || CImGui.IsAnyMouseDown()
                 if CImGui.IsAnyItemActive() || CImGui.IsAnyItemHovered()
                     dorender()
                 elseif CImGui.IsAnyMouseDown() || unsafe_load(io.MouseWheel) != 0
@@ -152,7 +151,7 @@ let
         isrunningpost[] = true
         Threads.@spawn begin
             while isrunningpost[]
-                eventnum[] += 1
+                CONF.Basic.waitevents && (eventnum[] += 1)
                 sleep(1 / CONF.Basic.lowestframerate)
             end
         end
@@ -167,6 +166,7 @@ let
         hasaddevent[] = false
     end
     global function dorender(n=1, skip=true)
+        CONF.Basic.waitevents || return
         if (skip && !hasaddevent[]) || !skip
             eventnum[] += n
             hasaddevent[] = true

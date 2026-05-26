@@ -91,7 +91,7 @@ let
                 # end
                 @c RadioButton2(mlstr("wait events"), mlstr("poll events"), &CONF.Basic.waitevents; local_pos_x=12ftsz)
                 @c RadioButton2(mlstr("dual core"), mlstr("single core"), &CONF.Basic.isremote; local_pos_x=12ftsz)
-                @c CImGui.DragInt(
+                CONF.Basic.waitevents && @c CImGui.DragInt(
                     mlstr("lowest framerate"),
                     &CONF.Basic.lowestframerate,
                     1, 1, 600, "%d",
