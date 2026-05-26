@@ -10,30 +10,28 @@ let
             &CONF.Server.port,
             1.0, 1, 65535, "%d",
             CImGui.ImGuiSliderFlags_AlwaysClamp
-        )) && timed_remotecall_wait(x -> (CONF.Server.port = x), workers()[1], CONF.Server.port)
+        )) && remote_setport!(CONF.Server.port)
         @c(CImGui.DragInt(
             mlstr("max clients"),
             &CONF.Server.maxclients,
             1.0, 1, 128, "%d",
             CImGui.ImGuiSliderFlags_AlwaysClamp
-        )) && timed_remotecall_wait(workers()[1], CONF.Server.maxclients) do x
-            QICSERVER.maxclients = CONF.Server.maxclients = x
-        end
+        )) && remote_setmaxclients!(CONF.Server.maxclients)
         @c(CImGui.DragInt(
             mlstr("buffer size"),
             &CONF.Server.buflen,
             1.0, 4, 4096, "%d",
             CImGui.ImGuiSliderFlags_AlwaysClamp
-        )) && timed_remotecall_wait(x -> (QICSERVER.buflen = CONF.Server.buflen = x), workers()[1], CONF.Server.buflen)
+        )) && remote_setbuflen!(CONF.Server.buflen)
         if ToggleButton(mlstr(serverbuffer.running ? "Running" : "Stopped"), Ref(serverbuffer.running))
-            timed_remotecall_wait(running -> running ? stop!(QICSERVER) : start!(QICSERVER), workers()[1], serverbuffer.running)
+            serverbuffer.running ? remote_stopserver!() : remote_startserver!(CONF.DAQ.ctbuflen)
         end
         CImGui.SameLine(0, CImGui.GetFontSize())
         CImGui.TextColored(MORESTYLE.Colors.HighlightText, string(serverbuffer.port))
         if serverbuffer.running
             CImGui.SameLine()
             if @c CImGui.Checkbox(mlstr(serverbuffer.fast ? "Fast Mode" : "Slow Mode"), &serverbuffer.fast)
-                timed_remotecall_wait(isfast -> (QICSERVER.fast = isfast), workers()[1], serverbuffer.fast)
+                remote_servermode!(serverbuffer.fast)
             end
         end
         manageclients()
@@ -69,14 +67,7 @@ let
                 CImGui.SameLine()
                 client.connected || CImGui.PushStyleColor(CImGui.ImGuiCol_Text, MORESTYLE.Colors.ErrorText)
                 if CImGui.Button(stcstr(MORESTYLE.Icons.Delete, "##", client.addr, ":", client.port))
-                    timed_remotecall_wait(workers()[1], client.addr, client.port) do addr, port
-                        for c in QICSERVER.clients
-                            if string(c.addr) == string(addr) && c.port == port
-                                c.connected = false
-                                break
-                            end
-                        end
-                    end
+                    remote_deleteclient!(client.addr, client.port)
                 end
                 client.connected || CImGui.PopStyleColor()
             end
@@ -116,7 +107,7 @@ let
             end
             if serverbuffer.newmsg
                 shownewest && CImGui.SetScrollHereY(1)
-                timed_remotecall_wait(() -> QICSERVER.newmsg = false, workers()[1])
+                remote_servernewmsg!(false)
             end
             CImGui.EndTable()
         end
@@ -128,7 +119,7 @@ let
         task = if haskey(refreshtask, "task")
             refreshtask["task"]
         else
-            refreshtask["task"] = @async timed_remotecall_fetch(() -> QICSERVER, workers()[1]; timeout=1, quiet=true)
+            refreshtask["task"] = @async remote_fetchserver()
         end
         if istaskdone(task)
             serverfetch = istaskfailed(task) ? nothing : fetch(task)

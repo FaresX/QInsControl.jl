@@ -177,7 +177,7 @@ let
         end
 
         SeparatorTextColored(MORESTYLE.Colors.InfoText, mlstr("Data Processing"))
-        if SYNCSTATES[Int(IsDAQTaskRunning)] && dtss.isrealtime
+        if SYNCSTATES[IsDAQTaskRunning] && dtss.isrealtime
             CImGui.Button(stcstr(MORESTYLE.Icons.Update, " ", mlstr("Update Function"))) && (dtss.updateprocessfunc = true)
             CImGui.SameLine(CImGui.GetContentRegionAvail().x - dtss.alsz)
             CImGui.Text(mlstr("sampling rate"))
@@ -255,7 +255,7 @@ let
             plotfigurelayout(plt, dtpk)
         end
         for (i, dtss) in enumerate(dtpk.series)
-            if dtss.update || (SYNCSTATES[Int(IsDAQTaskRunning)] && dtss.isrealtime &&
+            if dtss.update || (SYNCSTATES[IsDAQTaskRunning] && dtss.isrealtime &&
                                waittime(stcstr("DataPicker", plt.id, "-", i), dtss.refreshrate))
                 if haskey(synctasks[plt.id], i) && istaskdone(synctasks[plt.id][i])
                     if !istaskfailed(synctasks[plt.id][i])
@@ -311,7 +311,7 @@ let
                 observables[dtss] = (Observable(collect(cx)), Observable(collect(cy)), Observable(collect(cz)))
             end
         catch e
-            if !(SYNCSTATES[Int(IsDAQTaskRunning)] && dtss.isrealtime)
+            if !(SYNCSTATES[IsDAQTaskRunning] && dtss.isrealtime)
                 @error string("[", now(), "]\n", mlstr("setting observables failed!!!")) exception = e
                 showbacktrace()
             end
@@ -362,13 +362,13 @@ let
                         x, y, z
                     end
                 end
-                processfuncs[dtss] = CONF.DAQ.externaleval ? @eval(Main, $exfunc) : eval(exfunc)
+                processfuncs[dtss] = eval(exfunc)
                 dtss.updateprocessfigurefunc = true
             end
             exprocess = :($(processfuncs[dtss])($xbuf, $ybuf, $zbuf, $wbuf, $auxbufs...))
-            return CONF.DAQ.externaleval ? @eval(Main, $exprocess) : eval(exprocess)
+            return eval(exprocess)
         catch e
-            if !(SYNCSTATES[Int(IsDAQTaskRunning)] && dtss.isrealtime)
+            if !(SYNCSTATES[IsDAQTaskRunning] && dtss.isrealtime)
                 @error string("[", now(), "]\n", mlstr("pre-processing data failed!!!")) exception = e
                 showbacktrace()
             end
@@ -389,11 +389,11 @@ let
                         $innercodes
                     end
                 end
-                processfigurefuncs[dtss] = CONF.DAQ.externaleval ? @eval(Main, $exfunc) : eval(exfunc)
+                processfigurefuncs[dtss] = eval(exfunc)
             end
             :($(processfigurefuncs[dtss])(FIGURES[$(plt.id)], $x, $y, $z)) |> eval
         catch e
-            if !(SYNCSTATES[Int(IsDAQTaskRunning)] && dtss.isrealtime)
+            if !(SYNCSTATES[IsDAQTaskRunning] && dtss.isrealtime)
                 @error string("[", now(), "]\n", mlstr("post-processing figure failed!!!")) exception = e
                 showbacktrace()
             end

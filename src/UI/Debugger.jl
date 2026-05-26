@@ -22,7 +22,7 @@ let
                         CImGui.TableNextRow()
                         for state in instances(SyncStatesIndex)
                             CImGui.TableNextColumn()
-                            CImGui.Text(stcstr(SYNCSTATES[Int(state)]))
+                            CImGui.Text(stcstr(SYNCSTATES[state]))
                         end
                         CImGui.EndTable()
                     end
@@ -84,8 +84,8 @@ let
                     CImGui.TreePop()
                 end
 
-                if CImGui.TreeNode("MLSTRINGS ($(length(MLSTRINGS)))###MLSTRINGS")
-                    for (key, val) in MLSTRINGS
+                if CImGui.TreeNode("MLSTRINGS ($(length(QInsControlCore.MLSTRINGS)))###MLSTRINGS")
+                    for (key, val) in QInsControlCore.MLSTRINGS
                         CImGui.TextColored(MORESTYLE.Colors.HighlightText, string(key, " : "))
                         CImGui.SameLine()
                         CImGui.Text(val)

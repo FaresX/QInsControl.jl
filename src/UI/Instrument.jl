@@ -1,7 +1,5 @@
-idn_get(instr) = eval(Symbol(instr.attr.idnfunc))(instr)
-
 function autodetect()
-    addrs = remotecall_fetch(() -> find_resources(CPU), workers()[1])
+    addrs = remote_find_resources!()
     for addr in addrs
         manualadd(addr)
     end
@@ -12,23 +10,12 @@ function manualadd(addr)
     addr == "VirtualAddress" && return true
     idn = "IDN"
     st = true
-    loadattr(addr)
+    loadattr(CONF.Communication.attrlist, addr)
+    syncattr(addr)
     if occursin("VIRTUAL", addr)
         idn = split(addr, "::")[end]
     else
-        attr=getattr(addr)
-        idnr = timed_remotecall_fetch(workers()[1], addr, attr; timeout=attr.timeoutr) do addr, attr
-            ct = Controller("", addr; buflen=1)
-            try
-                login!(CPU, ct; attr=attr)
-                ct(idn_get, CPU, Val(:read); timeout=attr.timeoutr)
-            catch e
-                @error "[$(now())]\n$(mlstr("instrument communication failed!!!"))" instrument_address = addr exception = e
-                showbacktrace()
-            finally
-                logout!(CPU, ct)
-            end
-        end
+        idnr = remote_idn_get(addr)
         if isnothing(idnr)
             for ins in keys(INSTRBUFFERVIEWERS)
                 ins == "Others" && continue
@@ -53,8 +40,8 @@ function manualadd(addr)
 end
 
 function refresh_instrlist()
-    if !SYNCSTATES[Int(AutoDetecting)] && !SYNCSTATES[Int(AutoDetectDone)]
-        SYNCSTATES[Int(AutoDetecting)] = true
+    if !STATES[Int(AutoDetecting)] && !STATES[Int(AutoDetectDone)]
+        STATES[Int(AutoDetecting)] = true
         @async begin
             try
                 for ins in keys(INSTRBUFFERVIEWERS)
@@ -62,9 +49,9 @@ function refresh_instrlist()
                     empty!(INSTRBUFFERVIEWERS[ins])
                 end
                 autodetect()
-                SYNCSTATES[Int(AutoDetecting)] && (SYNCSTATES[Int(AutoDetectDone)] = true)
+                STATES[Int(AutoDetecting)] && (STATES[Int(AutoDetectDone)] = true)
             catch e
-                SYNCSTATES[Int(AutoDetecting)] && (SYNCSTATES[Int(AutoDetectDone)] = true)
+                STATES[Int(AutoDetecting)] && (STATES[Int(AutoDetectDone)] = true)
                 @error string("[", now(), "]\n", mlstr("auto searching failed!!!")) exception = e
                 showbacktrace()
             end
@@ -77,9 +64,9 @@ function poll_autodetect()
     @async @trycatch mlstr("task failed!!!") begin
         starttime = time()
         while true
-            if SYNCSTATES[Int(AutoDetectDone)] || time() - starttime > 180
-                SYNCSTATES[Int(AutoDetecting)] = false
-                SYNCSTATES[Int(AutoDetectDone)] = false
+            if STATES[Int(AutoDetectDone)] || time() - starttime > 180
+                STATES[Int(AutoDetecting)] = false
+                STATES[Int(AutoDetectDone)] = false
                 break
             end
             sleep(0.001)
@@ -95,12 +82,12 @@ let
         @c ComboS("##OthersIns", &addinstr, keys(INSTRBUFFERVIEWERS["Others"]))
         CImGui.SameLine()
         if CImGui.Button(stcstr(MORESTYLE.Icons.NewFile))
-            if !SYNCSTATES[Int(AutoDetecting)] && !SYNCSTATES[Int(AutoDetectDone)]
-                SYNCSTATES[Int(AutoDetecting)] = true
+            if !STATES[Int(AutoDetecting)] && !STATES[Int(AutoDetectDone)]
+                STATES[Int(AutoDetecting)] = true
                 st = manualadd(addinstr)
                 st && (addinstr = "")
                 time_old = time()
-                SYNCSTATES[Int(AutoDetecting)] = false
+                STATES[Int(AutoDetecting)] = false
             end
         end
         return time() - time_old < 2, st
@@ -126,12 +113,12 @@ let
         end
         CImGui.SameLine()
         if CImGui.Button(stcstr(MORESTYLE.Icons.NewFile, "##manual input addr"))
-            if !SYNCSTATES[Int(AutoDetecting)] && !SYNCSTATES[Int(AutoDetectDone)]
-                SYNCSTATES[Int(AutoDetecting)] = true
+            if !STATES[Int(AutoDetecting)] && !STATES[Int(AutoDetectDone)]
+                STATES[Int(AutoDetecting)] = true
                 st = manualadd(newinsaddr)
                 st && (newinsaddr = "")
                 time_old = time()
-                SYNCSTATES[Int(AutoDetecting)] = false
+                STATES[Int(AutoDetecting)] = false
             end
         end
         return time() - time_old < 2, st

@@ -91,18 +91,18 @@ let
                 # end
                 @c RadioButton2(mlstr("wait events"), mlstr("poll events"), &CONF.Basic.waitevents; local_pos_x=12ftsz)
                 @c RadioButton2(mlstr("dual core"), mlstr("single core"), &CONF.Basic.isremote; local_pos_x=12ftsz)
-                @c CImGui.DragInt(
+                CONF.Basic.waitevents && @c CImGui.DragInt(
                     mlstr("lowest framerate"),
                     &CONF.Basic.lowestframerate,
                     1, 1, 600, "%d",
                     CImGui.ImGuiSliderFlags_AlwaysClamp
                 )
-                !isinteractive() && @c(CImGui.DragInt(
+                !isinteractive() && @c CImGui.DragInt(
                     mlstr("threads"),
                     &CONF.Basic.nthreads,
                     1, 1, 100, "%d",
                     CImGui.ImGuiSliderFlags_AlwaysClamp
-                ))
+                )
                 @c CImGui.DragInt(
                     mlstr("DAQ threads"),
                     &CONF.Basic.nthreads_2,
@@ -159,10 +159,7 @@ let
                     isvalidpath(visapath) && (CONF.Communication.visapath = visapath)
                     if isfile(CONF.Communication.visapath)
                         QInsControlCore.set_libvisa(CONF.Communication.visapath)
-                        timed_remotecall_wait(workers()[1], CONF.Communication.visapath) do visapath
-                            CONF.Communication.visapath = visapath
-                            QInsControlCore.set_libvisa(visapath)
-                        end
+                        QInsControlCore.remote_set_libvisa!(CONF.Communication.visapath)
                     end
                 end
                 CImGui.Text(" ")
@@ -183,12 +180,11 @@ let
                 @c(RadioButton2(
                     mlstr("log all quantities"), mlstr("log enabled quantities"), &CONF.DAQ.logall;
                     local_pos_x=12ftsz
-                )) && timed_remotecall_wait(x -> CONF.DAQ.logall = x, workers()[1], CONF.DAQ.logall)
+                ))
                 @c(RadioButton2(
                     mlstr("equal step sampling"), mlstr("fixed step sampling"), &CONF.DAQ.equalstep;
                     local_pos_x=12ftsz
-                )) && timed_remotecall_wait(x -> CONF.DAQ.equalstep = x, workers()[1], CONF.DAQ.equalstep)
-                @c RadioButton2(mlstr("eval in Main"), mlstr("eval in QInsControl"), &CONF.DAQ.externaleval; local_pos_x=12ftsz)
+                ))
                 @c ComboS(mlstr("stored data type"), &CONF.DAQ.savetype, datatypes)
                 @c CImGui.DragInt(
                     stcstr(mlstr("saving time"), " (min)"),
@@ -207,19 +203,19 @@ let
                     &CONF.DAQ.channelsize,
                     1.0, 4, 2048, "%d",
                     CImGui.ImGuiSliderFlags_AlwaysClamp
-                )) && timed_remotecall_wait(x -> (CONF.DAQ.channelsize = x), workers()[1], CONF.DAQ.channelsize)
+                ))
                 @c(CImGui.DragInt(
                     mlstr("packing size"),
                     &CONF.DAQ.packsize,
                     1.0, 6, 2048, "%d",
                     CImGui.ImGuiSliderFlags_AlwaysClamp
-                )) && timed_remotecall_wait(x -> (CONF.DAQ.packsize = x), workers()[1], CONF.DAQ.packsize)
+                ))
                 @c(CImGui.DragInt(
                     mlstr("controller buffer size"),
                     &CONF.DAQ.ctbuflen,
                     1.0, 1, 1024, "%d",
                     CImGui.ImGuiSliderFlags_AlwaysClamp
-                )) && timed_remotecall_wait(x -> (CONF.DAQ.ctbuflen = x), workers()[1], CONF.DAQ.ctbuflen)
+                ))
                 @c CImGui.DragInt(
                     stcstr(mlstr("history blocks"), "##DAQ"),
                     &CONF.DAQ.historylen,
@@ -231,13 +227,13 @@ let
                     &CONF.DAQ.retrysendtimes,
                     1.0, 1, 60, "%d",
                     CImGui.ImGuiSliderFlags_AlwaysClamp
-                )) && timed_remotecall_wait(x -> (CONF.DAQ.retrysendtimes = x), workers()[1], CONF.DAQ.retrysendtimes)
+                ))
                 @c(CImGui.DragInt(
                     stcstr(mlstr("times of retrying connecting"), "##DAQ"),
                     &CONF.DAQ.retryconnecttimes,
                     1.0, 1, 60, "%d",
                     CImGui.ImGuiSliderFlags_AlwaysClamp
-                )) && timed_remotecall_wait(x -> (CONF.DAQ.retryconnecttimes = x), workers()[1], CONF.DAQ.retryconnecttimes)
+                ))
                 CImGui.Text(" ")
 
 
@@ -245,7 +241,7 @@ let
                 SeparatorTextColored(MORESTYLE.Colors.HighlightText, mlstr("Instrument Control"))
                 @c(CImGui.Checkbox(
                     mlstr("read after writing"), &CONF.InsBuf.retreading)
-                ) && timed_remotecall_wait(x -> (CONF.InsBuf.retreading = x), workers()[1], CONF.InsBuf.retreading)
+                )
                 @c CImGui.Checkbox(mlstr("show help"), &CONF.InsBuf.showhelp)
                 @c CImGui.DragInt(
                     mlstr("display columns"),
@@ -262,21 +258,19 @@ let
                     &CONF.Server.port,
                     1.0, 1, 65535, "%d",
                     CImGui.ImGuiSliderFlags_AlwaysClamp
-                )) && timed_remotecall_wait(x -> (CONF.Server.port = x), workers()[1], CONF.Server.port)
+                )) && remote_setport!(CONF.Server.port)
                 @c(CImGui.DragInt(
                     mlstr("max clients"),
                     &CONF.Server.maxclients,
                     1.0, 1, 128, "%d",
                     CImGui.ImGuiSliderFlags_AlwaysClamp
-                )) && timed_remotecall_wait(workers()[1], CONF.Server.maxclients) do x
-                    QICSERVER.maxclients = CONF.Server.maxclients = x
-                end
+                )) && remote_setmaxclients!(CONF.Server.maxclients)
                 @c(CImGui.DragInt(
                     mlstr("buffer size"),
                     &CONF.Server.buflen,
                     1.0, 4, 4096, "%d",
                     CImGui.ImGuiSliderFlags_AlwaysClamp
-                )) && timed_remotecall_wait(x -> (QICSERVER.buflen = CONF.Server.buflen = x), workers()[1], CONF.Server.buflen)
+                )) && remote_setbuflen!(CONF.Server.buflen)
                 # termchar = TERMCHARDICTINV[CONF.Server.termchar]
                 # @c(ComboS(
                 #     mlstr("Termination Character"), &termchar, keys(TERMCHARDICT)

@@ -155,7 +155,9 @@ let
                     CImGui.MenuItem(stcstr(MORESTYLE.Icons.Undo, " ", mlstr("Undo"))) && undo!(daqtask, id)
                     CImGui.MenuItem(stcstr(MORESTYLE.Icons.Redo, " ", mlstr("Redo"))) && redo!(daqtask, id)
                     if CImGui.MenuItem(stcstr(MORESTYLE.Icons.Convert, " ", mlstr("Compile")))
-                        @info "[$(now())]\n" codes = @trypasse prettify(compile(daqtask.blocks)) nothing
+                        ex = compile(daqtask.blocks)
+                        ex = @trypasse prettify(ex) ex
+                        @info "[$(now())]\n" codes = ex
                     end
                     CImGui.EndPopup()
                 end
@@ -201,27 +203,25 @@ function saferun(daqtask::DAQTask)
     catch e
         @error "[$(now())]\n$(mlstr("running task terminated unexpectedly!!!"))" exception = e
         showbacktrace()
-        if SYNCSTATES[Int(IsDAQTaskRunning)]
-            SYNCSTATES[Int(IsInterrupted)] = true
-            if SYNCSTATES[Int(IsBlocked)]
-                SYNCSTATES[Int(IsBlocked)] = false
-                remote_do(workers()[1]) do
-                    lock(() -> notify(BLOCK), BLOCK)
-                end
+        if SYNCSTATES[IsDAQTaskRunning]
+            SYNCSTATES[IsInterrupted] = true
+            if SYNCSTATES[IsBlocked]
+                SYNCSTATES[IsBlocked] = false
+                remote_continue()
             end
         end
         t1 = time()
-        while time() - t1 < 12 && (!SYNCSTATES[Int(IsDAQTaskDone)] || isready(DATABUFRC) || isready(PROGRESSRC))
-            isready(DATABUFRC) && take!(DATABUFRC)
-            isready(PROGRESSRC) && take!(PROGRESSRC)
+        while time() - t1 < 12 && (!SYNCSTATES[IsDAQTaskDone] || isready_databufrc() || isready_progressrc())
+            isready_databufrc() && take_databufrc!()
+            isready_progressrc() && take_progressrc!()
             sleep(0.001)
         end
         @warn "[$(now())]\n$(mlstr("terminates the task successfully!"))"
-        SYNCSTATES[Int(IsDAQTaskDone)] = false
-        SYNCSTATES[Int(IsDAQTaskRunning)] = false
-        SYNCSTATES[Int(IsInterrupted)] = false
+        SYNCSTATES[IsDAQTaskDone] = false
+        SYNCSTATES[IsDAQTaskRunning] = false
+        SYNCSTATES[IsInterrupted] = false
     end
-    SYNCSTATES[Int(IsAutoRefreshing)] = true
+    STATES[AutoRefreshing] = true
 end
 
 function run(daqtask::DAQTask)
@@ -231,8 +231,9 @@ function run(daqtask::DAQTask)
     global QDTCACHESAVEPATH
     global OLDI
     global RUNNINGTASK
-    SYNCSTATES[Int(IsDAQTaskRunning)] = true
-    SYNCSTATES[Int(IsAutoRefreshing)] = false
+    SYNCSTATES[IsDAQTaskRunning] = true
+    STATES[AutoRefreshing] = false
+    STATES[InValidFile] = false
     RUNNINGTASK = daqtask.name
     date = today()
     find_old_i(joinpath(WORKPATH, string(year(date)), string(year(date), "-", month(date)), string(date)))
@@ -248,7 +249,7 @@ function run(daqtask::DAQTask)
     catch e
         @error "[$(now())]\n$(mlstr("instrument logging error, program terminates!!!"))" exception = e
         showbacktrace()
-        SYNCSTATES[Int(IsDAQTaskRunning)] = false
+        SYNCSTATES[IsDAQTaskRunning] = false
         return nothing
     end
     run_remote(daqtask)
@@ -268,37 +269,33 @@ end
 
 
 function run_remote(daqtask::DAQTask)
-    remotecall_wait(() -> unsetbusy!(CPU), workers()[1])
-    remotecall_wait(workers()[1]) do
-        for instr in keys(CPU.instrs)
-            logout!(CPU, instr)
-        end
-    end
-    controllers, st = remotecall_fetch(extract_controllers, workers()[1], daqtask.blocks)
+    remote_unsetbusy!()
+    remote_logout!()
+    controllers, st = extract_controllers(daqtask.blocks)
     empty!(DATABUF)
     empty!(DATABUFPARSED)
     if !st
-        SYNCSTATES[Int(IsDAQTaskDone)] = true
+        SYNCSTATES[IsDAQTaskDone] = true
         return
     end
     rn = length(controllers)
-    ex1 = try
+    func1 = try
         compile(daqtask.blocks)
     catch e
         @error "[$(now())]\n$(mlstr("generating codes failed!!!"))" exception = e
-        SYNCSTATES[Int(IsDAQTaskDone)] = true
+        SYNCSTATES[IsDAQTaskDone] = true
         return
     end
-    ex = quote
-        $ex1
+    func2 = quote
+        $func1
         function remote_do_block(databuf_rc, progress_rc, extradatabuf_rc, SYNCSTATES, rn)
             controllers = $controllers
             try
-                databuf_lc = Channel{Tuple{String,String}}(CONF.DAQ.channelsize)
-                progress_lc = Channel{Tuple{UUID,Int,Int,Float64}}(CONF.DAQ.channelsize)
-                extradatabuf_lc = Channel{Tuple{String,Vector{String}}}(CONF.DAQ.channelsize)
+                databuf_lc = Channel{Tuple{String,String}}($(CONF.DAQ.channelsize))
+                progress_lc = Channel{Tuple{UUID,Int,Int,Float64}}($(CONF.DAQ.channelsize))
+                extradatabuf_lc = Channel{Tuple{String,Vector{String}}}($(CONF.DAQ.channelsize))
                 @sync begin
-                    remotedotask = @async @trycatch mlstr("remotedotask failed!!!") begin
+                    remotedotask = @async @trycatch "remotedotask failed!!!" begin
                         start!(CPU)
                         fast!(CPU)
                         for ct in values(controllers)
@@ -306,23 +303,23 @@ function run_remote(daqtask::DAQTask)
                         end
                         remote_sweep_block(controllers, databuf_lc, progress_lc, extradatabuf_lc, SYNCSTATES)
                     end
-                    @async @trycatch mlstr("transfering data task failded!!!") while true
+                    @async @trycatch "transfering data task failded!!!" while true
                         if istaskdone(remotedotask) && all(.!isready.(
                             [databuf_lc, databuf_rc, progress_lc, progress_rc, extradatabuf_lc, extradatabuf_rc]
                         ))
-                            timed_remotecall_wait(eval, 1, :(log_instrbufferviewers()); timeout=60)
-                            SYNCSTATES[Int(IsDAQTaskDone)] = true
+                            logblock()
+                            SYNCSTATES[IsDAQTaskDone] = true
                             break
                         else
-                            isready(databuf_lc) && put!(databuf_rc, packtake!(databuf_lc, 2rn * CONF.DAQ.packsize))
-                            isready(progress_lc) && put!(progress_rc, packtake!(progress_lc, CONF.DAQ.packsize))
+                            isready(databuf_lc) && put!(databuf_rc, packtake!(databuf_lc, 2rn * $(CONF.DAQ.packsize)))
+                            isready(progress_lc) && put!(progress_rc, packtake!(progress_lc, $(CONF.DAQ.packsize)))
                             isready(extradatabuf_lc) && put!(extradatabuf_rc, take!(extradatabuf_lc))
                         end
                         CPU.fast[] ? yield() : sleep(0.001)
                     end
                 end
             catch e
-                @error "[$(now())]\n$(mlstr("task failed!!!"))" exeption = e
+                @error "[$(now())]\ntask failed!!!" exception = e
                 showbacktrace()
             finally
                 unsetbusy!(CPU)
@@ -333,38 +330,20 @@ function run_remote(daqtask::DAQTask)
             end
         end
     end
-    timed_remotecall_wait(workers()[1], ex1, ex, SYNCSTATES; timeout=60) do ex1, ex, SYNCSTATES
-        try
-            @info "[$(now())]\n" task = @trypasse prettify(ex1) ex1
-            eval(ex)
-        catch e
-            SYNCSTATES[Int(IsDAQTaskDone)] = true
-            @error "[$(now())]\n$(mlstr("errors in program definition!!!"))" exception = e
-            showbacktrace()
-        end
-    end
-    SYNCSTATES[Int(IsDAQTaskDone)] && return
-    remote_do(
-        workers()[1], DATABUFRC, PROGRESSRC, EXTRADATABUFRC, SYNCSTATES, rn
-    ) do databuf_rc, progress_rc, extradatabuf_rc, syncstates, rn
-        try
-            global BLOCK = Threads.Condition()
-            remote_do_block(databuf_rc, progress_rc, extradatabuf_rc, syncstates, rn)
-        catch e
-            syncstates[Int(IsDAQTaskDone)] = true
-            @error "[$(now())]\n$(mlstr("executing program failed!!!"))" exception = e
-            showbacktrace()
-        end
-    end
+    func1 = @trypasse prettify(func1) func1
+    @info "[$(now())]\n" task = func1
+    remote_def_prog(func2)
+    SYNCSTATES[IsDAQTaskDone] && return
+    remote_runtask(rn)
 end
 
 function update_all()
-    if SYNCSTATES[Int(IsDAQTaskDone)]
+    if SYNCSTATES[IsDAQTaskDone]
         (isfile(SAVEPATH) | !isempty(DATABUF)) && (saveqdt(); global OLDI += 1)
         lock(empty!, PROGRESSLIST)
         empty!(CFGBUF)
-        SYNCSTATES[Int(IsDAQTaskDone)] = false
-        SYNCSTATES[Int(IsDAQTaskRunning)] = false
+        SYNCSTATES[IsDAQTaskDone] = false
+        SYNCSTATES[IsDAQTaskRunning] = false
         Base.Filesystem.rm(CFGCACHESAVEPATH; force=true)
         Base.Filesystem.rm(QDTCACHESAVEPATH; force=true)
         return false
@@ -378,8 +357,8 @@ end
 let
     cache::Vector{Tuple{String,String}} = []
     global function update_data()
-        if isready(DATABUFRC)
-            packdata = take!(DATABUFRC)
+        if isready_databufrc()
+            packdata = take_databufrc!()
             for data in packdata
                 haskey(DATABUF, data[1]) || (DATABUF[data[1]] = String[])
                 haskey(DATABUFPARSED, data[1]) || (DATABUFPARSED[data[1]] = Float64[])
@@ -415,8 +394,8 @@ let
             waittime("savecfgcache", 60CONF.DAQ.savetime) && savecfgcache()
             waittime("savedatabuf", 60CONF.DAQ.savetime) && saveqdt()
         end
-        if isready(EXTRADATABUFRC)
-            key, val = take!(EXTRADATABUFRC)
+        if isready_extradatabufrc()
+            key, val = take_extradatabufrc!()
             DATABUF[key] = val
             DATABUFPARSED[key] = replace(tryparse.(Float64, val), nothing => NaN)
             haskey(CFGBUF, "EXTRADATA") || (CFGBUF["EXTRADATA"] = Dict())
@@ -445,7 +424,7 @@ function saveqdt()
             file[key] = val
         end
         file["info"] = fileinfo()
-        file["valid"] = false
+        file["valid"] = !STATES[InValidFile]
     end
     if sum(length(data) for data in values(DATABUF); init=0) > CONF.DAQ.cuttingfile
         dir, file = splitdir(SAVEPATH)
@@ -467,7 +446,7 @@ function savecfgcache()
             file[key] = val
         end
         file["info"] = fileinfo()
-        file["valid"] = false
+        file["valid"] = !STATES[InValidFile]
     end
 end
 function saveqdtcache(cache)
@@ -495,29 +474,11 @@ function extract_controllers(bkch::Vector{AbstractBlock})
     for bk in bkch
         if isinstr(bk)
             bk.instrnm == "VirtualInstr" && bk.addr != "VirtualAddress" && return controllers, false
-            attr = getattr(bk.addr)
-            ct = Controller(
-                bk.instrnm, bk.addr;
-                buflen=CONF.DAQ.ctbuflen,
-                busytimeout=attr.timeoutr * CONF.DAQ.retryconnecttimes * CONF.DAQ.retrysendtimes
-            )
-            try
-                @assert haskey(INSTRBUFFERVIEWERS, bk.instrnm) mlstr("$(bk.instrnm) has not been added")
-                @assert haskey(INSTRBUFFERVIEWERS[bk.instrnm], bk.addr) mlstr("$(bk.addr) has not been added")
-                login!(CPU, ct; attr=attr)
-                ct(idn_get, CPU, Val(:read); timeout=attr.timeoutr)
-                controllers[string(bk.instrnm, "/", bk.addr)] = ct
-            catch e
-                @error(
-                    "[$(now())]\n$(mlstr("incorrect instrument settings!!!"))",
-                    instrument = string(bk.instrnm, ": ", bk.addr),
-                    exception = e
-                )
-                showbacktrace()
-                return controllers, false
-            finally
-                logout!(CPU, ct)
-            end
+            @assert haskey(INSTRBUFFERVIEWERS, bk.instrnm) mlstr("$(bk.instrnm) has not been added")
+            @assert haskey(INSTRBUFFERVIEWERS[bk.instrnm], bk.addr) mlstr("$(bk.addr) has not been added")
+            ct, st = remote_check_instr(bk.instrnm, bk.addr, CONF.DAQ.ctbuflen, CONF.DAQ.retryconnecttimes, CONF.DAQ.retrysendtimes)
+            st || return controllers, false
+            controllers[string(bk.instrnm, "/", bk.addr)] = ct
         end
         if iscontainer(bk)
             inner_controllers, inner_st = extract_controllers(bk.blocks)
@@ -548,6 +509,7 @@ function newfile(filename="")
     Base.Filesystem.rm(CFGCACHESAVEPATH; force=true)
     Base.Filesystem.rm(QDTCACHESAVEPATH; force=true)
 
+    STATES[InValidFile] = false
     date = today()
     find_old_i(joinpath(WORKPATH, string(year(date)), string(year(date), "-", month(date)), string(date)))
     cfgsvdir = joinpath(WORKPATH, string(year(date)), string(year(date), "-", month(date)), string(date))

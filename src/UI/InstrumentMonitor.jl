@@ -6,12 +6,12 @@ let
         CImGui.PushStyleColor(CImGui.ImGuiCol_Border, MORESTYLE.Colors.ItemBorder)
         CImGui.PushStyleVar(CImGui.ImGuiStyleVar_ChildBorderSize, 1)
         CImGui.BeginChild("border1", (Cfloat(0), btw + 2unsafe_load(IMGUISTYLE.WindowPadding.y)), true)
-        showst |= SYNCSTATES[Int(AutoDetecting)]
+        showst |= STATES[AutoDetecting]
         showst && CImGui.PushStyleColor(
             CImGui.ImGuiCol_Button,
-            SYNCSTATES[Int(AutoDetecting)] ? MORESTYLE.Colors.InfoBg : st ? MORESTYLE.Colors.HighlightText : MORESTYLE.Colors.ErrorBg
+            STATES[AutoDetecting] ? MORESTYLE.Colors.InfoBg : st ? MORESTYLE.Colors.HighlightText : MORESTYLE.Colors.ErrorBg
         )
-        igBeginDisabled(SYNCSTATES[Int(IsDAQTaskRunning)] || hassweeping())
+        igBeginDisabled(SYNCSTATES[IsDAQTaskRunning] || hassweeping())
         CImGui.Button(MORESTYLE.Icons.InstrumentsAutoDetect, (btw, btw)) && refresh_instrlist()
         showst && CImGui.PopStyleColor()
         CImGui.SameLine()
@@ -33,8 +33,8 @@ let
             #     CImGui.ImGuiCol_Text, CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_TextDisabled)
             # )
             isrefreshingdict = Dict(addr => hasref(ibv) for (addr, ibv) in inses)
-            # hasrefreshing = !isempty(inses) && SYNCSTATES[Int(IsAutoRefreshing)] && (|)(values(isrefreshingdict)...)
-            hasrefreshing = SYNCSTATES[Int(IsAutoRefreshing)] && (|)(values(isrefreshingdict)...)
+            # hasrefreshing = !isempty(inses) && SYNCSTATES[Int(AutoRefreshing)] && (|)(values(isrefreshingdict)...)
+            hasrefreshing = STATES[AutoRefreshing] && (|)(values(isrefreshingdict)...)
             hasrefreshing && CImGui.PushStyleColor(CImGui.ImGuiCol_Text, MORESTYLE.Colors.DAQTaskRunning)
             insnode = CImGui.TreeNode(
                 stcstr(INSCONF[ins].conf.icon, " ", ins, "  ", "(", length(inses), ")", "###", ins)
@@ -56,14 +56,14 @@ let
                             stcstr(MORESTYLE.Icons.Delete, " ", mlstr("Delete")),
                             C_NULL,
                             false,
-                            ins != "VirtualInstr" && !SYNCSTATES[Int(IsDAQTaskRunning)] && !sweeping
+                            ins != "VirtualInstr" && !SYNCSTATES[IsDAQTaskRunning] && !sweeping
                         )
                             delete!(INSTRBUFFERVIEWERS[ins], addr)
                             remotecall_fetch(addr -> logout!(CPU, addr), workers()[1], addr)
                         end
                         if CImGui.BeginMenu(
                             stcstr(MORESTYLE.Icons.NewFile, " ", mlstr("Add to")),
-                            ins == "Others" && !SYNCSTATES[Int(IsDAQTaskRunning)] && !sweeping
+                            ins == "Others" && !SYNCSTATES[IsDAQTaskRunning] && !sweeping
                         )
                             for (cfins, cf) in INSCONF
                                 cfins in ["Others", "VirtualInstr"] && continue

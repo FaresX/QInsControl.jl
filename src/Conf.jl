@@ -37,41 +37,25 @@ function loadconf(precompile=false)
     CONF.Basic.languages = languageinfo()
     haskey(CONF.Basic.languages, CONF.Basic.language) && loadlanguage(CONF.Basic.languages[CONF.Basic.language])
 
-    ###### generate INSCONF ######
-    loadinsconf()
+    ###### load INSCONF ######
+    loadinsconf(false)
 
     ###### generate INSWCONF ######
     loadinswconf()
 
-    if myid() == 1
-        ###### generate INSTRBUFFERVIEWERS ######
-        for ins in keys(INSCONF)
-            INSTRBUFFERVIEWERS[ins] = Dict{String,InstrBufferViewer}()
-        end
-        INSTRBUFFERVIEWERS["VirtualInstr"] = Dict("VirtualAddress" => InstrBufferViewer("VirtualInstr", "VirtualAddress"))
-
-        ###### load style_conf ######
-        loadstyles()
-
-        ###### save conf.toml ######
-        saveconf()
+    ###### generate INSTRBUFFERVIEWERS ######
+    for ins in keys(INSCONF)
+        INSTRBUFFERVIEWERS[ins] = Dict{String,InstrBufferViewer}()
     end
+    INSTRBUFFERVIEWERS["VirtualInstr"] = Dict("VirtualAddress" => InstrBufferViewer("VirtualInstr", "VirtualAddress"))
+
+    ###### load style_conf ######
+    loadstyles()
+
+    ###### save conf.toml ######
+    saveconf()
 
     return nothing
-end
-
-function loadinsconf()
-    for file in readdir(joinpath(ENV["QInsControlAssets"], "ExtraLoad"), join=true)
-        @trycatch mlstr("loading drivers failed!!!") begin
-            endswith(basename(file), ".jl") && include(file)
-        end
-    end
-    for file in readdir(joinpath(ENV["QInsControlAssets"], "Confs"), join=true)
-        bnm = basename(file)
-        @trycatch mlstr("loading insconf failed!!!") begin
-            endswith(bnm, ".toml") && gen_insconf(file)
-        end
-    end
 end
 
 function loadinswconf()
@@ -105,66 +89,28 @@ function saveconf()
     @trycatch mlstr("saving configurations failed!!!") to_toml(joinpath(ENV["QInsControlAssets"], "Necessity/conf.toml"), svconf)
 end
 
-macro scpi(instrnm, quantity, scpistr)
-    get = Symbol(instrnm, :_, quantity, :_get)
-    occursin("?", scpistr) && return esc(quote
-        $get(instr) = query(instr, $scpistr)
-    end)
-    scpistrs = split(scpistr, " ")
-    exget = if length(scpistrs) == 1
-        quote
-            $get(instr) = query(instr, string($scpistr, "?"))
-        end
-    elseif length(scpistrs) == 2
-        quote
-            $get(instr) = query(instr, string($(scpistrs[1]), "? ", $(scpistrs[2])))
+function loadinsconf(gen_func=true)
+    for file in readdir(joinpath(ENV["QInsControlAssets"], "ExtraLoad"), join=true)
+        @trycatch mlstr("loading drivers failed!!!") begin
+            endswith(basename(file), ".jl") && gen_func && QInsControlCore.remote_include(file)
         end
     end
-    set = Symbol(instrnm, :_, quantity, :_set)
-    exset = if length(scpistrs) == 1
-        quote
-            $set(instr, val) = write(instr, string($scpistr, " ", val))
-        end
-    elseif length(scpistrs) == 2
-        quote
-            $set(instr, val) = write(instr, string($scpistr, ", ", val))
+    for file in readdir(joinpath(ENV["QInsControlAssets"], "Confs"), join=true)
+        bnm = basename(file)
+        @trycatch mlstr("loading insconf failed!!!") begin
+            endswith(bnm, ".toml") && gen_insconf(file; gen_func)
         end
     end
-    esc(Expr(:block, exget, exset))
 end
 
-macro tsp(instrnm, quantity, tspstr)
-    get = Symbol(instrnm, :_, quantity, :_get)
-    tspstr[end-1:end] == "()" && return esc(quote
-        $get(instr) = query(instr, string("print(", $tspstr, ")"))
-    end)
-    set = Symbol(instrnm, :_, quantity, :_set)
-    ex = quote
-        function $set(instr, val)
-            write(instr, string($tspstr, "=", val))
-        end
-        function $get(instr)
-            query(instr, string("print(", $tspstr, ")"))
-        end
-    end
-    esc(ex)
-end
-
-function gen_insconf(conf_file)
+function gen_insconf(conf_file; gen_func=true)
     conf = TOML.parsefile(conf_file)
     instrnm = Symbol(split(basename(conf_file), '.')[1])
-    if !isempty(conf["conf"]["cmdtype"])
-        cmdtype = Symbol("@", conf["conf"]["cmdtype"])
+    cmdtype = conf["conf"]["cmdtype"]
+    if !isempty(cmdtype)
         for pair in conf
             if pair.first != "conf" && !isempty(pair.second["cmdheader"])
-                Expr(
-                    :macrocall,
-                    cmdtype,
-                    LineNumberNode(@__LINE__, @__FILE__),
-                    instrnm,
-                    pair.first,
-                    pair.second["cmdheader"]
-                ) |> eval
+                gen_func && QInsControlCore.gen_qtfunc(instrnm, pair.first, pair.second["cmdheader"], cmdtype)
             end
         end
     end

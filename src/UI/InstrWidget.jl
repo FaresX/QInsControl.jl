@@ -925,12 +925,12 @@ let
                 igBeginDisabled(!usingit && draggable && disabled)
                 if edit(qtw, insbuf, insw.instrnm, addr)
                     if qtw.qtype in qtypes && qtw.options.uitype ∉ continuousuitypes
-                        Threads.@spawn @trycatch mlstr("task failed!!!") refresh1(insw, addr; blacklist=[qtw.name])
+                        Threads.@spawn @trycatch mlstr("task failed!!!") putonce(insw, addr; blacklist=[qtw.name])
                     end
                     if qtw.name == "_QuantitySelector_"
                         trigselector!(qtw, insw)
                         refreshqtlist!(insw)
-                        Threads.@spawn @trycatch mlstr("task failed!!!") refresh1(insw, addr)
+                        Threads.@spawn @trycatch mlstr("task failed!!!") putonce(insw, addr)
                     end
                 end
                 igEndDisabled()
@@ -2143,7 +2143,7 @@ end
 function initialize!(insw::InstrWidget, addr)
     _, autoreflist = refreshqtlist!(insw)
     if haskey(INSTRBUFFERVIEWERS, insw.instrnm) && haskey(INSTRBUFFERVIEWERS[insw.instrnm], addr) && !isempty(autoreflist)
-        SYNCSTATES[Int(IsAutoRefreshing)] = true
+        STATES[AutoRefreshing] = true
         INSTRBUFFERVIEWERS[insw.instrnm][addr].insbuf.isautorefresh = true
         qts = INSTRBUFFERVIEWERS[insw.instrnm][addr].insbuf.quantities
         for (qtnm, qt) in filter(x -> x.first in keys(autoreflist), qts)
@@ -2151,7 +2151,7 @@ function initialize!(insw::InstrWidget, addr)
             qt.refreshrate = autoreflist[qtnm]
         end
     end
-    Threads.@spawn @trycatch mlstr("task failed!!!") refresh1(insw, addr)
+    Threads.@spawn @trycatch mlstr("task failed!!!") putonce(insw, addr)
 end
 
 function exit!(insw::InstrWidget, addr)
@@ -2180,44 +2180,10 @@ function refreshqtlist!(insw::InstrWidget)
     return qtlist, autoreflist
 end
 
-function refresh1(insw::InstrWidget, addr; blacklist=[])
-    lock(REFRESHLOCK) do
-        if haskey(INSTRBUFFERVIEWERS, insw.instrnm) && haskey(INSTRBUFFERVIEWERS[insw.instrnm], addr)
-            fetchibvs = timed_remotecall_fetch(
-                workers()[1], INSTRBUFFERVIEWERS, insw.instrnm, addr, insw.qtlist, blacklist; timeout=120
-            ) do ibvs, ins, addr, qtlist, blacklist
-                merge!(INSTRBUFFERVIEWERS, ibvs)
-                ct = Controller(ins, addr; buflen=CONF.DAQ.ctbuflen)
-                try
-                    login!(CPU, ct; attr=getattr(addr))
-                    for (qtnm, qt) in filter(
-                        x -> x.first in qtlist && x.first ∉ blacklist,
-                        INSTRBUFFERVIEWERS[ins][addr].insbuf.quantities
-                    )
-                        getfunc = Symbol(ins, :_, qtnm, :_get) |> eval
-                        qt.read = ct(getfunc, CPU, Val(:read); timeout=qt.timeoutr)
-                    end
-                catch e
-                    @error(
-                        "[$(now())]\n$(mlstr("instrument communication failed!!!"))",
-                        instrument = string(ins, ": ", addr),
-                        exception = e
-                    )
-                    showbacktrace()
-                finally
-                    logout!(CPU, ct)
-                end
-                return INSTRBUFFERVIEWERS
-            end
-            if !isnothing(fetchibvs)
-                for (qtnm, qt) in filter(
-                    x -> x.first in insw.qtlist,
-                    INSTRBUFFERVIEWERS[insw.instrnm][addr].insbuf.quantities
-                )
-                    qt.read = fetchibvs[insw.instrnm][addr].insbuf.quantities[qtnm].read
-                    updatefront!(qt)
-                end
-            end
+function putonce(insw::InstrWidget, addr; blacklist=[])
+    if haskey(INSTRBUFFERVIEWERS, insw.instrnm) && haskey(INSTRBUFFERVIEWERS[insw.instrnm], addr)
+        for (qtnm, qt) in INSTRBUFFERVIEWERS[insw.instrnm][addr].insbuf.quantities
+            qtnm in insw.qtlist && qtnm ∉ blacklist && putinput!(insw.instrnm, addr, qtnm, qt.timeoutr)
         end
     end
 end

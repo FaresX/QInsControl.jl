@@ -223,7 +223,7 @@ function tocodes(bk::SweepBlock)
         return nothing
     end
     start = :(parse(Float64, controllers[$instr]($getfunc, CPU, Val(:read); timeout=$timeoutr)))
-    start = bk.istrycatch ? :(@gentrycatch $(bk.instrnm) $(bk.addr) $start) : start
+    start = bk.istrycatch ? :(@gentrycatch $(bk.instrnm) $(bk.addr) $start $(CONF.DAQ.retrysendtimes) $(CONF.DAQ.retryconnecttimes)) : start
     Uchange = U isa Unitful.MixedUnits ? 1 : ustrip(Us[1], 1U)
     step = Expr(:call, :*, stepc, Uchange)
     stop = Expr(:call, :*, stopc, Uchange)
@@ -241,7 +241,7 @@ function tocodes(bk::SweepBlock)
     end
     @gensym ijk sweeplist
     setcmd = :(controllers[$instr]($setfunc, CPU, string($ijk), Val(:write); timeout=$timeoutw))
-    ex2 = bk.istrycatch ? :(@gentrycatch $(bk.instrnm) $(bk.addr) $setcmd) : setcmd
+    ex2 = bk.istrycatch ? :(@gentrycatch $(bk.instrnm) $(bk.addr) $setcmd $(CONF.DAQ.retrysendtimes) $(CONF.DAQ.retryconnecttimes)) : setcmd
     ex3 = quote
         @gencontroller SweepBlock $instr
         $ex2
@@ -250,7 +250,7 @@ function tocodes(bk::SweepBlock)
     end
     return if rstrip(bk.rangemark) == ""
         quote
-            let $sweeplist = gensweeplist($start, $step, $stop)
+            let $sweeplist = gensweeplist($start, $step, $stop; equalstep=$(CONF.DAQ.equalstep))
                 @progress for $ijk in $sweeplist
                     $ex3
                 end
@@ -258,7 +258,7 @@ function tocodes(bk::SweepBlock)
         end
     else
         quote
-            let $sweeplist = gensweeplist($start, $step, $stop)
+            let $sweeplist = gensweeplist($start, $step, $stop; equalstep=$(CONF.DAQ.equalstep))
                 @progress $(bk.rangemark) for $ijk in $sweeplist
                     $ex3
                 end
@@ -297,7 +297,7 @@ function tocodes(bk::FreeSweepBlock)
     end
     @gensym observables lasttime
     getcmd = :(controllers[$instr]($getfunc, CPU, Val(:read); timeout=$timeoutr))
-    getdata = bk.istrycatch ? :(@gentrycatch $(bk.instrnm) $(bk.addr) $getcmd) : getcmd
+    getdata = bk.istrycatch ? :(@gentrycatch $(bk.instrnm) $(bk.addr) $getcmd $(CONF.DAQ.retrysendtimes) $(CONF.DAQ.retryconnecttimes)) : getcmd
     detfunc = Dict("=" => isarrived, "<" => isless, ">" => isgreater)[bk.mode]
     return quote
         let $observables = []
@@ -330,7 +330,7 @@ function tocodes(bk::SettingBlock)
     setfunc = Symbol(bk.instrnm, :_, bk.quantity, :_set)
     setcmd = :(controllers[$instr]($setfunc, CPU, string($setvalue), Val(:write); timeout=$timeoutw))
     setcodes = bk.istrycatch ? quote
-        @gentrycatch $(bk.instrnm) $(bk.addr) $setcmd
+        @gentrycatch $(bk.instrnm) $(bk.addr) $setcmd $(CONF.DAQ.retrysendtimes) $(CONF.DAQ.retryconnecttimes)
         sleep($(bk.delay))
     end : quote
         $setcmd
@@ -341,7 +341,7 @@ function tocodes(bk::SettingBlock)
         getfunc = Symbol(bk.instrnm, :_, bk.quantity, :_get)
         getcmd = :(controllers[$instr]($getfunc, CPU, Val(:read); timeout=$timeoutr))
         getcodes = bk.istrycatch ? quote
-            @gentrycatch $(bk.instrnm) $(bk.addr) $getcmd
+            @gentrycatch $(bk.instrnm) $(bk.addr) $getcmd $(CONF.DAQ.retrysendtimes) $(CONF.DAQ.retryconnecttimes)
         end : quote
             $getcmd
         end
@@ -372,7 +372,7 @@ function tocodes(bk::WriteBlock)
     cmd = parsedollar(bk.cmd)
     timeout = getattr(bk.addr).timeoutw
     setcmd = :(controllers[$instr](write, CPU, string($cmd), Val(:write); timeout=$timeout))
-    ex = bk.istrycatch ? :(@gentrycatch $(bk.instrnm) $(bk.addr) $setcmd) : setcmd
+    ex = bk.istrycatch ? :(@gentrycatch $(bk.instrnm) $(bk.addr) $setcmd $(CONF.DAQ.retrysendtimes) $(CONF.DAQ.retryconnecttimes)) : setcmd
     return bk.isasync ? quote
         @async begin
             $ex
@@ -393,11 +393,11 @@ function tocodes(bk::FeedbackBlock)
             end
         end
         if $(bk.action) == mlstr("Interrupt")
-            SYNCSTATES[Int(IsInterrupted)] = true
+            SYNCSTATES[IsInterrupted] = true
             @warn "[$(now())]\n$(mlstr("interrupt!"))" FeedbackBlock = $instr
             return nothing
         elseif $(bk.action) == mlstr("Pause")
-            SYNCSTATES[Int(IsBlocked)] = true
+            SYNCSTATES[IsBlocked] = true
             @warn "[$(now())]\n$(mlstr("pause!"))" FeedbackBlock = $instr
             lock(() -> wait(BLOCK), BLOCK)
             @info "[$(now())]\n$(mlstr("continue!"))" FeedbackBlock = $instr
@@ -424,7 +424,7 @@ function gencodes_read(bk::Union{ReadingBlock,QueryBlock,ReadBlock})
         elseif bk isa ReadBlock
             :(controllers[$instr](read, CPU, Val(:read); timeout=$timeout))
         end
-        getdata = bk.istrycatch ? :(@gentrycatch $(bk.instrnm) $(bk.addr) $getcmd) : getcmd
+        getdata = bk.istrycatch ? :(@gentrycatch $(bk.instrnm) $(bk.addr) $getcmd $(CONF.DAQ.retrysendtimes) $(CONF.DAQ.retryconnecttimes)) : getcmd
         if bk.isobserve
             observable = Symbol(bk.mark)
             return bk.isreading ? quote
@@ -455,7 +455,7 @@ function gencodes_read(bk::Union{ReadingBlock,QueryBlock,ReadBlock})
         elseif bk isa ReadBlock
             :(string.(split(controllers[$instr](read, CPU, Val(:read); timeout=$timeout), $separator)[collect($index)]))
         end
-        getdata = bk.istrycatch ? :(@gentrycatch $(bk.instrnm) $(bk.addr) $getcmd $(length(index))) : getcmd
+        getdata = bk.istrycatch ? :(@gentrycatch $(bk.instrnm) $(bk.addr) $getcmd $(CONF.DAQ.retrysendtimes) $(CONF.DAQ.retryconnecttimes) $(length(index))) : getcmd
         if bk.isobserve
             observable = length(index) == 1 ? Symbol(bk.mark) : Expr(:tuple, Symbol.(lstrip.(split(bk.mark, ',')))...)
             return bk.isreading ? quote
@@ -542,96 +542,6 @@ function genkeys(bk, index)
     else
         [string(mark, "/", bk.instrnm, "[", ind, "]", "/", bk.addr) for (mark, ind) in zip(marks, index)]
     end
-end
-
-macro gentrycatch(instrnm, addr, cmd, len=0)
-    esc(
-        quote
-            let
-                state, getval = try
-                    true, $cmd
-                catch e
-                    isbusy(CPU, $addr) || (setbusy!(CPU); unsetbusy!(CPU, $addr))
-                    @error(
-                        "[$(now())]\n$(mlstr("instrument communication failed!!!"))",
-                        instrument = $(string(instrnm, ": ", addr)),
-                        exception = e
-                    )
-                    showbacktrace()
-                    false, $(len == 0 ? "" : fill("", len))
-                end
-                if !state
-                    state, getval = counter($(CONF.DAQ.retryconnecttimes)) do tout
-                        @gencontroller(
-                            $(mlstr("retry connecting to instrument")), string($instrnm, " ", $addr),
-                            (false, $(len == 0 ? "" : fill("", len))), true
-                        )
-                        state, getval = counter($(CONF.DAQ.retrysendtimes)) do tin
-                            @gencontroller(
-                                $(mlstr("retry sending command")), string($instrnm, " ", $addr),
-                                (false, $(len == 0 ? "" : fill("", len))), true
-                            )
-                            @warn(
-                                stcstr(
-                                    "[", now(), "]\n",
-                                    mlstr("retry sending command"), " ", tin, "\n",
-                                    mlstr("retry reconnecting to instrument"), " ", tout
-                                ),
-                                intrument = string($instrnm, "-", $addr)
-                            )
-                            state, getval = try
-                                true, $cmd
-                            catch e
-                                @error(
-                                    "[$(now())]\n$(mlstr("instrument communication failed!!!"))",
-                                    instrument = $(string(instrnm, ": ", addr)),
-                                    exception = e
-                                )
-                                showbacktrace()
-                                false, $(len == 0 ? "" : fill("", len))
-                            end
-                            return state, getval
-                        end
-                        SYNCSTATES[Int(IsInterrupted)] && return state, getval
-                        if !state
-                            try
-                                reconnect!(CPU)
-                            catch
-                            end
-                        end
-                        return state, getval
-                    end
-                    unsetbusy!(CPU)
-                end
-                if SYNCSTATES[Int(IsInterrupted)]
-                    @warn(
-                        "[$(now())]\n$(mlstr("interrupt!"))",
-                        $(mlstr("retry connecting and sending command")) = string($instrnm, " ", $addr)
-                    )
-                end
-                state ? getval : error(string("instrument ", $instrnm, " ", $addr, " response time out!!!"))
-            end
-        end
-    )
-end
-
-macro gencontroller(key, val, retval=nothing, quiet=false)
-    esc(
-        quote
-            if SYNCSTATES[Int(IsInterrupted)]
-                $quiet || @warn "[$(now())]\n$(mlstr("interrupt!"))" $key = $val
-                return $retval
-            elseif SYNCSTATES[Int(IsBlocked)]
-                @warn "[$(now())]\n$(mlstr("pause!"))" $key = $val
-                lock(() -> wait(BLOCK), BLOCK)
-                @info "[$(now())]\n$(mlstr("continue!"))" $key = $val
-                if SYNCSTATES[Int(IsInterrupted)]
-                    $quiet || @warn "[$(now())]\n$(mlstr("interrupt!"))" $key = $val
-                    return $retval
-                end
-            end
-        end
-    )
 end
 
 ############macro block-------------------------------------------------------------------------------------------------
@@ -763,52 +673,6 @@ function utoui(instrnm, qtnm, u)
     utype = haskey(INSCONF, instrnm) && haskey(INSCONF[instrnm].quantities, qtnm) ? INSCONF[instrnm].quantities[qtnm].U : ""
     Us = haskey(CONF.U, utype) ? CONF.U[utype] : [""]
     return u in Us ? findfirst(==(u), Us) : 1
-end
-############functionality-----------------------------------------------------------------------------------------------
-macro logblock()
-    esc(
-        :(timed_remotecall_wait(log_instrbufferviewers, 1; timeout=60))
-    )
-end
-
-macro saveblock(key, var)
-    esc(
-        :(put!(databuf_lc, ($key, string($var))))
-    )
-end
-
-macro saveblock(var)
-    key = string(var)
-    esc(
-        :(put!(databuf_lc, ($key, string($var))))
-    )
-end
-
-macro psleep(seconds)
-    s1 = floor(seconds)
-    s2 = floor(seconds - s1; digits=3) * 1000
-    esc(
-        quote
-            @progress for _ in 1:$s1
-                @gencontroller psleep $seconds
-                sleep(1)
-            end
-            for _ in 1:$s2
-                sleep(0.001)
-            end
-        end
-    )
-end
-
-macro newfile()
-    esc(
-        :(timed_remotecall_wait(newfile, 1; timeout=60))
-    )
-end
-macro newfile(filename)
-    esc(
-        :(timed_remotecall_wait(newfile, 1, $filename; timeout=60))
-    )
 end
 
 ############compile-----------------------------------------------------------------------------------------------------

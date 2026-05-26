@@ -16,7 +16,7 @@ let
             CImGui.ImGuiWindowFlags_HorizontalScrollbar
         )
             SetWindowBgImage(CONF.BGImage.logger.path; rate=CONF.BGImage.logger.rate, use=CONF.BGImage.logger.use)
-            if SYNCSTATES[Int(NewLogging)] || waittime("Logger", CONF.Logs.refreshrate)
+            if SYNCSTATES[IsNewLogging] || SYNCSTATES[IsNewLogging] || waittime("Logger", CONF.Logs.refreshrate)
                 empty!(logmsgshow)
                 textbg = ImVec4(0, 0, 0, 0)
                 texttype = "Info"
@@ -60,13 +60,13 @@ let
             end
             if CImGui.BeginTabBar("Logging")
                 if CImGui.BeginTabItem(mlstr("System Logs"))
-                    @c(CImGui.Checkbox(mlstr("Info"), &showinfo)) && (SYNCSTATES[Int(NewLogging)] = true)
+                    @c(CImGui.Checkbox(mlstr("Info"), &showinfo)) && (SYNCSTATES[IsNewLogging] = true)
                     CImGui.SameLine()
-                    @c(CImGui.Checkbox(mlstr("Warn"), &showwarn)) && (SYNCSTATES[Int(NewLogging)] = true)
+                    @c(CImGui.Checkbox(mlstr("Warn"), &showwarn)) && (SYNCSTATES[IsNewLogging] = true)
                     CImGui.SameLine()
-                    @c(CImGui.Checkbox(mlstr("Error"), &showerror)) && (SYNCSTATES[Int(NewLogging)] = true)
+                    @c(CImGui.Checkbox(mlstr("Error"), &showerror)) && (SYNCSTATES[IsNewLogging] = true)
                     CImGui.SameLine()
-                    @c(CImGui.Checkbox(mlstr("Stacktrace"), &showstacktrace)) && (SYNCSTATES[Int(NewLogging)] = true)
+                    @c(CImGui.Checkbox(mlstr("Stacktrace"), &showstacktrace)) && (SYNCSTATES[IsNewLogging] = true)
                     CImGui.SameLine()
                     @c(CImGui.Checkbox(mlstr("Expand All"), &expandall))
                     igSeparatorText("")
@@ -101,7 +101,8 @@ let
                             CImGui.PopTextWrapPos()
                             CImGui.IsItemHovered() && CImGui.IsMouseDoubleClicked(0) && (expanded[] = !expanded[])
                         end
-                        SYNCSTATES[Int(NewLogging)] && (CImGui.SetScrollHereY(1); SYNCSTATES[Int(NewLogging)] = false)
+                        SYNCSTATES[IsNewLogging] && (CImGui.SetScrollHereY(1); SYNCSTATES[IsNewLogging] = false)
+                        SYNCSTATES[IsNewLogging] && (CImGui.SetScrollHereY(1); SYNCSTATES[IsNewLogging] = false)
                         firsttime && (CImGui.SetScrollHereY(1); firsttime = false)
                         CImGui.EndTable()
                     end
@@ -117,32 +118,5 @@ let
         end
         CImGui.End()
         p_open.x || (firsttime = true)
-    end
-end
-
-function update_log(syncstates=SYNCSTATES)
-    date = today()
-    logdir = joinpath(CONF.Logs.dir, string(year(date)), string(year(date), "-", month(date)))
-    isdir(logdir) || mkpath(logdir)
-    logfile = joinpath(logdir, string(date, ".log"))
-    if myid() == 1
-        flush(LOGIO)
-        msg = String(take!(LOGIO))
-        isempty(msg) || (open(file -> write(file, msg), logfile, "a+"); syncstates[Int(NewLogging)] = true)
-    else
-        flush(LOGIO)
-        msg = String(take!(LOGIO))
-        if !isempty(msg)
-            open(logfile, "a+") do file
-                msgsp = split(msg, '\n')
-                for (i, s) in enumerate(msgsp)
-                    s == "" && (msgsp[i] = "\n")
-                    s == "\r" && (msgsp[i] = "\n\r")
-                    isempty(rstrip(s)) || (msgsp[i] = string("from worker $(myid()): ", msgsp[i], '\n'))
-                end
-                write(file, string(msgsp...))
-            end
-            syncstates[Int(NewLogging)] = true
-        end
     end
 end

@@ -6,7 +6,7 @@ macro trypasse(sv, default)
             try
                 x = $sv
             catch e
-                @error "[$(now())]\nerror in @trypass" exception = e code = $code
+                @error "[$(now())]\nerror in @trypasse" exception = e code = $code
                 showbacktrace()
                 x = $default
             end
@@ -28,20 +28,6 @@ macro trypass(sv, default)
         end
     end
     esc(ex)
-end
-showbacktrace() = (Base.show_backtrace(LOGIO, catch_backtrace()); println(LOGIO, "\n\r"))
-# showbacktrace() = rethrow()
-macro trycatch(msg, ex)
-    esc(
-        quote
-            try
-                $ex
-            catch e
-                @error string("[", now(), "]\n", $msg) exception = e
-                showbacktrace()
-            end
-        end
-    )
 end
 
 function parsedollar(str)
@@ -257,79 +243,26 @@ function synccall_wait(f, ids, args...; timeout=2)
     end
 end
 
-function timed_remotecall_fetch(f, id::Integer, args...; timeout=2, pollint=0.001, quiet=false, kwargs...)
-    future = remotecall(f, id, args...; kwargs...)
-    t = quiet ? @async(fetch(future)) : @async @trycatch mlstr("fetch task failed!!!") fetch(future)
-    timedwaitfetch(t, timeout; msg=mlstr("timeout waiting to fetch"), pollint=pollint, quiet=quiet)
-end
+# function genex(f, args...; kwargs...)
+#     f(args...; kwargs...)
+# end
 
-function timed_remotecall_wait(f, id::Integer, args...; timeout=2, pollint=0.001, quiet=false, kwargs...)
-    future = remotecall(f, id, args...; kwargs...)
-    t = quiet ? @async(fetch(future)) : @async @trycatch mlstr("fetch task failed!!!") wait(future)
-    timedwaitfetch(t, timeout; msg=mlstr("timeout waiting for future"), pollint=pollint, quiet=quiet)
-end
+# function timed_remotecall_fetch(f, id::Integer, args...; timeout=2, pollint=0.001, quiet=false, kwargs...)
+#     future = remotecall(f, id, args...; kwargs...)
+#     t = quiet ? @async(fetch(future)) : @async @trycatch mlstr("fetch task failed!!!") fetch(future)
+#     timedwaitfetch(t, timeout; msg=mlstr("timeout waiting to fetch"), pollint=pollint, quiet=quiet)
+# end
+# function timed_remotecall_eval(m::Module, pid::Integer, ex; timeout=2, pollint=0.001, quiet=false)
+#     future = remotecall(Core.eval, pid, m, ex)
+#     t = quiet ? @async(fetch(future)) : @async @trycatch mlstr("fetch task failed!!!") fetch(future)
+#     timedwaitfetch(t, timeout; msg=mlstr("timeout waiting to fetch"), pollint=pollint, quiet=quiet)
+# end
 
-function counter(f, times::Integer=3)
-    for t in 1:times
-        state, val = f(t)
-        state && return true, val
-    end
-    return false, ""
-end
-
-function gensweeplist(start, step, stop)
-    step == 0 && return [start]
-    if CONF.DAQ.equalstep
-        rawsteps = abs((start - stop) / step)
-        ceilsteps = ceil(Int, rawsteps)
-        sweepsteps = rawsteps ≈ ceilsteps ? ceilsteps + 1 : ceilsteps
-        sweepsteps = sweepsteps == 1 ? 2 : sweepsteps
-        sweeplist = range(start, stop, length=sweepsteps)
-    else
-        step = start < stop ? abs(step) : -abs(step)
-        sweeplist = collect(start:step:stop)
-        sweeplist[end] == stop || push!(sweeplist, stop)
-    end
-    return sweeplist
-end
-
-function timeaverage(data, τ)
-    idx = argmin(abs.([data[end][1] - d[1] for d in data] .- τ))
-    datasubset = [d[2] for d in data[idx:end]]
-    mv = mean(datasubset)
-    stdv = stdm(datasubset, mv)
-    return mv, stdv
-end
-function _ismoving(data, δ, τ)
-    isempty(data) && return true
-    δ, τ = abs(δ), abs(τ)
-    data[end][1] - data[1][1] < τ && return true
-    _, stdv = timeaverage(data, τ)
-    return stdv > 5δ
-end
-function isarrived(data, target, δ, τ)
-    isempty(data) && return false
-    δ, τ = abs(δ), abs(τ)
-    data[end][1] - data[1][1] < τ && return false
-    mv, stdv = timeaverage(data, τ)
-    arrive = abs(mv - target) < δ && stdv < 4δ
-    arrive && return true
-    data[end][1] - data[1][1] < 10τ && return false
-    arrive |= abs(mv - target) < 5δ && all(abs.((mv, stdv) .- timeaverage(data, 10τ)) .< δ)
-    return arrive
-end
-function isless(data, target, δ, τ)
-    isempty(data) && return false
-    δ, τ = abs(δ), abs(τ)
-    data[end][1] - data[1][1] < τ && return false
-    return timeaverage(data, τ)[1] - target < δ
-end
-function isgreater(data, target, δ, τ)
-    isempty(data) && return false
-    δ, τ = abs(δ), abs(τ)
-    data[end][1] - data[1][1] < τ && return false
-    return timeaverage(data, τ)[1] - target > -δ
-end
+# function timed_remotecall_wait(f, id::Integer, args...; timeout=2, pollint=0.001, quiet=false, kwargs...)
+#     future = remotecall(f, id, args...; kwargs...)
+#     t = quiet ? @async(fetch(future)) : @async @trycatch mlstr("fetch task failed!!!") wait(future)
+#     timedwaitfetch(t, timeout; msg=mlstr("timeout waiting for future"), pollint=pollint, quiet=quiet)
+# end
 
 function strtoU(ustr::AbstractString)
     str = occursin(" ", ustr) ? replace(ustr, " " => "*") : ustr

@@ -28,10 +28,16 @@ end
 function YesNoDialog(id, msg, flags=0)::Bool
     retval = false
     if CImGui.BeginPopupModal(id, C_NULL, flags)
-        CImGui.TextColored(MORESTYLE.Colors.ErrorText, string("\n", msg, "\n\n"))
-        CImGui.Button(mlstr("Confirm")) && (CImGui.CloseCurrentPopup(); retval = true)
-        CImGui.SameLine(240)
-        CImGui.Button(mlstr("Cancel")) && CImGui.CloseCurrentPopup()
+        ftsz = CImGui.GetFontSize()
+        CImGui.Text("\n")
+        CImGui.PushFont(C_NULL, 2ftsz)
+        CImGui.SetCursorPosX(CImGui.GetCursorPosX() + (CImGui.GetContentRegionAvail().x - CImGui.CalcTextSize(msg).x)/2)
+        CImGui.TextColored(MORESTYLE.Colors.WarnText, msg)
+        CImGui.PopFont()
+        CImGui.Text("\n\n")
+        CImGui.Button(mlstr("Confirm"), (4ftsz, Cfloat(0))) && (CImGui.CloseCurrentPopup(); retval = true)
+        CImGui.SameLine(0, 4ftsz)
+        CImGui.Button(mlstr("Cancel"), (4ftsz, Cfloat(0))) && CImGui.CloseCurrentPopup()
         CImGui.EndPopup()
     end
     return retval

@@ -25,11 +25,12 @@ let
         # CImGui.Columns(2, C_NULL, false)
         # CImGui.SetColumnOffset(1, 6ftsz)
         CImGui.PushStyleColor(CImGui.ImGuiCol_ChildBg, MORESTYLE.Colors.ToolBarBg)
-        CImGui.PushStyleColor(CImGui.ImGuiCol_Text, MORESTYLE.Colors.IconButton)
-        CImGui.PushStyleVar(CImGui.ImGuiStyleVar_FrameBorderSize, 0)
         CImGui.PushFont(C_NULL, MORESTYLE.Variables.BigIconSize)
         ftsz = CImGui.GetFontSize()
         CImGui.BeginChild("Toolbar", (3ftsz, Cfloat(0)))
+        CImGui.PushStyleColor(CImGui.ImGuiCol_Text, MORESTYLE.Colors.IconButton)
+        CImGui.PushStyleVar(CImGui.ImGuiStyleVar_FrameBorderSize, 0)
+
         CImGui.SetCursorPos(ftsz / 2, ftsz / 2)
         CImGui.Image(ICONID, (2ftsz, 2ftsz))
         CImGui.SetCursorPosY(CImGui.GetCursorPosY() + ftsz / 2)
@@ -37,38 +38,28 @@ let
         btwidth = CImGui.GetContentRegionAvail().x
         btheight = 2ftsz
         CImGui.PushStyleColor(CImGui.ImGuiCol_Button, (0, 0, 0, 0))
-        if SYNCSTATES[Int(IsBlocked)]
+        if SYNCSTATES[IsBlocked]
             CImGui.PushStyleColor(CImGui.ImGuiCol_Text, MORESTYLE.Colors.ControlButtonPause)
             if CImGui.Button(stcstr(MORESTYLE.Icons.RunTask, "##Continue"), (btwidth, btheight))
-                SYNCSTATES[Int(IsBlocked)] = false
-                remote_do(workers()[1]) do
-                    lock(() -> notify(BLOCK), BLOCK)
-                end
+                SYNCSTATES[IsBlocked] = false
+                remote_continue()
             end
             CImGui.PopStyleColor()
         else
             if CImGui.Button(stcstr(MORESTYLE.Icons.BlockTask, "##Pause"), (btwidth, btheight))
-                SYNCSTATES[Int(IsDAQTaskRunning)] && (SYNCSTATES[Int(IsBlocked)] = true)
+                SYNCSTATES[IsDAQTaskRunning] && (SYNCSTATES[IsBlocked] = true)
             end
         end
         # CImGui.SameLine()
         if CImGui.Button(stcstr(MORESTYLE.Icons.InterruptTask, "##Interrupt"), (btwidth, btheight))
-            if SYNCSTATES[Int(IsDAQTaskRunning)]
-                SYNCSTATES[Int(IsInterrupted)] = true
-                if SYNCSTATES[Int(IsBlocked)]
-                    SYNCSTATES[Int(IsBlocked)] = false
-                    remote_do(workers()[1]) do
-                        lock(() -> notify(BLOCK), BLOCK)
-                    end
-                end
-            end
+            SYNCSTATES[IsDAQTaskRunning] && CImGui.OpenPopup("##InterruptTask")
         end
         CImGui.PushStyleColor(
             CImGui.ImGuiCol_Text,
-            SYNCSTATES[Int(IsAutoRefreshing)] ? MORESTYLE.Colors.DAQTaskRunning : CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_Text)
+            STATES[AutoRefreshing] ? MORESTYLE.Colors.DAQTaskRunning : CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_Text)
         )
         if CImGui.Button(stcstr(MORESTYLE.Icons.InstrumentsAutoRef, "##autorefresh"), (btwidth, btheight))
-            SYNCSTATES[Int(IsAutoRefreshing)] ⊻= true
+            STATES[AutoRefreshing] ⊻= true
         end
         CImGui.PopStyleColor()
         CImGui.PushStyleColor(
@@ -80,7 +71,7 @@ let
             (btwidth, btheight)
         ) && (show_circuit_editor ⊻= true)
         CImGui.PopStyleColor()
-        igBeginDisabled(SYNCSTATES[Int(IsDAQTaskRunning)])
+        igBeginDisabled(SYNCSTATES[IsDAQTaskRunning])
         CImGui.Button(
             stcstr(MORESTYLE.Icons.Load, "##Load Project"), (btwidth, btheight)
         ) && loadproject(pick_file(filterlist="daq;qdt"))
@@ -90,10 +81,40 @@ let
             (btwidth, btheight)
         ) && saveproject()
         CImGui.PopStyleColor()
-        CImGui.EndChild()
         CImGui.PopFont()
         CImGui.PopStyleVar()
-        CImGui.PopStyleColor(2)
+        CImGui.PopStyleColor()
+
+        if CImGui.BeginPopupModal("##InterruptTask", C_NULL, CImGui.ImGuiWindowFlags_AlwaysAutoResize)
+            ftsz = CImGui.GetFontSize()
+            CImGui.Text("\n")
+            msg = mlstr("Save as invalid data?")
+            CImGui.PushFont(C_NULL, 2ftsz)
+            CImGui.SetCursorPosX(CImGui.GetCursorPosX() + (CImGui.GetContentRegionAvail().x - CImGui.CalcTextSize(msg).x) / 2)
+            CImGui.TextColored(MORESTYLE.Colors.WarnText, msg)
+            CImGui.PopFont()
+            CImGui.Text("\n\n")
+            CImGui.PushStyleColor(CImGui.ImGuiCol_Button, MORESTYLE.Colors.WarnBg)
+            confirmy = CImGui.Button(mlstr("Yes"), (4ftsz, Cfloat(0)))
+            CImGui.PopStyleColor()
+            CImGui.SameLine()
+            confirmn = CImGui.Button(mlstr("No"), (4ftsz, Cfloat(0)))
+            confirmy && (STATES[InValidFile] = true)
+            if confirmy || confirmn
+                SYNCSTATES[IsInterrupted] = true
+                if SYNCSTATES[IsBlocked]
+                    SYNCSTATES[IsBlocked] = false
+                    remote_continue()
+                end
+                CImGui.CloseCurrentPopup()
+            end
+            CImGui.SameLine(0, 4ftsz)
+            CImGui.Button(mlstr("Cancel"), (4ftsz, Cfloat(0))) && CImGui.CloseCurrentPopup()
+            CImGui.EndPopup()
+        end
+
+        CImGui.EndChild()
+        CImGui.PopStyleColor()
         show_circuit_editor && @c edit(CIRCUIT, "Circuit Editor", &show_circuit_editor)
     end
 
@@ -152,9 +173,14 @@ let
         ) && (show_editinstraliaslist ⊻= true)
         CImGui.PopStyleColor()
         CImGui.SameLine()
+        CImGui.PushStyleColor(
+            CImGui.ImGuiCol_Text,
+            hidenorunning ? MORESTYLE.Colors.DAQTaskRunning : CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_Text)
+        )
         CImGui.Button(
             stcstr(hidenorunning ? ICONS.ICON_EYE_SLASH : ICONS.ICON_EYE, "##hide no running tasks"), (2ftsz, bth)
         ) && (hidenorunning ⊻= true)
+        CImGui.PopStyleColor()
         CImGui.SameLine()
         CImGui.Button(
             stcstr(MORESTYLE.Icons.NewFile, " ", mlstr("New Plot")),
@@ -167,7 +193,7 @@ let
         CImGui.PopStyleColor()
         length(show_daq_editors) == length(daqtasks) || resizebool!(show_daq_editors, length(daqtasks))
         length(torunstates) == length(daqtasks) || resizebool!(torunstates, length(daqtasks))
-        daqtaskscdy = (length(daqtasks) + SYNCSTATES[Int(IsDAQTaskRunning)] * lock(length, PROGRESSLIST)) *
+        daqtaskscdy = (length(daqtasks) + SYNCSTATES[IsDAQTaskRunning] * lock(length, PROGRESSLIST)) *
                       CImGui.GetFrameHeightWithSpacing() - unsafe_load(IMGUISTYLE.ItemSpacing.y) +
                       2unsafe_load(IMGUISTYLE.WindowPadding.y)
 
@@ -179,7 +205,7 @@ let
         for (i, task) in enumerate(daqtasks)
             hidenorunning && !torunstates[i] && continue
             CImGui.PushID(i)
-            isrunning_i = SYNCSTATES[Int(IsDAQTaskRunning)] && i == running_i
+            isrunning_i = SYNCSTATES[IsDAQTaskRunning] && i == running_i
             # CImGui.PushStyleColor(
             #     CImGui.ImGuiCol_Button,
             #     if isrunning_i
@@ -247,13 +273,13 @@ let
                         deleteat!(torunstates, payload_i < i ? payload_i : payload_i + 1)
                         if running_i == payload_i
                             running_i = payload_i < i ? i - 1 : i
-                            isrunning_i = SYNCSTATES[Int(IsDAQTaskRunning)] && i == running_i
+                            isrunning_i = SYNCSTATES[IsDAQTaskRunning] && i == running_i
                         elseif payload_i < running_i < i
                             running_i -= 1
-                            isrunning_i = SYNCSTATES[Int(IsDAQTaskRunning)] && i == running_i
+                            isrunning_i = SYNCSTATES[IsDAQTaskRunning] && i == running_i
                         elseif payload_i > running_i >= i
                             running_i += 1
-                            isrunning_i = SYNCSTATES[Int(IsDAQTaskRunning)] && i == running_i
+                            isrunning_i = SYNCSTATES[IsDAQTaskRunning] && i == running_i
                         end
                     end
                 end
@@ -267,10 +293,10 @@ let
                     stcstr(MORESTYLE.Icons.RunTask, " ", mlstr(torunstates[i] ? "Cancel" : "Run")),
                     C_NULL,
                     false,
-                    !isrunning_i && !SYNCSTATES[Int(AutoDetecting)]
+                    !isrunning_i && !STATES[AutoDetecting]
                 )
                     torunstates[i] ⊻= true
-                    torunstates[i] && (SYNCSTATES[Int(IsDAQTaskRunning)] || rundaqtasks())
+                    torunstates[i] && (SYNCSTATES[IsDAQTaskRunning] || rundaqtasks())
                 end
                 CImGui.Separator()
                 CImGui.MenuItem(stcstr(MORESTYLE.Icons.Edit, " ", mlstr("Edit Script"))) && (show_daq_editors[i] = true)
@@ -376,7 +402,7 @@ let
             end
             CImGui.MenuItem(stcstr(MORESTYLE.Icons.SaveButton, " ", mlstr("Save Project"))) && saveproject()
             CImGui.MenuItem(
-                stcstr(MORESTYLE.Icons.Load, " ", mlstr("Load Project")), C_NULL, false, !SYNCSTATES[Int(IsDAQTaskRunning)]
+                stcstr(MORESTYLE.Icons.Load, " ", mlstr("Load Project")), C_NULL, false, !SYNCSTATES[IsDAQTaskRunning]
             ) && loadproject(pick_file(filterlist="daq;qdt"))
             CImGui.EndPopup()
         end
@@ -393,7 +419,7 @@ let
     end
 
     global function rundaqtasks()
-        if !SYNCSTATES[Int(IsDAQTaskRunning)]
+        if !SYNCSTATES[IsDAQTaskRunning]
             global WORKPATH
             if ispath(WORKPATH)
                 saveproject(projpath)
@@ -404,7 +430,7 @@ let
                         saferun(task)
                         torunstates[running_i] = false
                         saveproject(projpath)
-                        SYNCSTATES[Int(IsInterrupted)] && (SYNCSTATES[Int(IsInterrupted)] = false; break)
+                        SYNCSTATES[IsInterrupted] && (SYNCSTATES[IsInterrupted] = false; break)
                     end
                 end
                 DAQDATAPLOT.showdtpks .= false

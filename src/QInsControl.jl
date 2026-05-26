@@ -27,52 +27,43 @@ using Unitful
 using Dates
 using Distributed
 using InteractiveUtils
-using Logging
 using Printf
-using SharedArrays
-using Sockets
 using Statistics
 using TOML
 using UUIDs
 
-include("QInsControlCore/QInsControlCore.jl")
-using .QInsControlCore
-using .QInsControlCore.LibSerialPort
-import .QInsControlCore: VISAInstrAttr, SerialInstrAttr, TCPSocketInstrAttr, VirtualInstrAttr
-import .QInsControlCore: init!, run!, start!, stop!
-
-@enum SyncStatesIndex begin
-    AutoDetecting = 1 #是否正在自动查询仪器
-    AutoDetectDone
-    IsDAQTaskRunning
-    IsDAQTaskDone
-    IsInterrupted
-    IsBlocked
-    IsAutoRefreshing
-    NewLogging
-    NewVersion
-    FatalError
+using QInsControlCore
+using QInsControlCore.LibSerialPort
+import QInsControlCore: VISAInstrAttr, SerialInstrAttr, TCPSocketInstrAttr, VirtualInstrAttr
+import QInsControlCore: SYNCSTATES, SyncStatesIndex
+for item in instances(SyncStatesIndex)
+    eval(:(import QInsControlCore: $(Symbol(item))))
 end
 
-const CPU = Processor()
+@enum StatesIndex begin
+    AutoDetecting = 1 #是否正在自动查询仪器
+    AutoDetectDone
+    AutoRefreshing
+    NewVersion
+    FatalError
+    InValidFile
+end
+Base.getindex(x::AbstractVector{Bool}, i::StatesIndex) = x[Int(i)]
+Base.setindex!(x::AbstractVector{Bool}, v::Bool, i::StatesIndex) = x[Int(i)] = v
+const STATES = fill(false, length(instances(StatesIndex)))
+
+# const CPU = Processor()
 const DATABUF = Dict{String,Vector{String}}() #数据缓存
 const DATABUFPARSED = Dict{String,VecOrMat{Cdouble}}()
 const PROGRESSLIST = Base.Lockable(OrderedDict{UUID,Tuple{UUID,Int,Int,Float64}}()) #进度条缓存
-
-global SYNCSTATES::SharedVector{Bool}
-global DATABUFRC::RemoteChannel{Channel{Vector{NTuple{2,String}}}}
-global EXTRADATABUFRC::RemoteChannel{Channel{Tuple{String,Vector{Any}}}}
-global PROGRESSRC::RemoteChannel{Channel{Vector{Tuple{UUID,Int,Int,Float64}}}}
 
 global LOGIO = stdout
 
 include("Utilities/Utilities.jl")
 include("Utilities/LoopVector.jl")
 include("Configurations.jl")
-include("Utilities/MultiLanguage.jl")
 include("Utilities/StaticString.jl")
 include("Utilities/FileInfo.jl")
-include("Utilities/QICServer.jl")
 
 include("UI/Extensions.jl")
 include("UI/Block.jl")
@@ -109,7 +100,6 @@ include("UI/Debugger.jl")
 include("UI/MainWindow.jl")
 include("UI/Renderer.jl")
 
-# include("AuxFunc.jl")
 include("Utilities/JLD2Struct.jl")
 include("Utilities/ConfLoading.jl")
 include("Conf.jl")
@@ -117,55 +107,39 @@ include("Conf.jl")
 function julia_main()::Cint
     try
         initialize!()
-        global LOGIO = IOBuffer()
-        global_logger(SimpleLogger(LOGIO))
-        @async @trycatch mlstr("error in logging task") while true
-            update_log()
-            sleep(1)
-        end
         loadconf()
-        databuf_c::Channel{Vector{Tuple{String,String}}} = Channel{Vector{NTuple{2,String}}}(CONF.DAQ.channelsize)
-        extradatabuf_c::Channel{Tuple{String,Vector{Any}}} = Channel{Tuple{String,Vector{Any}}}(CONF.DAQ.channelsize)
-        progress_c::Channel{Vector{Tuple{UUID,Int,Int,Float64}}} = Channel{Vector{Tuple{UUID,Int,Int,Float64}}}(CONF.DAQ.channelsize)
-        global SYNCSTATES = SharedVector{Bool}(length(instances(SyncStatesIndex)))
-        global DATABUFRC = RemoteChannel(() -> databuf_c)
-        global EXTRADATABUFRC = RemoteChannel(() -> extradatabuf_c)
-        global PROGRESSRC = RemoteChannel(() -> progress_c)
+        if CONF.Basic.isremote
+            ENV["JULIA_NUM_THREADS"] = CONF.Basic.nthreads_2
+            nprocs() == 1 && addprocs(1)
+        end
+        @eval @everywhere using QInsControlCore
+        
+        startlogger(CONF.Logs.dir)
+
+        QInsControlCore.REFRESHINRC = RemoteChannel(() -> Channel{Tuple{String,String,String,Cfloat}}(CONF.DAQ.channelsize))
+        QInsControlCore.REFRESHOUTRC = RemoteChannel(() -> Channel{Tuple{String,String,String,String}}(CONF.DAQ.channelsize))
+        QInsControlCore.DATABUFRC = RemoteChannel(() -> Channel{Vector{NTuple{2,String}}}(CONF.DAQ.channelsize))
+        QInsControlCore.EXTRADATABUFRC = RemoteChannel(() -> Channel{Tuple{String,Vector{Any}}}(CONF.DAQ.channelsize))
+        QInsControlCore.PROGRESSRC = RemoteChannel(() -> Channel{Vector{Tuple{UUID,Int,Int,Float64}}}(CONF.DAQ.channelsize))
+        QInsControlCore.SYNCSTATES = QInsControlCore.SharedVector{Bool}(length(instances(QInsControlCore.SyncStatesIndex)))
+
+        loadinsconf()
+
         jlverinfobuf = IOBuffer()
         versioninfo(jlverinfobuf)
         global JLVERINFO = wrapmultiline(String(take!(jlverinfobuf)), 48)
         @info ARGS
         isempty(ARGS) || @info reencoding.(ARGS, CONF.Basic.encoding)
+
         uitask = UI()
-        if CONF.Basic.isremote
-            ENV["JULIA_NUM_THREADS"] = CONF.Basic.nthreads_2
-            nprocs() == 1 && addprocs(1)
-            @eval @everywhere using QInsControl
-            global SYNCSTATES = SharedVector{Bool}(length(instances(SyncStatesIndex)))
-            global DATABUFRC = RemoteChannel(() -> databuf_c)
-            global EXTRADATABUFRC = RemoteChannel(() -> extradatabuf_c)
-            global PROGRESSRC = RemoteChannel(() -> progress_c)
-            remotecall_wait(workers()[1], SYNCSTATES) do syncstates
-                initialize!()
-                global LOGIO = IOBuffer()
-                global_logger(SimpleLogger(LOGIO))
-                @async @trycatch mlstr("error in logging task") while true
-                    update_log(syncstates)
-                    sleep(1)
-                end
-                loadconf()
-            end
-        end
-        remotecall_wait(workers()[1]) do
-            start!(CPU)
-            @eval const SWEEPCTS = Dict{String,Dict{String,Dict{String,Tuple{Ref{Bool},Controller}}}}()
-            @eval const REFRESHCTS = Dict{String,Dict{String,Controller}}()
-        end
-        autorefresh()
+        
+        remote_startcpu!()
+        remote_startrefresh(CONF.DAQ.ctbuflen)
+        startrefresh()
         @info "[$(now())]\n$(mlstr("successfully started!"))"
         if !isinteractive()
             wait(uitask)
-            while SYNCSTATES[Int(IsDAQTaskRunning)]
+            while SYNCSTATES[IsDAQTaskRunning]
                 sleep(0.1)
             end
             sleep(0.1)
@@ -195,7 +169,6 @@ start() = (get!(ENV, "QInsControlAssets", joinpath(@__DIR__, "../Assets")); juli
 
 @compile_workload begin
     get!(ENV, "QInsControlAssets", joinpath(@__DIR__, "../Assets"))
-    global SYNCSTATES = SharedVector{Bool}(length(instances(SyncStatesIndex)))
     loadconf(true)
     try
         UI()

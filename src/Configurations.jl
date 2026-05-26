@@ -1,5 +1,5 @@
 @option mutable struct OptBasic
-    waitevents::Bool = false
+    waitevents::Bool = true
     isremote::Bool = true
     viewportenable::Bool = true
     holdmainwindow::Bool = true
@@ -28,7 +28,6 @@ end
     savetype::String = "String"
     logall::Bool = false
     equalstep::Bool = true
-    externaleval::Bool = false
     highspeeddatatransfer::Bool = false
     savetime::Cint = 1
     cuttingfile::Cint = 2000000
@@ -85,7 +84,7 @@ end
     use::Bool = false
 end
 @option mutable struct OptBGImage
-    main::OptOneBGImage = OptOneBGImage(path=joinpath(ENV["QInsControlAssets"], "Necessity/defaultwallpaper.png"), use=false)
+    main::OptOneBGImage = OptOneBGImage(path=joinpath(ENV["QInsControlAssets"], "Necessity/defaultwallpaper.png"), use=true)
     circuit::OptOneBGImage = OptOneBGImage()
     instrbufferviewer::OptOneBGImage = OptOneBGImage()
     registration::OptOneBGImage = OptOneBGImage()
