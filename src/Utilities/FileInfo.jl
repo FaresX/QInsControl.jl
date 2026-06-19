@@ -1,15 +1,12 @@
-const QINSCONTROLVERSION = pkgversion(QInsControl)
-const JLD2VERSION = pkgversion(JLD2)
-
 let
     jlverinfobuf = IOBuffer()
     versioninfo(jlverinfobuf)
-    jlverinfo = String(take!(jlverinfobuf))
-    global function fileinfo()
-        OrderedDict(
-            "QInsControl version" => QINSCONTROLVERSION,
-            "JLD2 version" => JLD2VERSION,
-            "Julia version" => jlverinfo
-        )
-    end
+    jlverinfo = wrapmultiline(String(take!(jlverinfobuf)), 48)
+    QInsControlVersion = pkgversion(QInsControl)
+    JLD2Version = pkgversion(JLD2)
+    global FILEINFO::OrderedDict{String,Union{VersionNumber, String}} = OrderedDict(
+        "QInsControl version" => QInsControlVersion,
+        "JLD2 version" => JLD2Version,
+        "Julia version" => jlverinfo
+    )
 end

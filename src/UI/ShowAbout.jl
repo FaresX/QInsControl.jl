@@ -14,7 +14,7 @@ let
             )
             CImGui.TextColored(MORESTYLE.Colors.HighlightText, "QInsControl\n")
             CImGui.PopFont()
-            CImGui.Text(stcstr(mlstr("version"), " : ", QINSCONTROLVERSION))
+            CImGui.Text(stcstr(mlstr("version"), " : ", FILEINFO["QInsControl version"]))
             CImGui.SameLine()
             if STATES[Int(NewVersion)]
                 CImGui.TextColored(MORESTYLE.Colors.HighlightText, mlstr("New version!"))
@@ -39,10 +39,9 @@ let
             CImGui.TextLinkOpenURL("https://github.com/FaresX/QInsControl.jl", "https://github.com/FaresX/QInsControl.jl")
             CImGui.Text("\n")
             CImGui.Text(stcstr("OpenGL ", mlstr("version"), " : ", unsafe_string(glGetString(GL_VERSION))))
-            CImGui.Text(stcstr("JLD2 ", mlstr("version"), " : ", JLD2VERSION))
+            CImGui.Text(stcstr("JLD2 ", mlstr("version"), " : ", FILEINFO["JLD2 version"]))
             CImGui.Text("\n")
-            global JLVERINFO
-            CImGui.Text(JLVERINFO)
+            CImGui.Text(FILEINFO["Julia version"])
             CImGui.Text("\n")
             CImGui.Button(stcstr(mlstr("Confirm"), "##ShowAbout"), (-1, 0)) && CImGui.CloseCurrentPopup()
             CImGui.EndPopup()
@@ -53,7 +52,7 @@ let
         for _ in 1:6
             try
                 maxversion = max([VersionNumber(rel.tag_name) for rel in releases("FaresX/QInsControl.jl")[1]]...)
-                STATES[NewVersion] = maxversion > QINSCONTROLVERSION
+                STATES[NewVersion] = maxversion > FILEINFO["QInsControl version"]
                 STATES[NewVersion] && (newversion = string(maxversion))
                 break
             catch
