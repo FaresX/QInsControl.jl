@@ -285,7 +285,7 @@ function loaddtviewer!(fdg::FormatDataGroup, id)
             end
         end
     end
-    fdg.dtviewer.data["dataplot"] = deepcopy(fdg.dtviewer.dtp)
+    fdg.dtviewer.data["daqdataplots"] = deepcopy(fdg.dtviewer.dtps)
     fdg.dtviewer.data["daqtask"] = DAQTask(
         explog=join([string("Data ", i, '\n', fd.path) for (i, fd) in enumerate(fdg.data)], '\n'),
         blocks=[]
@@ -299,7 +299,7 @@ function showdtviewer(fd::FormatData, id)
         CImGui.SetNextWindowSize((600, 600), CImGui.ImGuiCond_Once)
         @c(CImGui.Begin(stcstr("FormatData", id), &fd.dtviewer.p_open)) && edit(fd.dtviewer, fd.path, stcstr("FormatData", id))
         CImGui.End()
-        fd.dtviewer.p_open && haskey(fd.dtviewer.data, "data") && renderplots(fd.dtviewer.dtp, stcstr("formatdata", id))
+        fd.dtviewer.p_open && haskey(fd.dtviewer.data, "data") && renderplots(fd.dtviewer.dtps, stcstr("formatdata", id))
         if !fd.dtviewer.p_open
             atclosedtviewer!(fd.dtviewer)
             fd.dtviewer = DataViewer(p_open=false)
@@ -314,7 +314,7 @@ function showdtviewer(fdg::FormatDataGroup, id)
         CImGui.SetNextWindowSize((600, 600), CImGui.ImGuiCond_Once)
         @c(CImGui.Begin(stcstr("FormatDataGroup", id), &fdg.dtviewer.p_open)) && edit(fdg.dtviewer, "", stcstr("FormatDataGroup", id))
         CImGui.End()
-        fdg.dtviewer.p_open && haskey(fdg.dtviewer.data, "data") && renderplots(fdg.dtviewer.dtp, stcstr("formatdatagroup", id))
+        fdg.dtviewer.p_open && haskey(fdg.dtviewer.data, "data") && renderplots(fdg.dtviewer.dtps, stcstr("formatdatagroup", id))
     end
 end
 showdtviewer(::FormatCodes, _) = nothing

@@ -1,5 +1,5 @@
 @kwdef mutable struct DataViewer
-    dtp::DataPlot = DataPlot()
+    dtps::Vector{DataPlot} = []
     data::Dict = Dict()
     p_open::Bool = true
 end
@@ -108,13 +108,13 @@ let
                 if haskey(dtviewer.data, "data")
                     CImGui.BeginChild("DataPlots")
                     if CImGui.Button(stcstr(MORESTYLE.Icons.NewFile, " ", mlstr("New Plot")), (Cfloat(-1), 2CImGui.GetFontSize()))
-                        newplot!(dtviewer.dtp)
+                        push!(dtviewer.dtps, DataPlot())
                     end
-                    editmenu(dtviewer.dtp, dtviewer.data["data"])
+                    edit(dtviewer.dtps, dtviewer.data["data"])
                     CImGui.EndChild()
                     if CImGui.BeginPopup("add plot")
-                        CImGui.MenuItem(stcstr(MORESTYLE.Icons.NewFile, " ", mlstr("New Plot"))) && newplot!(dtviewer.dtp)
-                        CImGui.MenuItem(stcstr(MORESTYLE.Icons.Paste, " ", mlstr("Paste Plot"))) && pasteplot!(dtviewer.dtp)
+                        CImGui.MenuItem(stcstr(MORESTYLE.Icons.NewFile, " ", mlstr("New Plot"))) && push!(dtviewer.dtps, DataPlot())
+                        CImGui.MenuItem(stcstr(MORESTYLE.Icons.Paste, " ", mlstr("Paste Plot"))) && pasteplot!(dtviewer.dtps)
                         CImGui.EndPopup()
                     end
                     if !CImGui.IsAnyItemHovered() && CImGui.IsWindowHovered(CImGui.ImGuiHoveredFlags_ChildWindows)
@@ -184,7 +184,7 @@ let
             CImGui.EndTabBar()
         end
         CImGui.EndChild()
-        haskey(dtviewer.data, "data") && showdtpks(dtviewer.dtp, stcstr("DataViewer", id), dtviewer.data["data"])
+        haskey(dtviewer.data, "data") && showdtpks(dtviewer.dtps, stcstr("DataViewer", id), dtviewer.data["data"])
     end
 end
 
@@ -211,12 +211,12 @@ function loaddtviewer!(dtviewer::DataViewer, data::Dict, id)
     if haskey(dtviewer.data, "data") && !(dtviewer.data["data"] isa Dict{String,Vector{String}})
         dtviewer.data["data"] = Dict(key => string.(val) for (key, val) in dtviewer.data["data"])
     end
-    if haskey(dtviewer.data, "dataplot")
-        dtviewer.dtp = dtviewer.data["dataplot"]
-        for (i, plt) in enumerate(dtviewer.dtp.plots)
-            plt.id = stcstr(id, "-", i)
+    if haskey(dtviewer.data, "daqdataplots")
+        dtviewer.dtps = dtviewer.data["daqdataplots"]
+        for (i, dtp) in enumerate(dtviewer.dtps)
+            dtp.plot.id = stcstr(id, "-", i)
         end
-        haskey(dtviewer.data, "data") && update!(dtviewer.dtp, dtviewer.data["data"])
+        haskey(dtviewer.data, "data") && update!(dtviewer.dtps, dtviewer.data["data"])
     end
     if !isempty(dtviewer.data)
         haskey(dtviewer.data, "circuit") && loadsamplebasenode!(dtviewer.data["circuit"])
@@ -262,14 +262,14 @@ function rmtextures!(dtv::DataViewer)
         end
     end
 end
-rmplots!(dtv::DataViewer) = rmplots!(dtv.dtp)
+rmplots!(dtv::DataViewer) = rmplots!(dtv.dtps)
 
 function saveqdt(dtviewer::DataViewer, path)
     if !isempty(dtviewer.data)
         jldopen(path, "w") do file
             for key in keys(dtviewer.data)
                 key == "info" && continue
-                key == "dataplot" && (file[key] = deepcopy(dtviewer.dtp); continue)
+                key == "daqdataplots" && (file[key] = deepcopy(dtviewer.dtps); continue)
                 if key == "data"
                     savetype = eval(Symbol(CONF.DAQ.savetype))
                     if savetype == String

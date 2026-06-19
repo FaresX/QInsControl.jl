@@ -63,7 +63,7 @@ function edit(fv::FileViewer, id)
         end
         CImGui.End()
         if dtviewer.p_open
-            haskey(dtviewer.data, "data") && renderplots(dtviewer.dtp, stcstr("DataViewer", id, path))
+            haskey(dtviewer.data, "data") && renderplots(dtviewer.dtps, stcstr("DataViewer", id, path))
         else
             atclosedtviewer!(fv.dtviewers[path])
             delete!(fv.dtviewers, path)

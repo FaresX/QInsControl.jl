@@ -1,245 +1,141 @@
-@kwdef mutable struct Layout
-    id::String = "Layout"
-    showcol::Cint = 1
-    idxing::Cint = 1
-    labels::Vector{String} = ["default"]
-    marks::Vector{String} = [""]
-    states::Vector{Bool} = [false]
-    selectedlabels::Vector{String} = []
-    labeltoidx::Dict{String,Int} = Dict()
-    selectedidx::Vector{Int} = []
-end
-
-labeltoidx!(lo::Layout) = lo.selectedidx = [lo.labeltoidx[lb] for lb in lo.selectedlabels]
-
-function edit(
-    rightclickmenu, lo::Layout, args...;
-    action=(si, ti, args...) -> (),
-    size=(Cfloat(0), CImGui.GetTextLineHeight() * ceil(Int, length(lo.labels) / lo.showcol)),
-    showlayout=false,
-    selectableflags=0,
-    selectablesize=(0, 0)
-)
-    states_old = copy(lo.states)
-    marks_old = copy(lo.marks)
-    editlabels = @. lo.labels * " " * lo.marks * "###for rename" * lo.labels
-    @c DragMultiSelectable(
-        rightclickmenu, lo.id, editlabels, lo.states, lo.showcol, &lo.idxing, args...;
-        action=action, size=size, border=true, selectableflags=selectableflags, selectablesize=selectablesize
-    )
-    if lo.states != states_old || lo.marks != marks_old
-        editlabels = @. lo.labels * " " * lo.marks
-        lo.selectedlabels = editlabels[lo.states]
-        lo.labeltoidx = Dict(zip(editlabels, collect(eachindex(editlabels))))
-        labeltoidx!(lo)
-    end
-    if showlayout
-        CImGui.Separator()
-        CImGui.Text(mlstr("layout"))
-        selectedlabels_old = copy(lo.selectedlabels)
-        DragMultiSelectable(() -> false, lo.id, lo.selectedlabels, trues(length(lo.selectedlabels)), lo.showcol, Ref(1))
-        lo.selectedlabels == selectedlabels_old || labeltoidx!(lo)
-    end
-end
-
-function update!(lo::Layout)
-    editlabels = @. lo.labels * " " * lo.marks
-    lo.selectedlabels = editlabels[lo.states]
-    lo.labeltoidx = Dict(zip(editlabels, collect(eachindex(editlabels))))
-    labeltoidx!(lo)
-    lo.idxing = 1
-end
-
-function Base.deleteat!(lo::Layout, i)
-    deleteat!(lo.labels, i)
-    deleteat!(lo.marks, i)
-    deleteat!(lo.states, i)
-    update!(lo)
-end
-
 @kwdef mutable struct DataPlot
-    dtpks::Vector{DataPicker} = [DataPicker()]
-    showdtpks::Vector{Bool} = [false]
-    plots::Vector{QPlot} = [QPlot()]
-    layout::Layout = Layout()
-    isdelplot::Bool = false
-    delplot_i::Int = 0
+    name::String = ""
+    showplot::Bool = false
+    plot::QPlot = QPlot()
+    dtpk::DataPicker = DataPicker()
+    showdtpk::Bool = false
 end
 
 let
-    copydatapicker::DataPicker = DataPicker()
-    copymark::String = ""
-    global function editmenu(dtp::DataPlot, datastr, datafloat::Dict{String,VecOrMat{Cdouble}}=Dict{String,VecOrMat{Cdouble}}())
-        ldtpks = length(dtp.dtpks)
-        length(dtp.showdtpks) == ldtpks || resizebool!(dtp.showdtpks, ldtpks)
-        dtp.layout.labels = [stcstr(MORESTYLE.Icons.Plot, " ", mlstr("Plot"), " ", i) for i in eachindex(dtp.layout.labels)]
-        edit(
-            dtp.layout, dtp;
-            action=insertplotbefore!, size=(0, 0),
-            selectablesize=(Cfloat(0), CImGui.GetFrameHeight() - unsafe_load(IMGUISTYLE.ItemSpacing.y))
-        ) do
-            openright = CImGui.BeginPopupContextItem()
-            if openright
-                if CImGui.MenuItem(stcstr(MORESTYLE.Icons.Plot, " ", mlstr("Select Data")))
-                    # if !dtp.layout.states[dtp.layout.idxing]
-                    #     for dtss in dtp.dtpks[dtp.layout.idxing].series
-                    #         dtss.isrealtime = false
-                    #     end
-                    # end
-                    dtp.showdtpks[dtp.layout.idxing] = true
+    copydataplot::DataPlot = DataPlot()
+    global function edit(dtps::Vector{DataPlot}, datastr, datafloat::Dict{String,VecOrMat{Cdouble}}=Dict{String,VecOrMat{Cdouble}}())
+        isdelplot = false
+        delplot_i = 0
+        isrename = false
+        CImGui.BeginChild("DataPlots", (0, 0), true)
+        for (i, dtp) in enumerate(dtps)
+            if i == 1
+                ccpos = CImGui.GetCursorScreenPos()
+                CImGui.SetCursorScreenPos(ccpos.x, ccpos.y + unsafe_load(IMGUISTYLE.ItemSpacing.y) / 2)
+            end
+            CImGui.PushStyleVar(CImGui.ImGuiStyleVar_SelectableTextAlign, (0.5, 0.5))
+            @c CImGui.Selectable(
+                stcstr(MORESTYLE.Icons.Plot, " ", mlstr("Plot"), " ", i, " ", dtp.name, "###plot", i), &dtp.showplot, 0,
+                (Cfloat(0), CImGui.GetFrameHeight() - unsafe_load(IMGUISTYLE.ItemSpacing.y))
+            )
+            CImGui.PopStyleVar()
+            i == length(dtps) || CImGui.Spacing()
+            CImGui.Indent()
+            if CImGui.BeginDragDropSource(0)
+                @c CImGui.SetDragDropPayload("Swap DataPlot", &i, sizeof(Cint))
+                CImGui.Text(stcstr(mlstr("Plot"), " ", i, " ", dtp.name))
+                CImGui.EndDragDropSource()
+            end
+            if CImGui.BeginDragDropTarget()
+                payload = CImGui.AcceptDragDropPayload("Swap DataPlot")
+                if payload != C_NULL && unsafe_load(payload).DataSize == sizeof(Cint)
+                    payload_i = unsafe_load(Ptr{Cint}(unsafe_load(payload).Data))
+                    if i != payload_i
+                        insert!(dtps, i, dtps[payload_i])
+                        deleteat!(dtps, payload_i < i ? payload_i : payload_i + 1)
+                    end
                 end
-                if dtp.layout.states[dtp.layout.idxing] && CImGui.MenuItem(stcstr(MORESTYLE.Icons.Update, " ", mlstr("Update")))
-                    idx = dtp.layout.idxing
-                    dtp.dtpks[idx].update = true
-                    syncplotdata(dtp.plots[idx], dtp.dtpks[idx], datastr, datafloat)
+                CImGui.EndDragDropTarget()
+            end
+            CImGui.Unindent()
+            if CImGui.BeginPopupContextItem()
+                if CImGui.MenuItem(stcstr(MORESTYLE.Icons.Plot, " ", mlstr("Select Data")))
+                    dtp.showdtpk = true
+                end
+                CImGui.Separator()
+                if dtp.showplot && CImGui.MenuItem(stcstr(MORESTYLE.Icons.Update, " ", mlstr("Update")))
+                    dtp.dtpk.update = true
+                    syncplotdata(dtp.plot, dtp.dtpk, datastr, datafloat)
                 end
                 if CImGui.MenuItem(stcstr(MORESTYLE.Icons.Copy, " ", mlstr("Copy")))
-                    copymark = dtp.layout.marks[dtp.layout.idxing]
-                    copydatapicker = deepcopy(dtp.dtpks[dtp.layout.idxing])
+                    copydataplot = dtp
                 end
-                CImGui.MenuItem(stcstr(MORESTYLE.Icons.Paste, " ", mlstr("Paste"))) && insertplotafter!(dtp, dtp.layout.idxing)
+                CImGui.MenuItem(stcstr(MORESTYLE.Icons.Paste, " ", mlstr("Paste"))) && insert!(dtps, i, copydataplot)
+                CImGui.Separator()
+                CImGui.MenuItem(stcstr(MORESTYLE.Icons.Rename, " ", mlstr("Rename"))) && (isrename = true)
                 if CImGui.MenuItem(stcstr(MORESTYLE.Icons.Delete, " ", mlstr("Delete")))
-                    dtp.isdelplot = true
-                    dtp.delplot_i = dtp.layout.idxing
+                    isdelplot = true
+                    delplot_i = i
                 end
-                markbuf = dtp.layout.marks[dtp.layout.idxing]
-                CImGui.PushItemWidth(6CImGui.GetFontSize())
-                @c InputTextRSZ(dtp.layout.labels[dtp.layout.idxing], &markbuf)
-                CImGui.PopItemWidth()
-                dtp.layout.marks[dtp.layout.idxing] = markbuf
                 CImGui.EndPopup()
             end
-            return openright
+            isdelplot && delplot_i == i && CImGui.OpenPopup(stcstr("##delete plot", i))
+            if YesNoDialog(
+                stcstr("##delete plot", i),
+                mlstr("Confirm delete?"),
+                CImGui.ImGuiWindowFlags_AlwaysAutoResize
+            )
+                length(dtps) > 1 && (rmplot!(dtp.plot); deleteat!(dtps, i))
+            end
+            isrename && (CImGui.OpenPopup(stcstr("rename plot", i));
+            isrename = false)
+            if CImGui.BeginPopup(stcstr("rename plot", i))
+                @c InputTextRSZ(stcstr(MORESTYLE.Icons.Plot, " ", mlstr("Plot"), " ", i, "###plot", i), &dtp.name)
+                CImGui.EndPopup()
+            end
         end
+        CImGui.EndChild()
     end
 
-    function insertplotafter!(dtp::DataPlot, i)
-        push!(dtp.layout.labels, string(length(dtp.layout.labels) + 1))
-        insert!(dtp.layout.marks, i + 1, copymark)
-        insert!(dtp.layout.states, i+1, false)
-        insert!(dtp.plots, i+1, QPlot())
-        insert!(dtp.dtpks, i+1, copydatapicker)
-        insert!(dtp.showdtpks, i+1, false)
-    end
-
-    global function pasteplot!(dtp::DataPlot)
-        newplot!(dtp)
-        dtp.layout.marks[end] = copymark
-        dtp.dtpks[end] = copydatapicker
-    end
-end
-
-function newplot!(dtp::DataPlot)
-    push!(dtp.layout.labels, string(length(dtp.layout.labels) + 1))
-    push!(dtp.layout.marks, "")
-    push!(dtp.layout.states, false)
-    push!(dtp.plots, QPlot())
-    push!(dtp.dtpks, DataPicker())
-end
-
-function insertplotbefore!(si, ti, dtp::DataPlot)
-    insert!(dtp.layout.labels, ti, dtp.layout.labels[si])
-    insert!(dtp.layout.marks, ti, dtp.layout.marks[si])
-    insert!(dtp.layout.states, ti, dtp.layout.states[si])
-    insert!(dtp.plots, ti, dtp.plots[si])
-    insert!(dtp.dtpks, ti, dtp.dtpks[si])
-    insert!(dtp.showdtpks, ti, dtp.showdtpks[si])
-    deleteat!(dtp.layout.labels, si < ti ? si : si + 1)
-    deleteat!(dtp.layout.marks, si < ti ? si : si + 1)
-    deleteat!(dtp.layout.states, si < ti ? si : si + 1)
-    deleteat!(dtp.plots, si < ti ? si : si + 1)
-    deleteat!(dtp.dtpks, si < ti ? si : si + 1)
-    deleteat!(dtp.showdtpks, si < ti ? si : si + 1)
+    global pasteplot!(dtps::Vector{DataPlot}) = push!(dtps, copydataplot)
 end
 
 function showdtpks(
-    dtp::DataPlot,
-    id,
-    datastr::Dict{String,Vector{String}},
-    datafloat::Dict{String,VecOrMat{Cdouble}}=Dict{String,VecOrMat{Cdouble}}()
+    dtps::Vector{DataPlot}, id,
+    datastr::Dict{String,Vector{String}}, datafloat::Dict{String,VecOrMat{Cdouble}}=Dict{String,VecOrMat{Cdouble}}()
 )
-    # if CImGui.BeginPopupModal(stcstr("##no data", id), C_NULL, CImGui.ImGuiWindowFlags_AlwaysAutoResize)
-    #     CImGui.TextColored(MORESTYLE.Colors.ErrorText, stcstr("\n", mlstr("No data!"), "\n "))
-    #     CImGui.Button(stcstr(mlstr("Confirm"), "##no data"), (180, 0)) && CImGui.CloseCurrentPopup()
-    #     CImGui.EndPopup()
-    # end
-    for (i, isshowdtpk) in enumerate(dtp.showdtpks)
-        if isshowdtpk
-            # if isempty(datastr) && isempty(datafloat)
-            #     CImGui.OpenPopup(stcstr("##no data", id))
-            #     dtp.showdtpks[i] = false
-            #     continue
-            # end
-            dtpk = dtp.dtpks[i]
+    for (i, dtp) in enumerate(dtps)
+        if dtp.showdtpk
             datakeys = [sort(collect(keys(isempty(datastr) ? datafloat : datastr))); ""]
-            datakeys == dtpk.datalist || (dtpk.datalist = datakeys)
-            @c edit(dtpk, stcstr(id, "-", i), &isshowdtpk)
-            dtp.showdtpks[i] = isshowdtpk
-            syncplotdata(dtp.plots[i], dtpk, datastr, datafloat)
-        end
-    end
-
-    dtp.isdelplot && ((CImGui.OpenPopup(stcstr("##delete plot", dtp.layout.idxing)));
-    dtp.isdelplot = false)
-    if YesNoDialog(
-        stcstr("##delete plot", dtp.layout.idxing),
-        mlstr("Confirm delete?"),
-        CImGui.ImGuiWindowFlags_AlwaysAutoResize
-    )
-        if length(dtp.plots) > 1
-            rmplot!(dtp.plots[end])
-            deleteat!(dtp.layout, dtp.delplot_i)
-            deleteat!(dtp.plots, dtp.delplot_i)
-            deleteat!(dtp.dtpks, dtp.delplot_i)
-            deleteat!(dtp.showdtpks, dtp.delplot_i)
+            datakeys == dtp.dtpk.datalist || (dtp.dtpk.datalist = datakeys)
+            @c edit(dtp.dtpk, stcstr(id, "-", i), &dtp.showdtpk)
+            syncplotdata(dtp.plot, dtp.dtpk, datastr, datafloat)
         end
     end
 end
 
-function renderplots(dtp::DataPlot, id)
-    for (i, idx) in enumerate(dtp.layout.selectedidx)
+function renderplots(dtps::Vector{DataPlot}, id)
+    for (i, dtp) in enumerate(dtps)
+        dtp.showplot || continue
         ws = (
-            dtp.plots[idx].size[1] + 2unsafe_load(IMGUISTYLE.WindowPadding.x),
-            dtp.plots[idx].size[2] + 2unsafe_load(IMGUISTYLE.WindowPadding.y) + CImGui.GetFrameHeight()
+            dtp.plot.size[1] + 2unsafe_load(IMGUISTYLE.WindowPadding.x),
+            dtp.plot.size[2] + 2unsafe_load(IMGUISTYLE.WindowPadding.y) + CImGui.GetFrameHeight()
         )
         CImGui.SetNextWindowSize(ws, CImGui.ImGuiCond_Once)
-        isopenplot = dtp.layout.states[idx]
         if @c CImGui.Begin(
-            stcstr(
-                MORESTYLE.Icons.Plot, " ",
-                mlstr("Plot"), " ",
-                idx, " ", dtp.layout.marks[idx],
-                "###", id, "-", idx, "dtv"
-            ),
-            &isopenplot
+            stcstr(MORESTYLE.Icons.Plot, " ", mlstr("Plot"), " ", i, " ", dtp.name, "###", id, "-", i, "dtv"),
+            &dtp.showplot
         )
-            QPlot(dtp.plots[idx], stcstr(id, "-", idx))
+            QPlot(dtp.plot, stcstr(id, "-", i))
         end
         CImGui.End()
-        dtp.layout.states[idx] = isopenplot
-        isopenplot || (deleteat!(dtp.layout.selectedidx, i); deleteat!(dtp.layout.selectedlabels, i))
     end
 end
 
-function update!(dtp::DataPlot, datastr, datafloat::Dict{String,VecOrMat{Cdouble}}=Dict{String,VecOrMat{Cdouble}}(); all=false)
-    for (i, dtpk) in enumerate(dtp.dtpks)
-        (all || dtp.layout.states[i]) || continue
-        dtpk.update = true
-        syncplotdata(dtp.plots[i], dtpk, datastr, datafloat)
+function update!(dtps::Vector{DataPlot}, datastr, datafloat::Dict{String,VecOrMat{Cdouble}}=Dict{String,VecOrMat{Cdouble}}(); all=false)
+    for dtp in dtps
+        (all || dtp.showplot) || continue
+        dtp.dtpk.update = true
+        syncplotdata(dtp.plot, dtp.dtpk, datastr, datafloat)
     end
 end
 
-function norealtime!(dtp::DataPlot)
-    for dtpk in dtp.dtpks
-        for dtss in dtpk.series
+function norealtime!(dtps::Vector{DataPlot})
+    for dtp in dtps
+        for dtss in dtp.dtpk.series
             dtss.isrealtime = false
         end
     end
-    return dtp
+    return dtps
 end
 
-function rmplots!(dtp::DataPlot)
-    for plt in dtp.plots
-        rmplot!(plt)
+function rmplots!(dtps::Vector{DataPlot})
+    for dtp in dtps
+        rmplot!(dtp.plot)
     end
 end

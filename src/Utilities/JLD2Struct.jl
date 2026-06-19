@@ -3,7 +3,7 @@ for T in [
     :CodeBlock, :StrideCodeBlock, :SweepBlock, :SettingBlock, :ReadingBlock,
     :WriteBlock, :QueryBlock, :ReadBlock, :FeedbackBlock,
     :Node, :ResizeGrip, :ImagePin, :ImageRegion, :SampleHolderNode, :NodeEditor, :DAQTask,
-    :QPlot, :Layout, :DataSeries, :DataPicker, :DataPlot, :InstrAlias,
+    :QPlot, :DataSeries, :DataPicker, :DataPlot, :InstrAlias,
     :ImNodesStyle, :MoreStyleVariable, :MoreStyleColor, :MoreStyleIcon, :MoreStyle, :UnionStyle
 ]
     JLD2T = Symbol(:JLD2, T)
