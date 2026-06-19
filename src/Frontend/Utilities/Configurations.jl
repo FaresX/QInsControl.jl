@@ -127,45 +127,45 @@ end
     )
 end
 
-global CONF::Conf
+# global CONF::Conf
 
-abstract type InsConf end
+# abstract type InsConf end
 
-@kwdef mutable struct BasicConf <: InsConf
-    icon::String = ICONS.ICON_MICROCHIP
-    idn::String = "New Ins"
-    cmdtype::String = "scpi"
-    input_labels::Vector{String} = []
-    output_labels::Vector{String} = []
-end
+# @kwdef mutable struct BasicConf <: InsConf
+#     icon::String = ICONS.ICON_MICROCHIP
+#     idn::String = "New Ins"
+#     cmdtype::String = "scpi"
+#     input_labels::Vector{String} = []
+#     output_labels::Vector{String} = []
+# end
 
-@kwdef mutable struct QuantityConf <: InsConf
-    alias::String = "quantity"
-    timeoutw::Cfloat = 3
-    timeoutr::Cfloat = 3
-    U::String = ""
-    cmdheader::String = ""
-    optkeys::Vector{String} = []
-    optvalues::Vector{String} = []
-    type::String = "set"
-    separator::String = ""
-    numread::Cint = 1
-    help::String = ""
-end
+# @kwdef mutable struct QuantityConf <: InsConf
+#     alias::String = "quantity"
+#     timeoutw::Cfloat = 3
+#     timeoutr::Cfloat = 3
+#     U::String = ""
+#     cmdheader::String = ""
+#     optkeys::Vector{String} = []
+#     optvalues::Vector{String} = []
+#     type::String = "set"
+#     separator::String = ""
+#     numread::Cint = 1
+#     help::String = ""
+# end
 
-@kwdef mutable struct OneInsConf
-    conf::BasicConf = BasicConf()
-    quantities::OrderedDict{String,QuantityConf} = Dict()
-end
+# @kwdef mutable struct OneInsConf
+#     conf::BasicConf = BasicConf()
+#     quantities::OrderedDict{String,QuantityConf} = Dict()
+# end
 
-todict(cf::BasicConf) = Dict(string(fdnm) => getproperty(cf, fdnm) for fdnm in fieldnames(BasicConf))
-todict(qtcf::QuantityConf) = Dict(string(fdnm) => getproperty(qtcf, fdnm) for fdnm in fieldnames(QuantityConf))
-function todict(oneinscf::OneInsConf)
-    dict = Dict{String,Dict{String,Any}}("conf" => todict(oneinscf.conf))
-    for (qt, qtcf) in oneinscf.quantities
-        dict[qt] = todict(qtcf)
-    end
-    dict
-end
+# todict(cf::BasicConf) = Dict(string(fdnm) => getproperty(cf, fdnm) for fdnm in fieldnames(BasicConf))
+# todict(qtcf::QuantityConf) = Dict(string(fdnm) => getproperty(qtcf, fdnm) for fdnm in fieldnames(QuantityConf))
+# function todict(oneinscf::OneInsConf)
+#     dict = Dict{String,Dict{String,Any}}("conf" => todict(oneinscf.conf))
+#     for (qt, qtcf) in oneinscf.quantities
+#         dict[qt] = todict(qtcf)
+#     end
+#     dict
+# end
 
-const INSCONF = OrderedDict{String,OneInsConf}() #仪器注册表
+# const INSCONF = OrderedDict{String,OneInsConf}() #仪器注册表

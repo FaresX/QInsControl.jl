@@ -12,7 +12,6 @@ import DefaultApplication
 import FileIO
 using GLMakie
 using GitHub
-# using MakieThemes
 import ImageMagick
 using JLD2
 using JpegTurbo
@@ -22,7 +21,6 @@ using OrderedCollections
 using PrecompileTools
 using StringEncodings
 using Unitful
-# using ImageIO
 
 using Dates
 using Distributed
@@ -41,72 +39,15 @@ for item in instances(SyncStatesIndex)
     eval(:(import .QInsControlCore: $(Symbol(item))))
 end
 
-@enum StatesIndex begin
-    AutoDetecting = 1 #是否正在自动查询仪器
-    AutoDetectDone
-    AutoRefreshing
-    NewVersion
-    FatalError
-    InValidFile
-end
-Base.getindex(x::AbstractVector{Bool}, i::StatesIndex) = x[Int(i)]
-Base.setindex!(x::AbstractVector{Bool}, v::Bool, i::StatesIndex) = x[Int(i)] = v
-const STATES = fill(false, length(instances(StatesIndex)))
-
-const DATABUF = Lockable(Dict{String,Vector{String}}())
-const DATABUFPARSED = Lockable(Dict{String,VecOrMat{Cdouble}}())
-const PROGRESSLIST = Lockable(OrderedDict{UUID,Tuple{UUID,Int,Int,Float64}}())
-
-include("Utilities/Utilities.jl")
-include("Utilities/LoopVector.jl")
-include("Configurations.jl")
-include("Utilities/StaticString.jl")
-include("Utilities/FileInfo.jl")
-include("Utilities/LockableDict.jl")
-
-include("UI/Extensions.jl")
-include("UI/Block.jl")
-include("UI/CustomWidgets/CustomWidgets.jl")
-include("UI/DAQTask.jl")
-include("UI/IconsFontAwesome6.jl")
-include("UI/IconSelector.jl")
-include("UI/CircuitEditor.jl")
-include("UI/Instrument.jl")
-include("UI/QPlot.jl")
-include("UI/Progress.jl")
-include("UI/DataPicker.jl")
-include("UI/DataPlot.jl")
-include("UI/InstrAlias.jl")
-
-include("UI/DataViewer.jl")
-include("UI/FileTree.jl")
-include("UI/FileViewer.jl")
-include("UI/OpenFileMonitor.jl")
-include("UI/DataFormatter.jl")
-include("UI/StyleEditor.jl")
-include("UI/Preferences.jl")
-include("UI/CPUMonitor.jl")
-include("UI/InstrBuffer.jl")
-include("UI/InstrumentMonitor.jl")
-include("UI/ServerMonitor.jl")
-include("UI/InstrRegister.jl")
-include("UI/InstrWidget.jl")
-include("UI/DAQ.jl")
-include("UI/Console.jl")
-include("UI/Logger.jl")
-include("UI/ShowAbout.jl")
-include("UI/Debugger.jl")
-include("UI/MainWindow.jl")
-include("UI/Renderer.jl")
-
-include("Utilities/JLD2Struct.jl")
-include("Utilities/ConfLoading.jl")
-include("Conf.jl")
+include("GenericUtilities/GenericUtilites.jl")
+include("Frontend/Frontend.jl")
 
 function julia_main()::Cint
     try
-        initialize!()
-        loadconf()
+        initialize_qinscontrolcore!()
+        initialize_genericutilities!()
+        initialize_frontend!()
+        # loadconf()
         if CONF.Basic.isremote
             ENV["JULIA_NUM_THREADS"] = CONF.Basic.nthreads_2
             nprocs() == 1 && addprocs(1)
@@ -128,7 +69,7 @@ function julia_main()::Cint
         isempty(ARGS) || @info reencoding.(ARGS, CONF.Basic.encoding)
 
         uitask = UI()
-        
+
         remote_startcpu!()
         remote_startrefresh(CONF.DAQ.ctbuflen)
         startrefresh()
@@ -147,18 +88,6 @@ function julia_main()::Cint
         return 1
     end
     return 0
-end
-
-function initialize!()
-    empty!(DATABUF)
-    empty!(DATABUFPARSED)
-    empty!(PROGRESSLIST)
-    empty!(STYLES)
-    empty!(INSCONF)
-    empty!(INSWCONF)
-    empty!(INSTRBUFFERVIEWERS)
-    empty!(IMAGES)
-    empty!(FIGURES)
 end
 
 start() = (get!(ENV, "QInsControlAssets", joinpath(@__DIR__, "../Assets")); julia_main())

@@ -16,6 +16,9 @@ global CFGCACHESAVEPATH::String = ""
 global QDTCACHESAVEPATH::String = ""
 global RUNNINGTASK::String = ""
 const CFGBUF = Dict{String,Any}()
+const DATABUF = Lockable(Dict{String,Vector{String}}())
+const DATABUFPARSED = Lockable(Dict{String,VecOrMat{Cdouble}}())
+const PROGRESSLIST = Lockable(OrderedDict{UUID,Tuple{UUID,Int,Int,Float64}}())
 
 #test
 function test_daqtask(daqtask::DAQTask, id)

@@ -37,7 +37,7 @@ let
             hasrefreshing = STATES[AutoRefreshing] && (|)(values(isrefreshingdict)...)
             hasrefreshing && CImGui.PushStyleColor(CImGui.ImGuiCol_Text, MORESTYLE.Colors.DAQTaskRunning)
             insnode = CImGui.TreeNode(
-                stcstr(INSCONF[ins].conf.icon, " ", ins, "  ", "(", length(inses), ")", "###", ins)
+                stcstr(INSTRCONF[ins].conf.icon, " ", ins, "  ", "(", length(inses), ")", "###", ins)
             )
             hasrefreshing && CImGui.PopStyleColor()
             if insnode
@@ -65,7 +65,7 @@ let
                             stcstr(MORESTYLE.Icons.NewFile, " ", mlstr("Add to")),
                             ins == "Others" && !SYNCSTATES[IsDAQTaskRunning] && !sweeping
                         )
-                            for (cfins, cf) in INSCONF
+                            for (cfins, cf) in INSTRCONF
                                 cfins in ["Others", "VirtualInstr"] && continue
                                 if CImGui.MenuItem(stcstr(cf.conf.icon, " ", cfins))
                                     delete!(INSTRBUFFERVIEWERS[ins], addr)

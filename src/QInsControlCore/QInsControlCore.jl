@@ -21,7 +21,7 @@ export Controller, Processor
 export login!, logout!, start!, stop!, reconnect!, find_resources, slow!, fast!, isbusy, setbusy!, unsetbusy!
 export instrument, connect!, disconnect!, write, read, query, idn
 export @trycatch, showbacktrace, gensweeplist
-export mlstr, languageinfo, loadlanguage
+export mlstr, languageinfo, loadlanguage, initialize_qinscontrolcore!
 
 export QICClient, QICServer
 
@@ -33,5 +33,9 @@ include("Instruments.jl")
 include("DataStream.jl")
 include("QICServer.jl")
 include("Remote.jl")
+
+function initialize_qinscontrolcore!()
+    empty!(MLSTRINGS)
+end
 
 end # module QInsControlCore

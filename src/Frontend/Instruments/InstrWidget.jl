@@ -911,7 +911,7 @@ let
         CImGui.PushStyleVar(CImGui.ImGuiStyleVar_FramePadding, insw.framepadding)
         if CImGui.Begin(
             stcstr(
-                INSCONF[insw.instrnm].conf.icon, " ", insw.instrnm, " ", addr, " ", insw.name,
+                INSTRCONF[insw.instrnm].conf.icon, " ", insw.instrnm, " ", addr, " ", insw.name,
                 "###", insw.instrnm, addr, id
             ),
             p_open,
@@ -1578,8 +1578,8 @@ function addwidgetmenu(insw::InstrWidget, i=0; mode=:addlast)
             newqtw.options.uitype = "combo"
         end
         if CImGui.BeginMenu(mlstr("Sweep Quantity"))
-            if haskey(INSCONF, insw.instrnm)
-                for (qtnm, qt) in INSCONF[insw.instrnm].quantities
+            if haskey(INSTRCONF, insw.instrnm)
+                for (qtnm, qt) in INSTRCONF[insw.instrnm].quantities
                     qt.type == "sweep" || continue
                     if CImGui.MenuItem(qt.alias)
                         newqtw = QuantityWidget(name=qtnm, alias=qt.alias, qtype="sweep", numread=qt.numread)
@@ -1590,8 +1590,8 @@ function addwidgetmenu(insw::InstrWidget, i=0; mode=:addlast)
             CImGui.EndMenu()
         end
         if CImGui.BeginMenu(mlstr("Set Quantity"))
-            if haskey(INSCONF, insw.instrnm)
-                for (qtnm, qt) in INSCONF[insw.instrnm].quantities
+            if haskey(INSTRCONF, insw.instrnm)
+                for (qtnm, qt) in INSTRCONF[insw.instrnm].quantities
                     qt.type == "set" || continue
                     if CImGui.MenuItem(qt.alias)
                         newqtw = QuantityWidget(
@@ -1604,8 +1604,8 @@ function addwidgetmenu(insw::InstrWidget, i=0; mode=:addlast)
             CImGui.EndMenu()
         end
         if CImGui.BeginMenu(mlstr("Read Quantity"))
-            if haskey(INSCONF, insw.instrnm)
-                for (qtnm, qt) in INSCONF[insw.instrnm].quantities
+            if haskey(INSTRCONF, insw.instrnm)
+                for (qtnm, qt) in INSTRCONF[insw.instrnm].quantities
                     qt.type == "read" || continue
                     if CImGui.MenuItem(qt.alias)
                         newqtw = QuantityWidget(name=qtnm, alias=qt.alias, qtype="read", numread=qt.numread)
@@ -1634,8 +1634,8 @@ function convertmenu(insw::InstrWidget, i)
         insw.qtws[i].name ∉ ["_Panel_", "_QuantitySelector_", "_Image_", "_Shape_"]
     )
         if CImGui.BeginMenu(mlstr("Sweep Quantity"))
-            if haskey(INSCONF, insw.instrnm)
-                for (qtnm, qt) in INSCONF[insw.instrnm].quantities
+            if haskey(INSTRCONF, insw.instrnm)
+                for (qtnm, qt) in INSTRCONF[insw.instrnm].quantities
                     qt.type == "sweep" || continue
                     if CImGui.MenuItem(qt.alias)
                         insw.qtws[i] = QuantityWidget(
@@ -1653,8 +1653,8 @@ function convertmenu(insw::InstrWidget, i)
             CImGui.EndMenu()
         end
         if CImGui.BeginMenu(mlstr("Set Quantity"))
-            if haskey(INSCONF, insw.instrnm)
-                for (qtnm, qt) in INSCONF[insw.instrnm].quantities
+            if haskey(INSTRCONF, insw.instrnm)
+                for (qtnm, qt) in INSTRCONF[insw.instrnm].quantities
                     qt.type == "set" || continue
                     if CImGui.MenuItem(qt.alias)
                         newqtw = QuantityWidget(
@@ -1674,8 +1674,8 @@ function convertmenu(insw::InstrWidget, i)
             CImGui.EndMenu()
         end
         if CImGui.BeginMenu(mlstr("Read Quantity"))
-            if haskey(INSCONF, insw.instrnm)
-                for (qtnm, qt) in INSCONF[insw.instrnm].quantities
+            if haskey(INSTRCONF, insw.instrnm)
+                for (qtnm, qt) in INSTRCONF[insw.instrnm].quantities
                     qt.type == "read" || continue
                     if CImGui.MenuItem(qt.alias)
                         insw.qtws[i] = QuantityWidget(
@@ -1910,8 +1910,8 @@ let
                 CImGui.PushStyleVar(CImGui.ImGuiStyleVar_FramePadding, unsafe_load(IMGUISTYLE.FramePadding) ./ 2)
                 if CImGui.BeginMenu(stcstr(MORESTYLE.Icons.NewFile, " ", mlstr("Add")), length(group) < qtw.options.selectornum)
                     if CImGui.BeginMenu(mlstr("Sweep Quantity"))
-                        if haskey(INSCONF, instrnm)
-                            for (_, qt) in INSCONF[instrnm].quantities
+                        if haskey(INSTRCONF, instrnm)
+                            for (_, qt) in INSTRCONF[instrnm].quantities
                                 qt.type == "sweep" || continue
                                 CImGui.Button(qt.alias) && push!(group, qt.alias)
                             end
@@ -1919,8 +1919,8 @@ let
                         CImGui.EndMenu()
                     end
                     if CImGui.BeginMenu(mlstr("Set Quantity"))
-                        if haskey(INSCONF, instrnm)
-                            for (_, qt) in INSCONF[instrnm].quantities
+                        if haskey(INSTRCONF, instrnm)
+                            for (_, qt) in INSTRCONF[instrnm].quantities
                                 qt.type == "set" || continue
                                 CImGui.Button(qt.alias) && push!(group, qt.alias)
                             end
@@ -1928,8 +1928,8 @@ let
                         CImGui.EndMenu()
                     end
                     if CImGui.BeginMenu(mlstr("Read Quantity"))
-                        if haskey(INSCONF, instrnm)
-                            for (_, qt) in INSCONF[instrnm].quantities
+                        if haskey(INSTRCONF, instrnm)
+                            for (_, qt) in INSTRCONF[instrnm].quantities
                                 qt.type == "read" || continue
                                 CImGui.Button(qt.alias) && push!(group, qt.alias)
                             end
@@ -2202,7 +2202,7 @@ let
                             if insw.qtws[i].name == "_Panel_"
                                 insw.qtws[i].alias = alias
                             else
-                                optv = [(qtnm, qt) for (qtnm, qt) in INSCONF[insw.instrnm].quantities if qt.alias == alias]
+                                optv = [(qtnm, qt) for (qtnm, qt) in INSTRCONF[insw.instrnm].quantities if qt.alias == alias]
                                 if !isempty(optv)
                                     qtnm, qt = only(optv)
                                     if qt.type == insw.qtws[i].qtype

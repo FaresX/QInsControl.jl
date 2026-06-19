@@ -1,3 +1,39 @@
+loadingtypes = [:OptBasic, :OptCommunication, :OptDtViewer, :OptDAQ, :OptInsBuf, :OptServer,
+    :OptRegister, :OptFonts, :OptConsole, :OptLogs, :OptOneBGImage,
+    :OptBGImage, :OptComAddr, :OptStyle, :Conf,
+    :BasicConf, :QuantityConf,
+    :InstrWidget, :QuantityWidget, :QuantityWidgetOption,
+    :QImGuiColors, :QImGuiStyle, :QImNodesColors, :QImNodesStyle,
+    :MoreStyleColor, :MoreStyleIcon, :MoreStyleVariable, :MoreStyle, :UnionStyle
+]
+
+for T in loadingtypes
+    eval(
+        quote
+            function $T(conf::Dict)
+                t = $T()
+                for fdnm in fieldnames($T)
+                    val = get!(conf, string(fdnm), getproperty(t, fdnm))
+                    if val isa Dict
+                        ft = fieldtype($T, fdnm)
+                        if ft <: Dict
+                            setproperty!(t, fdnm, val)
+                        else
+                            setproperty!(t, fdnm, ft(val))
+                        end
+                    elseif val isa Vector && fieldtype($T, fdnm).parameters[1] in [$(loadingtypes...)]
+                        elft = fieldtype($T, fdnm).parameters[1]
+                        setproperty!(t, fdnm, [elft(v) for v in val])
+                    else
+                        setproperty!(t, fdnm, val)
+                    end
+                end
+                return t
+            end
+        end
+    )
+end
+
 function loadconf(precompile=false)
     ###### gennerate conf ######
     conf_file = joinpath(ENV["QInsControlAssets"], "Necessity/conf.toml")
@@ -36,14 +72,14 @@ function loadconf(precompile=false)
     CONF.Basic.languages = languageinfo()
     haskey(CONF.Basic.languages, CONF.Basic.language) && loadlanguage(CONF.Basic.languages[CONF.Basic.language])
 
-    ###### load INSCONF ######
+    ###### load INSTRCONF ######
     loadinsconf(false)
 
     ###### generate INSWCONF ######
     loadinswconf()
 
     ###### generate INSTRBUFFERVIEWERS ######
-    for ins in keys(INSCONF)
+    for ins in keys(INSTRCONF)
         INSTRBUFFERVIEWERS[ins] = Dict{String,InstrBufferViewer}()
     end
     INSTRBUFFERVIEWERS["VirtualInstr"] = Dict("VirtualAddress" => InstrBufferViewer("VirtualInstr", "VirtualAddress"))
@@ -113,7 +149,7 @@ function gen_insconf(conf_file; gen_func=true)
             end
         end
     end
-    oneinsconf = OneInsConf()
+    oneinsconf = OneInstrConf()
     for cf in conf
         if cf.first == "conf"
             oneinsconf.conf = BasicConf(cf.second)
@@ -121,5 +157,5 @@ function gen_insconf(conf_file; gen_func=true)
             oneinsconf.quantities[cf.first] = QuantityConf(cf.second)
         end
     end
-    INSCONF[string(instrnm)] = oneinsconf
+    INSTRCONF[string(instrnm)] = oneinsconf
 end

@@ -209,9 +209,9 @@ function tocodes(bk::SweepBlock)
     quantity = bk.quantity
     setfunc = Symbol(bk.instrnm, :_, bk.quantity, :_set)
     getfunc = Symbol(bk.instrnm, :_, bk.quantity, :_get)
-    timeoutw = INSCONF[bk.instrnm].quantities[quantity].timeoutw
-    timeoutr = INSCONF[bk.instrnm].quantities[quantity].timeoutr
-    U, Us = @c getU(INSCONF[bk.instrnm].quantities[quantity].U, &bk.ui)
+    timeoutw = INSTRCONF[bk.instrnm].quantities[quantity].timeoutw
+    timeoutr = INSTRCONF[bk.instrnm].quantities[quantity].timeoutr
+    U, Us = @c getU(INSTRCONF[bk.instrnm].quantities[quantity].U, &bk.ui)
     U == "" && (@error "[$(now())]\n$(mlstr("input data error!!!"))" bk = bk;
     return)
     stepc = @trypass Meta.parse(bk.step) begin
@@ -270,10 +270,10 @@ end
 function tocodes(bk::FreeSweepBlock)
     instr = string(bk.instrnm, "/", bk.addr)
     quantity = bk.quantity
-    @assert INSCONF[bk.instrnm].quantities[bk.quantity].separator == "" mlstr("no free sweeping !!!")
-    timeoutr = INSCONF[bk.instrnm].quantities[bk.quantity].timeoutr
+    @assert INSTRCONF[bk.instrnm].quantities[bk.quantity].separator == "" mlstr("no free sweeping !!!")
+    timeoutr = INSTRCONF[bk.instrnm].quantities[bk.quantity].timeoutr
     getfunc = Symbol(bk.instrnm, :_, bk.quantity, :_get)
-    U, Us = @c getU(INSCONF[bk.instrnm].quantities[quantity].U, &bk.ui)
+    U, Us = @c getU(INSTRCONF[bk.instrnm].quantities[quantity].U, &bk.ui)
     U == "" && (@error "[$(now())]\n$(mlstr("input data error!!!"))" bk = bk;
     return)
     stopc = @trypass Meta.parse(bk.stop) begin
@@ -315,8 +315,8 @@ end
 function tocodes(bk::SettingBlock)
     instr = string(bk.instrnm, "/", bk.addr)
     quantity = bk.quantity
-    timeoutw = INSCONF[bk.instrnm].quantities[quantity].timeoutw
-    U, Us = @c getU(INSCONF[bk.instrnm].quantities[quantity].U, &bk.ui)
+    timeoutw = INSTRCONF[bk.instrnm].quantities[quantity].timeoutw
+    U, Us = @c getU(INSTRCONF[bk.instrnm].quantities[quantity].U, &bk.ui)
     if U == ""
         setvalue = parsedollar(bk.setvalue)
     else
@@ -337,7 +337,7 @@ function tocodes(bk::SettingBlock)
         sleep($(bk.delay))
     end
     return if bk.ischeck
-        timeoutr = INSCONF[bk.instrnm].quantities[quantity].timeoutr
+        timeoutr = INSTRCONF[bk.instrnm].quantities[quantity].timeoutr
         getfunc = Symbol(bk.instrnm, :_, bk.quantity, :_get)
         getcmd = :(controllers[$instr]($getfunc, CPU, Val(:read); timeout=$timeoutr))
         getcodes = bk.istrycatch ? quote
@@ -410,10 +410,10 @@ function gencodes_read(bk::Union{ReadingBlock,QueryBlock,ReadBlock})
     index = genindex(bk)
     bk isa ReadingBlock && (getfunc = Symbol(bk.instrnm, :_, bk.quantity, :_get))
     bk isa QueryBlock && (cmd = parsedollar(bk.cmd))
-    if isnothing(index) || (bk isa ReadingBlock && INSCONF[bk.instrnm].quantities[bk.quantity].separator == "")
+    if isnothing(index) || (bk isa ReadingBlock && INSTRCONF[bk.instrnm].quantities[bk.quantity].separator == "")
         key = genkey(bk)
         timeout = if bk isa ReadingBlock
-            INSCONF[bk.instrnm].quantities[bk.quantity].timeoutr
+            INSTRCONF[bk.instrnm].quantities[bk.quantity].timeoutr
         else
             getattr(bk.addr).timeoutr
         end
@@ -441,10 +441,10 @@ function gencodes_read(bk::Union{ReadingBlock,QueryBlock,ReadBlock})
         end
     else
         keyall = genkeys(bk, index)
-        separator = bk isa ReadingBlock ? INSCONF[bk.instrnm].quantities[bk.quantity].separator : ","
+        separator = bk isa ReadingBlock ? INSTRCONF[bk.instrnm].quantities[bk.quantity].separator : ","
         separator == "" && (separator = ",")
         timeout = if bk isa ReadingBlock
-            INSCONF[bk.instrnm].quantities[bk.quantity].timeoutr
+            INSTRCONF[bk.instrnm].quantities[bk.quantity].timeoutr
         else
             getattr(bk.addr).timeoutr
         end
@@ -670,7 +670,7 @@ macro feedbackblock(alias, action)
 end
 
 function utoui(instrnm, qtnm, u)
-    utype = haskey(INSCONF, instrnm) && haskey(INSCONF[instrnm].quantities, qtnm) ? INSCONF[instrnm].quantities[qtnm].U : ""
+    utype = haskey(INSTRCONF, instrnm) && haskey(INSTRCONF[instrnm].quantities, qtnm) ? INSTRCONF[instrnm].quantities[qtnm].U : ""
     Us = haskey(CONF.U, utype) ? CONF.U[utype] : [""]
     return u in Us ? findfirst(==(u), Us) : 1
 end
@@ -724,7 +724,7 @@ function interpret(bk::StrideCodeBlock)
 end
 
 function interpret(bk::SweepBlock)
-    utype = haskey(INSCONF, bk.instrnm) && haskey(INSCONF[bk.instrnm].quantities, bk.quantity) ? INSCONF[bk.instrnm].quantities[bk.quantity].U : ""
+    utype = haskey(INSTRCONF, bk.instrnm) && haskey(INSTRCONF[bk.instrnm].quantities, bk.quantity) ? INSTRCONF[bk.instrnm].quantities[bk.quantity].U : ""
     u, _ = @c getU(utype, &bk.ui)
     quote
         @sweepblock $(bk.rangemark) $(bk.alias) $(bk.quantity) $(bk.step) $(bk.stop) $(string(u)) $(bk.delay) $(bk.istrycatch) begin
@@ -733,7 +733,7 @@ function interpret(bk::SweepBlock)
     end
 end
 function interpret(bk::FreeSweepBlock)
-    utype = haskey(INSCONF, bk.instrnm) && haskey(INSCONF[bk.instrnm].quantities, bk.quantity) ? INSCONF[bk.instrnm].quantities[bk.quantity].U : ""
+    utype = haskey(INSTRCONF, bk.instrnm) && haskey(INSTRCONF[bk.instrnm].quantities, bk.quantity) ? INSTRCONF[bk.instrnm].quantities[bk.quantity].U : ""
     u, _ = @c getU(utype, &bk.ui)
     quote
         @freesweepblock $(bk.alias) $(bk.quantity) $(bk.mode) $(bk.stop) $(string(u)) $(bk.delta) $(bk.duration) $(bk.delay) $(bk.istrycatch) begin
@@ -742,7 +742,7 @@ function interpret(bk::FreeSweepBlock)
     end
 end
 function interpret(bk::SettingBlock)
-    utype = haskey(INSCONF, bk.instrnm) && haskey(INSCONF[bk.instrnm].quantities, bk.quantity) ? INSCONF[bk.instrnm].quantities[bk.quantity].U : ""
+    utype = haskey(INSTRCONF, bk.instrnm) && haskey(INSTRCONF[bk.instrnm].quantities, bk.quantity) ? INSTRCONF[bk.instrnm].quantities[bk.quantity].U : ""
     u, _ = @c getU(utype, &bk.ui)
     :(@settingblock $(bk.alias) $(bk.quantity) $(bk.ischeck) $(bk.setvalue) $(string(u)) $(bk.delay) $(bk.istrycatch))
 end
@@ -1227,23 +1227,23 @@ let
         # CImGui.PopItemWidth()
         # CImGui.SameLine()
 
-        showqt = if haskey(INSCONF, bk.instrnm) && haskey(INSCONF[bk.instrnm].quantities, bk.quantity)
-            INSCONF[bk.instrnm].quantities[bk.quantity].alias
+        showqt = if haskey(INSTRCONF, bk.instrnm) && haskey(INSTRCONF[bk.instrnm].quantities, bk.quantity)
+            INSTRCONF[bk.instrnm].quantities[bk.quantity].alias
         else
             mlstr("sweep")
         end
         CImGui.PushItemWidth(width)
         if CImGui.BeginCombo("##SweepBlock sweep", showqt, CImGui.ImGuiComboFlags_NoArrowButton)
-            qtlist = haskey(INSCONF, bk.instrnm) ? keys(INSCONF[bk.instrnm].quantities) : Set{String}()
-            qts = if haskey(INSCONF, bk.instrnm)
-                [qt for qt in qtlist if INSCONF[bk.instrnm].quantities[qt].type == "sweep"]
+            qtlist = haskey(INSTRCONF, bk.instrnm) ? keys(INSTRCONF[bk.instrnm].quantities) : Set{String}()
+            qts = if haskey(INSTRCONF, bk.instrnm)
+                [qt for qt in qtlist if INSTRCONF[bk.instrnm].quantities[qt].type == "sweep"]
             else
                 String[]
             end
             @c InputTextWithHintRSZ("##SweepBlock sweep", mlstr("Filter"), &filter)
-            sp = sortperm([INSCONF[bk.instrnm].quantities[qt].alias for qt in qts])
+            sp = sortperm([INSTRCONF[bk.instrnm].quantities[qt].alias for qt in qts])
             for qt in qts[sp]
-                showqt = INSCONF[bk.instrnm].quantities[qt].alias
+                showqt = INSTRCONF[bk.instrnm].quantities[qt].alias
                 (filter == "" || !isvalid(filter) || occursin(lowercase(filter), lowercase(showqt))) || continue
                 selected = bk.quantity == qt
                 CImGui.Selectable(showqt, selected, 0) && (bk.quantity = qt)
@@ -1263,8 +1263,8 @@ let
         CImGui.PopItemWidth()
         CImGui.SameLine()
 
-        Ut = if haskey(INSCONF, bk.instrnm) && haskey(INSCONF[bk.instrnm].quantities, bk.quantity)
-            INSCONF[bk.instrnm].quantities[bk.quantity].U
+        Ut = if haskey(INSTRCONF, bk.instrnm) && haskey(INSTRCONF[bk.instrnm].quantities, bk.quantity)
+            INSTRCONF[bk.instrnm].quantities[bk.quantity].U
         else
             ""
         end
@@ -1341,19 +1341,19 @@ let
         # CImGui.PopItemWidth()
         # CImGui.SameLine()
 
-        showqt = if haskey(INSCONF, bk.instrnm) && haskey(INSCONF[bk.instrnm].quantities, bk.quantity)
-            INSCONF[bk.instrnm].quantities[bk.quantity].alias
+        showqt = if haskey(INSTRCONF, bk.instrnm) && haskey(INSTRCONF[bk.instrnm].quantities, bk.quantity)
+            INSTRCONF[bk.instrnm].quantities[bk.quantity].alias
         else
             mlstr("sweep")
         end
         CImGui.PushItemWidth(width)
         if CImGui.BeginCombo("##FreeSweepBlock sweep", showqt, CImGui.ImGuiComboFlags_NoArrowButton)
-            qtlist = haskey(INSCONF, bk.instrnm) ? keys(INSCONF[bk.instrnm].quantities) : Set{String}()
+            qtlist = haskey(INSTRCONF, bk.instrnm) ? keys(INSTRCONF[bk.instrnm].quantities) : Set{String}()
             qts = collect(qtlist)
             @c InputTextWithHintRSZ("##FreeSweepBlock sweep", mlstr("Filter"), &filter)
-            sp = sortperm([INSCONF[bk.instrnm].quantities[qt].alias for qt in qts])
+            sp = sortperm([INSTRCONF[bk.instrnm].quantities[qt].alias for qt in qts])
             for qt in qts[sp]
-                showqt = INSCONF[bk.instrnm].quantities[qt].alias
+                showqt = INSTRCONF[bk.instrnm].quantities[qt].alias
                 (filter == "" || !isvalid(filter) || occursin(lowercase(filter), lowercase(showqt))) || continue
                 selected = bk.quantity == qt
                 CImGui.Selectable(showqt, selected, 0) && (bk.quantity = qt)
@@ -1376,8 +1376,8 @@ let
         @c CImGui.InputFloat("##FreeSweepBlock delta", &bk.delta, 0, 0, "%g")
         CImGui.PopItemWidth()
         CImGui.SameLine()
-        Ut = if haskey(INSCONF, bk.instrnm) && haskey(INSCONF[bk.instrnm].quantities, bk.quantity)
-            INSCONF[bk.instrnm].quantities[bk.quantity].U
+        Ut = if haskey(INSTRCONF, bk.instrnm) && haskey(INSTRCONF[bk.instrnm].quantities, bk.quantity)
+            INSTRCONF[bk.instrnm].quantities[bk.quantity].U
         else
             ""
         end
@@ -1436,23 +1436,23 @@ let
         # CImGui.PopItemWidth()
         # CImGui.SameLine()
 
-        showqt = if haskey(INSCONF, bk.instrnm) && haskey(INSCONF[bk.instrnm].quantities, bk.quantity)
-            INSCONF[bk.instrnm].quantities[bk.quantity].alias
+        showqt = if haskey(INSTRCONF, bk.instrnm) && haskey(INSTRCONF[bk.instrnm].quantities, bk.quantity)
+            INSTRCONF[bk.instrnm].quantities[bk.quantity].alias
         else
             mlstr("set")
         end
         CImGui.PushItemWidth(width)
         if CImGui.BeginCombo("##SettingBlock set", showqt, CImGui.ImGuiComboFlags_NoArrowButton)
-            qtlist = haskey(INSCONF, bk.instrnm) ? keys(INSCONF[bk.instrnm].quantities) : Set{String}()
-            sts = if haskey(INSCONF, bk.instrnm)
-                [qt for qt in qtlist if INSCONF[bk.instrnm].quantities[qt].type in ["set", "sweep"]]
+            qtlist = haskey(INSTRCONF, bk.instrnm) ? keys(INSTRCONF[bk.instrnm].quantities) : Set{String}()
+            sts = if haskey(INSTRCONF, bk.instrnm)
+                [qt for qt in qtlist if INSTRCONF[bk.instrnm].quantities[qt].type in ["set", "sweep"]]
             else
                 String[]
             end
             @c InputTextWithHintRSZ("##SettingBlock set", mlstr("Filter"), &filter)
-            sp = sortperm([INSCONF[bk.instrnm].quantities[qt].alias for qt in sts])
+            sp = sortperm([INSTRCONF[bk.instrnm].quantities[qt].alias for qt in sts])
             for st in sts[sp]
-                showqt = INSCONF[bk.instrnm].quantities[st].alias
+                showqt = INSTRCONF[bk.instrnm].quantities[st].alias
                 (filter == "" || !isvalid(filter) || occursin(lowercase(filter), lowercase(showqt))) || continue
                 selected = bk.quantity == st
                 CImGui.Selectable(showqt, selected, 0) && (bk.quantity = st)
@@ -1470,8 +1470,8 @@ let
         CImGui.PopItemWidth()
         if CImGui.BeginPopupContextItem("select set value")
             openpopup[] = true
-            optklist = @trypass INSCONF[bk.instrnm].quantities[bk.quantity].optkeys []
-            optvlist = @trypass INSCONF[bk.instrnm].quantities[bk.quantity].optvalues []
+            optklist = @trypass INSTRCONF[bk.instrnm].quantities[bk.quantity].optkeys []
+            optvlist = @trypass INSTRCONF[bk.instrnm].quantities[bk.quantity].optvalues []
             isempty(optklist) && CImGui.TextColored(MORESTYLE.Colors.HighlightText, mlstr("unavailable options!"))
             for (i, optv) in enumerate(optvlist)
                 optv == "" && continue
@@ -1481,8 +1481,8 @@ let
         end
         CImGui.SameLine()
 
-        Ut = if haskey(INSCONF, bk.instrnm) && haskey(INSCONF[bk.instrnm].quantities, bk.quantity)
-            INSCONF[bk.instrnm].quantities[bk.quantity].U
+        Ut = if haskey(INSTRCONF, bk.instrnm) && haskey(INSTRCONF[bk.instrnm].quantities, bk.quantity)
+            INSTRCONF[bk.instrnm].quantities[bk.quantity].U
         else
             ""
         end
@@ -1558,16 +1558,16 @@ let
         # @c ComboS("##ReadingBlock address", &bk.addr, sort(collect(addrlist)), CImGui.ImGuiComboFlags_NoArrowButton)
         # CImGui.PopItemWidth()
         # CImGui.SameLine()
-        hasqt = haskey(INSCONF, bk.instrnm) && haskey(INSCONF[bk.instrnm].quantities, bk.quantity)
-        showqt = hasqt ? INSCONF[bk.instrnm].quantities[bk.quantity].alias : mlstr("read")
+        hasqt = haskey(INSTRCONF, bk.instrnm) && haskey(INSTRCONF[bk.instrnm].quantities, bk.quantity)
+        showqt = hasqt ? INSTRCONF[bk.instrnm].quantities[bk.quantity].alias : mlstr("read")
         CImGui.PushItemWidth(width)
         if CImGui.BeginCombo("##ReadingBlock read", showqt, CImGui.ImGuiComboFlags_NoArrowButton)
-            qtlist = haskey(INSCONF, bk.instrnm) ? keys(INSCONF[bk.instrnm].quantities) : Set{String}()
+            qtlist = haskey(INSTRCONF, bk.instrnm) ? keys(INSTRCONF[bk.instrnm].quantities) : Set{String}()
             qts = collect(qtlist)
             @c InputTextWithHintRSZ("##ReadingBlock read", mlstr("Filter"), &filter)
-            sp = sortperm([INSCONF[bk.instrnm].quantities[qt].alias for qt in qts])
+            sp = sortperm([INSTRCONF[bk.instrnm].quantities[qt].alias for qt in qts])
             for qt in qts[sp]
-                showqt = INSCONF[bk.instrnm].quantities[qt].alias
+                showqt = INSTRCONF[bk.instrnm].quantities[qt].alias
                 (filter == "" || !isvalid(filter) || occursin(lowercase(filter), lowercase(showqt))) || continue
                 selected = bk.quantity == qt
                 CImGui.Selectable(showqt, selected, 0) && (bk.quantity = qt)
@@ -1578,7 +1578,7 @@ let
         CImGui.PopItemWidth()
         CImGui.SameLine()
 
-        igBeginDisabled((!hasqt || (hasqt && INSCONF[bk.instrnm].quantities[bk.quantity].numread == 1)))
+        igBeginDisabled((!hasqt || (hasqt && INSTRCONF[bk.instrnm].quantities[bk.quantity].numread == 1)))
         CImGui.PushItemWidth(width)
         @c InputTextWithHintRSZ("##ReadingBlock index", mlstr("index"), &bk.index)
         CImGui.PopItemWidth()
@@ -2161,9 +2161,9 @@ function view(bk::SweepBlock)
     CImGui.PopStyleVar()
     instrnm = bk.instrnm
     addr = bk.addr
-    quantity = @trypass INSCONF[bk.instrnm].quantities[bk.quantity].alias ""
-    Ut = if haskey(INSCONF, bk.instrnm) && haskey(INSCONF[bk.instrnm].quantities, bk.quantity)
-        INSCONF[bk.instrnm].quantities[bk.quantity].U
+    quantity = @trypass INSTRCONF[bk.instrnm].quantities[bk.quantity].alias ""
+    Ut = if haskey(INSTRCONF, bk.instrnm) && haskey(INSTRCONF[bk.instrnm].quantities, bk.quantity)
+        INSTRCONF[bk.instrnm].quantities[bk.quantity].U
     else
         ""
     end
@@ -2216,9 +2216,9 @@ function view(bk::FreeSweepBlock)
     CImGui.PopStyleVar()
     instrnm = bk.instrnm
     addr = bk.addr
-    quantity = @trypass INSCONF[bk.instrnm].quantities[bk.quantity].alias ""
-    Ut = if haskey(INSCONF, bk.instrnm) && haskey(INSCONF[bk.instrnm].quantities, bk.quantity)
-        INSCONF[bk.instrnm].quantities[bk.quantity].U
+    quantity = @trypass INSTRCONF[bk.instrnm].quantities[bk.quantity].alias ""
+    Ut = if haskey(INSTRCONF, bk.instrnm) && haskey(INSTRCONF[bk.instrnm].quantities, bk.quantity)
+        INSTRCONF[bk.instrnm].quantities[bk.quantity].U
     else
         ""
     end
@@ -2257,9 +2257,9 @@ function view(bk::SettingBlock)
     CImGui.BeginChild("##SettingBlockViewer", (Float32(0), bkheight(bk)), true)
     instrnm = bk.instrnm
     addr = bk.addr
-    quantity = @trypass INSCONF[bk.instrnm].quantities[bk.quantity].alias ""
-    Ut = if haskey(INSCONF, bk.instrnm) && haskey(INSCONF[bk.instrnm].quantities, bk.quantity)
-        INSCONF[bk.instrnm].quantities[bk.quantity].U
+    quantity = @trypass INSTRCONF[bk.instrnm].quantities[bk.quantity].alias ""
+    Ut = if haskey(INSTRCONF, bk.instrnm) && haskey(INSTRCONF[bk.instrnm].quantities, bk.quantity)
+        INSTRCONF[bk.instrnm].quantities[bk.quantity].U
     else
         ""
     end
@@ -2297,7 +2297,7 @@ function view(bk::ReadingBlock)
         end
     )
     CImGui.BeginChild("##ReadingBlockViewer", (Float32(0), bkheight(bk)), true)
-    quantity = @trypass INSCONF[bk.instrnm].quantities[bk.quantity].alias ""
+    quantity = @trypass INSTRCONF[bk.instrnm].quantities[bk.quantity].alias ""
     markc = if bk.isobserve
         ImVec4(MORESTYLE.Colors.BlockObserveBG...)
     else
@@ -2519,8 +2519,8 @@ function Base.show(io::IO, bk::BranchBlock)
     bk.codes == "" || print(io, string(bk.codes, "\n"))
 end
 function Base.show(io::IO, bk::SweepBlock)
-    Ut = if haskey(INSCONF, bk.instrnm) && haskey(INSCONF[bk.instrnm].quantities, bk.quantity)
-        INSCONF[bk.instrnm].quantities[bk.quantity].U
+    Ut = if haskey(INSTRCONF, bk.instrnm) && haskey(INSTRCONF[bk.instrnm].quantities, bk.quantity)
+        INSTRCONF[bk.instrnm].quantities[bk.quantity].U
     else
         ""
     end
@@ -2548,8 +2548,8 @@ function Base.show(io::IO, bk::SweepBlock)
     end
 end
 function Base.show(io::IO, bk::FreeSweepBlock)
-    Ut = if haskey(INSCONF, bk.instrnm) && haskey(INSCONF[bk.instrnm].quantities, bk.quantity)
-        INSCONF[bk.instrnm].quantities[bk.quantity].U
+    Ut = if haskey(INSTRCONF, bk.instrnm) && haskey(INSTRCONF[bk.instrnm].quantities, bk.quantity)
+        INSTRCONF[bk.instrnm].quantities[bk.quantity].U
     else
         ""
     end
@@ -2578,8 +2578,8 @@ function Base.show(io::IO, bk::FreeSweepBlock)
     end
 end
 function Base.show(io::IO, bk::SettingBlock)
-    Ut = if haskey(INSCONF, bk.instrnm) && haskey(INSCONF[bk.instrnm].quantities, bk.quantity)
-        INSCONF[bk.instrnm].quantities[bk.quantity].U
+    Ut = if haskey(INSTRCONF, bk.instrnm) && haskey(INSTRCONF[bk.instrnm].quantities, bk.quantity)
+        INSTRCONF[bk.instrnm].quantities[bk.quantity].U
     else
         ""
     end

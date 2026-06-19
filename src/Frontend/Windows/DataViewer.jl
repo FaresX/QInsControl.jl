@@ -38,7 +38,7 @@ let
                         CImGui.SameLine()
                         @c ComboS("##Addresses", &filteraddr, haskey(inses, filterins) ? [inses[filterins]; ""] : [""])
                         CImGui.SameLine()
-                        aliases = haskey(INSCONF, filterins) ? [[qt.alias for qt in values(INSCONF[filterins].quantities)]; ""] : [""]
+                        aliases = haskey(INSTRCONF, filterins) ? [[qt.alias for qt in values(INSTRCONF[filterins].quantities)]; ""] : [""]
                         @c ComboS("##Quantities", &filterqt, aliases)
                         CImGui.PopItemWidth()
                     end

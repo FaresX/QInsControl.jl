@@ -49,11 +49,11 @@ Node(id, ::Val{:Trilink12}) = Node(
 function Node(id, instrnm, ::Val{:Instrument})
     node = Node(
         id=id,
-        title=INSCONF[instrnm].conf.icon * " " * instrnm,
+        title=INSTRCONF[instrnm].conf.icon * " " * instrnm,
         input_ids=[],
-        input_labels=INSCONF[instrnm].conf.input_labels,
+        input_labels=INSTRCONF[instrnm].conf.input_labels,
         output_ids=[],
-        output_labels=INSCONF[instrnm].conf.output_labels
+        output_labels=INSTRCONF[instrnm].conf.output_labels
     )
     for i in 1:length(node.input_labels)
         push!(node.input_ids, id * 1000 + i)
@@ -501,11 +501,11 @@ let
             end
         end
         if CImGui.CollapsingHeader(mlstr("Instruments"))
-            inses = setdiff(keys(INSCONF), Set(["Others"]))
-            nodelabels = [stcstr(INSCONF[ins].conf.icon, " ", ins) for ins in inses]
+            inses = setdiff(keys(INSTRCONF), Set(["Others"]))
+            nodelabels = [stcstr(INSTRCONF[ins].conf.icon, " ", ins) for ins in inses]
             cols, labelwidth = calcmaxwidth(nodelabels, CImGui.GetFontSize())
             for (i, ins) in enumerate(inses)
-                CImGui.Selectable(stcstr(INSCONF[ins].conf.icon, " ", ins),
+                CImGui.Selectable(stcstr(INSTRCONF[ins].conf.icon, " ", ins),
                     false,
                     0,
                     (labelwidth, 3CImGui.GetFrameHeight())
@@ -578,7 +578,7 @@ let
                 if imnodes_IsEditorHovered()
                     if only(dragnode) in simplenodetypes
                         addnewnode(nodeeditor, Symbol(only(dragnode)), CImGui.GetMousePos(), Val(:simple))
-                    elseif only(dragnode) in keys(INSCONF)
+                    elseif only(dragnode) in keys(INSTRCONF)
                         addnewnode(nodeeditor, only(dragnode), CImGui.GetMousePos(), Val(:instrument))
                     end
                 end
@@ -666,9 +666,9 @@ let
                 CImGui.EndMenu()
             end
             if CImGui.BeginMenu(mlstr("Instrument Nodes"))
-                for ins in keys(INSCONF)
+                for ins in keys(INSTRCONF)
                     ins == "Others" && continue
-                    if CImGui.MenuItem(stcstr(INSCONF[ins].conf.icon, " ", ins))
+                    if CImGui.MenuItem(stcstr(INSTRCONF[ins].conf.icon, " ", ins))
                         addnewnode(nodeeditor, ins, CImGui.GetMousePosOnOpeningCurrentPopup(), Val(:instrument))
                     end
                 end

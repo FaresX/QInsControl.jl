@@ -126,7 +126,7 @@ let
             CImGui.PopStyleColor()
             CImGui.BeginChild("Instruments", (Cfloat(0), -2CImGui.GetFrameHeight() - 2unsafe_load(IMGUISTYLE.ItemSpacing.y)))
             CImGui.PushStyleVar(CImGui.ImGuiStyleVar_SelectableTextAlign, (0.5, 0.5))
-            for (oldinsnm, inscf) in INSCONF
+            for (oldinsnm, inscf) in INSTRCONF
                 oldinsnm == "Others" && continue
                 haskey(isrename, oldinsnm) || (isrename[oldinsnm] = false)
                 renamei = isrename[oldinsnm]
@@ -143,11 +143,11 @@ let
                     selectedqt = ""
                 end
                 CImGui.PopItemWidth()
-                if !(newinsnm == "" || haskey(INSCONF, newinsnm))
+                if !(newinsnm == "" || haskey(INSTRCONF, newinsnm))
                     if isrename[oldinsnm] && !renamei
-                        setvalue!(INSCONF, oldinsnm, newinsnm => inscf)
+                        setvalue!(INSTRCONF, oldinsnm, newinsnm => inscf)
                         timed_remotecall_wait(workers()[1], oldinsnm, newinsnm, inscf) do oldinsnm, newinsnm, inscf
-                            setvalue!(INSCONF, oldinsnm, newinsnm => inscf)
+                            setvalue!(INSTRCONF, oldinsnm, newinsnm => inscf)
                         end
                         INSTRBUFFERVIEWERS[newinsnm] = pop!(INSTRBUFFERVIEWERS, oldinsnm)
                         selectedins = newinsnm
@@ -160,7 +160,7 @@ let
                 end
                 if CImGui.BeginPopupContextItem()
                     CImGui.MenuItem(
-                        stcstr(MORESTYLE.Icons.Delete, " ", mlstr("Delete"), "##INSCONF"),
+                        stcstr(MORESTYLE.Icons.Delete, " ", mlstr("Delete"), "##INSTRCONF"),
                         C_NULL,
                         false,
                         oldinsnm ∉ ["VirtualInstr", "Others"]
@@ -172,9 +172,9 @@ let
                     mlstr("Confirm delete?"),
                     CImGui.ImGuiWindowFlags_AlwaysAutoResize
                 )
-                    pop!(INSCONF, oldinsnm, 0)
+                    pop!(INSTRCONF, oldinsnm, 0)
                     timed_remotecall_wait(workers()[1], oldinsnm) do oldinsnm
-                        pop!(INSCONF, oldinsnm, 0)
+                        pop!(INSTRCONF, oldinsnm, 0)
                     end
                     pop!(INSTRBUFFERVIEWERS, oldinsnm, 0)
                     selectedins = ""
@@ -204,7 +204,7 @@ let
                 (btwidth / 2, 2CImGui.GetFrameHeight())
             )
                 synccall_wait([workers()[1]]) do
-                    INSCONF["New Ins"] = OneInsConf()
+                    INSTRCONF["New Ins"] = OneInsConf()
                 end
                 INSTRBUFFERVIEWERS["New Ins"] = Dict{String,InstrBufferViewer}()
             end
@@ -214,11 +214,11 @@ let
             CImGui.NextColumn()
 
             CImGui.BeginChild("edit qts")
-            if selectedins != "" && haskey(INSCONF, selectedins)
+            if selectedins != "" && haskey(INSTRCONF, selectedins)
                 if CImGui.BeginTabBar("edit confs and widgets")
                     if CImGui.BeginTabItem(mlstr("Configurations"))
                         CImGui.BeginChild("Configurations")
-                        selectedinscf = INSCONF[selectedins]
+                        selectedinscf = INSTRCONF[selectedins]
                         ###conf###
                         SeparatorTextColored(MORESTYLE.Colors.HighlightText, mlstr("Basic"))
                         @c IconSelector(mlstr("icon"), &selectedinscf.conf.icon)
@@ -278,7 +278,7 @@ let
                         if CImGui.Button(stcstr(MORESTYLE.Icons.Delete, "##QuantityConf"))
                             pop!(selectedinscf.quantities, selectedqt, 0)
                             timed_remotecall_wait(workers()[1], selectedins, selectedqt) do selectedins, selectedqt
-                                pop!(INSCONF[selectedins].quantities, selectedqt, 0)
+                                pop!(INSTRCONF[selectedins].quantities, selectedqt, 0)
                             end
                             for ibv in values(INSTRBUFFERVIEWERS[selectedins])
                                 pop!(ibv.insbuf.quantities, qtname, 0)
@@ -289,12 +289,12 @@ let
 
                         SeparatorTextColored(MORESTYLE.Colors.HighlightText, mlstr("Edit"))
                         # CImGui.SameLine()
-                        if CImGui.Button(stcstr(MORESTYLE.Icons.SaveButton, " ", mlstr("Save"), "##QuantityConf to INSCONF"))
+                        if CImGui.Button(stcstr(MORESTYLE.Icons.SaveButton, " ", mlstr("Save"), "##QuantityConf to INSTRCONF"))
                             selectedinscf.quantities[qtname] = deepcopy(editqt)
                             timed_remotecall_wait(workers()[1], selectedins, qtname, editqt) do selectedins, qtname, editqt
-                                INSCONF[selectedins].quantities[qtname] = editqt
+                                INSTRCONF[selectedins].quantities[qtname] = editqt
                             end
-                            cmdtype = Symbol("@", INSCONF[selectedins].conf.cmdtype)
+                            cmdtype = Symbol("@", INSTRCONF[selectedins].conf.cmdtype)
                             synccall_wait([workers()[1]], selectedins, cmdtype, qtname, editqt.cmdheader) do instrnm, cmdtype, qtname, cmd
                                 @trycatch mlstr("instrument registration failed!!!") begin
                                     if cmd != ""
@@ -389,7 +389,7 @@ end #let
 
 function saveinsconf()
     conffiles = readdir(joinpath(ENV["QInsControlAssets"], "Confs"))
-    allins = keys(INSCONF)
+    allins = keys(INSTRCONF)
     for cf in conffiles
         filename, filetype = split(cf, '.')
         filetype != "toml" && continue
@@ -402,12 +402,12 @@ function saveinsconf()
         filename == "extraload" && continue
         filename ∉ allins && Base.Filesystem.rm(joinpath(ENV["QInsControlAssets"], "ExtraLoad/$ef"))
     end
-    for (ins, inscf) in INSCONF
+    for (ins, inscf) in INSTRCONF
         cfpath = joinpath(ENV["QInsControlAssets"], "Confs/$ins.toml")
         readcf = @trypasse TOML.parsefile(cfpath) nothing
         savingcf = todict(inscf)
         if readcf != savingcf
-            @trycatch mlstr("saving INSCONF failed!!!") begin
+            @trycatch mlstr("saving INSTRCONF failed!!!") begin
                 open(cfpath, "w") do file
                     TOML.print(file, savingcf)
                 end
