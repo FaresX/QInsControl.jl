@@ -32,12 +32,13 @@ using Statistics
 using TOML
 using UUIDs
 
-using QInsControlCore
-using QInsControlCore.LibSerialPort
-import QInsControlCore: VISAInstrAttr, SerialInstrAttr, TCPSocketInstrAttr, VirtualInstrAttr
-import QInsControlCore: SYNCSTATES, SyncStatesIndex
+include("QInsControlCore/QInsControlCore.jl")
+using .QInsControlCore
+using .QInsControlCore.LibSerialPort
+import .QInsControlCore: VISAInstrAttr, SerialInstrAttr, TCPSocketInstrAttr, VirtualInstrAttr
+import .QInsControlCore: SYNCSTATES, SyncStatesIndex
 for item in instances(SyncStatesIndex)
-    eval(:(import QInsControlCore: $(Symbol(item))))
+    eval(:(import .QInsControlCore: $(Symbol(item))))
 end
 
 @enum StatesIndex begin
@@ -52,18 +53,16 @@ Base.getindex(x::AbstractVector{Bool}, i::StatesIndex) = x[Int(i)]
 Base.setindex!(x::AbstractVector{Bool}, v::Bool, i::StatesIndex) = x[Int(i)] = v
 const STATES = fill(false, length(instances(StatesIndex)))
 
-# const CPU = Processor()
-const DATABUF = Dict{String,Vector{String}}() #数据缓存
-const DATABUFPARSED = Dict{String,VecOrMat{Cdouble}}()
-const PROGRESSLIST = Base.Lockable(OrderedDict{UUID,Tuple{UUID,Int,Int,Float64}}()) #进度条缓存
-
-global LOGIO = stdout
+const DATABUF = Lockable(Dict{String,Vector{String}}())
+const DATABUFPARSED = Lockable(Dict{String,VecOrMat{Cdouble}}())
+const PROGRESSLIST = Lockable(OrderedDict{UUID,Tuple{UUID,Int,Int,Float64}}())
 
 include("Utilities/Utilities.jl")
 include("Utilities/LoopVector.jl")
 include("Configurations.jl")
 include("Utilities/StaticString.jl")
 include("Utilities/FileInfo.jl")
+include("Utilities/LockableDict.jl")
 
 include("UI/Extensions.jl")
 include("UI/Block.jl")
@@ -112,7 +111,7 @@ function julia_main()::Cint
             ENV["JULIA_NUM_THREADS"] = CONF.Basic.nthreads_2
             nprocs() == 1 && addprocs(1)
         end
-        @eval @everywhere using QInsControlCore
+        @eval @everywhere using QInsControl
 
         QInsControlCore.REFRESHINRC = RemoteChannel(() -> Channel{Tuple{String,String,String,Cfloat}}(CONF.DAQ.channelsize))
         QInsControlCore.REFRESHOUTRC = RemoteChannel(() -> Channel{Tuple{String,String,String,String}}(CONF.DAQ.channelsize))
@@ -125,9 +124,6 @@ function julia_main()::Cint
 
         loadinsconf()
 
-        jlverinfobuf = IOBuffer()
-        versioninfo(jlverinfobuf)
-        global JLVERINFO = wrapmultiline(String(take!(jlverinfobuf)), 48)
         @info ARGS
         isempty(ARGS) || @info reencoding.(ARGS, CONF.Basic.encoding)
 
@@ -156,7 +152,7 @@ end
 function initialize!()
     empty!(DATABUF)
     empty!(DATABUFPARSED)
-    lock(empty!, PROGRESSLIST)
+    empty!(PROGRESSLIST)
     empty!(STYLES)
     empty!(INSCONF)
     empty!(INSWCONF)
@@ -166,6 +162,7 @@ function initialize!()
 end
 
 start() = (get!(ENV, "QInsControlAssets", joinpath(@__DIR__, "../Assets")); julia_main())
+stop() = GLFW.SetWindowShouldClose(CImGui.current_window(), true)
 
 @compile_workload begin
     get!(ENV, "QInsControlAssets", joinpath(@__DIR__, "../Assets"))
