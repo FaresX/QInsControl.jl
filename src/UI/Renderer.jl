@@ -21,14 +21,37 @@ function UI()
     imguiinifile = joinpath(ENV["QInsControlAssets"], "Necessity/imgui.ini")
     isfile(imguiinifile) && CImGui.LoadIniSettingsFromDisk(imguiinifile)
 
+    # # 加载字体
+    # fonts = unsafe_load(io.Fonts)
+    # # 加载全局字体
+    # global GLOBALFONT = CImGui.AddFontFromFileTTF(fonts, joinpath(CONF.Fonts.path))
+    # fontcfg = ImFontConfig_ImFontConfig()
+    # fontcfg.OversampleH = fontcfg.OversampleV = 1
+    # fontcfg.MergeMode = true
+
+    # # 加载全局图标字体
+    # CImGui.AddFontFromFileTTF(
+    #     fonts, joinpath(ENV["QInsControlAssets"], "Necessity/fa-regular-400.ttf"), 0, fontcfg
+    # )
+    # CImGui.AddFontFromFileTTF(
+    #     fonts, joinpath(ENV["QInsControlAssets"], "Necessity/fa-solid-900.ttf"), 0, fontcfg
+    # )
+
+    global IMGUISTYLE = CImGui.GetStyle()
+    global IMNODESSTYLE = imnodes_GetStyle()
+    global MORESTYLE = MoreStyle()
+    haskey(STYLES, CONF.Style.default) && loadstyle(STYLES[CONF.Style.default])
+
     # 加载字体
     fonts = unsafe_load(io.Fonts)
     # 加载全局字体
-    global GLOBALFONT = CImGui.AddFontFromFileTTF(fonts, joinpath(CONF.Fonts.dir, CONF.Fonts.first))
+    if !isfile(MORESTYLE.Variables.FontPath)
+        MORESTYLE.Variables.FontPath = joinpath(ENV["QInsControlAssets"], "Fonts/HarmonyOS_Sans_SC_Regular.ttf")
+    end
+    global GLOBALFONT = CImGui.AddFontFromFileTTF(fonts, MORESTYLE.Variables.FontPath)
     fontcfg = ImFontConfig_ImFontConfig()
     fontcfg.OversampleH = fontcfg.OversampleV = 1
     fontcfg.MergeMode = true
-    CImGui.AddFontFromFileTTF(fonts, joinpath(CONF.Fonts.dir, CONF.Fonts.second), 0, fontcfg)
 
     # 加载全局图标字体
     CImGui.AddFontFromFileTTF(
@@ -37,11 +60,6 @@ function UI()
     CImGui.AddFontFromFileTTF(
         fonts, joinpath(ENV["QInsControlAssets"], "Necessity/fa-solid-900.ttf"), 0, fontcfg
     )
-
-    global IMGUISTYLE = CImGui.GetStyle()
-    global IMNODESSTYLE = imnodes_GetStyle()
-    global MORESTYLE = MoreStyle()
-    haskey(STYLES, CONF.Style.default) && loadstyle(STYLES[CONF.Style.default])
 
     # temp files
     isdir(joinpath(ENV["QInsControlAssets"], "temp")) || mkdir(joinpath(ENV["QInsControlAssets"], "temp"))

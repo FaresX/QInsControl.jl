@@ -288,32 +288,32 @@ let
                 CImGui.Text(" ")
 
                 ###Fonts###
-                SeparatorTextColored(MORESTYLE.Colors.HighlightText, mlstr("Font"))
-                fontdir = CONF.Fonts.dir
-                inputfontdir = @c InputTextRSZ("##Fonts", &fontdir)
-                CImGui.SameLine()
-                selectfontdir = CImGui.Button(stcstr(MORESTYLE.Icons.SelectPath, "##Fonts-dir"))
-                CImGui.SameLine()
-                CImGui.Text(mlstr("path"))
-                selectfontdir && (fontdir = pick_folder(abspath(fontdir)))
-                (inputfontdir || selectfontdir) && isvalidpath(fontdir; file=false) && (CONF.Fonts.dir = fontdir)
-                ft1 = CONF.Fonts.first
-                inputft1 = @c InputTextRSZ("##font1", &ft1)
-                CImGui.SameLine()
-                selectft1 = CImGui.Button(stcstr(MORESTYLE.Icons.SelectPath, "##Fonts-first"))
-                CImGui.SameLine()
-                CImGui.Text(stcstr(mlstr("font"), " ", 1))
-                selectft1 && (ft1 = basename(pick_file(joinpath(abspath(fontdir), ft1); filterlist="ttf,ttc,otf")))
-                (inputft1 || selectft1) && isvalidpath(joinpath(fontdir, ft1)) && (CONF.Fonts.first = ft1)
-                ft2 = CONF.Fonts.second
-                inputft2 = @c InputTextRSZ("##font2", &ft2)
-                CImGui.SameLine()
-                selectft2 = CImGui.Button(stcstr(MORESTYLE.Icons.SelectPath, "##Fonts-second"))
-                CImGui.SameLine()
-                CImGui.Text(stcstr(mlstr("font"), " ", 2))
-                selectft2 && (ft2 = basename(pick_file(joinpath(abspath(fontdir), ft2); filterlist="ttf,ttc,otf")))
-                (inputft2 || selectft2) && isvalidpath(joinpath(fontdir, ft2)) && (CONF.Fonts.second = ft2)
-                CImGui.Text(" ")
+                # SeparatorTextColored(MORESTYLE.Colors.HighlightText, mlstr("Font"))
+                # fontdir = CONF.Fonts.dir
+                # inputfontdir = @c InputTextRSZ("##Fonts", &fontdir)
+                # CImGui.SameLine()
+                # selectfontdir = CImGui.Button(stcstr(MORESTYLE.Icons.SelectPath, "##Fonts-dir"))
+                # CImGui.SameLine()
+                # CImGui.Text(mlstr("path"))
+                # selectfontdir && (fontdir = pick_folder(abspath(fontdir)))
+                # (inputfontdir || selectfontdir) && isvalidpath(fontdir; file=false) && (CONF.Fonts.dir = fontdir)
+                # ft1 = CONF.Fonts.first
+                # inputft1 = @c InputTextRSZ("##font1", &ft1)
+                # CImGui.SameLine()
+                # selectft1 = CImGui.Button(stcstr(MORESTYLE.Icons.SelectPath, "##Fonts-first"))
+                # CImGui.SameLine()
+                # CImGui.Text(stcstr(mlstr("font"), " ", 1))
+                # selectft1 && (ft1 = basename(pick_file(joinpath(abspath(fontdir), ft1); filterlist="ttf,ttc,otf")))
+                # (inputft1 || selectft1) && isvalidpath(joinpath(fontdir, ft1)) && (CONF.Fonts.first = ft1)
+                # ft2 = CONF.Fonts.second
+                # inputft2 = @c InputTextRSZ("##font2", &ft2)
+                # CImGui.SameLine()
+                # selectft2 = CImGui.Button(stcstr(MORESTYLE.Icons.SelectPath, "##Fonts-second"))
+                # CImGui.SameLine()
+                # CImGui.Text(stcstr(mlstr("font"), " ", 2))
+                # selectft2 && (ft2 = basename(pick_file(joinpath(abspath(fontdir), ft2); filterlist="ttf,ttc,otf")))
+                # (inputft2 || selectft2) && isvalidpath(joinpath(fontdir, ft2)) && (CONF.Fonts.second = ft2)
+                # CImGui.Text(" ")
 
                 ###Console###
                 SeparatorTextColored(MORESTYLE.Colors.HighlightText, mlstr("Console"))

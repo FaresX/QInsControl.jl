@@ -57,12 +57,6 @@ end
     historylen::Cint = 120
 end
 
-@option mutable struct OptFonts
-    dir::String = ""
-    first::String = "HarmonyOS_Sans_SC_Regular.subset.ttf"
-    second::String = "arial.ttf"
-end
-
 @option mutable struct OptConsole
     dir::String = ""
     refreshrate::Cfloat = 60
@@ -113,8 +107,6 @@ end
     InsBuf::OptInsBuf = OptInsBuf()
     Server::OptServer = OptServer()
     Register::OptRegister = OptRegister()
-    Fonts::OptFonts = OptFonts()
-    # Icons::OptIcons = OptIcons()
     Console::OptConsole = OptConsole()
     Logs::OptLogs = OptLogs()
     BGImage::OptBGImage = OptBGImage()

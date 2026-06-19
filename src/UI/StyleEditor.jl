@@ -97,6 +97,7 @@ Base.setindex!(x::QImGuiColors, v, i::Int) = setproperty!(x, fieldnames(QImGuiCo
     GrabRounding::Cfloat = 0
     LogSliderDeadzone::Cfloat = 4
     ImageBorderSize::Cfloat = 1
+    ImageRounding::Cfloat = 0
     TabRounding::Cfloat = 4
     TabBorderSize::Cfloat = 0
     TabMinWidthBase::Cfloat = 50
@@ -113,9 +114,11 @@ Base.setindex!(x::QImGuiColors, v, i::Int) = setproperty!(x, fieldnames(QImGuiCo
     DragDropTargetRounding::Cfloat = 4
     DragDropTargetBorderSize::Cfloat = 2
     DragDropTargetPadding::Cfloat = 4
+    ColorMarkerSize::Cfloat = 0
     ColorButtonPosition::Int32 = ImGuiDir_Right
     ButtonTextAlign::Vector{Cfloat} = [0.5, 0.5]
     SelectableTextAlign::Vector{Cfloat} = [0, 0]
+    SeparatorSize::Cfloat = 1
     SeparatorTextBorderSize::Cfloat = 3
     SeparatorTextAlign::Vector{Cfloat} = [0.0, 0.5]
     SeparatorTextPadding::Vector{Cfloat} = [20, 3]
@@ -353,6 +356,7 @@ end
 end
 
 @option mutable struct MoreStyleVariable
+    FontPath::String = joinpath(ENV["QInsControlAssets"], "Fonts/HarmonyOS_Sans_SC_Regular.ttf")
     ImGuiScale::Cfloat = 1
     BigIconSize::Cint = 24
     BlockBorderSize::Cfloat = 2
@@ -570,6 +574,14 @@ let
         )
         if CImGui.BeginTabBar("MoreStyle")
             if CImGui.BeginTabItem("Variables")
+                ft = MORESTYLE.Variables.FontPath
+                inputft = @c InputTextRSZ("##font", &ft)
+                CImGui.SameLine()
+                selectft = CImGui.Button(stcstr(MORESTYLE.Icons.SelectPath, "##Fonts"))
+                CImGui.SameLine()
+                CImGui.Text(mlstr("font"))
+                selectft && (ft = pick_file(abspath(ft); filterlist="ttf,ttc,otf"))
+                (inputft || selectft) && isvalidpath(ft) && (MORESTYLE.Variables.FontPath = ft)
                 @c CImGui.DragInt(
                     "BigIconSize", &MORESTYLE.Variables.BigIconSize,
                     1, 0, 60, "%d", CImGui.ImGuiSliderFlags_AlwaysClamp
