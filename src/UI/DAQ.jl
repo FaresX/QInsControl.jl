@@ -10,15 +10,58 @@ let
     daqtasks::Vector{DAQTask} = [DAQTask()] #任务列表
     hidenorunning::Bool = false
     global CIRCUIT::NodeEditor = NodeEditor()
-    global DAQDATAPLOT::DataPlot = DataPlot()
+    global DAQDATAPLOTS::Vector{DataPlot} = [DataPlot()]
 
     projpath::String = ""
+
+    #test
+    global function test_daq()
+        loadproject(joinpath(@__DIR__, "../../example/demo.daq"))
+        global WORKPATH = joinpath(@__DIR__, "../../test/TestQInsControl")
+
+        runtasks = @async for i in eachindex(daqtasks)
+            i == 1 && (DAQDATAPLOTS[1].showplot = true; DAQDATAPLOTS[2].showplot = false)
+            i == 3 && (DAQDATAPLOTS[1].showplot = false; DAQDATAPLOTS[2].showplot = true)
+            i == 4 && (DAQDATAPLOTS[1].showplot = false; DAQDATAPLOTS[2].showplot = false)
+            torunstates[i] = true
+            println("run task $i")
+            rundaqtasks()
+            sleep(6)
+            lock(DATABUF) do DATABUF
+                lock(DATABUFPARSED) do DATABUFPARSED
+                    update!(DAQDATAPLOTS, DATABUF, DATABUFPARSED)
+                end
+            end
+            timedwait(() -> !torunstates[i], 360)
+        end
+        sleep(12)
+
+        show_circuit_editor = true
+        sleep(1)
+        show_circuit_editor = false
+        sleep(1)
+
+        show_editinstraliaslist = true
+        sleep(1)
+        show_editinstraliaslist = false
+        sleep(1)
+
+        for i in eachindex(show_daq_editors)
+            show_daq_editors[i] = true
+            test_daqtask(daqtasks[i], i)
+            show_daq_editors[i] = false
+        end
+
+        return runtasks
+    end
 
     global function closedaqwindows()
         show_daq_editors .= false
         show_circuit_editor = false
-        DAQDATAPLOT.showdtpks .= false
-        DAQDATAPLOT.layout.states .= false
+        for dtp in DAQDATAPLOTS
+            dtp.showplot = false
+            dtp.showdtpk = false
+        end
     end
 
     global function DAQtoolbar()
@@ -185,11 +228,15 @@ let
         CImGui.Button(
             stcstr(MORESTYLE.Icons.NewFile, " ", mlstr("New Plot")),
             (halfwidth - 2ftsz - unsafe_load(IMGUISTYLE.ItemSpacing.x), bth)
-        ) && newplot!(DAQDATAPLOT)
+        ) && push!(DAQDATAPLOTS, DataPlot())
         CImGui.SameLine()
         CImGui.Button(
             stcstr(MORESTYLE.Icons.Update, "##update showing plots"), (2ftsz, bth)
-        ) && update!(DAQDATAPLOT, DATABUF, DATABUFPARSED)
+        ) && lock(DATABUF) do DATABUF
+            lock(DATABUFPARSED) do DATABUFPARSED
+                update!(DAQDATAPLOTS, DATABUF, DATABUFPARSED)
+            end
+        end
         CImGui.PopStyleColor()
         length(show_daq_editors) == length(daqtasks) || resizebool!(show_daq_editors, length(daqtasks))
         length(torunstates) == length(daqtasks) || resizebool!(torunstates, length(daqtasks))
@@ -354,7 +401,10 @@ let
             isrename && (CImGui.OpenPopup(stcstr(mlstr("rename"), i));
             isrename = false)
             if CImGui.BeginPopup(stcstr(mlstr("rename"), i))
-                @c InputTextRSZ(stcstr(MORESTYLE.Icons.TaskButton, " ", mlstr("Task"), " ", i + OLDI), &task.name)
+                @c InputTextRSZ(
+                    stcstr(MORESTYLE.Icons.TaskButton, " ", mlstr("Task"), " ", i + OLDI, "###task", i + OLDI),
+                    &task.name
+                )
                 CImGui.EndPopup()
             end
             CImGui.PopID()
@@ -369,7 +419,11 @@ let
         CImGui.BeginChild("scrobarplot", (halfwidth, Cfloat(0)))
         CImGui.PushStyleColor(CImGui.ImGuiCol_Border, MORESTYLE.Colors.ItemBorder)
         CImGui.PushStyleVar(CImGui.ImGuiStyleVar_ChildBorderSize, 1)
-        editmenu(DAQDATAPLOT, DATABUF, DATABUFPARSED)
+        lock(DATABUF) do DATABUF
+            lock(DATABUFPARSED) do DATABUFPARSED
+                edit(DAQDATAPLOTS, DATABUF, DATABUFPARSED)
+            end
+        end
         CImGui.PopStyleVar()
         CImGui.PopStyleColor()
         CImGui.EndChild()
@@ -378,8 +432,8 @@ let
 
         if CImGui.BeginPopup("add task")
             CImGui.MenuItem(stcstr(MORESTYLE.Icons.NewFile, " ", mlstr("New Task"))) && push!(daqtasks, DAQTask())
-            CImGui.MenuItem(stcstr(MORESTYLE.Icons.NewFile, " ", mlstr("New Plot"))) && newplot!(DAQDATAPLOT)
-            CImGui.MenuItem(stcstr(MORESTYLE.Icons.Paste, " ", mlstr("Paste Plot"))) && pasteplot!(DAQDATAPLOT)
+            CImGui.MenuItem(stcstr(MORESTYLE.Icons.NewFile, " ", mlstr("New Plot"))) && push!(DAQDATAPLOTS, DataPlot())
+            CImGui.MenuItem(stcstr(MORESTYLE.Icons.Paste, " ", mlstr("Paste Plot"))) && pasteplot!(DAQDATAPLOTS)
             if CImGui.MenuItem(stcstr(MORESTYLE.Icons.Load, " ", mlstr("Load Script")))
                 begin
                     confldpath = pick_file(filterlist="cfg,qdt")
@@ -398,7 +452,7 @@ let
                 empty!(show_daq_editors)
                 empty!(torunstates)
                 CIRCUIT = NodeEditor()
-                DAQDATAPLOT = DataPlot()
+                DAQDATAPLOTS = [DataPlot()]
             end
             CImGui.MenuItem(stcstr(MORESTYLE.Icons.SaveButton, " ", mlstr("Save Project"))) && saveproject()
             CImGui.MenuItem(
@@ -411,11 +465,16 @@ let
         end
         show_editinstraliaslist && @c editinstraliaslist(&show_editinstraliaslist)
         ### show daq datapickers ###
-        showdtpks(DAQDATAPLOT, "DAQ", DATABUF, DATABUFPARSED)
-        for i in DAQDATAPLOT.layout.selectedidx
-            syncplotdata(DAQDATAPLOT.plots[i], DAQDATAPLOT.dtpks[i], DATABUF, DATABUFPARSED)
+        lock(DATABUF) do DATABUF
+            lock(DATABUFPARSED) do DATABUFPARSED
+                showdtpks(DAQDATAPLOTS, "DAQ", DATABUF, DATABUFPARSED)
+                for dtp in DAQDATAPLOTS
+                    dtp.showplot || continue
+                    syncplotdata(dtp.plot, dtp.dtpk, DATABUF, DATABUFPARSED)
+                end
+            end
         end
-        renderplots(DAQDATAPLOT, "DAQ")
+        renderplots(DAQDATAPLOTS, "DAQ")
     end
 
     global function rundaqtasks()
@@ -433,7 +492,9 @@ let
                         SYNCSTATES[IsInterrupted] && (SYNCSTATES[IsInterrupted] = false; break)
                     end
                 end
-                DAQDATAPLOT.showdtpks .= false
+                for dtp in DAQDATAPLOTS
+                    dtp.showdtpk = false
+                end
             else
                 WORKPATH = mlstr("no workplace selected!!!")
             end
@@ -449,7 +510,7 @@ let
                     daqtasks=daqtasks,
                     circuit=CIRCUIT,
                     instraliaslist=deepcopy(INSTRALIASLIST),
-                    dataplot=deepcopy(DAQDATAPLOT)
+                    DAQDATAPLOTS=deepcopy(DAQDATAPLOTS)
                 )
             end
         end
@@ -478,7 +539,7 @@ let
                     end
                 end
                 haskey(loaddaqproj, "instraliaslist") && (INSTRALIASLIST = loaddaqproj["instraliaslist"])
-                haskey(loaddaqproj, "dataplot") && (DAQDATAPLOT = loaddaqproj["dataplot"])
+                haskey(loaddaqproj, "DAQDATAPLOTS") && (DAQDATAPLOTS = loaddaqproj["DAQDATAPLOTS"])
             end
         end
     end

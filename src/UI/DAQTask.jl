@@ -17,6 +17,27 @@ global QDTCACHESAVEPATH::String = ""
 global RUNNINGTASK::String = ""
 const CFGBUF = Dict{String,Any}()
 
+#test
+function test_daqtask(daqtask::DAQTask, id)
+    daqtask.hold = true
+    ex = compile(daqtask.blocks)
+    ex = @trypasse prettify(ex) ex
+    @info "[$(now())]\n" codes = ex
+    daqtask.viewmode = true
+    sleep(1)
+    daqtask.viewmode = false
+    daqtask.textmode = true
+    # CImGui.OpenPopup("##Blocks Buffer$id")
+    daqtask.editcodes = string(prettify(interpret(daqtask.blocks)))
+    sleep(1)
+    # CImGui.CloseCurrentPopup()
+    daqtask.viewmode = true
+    sleep(1)
+    daqtask.viewmode = false
+    daqtask.textmode = false
+    daqtask.hold = false
+end
+
 let
     redolist::Dict{Int,LoopVector{Vector{AbstractBlock}}} = Dict()
     blocksbuf::Vector{AbstractBlock} = []
@@ -407,23 +428,25 @@ end
 function saveqdt()
     savetype = eval(Symbol(CONF.DAQ.savetype))
     jldopen(SAVEPATH, "w") do file
-        if savetype == String
-            file["data"] = DATABUF
-        else
-            datafloat = Dict()
-            for (key, val) in DATABUF
-                dataparsed = tryparse.(savetype, val)
-                datafloat[key] = true in isnothing.(dataparsed) ? val : dataparsed
+        lock(DATABUF) do DATABUF
+            if savetype == String
+                file["data"] = DATABUF
+            else
+                datafloat = Dict()
+                for (key, val) in DATABUF
+                    dataparsed = tryparse.(savetype, val)
+                    datafloat[key] = all(.!isnothing.(dataparsed)) ? dataparsed : val
+                end
+                file["data"] = datafloat
             end
-            file["data"] = datafloat
         end
         file["circuit"] = CIRCUIT
-        file["dataplot"] = norealtime!(deepcopy(DAQDATAPLOT))
+        file["daqdataplots"] = norealtime!(deepcopy(DAQDATAPLOTS))
         for (key, val) in CFGBUF
             key == "EXTRADATA" && continue
             file[key] = val
         end
-        file["info"] = fileinfo()
+        file["info"] = FILEINFO
         file["valid"] = !STATES[InValidFile]
     end
     if sum(length(data) for data in values(DATABUF); init=0) > CONF.DAQ.cuttingfile
@@ -441,11 +464,11 @@ end
 function savecfgcache()
     jldopen(CFGCACHESAVEPATH, "w") do file
         file["circuit"] = CIRCUIT
-        file["dataplot"] = deepcopy(DAQDATAPLOT)
+        file["daqdataplots"] = deepcopy(DAQDATAPLOTS)
         for (key, val) in CFGBUF
             file[key] = val
         end
-        file["info"] = fileinfo()
+        file["info"] = FILEINFO
         file["valid"] = !STATES[InValidFile]
     end
 end
