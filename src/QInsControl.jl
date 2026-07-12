@@ -42,40 +42,28 @@ end
 include("GenericUtilities/GenericUtilites.jl")
 include("Frontend/Frontend.jl")
 
-function julia_main()::Cint
+function julia_main(; engine=nothing)::Cint
     try
-        initialize_qinscontrolcore!()
         initialize_genericutilities!()
         initialize_frontend!()
-        # loadconf()
+        isnothing(engine) || (CONF.Basic.lowestframerate = 60)
         if CONF.Basic.isremote
             ENV["JULIA_NUM_THREADS"] = CONF.Basic.nthreads_2
             nprocs() == 1 && addprocs(1)
         end
         @eval @everywhere using QInsControl
-
-        QInsControlCore.REFRESHINRC = RemoteChannel(() -> Channel{Tuple{String,String,String,Cfloat}}(CONF.DAQ.channelsize))
-        QInsControlCore.REFRESHOUTRC = RemoteChannel(() -> Channel{Tuple{String,String,String,String}}(CONF.DAQ.channelsize))
-        QInsControlCore.DATABUFRC = RemoteChannel(() -> Channel{Vector{NTuple{2,String}}}(CONF.DAQ.channelsize))
-        QInsControlCore.EXTRADATABUFRC = RemoteChannel(() -> Channel{Tuple{String,Vector{Any}}}(CONF.DAQ.channelsize))
-        QInsControlCore.PROGRESSRC = RemoteChannel(() -> Channel{Vector{Tuple{UUID,Int,Int,Float64}}}(CONF.DAQ.channelsize))
-        QInsControlCore.SYNCSTATES = QInsControlCore.SharedVector{Bool}(length(instances(QInsControlCore.SyncStatesIndex)))
-
+        initialize_qinscontrolcore!(CONF.DAQ.channelsize)
         startlogger(CONF.Logs.dir)
-
         loadinsconf()
-
         @info ARGS
         isempty(ARGS) || @info reencoding.(ARGS, CONF.Basic.encoding)
-
-        uitask = UI()
-
+        uitask = UI(; engine)
         remote_startcpu!()
         remote_startrefresh(CONF.DAQ.ctbuflen)
         startrefresh()
         @info "[$(now())]\n$(mlstr("successfully started!"))"
+        wait(uitask)
         if !isinteractive()
-            wait(uitask)
             while SYNCSTATES[IsDAQTaskRunning]
                 sleep(0.1)
             end

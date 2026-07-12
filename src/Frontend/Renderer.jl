@@ -1,4 +1,4 @@
-function UI()
+function UI(; engine=nothing)
     CImGui.set_backend(:GlfwOpenGL3)
     ctx = CImGui.CreateContext()
 
@@ -69,7 +69,7 @@ function UI()
     rendertask = Threads.@spawn CImGui.render(
         ctx;
         window_size=CONF.Basic.windowsize, window_title="QInsControl", on_exit=onexitaction,
-        opengl_version=VersionNumber(CONF.Basic.openglversion)
+        opengl_version=VersionNumber(CONF.Basic.openglversion), engine=engine
     ) do
         try
             if firstframe
@@ -81,6 +81,7 @@ function UI()
                 global ICONID = CImGui.create_image_texture(iconsize...)
                 CImGui.update_image_texture(ICONID, transpose(icons[1]), iconsize...)
                 # 缩放设置
+                toimguitheme!(get!(MAKIETHEMES, MORESTYLE.Variables.MakieTheme, "default"))
                 scale = CImGui.GetWindowDpiScale()
                 ImGuiStyle_ScaleAllSizes(IMGUISTYLE, scale / MORESTYLE.Variables.ImGuiScale)
                 IMGUISTYLE.FontScaleDpi = scale

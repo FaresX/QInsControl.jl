@@ -1,0 +1,4 @@
+[deps]
+CImGui = "5d785b6c-b76f-510e-a07c-3070796c7e87"
+ImGuiTestEngine = "464e2eba-0a11-4ed3-b274-413caa1a1cca"
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"

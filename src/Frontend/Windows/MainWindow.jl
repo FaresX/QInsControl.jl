@@ -39,6 +39,7 @@ let
     no_bring_to_front && (window_flags |= CImGui.ImGuiWindowFlags_NoBringToFrontOnFocus)
     no_docking && (window_flags |= CImGui.ImGuiWindowFlags_NoDocking)
 
+    global get_fileviewers() = fileviewers
     global debugger() = show_debugger = true
     global isshowapp() = showapp
     global function closeallwindows()

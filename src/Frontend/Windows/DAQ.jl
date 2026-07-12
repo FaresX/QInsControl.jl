@@ -14,47 +14,6 @@ let
 
     projpath::String = ""
 
-    #test
-    global function test_daq()
-        loadproject(joinpath(@__DIR__, "../../example/demo.daq"))
-        global WORKPATH = joinpath(@__DIR__, "../../test/TestQInsControl")
-
-        runtasks = @async for i in eachindex(daqtasks)
-            i == 1 && (DAQDATAPLOTS[1].showplot = true; DAQDATAPLOTS[2].showplot = false)
-            i == 3 && (DAQDATAPLOTS[1].showplot = false; DAQDATAPLOTS[2].showplot = true)
-            i == 4 && (DAQDATAPLOTS[1].showplot = false; DAQDATAPLOTS[2].showplot = false)
-            torunstates[i] = true
-            println("run task $i")
-            rundaqtasks()
-            sleep(6)
-            lock(DATABUF) do DATABUF
-                lock(DATABUFPARSED) do DATABUFPARSED
-                    update!(DAQDATAPLOTS, DATABUF, DATABUFPARSED)
-                end
-            end
-            timedwait(() -> !torunstates[i], 360)
-        end
-        sleep(12)
-
-        show_circuit_editor = true
-        sleep(1)
-        show_circuit_editor = false
-        sleep(1)
-
-        show_editinstraliaslist = true
-        sleep(1)
-        show_editinstraliaslist = false
-        sleep(1)
-
-        for i in eachindex(show_daq_editors)
-            show_daq_editors[i] = true
-            test_daqtask(daqtasks[i], i)
-            show_daq_editors[i] = false
-        end
-
-        return runtasks
-    end
-
     global function closedaqwindows()
         show_daq_editors .= false
         show_circuit_editor = false
@@ -251,7 +210,6 @@ let
         CImGui.BeginChild("daqtasks", (0, 0), true)
         for (i, task) in enumerate(daqtasks)
             hidenorunning && !torunstates[i] && continue
-            CImGui.PushID(i)
             isrunning_i = SYNCSTATES[IsDAQTaskRunning] && i == running_i
             # CImGui.PushStyleColor(
             #     CImGui.ImGuiCol_Button,
@@ -407,7 +365,6 @@ let
                 )
                 CImGui.EndPopup()
             end
-            CImGui.PopID()
         end
         CImGui.EndChild()
         CImGui.PopStyleVar()

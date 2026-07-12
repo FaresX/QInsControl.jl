@@ -20,35 +20,17 @@ const DATABUF = Lockable(Dict{String,Vector{String}}())
 const DATABUFPARSED = Lockable(Dict{String,VecOrMat{Cdouble}}())
 const PROGRESSLIST = Lockable(OrderedDict{UUID,Tuple{UUID,Int,Int,Float64}}())
 
-#test
-function test_daqtask(daqtask::DAQTask, id)
-    daqtask.hold = true
-    ex = compile(daqtask.blocks)
-    ex = @trypasse prettify(ex) ex
-    @info "[$(now())]\n" codes = ex
-    daqtask.viewmode = true
-    sleep(1)
-    daqtask.viewmode = false
-    daqtask.textmode = true
-    # CImGui.OpenPopup("##Blocks Buffer$id")
-    daqtask.editcodes = string(prettify(interpret(daqtask.blocks)))
-    sleep(1)
-    # CImGui.CloseCurrentPopup()
-    daqtask.viewmode = true
-    sleep(1)
-    daqtask.viewmode = false
-    daqtask.textmode = false
-    daqtask.hold = false
-end
-
 let
     redolist::Dict{Int,LoopVector{Vector{AbstractBlock}}} = Dict()
     blocksbuf::Vector{AbstractBlock} = []
+    undobtx::Cfloat = 0
+    redobtx::Cfloat = 0
+    compilebtx::Cfloat = 0
     tbtx1::Cfloat = 0
     tbtx2::Cfloat = 0
     btx::Cfloat = 0
     global function edit(daqtask::DAQTask, id, p_open::Ref{Bool})
-        CImGui.SetNextWindowSize((600, 800), CImGui.ImGuiCond_Once)
+        CImGui.SetNextWindowSize((600, 800) .* CImGui.GetWindowDpiScale(), CImGui.ImGuiCond_Once)
         CImGui.PushStyleColor(CImGui.ImGuiCol_WindowBg, CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_PopupBg))
         CImGui.PushStyleVar(CImGui.ImGuiStyleVar_WindowRounding, unsafe_load(IMGUISTYLE.PopupRounding))
         isfocus = true
@@ -72,7 +54,26 @@ let
             CImGui.Button(stcstr(" ", mlstr("Edit queue: Task"), " ", id + OLDI, " ", daqtask.name))
             CImGui.PopStyleColor(3)
             CImGui.PopStyleVar(3)
-            CImGui.SameLine(CImGui.GetContentRegionAvail().x - tbtx1 - tbtx2 - btx - 2unsafe_load(IMGUISTYLE.ItemSpacing.x))
+            CImGui.SameLine(
+                CImGui.GetContentRegionAvail().x - undobtx - redobtx - compilebtx - tbtx1 - tbtx2 - btx -
+                4unsafe_load(IMGUISTYLE.ItemSpacing.x)
+            )
+            CImGui.Button(MORESTYLE.Icons.Undo) && undo!(daqtask, id)
+            ItemTooltip(mlstr("Undo"))
+            undobtx = CImGui.GetItemRectSize().x
+            CImGui.SameLine()
+            CImGui.Button(MORESTYLE.Icons.Redo) && redo!(daqtask, id)
+            ItemTooltip(mlstr("Redo"))
+            redobtx = CImGui.GetItemRectSize().x
+            CImGui.SameLine()
+            if CImGui.Button(MORESTYLE.Icons.Convert)
+                ex = @trypasse compile(daqtask.blocks) nothing
+                ex = @trypasse prettify(ex) ex
+                @info "[$(now())]\n" codes = ex
+            end
+            ItemTooltip(mlstr("Compile"))
+            compilebtx = CImGui.GetItemRectSize().x
+            CImGui.SameLine()
             if @c ToggleButton(mlstr(daqtask.textmode ? "Text" : "Block"), &daqtask.textmode)
                 try
                     daqtask.textmode && (daqtask.viewcodes = string(prettify(interpret(daqtask.blocks))))
@@ -82,7 +83,8 @@ let
                 end
             end
             tbtx1 = CImGui.GetItemRectSize().x
-            CImGui.SameLine(CImGui.GetContentRegionAvail().x - tbtx2 - btx - unsafe_load(IMGUISTYLE.ItemSpacing.x))
+            # CImGui.SameLine(CImGui.GetContentRegionAvail().x - tbtx2 - btx - unsafe_load(IMGUISTYLE.ItemSpacing.x))
+            CImGui.SameLine()
             CImGui.Button(
                 daqtask.viewmode ? MORESTYLE.Icons.View : MORESTYLE.Icons.Edit
             ) && (daqtask.viewmode ⊻= true)
@@ -135,7 +137,7 @@ let
                         CImGui.OpenPopup("##Blocks Buffer$id")
                     end
                     @c InputTextMultilineRSZ(stcstr("##Script", id), &daqtask.editcodes, (-1, -1), ImGuiInputTextFlags_AllowTabInput)
-                    CImGui.SetNextWindowSize((1200, 800), CImGui.ImGuiCond_Once)
+                    CImGui.SetNextWindowSize((1200, 800) .* CImGui.GetWindowDpiScale(), CImGui.ImGuiCond_Once)
                     if CImGui.BeginPopupModal(stcstr("##Blocks Buffer", id))
                         CImGui.Button(stcstr(MORESTYLE.Icons.Delete, " ", mlstr("Close"))) && CImGui.CloseCurrentPopup()
                         CImGui.SameLine()
@@ -157,8 +159,16 @@ let
                     end
                 end
             else
-                CImGui.PushID(id)
                 dragblockmenu(id)
+                # CImGui.Button(stcstr(MORESTYLE.Icons.Undo, " ", mlstr("Undo"))) && undo!(daqtask, id)
+                # CImGui.SameLine()
+                # CImGui.Button(stcstr(MORESTYLE.Icons.Redo, " ", mlstr("Redo"))) && redo!(daqtask, id)
+                # CImGui.SameLine()
+                # if CImGui.Button(stcstr(MORESTYLE.Icons.Convert, " ", mlstr("Compile")))
+                #     ex = @trypasse compile(daqtask.blocks) nothing
+                #     ex = @trypasse prettify(ex) ex
+                #     @info "[$(now())]\n" codes = ex
+                # end
                 CImGui.BeginChild("DAQTask.blocks")
                 CImGui.PushStyleColor(CImGui.ImGuiCol_Border, MORESTYLE.Colors.NormalBlockBorder)
                 CImGui.PushStyleVar(CImGui.ImGuiStyleVar_ChildBorderSize, 1)
@@ -166,25 +176,7 @@ let
                 CImGui.PopStyleVar()
                 CImGui.PopStyleColor()
                 CImGui.EndChild()
-                CImGui.PopID()
                 diff(daqtask, id)
-                all(.!mousein.(daqtask.blocks, true)) && CImGui.OpenPopupOnItemClick("add new Block")
-                if CImGui.BeginPopup("add new Block")
-                    if CImGui.BeginMenu(stcstr(MORESTYLE.Icons.NewFile, " ", mlstr("Add")))
-                        newblock = addblockmenu(1)
-                        isnothing(newblock) || push!(daqtask.blocks, newblock)
-                        CImGui.EndMenu()
-                    end
-                    CImGui.Separator()
-                    CImGui.MenuItem(stcstr(MORESTYLE.Icons.Undo, " ", mlstr("Undo"))) && undo!(daqtask, id)
-                    CImGui.MenuItem(stcstr(MORESTYLE.Icons.Redo, " ", mlstr("Redo"))) && redo!(daqtask, id)
-                    if CImGui.MenuItem(stcstr(MORESTYLE.Icons.Convert, " ", mlstr("Compile")))
-                        ex = compile(daqtask.blocks)
-                        ex = @trypasse prettify(ex) ex
-                        @info "[$(now())]\n" codes = ex
-                    end
-                    CImGui.EndPopup()
-                end
                 if unsafe_load(CImGui.GetIO().KeyCtrl) && CImGui.IsWindowFocused(CImGui.ImGuiFocusedFlags_ChildWindows)
                     CImGui.IsKeyPressed(ImGuiKey_Z, false) && undo!(daqtask, id)
                     CImGui.IsKeyPressed(ImGuiKey_Y, false) && redo!(daqtask, id)
@@ -223,7 +215,10 @@ end
 
 function saferun(daqtask::DAQTask)
     try
-        run(daqtask)
+        setup(daqtask)
+        define(daqtask)
+        sleep(0.1)
+        transfer_data()
     catch e
         @error "[$(now())]\n$(mlstr("running task terminated unexpectedly!!!"))" exception = e
         showbacktrace()
@@ -248,7 +243,7 @@ function saferun(daqtask::DAQTask)
     STATES[AutoRefreshing] = true
 end
 
-function run(daqtask::DAQTask)
+function setup(daqtask::DAQTask)
     global WORKPATH
     global SAVEPATH
     global CFGCACHESAVEPATH
@@ -276,32 +271,16 @@ function run(daqtask::DAQTask)
         SYNCSTATES[IsDAQTaskRunning] = false
         return nothing
     end
-    run_remote(daqtask)
-    wait(
-        Threads.@spawn try
-            savecfgcache()
-            while update_all()
-                CONF.DAQ.highspeeddatatransfer ? yield() : sleep(0.001)
-            end
-        catch e
-            @error string("[", now(), "]\n", mlstr("updating data failed!")) exception = e
-            showbacktrace()
-            rethrow()
-        end
-    )
-end
-
-
-function run_remote(daqtask::DAQTask)
     remote_unsetbusy!()
     remote_logout!()
+    savecfgcache()
+end
+
+function define(daqtask::DAQTask)
     controllers, st = extract_controllers(daqtask.blocks)
+    st || (SYNCSTATES[IsDAQTaskDone] = true; return)
     empty!(DATABUF)
     empty!(DATABUFPARSED)
-    if !st
-        SYNCSTATES[IsDAQTaskDone] = true
-        return
-    end
     rn = length(controllers)
     func1 = try
         compile(daqtask.blocks)
@@ -361,69 +340,81 @@ function run_remote(daqtask::DAQTask)
     remote_runtask(rn)
 end
 
-function update_all()
-    if SYNCSTATES[IsDAQTaskDone]
-        (isfile(SAVEPATH) | !isempty(DATABUF)) && (saveqdt(); global OLDI += 1)
-        lock(empty!, PROGRESSLIST)
-        empty!(CFGBUF)
-        SYNCSTATES[IsDAQTaskDone] = false
-        SYNCSTATES[IsDAQTaskRunning] = false
-        Base.Filesystem.rm(CFGCACHESAVEPATH; force=true)
-        Base.Filesystem.rm(QDTCACHESAVEPATH; force=true)
-        return false
-    else
-        update_data()
-        update_progress()
-        return true
-    end
+function transfer_data()
+    wait(Threads.@spawn @trycatch mlstr("transfer_data failed!!!") begin
+        while !SYNCSTATES[IsDAQTaskDone]
+            isready_databufrc() && process_databufrc()
+            isready_extradatabufrc() && process_extradatabufrc()
+            isready_progressrc() && process_progressrc()
+            CONF.DAQ.highspeeddatatransfer ? yield() : sleep(0.001)
+        end
+        exittask()
+    end)
+end
+function exittask()
+    (isfile(SAVEPATH) || !isempty(DATABUF)) && (saveqdt(); global OLDI += 1)
+    empty!(PROGRESSLIST)
+    empty!(CFGBUF)
+    SYNCSTATES[IsDAQTaskDone] = false
+    SYNCSTATES[IsDAQTaskRunning] = false
+    Base.Filesystem.rm(CFGCACHESAVEPATH; force=true)
+    Base.Filesystem.rm(QDTCACHESAVEPATH; force=true)
 end
 
 let
     cache::Vector{Tuple{String,String}} = []
-    global function update_data()
-        if isready_databufrc()
-            packdata = take_databufrc!()
-            for data in packdata
-                haskey(DATABUF, data[1]) || (DATABUF[data[1]] = String[])
-                haskey(DATABUFPARSED, data[1]) || (DATABUFPARSED[data[1]] = Float64[])
-                push!(DATABUF[data[1]], data[2])
-                push!(cache, data)
-                parsed_data = tryparse(Float64, data[2])
-                push!(DATABUFPARSED[data[1]], isnothing(parsed_data) ? NaN : parsed_data)
-                splitdata = split(data[1], "/")
-                if length(splitdata) == 4
-                    _, instrnm, qt, addr = splitdata
-                else
-                    continue
-                end
-                insbuf = INSTRBUFFERVIEWERS[instrnm][addr].insbuf
-                if occursin(r"\[.*\]", qt)
-                    splitqt = split(qt, '[')
-                    qt = splitqt[1]
-                    idx = parse(Int, splitqt[2][1:end-1])
-                    splitread = split(insbuf.quantities[qt].read, insbuf.quantities[qt].separator)
-                    if idx > length(splitread)
-                        insbuf.quantities[qt].read *= repeat(insbuf.quantities[qt].separator, idx - length(splitread))
-                        insbuf.quantities[qt].read *= data[2]
-                    else
-                        splitread[idx] = data[2]
-                        insbuf.quantities[qt].read = join(splitread, insbuf.quantities[qt].separator)
-                    end
-                else
-                    insbuf.quantities[qt].read = data[2]
-                end
-                updatefront!(insbuf.quantities[qt])
+    global function process_databufrc()
+        packdata = take_databufrc!()
+        for data in packdata
+            haskey(DATABUF, data[1]) || (DATABUF[data[1]] = String[])
+            haskey(DATABUFPARSED, data[1]) || (DATABUFPARSED[data[1]] = Float64[])
+            push!(DATABUF[data[1]], data[2])
+            push!(cache, data)
+            parsed_data = tryparse(Float64, data[2])
+            push!(DATABUFPARSED[data[1]], isnothing(parsed_data) ? NaN : parsed_data)
+            splitdata = split(data[1], "/")
+            if length(splitdata) == 4
+                _, instrnm, qt, addr = splitdata
+            else
+                continue
             end
-            waittime("saveqdtcache", CONF.DAQ.savetime) && (saveqdtcache(cache); empty!(cache))
-            waittime("savecfgcache", 60CONF.DAQ.savetime) && savecfgcache()
-            waittime("savedatabuf", 60CONF.DAQ.savetime) && saveqdt()
+            insbuf = INSTRBUFFERVIEWERS[instrnm][addr].insbuf
+            if occursin(r"\[.*\]", qt)
+                splitqt = split(qt, '[')
+                qt = splitqt[1]
+                idx = parse(Int, splitqt[2][1:end-1])
+                splitread = split(insbuf.quantities[qt].read, insbuf.quantities[qt].separator)
+                if idx > length(splitread)
+                    insbuf.quantities[qt].read *= repeat(insbuf.quantities[qt].separator, idx - length(splitread))
+                    insbuf.quantities[qt].read *= data[2]
+                else
+                    splitread[idx] = data[2]
+                    insbuf.quantities[qt].read = join(splitread, insbuf.quantities[qt].separator)
+                end
+            else
+                insbuf.quantities[qt].read = data[2]
+            end
+            updatefront!(insbuf.quantities[qt])
         end
-        if isready_extradatabufrc()
-            key, val = take_extradatabufrc!()
-            DATABUF[key] = val
-            DATABUFPARSED[key] = replace(tryparse.(Float64, val), nothing => NaN)
-            haskey(CFGBUF, "EXTRADATA") || (CFGBUF["EXTRADATA"] = Dict())
-            CFGBUF["EXTRADATA"][key] = val
+        waittime("saveqdtcache", CONF.DAQ.savetime) && (saveqdtcache(cache); empty!(cache))
+        waittime("savecfgcache", 60CONF.DAQ.savetime) && savecfgcache()
+        waittime("savedatabuf", 60CONF.DAQ.savetime) && saveqdt()
+    end
+end
+function process_extradatabufrc()
+    key, val = take_extradatabufrc!()
+    DATABUF[key] = val
+    DATABUFPARSED[key] = replace(tryparse.(Float64, val), nothing => NaN)
+    haskey(CFGBUF, "EXTRADATA") || (CFGBUF["EXTRADATA"] = Dict())
+    CFGBUF["EXTRADATA"][key] = val
+end
+function process_progressrc()
+    packpb = take_progressrc!()
+    lock(PROGRESSLIST) do PROGRESSLIST
+        for pb in packpb
+            haskey(PROGRESSLIST, pb[1]) || (PROGRESSLIST[pb[1]] = pb)
+            PROGRESSLIST[pb[1]] = pb
+            dorender()
         end
     end
 end
