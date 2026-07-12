@@ -18,6 +18,7 @@
     ScrollbarGrabHovered::Vector{Cfloat} = [0.41, 0.41, 0.41, 1.00]
     ScrollbarGrabActive::Vector{Cfloat} = [0.51, 0.51, 0.51, 1.00]
     CheckMark::Vector{Cfloat} = [0.26, 0.59, 0.98, 1.00]
+    CheckboxSelectedBg::Vector{Cfloat} = [1.00, 1.00, 1.00, 1.00]
     SliderGrab::Vector{Cfloat} = [0.24, 0.52, 0.88, 1.00]
     SliderGrabActive::Vector{Cfloat} = [0.26, 0.59, 0.98, 1.00]
     Button::Vector{Cfloat} = [0.26, 0.59, 0.98, 0.40]
@@ -846,7 +847,9 @@ let
                 style_name = selected_style
                 loadstyle(ustyle)
                 IMGUISTYLE_REF[] = ustyle.imguistyle
-                IMGUISTYLE.FontScaleDpi = CImGui.GetWindowDpiScale()
+                scale = CImGui.GetWindowDpiScale()
+                IMGUISTYLE.FontScaleDpi = scale
+                ImGuiStyle_ScaleAllSizes(IMGUISTYLE, scale / MORESTYLE.Variables.ImGuiScale)
             end
         end
         CImGui.PopItemWidth()

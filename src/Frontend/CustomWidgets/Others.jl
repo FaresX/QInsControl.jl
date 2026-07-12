@@ -31,7 +31,7 @@ function YesNoDialog(id, msg, flags=0)::Bool
         ftsz = CImGui.GetFontSize()
         CImGui.Text("\n")
         CImGui.PushFont(C_NULL, 2ftsz)
-        CImGui.SetCursorPosX(CImGui.GetCursorPosX() + (CImGui.GetContentRegionAvail().x - CImGui.CalcTextSize(msg).x)/2)
+        CImGui.SetCursorPosX(CImGui.GetCursorPosX() + (CImGui.GetContentRegionAvail().x - CImGui.CalcTextSize(msg).x) / 2)
         CImGui.TextColored(MORESTYLE.Colors.WarnText, msg)
         CImGui.PopFont()
         CImGui.Text("\n\n")
@@ -68,14 +68,7 @@ function TextRect(
     nochild && ColoredButton(""; size=(Cfloat(0), thickness + padding[2]), colbt=[0, 0, 0, 0], colbth=[0, 0, 0, 0], colbta=[0, 0, 0, 0])
     recta = nochild ? rmin .- padding : rmin .- padding .+ thickness
     rectb = nochild ? CImGui.ImVec2(rmin.x + availwidth .- 2padding[1] .- 2thickness, rmax.y + padding[2]) : rmax .+ padding .- thickness
-    CImGui.AddRect(
-        draw_list,
-        recta, rectb,
-        MORESTYLE.Colors.ShowTextRect,
-        bdrounding,
-        0,
-        thickness
-    )
+    CImGui.AddRect(draw_list, recta, rectb, MORESTYLE.Colors.ShowTextRect, bdrounding, thickness)
     recta, rectb
 end
 
@@ -242,7 +235,7 @@ function draw(dr::DragRect)
     CImGui.AddRect(
         drawlist, dr.posmin, dr.posmax,
         dr.dragging ? dr.colbda : dr.hovered && !dr.griphovered && !dr.gripdragging ? dr.colbdh : dr.colbd,
-        dr.bdrounding, ImDrawFlags_RoundCornersAll, dr.thickness
+        dr.bdrounding, dr.thickness, ImDrawFlags_RoundCornersAll
     )
 end
 

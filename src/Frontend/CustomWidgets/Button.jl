@@ -199,7 +199,7 @@ function ColoredButtonRect(
     CImGui.PopStyleVar()
     rmin, rmax = CImGui.GetItemRectMin(), CImGui.GetItemRectMax()
     draw_list = CImGui.GetWindowDrawList()
-    CImGui.AddRect(draw_list, rmin, rmax, colrect, bdrounding, 0, thickness)
+    CImGui.AddRect(draw_list, rmin, rmax, colrect, bdrounding, thickness)
     return clicked
 end
 
@@ -229,7 +229,7 @@ function ImageButtonRect(
     CImGui.PopStyleColor(3)
     rmin, rmax = CImGui.GetItemRectMin(), CImGui.GetItemRectMax()
     draw_list = CImGui.GetWindowDrawList()
-    CImGui.AddRect(draw_list, rmin, rmax, colrect, bdrounding, 0, thickness)
+    CImGui.AddRect(draw_list, rmin, rmax, colrect, bdrounding, thickness)
     return clicked
 end
 
@@ -301,7 +301,7 @@ function ToggleButtonRect(
     CImGui.PopStyleVar()
     rmin, rmax = CImGui.GetItemRectMin(), CImGui.GetItemRectMax()
     draw_list = CImGui.GetWindowDrawList()
-    CImGui.AddRect(draw_list, rmin, rmax, colrect, bdrounding, 0, thickness)
+    CImGui.AddRect(draw_list, rmin, rmax, colrect, bdrounding, thickness)
     return toggled
 end
 
@@ -325,7 +325,7 @@ function ColoredRadioButton(
     CImGui.PopStyleColor(5)
     rmin, rmax = CImGui.GetItemRectMin(), CImGui.GetItemRectMax()
     draw_list = CImGui.GetWindowDrawList()
-    CImGui.AddRect(draw_list, rmin, rmax, colrect, bdrounding, 0, thickness)
+    CImGui.AddRect(draw_list, rmin, rmax, colrect, bdrounding, thickness)
     return clicked
 end
 
@@ -349,7 +349,7 @@ function ColoredProgressBarRect(
     CImGui.PopStyleColor(3)
     rmin, rmax = CImGui.GetItemRectMin(), CImGui.GetItemRectMax()
     draw_list = CImGui.GetWindowDrawList()
-    CImGui.AddRect(draw_list, rmin, rmax, colrect, bdrounding, 0, thickness)
+    CImGui.AddRect(draw_list, rmin, rmax, colrect, bdrounding, thickness)
     return false
 end
 

@@ -101,11 +101,11 @@ function CImGui.AddRect(
     p_min::Union{ImVec2,NTuple{2},Vector},
     p_max::Union{ImVec2,NTuple{2},Vector},
     col::Union{ImVec4,NTuple{4},Vector},
-    rounding=0.0, flags=0, thickness=1.0
+    rounding=0.0, thickness=1.0, flags=0,
 )
     CImGui.AddRect(
         self, CImGui.ImVec2(p_min...), CImGui.ImVec2(p_max...),
-        CImGui.ColorConvertFloat4ToU32(col), rounding, flags, thickness
+        CImGui.ColorConvertFloat4ToU32(col), rounding, thickness, flags
     )
 end
 function CImGui.AddRectFilled(

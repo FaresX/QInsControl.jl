@@ -52,7 +52,7 @@ function ExtDrawRectangle(position, size, color; thickness=0, rounding=0)
         CImGui.GetWindowDrawList(),
         ImVec2(CImGui.GetCursorScreenPos()[1] + position[1], CImGui.GetCursorScreenPos()[2] + position[2]),
         ImVec2(CImGui.GetCursorScreenPos()[1] + position[1] + size[1], CImGui.GetCursorScreenPos()[2] + position[2] + size[2]),
-        color, rounding, 0, thickness
+        color, rounding, thickness
     )
 end
 function ExtDrawCircleFill(position, size, color; num_segments=24)
@@ -83,7 +83,7 @@ function DrawSemicircleBox(window_width, y_offset, ruler, color; num_segments=24
     RulerDrawCount = [0.0, 1.0]
 
     CImGui.PathArcTo(CImGui.GetWindowDrawList(), CImGui.GetCursorScreenPos() .+ (DrawOffsetHigh, y_offset), CircleRadius[1], -5π / 4, π / 4, 2num_segments)
-    CImGui.PathStroke(CImGui.GetWindowDrawList(), CImGui.ColorConvertFloat4ToU32(color), false, 0.01window_width)
+    CImGui.PathStroke(CImGui.GetWindowDrawList(), CImGui.ColorConvertFloat4ToU32(color), 0.01window_width)
     for i in SemicircleDeg[1]:0.15:SemicircleDeg[2]
 
         LineEndInnerTemp = ImVec2(
@@ -113,7 +113,7 @@ function DrawSemicircleBox(window_width, y_offset, ruler, color; num_segments=24
     end
 
     CImGui.PathArcTo(CImGui.GetWindowDrawList(), CImGui.GetCursorScreenPos() .+ (DrawOffsetHigh, y_offset), CircleRadius[2], -5π / 4, π / 4, round(Int, 3num_segments / 2))
-    CImGui.PathStroke(CImGui.GetWindowDrawList(), CImGui.ColorConvertFloat4ToU32(color), false, 0.03window_width)
+    CImGui.PathStroke(CImGui.GetWindowDrawList(), CImGui.ColorConvertFloat4ToU32(color), 0.03window_width)
 
     ExtDrawLine(
         ImVec2(
