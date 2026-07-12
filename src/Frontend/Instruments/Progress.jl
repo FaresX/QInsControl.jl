@@ -10,19 +10,6 @@ function tohms(second)
     string(hs, ":", ms, ":", ss)
 end
 
-function update_progress()
-    if isready_progressrc()
-        packpb = take_progressrc!()
-        lock(PROGRESSLIST) do PROGRESSLIST
-            for pb in packpb
-                haskey(PROGRESSLIST, pb[1]) || (PROGRESSLIST[pb[1]] = pb)
-                PROGRESSLIST[pb[1]] = pb
-                dorender()
-            end
-        end
-    end
-end
-
 function ShowProgressBar(; size=(-1, 0))
     lock(PROGRESSLIST) do PROGRESSLIST
         for (key, pgb) in PROGRESSLIST
