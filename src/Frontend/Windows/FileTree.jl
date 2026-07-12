@@ -87,7 +87,7 @@ let
         file = filetree.filepath_bnm
         get!(isrename, path, false)
         isrnm = isrename[path]
-        CImGui.PushID(path)
+        # CImGui.PushID(path)
         CImGui.PushItemWidth(-1)
         @c(RenameSelectable(
             "##path", &isrnm, &file, path in filetree.selectedpathes;
@@ -125,7 +125,7 @@ let
         end
         deldialog && (CImGui.OpenPopup(stcstr("##if delete", path));
         deldialog = false)
-        CImGui.PopID()
+        # CImGui.PopID()
     end
 end
 

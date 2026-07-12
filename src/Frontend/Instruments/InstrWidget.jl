@@ -123,7 +123,7 @@ function copycolors!(opts1, opts2)
     end
 end
 
-function edit(qtw::QuantityWidget, insbuf::InstrBuffer, instrnm, addr)
+function edit(qtw::QuantityWidget, insbuf::InstrBuffer, instrnm, addr, id)
     opts = qtw.options
     scale = CImGui.GetWindowDpiScale()
     scaling = scale != 1
@@ -140,15 +140,15 @@ function edit(qtw::QuantityWidget, insbuf::InstrBuffer, instrnm, addr)
     CImGui.SetCursorScreenPos(CImGui.GetWindowPos() .+ opts.vertices[1])
     opts.allowoverlap && igSetNextItemAllowOverlap()
     trig = if haskey(insbuf.quantities, qtw.name)
-        edit(opts, insbuf.quantities[qtw.name], instrnm, addr, Val(Symbol(qtw.options.uitype)))
+        edit(opts, insbuf.quantities[qtw.name], instrnm, addr, id, Val(Symbol(qtw.options.uitype)))
     elseif qtw.name == "_Panel_"
-        editPanel(qtw, opts)
+        editPanel(qtw, opts, id)
     elseif qtw.name == "_Shape_"
         editShape(opts, Val(Symbol(qtw.options.uitype)))
     elseif qtw.name == "_Image_"
         editImage(qtw, opts)
     elseif qtw.name == "_QuantitySelector_"
-        editQuantitySelector(qtw, opts, Val(Symbol(qtw.options.uitype)))
+        editQuantitySelector(qtw, opts, id, Val(Symbol(qtw.options.uitype)))
     else
         false
     end
@@ -161,14 +161,14 @@ function edit(qtw::QuantityWidget, insbuf::InstrBuffer, instrnm, addr)
     return trig
 end
 
-function editPanel(qtw::QuantityWidget, opts::QuantityWidgetOption)
+function editPanel(qtw::QuantityWidget, opts::QuantityWidgetOption, id)
     CImGui.PushFont(C_NULL, opts.fontsize)
     isempty(opts.pathes) && push!(opts.pathes, "")
     trig = if opts.globaloptions
-        ImageColoredButtonRect(mlstr(qtw.alias), opts.pathes[1], opts.useimage; size=opts.itemsize, rate=opts.rate)
+        ImageColoredButtonRect(stcstr(mlstr(qtw.alias), "###$id"), opts.pathes[1], opts.useimage; size=opts.itemsize, rate=opts.rate)
     else
         ImageColoredButtonRect(
-            mlstr(qtw.alias), opts.pathes[1], opts.useimage;
+            stcstr(mlstr(qtw.alias), "###$id"), opts.pathes[1], opts.useimage;
             size=opts.itemsize,
             rate=opts.rate,
             uv0=opts.uv0,
@@ -200,7 +200,7 @@ function editShape(opts::QuantityWidgetOption, ::Val{:rect})
     )
     CImGui.AddRect(
         drawlist, cspos, b, opts.bdcolor,
-        opts.bdrounding, ImDrawFlags_RoundCornersAll, opts.bdthickness
+        opts.bdrounding, opts.bdthickness, ImDrawFlags_RoundCornersAll
     )
     return false
 end
@@ -253,15 +253,15 @@ function editImage(::QuantityWidget, opts::QuantityWidgetOption)
     return false
 end
 
-function editQuantitySelector(qtw::QuantityWidget, opts::QuantityWidgetOption, ::Val{:combo})
+function editQuantitySelector(qtw::QuantityWidget, opts::QuantityWidgetOption, id, ::Val{:combo})
     CImGui.PushFont(C_NULL, opts.fontsize)
     trig = if opts.globaloptions
         @c ColoredCombo(
-            stcstr("##selector", qtw.alias), &qtw.alias, opts.selectorlabels, opts.comboflags; size=opts.itemsize
+            stcstr(qtw.alias, "###$id"), &qtw.alias, opts.selectorlabels, opts.comboflags; size=opts.itemsize
         )
     else
         @c ColoredCombo(
-            stcstr("##selector", qtw.alias), &qtw.alias, opts.selectorlabels, opts.comboflags;
+            stcstr(qtw.alias, "###$id"), &qtw.alias, opts.selectorlabels, opts.comboflags;
             size=opts.itemsize,
             rounding=opts.rounding,
             bdrounding=opts.bdrounding,
@@ -280,19 +280,19 @@ function editQuantitySelector(qtw::QuantityWidget, opts::QuantityWidgetOption, :
     return trig
 end
 
-function editQuantitySelector(qtw::QuantityWidget, opts::QuantityWidgetOption, ::Val{:slider})
+function editQuantitySelector(qtw::QuantityWidget, opts::QuantityWidgetOption, id, ::Val{:slider})
     CImGui.PushFont(C_NULL, opts.fontsize)
     trig = if opts.globaloptions
         @c ColoredSlider(
             CImGui.SliderInt,
-            stcstr(opts.textinside ? "##" : "", qtw.alias),
+            stcstr(opts.textinside ? "##" : "", qtw.alias, "###$id"),
             &opts.selectedidx, 1, opts.selectornum, opts.textinside ? qtw.alias : "";
             size=opts.itemsize
         )
     else
         @c ColoredSlider(
             CImGui.SliderInt,
-            stcstr(opts.textinside ? "##" : "", qtw.alias),
+            stcstr(opts.textinside ? "##" : "", qtw.alias, "###$id"),
             &opts.selectedidx, 1, opts.selectornum, opts.textinside ? qtw.alias : "";
             size=opts.itemsize,
             rounding=opts.rounding,
@@ -313,19 +313,19 @@ function editQuantitySelector(qtw::QuantityWidget, opts::QuantityWidgetOption, :
     return trig
 end
 
-function editQuantitySelector(qtw::QuantityWidget, opts::QuantityWidgetOption, ::Val{:vslider})
+function editQuantitySelector(qtw::QuantityWidget, opts::QuantityWidgetOption, id, ::Val{:vslider})
     CImGui.PushFont(C_NULL, opts.fontsize)
     trig = if opts.globaloptions
         @c ColoredVSlider(
             CImGui.VSliderInt,
-            stcstr(opts.textinside ? "##" : "", qtw.alias),
+            stcstr(opts.textinside ? "##" : "", qtw.alias, "###$id"),
             &opts.selectedidx, 1, opts.selectornum, opts.textinside ? qtw.alias : "";
             size=opts.itemsize
         )
     else
         @c ColoredVSlider(
             CImGui.VSliderInt,
-            stcstr(opts.textinside ? "##" : "", qtw.alias),
+            stcstr(opts.textinside ? "##" : "", qtw.alias, "###$id"),
             &opts.selectedidx, 1, opts.selectornum, opts.textinside ? qtw.alias : "";
             size=opts.itemsize,
             rounding=opts.rounding,
@@ -348,13 +348,13 @@ end
 
 edit(::QuantityWidgetOption, ::AbstractQuantity, _, _, ::Val) = CImGui.Button(mlstr("Invalid UI Type"))
 
-function edit(opts::QuantityWidgetOption, qt::AbstractQuantity, instrnm, addr, ::Val{:read})
+function edit(opts::QuantityWidgetOption, qt::AbstractQuantity, instrnm, addr, id, ::Val{:read})
     CImGui.PushFont(C_NULL, opts.fontsize)
     trig = if opts.globaloptions
-        ColoredButtonRect(qt.showval[opts.bindingidx]; size=opts.itemsize)
+        ColoredButtonRect(stcstr(qt.showval[opts.bindingidx], "###$id"); size=opts.itemsize)
     else
         ColoredButtonRect(
-            qt.showval[opts.bindingidx];
+            stcstr(qt.showval[opts.bindingidx], "###$id");
             size=opts.itemsize,
             colbt=opts.bgcolor,
             colbth=opts.hoveredcolor,
@@ -371,13 +371,13 @@ function edit(opts::QuantityWidgetOption, qt::AbstractQuantity, instrnm, addr, :
     return trig
 end
 
-function edit(opts::QuantityWidgetOption, qt::AbstractQuantity, instrnm, addr, ::Val{:unit})
+function edit(opts::QuantityWidgetOption, qt::AbstractQuantity, instrnm, addr, id, ::Val{:unit})
     CImGui.PushFont(C_NULL, opts.fontsize)
     trig = if opts.globaloptions
-        ColoredButtonRect(qt.showU; size=opts.itemsize)
+        ColoredButtonRect(stcstr(qt.showU, "###$id"); size=opts.itemsize)
     else
         ColoredButtonRect(
-            qt.showU;
+            stcstr(qt.showU, "###$id");
             size=opts.itemsize,
             colbt=opts.bgcolor,
             colbth=opts.hoveredcolor,
@@ -394,13 +394,13 @@ function edit(opts::QuantityWidgetOption, qt::AbstractQuantity, instrnm, addr, :
     return trig
 end
 
-function edit(opts::QuantityWidgetOption, qt::AbstractQuantity, instrnm, addr, ::Val{:readunit})
+function edit(opts::QuantityWidgetOption, qt::AbstractQuantity, instrnm, addr, id, ::Val{:readunit})
     CImGui.PushFont(C_NULL, opts.fontsize)
     trig = if opts.globaloptions
-        ColoredButtonRect(stcstr(qt.showval[opts.bindingidx], " ", qt.showU); size=opts.itemsize)
+        ColoredButtonRect(stcstr(qt.showval[opts.bindingidx], " ", qt.showU, "###$id"); size=opts.itemsize)
     else
         ColoredButtonRect(
-            stcstr(qt.showval[opts.bindingidx], " ", qt.showU);
+            stcstr(qt.showval[opts.bindingidx], " ", qt.showU, "###$id");
             size=opts.itemsize,
             colbt=opts.bgcolor,
             colbth=opts.hoveredcolor,
@@ -420,7 +420,7 @@ function edit(opts::QuantityWidgetOption, qt::AbstractQuantity, instrnm, addr, :
     return trig
 end
 
-function edit(opts::QuantityWidgetOption, qt::AbstractQuantity, instrnm, addr, ::Val{:readdashboard})
+function edit(opts::QuantityWidgetOption, qt::AbstractQuantity, instrnm, addr, _, ::Val{:readdashboard})
     CImGui.PushFont(C_NULL, opts.fontsize)
     val, mrange1, mrange2, start = parseforreaddashboard(qt)
     if opts.globaloptions
@@ -445,13 +445,13 @@ function edit(opts::QuantityWidgetOption, qt::AbstractQuantity, instrnm, addr, :
     CImGui.PopFont()
     return false
 end
-function edit(opts::QuantityWidgetOption, qt::AbstractQuantity, instrnm, addr, ::Val{:readdashboarddigits})
+function edit(opts::QuantityWidgetOption, qt::AbstractQuantity, instrnm, addr, id, ::Val{:readdashboarddigits})
     CImGui.PushFont(C_NULL, opts.fontsize)
     trig = if opts.globaloptions
-        ColoredButtonRect(@sprintf("%g", parseforreaddashboard(qt)[1]); size=opts.itemsize)
+        ColoredButtonRect(stcstr(@sprintf("%g", parseforreaddashboard(qt)[1]), "###$id"); size=opts.itemsize)
     else
         ColoredButtonRect(
-            @sprintf("%g", parseforreaddashboard(qt)[1]);
+            stcstr(@sprintf("%g", parseforreaddashboard(qt)[1]), "###$id");
             size=opts.itemsize,
             colbt=opts.bgcolor,
             colbth=opts.hoveredcolor,
@@ -467,13 +467,13 @@ function edit(opts::QuantityWidgetOption, qt::AbstractQuantity, instrnm, addr, :
     CImGui.PopFont()
     return trig
 end
-function edit(opts::QuantityWidgetOption, qt::AbstractQuantity, instrnm, addr, ::Val{:readdashboarddigitsunit})
+function edit(opts::QuantityWidgetOption, qt::AbstractQuantity, instrnm, addr, id, ::Val{:readdashboarddigitsunit})
     CImGui.PushFont(C_NULL, opts.fontsize)
     trig = if opts.globaloptions
-        ColoredButtonRect(stcstr(@sprintf("%g", parseforreaddashboard(qt)[1]), " ", qt.showU); size=opts.itemsize)
+        ColoredButtonRect(stcstr(@sprintf("%g", parseforreaddashboard(qt)[1]), " ", qt.showU, "###$id"); size=opts.itemsize)
     else
         ColoredButtonRect(
-            stcstr(@sprintf("%g", parseforreaddashboard(qt)[1]), " ", qt.showU);
+            stcstr(@sprintf("%g", parseforreaddashboard(qt)[1]), " ", qt.showU, "###$id");
             size=opts.itemsize,
             colbt=opts.bgcolor,
             colbth=opts.hoveredcolor,
@@ -514,13 +514,13 @@ function parseforreaddashboard(qt::AbstractQuantity)
     end
 end
 
-function edit(opts::QuantityWidgetOption, qt::SweepQuantity, _, _, ::Val{:inputstep})
+function edit(opts::QuantityWidgetOption, qt::SweepQuantity, _, _, id, ::Val{:inputstep})
     CImGui.PushFont(C_NULL, opts.fontsize)
     trig = if opts.globaloptions
-        @c ColoredInputTextWithHintRSZ("##step", mlstr("step"), &qt.step; size=opts.itemsize)
+        @c ColoredInputTextWithHintRSZ(stcstr("###$id"), mlstr("step"), &qt.step; size=opts.itemsize)
     else
         @c ColoredInputTextWithHintRSZ(
-            "##step", mlstr("step"), &qt.step;
+            stcstr("###$id"), mlstr("step"), &qt.step;
             size=opts.itemsize,
             rounding=opts.rounding,
             bdrounding=opts.bdrounding,
@@ -535,13 +535,13 @@ function edit(opts::QuantityWidgetOption, qt::SweepQuantity, _, _, ::Val{:inputs
     return trig
 end
 
-function edit(opts::QuantityWidgetOption, qt::SweepQuantity, _, _, ::Val{:inputstop})
+function edit(opts::QuantityWidgetOption, qt::SweepQuantity, _, _, id, ::Val{:inputstop})
     CImGui.PushFont(C_NULL, opts.fontsize)
     trig = if opts.globaloptions
-        @c ColoredInputTextWithHintRSZ("##stop", mlstr("stop"), &qt.stop; size=opts.itemsize)
+        @c ColoredInputTextWithHintRSZ(stcstr("###$id"), mlstr("stop"), &qt.stop; size=opts.itemsize)
     else
         @c ColoredInputTextWithHintRSZ(
-            "##stop", mlstr("stop"), &qt.stop;
+            stcstr("###$id"), mlstr("stop"), &qt.stop;
             size=opts.itemsize,
             rounding=opts.rounding,
             bdrounding=opts.bdrounding,
@@ -556,18 +556,18 @@ function edit(opts::QuantityWidgetOption, qt::SweepQuantity, _, _, ::Val{:inputs
     return trig
 end
 
-function edit(opts::QuantityWidgetOption, qt::SweepQuantity, _, _, ::Val{:dragdelay})
+function edit(opts::QuantityWidgetOption, qt::SweepQuantity, _, _, id, ::Val{:dragdelay})
     CImGui.PushFont(C_NULL, opts.fontsize)
     trig = if opts.globaloptions
         @c ColoredDragWidget(
             CImGui.DragFloat,
-            "##delay", &qt.delay, 0.01, 0.01, 60, "%.3f", CImGui.ImGuiSliderFlags_AlwaysClamp;
+            stcstr("###$id"), &qt.delay, 0.01, 0.01, 60, "%.3f", CImGui.ImGuiSliderFlags_AlwaysClamp;
             size=opts.itemsize
         )
     else
         @c ColoredDragWidget(
             CImGui.DragFloat,
-            "##delay", &qt.delay, 0.01, 0.01, 60, "%.3f", CImGui.ImGuiSliderFlags_AlwaysClamp;
+            stcstr("###$id"), &qt.delay, 0.01, 0.01, 60, "%.3f", CImGui.ImGuiSliderFlags_AlwaysClamp;
             size=opts.itemsize,
             rounding=opts.rounding,
             bdrounding=opts.bdrounding,
@@ -583,7 +583,7 @@ function edit(opts::QuantityWidgetOption, qt::SweepQuantity, _, _, ::Val{:dragde
     return trig
 end
 
-function edit(opts::QuantityWidgetOption, qt::SweepQuantity, _, _, ::Val{:progressbar})
+function edit(opts::QuantityWidgetOption, qt::SweepQuantity, _, _, _, ::Val{:progressbar})
     CImGui.PushFont(C_NULL, opts.fontsize)
     trig = if opts.globaloptions
         ColoredProgressBarRect(
@@ -609,13 +609,13 @@ function edit(opts::QuantityWidgetOption, qt::SweepQuantity, _, _, ::Val{:progre
     return trig
 end
 
-function edit(opts::QuantityWidgetOption, qt::SweepQuantity, instrnm, addr, ::Val{:ctrlsweep})
+function edit(opts::QuantityWidgetOption, qt::SweepQuantity, instrnm, addr, id, ::Val{:ctrlsweep})
     CImGui.PushFont(C_NULL, opts.fontsize)
     trig = if opts.globaloptions
-        @c ToggleButtonRect(mlstr(qt.issweeping ? opts.stoptext : opts.starttext), &qt.issweeping; size=opts.itemsize)
+        @c ToggleButtonRect(stcstr(mlstr(qt.issweeping ? opts.stoptext : opts.starttext), "###$id"), &qt.issweeping; size=opts.itemsize)
     else
         @c ToggleButtonRect(
-            mlstr(qt.issweeping ? opts.stoptext : opts.starttext), &qt.issweeping;
+            stcstr(mlstr(qt.issweeping ? opts.stoptext : opts.starttext), "###$id"), &qt.issweeping;
             size=opts.itemsize,
             rounding=opts.rounding,
             bdrounding=opts.bdrounding,
@@ -634,12 +634,13 @@ function edit(opts::QuantityWidgetOption, qt::SweepQuantity, instrnm, addr, ::Va
     return trig
 end
 
-function edit(opts::QuantityWidgetOption, qt::SetQuantity, _, _, ::Val{:inputset})
+function edit(opts::QuantityWidgetOption, qt::SetQuantity, _, _, id, ::Val{:inputset})
     CImGui.PushFont(C_NULL, opts.fontsize)
     trig = if opts.globaloptions
-        @c ColoredInputTextWithHintRSZ("##set", mlstr(opts.starttext), &qt.set; size=opts.itemsize)
+        @c ColoredInputTextWithHintRSZ(stcstr("###$id"), mlstr(opts.starttext), &qt.set; size=opts.itemsize)
     else
-        @c ColoredInputTextWithHintRSZ("##set", mlstr(opts.starttext), &qt.set;
+        @c ColoredInputTextWithHintRSZ(
+            stcstr("###$id"), mlstr(opts.starttext), &qt.set;
             size=opts.itemsize,
             rounding=opts.rounding,
             bdrounding=opts.bdrounding,
@@ -654,13 +655,13 @@ function edit(opts::QuantityWidgetOption, qt::SetQuantity, _, _, ::Val{:inputset
     return trig
 end
 
-function edit(opts::QuantityWidgetOption, qt::SetQuantity, instrnm, addr, ::Val{:ctrlset})
+function edit(opts::QuantityWidgetOption, qt::SetQuantity, instrnm, addr, id, ::Val{:ctrlset})
     CImGui.PushFont(C_NULL, opts.fontsize)
     trig = if opts.globaloptions
-        ColoredButtonRect(mlstr(opts.starttext); size=opts.itemsize)
+        ColoredButtonRect(stcstr(mlstr(opts.starttext), "###$id"), size=opts.itemsize)
     else
         ColoredButtonRect(
-            mlstr(opts.starttext);
+            stcstr(mlstr(opts.starttext), "###$id");
             size=opts.itemsize,
             colbt=opts.bgcolor,
             colbth=opts.hoveredcolor,
@@ -677,13 +678,13 @@ function edit(opts::QuantityWidgetOption, qt::SetQuantity, instrnm, addr, ::Val{
     return trig
 end
 
-function edit(opts::QuantityWidgetOption, qt::SetQuantity, instrnm, addr, ::Val{:inputctrlset})
+function edit(opts::QuantityWidgetOption, qt::SetQuantity, instrnm, addr, id, ::Val{:inputctrlset})
     CImGui.PushFont(C_NULL, opts.fontsize)
     if opts.globaloptions
-        @c ColoredInputTextWithHintRSZ("##set", mlstr(opts.starttext), &qt.set; size=opts.itemsize)
+        @c ColoredInputTextWithHintRSZ(stcstr("###$id"), mlstr(opts.starttext), &qt.set; size=opts.itemsize)
     else
         @c ColoredInputTextWithHintRSZ(
-            "##set", mlstr(opts.starttext), &qt.set;
+            stcstr("###$id"), mlstr(opts.starttext), &qt.set;
             size=opts.itemsize,
             rounding=opts.rounding,
             bdrounding=opts.bdrounding,
@@ -700,25 +701,25 @@ function edit(opts::QuantityWidgetOption, qt::SetQuantity, instrnm, addr, ::Val{
     return trig
 end
 
-function edit(opts::QuantityWidgetOption, qt::SetQuantity, instrnm, addr, ::Val{:readinputctrlset})
+function edit(opts::QuantityWidgetOption, qt::SetQuantity, instrnm, addr, id, ::Val{:readinputctrlset})
     if opts.readorinput
-        trig = edit(opts, qt, instrnm, addr, Val(:read))
+        trig = edit(opts, qt, instrnm, addr, id, Val(:read))
         CImGui.IsItemHovered() && CImGui.IsMouseDoubleClicked(0) && (opts.readorinput = false)
     else
-        trig = edit(opts, qt, instrnm, addr, Val(:inputctrlset))
+        trig = edit(opts, qt, instrnm, addr, id, Val(:inputctrlset))
         CImGui.IsItemDeactivated() && (opts.readorinput = true)
     end
     return trig
 end
 
-function edit(opts::QuantityWidgetOption, qt::SetQuantity, instrnm, addr, ::Val{:combo})
+function edit(opts::QuantityWidgetOption, qt::SetQuantity, instrnm, addr, id, ::Val{:combo})
     presentv = qt.optkeys[qt.optedidx]
     CImGui.PushFont(C_NULL, opts.fontsize)
     trig = if opts.globaloptions
-        @c ColoredCombo(stcstr("##", qt.alias), &presentv, qt.optkeys, opts.comboflags; size=opts.itemsize)
+        @c ColoredCombo(stcstr("###$id"), &presentv, qt.optkeys, opts.comboflags; size=opts.itemsize)
     else
         @c ColoredCombo(
-            stcstr("##", qt.alias), &presentv, qt.optkeys, opts.comboflags;
+            stcstr("###$id"), &presentv, qt.optkeys, opts.comboflags;
             size=opts.itemsize,
             rounding=opts.rounding,
             bdrounding=opts.bdrounding,
@@ -741,13 +742,13 @@ function edit(opts::QuantityWidgetOption, qt::SetQuantity, instrnm, addr, ::Val{
     return trig
 end
 
-function edit(opts::QuantityWidgetOption, qt::SetQuantity, instrnm, addr, ::Val{:radio})
+function edit(opts::QuantityWidgetOption, qt::SetQuantity, instrnm, addr, id, ::Val{:radio})
     CImGui.PushFont(C_NULL, opts.fontsize)
     trig = if opts.globaloptions
-        @c ColoredRadioButton(qt.optkeys[opts.bindingidx], &qt.optedidx, opts.bindingidx)
+        @c ColoredRadioButton(stcstr(qt.optkeys[opts.bindingidx], "###$id"), &qt.optedidx, opts.bindingidx)
     else
         @c ColoredRadioButton(
-            qt.optkeys[opts.bindingidx], &qt.optedidx, opts.bindingidx;
+            stcstr(qt.optkeys[opts.bindingidx], "###$id"), &qt.optedidx, opts.bindingidx;
             bdrounding=opts.bdrounding,
             thickness=opts.bdthickness,
             colckm=opts.checkedcolor,
@@ -767,19 +768,19 @@ function edit(opts::QuantityWidgetOption, qt::SetQuantity, instrnm, addr, ::Val{
     return trig
 end
 
-function edit(opts::QuantityWidgetOption, qt::SetQuantity, instrnm, addr, ::Val{:slider})
+function edit(opts::QuantityWidgetOption, qt::SetQuantity, instrnm, addr, id, ::Val{:slider})
     CImGui.PushFont(C_NULL, opts.fontsize)
     trig = if opts.globaloptions
         @c ColoredSlider(
             CImGui.SliderInt,
-            stcstr(opts.textinside ? "##" : "", qt.optkeys[qt.optedidx]),
+            stcstr(opts.textinside ? "##" : "", qt.optkeys[qt.optedidx], "###$id"),
             &qt.optedidx, 1, length(qt.optvalues), opts.textinside ? qt.optkeys[qt.optedidx] : "";
             size=opts.itemsize
         )
     else
         @c ColoredSlider(
             CImGui.SliderInt,
-            stcstr(opts.textinside ? "##" : "", qt.optkeys[qt.optedidx]),
+            stcstr(opts.textinside ? "##" : "", qt.optkeys[qt.optedidx], "###$id"),
             &qt.optedidx, 1, length(qt.optvalues), opts.textinside ? qt.optkeys[qt.optedidx] : "";
             size=opts.itemsize,
             rounding=opts.rounding,
@@ -803,19 +804,19 @@ function edit(opts::QuantityWidgetOption, qt::SetQuantity, instrnm, addr, ::Val{
     return trig
 end
 
-function edit(opts::QuantityWidgetOption, qt::SetQuantity, instrnm, addr, ::Val{:vslider})
+function edit(opts::QuantityWidgetOption, qt::SetQuantity, instrnm, addr, id, ::Val{:vslider})
     CImGui.PushFont(C_NULL, opts.fontsize)
     trig = if opts.globaloptions
         @c ColoredVSlider(
             CImGui.VSliderInt,
-            stcstr(opts.textinside ? "##" : "", qt.optkeys[qt.optedidx]),
+            stcstr(opts.textinside ? "##" : "", qt.optkeys[qt.optedidx], "###$id"),
             &qt.optedidx, 1, length(qt.optvalues), opts.textinside ? qt.optkeys[qt.optedidx] : "";
             size=opts.itemsize
         )
     else
         @c ColoredVSlider(
             CImGui.VSliderInt,
-            stcstr(opts.textinside ? "##" : "", qt.optkeys[qt.optedidx]),
+            stcstr(opts.textinside ? "##" : "", qt.optkeys[qt.optedidx], "###$id"),
             &qt.optedidx, 1, length(qt.optvalues), opts.textinside ? qt.optkeys[qt.optedidx] : "";
             size=opts.itemsize,
             rounding=opts.rounding,
@@ -839,14 +840,14 @@ function edit(opts::QuantityWidgetOption, qt::SetQuantity, instrnm, addr, ::Val{
     return trig
 end
 
-function edit(opts::QuantityWidgetOption, qt::SetQuantity, instrnm, addr, ::Val{:toggle})
+function edit(opts::QuantityWidgetOption, qt::SetQuantity, instrnm, addr, id, ::Val{:toggle})
     ison = qt.optedidx == opts.bindingonoff[1]
     CImGui.PushFont(C_NULL, opts.fontsize)
     trig = if opts.globaloptions
-        @c ToggleButtonRect(qt.optkeys[opts.bindingonoff[ison ? 1 : 2]], &ison; size=opts.itemsize)
+        @c ToggleButtonRect(stcstr(qt.optkeys[opts.bindingonoff[ison ? 1 : 2]], "###$id"), &ison; size=opts.itemsize)
     else
         @c ToggleButtonRect(
-            qt.optkeys[opts.bindingonoff[ison ? 1 : 2]], &ison;
+            stcstr(qt.optkeys[opts.bindingonoff[ison ? 1 : 2]], "###$id"), &ison;
             size=opts.itemsize,
             colon=opts.oncolor,
             coloff=opts.offcolor,
@@ -921,9 +922,9 @@ let
             SetWindowBgImage(insw.wallpaperpath; rate=insw.rate, use=insw.usewallpaper, tint_col=insw.bgtintcolor)
             CImGui.BeginChild("drawing area")
             for (i, qtw) in enumerate(insw.qtws)
-                CImGui.PushID(i)
+                # CImGui.PushID(i)
                 igBeginDisabled(!usingit && draggable && disabled)
-                if edit(qtw, insbuf, insw.instrnm, addr)
+                if edit(qtw, insbuf, insw.instrnm, addr, i)
                     if qtw.qtype in qtypes && qtw.options.uitype ∉ continuousuitypes
                         Threads.@spawn @trycatch mlstr("task failed!!!") putonce(insw, addr; blacklist=[qtw.name])
                     end
@@ -1009,7 +1010,7 @@ let
                                     CImGui.AddRect(
                                         drawlist, a, b,
                                         isselected ? MORESTYLE.Colors.SelectedWidgetBt : MORESTYLE.Colors.WidgetBorderSelected,
-                                        0, 0, max(4, 2qtw.options.bdthickness)
+                                        0, max(4, 2qtw.options.bdthickness)
                                     )
                                 end
                             end
@@ -1018,7 +1019,7 @@ let
                         addnewlayer(qtw, i)
                     end
                 end
-                CImGui.PopID()
+                # CImGui.PopID()
             end
             CImGui.SetCursorPos(0, 0)
             if !usingit && draggable
