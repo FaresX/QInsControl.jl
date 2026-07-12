@@ -16,7 +16,7 @@ let
             CImGui.PopFont()
             CImGui.Text(stcstr(mlstr("version"), " : ", FILEINFO["QInsControl version"]))
             CImGui.SameLine()
-            if STATES[Int(NewVersion)]
+            if STATES[NewVersion]
                 CImGui.TextColored(MORESTYLE.Colors.HighlightText, mlstr("New version!"))
                 CImGui.SameLine()
                 CImGui.TextLinkOpenURL(newversion, "https://github.com/FaresX/QInsControl.jl/releases/latest")
@@ -26,7 +26,7 @@ let
                 ColoredButton(MORESTYLE.Icons.Update; colbt=[0, 0, 0, 0]) && (getnewestversion(); hasnewversiontime = time())
                 CImGui.PopStyleVar(2)
 
-                if !STATES[Int(NewVersion)] && time() - hasnewversiontime < 4
+                if !STATES[NewVersion] && time() - hasnewversiontime < 4
                     CImGui.SameLine()
                     # CImGui.SetCursorPosY(CImGui.GetCursorPosY() - 4)
                     CImGui.TextColored(MORESTYLE.Colors.InfoText, mlstr("Already the latest version!"))
