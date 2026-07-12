@@ -17,19 +17,6 @@ const LOGGERTASK = Ref{Task}()
 const CPU = Processor()
 const QICSERVER = QICServer()
 
-@enum SyncStatesIndex begin
-    IsDAQTaskRunning = 1
-    IsDAQTaskDone
-    IsInterrupted
-    IsBlocked
-    IsRefreshing
-    IsLogging
-    IsNewLogging
-end
-Base.getindex(x::AbstractVector{Bool}, i::SyncStatesIndex) = x[Int(i)]
-Base.setindex!(x::AbstractVector{Bool}, v::Bool, i::SyncStatesIndex) = x[Int(i)] = v
-global SYNCSTATES::SharedVector{Bool} = SharedVector{Bool}(length(instances(SyncStatesIndex)))
-
 const SWEEPCTS = Dict{String,Dict{String,Dict{String,Tuple{Ref{Bool},Controller}}}}()
 const REFRESHCTS = Dict{String,Dict{String,Controller}}()
 const REFRESHTASK = Ref{Task}()
