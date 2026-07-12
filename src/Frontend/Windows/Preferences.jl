@@ -5,7 +5,7 @@ let
     openglversions::Vector{String} = ["3.0", "3.1", "3.2", "3.3", "4.0", "4.1", "4.2", "4.3", "4.4", "4.5", "4.6"]
     global function Preferences(p_open::Ref)
         # CImGui.SetNextWindowPos((100, 100), CImGui.ImGuiCond_Once)
-        CImGui.SetNextWindowSize((800, 600), CImGui.ImGuiCond_Once)
+        CImGui.SetNextWindowSize((800, 600) .* CImGui.GetWindowDpiScale(), CImGui.ImGuiCond_Once)
 
         if CImGui.Begin(stcstr(MORESTYLE.Icons.Preferences, "  ", mlstr("Preferences"), "###pref"), p_open)
             SetWindowBgImage(
@@ -46,7 +46,7 @@ let
             CImGui.EndChild()
 
             CImGui.SetCursorPosY(
-                CImGui.GetWindowHeight() - 2CImGui.GetFrameHeight() - unsafe_load(IMGUISTYLE.ItemSpacing.y)
+                CImGui.GetWindowHeight() - 2CImGui.GetFrameHeight() - 2unsafe_load(IMGUISTYLE.ItemSpacing.y)
             )
             CImGui.Separator()
             CImGui.PushStyleVar(CImGui.ImGuiStyleVar_FrameBorderSize, 0)

@@ -4,7 +4,7 @@ let
     GlfwOpenGLBackend = Base.get_extension(CImGui, :GlfwOpenGLBackend)
     MakieIntegration = Base.get_extension(CImGui, :MakieIntegration)
     global function Debugger(p_open::Ref{Bool})
-        CImGui.SetNextWindowSize(CImGui.ImVec2(400, 600), CImGui.ImGuiCond_Once)
+        CImGui.SetNextWindowSize((400, 600) .* CImGui.GetWindowDpiScale(), CImGui.ImGuiCond_Once)
         if CImGui.Begin("Debugger", p_open)
 
             if CImGui.TreeNode("Global Variables")
@@ -118,7 +118,7 @@ let
                             id == val[] && CImGui.AddRect(
                                 CImGui.GetWindowDrawList(),
                                 CImGui.GetItemRectMin(), CImGui.GetItemRectMax(),
-                                MORESTYLE.Colors.InfoText, 0, 0, 2
+                                MORESTYLE.Colors.InfoText, 0, 2
                             )
                         end
                     end

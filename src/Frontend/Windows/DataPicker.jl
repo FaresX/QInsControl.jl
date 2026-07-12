@@ -32,7 +32,7 @@ let
     holdsz::Cfloat = 0
     copyseries::DataSeries = DataSeries()
     global function edit(dtpk::DataPicker, id, p_open::Ref{Bool})
-        CImGui.SetNextWindowSize((400, 600), CImGui.ImGuiCond_Once)
+        CImGui.SetNextWindowSize((400, 600) .* CImGui.GetWindowDpiScale(), CImGui.ImGuiCond_Once)
         CImGui.PushStyleColor(CImGui.ImGuiCol_WindowBg, CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_PopupBg))
         CImGui.PushStyleVar(CImGui.ImGuiStyleVar_WindowRounding, unsafe_load(IMGUISTYLE.PopupRounding))
         isfocus = true

@@ -18,9 +18,11 @@ end
 
 function toimguitheme!(theme)
     theme.GLMakie = Makie.Attributes(fxaa=false)
-    Makie.set_theme!(theme)
+    fontsize = unsafe_load(IMGUISTYLE.FontSizeBase) * CImGui.GetWindowDpiScale()
+    new_theme = merge(theme, Theme(fontsize=fontsize))
+    Makie.set_theme!(new_theme)
     GLMakie.activate!(scalefactor=1)
-    return theme
+    return new_theme
 end
 
 function rmplot!(plt::QPlot)

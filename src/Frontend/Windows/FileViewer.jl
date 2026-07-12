@@ -7,7 +7,7 @@
 end
 
 function edit(fv::FileViewer, id)
-    CImGui.SetNextWindowSize((520, 720), CImGui.ImGuiCond_Once)
+    CImGui.SetNextWindowSize((520, 720) .* CImGui.GetWindowDpiScale(), CImGui.ImGuiCond_Once)
     if @c CImGui.Begin(
         if fv.filetree.rootpath_bnm == ""
             stcstr(MORESTYLE.Icons.OpenFile, "  ", mlstr("Data Browse"), "###dtv", id)
@@ -52,8 +52,8 @@ function edit(fv::FileViewer, id)
     for path in fv.filetree.selectedpathes
         haskey(fv.dtviewers, path) || push!(fv.dtviewers, path => DataViewer())
         dtviewer = fv.dtviewers[path]
-        CImGui.SetNextWindowSize((600, 800), CImGui.ImGuiCond_Once)
-        if @c CImGui.Begin(stcstr(basename(path), "##", id, path), &dtviewer.p_open)
+        CImGui.SetNextWindowSize((600, 800) .* CImGui.GetWindowDpiScale(), CImGui.ImGuiCond_Once)
+        if @c CImGui.Begin(stcstr(basename(path), "##", path), &dtviewer.p_open)
             SetWindowBgImage(
                 CONF.BGImage.fileviewer.path;
                 rate=CONF.BGImage.fileviewer.rate,

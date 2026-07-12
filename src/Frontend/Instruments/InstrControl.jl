@@ -73,7 +73,7 @@ function update_passfilter!(insbuf::InstrBuffer)
 end
 
 function edit(ibv::InstrBufferViewer)
-    CImGui.SetNextWindowSize((800, 600), CImGui.ImGuiCond_Once)
+    CImGui.SetNextWindowSize((800, 600) .* CImGui.GetWindowDpiScale(), CImGui.ImGuiCond_Once)
     ins, addr = ibv.instrnm, ibv.addr
     if @c CImGui.Begin(stcstr(INSTRCONF[ins].conf.icon, "  ", ins, "  ", addr), &ibv.p_open)
         SetWindowBgImage(
@@ -694,7 +694,9 @@ function apply!(qt::SweepQuantity, instrnm, addr)
     addr == "" && return nothing
     U, Us = @c getU(qt.utype, &qt.uindex)
     U == "" || (Uchange::Float64 = Us[1] isa Unitful.FreeUnits ? ustrip(Us[1], 1U) : 1.0)
-    start = tryparse(Float64, remote_qtread(instrnm, addr, qt.name, CONF.DAQ.ctbuflen, qt.timeoutr))
+    start = @trypasse parse(Float64, remote_qtread(instrnm, addr, qt.name, CONF.DAQ.ctbuflen, qt.timeoutr)) begin
+        @error "[$(now())]\n$(mlstr("error parsing start value!!!"))"
+    end
     step = @trypasse eval(Meta.parse(qt.step)) * Uchange begin
         @error "[$(now())]\n$(mlstr("error parsing step value!!!"))" step = qt.step
     end

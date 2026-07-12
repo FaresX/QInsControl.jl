@@ -108,7 +108,7 @@ let
     editqt::QuantityConf = QuantityConf()
     default_insbufs = Dict{String,InstrBuffer}()
     global function InstrRegister(p_open::Ref)
-        CImGui.SetNextWindowSize((800, 600), CImGui.ImGuiCond_Once)
+        CImGui.SetNextWindowSize((800, 600) .* CImGui.GetWindowDpiScale(), CImGui.ImGuiCond_Once)
 
         if CImGui.Begin(
             stcstr(MORESTYLE.Icons.InstrumentsRegister, "  ", mlstr("Instrument Registration"), "###ins reg"),
@@ -130,7 +130,6 @@ let
                 oldinsnm == "Others" && continue
                 haskey(isrename, oldinsnm) || (isrename[oldinsnm] = false)
                 renamei = isrename[oldinsnm]
-                CImGui.PushID(oldinsnm)
                 newinsnm = oldinsnm
                 CImGui.PushItemWidth(-1)
                 if @c RenameSelectable(
@@ -181,13 +180,12 @@ let
                 end
                 deldialog && (CImGui.OpenPopup(stcstr("##if delete ins conf", oldinsnm));
                 deldialog = false)
-                CImGui.PopID()
             end
             CImGui.PopStyleVar()
             CImGui.EndChild()
             btwidth = CImGui.GetContentRegionAvail().x - unsafe_load(IMGUISTYLE.ItemSpacing.x)
             CImGui.SetCursorPosY(
-                CImGui.GetWindowHeight() - 2CImGui.GetFrameHeight() - unsafe_load(IMGUISTYLE.ItemSpacing.y)
+                CImGui.GetWindowHeight() - 2CImGui.GetFrameHeight() - 2unsafe_load(IMGUISTYLE.ItemSpacing.y)
             )
             CImGui.Separator()
             CImGui.PushStyleVar(CImGui.ImGuiStyleVar_FrameBorderSize, 0)

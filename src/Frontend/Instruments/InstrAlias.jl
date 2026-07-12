@@ -9,7 +9,7 @@ global INSTRALIASLIST::OrderedDict{String,InstrAlias} = Dict(
 let
     hold::Bool = false
     global function editinstraliaslist(p_open::Ref{Bool})
-        CImGui.SetNextWindowSize((400, 600), CImGui.ImGuiCond_Once)
+        CImGui.SetNextWindowSize((400, 600) .* CImGui.GetWindowDpiScale(), CImGui.ImGuiCond_Once)
         isfocus = true
         if @c (CImGui.Begin(mlstr("Edit Instrument Alias List"), p_open))
             if CImGui.Button(MORESTYLE.Icons.NewFile)

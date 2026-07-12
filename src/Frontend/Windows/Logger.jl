@@ -9,7 +9,7 @@ let
     serverbuffer::QICServer = QICServer()
     global function LogWindow(p_open::Ref)
         # CImGui.SetNextWindowPos((100, 100), CImGui.ImGuiCond_Once)
-        CImGui.SetNextWindowSize((800, 600), CImGui.ImGuiCond_Once)
+        CImGui.SetNextWindowSize((800, 600) .* CImGui.GetWindowDpiScale(), CImGui.ImGuiCond_Once)
         if CImGui.Begin(
             stcstr(MORESTYLE.Icons.Logger, "  ", mlstr("Logger"), "###logger"),
             p_open,
