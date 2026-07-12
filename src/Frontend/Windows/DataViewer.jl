@@ -286,7 +286,7 @@ function saveqdt(dtviewer::DataViewer, path)
                 end
                 file[key] = dtviewer.data[key]
             end
-            file["info"] = fileinfo()
+            file["info"] = FILEINFO
         end
     end
 end
