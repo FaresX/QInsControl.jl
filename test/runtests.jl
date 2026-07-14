@@ -88,6 +88,24 @@ using Test
         ItemClick(MORESTYLE.Icons.About)
         ItemClick(string("//\$FOCUSED/", string(mlstr("Confirm"), "##ShowAbout")))
     end
+    tsetup = @register_test(engine, "QInsControl", "DAQ setup")
+    tsetup.GuiFunc = () -> begin
+        qic.loadproject(joinpath(@__DIR__, "../example/demo.daq"))
+        for dp in qic.DAQDATAPLOTS
+            dp.showplot = false
+        end
+        qic.WORKPATH = joinpath(@__DIR__, "TestQInsControl")
+    end
+    @register_test(engine, "QInsControl", "Open Plots") do
+        SetRef(WindowInfo("//###MainWindow/main/left/queue/scrobarplot/DataPlots").Window)
+        ItemClick("###plot1")
+        ItemClick("###plot2")
+        SetRef(WindowInfo("//###MainWindow/main/left/queue").Window)
+        ItemClick(string(MORESTYLE.Icons.Update, "##update showing plots"))
+        SetRef(WindowInfo("//###MainWindow/main/left/queue/scrobarplot/DataPlots").Window)
+        ItemClick("###plot1")
+        ItemClick("###plot2")
+    end
     @register_test(engine, "QInsControl", "Pre-DataViewer") do
         empty!(QInsControl.get_fileviewers())
         path = abspath(@__DIR__)
@@ -121,14 +139,6 @@ using Test
         SetRef(WindowInfo("//###MainWindow/main/right/right content").Window)
         ItemClick("\$\$1/test", ig.ImGuiMouseButton_Right)
         ItemClick(string("//\$FOCUSED/", MORESTYLE.Icons.Delete, " ", mlstr("Close")))
-    end
-    tsetup = @register_test(engine, "QInsControl", "DAQ setup")
-    tsetup.GuiFunc = () -> begin
-        qic.loadproject(joinpath(@__DIR__, "../example/demo.daq"))
-        for dp in qic.DAQDATAPLOTS
-            dp.showplot = false
-        end
-        qic.WORKPATH = joinpath(@__DIR__, "TestQInsControl")
     end
     @register_test(engine, "QInsControl", "DAQ") do
         SetRef(WindowInfo("//###MainWindow/Toolbar").Window)
@@ -164,7 +174,7 @@ using Test
             SetRef(WindowInfo("//###MainWindow/main/left/queue/scrobartask/daqtasks/").Window)
             ItemClick("###task$i", ig.ImGuiMouseButton_Right)
             ItemClick(string("//\$FOCUSED/", string(MORESTYLE.Icons.RunTask, " ", mlstr("Run"))))
-            timedwait(() -> (Yield(); false), i == 3 ? 2 : 12)
+            timedwait(() -> (Yield(); false), i == 3 ? 4 : 12)
             SetRef(WindowInfo("//###MainWindow/main/left/queue/scrobarplot/DataPlots").Window)
             if i == 1
                 ItemClick("###plot1")
