@@ -22,7 +22,35 @@ let
                         CImGui.TableNextRow()
                         for state in instances(SyncStatesIndex)
                             CImGui.TableNextColumn()
-                            CImGui.Text(stcstr(SYNCSTATES[state]))
+                            # CImGui.Text(stcstr(SYNCSTATES[state]))
+                            statevalue = SYNCSTATES[state]
+                            CImGui.PushID(Int(state))
+                            @c(CImGui.Checkbox(stcstr("##state"), &statevalue)) && (SYNCSTATES[state] = statevalue)
+                            CImGui.PopID()
+                        end
+                        CImGui.EndTable()
+                    end
+                    CImGui.TreePop()
+                end
+
+                if CImGui.TreeNode("STATES")
+                    if CImGui.BeginTable(
+                        "STATES",
+                        length(instances(StatesIndex)),
+                        CImGui.ImGuiTableFlags_Borders | CImGui.ImGuiTableFlags_Resizable
+                    )
+                        for state in instances(StatesIndex)
+                            CImGui.TableSetupColumn(string(state))
+                        end
+                        CImGui.TableHeadersRow()
+                        CImGui.TableNextRow()
+                        for state in instances(StatesIndex)
+                            CImGui.TableNextColumn()
+                            # CImGui.Text(stcstr(STATES[state]))
+                            statevalue = STATES[state]
+                            CImGui.PushID(Int(state))
+                            @c(CImGui.Checkbox(stcstr("##state"), &statevalue)) && (STATES[state] = statevalue)
+                            CImGui.PopID()
                         end
                         CImGui.EndTable()
                     end

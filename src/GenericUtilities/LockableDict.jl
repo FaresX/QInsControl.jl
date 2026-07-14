@@ -8,3 +8,4 @@ Base.isempty(ld::Lockable{T,ReentrantLock}) where T<:AbstractDict = lock(isempty
 Base.empty!(ld::Lockable{T,ReentrantLock}) where T<:AbstractDict = lock(empty!, ld)
 Base.push!(ld::Lockable{T,ReentrantLock}, items...) where T<:AbstractDict = lock(d -> push!(d, items...), ld)
 Base.pop!(ld::Lockable{T,ReentrantLock}, k) where T<:AbstractDict = lock(d -> pop!(d, k), ld)
+Base.iterate(ld::Lockable{T,ReentrantLock}, state=1) where T<:AbstractDict = lock(d -> iterate(d, state), ld)
