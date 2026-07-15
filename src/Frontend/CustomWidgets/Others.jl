@@ -30,7 +30,7 @@ function YesNoDialog(id, msg, flags=0)::Bool
     if CImGui.BeginPopupModal(id, C_NULL, flags)
         ftsz = CImGui.GetFontSize()
         CImGui.Text("\n")
-        CImGui.PushFont(C_NULL, 2ftsz)
+        CImGui.PushFont(C_NULL, 2unsafe_load(IMGUISTYLE.FontSizeBase))
         CImGui.SetCursorPosX(CImGui.GetCursorPosX() + (CImGui.GetContentRegionAvail().x - CImGui.CalcTextSize(msg).x) / 2)
         CImGui.TextColored(MORESTYLE.Colors.WarnText, msg)
         CImGui.PopFont()
