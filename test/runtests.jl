@@ -7,6 +7,8 @@ import ImGuiTestEngine: WindowInfo, WindowClose, ItemOpen, ItemInputValue
 using Test
 
 @testset "QInsControl.jl" begin
+    @test qic.JLD2.load(joinpath(@__DIR__, "../example/demo.daq")) isa Dict
+
     engine = te.CreateContext(; exit_on_completion=isempty(ARGS))
     @register_test(engine, "QInsControl", "InstrRegister") do
         SetRef(WindowInfo("//###MainWindow/main/right").Window)
@@ -100,11 +102,15 @@ using Test
         SetRef(WindowInfo("//###MainWindow/main/left/queue/scrobarplot/DataPlots").Window)
         ItemClick("###plot1")
         ItemClick("###plot2")
+    end
+    @register_test(engine, "QInsControl", "Render Plots") do
         SetRef(WindowInfo("//###MainWindow/main/left/queue").Window)
         ItemClick(string(MORESTYLE.Icons.Update, "##update showing plots"))
-        SetRef(WindowInfo("//###MainWindow/main/left/queue/scrobarplot/DataPlots").Window)
-        ItemClick("###plot1")
-        ItemClick("###plot2")
+    end
+    @register_test(engine, "QInsControl", "Close Plots") do
+        for dp in qic.DAQDATAPLOTS
+            dp.showplot = false
+        end
     end
     @register_test(engine, "QInsControl", "Pre-DataViewer") do
         empty!(QInsControl.get_fileviewers())
