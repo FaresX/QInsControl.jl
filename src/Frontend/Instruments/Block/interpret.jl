@@ -1,4 +1,4 @@
-macro sweepblock(rangemark, alias, qtnm, step, stop, u, delay, istrycatch, ex)
+macro sweepblock(rangemark, alias, qtnm, step, stop, u, delay, startdelay, istrycatch, ex)
     esc(
         tocodes(
             SweepBlock(
@@ -10,6 +10,7 @@ macro sweepblock(rangemark, alias, qtnm, step, stop, u, delay, istrycatch, ex)
                 step=step,
                 stop=stop,
                 delay=delay,
+                startdelay=startdelay,
                 ui=utoui(instrnm, qtnm, u),
                 istrycatch=istrycatch,
                 blocks=CodeBlock(codes=string(ex))
@@ -178,7 +179,7 @@ function interpret(bk::SweepBlock)
     utype = haskey(INSTRCONF, bk.instrnm) && haskey(INSTRCONF[bk.instrnm].quantities, bk.quantity) ? INSTRCONF[bk.instrnm].quantities[bk.quantity].U : ""
     u, _ = @c getU(utype, &bk.ui)
     quote
-        @sweepblock $(bk.rangemark) $(bk.alias) $(bk.quantity) $(bk.step) $(bk.stop) $(string(u)) $(bk.delay) $(bk.istrycatch) begin
+        @sweepblock $(bk.rangemark) $(bk.alias) $(bk.quantity) $(bk.step) $(bk.stop) $(string(u)) $(bk.delay) $(bk.startdelay) $(bk.istrycatch) begin
             $(interpret.(bk.blocks)...)
         end
     end

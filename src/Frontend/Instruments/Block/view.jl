@@ -106,7 +106,8 @@ function view(bk::SweepBlock)
             "\t", mlstr("sweep"), ": ", quantity,
             "\t", mlstr("step"), ": ", bk.step, U,
             "\t", mlstr("stop"), ": ", bk.stop, U,
-            "\t", mlstr("delay"), ": ", bk.delay
+            "\t", mlstr("delay"), ": ", bk.delay,
+            "\t", mlstr("start delay"), ": ", bk.startdelay
         ),
         (-1, 0)
     )

@@ -219,8 +219,9 @@ function antiinterpret(ex, ::Val{:sweepblock})
         stop=ex.args[7],
         ui=utoui(instrnm, ex.args[5], strtoU(string(ex.args[8]))),
         delay=ex.args[9],
-        istrycatch=ex.args[10],
-        blocks=(bk = antiinterpret(ex.args[11]); bk isa StrideCodeBlock && occursin("begin", bk.codes) ? bk.blocks : [bk])
+        startdelay=ex.args[10],
+        istrycatch=ex.args[11],
+        blocks=(bk = antiinterpret(ex.args[12]); bk isa StrideCodeBlock && occursin("begin", bk.codes) ? bk.blocks : [bk])
     )
 end
 function antiinterpret(ex, ::Val{:freesweepblock})

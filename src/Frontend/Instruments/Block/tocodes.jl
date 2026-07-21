@@ -45,6 +45,28 @@ end
 tocodes(bk::BranchBlock) = error("[$(now())]\n$(mlstr("BranchBlock has to be in a StrideCodeBlock!!!"))\nbk=$bk")
 
 function tocodes(bk::SweepBlock)
+    if occursin("->", bk.stop)
+        stops = split(bk.stop, "->")
+        steps = occursin(",", bk.step) ? split(bk.step, ",") : [bk.step, bk.step]
+        @assert length(stops) == length(steps) == 2 mlstr("incorrect format of stop or step")
+        bk1 = deepcopy(bk)
+        bk1.rangemark = ""
+        bk1.stop = stops[1]
+        bk1.step = steps[1]
+        empty!(bk1.blocks)
+        bk2 = deepcopy(bk)
+        bk2.stop = stops[2]
+        bk2.step = steps[2]
+        return quote
+            $(tocodes(bk1, Val(:single)))
+            sleep($(bk.startdelay))
+            $(tocodes(bk2, Val(:single)))
+        end
+    else
+        return tocodes(bk, Val(:single))
+    end
+end
+function tocodes(bk::SweepBlock, ::Val{:single})
     instr = string(bk.instrnm, "/", bk.addr)
     quantity = bk.quantity
     setfunc = Symbol(bk.instrnm, :_, bk.quantity, :_set)

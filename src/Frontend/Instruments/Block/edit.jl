@@ -96,6 +96,7 @@ let
             openpopup[] = true
             @c CImGui.Checkbox(mlstr("Try-Catch"), &bk.istrycatch)
             @c InputTextRSZ(mlstr("Mark"), &bk.rangemark)
+            @c CImGui.DragFloat(mlstr("Start Delay"), &bk.startdelay, 1, 0, 60, "%g", CImGui.ImGuiSliderFlags_AlwaysClamp)
             CImGui.EndPopup()
         end
         CImGui.SameLine()

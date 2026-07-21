@@ -33,6 +33,7 @@ end
     step::String = ""
     stop::String = ""
     delay::Cfloat = 0.1
+    startdelay::Cfloat = 4
     ui::Int = 1
     rangemark::String = ""
     level::Int = 1
@@ -47,7 +48,7 @@ end
     alias::String = mlstr("alias")
     instrnm::String = mlstr("instrument")
     addr::String = mlstr("address")
-    quantity::String = mlstr("sweep")
+    quantity::String = mlstr("read")
     mode::String = "="
     stop::String = ""
     delay::Cfloat = 0.1
@@ -228,6 +229,7 @@ function Base.show(io::IO, bk::SweepBlock)
               stop : $(bk.stop)
               unit : $U
              delay : $(bk.delay)
+        startdelay : $(bk.startdelay)
           trycatch : $(bk.istrycatch)
         hideblocks : $(bk.hideblocks)
               body :
