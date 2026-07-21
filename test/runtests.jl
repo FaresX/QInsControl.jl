@@ -90,6 +90,25 @@ using Test
         ItemClick(MORESTYLE.Icons.About)
         ItemClick(string("//\$FOCUSED/", string(mlstr("Confirm"), "##ShowAbout")))
     end
+    @register_test(engine, "QInsControl", "Debugger") do
+        qic.debugger()
+        SetRef("//Debugger")
+        OpenAndClose("Global Variables") do 
+            OpenAndClose(()->(), "Global Variables/SYNCSTATES")
+            OpenAndClose(()->(), "Global Variables/STATES")
+            OpenAndClose(()->(), "Global Variables/###DATABUF")
+            OpenAndClose(()->(), "Global Variables/###DATABUFPARSED")
+            OpenAndClose(()->(), "Global Variables/###PROGRESSLIST")
+            OpenAndClose(()->(), "Global Variables/###STYLES")
+            OpenAndClose(()->(), "Global Variables/###MLSTRINGS")
+            OpenAndClose(()->(), "Global Variables/###STATICSTRINGS")
+            OpenAndClose(()->(), "Global Variables/###IMAGES")
+            OpenAndClose(()->(), "Global Variables/###Textures")
+            OpenAndClose(()->(), "Global Variables/###FIGURES")
+            OpenAndClose(()->(), "Global Variables/###ImMakieFigures")
+        end
+        WindowClose("//\$FOCUSED")
+    end
     tsetup = @register_test(engine, "QInsControl", "DAQ setup")
     tsetup.GuiFunc = () -> begin
         qic.loadproject(joinpath(@__DIR__, "../example/demo.daq"))
