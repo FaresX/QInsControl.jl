@@ -6,6 +6,7 @@
     IsRefreshing
     IsLogging
     IsNewLogging
+    IsNewFile
 end
 Base.getindex(x::AbstractVector{Bool}, i::SyncStatesIndex) = x[Int(i)]
 Base.setindex!(x::AbstractVector{Bool}, v::Bool, i::SyncStatesIndex) = x[Int(i)] = v

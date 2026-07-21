@@ -307,12 +307,15 @@ function define(daqtask::DAQTask)
                         remote_sweep_block(controllers, databuf_lc, progress_lc, extradatabuf_lc, SYNCSTATES)
                     end
                     @async @trycatch "transfering data task failded!!!" while true
-                        if istaskdone(remotedotask) && all(.!isready.(
-                            [databuf_lc, databuf_rc, progress_lc, progress_rc, extradatabuf_lc, extradatabuf_rc]
-                        ))
-                            logblock()
-                            SYNCSTATES[IsDAQTaskDone] = true
-                            break
+                        if all(.!isready.([databuf_lc, databuf_rc, progress_lc, progress_rc, extradatabuf_lc, extradatabuf_rc]))
+                            if istaskdone(remotedotask)
+                                logblock()
+                                SYNCSTATES[IsDAQTaskDone] = true
+                                break
+                            elseif SYNCSTATES[IsNewFile]
+                                SYNCSTATES[IsNewFile] = false
+                                continue
+                            end
                         else
                             isready(databuf_lc) && put!(databuf_rc, packtake!(databuf_lc, 2rn * $(CONF.DAQ.packsize)))
                             isready(progress_lc) && put!(progress_rc, packtake!(progress_lc, $(CONF.DAQ.packsize)))
@@ -507,12 +510,19 @@ function extract_controllers(bkch::Vector{AbstractBlock})
 end
 
 function newfile(filename="")
+    SYNCSTATES[IsNewFile] = true
+    if :timed_out == timedwait(() -> !SYNCSTATES[IsNewFile], 6)
+        SYNCSTATES[IsNewFile] = false
+        error(mlstr("cannot finish the last task"))
+    end
+
     global WORKPATH
     global SAVEPATH
     global CFGCACHESAVEPATH
     global QDTCACHESAVEPATH
     global OLDI
     global RUNNINGTASK
+
     if isfile(SAVEPATH) || !isempty(DATABUF)
         try
             log_instrbufferviewers()
