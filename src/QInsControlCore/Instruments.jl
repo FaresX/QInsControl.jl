@@ -313,7 +313,7 @@ query the instrument with some message string.
 """
 function _query_(instr::Instrument, msg::AbstractString; delay=0)
     write(instr, msg)
-    delay < 0.001 ? yield() : sleep(delay)
+    sleep(delay)
     read(instr)
 end
 function query(instr::VISAInstr, msg::AbstractString; delay=instr.attr.querydelay)
@@ -325,13 +325,13 @@ query(::VirtualInstr, ::AbstractString; delay=0) = "query"
 function query(instr::ISOBUSInstr, msg::AbstractString; delay=0)
     @proxy instr begin
         write(instr.handle, string("@", instr.subaddr, msg))
-        delay < 0.001 ? yield() : sleep(delay)
+        sleep(delay)
         read(instr.handle)
     end
 end
 function query(instr::QICInstr, msg::AbstractString; delay=0)
     write(instr.handle, string(instr.subaddr, ":Q:", msg, ":Q:Q$delay"))
-    delay < 0.001 ? yield() : sleep(delay)
+    sleep(delay)
     read(instr.handle)
 end
 

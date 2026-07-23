@@ -1,0 +1,6 @@
+include("struct.jl")
+include("tocodes.jl")
+include("interpret.jl")
+include("antiinterpret.jl")
+include("edit.jl")
+include("view.jl")

@@ -1,0 +1,201 @@
+let
+    DATABUFranges = Dict{String,Tuple{Ref{Cint},Ref{Cint}}}()
+    DATABUFPARSEDranges = Dict{String,Tuple{Ref{Cint},Ref{Cint}}}()
+    GlfwOpenGLBackend = Base.get_extension(CImGui, :GlfwOpenGLBackend)
+    MakieIntegration = Base.get_extension(CImGui, :MakieIntegration)
+    global function Debugger(p_open::Ref{Bool})
+        CImGui.SetNextWindowSize((400, 600) .* CImGui.GetWindowDpiScale(), CImGui.ImGuiCond_Once)
+        if CImGui.Begin("Debugger", p_open)
+
+            if CImGui.TreeNode("Global Variables")
+
+                if CImGui.TreeNode("SYNCSTATES")
+                    if CImGui.BeginTable(
+                        "SYNCSTATES",
+                        length(instances(SyncStatesIndex)),
+                        CImGui.ImGuiTableFlags_Borders | CImGui.ImGuiTableFlags_Resizable
+                    )
+                        for state in instances(SyncStatesIndex)
+                            CImGui.TableSetupColumn(string(state))
+                        end
+                        CImGui.TableHeadersRow()
+                        CImGui.TableNextRow()
+                        for state in instances(SyncStatesIndex)
+                            CImGui.TableNextColumn()
+                            # CImGui.Text(stcstr(SYNCSTATES[state]))
+                            statevalue = SYNCSTATES[state]
+                            CImGui.PushID(Int(state))
+                            @c(CImGui.Checkbox(stcstr("##state"), &statevalue)) && (SYNCSTATES[state] = statevalue)
+                            CImGui.PopID()
+                        end
+                        CImGui.EndTable()
+                    end
+                    CImGui.TreePop()
+                end
+
+                if CImGui.TreeNode("STATES")
+                    if CImGui.BeginTable(
+                        "STATES",
+                        length(instances(StatesIndex)),
+                        CImGui.ImGuiTableFlags_Borders | CImGui.ImGuiTableFlags_Resizable
+                    )
+                        for state in instances(StatesIndex)
+                            CImGui.TableSetupColumn(string(state))
+                        end
+                        CImGui.TableHeadersRow()
+                        CImGui.TableNextRow()
+                        for state in instances(StatesIndex)
+                            CImGui.TableNextColumn()
+                            # CImGui.Text(stcstr(STATES[state]))
+                            statevalue = STATES[state]
+                            CImGui.PushID(Int(state))
+                            @c(CImGui.Checkbox(stcstr("##state"), &statevalue)) && (STATES[state] = statevalue)
+                            CImGui.PopID()
+                        end
+                        CImGui.EndTable()
+                    end
+                    CImGui.TreePop()
+                end
+
+                if CImGui.TreeNode("DATABUF ($(length(DATABUF)))###DATABUF")
+                    for (key, val) in DATABUF
+                        n = length(val)
+                        haskey(DATABUFranges, key) || (DATABUFranges[key] = (1, min(10, n)))
+                        SeparatorTextColored(MORESTYLE.Colors.HighlightText, key)
+                        CImGui.DragIntRange2(
+                            stcstr("##", key),
+                            DATABUFranges[key][1], DATABUFranges[key][2],
+                            1, 1, n, "begin: %d", "end: %d",
+                            CImGui.ImGuiSliderFlags_AlwaysClamp
+                        )
+                        CImGui.PushTextWrapPos(0)
+                        CImGui.TextUnformatted(string(val[DATABUFranges[key][1][]:DATABUFranges[key][2][]]))
+                        CImGui.PopTextWrapPos()
+                    end
+                    CImGui.TreePop()
+                end
+
+                if CImGui.TreeNode("DATABUFPARSED ($(length(DATABUFPARSED)))###DATABUFPARSED")
+                    for (key, val) in DATABUFPARSED
+                        n = length(val)
+                        haskey(DATABUFPARSEDranges, key) || (DATABUFPARSEDranges[key] = (1, min(10, n)))
+                        SeparatorTextColored(MORESTYLE.Colors.HighlightText, key)
+                        CImGui.DragIntRange2(
+                            stcstr("##", key),
+                            DATABUFPARSEDranges[key][1], DATABUFPARSEDranges[key][2],
+                            1, 1, n, "begin: %d", "end: %d",
+                            CImGui.ImGuiSliderFlags_AlwaysClamp
+                        )
+                        CImGui.PushTextWrapPos(0)
+                        CImGui.TextUnformatted(string(val[DATABUFPARSEDranges[key][1][]:DATABUFPARSEDranges[key][2][]]))
+                        CImGui.PopTextWrapPos()
+                    end
+                    CImGui.TreePop()
+                end
+
+                if CImGui.TreeNode("PROGRESSLIST ($(lock(length, PROGRESSLIST)))###PROGRESSLIST")
+                    lock(PROGRESSLIST) do PROGRESSLIST
+                        for (key, val) in PROGRESSLIST
+                            SeparatorTextColored(MORESTYLE.Colors.HighlightText, string(key))
+                            CImGui.PushTextWrapPos(0)
+                            CImGui.TextUnformatted(string(val))
+                            CImGui.PopTextWrapPos()
+                        end
+                    end
+                    CImGui.TreePop()
+                end
+
+                if CImGui.TreeNode("STYLES ($(length(STYLES)))###STYLES")
+                    CImGui.PushTextWrapPos(0)
+                    CImGui.TextUnformatted(string(keys(STYLES)))
+                    CImGui.PopTextWrapPos()
+                    CImGui.TreePop()
+                end
+
+                if CImGui.TreeNode("MLSTRINGS ($(length(QInsControlCore.MLSTRINGS)))###MLSTRINGS")
+                    for (key, val) in QInsControlCore.MLSTRINGS
+                        CImGui.TextColored(MORESTYLE.Colors.HighlightText, string(key, " : "))
+                        CImGui.SameLine()
+                        CImGui.Text(val)
+                    end
+                    CImGui.TreePop()
+                end
+
+                if CImGui.TreeNode("STATICSTRINGS ($(length(STATICSTRINGS)))###STATICSTRINGS")
+                    for (key, val) in STATICSTRINGS
+                        CImGui.TextColored(MORESTYLE.Colors.HighlightText, string(key, " : "))
+                        CImGui.SameLine()
+                        CImGui.Text(val.str)
+                        CImGui.SameLine()
+                        CImGui.TextColored(
+                            val.update ? MORESTYLE.Colors.InfoText : MORESTYLE.Colors.WarnText,
+                            string(val.update)
+                        )
+                    end
+                    CImGui.TreePop()
+                end
+
+                if CImGui.TreeNode("IMAGES ($(length(IMAGES)))###IMAGES")
+                    for (key, val) in IMAGES
+                        SeparatorTextColored(MORESTYLE.Colors.HighlightText, key)
+                        availwidth = CImGui.GetCursorScreenPos().x + CImGui.GetContentRegionAvail().x
+                        for (i, id) in enumerate(val.data)
+                            CImGui.Image(id, ImVec2(60, 60))
+                            CImGui.GetItemRectMax().x + 60 + unsafe_load(IMGUISTYLE.ItemSpacing.x) < availwidth &&
+                                i != length(val) && CImGui.SameLine()
+                            id == val[] && CImGui.AddRect(
+                                CImGui.GetWindowDrawList(),
+                                CImGui.GetItemRectMin(), CImGui.GetItemRectMax(),
+                                MORESTYLE.Colors.InfoText, 0, 2
+                            )
+                        end
+                    end
+                    CImGui.TreePop()
+                end
+
+                if CImGui.TreeNode("Textures ($(length(GlfwOpenGLBackend.g_ImageTexture)))###Textures")
+                    availwidth = CImGui.GetCursorScreenPos().x + CImGui.GetContentRegionAvail().x
+                    for (i, id) in enumerate(keys(GlfwOpenGLBackend.g_ImageTexture))
+                        CImGui.BeginGroup()
+                        CImGui.Text(string(id))
+                        imref = imtexid(id)
+                        CImGui.Image(imref, ImVec2(60, 60))
+                        if CImGui.BeginPopupContextItem(stcstr("Delete Texture", i))
+                            CImGui.MenuItem(stcstr(MORESTYLE.Icons.Delete, " ", mlstr("Delete"))) && destroytexture!(imref)
+                            CImGui.EndPopup()
+                        end
+                        CImGui.EndGroup()
+                        CImGui.GetItemRectMax().x + 60 + unsafe_load(IMGUISTYLE.ItemSpacing.x) < availwidth &&
+                            i != length(GlfwOpenGLBackend.g_ImageTexture) && CImGui.SameLine()
+                    end
+                    CImGui.TreePop()
+                end
+
+                if CImGui.TreeNode("FIGURES ($(length(FIGURES)))###FIGURES")
+                    CImGui.PushTextWrapPos(0)
+                    CImGui.TextUnformatted(string(keys(FIGURES)))
+                    CImGui.PopTextWrapPos()
+                    CImGui.TreePop()
+                end
+
+                if CImGui.TreeNode("ImMakieFigures ($(length(MakieIntegration.makie_context)))###ImMakieFigures")
+                    for (imid, imfig) in MakieIntegration.makie_context
+                        CImGui.TextColored(MORESTYLE.Colors.HighlightText, string(imid, " => "))
+                        for (id, fig) in FIGURES
+                            if fig == imfig.figure
+                                CImGui.SameLine()
+                                CImGui.Text(id)
+                                break
+                            end
+                        end
+                    end
+                    CImGui.TreePop()
+                end
+
+                CImGui.TreePop()
+            end
+
+        end
+        CImGui.End()
+    end
+end
