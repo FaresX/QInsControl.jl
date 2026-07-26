@@ -58,6 +58,7 @@ PrecompileTools = "1"
 SharedArrays = "1.11.0"
 Sockets = "1.11.0"
 StringEncodings = "0.3"
+Unitful = "1"
 julia = "1.10"
 
 [extras]
