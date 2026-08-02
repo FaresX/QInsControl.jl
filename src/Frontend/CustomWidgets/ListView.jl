@@ -13,18 +13,19 @@ function ComboS(label, preview_value::Ref, item_list, flags=0)
 end
 
 let
-    filterlist::Dict{String,Ref{String}} = Dict()
-    global function ComboSFiltered(label, preview_value::Ref, item_list, flags=0)
-        iscombo = CImGui.BeginCombo(label, preview_value.x, flags)
+    filterlist::Dict{String,Ptr{ImGuiTextFilter}} = Dict()
+    global function ComboSFiltered(f::Function, label, preview_value::Ref, flags=0)
+        iscombo = CImGui.BeginCombo(label, preview_value[], flags)
         isselect = false
         if iscombo
-            haskey(filterlist, label) || (filterlist[label] = "")
-            InputTextWithHintRSZ(stcstr(label, "##hide"), mlstr("Filter"), filterlist[label])
+            haskey(filterlist, label) || (filterlist[label] = ImGuiTextFilter_ImGuiTextFilter(C_NULL))
+            filter = filterlist[label]
+            ImGuiTextFilter_Draw(filter, mlstr("Filter"), 0)
+            item_list = f()
             for item in item_list
-                filter = filterlist[label][]
-                (filter == "" || !isvalid(filter) || occursin(lowercase(filter), lowercase(item))) || continue
-                selected = preview_value.x == item
-                CImGui.Selectable(item, selected) && (preview_value.x = item; isselect = true)
+                ImGuiTextFilter_PassFilter(filter, pointer(string(item)), C_NULL) || continue
+                selected = preview_value[] == item
+                CImGui.Selectable(item, selected) && (preview_value[] = item; isselect = true)
                 selected && CImGui.SetItemDefaultFocus()
             end
             CImGui.EndCombo()
@@ -32,6 +33,7 @@ let
         iscombo && isselect
     end
 end
+ComboSFiltered(label, preview_value::Ref, item_list, flags=0) = ComboSFiltered(() -> item_list, label, preview_value, flags)
 
 function ColoredCombo(
     label, preview_value::Ref{String}, item_list, flags=0;

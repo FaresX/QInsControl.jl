@@ -4,7 +4,7 @@ mutable struct FileFileTree <: FileTree
     filepath::String
     filepath_bnm::String
     selectedpathes::Vector{String}
-    filter::Ref{String}
+    filter::Ptr{ImGuiTextFilter}
     valid::Bool
     isdeleted::Bool
 end
@@ -12,10 +12,12 @@ mutable struct FolderFileTree <: FileTree
     rootpath::String
     rootpath_bnm::String
     selectedpathes::Vector{String}
-    filter::Ref{String}
+    filter::Ptr{ImGuiTextFilter}
     valid::Ref{Bool}
     filetrees::Vector{T} where {T<:FileTree}
-    function FolderFileTree(rootpath::String, selectedpathes=[], filter=Ref(""), valid=Ref(false))
+    function FolderFileTree(
+        rootpath::String, selectedpathes=[], filter=ImGuiTextFilter_ImGuiTextFilter(C_NULL), valid=Ref(false)
+    )
         ft = new()
         ft.rootpath = rootpath
         ft.rootpath_bnm = basename(ft.rootpath)
@@ -40,7 +42,9 @@ mutable struct FolderFileTree <: FileTree
         end
         ft
     end
-    function FolderFileTree(pathes::Vector{String}, selectedpathes=[], filter=Ref(""), valid=Ref(false))
+    function FolderFileTree(
+        pathes::Vector{String}, selectedpathes=[], filter=ImGuiTextFilter_ImGuiTextFilter(C_NULL), valid=Ref(false)
+    )
         ft = new()
         ft.rootpath = pathes[1]
         ft.rootpath_bnm = ""
@@ -72,9 +76,7 @@ function edit(filetree::FolderFileTree, isrename::Dict{String,Bool}, ::Bool, bnm
 end
 
 function edit(filetree::FileFileTree, isrename::Dict{String,Bool}, valid::Bool, ::Bool)
-    if !filetree.isdeleted &&
-       (filetree.filter[] == "" || !isvalid(filetree.filter[]) ||
-        occursin(lowercase(filetree.filter[]), lowercase(filetree.filepath_bnm))) &&
+    if !filetree.isdeleted && ImGuiTextFilter_PassFilter(filetree.filter, pointer(filetree.filepath_bnm), C_NULL) &&
        (!valid || (valid && filetree.valid[]))
         filemenu(filetree, isrename)
     end

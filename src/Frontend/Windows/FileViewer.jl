@@ -19,7 +19,7 @@ function edit(fv::FileViewer, id)
         SetWindowBgImage(CONF.BGImage.filetree.path; rate=CONF.BGImage.filetree.rate, use=CONF.BGImage.filetree.use)
 
         oldfiles = copy(fv.filetree.selectedpathes)
-        InputTextRSZ(stcstr(mlstr("Filter"), "##", id), fv.filetree.filter)
+        ImGuiTextFilter_Draw(fv.filetree.filter, stcstr(mlstr("Filter"), "##", id), 0)
         CImGui.SameLine()
         CImGui.Checkbox(mlstr("Valid"), fv.filetree.valid)
         CImGui.SameLine()

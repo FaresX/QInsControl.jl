@@ -66,338 +66,274 @@ function edit(bk::BranchBlock, openpopup::Ref{Bool}=Ref(false))
     CImGui.PopStyleVar()
 end
 
-let
-    filter::String = ""
-    alias::String = ""
-    global function edit(bk::SweepBlock, openpopup::Ref{Bool}=Ref(false))
-        CImGui.PushStyleVar(CImGui.ImGuiStyleVar_FrameBorderSize, 0)
-        isemptybks = isempty(skipnull(bk.blocks))
-        CImGui.PushStyleVar(CImGui.ImGuiStyleVar_ItemSpacing, (Float32(2), unsafe_load(IMGUISTYLE.ItemSpacing.y)))
-        CImGui.PushStyleColor(
-            CImGui.ImGuiCol_Border,
-            isemptybks ? CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_Border) : MORESTYLE.Colors.SweepBlockBorder
-        )
-        wp = unsafe_load(IMGUISTYLE.WindowPadding)
-        bkh = bkheight(bk)
-        CImGui.PushStyleVar(
-            CImGui.ImGuiStyleVar_WindowPadding,
-            bk.hideblocks || isempty(skipnull(bk.blocks)) ? wp : MORESTYLE.Variables.ContainerBlockWindowPadding
-        )
-        CImGui.PushStyleVar(CImGui.ImGuiStyleVar_ChildBorderSize, isemptybks ? 1 : MORESTYLE.Variables.BlockBorderSize)
-        CImGui.BeginChild("##SweepBlock", (Float32(0), bkh), true)
-        CImGui.PopStyleVar(2)
-        ColoredButton(
-            bk.rangemark == "" ? MORESTYLE.Icons.SweepBlock : bk.rangemark;
-            size=length(bk.rangemark) < 3 ? (CImGui.GetFrameHeight(), Cfloat(0)) : (0, 0),
-            colbt=[0, 0, 0, 0], colbta=[0, 0, 0, 0], colbth=[0, 0, 0, 0],
-            coltxt=bk.istrycatch ? MORESTYLE.Colors.BlockTrycatch : MORESTYLE.Colors.BlockIcons
-        ) && (bk.hideblocks ⊻= true)
-        if CImGui.BeginPopupContextItem("##SweepBlockiconmenu")
-            openpopup[] = true
-            @c CImGui.Checkbox(mlstr("Try-Catch"), &bk.istrycatch)
-            @c InputTextRSZ(mlstr("Mark"), &bk.rangemark)
-            @c CImGui.DragFloat(mlstr("Start Delay"), &bk.startdelay, 1, 0, 60, "%g", CImGui.ImGuiSliderFlags_AlwaysClamp)
-            CImGui.EndPopup()
-        end
-        CImGui.SameLine()
-        width = CImGui.GetContentRegionAvail().x / 5
-        CImGui.PushItemWidth(width)
-        if @c(ComboSFiltered("##SweepBlock alias", &bk.alias, keys(INSTRALIASLIST), CImGui.ImGuiComboFlags_NoArrowButton))
-            bk.instrnm = INSTRALIASLIST[bk.alias].instrnm
-            bk.addr = INSTRALIASLIST[bk.alias].addr
-        end
-        CImGui.PopItemWidth()
-        CImGui.SameLine()
-        # CImGui.PushItemWidth(width)
-        # inses = sort([ins for ins in keys(INSTRBUFFERVIEWERS) if ins != "Others" && !isempty(INSTRBUFFERVIEWERS[ins])])
-        # @c ComboSFiltered("##SweepBlock instrument", &bk.instrnm, inses, CImGui.ImGuiComboFlags_NoArrowButton)
-        # CImGui.PopItemWidth()
-        # CImGui.SameLine()
-
-        # inlist = haskey(INSTRBUFFERVIEWERS, bk.instrnm) && haskey(INSTRBUFFERVIEWERS[bk.instrnm], bk.addr)
-        # bk.addr = inlist ? bk.addr : mlstr("address")
-        # addrlist = haskey(INSTRBUFFERVIEWERS, bk.instrnm) ? keys(INSTRBUFFERVIEWERS[bk.instrnm]) : Set{String}()
-        # CImGui.PushItemWidth(width)
-        # @c ComboS("##SweepBlock address", &bk.addr, sort(collect(addrlist)), CImGui.ImGuiComboFlags_NoArrowButton)
-        # CImGui.PopItemWidth()
-        # CImGui.SameLine()
-
-        showqt = if haskey(INSTRCONF, bk.instrnm) && haskey(INSTRCONF[bk.instrnm].quantities, bk.quantity)
-            INSTRCONF[bk.instrnm].quantities[bk.quantity].alias
-        else
-            mlstr("sweep")
-        end
-        CImGui.PushItemWidth(width)
-        if CImGui.BeginCombo("##SweepBlock sweep", showqt, CImGui.ImGuiComboFlags_NoArrowButton)
-            qtlist = haskey(INSTRCONF, bk.instrnm) ? keys(INSTRCONF[bk.instrnm].quantities) : Set{String}()
-            qts = if haskey(INSTRCONF, bk.instrnm)
-                [qt for qt in qtlist if INSTRCONF[bk.instrnm].quantities[qt].type == "sweep"]
-            else
-                String[]
-            end
-            @c InputTextWithHintRSZ("##SweepBlock sweep", mlstr("Filter"), &filter)
-            sp = sortperm([INSTRCONF[bk.instrnm].quantities[qt].alias for qt in qts])
-            for qt in qts[sp]
-                showqt = INSTRCONF[bk.instrnm].quantities[qt].alias
-                (filter == "" || !isvalid(filter) || occursin(lowercase(filter), lowercase(showqt))) || continue
-                selected = bk.quantity == qt
-                CImGui.Selectable(showqt, selected, 0) && (bk.quantity = qt)
-                selected && CImGui.SetItemDefaultFocus()
-            end
-            CImGui.EndCombo()
-        end
-        CImGui.PopItemWidth()
-        CImGui.SameLine()
-
-        CImGui.PushItemWidth(width)
-        @c InputTextWithHintRSZ("##SweepBlock step", mlstr("step"), &bk.step)
-        CImGui.PopItemWidth()
-        CImGui.SameLine()
-        CImGui.PushItemWidth(width - unsafe_load(IMGUISTYLE.ItemSpacing.x))
-        @c InputTextWithHintRSZ("##SweepBlock stop", mlstr("stop"), &bk.stop)
-        CImGui.PopItemWidth()
-        CImGui.SameLine()
-
-        Ut = if haskey(INSTRCONF, bk.instrnm) && haskey(INSTRCONF[bk.instrnm].quantities, bk.quantity)
-            INSTRCONF[bk.instrnm].quantities[bk.quantity].U
-        else
-            ""
-        end
-        CImGui.PushItemWidth(2width / 3)
-        @c ShowUnit("##SweepBlock", Ut, &bk.ui)
-        CImGui.PopItemWidth()
-        CImGui.SameLine()
-        CImGui.PushItemWidth(-1)
-        @c CImGui.DragFloat("##SweepBlock delay", &bk.delay, 0.01, 0, 9.99, "%g", CImGui.ImGuiSliderFlags_AlwaysClamp)
-        CImGui.PopItemWidth()
-
-        CImGui.PopStyleColor()
-        CImGui.PushStyleVar(CImGui.ImGuiStyleVar_WindowPadding, wp)
-        bk.hideblocks || isempty(skipnull(bk.blocks)) || edit(bk.blocks, bk.level + 1)
-        CImGui.EndChild()
-        CImGui.PopStyleVar(3)
+function edit(bk::SweepBlock, openpopup::Ref{Bool}=Ref(false))
+    CImGui.PushStyleVar(CImGui.ImGuiStyleVar_FrameBorderSize, 0)
+    isemptybks = isempty(skipnull(bk.blocks))
+    CImGui.PushStyleVar(CImGui.ImGuiStyleVar_ItemSpacing, (Float32(2), unsafe_load(IMGUISTYLE.ItemSpacing.y)))
+    CImGui.PushStyleColor(
+        CImGui.ImGuiCol_Border,
+        isemptybks ? CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_Border) : MORESTYLE.Colors.SweepBlockBorder
+    )
+    wp = unsafe_load(IMGUISTYLE.WindowPadding)
+    bkh = bkheight(bk)
+    CImGui.PushStyleVar(
+        CImGui.ImGuiStyleVar_WindowPadding,
+        bk.hideblocks || isempty(skipnull(bk.blocks)) ? wp : MORESTYLE.Variables.ContainerBlockWindowPadding
+    )
+    CImGui.PushStyleVar(CImGui.ImGuiStyleVar_ChildBorderSize, isemptybks ? 1 : MORESTYLE.Variables.BlockBorderSize)
+    CImGui.BeginChild("##SweepBlock", (Float32(0), bkh), true)
+    CImGui.PopStyleVar(2)
+    ColoredButton(
+        bk.rangemark == "" ? MORESTYLE.Icons.SweepBlock : bk.rangemark;
+        size=length(bk.rangemark) < 3 ? (CImGui.GetFrameHeight(), Cfloat(0)) : (0, 0),
+        colbt=[0, 0, 0, 0], colbta=[0, 0, 0, 0], colbth=[0, 0, 0, 0],
+        coltxt=bk.istrycatch ? MORESTYLE.Colors.BlockTrycatch : MORESTYLE.Colors.BlockIcons
+    ) && (bk.hideblocks ⊻= true)
+    if CImGui.BeginPopupContextItem("##SweepBlockiconmenu")
+        openpopup[] = true
+        @c CImGui.Checkbox(mlstr("Try-Catch"), &bk.istrycatch)
+        @c InputTextRSZ(mlstr("Mark"), &bk.rangemark)
+        @c CImGui.DragFloat(mlstr("Start Delay"), &bk.startdelay, 1, 0, 60, "%g", CImGui.ImGuiSliderFlags_AlwaysClamp)
+        CImGui.EndPopup()
     end
+    CImGui.SameLine()
+    width = CImGui.GetContentRegionAvail().x / 5
+    CImGui.PushItemWidth(width)
+    if @c ComboSFiltered("##SweepBlock alias", &bk.alias, keys(INSTRALIASLIST), CImGui.ImGuiComboFlags_NoArrowButton)
+        bk.instrnm = INSTRALIASLIST[bk.alias].instrnm
+        bk.addr = INSTRALIASLIST[bk.alias].addr
+    end
+    CImGui.PopItemWidth()
+    CImGui.SameLine()
+
+    showqt = if haskey(INSTRCONF, bk.instrnm) && haskey(INSTRCONF[bk.instrnm].quantities, bk.quantity)
+        INSTRCONF[bk.instrnm].quantities[bk.quantity].alias
+    else
+        mlstr("sweep")
+    end
+    function qtaliasdict()
+        dict = Dict()
+        if haskey(INSTRCONF, bk.instrnm)
+            for (qtnm, qt) in INSTRCONF[bk.instrnm].quantities
+                qt.type == "sweep" && (dict[qt.alias] = qtnm)
+            end
+        end
+        return dict
+    end
+    CImGui.PushItemWidth(width)
+    if @c ComboSFiltered(keys ∘ qtaliasdict, "##SweepBlock sweep", &showqt, CImGui.ImGuiComboFlags_NoArrowButton)
+        bk.quantity = qtaliasdict()[showqt]
+    end
+    CImGui.PopItemWidth()
+    CImGui.SameLine()
+
+    CImGui.PushItemWidth(width)
+    @c InputTextWithHintRSZ("##SweepBlock step", mlstr("step"), &bk.step)
+    CImGui.PopItemWidth()
+    CImGui.SameLine()
+    CImGui.PushItemWidth(width - unsafe_load(IMGUISTYLE.ItemSpacing.x))
+    @c InputTextWithHintRSZ("##SweepBlock stop", mlstr("stop"), &bk.stop)
+    CImGui.PopItemWidth()
+    CImGui.SameLine()
+
+    Ut = if haskey(INSTRCONF, bk.instrnm) && haskey(INSTRCONF[bk.instrnm].quantities, bk.quantity)
+        INSTRCONF[bk.instrnm].quantities[bk.quantity].U
+    else
+        ""
+    end
+    CImGui.PushItemWidth(2width / 3)
+    @c ShowUnit("##SweepBlock", Ut, &bk.ui)
+    CImGui.PopItemWidth()
+    CImGui.SameLine()
+    CImGui.PushItemWidth(-1)
+    @c CImGui.DragFloat("##SweepBlock delay", &bk.delay, 0.01, 0, 9.99, "%g", CImGui.ImGuiSliderFlags_AlwaysClamp)
+    CImGui.PopItemWidth()
+
+    CImGui.PopStyleColor()
+    CImGui.PushStyleVar(CImGui.ImGuiStyleVar_WindowPadding, wp)
+    bk.hideblocks || isempty(skipnull(bk.blocks)) || edit(bk.blocks, bk.level + 1)
+    CImGui.EndChild()
+    CImGui.PopStyleVar(3)
+end
+
+function edit(bk::FreeSweepBlock, openpopup::Ref{Bool}=Ref(false))
+    CImGui.PushStyleVar(CImGui.ImGuiStyleVar_FrameBorderSize, 0)
+    isemptybks = isempty(skipnull(bk.blocks))
+    CImGui.PushStyleVar(CImGui.ImGuiStyleVar_ItemSpacing, (Float32(2), unsafe_load(IMGUISTYLE.ItemSpacing.y)))
+    CImGui.PushStyleColor(
+        CImGui.ImGuiCol_Border,
+        isemptybks ? CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_Border) : MORESTYLE.Colors.FreeSweepBlockBorder
+    )
+    wp = unsafe_load(IMGUISTYLE.WindowPadding)
+    bkh = bkheight(bk)
+    CImGui.PushStyleVar(
+        CImGui.ImGuiStyleVar_WindowPadding,
+        bk.hideblocks || isempty(skipnull(bk.blocks)) ? wp : MORESTYLE.Variables.ContainerBlockWindowPadding
+    )
+    CImGui.PushStyleVar(CImGui.ImGuiStyleVar_ChildBorderSize, isemptybks ? 1 : MORESTYLE.Variables.BlockBorderSize)
+    CImGui.BeginChild("##FreeSweepBlock", (Float32(0), bkh), true)
+    CImGui.PopStyleVar(2)
+    ColoredButton(
+        MORESTYLE.Icons.FreeSweepBlock; size=(CImGui.GetFrameHeight(), Cfloat(0)),
+        colbt=[0, 0, 0, 0], colbta=[0, 0, 0, 0], colbth=[0, 0, 0, 0],
+        coltxt=bk.istrycatch ? MORESTYLE.Colors.BlockTrycatch : MORESTYLE.Colors.BlockIcons
+    ) && (bk.hideblocks ⊻= true)
+    CImGui.IsItemHovered() && CImGui.IsMouseDoubleClicked(0) && (bk.hideblocks ⊻= true)
+    if CImGui.BeginPopupContextItem("##FreeSweepBlockiconmenu")
+        openpopup[] = true
+        @c CImGui.Checkbox(mlstr("Try-Catch"), &bk.istrycatch)
+        @c CImGui.DragFloat(
+            mlstr("decision duration"), &bk.duration, 1, 1, 3600, "%g",
+            CImGui.ImGuiSliderFlags_AlwaysClamp
+        )
+        CImGui.EndPopup()
+    end
+    CImGui.SameLine()
+    width = CImGui.GetContentRegionAvail().x / 5
+    CImGui.PushItemWidth(width)
+    if @c ComboSFiltered("##FreeSweepBlock alias", &bk.alias, keys(INSTRALIASLIST), CImGui.ImGuiComboFlags_NoArrowButton)
+        bk.instrnm = INSTRALIASLIST[bk.alias].instrnm
+        bk.addr = INSTRALIASLIST[bk.alias].addr
+    end
+    CImGui.PopItemWidth()
+    CImGui.SameLine()
+
+    showqt = if haskey(INSTRCONF, bk.instrnm) && haskey(INSTRCONF[bk.instrnm].quantities, bk.quantity)
+        INSTRCONF[bk.instrnm].quantities[bk.quantity].alias
+    else
+        mlstr("read")
+    end
+    function qtaliasdict()
+        dict = Dict()
+        if haskey(INSTRCONF, bk.instrnm)
+            for (qtnm, qt) in INSTRCONF[bk.instrnm].quantities
+                dict[qt.alias] = qtnm
+            end
+        end
+        return dict
+    end
+    CImGui.PushItemWidth(width)
+    if @c ComboSFiltered(keys ∘ qtaliasdict, "##FreeSweepBlock read", &showqt, CImGui.ImGuiComboFlags_NoArrowButton)
+        bk.quantity = qtaliasdict()[showqt]
+    end
+    CImGui.PopItemWidth()
+    CImGui.SameLine()
+
+    CImGui.PushItemWidth(CImGui.GetFrameHeight())
+    @c ComboS("##FreeSweepBlock mode", &bk.mode, ["=", "<", ">"], CImGui.ImGuiComboFlags_NoArrowButton)
+    CImGui.PopItemWidth()
+    CImGui.SameLine()
+    CImGui.PushItemWidth(width - CImGui.GetItemRectSize().x - unsafe_load(IMGUISTYLE.ItemSpacing.x))
+    @c InputTextWithHintRSZ("##FreeSweepBlock stop", mlstr("stop"), &bk.stop)
+    CImGui.PopItemWidth()
+    CImGui.SameLine()
+    CImGui.PushItemWidth(width)
+    if @c CImGui.InputFloat("##FreeSweepBlock delta", &bk.delta, 0, 0, "%g")
+        bk.delta <= 0 && (bk.delta = 0.001)
+    end
+    CImGui.PopItemWidth()
+    CImGui.SameLine()
+    Ut = if haskey(INSTRCONF, bk.instrnm) && haskey(INSTRCONF[bk.instrnm].quantities, bk.quantity)
+        INSTRCONF[bk.instrnm].quantities[bk.quantity].U
+    else
+        ""
+    end
+    CImGui.PushItemWidth(2width / 3)
+    @c ShowUnit("##FreeSweepBlock", Ut, &bk.ui)
+    CImGui.PopItemWidth()
+    CImGui.SameLine()
+    CImGui.PushItemWidth(-1)
+    @c CImGui.DragFloat("##FreeSweepBlock delay", &bk.delay, 0.01, 0, 9.99, "%g", CImGui.ImGuiSliderFlags_AlwaysClamp)
+    CImGui.PopItemWidth()
+
+    CImGui.PopStyleColor()
+    CImGui.PushStyleVar(CImGui.ImGuiStyleVar_WindowPadding, wp)
+    bk.hideblocks || isempty(skipnull(bk.blocks)) || edit(bk.blocks, bk.level + 1)
+    CImGui.EndChild()
+    CImGui.PopStyleVar(3)
+end
+
+function edit(bk::SettingBlock, openpopup::Ref{Bool}=Ref(false))
+    CImGui.PushStyleVar(CImGui.ImGuiStyleVar_FrameBorderSize, 0)
+    CImGui.PushStyleVar(CImGui.ImGuiStyleVar_ItemSpacing, (Float32(2), unsafe_load(IMGUISTYLE.ItemSpacing.y)))
+    CImGui.BeginChild("##SettingBlock", (Float32(0), bkheight(bk)), true)
+    ColoredButton(
+        MORESTYLE.Icons.SettingBlock; size=(CImGui.GetFrameHeight(), Cfloat(0)),
+        colbt=[0, 0, 0, 0], colbta=[0, 0, 0, 0], colbth=[0, 0, 0, 0],
+        coltxt=bk.istrycatch ? MORESTYLE.Colors.BlockTrycatch : MORESTYLE.Colors.BlockIcons
+    )
+    if CImGui.BeginPopupContextItem("##SettingBlockiconmenu")
+        openpopup[] = true
+        @c CImGui.Checkbox(mlstr("Try-Catch"), &bk.istrycatch)
+        CImGui.EndPopup()
+    end
+    CImGui.SameLine()
+    width = CImGui.GetContentRegionAvail().x / 5
+    CImGui.PushItemWidth(width)
+    if @c ComboSFiltered("##SettingBlock alias", &bk.alias, keys(INSTRALIASLIST), CImGui.ImGuiComboFlags_NoArrowButton)
+        bk.instrnm = INSTRALIASLIST[bk.alias].instrnm
+        bk.addr = INSTRALIASLIST[bk.alias].addr
+    end
+    CImGui.PopItemWidth()
+    CImGui.SameLine()
+
+    showqt = if haskey(INSTRCONF, bk.instrnm) && haskey(INSTRCONF[bk.instrnm].quantities, bk.quantity)
+        INSTRCONF[bk.instrnm].quantities[bk.quantity].alias
+    else
+        mlstr("set")
+    end
+    function qtaliasdict()
+        dict = Dict()
+        if haskey(INSTRCONF, bk.instrnm)
+            for (qtnm, qt) in INSTRCONF[bk.instrnm].quantities
+                qt.type in ["set", "sweep"] && (dict[qt.alias] = qtnm)
+            end
+        end
+        return dict
+    end
+    CImGui.PushItemWidth(width)
+    if @c ComboSFiltered(keys ∘ qtaliasdict, "##SettingBlock set", &showqt, CImGui.ImGuiComboFlags_NoArrowButton)
+        bk.quantity = qtaliasdict()[showqt]
+    end
+    CImGui.PopItemWidth()
+
+    CImGui.SameLine()
+    @c CImGui.Checkbox("##SettingBlock ischeck", &bk.ischeck)
+    CImGui.SameLine()
+    CImGui.PushItemWidth(2width - CImGui.GetItemRectSize().x - unsafe_load(IMGUISTYLE.ItemSpacing.x))
+    @c InputTextWithHintRSZ("##SettingBlock set value", mlstr("set value"), &bk.setvalue)
+    CImGui.PopItemWidth()
+    if CImGui.BeginPopupContextItem("select set value")
+        openpopup[] = true
+        optklist = @trypass INSTRCONF[bk.instrnm].quantities[bk.quantity].optkeys []
+        optvlist = @trypass INSTRCONF[bk.instrnm].quantities[bk.quantity].optvalues []
+        isempty(optklist) && CImGui.TextColored(MORESTYLE.Colors.HighlightText, mlstr("unavailable options!"))
+        for (i, optv) in enumerate(optvlist)
+            optv == "" && continue
+            CImGui.MenuItem(optklist[i]) && (bk.setvalue = optv)
+        end
+        CImGui.EndPopup()
+    end
+    CImGui.SameLine()
+
+    Ut = if haskey(INSTRCONF, bk.instrnm) && haskey(INSTRCONF[bk.instrnm].quantities, bk.quantity)
+        INSTRCONF[bk.instrnm].quantities[bk.quantity].U
+    else
+        ""
+    end
+    CImGui.PushItemWidth(2width / 3)
+    @c ShowUnit("SettingBlock", Ut, &bk.ui)
+    CImGui.PopItemWidth()
+    CImGui.SameLine()
+    CImGui.PushItemWidth(-1)
+    @c CImGui.DragFloat("##SettingBlock delay", &bk.delay, 0.01, 0, 9.99, "%g", CImGui.ImGuiSliderFlags_AlwaysClamp)
+    CImGui.PopItemWidth()
+
+    CImGui.EndChild()
+    CImGui.PopStyleVar(2)
 end
 
 let
-    filter::String = ""
-    global function edit(bk::FreeSweepBlock, openpopup::Ref{Bool}=Ref(false))
-        CImGui.PushStyleVar(CImGui.ImGuiStyleVar_FrameBorderSize, 0)
-        isemptybks = isempty(skipnull(bk.blocks))
-        CImGui.PushStyleVar(CImGui.ImGuiStyleVar_ItemSpacing, (Float32(2), unsafe_load(IMGUISTYLE.ItemSpacing.y)))
-        CImGui.PushStyleColor(
-            CImGui.ImGuiCol_Border,
-            isemptybks ? CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_Border) : MORESTYLE.Colors.FreeSweepBlockBorder
-        )
-        wp = unsafe_load(IMGUISTYLE.WindowPadding)
-        bkh = bkheight(bk)
-        CImGui.PushStyleVar(
-            CImGui.ImGuiStyleVar_WindowPadding,
-            bk.hideblocks || isempty(skipnull(bk.blocks)) ? wp : MORESTYLE.Variables.ContainerBlockWindowPadding
-        )
-        CImGui.PushStyleVar(CImGui.ImGuiStyleVar_ChildBorderSize, isemptybks ? 1 : MORESTYLE.Variables.BlockBorderSize)
-        CImGui.BeginChild("##FreeSweepBlock", (Float32(0), bkh), true)
-        CImGui.PopStyleVar(2)
-        ColoredButton(
-            MORESTYLE.Icons.FreeSweepBlock; size=(CImGui.GetFrameHeight(), Cfloat(0)),
-            colbt=[0, 0, 0, 0], colbta=[0, 0, 0, 0], colbth=[0, 0, 0, 0],
-            coltxt=bk.istrycatch ? MORESTYLE.Colors.BlockTrycatch : MORESTYLE.Colors.BlockIcons
-        ) && (bk.hideblocks ⊻= true)
-        CImGui.IsItemHovered() && CImGui.IsMouseDoubleClicked(0) && (bk.hideblocks ⊻= true)
-        if CImGui.BeginPopupContextItem("##FreeSweepBlockiconmenu")
-            openpopup[] = true
-            @c CImGui.Checkbox(mlstr("Try-Catch"), &bk.istrycatch)
-            @c CImGui.DragFloat(
-                mlstr("decision duration"), &bk.duration, 1, 1, 3600, "%g",
-                CImGui.ImGuiSliderFlags_AlwaysClamp
-            )
-            CImGui.EndPopup()
-        end
-        CImGui.SameLine()
-        width = CImGui.GetContentRegionAvail().x / 5
-        CImGui.PushItemWidth(width)
-        if @c(ComboSFiltered("##FreeSweepBlock alias", &bk.alias, keys(INSTRALIASLIST), CImGui.ImGuiComboFlags_NoArrowButton))
-            bk.instrnm = INSTRALIASLIST[bk.alias].instrnm
-            bk.addr = INSTRALIASLIST[bk.alias].addr
-        end
-        CImGui.PopItemWidth()
-        CImGui.SameLine()
-        # CImGui.PushItemWidth(width)
-        # inses = sort([ins for ins in keys(INSTRBUFFERVIEWERS) if ins != "Others" && !isempty(INSTRBUFFERVIEWERS[ins])])
-        # @c ComboSFiltered("##FreeSweepBlock instrument", &bk.instrnm, inses, CImGui.ImGuiComboFlags_NoArrowButton)
-        # CImGui.PopItemWidth()
-        # CImGui.SameLine()
-
-        # inlist = haskey(INSTRBUFFERVIEWERS, bk.instrnm) && haskey(INSTRBUFFERVIEWERS[bk.instrnm], bk.addr)
-        # bk.addr = inlist ? bk.addr : mlstr("address")
-        # addrlist = haskey(INSTRBUFFERVIEWERS, bk.instrnm) ? keys(INSTRBUFFERVIEWERS[bk.instrnm]) : Set{String}()
-        # CImGui.PushItemWidth(width)
-        # @c ComboS("##FreeSweepBlock address", &bk.addr, sort(collect(addrlist)), CImGui.ImGuiComboFlags_NoArrowButton)
-        # CImGui.PopItemWidth()
-        # CImGui.SameLine()
-
-        showqt = if haskey(INSTRCONF, bk.instrnm) && haskey(INSTRCONF[bk.instrnm].quantities, bk.quantity)
-            INSTRCONF[bk.instrnm].quantities[bk.quantity].alias
-        else
-            mlstr("sweep")
-        end
-        CImGui.PushItemWidth(width)
-        if CImGui.BeginCombo("##FreeSweepBlock sweep", showqt, CImGui.ImGuiComboFlags_NoArrowButton)
-            qtlist = haskey(INSTRCONF, bk.instrnm) ? keys(INSTRCONF[bk.instrnm].quantities) : Set{String}()
-            qts = collect(qtlist)
-            @c InputTextWithHintRSZ("##FreeSweepBlock sweep", mlstr("Filter"), &filter)
-            sp = sortperm([INSTRCONF[bk.instrnm].quantities[qt].alias for qt in qts])
-            for qt in qts[sp]
-                showqt = INSTRCONF[bk.instrnm].quantities[qt].alias
-                (filter == "" || !isvalid(filter) || occursin(lowercase(filter), lowercase(showqt))) || continue
-                selected = bk.quantity == qt
-                CImGui.Selectable(showqt, selected, 0) && (bk.quantity = qt)
-                selected && CImGui.SetItemDefaultFocus()
-            end
-            CImGui.EndCombo()
-        end
-        CImGui.PopItemWidth()
-        CImGui.SameLine()
-
-        CImGui.PushItemWidth(CImGui.GetFrameHeight())
-        @c ComboS("##FreeSweepBlock mode", &bk.mode, ["=", "<", ">"], CImGui.ImGuiComboFlags_NoArrowButton)
-        CImGui.PopItemWidth()
-        CImGui.SameLine()
-        CImGui.PushItemWidth(width - CImGui.GetItemRectSize().x - unsafe_load(IMGUISTYLE.ItemSpacing.x))
-        @c InputTextWithHintRSZ("##FreeSweepBlock stop", mlstr("stop"), &bk.stop)
-        CImGui.PopItemWidth()
-        CImGui.SameLine()
-        CImGui.PushItemWidth(width)
-        if @c CImGui.InputFloat("##FreeSweepBlock delta", &bk.delta, 0, 0, "%g")
-            bk.delta <= 0 && (bk.delta = 0.001)
-        end
-        CImGui.PopItemWidth()
-        CImGui.SameLine()
-        Ut = if haskey(INSTRCONF, bk.instrnm) && haskey(INSTRCONF[bk.instrnm].quantities, bk.quantity)
-            INSTRCONF[bk.instrnm].quantities[bk.quantity].U
-        else
-            ""
-        end
-        CImGui.PushItemWidth(2width / 3)
-        @c ShowUnit("##FreeSweepBlock", Ut, &bk.ui)
-        CImGui.PopItemWidth()
-        CImGui.SameLine()
-        CImGui.PushItemWidth(-1)
-        @c CImGui.DragFloat("##FreeSweepBlock delay", &bk.delay, 0.01, 0, 9.99, "%g", CImGui.ImGuiSliderFlags_AlwaysClamp)
-        CImGui.PopItemWidth()
-
-        CImGui.PopStyleColor()
-        CImGui.PushStyleVar(CImGui.ImGuiStyleVar_WindowPadding, wp)
-        bk.hideblocks || isempty(skipnull(bk.blocks)) || edit(bk.blocks, bk.level + 1)
-        CImGui.EndChild()
-        CImGui.PopStyleVar(3)
-    end
-end
-
-let
-    filter::String = ""
-    global function edit(bk::SettingBlock, openpopup::Ref{Bool}=Ref(false))
-        CImGui.PushStyleVar(CImGui.ImGuiStyleVar_FrameBorderSize, 0)
-        CImGui.PushStyleVar(CImGui.ImGuiStyleVar_ItemSpacing, (Float32(2), unsafe_load(IMGUISTYLE.ItemSpacing.y)))
-        CImGui.BeginChild("##SettingBlock", (Float32(0), bkheight(bk)), true)
-        ColoredButton(
-            MORESTYLE.Icons.SettingBlock; size=(CImGui.GetFrameHeight(), Cfloat(0)),
-            colbt=[0, 0, 0, 0], colbta=[0, 0, 0, 0], colbth=[0, 0, 0, 0],
-            coltxt=bk.istrycatch ? MORESTYLE.Colors.BlockTrycatch : MORESTYLE.Colors.BlockIcons
-        )
-        if CImGui.BeginPopupContextItem("##SettingBlockiconmenu")
-            openpopup[] = true
-            @c CImGui.Checkbox(mlstr("Try-Catch"), &bk.istrycatch)
-            CImGui.EndPopup()
-        end
-        CImGui.SameLine()
-        width = CImGui.GetContentRegionAvail().x / 5
-        CImGui.PushItemWidth(width)
-        if @c(ComboSFiltered("##SettingBlock alias", &bk.alias, keys(INSTRALIASLIST), CImGui.ImGuiComboFlags_NoArrowButton))
-            bk.instrnm = INSTRALIASLIST[bk.alias].instrnm
-            bk.addr = INSTRALIASLIST[bk.alias].addr
-        end
-        CImGui.PopItemWidth()
-        CImGui.SameLine()
-        # CImGui.PushItemWidth(width)
-        # inses = sort([ins for ins in keys(INSTRBUFFERVIEWERS) if ins != "Others" && !isempty(INSTRBUFFERVIEWERS[ins])])
-        # @c ComboSFiltered("##SettingBlock instrument", &bk.instrnm, inses, CImGui.ImGuiComboFlags_NoArrowButton)
-        # CImGui.PopItemWidth()
-        # CImGui.SameLine()
-
-        # inlist = haskey(INSTRBUFFERVIEWERS, bk.instrnm) && haskey(INSTRBUFFERVIEWERS[bk.instrnm], bk.addr)
-        # bk.addr = inlist ? bk.addr : mlstr("address")
-        # addrlist = haskey(INSTRBUFFERVIEWERS, bk.instrnm) ? keys(INSTRBUFFERVIEWERS[bk.instrnm]) : Set{String}()
-        # CImGui.PushItemWidth(width)
-        # @c ComboS("##SettingBlock address", &bk.addr, sort(collect(addrlist)), CImGui.ImGuiComboFlags_NoArrowButton)
-        # CImGui.PopItemWidth()
-        # CImGui.SameLine()
-
-        showqt = if haskey(INSTRCONF, bk.instrnm) && haskey(INSTRCONF[bk.instrnm].quantities, bk.quantity)
-            INSTRCONF[bk.instrnm].quantities[bk.quantity].alias
-        else
-            mlstr("set")
-        end
-        CImGui.PushItemWidth(width)
-        if CImGui.BeginCombo("##SettingBlock set", showqt, CImGui.ImGuiComboFlags_NoArrowButton)
-            qtlist = haskey(INSTRCONF, bk.instrnm) ? keys(INSTRCONF[bk.instrnm].quantities) : Set{String}()
-            sts = if haskey(INSTRCONF, bk.instrnm)
-                [qt for qt in qtlist if INSTRCONF[bk.instrnm].quantities[qt].type in ["set", "sweep"]]
-            else
-                String[]
-            end
-            @c InputTextWithHintRSZ("##SettingBlock set", mlstr("Filter"), &filter)
-            sp = sortperm([INSTRCONF[bk.instrnm].quantities[qt].alias for qt in sts])
-            for st in sts[sp]
-                showqt = INSTRCONF[bk.instrnm].quantities[st].alias
-                (filter == "" || !isvalid(filter) || occursin(lowercase(filter), lowercase(showqt))) || continue
-                selected = bk.quantity == st
-                CImGui.Selectable(showqt, selected, 0) && (bk.quantity = st)
-                selected && CImGui.SetItemDefaultFocus()
-            end
-            CImGui.EndCombo()
-        end
-        CImGui.PopItemWidth()
-
-        CImGui.SameLine()
-        @c CImGui.Checkbox("##SettingBlock ischeck", &bk.ischeck)
-        CImGui.SameLine()
-        CImGui.PushItemWidth(2width - CImGui.GetItemRectSize().x - unsafe_load(IMGUISTYLE.ItemSpacing.x))
-        @c InputTextWithHintRSZ("##SettingBlock set value", mlstr("set value"), &bk.setvalue)
-        CImGui.PopItemWidth()
-        if CImGui.BeginPopupContextItem("select set value")
-            openpopup[] = true
-            optklist = @trypass INSTRCONF[bk.instrnm].quantities[bk.quantity].optkeys []
-            optvlist = @trypass INSTRCONF[bk.instrnm].quantities[bk.quantity].optvalues []
-            isempty(optklist) && CImGui.TextColored(MORESTYLE.Colors.HighlightText, mlstr("unavailable options!"))
-            for (i, optv) in enumerate(optvlist)
-                optv == "" && continue
-                CImGui.MenuItem(optklist[i]) && (bk.setvalue = optv)
-            end
-            CImGui.EndPopup()
-        end
-        CImGui.SameLine()
-
-        Ut = if haskey(INSTRCONF, bk.instrnm) && haskey(INSTRCONF[bk.instrnm].quantities, bk.quantity)
-            INSTRCONF[bk.instrnm].quantities[bk.quantity].U
-        else
-            ""
-        end
-        CImGui.PushItemWidth(2width / 3)
-        @c ShowUnit("SettingBlock", Ut, &bk.ui)
-        CImGui.PopItemWidth()
-        CImGui.SameLine()
-        CImGui.PushItemWidth(-1)
-        @c CImGui.DragFloat("##SettingBlock delay", &bk.delay, 0.01, 0, 9.99, "%g", CImGui.ImGuiSliderFlags_AlwaysClamp)
-        CImGui.PopItemWidth()
-
-        CImGui.EndChild()
-        CImGui.PopStyleVar(2)
-    end
-end
-
-let
-    filter::String = ""
     keysbuf::String = ""
     global function edit(bk::ReadingBlock, openpopup::Ref{Bool}=Ref(false))
         CImGui.PushStyleVar(CImGui.ImGuiStyleVar_FrameBorderSize, 0)
@@ -436,41 +372,27 @@ let
         CImGui.SameLine()
         width = CImGui.GetContentRegionAvail().x / 5
         CImGui.PushItemWidth(width)
-        if @c(ComboSFiltered("##ReadingBlock alias", &bk.alias, keys(INSTRALIASLIST), CImGui.ImGuiComboFlags_NoArrowButton))
+        if @c ComboSFiltered("##ReadingBlock alias", &bk.alias, keys(INSTRALIASLIST), CImGui.ImGuiComboFlags_NoArrowButton)
             bk.instrnm = INSTRALIASLIST[bk.alias].instrnm
             bk.addr = INSTRALIASLIST[bk.alias].addr
         end
         CImGui.PopItemWidth()
         CImGui.SameLine()
-        # CImGui.PushItemWidth(width)
-        # inses = sort([ins for ins in keys(INSTRBUFFERVIEWERS) if ins != "Others" && !isempty(INSTRBUFFERVIEWERS[ins])])
-        # @c ComboSFiltered("##ReadingBlock instrument", &bk.instrnm, inses, CImGui.ImGuiComboFlags_NoArrowButton)
-        # CImGui.PopItemWidth()
-        # CImGui.SameLine()
 
-        # inlist = haskey(INSTRBUFFERVIEWERS, bk.instrnm) && haskey(INSTRBUFFERVIEWERS[bk.instrnm], bk.addr)
-        # bk.addr = inlist ? bk.addr : mlstr("address")
-        # addrlist = @trypass keys(INSTRBUFFERVIEWERS[bk.instrnm]) String[]
-        # CImGui.PushItemWidth(width)
-        # @c ComboS("##ReadingBlock address", &bk.addr, sort(collect(addrlist)), CImGui.ImGuiComboFlags_NoArrowButton)
-        # CImGui.PopItemWidth()
-        # CImGui.SameLine()
         hasqt = haskey(INSTRCONF, bk.instrnm) && haskey(INSTRCONF[bk.instrnm].quantities, bk.quantity)
         showqt = hasqt ? INSTRCONF[bk.instrnm].quantities[bk.quantity].alias : mlstr("read")
-        CImGui.PushItemWidth(width)
-        if CImGui.BeginCombo("##ReadingBlock read", showqt, CImGui.ImGuiComboFlags_NoArrowButton)
-            qtlist = haskey(INSTRCONF, bk.instrnm) ? keys(INSTRCONF[bk.instrnm].quantities) : Set{String}()
-            qts = collect(qtlist)
-            @c InputTextWithHintRSZ("##ReadingBlock read", mlstr("Filter"), &filter)
-            sp = sortperm([INSTRCONF[bk.instrnm].quantities[qt].alias for qt in qts])
-            for qt in qts[sp]
-                showqt = INSTRCONF[bk.instrnm].quantities[qt].alias
-                (filter == "" || !isvalid(filter) || occursin(lowercase(filter), lowercase(showqt))) || continue
-                selected = bk.quantity == qt
-                CImGui.Selectable(showqt, selected, 0) && (bk.quantity = qt)
-                selected && CImGui.SetItemDefaultFocus()
+        function qtaliasdict()
+            dict = Dict()
+            if haskey(INSTRCONF, bk.instrnm)
+                for (qtnm, qt) in INSTRCONF[bk.instrnm].quantities
+                    dict[qt.alias] = qtnm
+                end
             end
-            CImGui.EndCombo()
+            return dict
+        end
+        CImGui.PushItemWidth(width)
+        if @c ComboSFiltered(keys ∘ qtaliasdict, "##ReadingBlock read", &showqt, CImGui.ImGuiComboFlags_NoArrowButton)
+            bk.quantity = qtaliasdict()[showqt]
         end
         CImGui.PopItemWidth()
         CImGui.SameLine()
@@ -529,25 +451,12 @@ function edit(bk::WriteBlock, openpopup::Ref{Bool}=Ref(false))
     CImGui.SameLine()
     width = CImGui.GetContentRegionAvail().x / 5
     CImGui.PushItemWidth(width)
-    if @c(ComboSFiltered("##WriteBlock alias", &bk.alias, keys(INSTRALIASLIST), CImGui.ImGuiComboFlags_NoArrowButton))
+    if @c ComboSFiltered("##WriteBlock alias", &bk.alias, keys(INSTRALIASLIST), CImGui.ImGuiComboFlags_NoArrowButton)
         bk.instrnm = INSTRALIASLIST[bk.alias].instrnm
         bk.addr = INSTRALIASLIST[bk.alias].addr
     end
     CImGui.PopItemWidth()
     CImGui.SameLine()
-    # CImGui.PushItemWidth(width)
-    # inses = sort([ins for ins in keys(INSTRBUFFERVIEWERS) if ins != "Others" && !isempty(INSTRBUFFERVIEWERS[ins])])
-    # @c ComboSFiltered("##WriteBlock instrument", &bk.instrnm, inses, CImGui.ImGuiComboFlags_NoArrowButton)
-    # CImGui.PopItemWidth()
-    # CImGui.SameLine() #选仪器
-
-    # inlist = haskey(INSTRBUFFERVIEWERS, bk.instrnm) && haskey(INSTRBUFFERVIEWERS[bk.instrnm], bk.addr)
-    # bk.addr = inlist ? bk.addr : mlstr("address")
-    # addrlist = @trypass keys(INSTRBUFFERVIEWERS[bk.instrnm]) Set{String}()
-    # CImGui.PushItemWidth(width)
-    # @c ComboS("##WriteBlock address", &bk.addr, sort(collect(addrlist)), CImGui.ImGuiComboFlags_NoArrowButton)
-    # CImGui.PopItemWidth()
-    # CImGui.SameLine() #选地址
 
     CImGui.PushItemWidth(-1)
     @c InputTextWithHintRSZ("##WriteBlock CMD", mlstr("command"), &bk.cmd)
@@ -585,25 +494,12 @@ function edit(bk::QueryBlock, openpopup::Ref{Bool}=Ref(false))
     CImGui.SameLine()
     width = CImGui.GetContentRegionAvail().x / 5
     CImGui.PushItemWidth(width)
-    if @c(ComboSFiltered("##QueryBlock alias", &bk.alias, keys(INSTRALIASLIST), CImGui.ImGuiComboFlags_NoArrowButton))
+    if @c ComboSFiltered("##QueryBlock alias", &bk.alias, keys(INSTRALIASLIST), CImGui.ImGuiComboFlags_NoArrowButton)
         bk.instrnm = INSTRALIASLIST[bk.alias].instrnm
         bk.addr = INSTRALIASLIST[bk.alias].addr
     end
     CImGui.PopItemWidth()
     CImGui.SameLine()
-    # CImGui.PushItemWidth(width)
-    # inses = sort([ins for ins in keys(INSTRBUFFERVIEWERS) if ins != "Others" && !isempty(INSTRBUFFERVIEWERS[ins])])
-    # @c ComboSFiltered("##QueryBlock instrument", &bk.instrnm, inses, CImGui.ImGuiComboFlags_NoArrowButton)
-    # CImGui.PopItemWidth()
-    # CImGui.SameLine() #选仪器
-
-    # inlist = haskey(INSTRBUFFERVIEWERS, bk.instrnm) && haskey(INSTRBUFFERVIEWERS[bk.instrnm], bk.addr)
-    # bk.addr = inlist ? bk.addr : mlstr("address")
-    # addrlist = @trypass keys(INSTRBUFFERVIEWERS[bk.instrnm]) Set{String}()
-    # CImGui.PushItemWidth(width)
-    # @c ComboS("##QueryBlock address", &bk.addr, sort(collect(addrlist)), CImGui.ImGuiComboFlags_NoArrowButton)
-    # CImGui.PopItemWidth()
-    # CImGui.SameLine() #选地址WriteBlock
 
     CImGui.PushItemWidth(2width + unsafe_load(IMGUISTYLE.ItemSpacing.x))
     @c InputTextWithHintRSZ("##QueryBlock CMD", mlstr("command"), &bk.cmd)
@@ -665,25 +561,12 @@ function edit(bk::ReadBlock, openpopup::Ref{Bool}=Ref(false))
     CImGui.SameLine()
     width = CImGui.GetContentRegionAvail().x / 5
     CImGui.PushItemWidth(width)
-    if @c(ComboSFiltered("##ReadBlock alias", &bk.alias, keys(INSTRALIASLIST), CImGui.ImGuiComboFlags_NoArrowButton))
+    if @c ComboSFiltered("##ReadBlock alias", &bk.alias, keys(INSTRALIASLIST), CImGui.ImGuiComboFlags_NoArrowButton)
         bk.instrnm = INSTRALIASLIST[bk.alias].instrnm
         bk.addr = INSTRALIASLIST[bk.alias].addr
     end
     CImGui.PopItemWidth()
     CImGui.SameLine()
-    # CImGui.PushItemWidth(width)
-    # inses = sort([ins for ins in keys(INSTRBUFFERVIEWERS) if ins != "Others" && !isempty(INSTRBUFFERVIEWERS[ins])])
-    # @c ComboSFiltered("##ReadBlock instrument", &bk.instrnm, inses, CImGui.ImGuiComboFlags_NoArrowButton)
-    # CImGui.PopItemWidth()
-    # CImGui.SameLine() #选仪器
-
-    # inlist = haskey(INSTRBUFFERVIEWERS, bk.instrnm) && haskey(INSTRBUFFERVIEWERS[bk.instrnm], bk.addr)
-    # bk.addr = inlist ? bk.addr : mlstr("address")
-    # addrlist = haskey(INSTRBUFFERVIEWERS, bk.instrnm) ? keys(INSTRBUFFERVIEWERS[bk.instrnm]) : Set{String}()
-    # CImGui.PushItemWidth(width)
-    # @c ComboS("##ReadBlock address", &bk.addr, sort(collect(addrlist)), CImGui.ImGuiComboFlags_NoArrowButton)
-    # CImGui.PopItemWidth()
-    # CImGui.SameLine() #选地址
 
     CImGui.PushItemWidth(width)
     @c InputTextWithHintRSZ("##ReadBlock index", mlstr("index"), &bk.index)
@@ -727,25 +610,12 @@ let
         CImGui.SameLine()
         width = CImGui.GetContentRegionAvail().x / 5
         CImGui.PushItemWidth(width)
-        if @c(ComboSFiltered("##FeedbackBlock alias", &bk.alias, keys(INSTRALIASLIST), CImGui.ImGuiComboFlags_NoArrowButton))
+        if @c ComboSFiltered("##FeedbackBlock alias", &bk.alias, keys(INSTRALIASLIST), CImGui.ImGuiComboFlags_NoArrowButton)
             bk.instrnm = INSTRALIASLIST[bk.alias].instrnm
             bk.addr = INSTRALIASLIST[bk.alias].addr
         end
         CImGui.PopItemWidth()
         CImGui.SameLine()
-        # CImGui.PushItemWidth(width)
-        # inses = sort([ins for ins in keys(INSTRBUFFERVIEWERS) if ins != "Others" && !isempty(INSTRBUFFERVIEWERS[ins])])
-        # @c ComboSFiltered("##FeedbackBlock instrument", &bk.instrnm, inses, CImGui.ImGuiComboFlags_NoArrowButton)
-        # CImGui.PopItemWidth()
-        # CImGui.SameLine() #选仪器
-
-        # inlist = haskey(INSTRBUFFERVIEWERS, bk.instrnm) && haskey(INSTRBUFFERVIEWERS[bk.instrnm], bk.addr)
-        # bk.addr = inlist ? bk.addr : mlstr("address")
-        # addrlist = haskey(INSTRBUFFERVIEWERS, bk.instrnm) ? keys(INSTRBUFFERVIEWERS[bk.instrnm]) : Set{String}()
-        # CImGui.PushItemWidth(width)
-        # @c ComboS("##FeedbackBlock address", &bk.addr, sort(collect(addrlist)), CImGui.ImGuiComboFlags_NoArrowButton)
-        # CImGui.PopItemWidth()
-        # CImGui.SameLine() #选地址
 
         CImGui.PushItemWidth(-1)
         @c ComboS("##FeedbackBlock action", &bk.action, mlstr.(actions), CImGui.ImGuiComboFlags_NoArrowButton)
