@@ -187,7 +187,7 @@ let
     end
     global function dorender(n=1, skip=true)
         CONF.Basic.waitevents || return
-        if (skip && !hasaddevent[]) || !skip
+        if eventnum[] < 1800 && ((skip && !hasaddevent[]) || !skip)
             eventnum[] += n
             hasaddevent[] = true
         end
