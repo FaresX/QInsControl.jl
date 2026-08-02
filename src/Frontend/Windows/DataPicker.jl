@@ -230,6 +230,8 @@ let
     end
 end
 
+# datastr::Dict{String,Vector{String}}
+# datafloat::Dict{String,VecOrMat{Cdouble}}
 let
     synctasks::Dict{String,Dict{Int,Task}} = Dict()
     global function syncplotdata(plt::QPlot, dtpk::DataPicker, datastr, datafloat=Dict())
@@ -265,6 +267,7 @@ let
                     synctasks[plt.id][i] = pdtask
                     if dtss.update
                         timedwaitfetch(pdtask, 6; msg=mlstr("force to stop processing data due to timeout"))
+                        preprocess(dtss, datastr, datafloat)
                         if !istaskfailed(pdtask)
                             x, y, z, w = fetch(pdtask)
                             setobservables!(dtss, x, y, z, w)
@@ -355,18 +358,14 @@ let
     end
 
     processfuncs::Dict{DataSeries,Function} = Dict()
-    function preprocess(
-        dtss::DataSeries,
-        datastr::Lockable{Dict{String,Vector{String}},ReentrantLock},
-        datafloat::Lockable{Dict{String,VecOrMat{Cdouble}},ReentrantLock}
-    )
+    function preprocess(dtss::DataSeries, datastr::Lockable, datafloat::Lockable)
         lock(datastr) do datastr
             lock(datafloat) do datafloat
                 preprocess(dtss, datastr, datafloat)
             end
         end
     end
-    function preprocess(dtss::DataSeries, datastr::Dict{String,Vector{String}}, datafloat::Dict{String,VecOrMat{Cdouble}})
+    function preprocess(dtss::DataSeries, datastr, datafloat)
         timingtask = errormonitor(
             @async begin
                 t1 = time()
@@ -447,7 +446,7 @@ let
         end
     end
 
-    function loaddata(datastr::Dict{String,Vector{String}}, datafloat::Dict{String,VecOrMat{Cdouble}}, key)
+    function loaddata(datastr, datafloat, key)
         if isempty(datafloat)
             haskey(datastr, key) ? replace(tryparse.(Cdouble, datastr[key]), nothing => NaN) : Float64[]
         else
