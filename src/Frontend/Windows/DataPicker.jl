@@ -267,7 +267,6 @@ let
                     synctasks[plt.id][i] = pdtask
                     if dtss.update
                         timedwaitfetch(pdtask, 6; msg=mlstr("force to stop processing data due to timeout"))
-                        preprocess(dtss, datastr, datafloat)
                         if !istaskfailed(pdtask)
                             x, y, z, w = fetch(pdtask)
                             setobservables!(dtss, x, y, z, w)
