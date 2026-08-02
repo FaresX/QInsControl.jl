@@ -211,7 +211,7 @@ let
         end
         CImGui.PopID()
         CImGui.PushID("process figure")
-        CImGui.Text("function process!(figure, x, y, z)")
+        CImGui.Text("function process!(figure, x, y, z, w)")
         edit(dtss.processfigurecodes)
         if CImGui.BeginPopupContextItem()
             CImGui.MenuItem(mlstr("Clear")) && (dtss.processfigurecodes = "")
@@ -220,7 +220,7 @@ let
         CImGui.PopID()
         CImGui.PushID("define plot")
         CImGui.Button(stcstr(MORESTYLE.Icons.Update, " ", mlstr("Update Plot"))) && (dtss.updateplot = true)
-        CImGui.Text("function plot!(figure, x, y, z)")
+        CImGui.Text("function plot!(figure, x, y, z, w)")
         edit(dtss.plotcodes)
         if CImGui.BeginPopupContextItem()
             CImGui.MenuItem(mlstr("Clear")) && (dtss.plotcodes = "")
@@ -232,12 +232,7 @@ end
 
 let
     synctasks::Dict{String,Dict{Int,Task}} = Dict()
-    global function syncplotdata(
-        plt::QPlot,
-        dtpk::DataPicker,
-        datastr::Dict{String,Vector{String}},
-        datafloat::Dict{String,VecOrMat{Cdouble}}=Dict{String,VecOrMat{Cdouble}}()
-    )
+    global function syncplotdata(plt::QPlot, dtpk::DataPicker, datastr, datafloat=Dict())
         plt.id == "" && return nothing
         haskey(FIGURES, plt.id) || (FIGURES[plt.id] = Figure())
         haskey(synctasks, plt.id) || (synctasks[plt.id] = Dict())
@@ -259,9 +254,9 @@ let
                                waittime(stcstr("DataPicker", plt.id, "-", i), dtss.refreshrate))
                 if haskey(synctasks[plt.id], i) && istaskdone(synctasks[plt.id][i])
                     if !istaskfailed(synctasks[plt.id][i])
-                        x, y, z = fetch(synctasks[plt.id][i])
-                        setobservables!(dtss, x, y, z)
-                        postprocess(plt, dtss, x, y, z)
+                        x, y, z, w = fetch(synctasks[plt.id][i])
+                        setobservables!(dtss, x, y, z, w)
+                        postprocess(plt, dtss, x, y, z, w)
                     end
                     delete!(synctasks[plt.id], i)
                 end
@@ -271,9 +266,9 @@ let
                     if dtss.update
                         timedwaitfetch(pdtask, 6; msg=mlstr("force to stop processing data due to timeout"))
                         if !istaskfailed(pdtask)
-                            x, y, z = fetch(pdtask)
-                            setobservables!(dtss, x, y, z)
-                            postprocess(plt, dtss, x, y, z)
+                            x, y, z, w = fetch(pdtask)
+                            setobservables!(dtss, x, y, z, w)
+                            postprocess(plt, dtss, x, y, z, w)
                         end
                         delete!(synctasks[plt.id], i)
                     end
@@ -290,25 +285,49 @@ let
         return nothing
     end
 
-    observables::Dict{DataSeries,NTuple{3,Observable}} = Dict()
+    observables::Dict{DataSeries,NTuple{4,Observable}} = Dict()
     global getobservables(dtss::DataSeries) = observables[dtss]
-    global function setobservables!(dtss::DataSeries, x, y, z)
+    global function setobservables!(dtss::DataSeries, x, y, z, w)
         try
-            cx, cy, cz = collect(x), collect(y), collect(z)
-            if haskey(observables, dtss) && typeof(cx) == typeof(observables[dtss][1][]) &&
-               typeof(cy) == typeof(observables[dtss][2][]) && typeof(cz) == typeof(observables[dtss][3][])
-                isempty(cx) || (observables[dtss][1].val = cx)
-                isempty(cy) || (observables[dtss][2].val = cy)
-                if !isempty(cz)
+            cx, cy, cz, cw = collect(x), collect(y), collect(z), collect(w)
+            if haskey(observables, dtss) &&
+               typeof(cx) == typeof(observables[dtss][1][]) &&
+               typeof(cy) == typeof(observables[dtss][2][]) &&
+               typeof(cz) == typeof(observables[dtss][3][]) &&
+               typeof(cw) == typeof(observables[dtss][4][])
+
+                if ndims(cw) == 3 && ndims(cx) == ndims(cy) == ndims(cz) == 1
+                    if !(isempty(cx) || isempty(cy) || isempty(cz))
+                        observables[dtss][1].val = cx
+                        observables[dtss][2].val = cy
+                        observables[dtss][3].val = cz
+                    end
+                    if size(cw) == size(observables[dtss][4][])
+                        observables[dtss][4].val = cw
+                    else
+                        observables[dtss] = (observables[dtss][1:3]..., Observable(cw))
+                    end
+                    notify.(observables[dtss][1:4])
+                elseif ndims(cz) == 2 && ndims(cx) == ndims(cy) == 1
+                    if !(isempty(cx) || isempty(cy))
+                        observables[dtss][1].val = cx
+                        observables[dtss][2].val = cy
+                    end
                     if size(cz) == size(observables[dtss][3][])
                         observables[dtss][3].val = cz
                     else
-                        observables[dtss] = (observables[dtss][1], observables[dtss][2], Observable(cz))
+                        observables[dtss] = (observables[dtss][1:2]..., Observable(cz), observables[dtss][4])
                     end
+                    notify.(observables[dtss][1:3])
+                elseif ndims(cx) == ndims(cy) == 1
+                    isempty(cx) && (cx = collect(1:length(cy)))
+                    cx, cy = equallen(cx, cy)
+                    observables[dtss][1].val = cx
+                    observables[dtss][2].val = cy
+                    notify.(observables[dtss][1:2])
                 end
-                notify.(observables[dtss])
             else
-                observables[dtss] = (Observable(collect(cx)), Observable(collect(cy)), Observable(collect(cz)))
+                observables[dtss] = (Observable(cx), Observable(cy), Observable(cz), Observable(cw))
             end
         catch e
             if !(SYNCSTATES[IsDAQTaskRunning] && dtss.isrealtime)
@@ -336,6 +355,17 @@ let
     end
 
     processfuncs::Dict{DataSeries,Function} = Dict()
+    function preprocess(
+        dtss::DataSeries,
+        datastr::Lockable{Dict{String,Vector{String}},ReentrantLock},
+        datafloat::Lockable{Dict{String,VecOrMat{Cdouble}},ReentrantLock}
+    )
+        lock(datastr) do datastr
+            lock(datafloat) do datafloat
+                preprocess(dtss, datastr, datafloat)
+            end
+        end
+    end
     function preprocess(dtss::DataSeries, datastr::Dict{String,Vector{String}}, datafloat::Dict{String,VecOrMat{Cdouble}})
         timingtask = errormonitor(
             @async begin
@@ -359,7 +389,7 @@ let
                 exfunc::Expr = quote
                     (x, y, z, w, $([Symbol.(:aux, i) for i in eachindex(auxbufs)]...)) -> begin
                         $innercodes
-                        x, y, z
+                        x, y, z, w
                     end
                 end
                 processfuncs[dtss] = eval(exfunc)
@@ -380,18 +410,18 @@ let
         end
     end
     processfigurefuncs::Dict{DataSeries,Function} = Dict()
-    function postprocess(plt::QPlot, dtss::DataSeries, x, y, z)
+    function postprocess(plt::QPlot, dtss::DataSeries, x, y, z, w)
         try
             if dtss.updateprocessfigurefunc || !haskey(processfigurefuncs, dtss)
                 innercodes = tocodes(dtss.processfigurecodes)
                 exfunc::Expr = quote
-                    (figure::Figure, x, y, z) -> begin
+                    (figure::Figure, x, y, z, w) -> begin
                         $innercodes
                     end
                 end
                 processfigurefuncs[dtss] = eval(exfunc)
             end
-            :($(processfigurefuncs[dtss])(FIGURES[$(plt.id)], $x, $y, $z)) |> eval
+            :($(processfigurefuncs[dtss])(FIGURES[$(plt.id)], $x, $y, $z, $w)) |> eval
         catch e
             if !(SYNCSTATES[IsDAQTaskRunning] && dtss.isrealtime)
                 @error string("[", now(), "]\n", mlstr("post-processing figure failed!!!")) exception = e
@@ -406,7 +436,7 @@ let
         try
             ex = quote
                 (figure::Figure -> begin
-                    x, y, z = getobservables($dtss)
+                    x, y, z, w = getobservables($dtss)
                     $(tocodes(dtss.plotcodes))
                 end)(FIGURES[$(plt.id)])
             end

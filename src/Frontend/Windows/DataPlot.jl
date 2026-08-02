@@ -8,7 +8,7 @@ end
 
 let
     copydataplot::DataPlot = DataPlot()
-    global function edit(dtps::Vector{DataPlot}, datastr, datafloat::Dict{String,VecOrMat{Cdouble}}=Dict{String,VecOrMat{Cdouble}}())
+    global function edit(dtps::Vector{DataPlot}, datastr, datafloat=Dict())
         isdelplot = false
         delplot_i = 0
         isrename = false
@@ -53,7 +53,7 @@ let
                     syncplotdata(dtp.plot, dtp.dtpk, datastr, datafloat)
                 end
                 if CImGui.MenuItem(stcstr(MORESTYLE.Icons.Copy, " ", mlstr("Copy")))
-                    copydataplot = dtp
+                    copydataplot = deepcopy(dtp)
                 end
                 CImGui.MenuItem(stcstr(MORESTYLE.Icons.Paste, " ", mlstr("Paste"))) && insert!(dtps, i, copydataplot)
                 CImGui.Separator()
@@ -85,10 +85,7 @@ let
     global pasteplot!(dtps::Vector{DataPlot}) = push!(dtps, copydataplot)
 end
 
-function showdtpks(
-    dtps::Vector{DataPlot}, id,
-    datastr::Dict{String,Vector{String}}, datafloat::Dict{String,VecOrMat{Cdouble}}=Dict{String,VecOrMat{Cdouble}}()
-)
+function showdtpks(dtps::Vector{DataPlot}, id, datastr, datafloat=Dict())
     for (i, dtp) in enumerate(dtps)
         if dtp.showdtpk
             datakeys = [sort(collect(keys(isempty(datastr) ? datafloat : datastr))); ""]
@@ -117,7 +114,7 @@ function renderplots(dtps::Vector{DataPlot}, id)
     end
 end
 
-function update!(dtps::Vector{DataPlot}, datastr, datafloat::Dict{String,VecOrMat{Cdouble}}=Dict{String,VecOrMat{Cdouble}}(); all=false)
+function update!(dtps::Vector{DataPlot}, datastr, datafloat=Dict(); all=false)
     for dtp in dtps
         (all || dtp.showplot) || continue
         dtp.dtpk.update = true

@@ -191,15 +191,11 @@ let
         CImGui.SameLine()
         CImGui.Button(
             stcstr(MORESTYLE.Icons.Update, "##update showing plots"), (2ftsz, bth)
-        ) && lock(DATABUF) do DATABUF
-            lock(DATABUFPARSED) do DATABUFPARSED
-                update!(DAQDATAPLOTS, DATABUF, DATABUFPARSED)
-            end
-        end
+        ) && update!(DAQDATAPLOTS, DATABUF, DATABUFPARSED)
         CImGui.PopStyleColor()
         length(show_daq_editors) == length(daqtasks) || resizebool!(show_daq_editors, length(daqtasks))
         length(torunstates) == length(daqtasks) || resizebool!(torunstates, length(daqtasks))
-        daqtaskscdy = (length(daqtasks) + SYNCSTATES[IsDAQTaskRunning] * lock(length, PROGRESSLIST)) *
+        daqtaskscdy = (length(daqtasks) + SYNCSTATES[IsDAQTaskRunning] * length(PROGRESSLIST)) *
                       CImGui.GetFrameHeightWithSpacing() - unsafe_load(IMGUISTYLE.ItemSpacing.y) +
                       2unsafe_load(IMGUISTYLE.WindowPadding.y)
 
@@ -376,11 +372,7 @@ let
         CImGui.BeginChild("scrobarplot", (halfwidth, Cfloat(0)))
         CImGui.PushStyleColor(CImGui.ImGuiCol_Border, MORESTYLE.Colors.ItemBorder)
         CImGui.PushStyleVar(CImGui.ImGuiStyleVar_ChildBorderSize, 1)
-        lock(DATABUF) do DATABUF
-            lock(DATABUFPARSED) do DATABUFPARSED
-                edit(DAQDATAPLOTS, DATABUF, DATABUFPARSED)
-            end
-        end
+        edit(DAQDATAPLOTS, DATABUF, DATABUFPARSED)
         CImGui.PopStyleVar()
         CImGui.PopStyleColor()
         CImGui.EndChild()
@@ -422,14 +414,10 @@ let
         end
         show_editinstraliaslist && @c editinstraliaslist(&show_editinstraliaslist)
         ### show daq datapickers ###
-        lock(DATABUF) do DATABUF
-            lock(DATABUFPARSED) do DATABUFPARSED
-                showdtpks(DAQDATAPLOTS, "DAQ", DATABUF, DATABUFPARSED)
-                for dtp in DAQDATAPLOTS
-                    dtp.showplot || continue
-                    syncplotdata(dtp.plot, dtp.dtpk, DATABUF, DATABUFPARSED)
-                end
-            end
+        showdtpks(DAQDATAPLOTS, "DAQ", DATABUF, DATABUFPARSED)
+        for dtp in DAQDATAPLOTS
+            dtp.showplot || continue
+            syncplotdata(dtp.plot, dtp.dtpk, DATABUF, DATABUFPARSED)
         end
         renderplots(DAQDATAPLOTS, "DAQ")
     end
