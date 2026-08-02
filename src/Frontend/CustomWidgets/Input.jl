@@ -1,25 +1,45 @@
-let
-    strbuf::String = '\0'^1024
-    global function InputTextRSZ(label, str::Ref{String}, flags=0)
-        buf = string(str[], strbuf)
-        input = CImGui.InputText(label, buf, length(buf), flags)
-        input && (str[] = replace(buf, r"\0.*" => ""))
-        input
+function resize_callback(data_ptr::Ptr{ImGuiInputTextCallbackData})::Cint
+    data = unsafe_load(data_ptr)
+    if data.EventFlag == ImGuiInputTextFlags_CallbackResize
+        str_pp = Ptr{Ptr{Cchar}}(data.UserData)
+        str_p = unsafe_load(str_pp)
+        str_arr = unsafe_wrap(Array, str_p, data.BufTextLen)
+        resize!(str_arr, data.BufSize)
+        str_arr_p = pointer(str_arr)
+        data_ptr.Buf = str_arr_p
+        unsafe_store!(str_pp, str_arr_p)
     end
-    global function InputTextWithHintRSZ(label, hint, str::Ref{String}, flags=0)
-        buf = string(str[], strbuf)
-        input = CImGui.InputTextWithHint(label, hint, buf, length(buf), flags)
-        input && (str[] = replace(buf, r"\0.*" => ""))
-        input
-    end
+    return 0
 end
 let
-    strbuf::String = '\0'^(1024 * 1024)
+    resize_callback_c = @cfunction(resize_callback, Cint, (Ptr{ImGuiInputTextCallbackData},))
+    push!(init_funcs, () -> resize_callback_c = @cfunction(resize_callback, Cint, (Ptr{ImGuiInputTextCallbackData},)))
+    global function InputTextRSZ(label, str::Ref{String}, flags=0)
+        str_p = pointer(str[])
+        str_p_arr = [str_p]
+        input = GC.@preserve str_p_arr CImGui.InputText(
+            label, str_p, length(str[]), flags | ImGuiInputTextFlags_CallbackResize, resize_callback_c, str_p_arr
+        )
+        input && (str[] = unsafe_string(only(str_p_arr)))
+        return input
+    end
+    global function InputTextWithHintRSZ(label, hint, str::Ref{String}, flags=0)
+        str_p = pointer(str[])
+        str_p_arr = [str_p]
+        input = GC.@preserve str_p_arr CImGui.InputTextWithHint(
+            label, hint, str_p, length(str[]), flags | ImGuiInputTextFlags_CallbackResize, resize_callback_c, str_p_arr
+        )
+        input && (str[] = unsafe_string(only(str_p_arr)))
+        return input
+    end
     global function InputTextMultilineRSZ(label, str::Ref{String}, size=(0, 0), flags=0)
-        buf = string(str[], strbuf)
-        input = CImGui.InputTextMultiline(label, buf, length(buf), size, flags)
-        input && (str[] = replace(buf, r"\0.*" => ""))
-        input
+        str_p = pointer(str[])
+        str_p_arr = [str_p]
+        input = GC.@preserve str_p_arr CImGui.InputTextMultiline(
+            label, str_p, length(str[]), size, flags | ImGuiInputTextFlags_CallbackResize, resize_callback_c, str_p_arr
+        )
+        input && (str[] = unsafe_string(only(str_p_arr)))
+        return input
     end
 end
 
@@ -52,26 +72,3 @@ function ColoredInputTextWithHintRSZ(
     CImGui.AddRect(draw_list, rmin, rmax, colrect, bdrounding, thickness)
     return input
 end
-
-# ResizeCallback_c = @cfunction ResizeCallback Cint (CImGui.ImGuiInputTextCallbackData,)
-
-# function InputTextRSZ(label, str::Ref)
-#     buf = str[] * '\0'^64
-#     input = CImGui.InputText(label, buf, length(buf))
-#     input && (str[] = replace(buf, r"\0.*" => ""))
-#     input
-# end
-
-# function InputTextMultilineRSZ(label, str::Ref, size=(0, 0), flags=0)
-#     buf = str[] * '\0'^1024
-#     input = CImGui.InputTextMultiline(label, buf, length(buf), size, flags)
-#     input && (str[] = replace(buf, r"\0.*" => ""))
-#     input
-# end
-
-# function InputTextWithHintRSZ(label, hint, str::Ref)
-#     buf = str[] * '\0'^64
-#     input = CImGui.InputTextWithHint(label, hint, buf, length(buf))
-#     input && (str[] = replace(buf, r"\0.*" => ""))
-#     input
-# end
