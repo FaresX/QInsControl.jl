@@ -228,7 +228,7 @@ using Test
                 ItemInputValue("32", 0.06)
                 ItemInputValue("33", -1.2)
                 ItemClick("35")
-                timedwait(() -> (Yield(); false), 14)
+                timedwait(() -> (Yield(); false), 12)
                 ItemInputValue("33", 1.24)
                 ItemClick("35")
                 timedwait(() -> (Yield(); false), 12)
