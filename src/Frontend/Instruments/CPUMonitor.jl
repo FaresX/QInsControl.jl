@@ -47,6 +47,7 @@ let
                 if insnode
                     for (addr, cts) in inses
                         hasct = !isempty(cts)
+                        haskey(cpuinfo[:taskbusy], addr) || continue
                         busyct = cpuinfo[:taskbusy][addr]
                         hasct && CImGui.PushStyleColor(
                             CImGui.ImGuiCol_Text,

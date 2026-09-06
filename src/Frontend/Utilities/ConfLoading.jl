@@ -82,7 +82,7 @@ function loadconf(precompile=false)
     for ins in keys(INSTRCONF)
         INSTRBUFFERVIEWERS[ins] = Dict{String,InstrBufferViewer}()
     end
-    INSTRBUFFERVIEWERS["VirtualInstr"] = Dict("VirtualAddress" => InstrBufferViewer("VirtualInstr", "VirtualAddress"))
+    INSTRBUFFERVIEWERS["VirtualInstr"] = Dict("VIRTUAL::ADDRESS" => InstrBufferViewer("VirtualInstr", "VIRTUAL::ADDRESS"))
 
     ###### load style_conf ######
     loadstyles()

@@ -96,6 +96,7 @@ using Test
         OpenAndClose("Global Variables") do 
             OpenAndClose(()->(), "Global Variables/SYNCSTATES")
             OpenAndClose(()->(), "Global Variables/STATES")
+            OpenAndClose(()->(), "Global Variables/Tasks")
             OpenAndClose(()->(), "Global Variables/###DATABUF")
             OpenAndClose(()->(), "Global Variables/###DATABUFPARSED")
             OpenAndClose(()->(), "Global Variables/###PROGRESSLIST")
@@ -218,11 +219,11 @@ using Test
                 ItemClick(MORESTYLE.Icons.InstrumentsSetting)
                 SetRef(WindowInfo("//###MainWindow/main/right/right content/border2").Window)
                 ItemOpen("VirtualInstr")
-                ItemOpen("VirtualInstr/VirtualAddress")
-                ItemClick("VirtualInstr/VirtualAddress/Demo")
-                SetRef(WindowInfo("//VirtualInstrVirtualAddressDemo/drawing area").Window)
+                ItemOpen("VirtualInstr/VIRTUAL::ADDRESS")
+                ItemClick("VirtualInstr/VIRTUAL::ADDRESS/Demo")
+                SetRef(WindowInfo("//VirtualInstrVIRTUAL::ADDRESSDemo/drawing area").Window)
                 ItemClick("28")
-                while qic.INSTRBUFFERVIEWERS["VirtualInstr"]["VirtualAddress"].insbuf.quantities["I"].uindex != 3
+                while qic.INSTRBUFFERVIEWERS["VirtualInstr"]["VIRTUAL::ADDRESS"].insbuf.quantities["I"].uindex != 3
                     ItemClick("30")
                 end
                 ItemInputValue("32", 0.06)
@@ -235,7 +236,7 @@ using Test
                 ItemInputValue("33", -1.24)
                 ItemClick("35")
                 timedwait(() -> (Yield(); false), 12)
-                WindowClose("//VirtualInstrVirtualAddressDemo")
+                WindowClose("//VirtualInstrVIRTUAL::ADDRESSDemo")
             end
             timedwait(() -> (Yield(); !qic.SYNCSTATES[qic.IsDAQTaskRunning]), 60)
         end

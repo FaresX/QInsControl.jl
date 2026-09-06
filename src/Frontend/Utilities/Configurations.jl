@@ -6,7 +6,7 @@
     hidewindow::Bool = false
     lowestframerate::Cint = 4
     nthreads::Cint = 2
-    nthreads_2::Cint = 1
+    nthreads_2::Cint = 2
     windowsize::Vector{Cint} = [864, 486]
     openglversion::String = "4.6"
     encoding::String = "GBK"

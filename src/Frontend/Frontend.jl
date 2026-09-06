@@ -5,7 +5,7 @@ include("Windows/Windows.jl")
 include("Utilities/Utilities.jl")
 include("Renderer.jl")
 
-function initialize_frontend!(precompile::Bool = false)
+function initialize_frontend!()
     for init_func in init_funcs
         init_func()
     end
@@ -20,6 +20,5 @@ function initialize_frontend!(precompile::Bool = false)
     empty!(IMAGES)
     empty!(FIGURES)
 
-    loadconf(precompile)
-    precompile || startrefresh()
+    loadconf()
 end

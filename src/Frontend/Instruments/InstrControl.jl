@@ -90,6 +90,7 @@ end
 
 let
     newcmd::Ref{Tuple{String,Bool}} = ("", false)
+    visitedsetting::Dict{String,Bool} = Dict()
     global function testcmd(ins, addr, inputcmd::Ref{String}, reading::Ref{String})
         if CImGui.CollapsingHeader(stcstr("\t", mlstr("Communication Test")))
             if CImGui.BeginTabBar("communication")
@@ -140,10 +141,18 @@ let
                     CImGui.PopStyleVar()
                     CImGui.EndTabItem()
                 end
-                if ins != "VirtualInstr" && CImGui.BeginTabItem(mlstr("Settings"))
-                    comsettings(addr)
+                opentab = CImGui.BeginTabItem(mlstr("Settings"))
+                if opentab
+                    haskey(visitedsetting, addr) || (visitedsetting[addr] = false)
+                    if !visitedsetting[addr]
+                        deepcopy!(selectbuf(addr), getattr(addr, CONF.Communication.attrlist))
+                        visitedsetting[addr] = true
+                    end
+                    setup(addr)
                     CImGui.EndTabItem()
                     igTabItemButton(mlstr("Save"), 0) && saveattr(addr)
+                else
+                    visitedsetting[addr] = false
                 end
                 CImGui.EndTabBar()
             end
@@ -152,44 +161,35 @@ let
     end
 end
 
-function comsettings(addr)
-    if addr != "VirtualAddress"
-        if occursin("SERIAL", addr)
-            serialsettings(getattr(addr))
-        elseif occursin("TCPSOCKET", addr)
-            tcpipsettings(getattr(addr))
-        elseif occursin("VIRTUAL", split(addr, "::")[1])
-            virtualsettings(getattr(addr))
-        else
-            visasettings(getattr(addr))
-        end
+let
+    serialattrbuf::SerialInstrAttr = SerialInstrAttr()
+    tcpsocketattrbuf::TCPSocketInstrAttr = TCPSocketInstrAttr()
+    virtualattrbuf::VirtualInstrAttr = VirtualInstrAttr()
+    visaattrbuf::VISAInstrAttr = VISAInstrAttr()
+    isobusattrbuf::ISOBUSInstrAttr = ISOBUSInstrAttr(virtualattrbuf)
+    qicattrbuf::QICInstrAttr = QICInstrAttr(virtualattrbuf)
+    bufdict = Dict()
+    global function selectbuf(addr)
+        haskey(bufdict, addr) || (bufdict[addr] = selectbuf(getattr(addr)))
+        return bufdict[addr]
     end
+    selectbuf(::SerialInstrAttr) = serialattrbuf
+    selectbuf(::TCPSocketInstrAttr) = tcpsocketattrbuf
+    selectbuf(::VirtualInstrAttr) = virtualattrbuf
+    selectbuf(::VISAInstrAttr) = visaattrbuf
+    selectbuf(attr::ISOBUSInstrAttr) = isobusattrbuf = attr
+    selectbuf(attr::QICInstrAttr) = qicattrbuf = attr
 end
 
 function saveattr(addr)
-    CONF.Communication.attrlist[addr] = attrtodict(getattr(addr))
-    syncattr(addr)
+    buf = selectbuf(addr)
+    CONF.Communication.attrlist[addr] = attrtodict(buf)
+    syncattr(buf, addr)
     saveconf()
 end
 
-function attrtodict(attr)
-    attrdict = Dict{String,Any}("attrtype" => split(string(typeof(attr)), '.')[end])
-    for fdnm in fieldnames(typeof(attr))
-        val = getproperty(attr, fdnm)
-        if val isa Number
-            attrdict[string(fdnm, "::Number")] = val
-        elseif val isa AbstractString
-            attrdict[string(fdnm, "::String")] = string(val)
-        elseif val isa AbstractChar
-            attrdict[string(fdnm, "::Char")] = string(val)
-        else
-            attrdict[string(fdnm, "::Any")] = string(val)
-        end
-    end
-    return attrdict
-end
-
-function serialsettings(attr::SerialInstrAttr)
+setup(addr) = setup(selectbuf(addr))
+function setup(attr::SerialInstrAttr)
     baudrate = Cint(attr.baudrate)
     @c(CImGui.InputInt(mlstr("Baud Rate"), &baudrate)) && baudrate > 0 && (attr.baudrate = baudrate)
     mode = string(attr.mode)
@@ -230,7 +230,7 @@ function serialsettings(attr::SerialInstrAttr)
     @c(ComboS(mlstr("Termination Character"), &termchar, keys(TERMCHARDICT))) && (attr.termchar = TERMCHARDICT[termchar])
     @c CImGui.Checkbox(mlstr("Clear buffer when error occurs"), &attr.clearbuffer)
 end
-function tcpipsettings(attr::TCPSocketInstrAttr)
+function setup(attr::TCPSocketInstrAttr)
     @c InputTextRSZ(mlstr("IDN function"), &attr.idnfunc)
     timeoutw = Cfloat(attr.timeoutw)
     @c(CImGui.DragFloat(
@@ -251,7 +251,7 @@ function tcpipsettings(attr::TCPSocketInstrAttr)
     @c(ComboS(mlstr("Termination Character"), &termchar, keys(TERMCHARDICT))) && (attr.termchar = TERMCHARDICT[termchar])
     @c CImGui.Checkbox(mlstr("Clear buffer when error occurs"), &attr.clearbuffer)
 end
-function virtualsettings(attr::VirtualInstrAttr)
+function setup(attr::VirtualInstrAttr)
     @c InputTextRSZ(mlstr("IDN function"), &attr.idnfunc)
     querydelay = Cfloat(attr.querydelay)
     @c(CImGui.DragFloat(
@@ -262,7 +262,7 @@ function virtualsettings(attr::VirtualInstrAttr)
     @c(ComboS(mlstr("Termination Character"), &termchar, keys(TERMCHARDICT))) && (attr.termchar = TERMCHARDICT[termchar])
     @c CImGui.Checkbox(mlstr("Clear buffer when error occurs"), &attr.clearbuffer)
 end
-function visasettings(attr::VISAInstrAttr)
+function setup(attr::VISAInstrAttr)
     SeparatorTextColored(MORESTYLE.Colors.HighlightText, "ASRL")
     baudrate = Cint(attr.baudrate)
     @c(CImGui.InputInt(mlstr("Baud Rate"), &baudrate)) && baudrate > 0 && (attr.baudrate = baudrate)
@@ -270,12 +270,12 @@ function visasettings(attr::VISAInstrAttr)
     @c(igSliderInt(mlstr("Data Bits"), &ndatabits, 5, 8, "%d", 0)) && (attr.ndatabits = ndatabits)
     parity = string(attr.parity)
     @c(ComboS(
-        mlstr("Parity"), &parity, string.(instances(QInsControlCore.VI_ASRL_PAR))
-    )) && (attr.parity = getproperty(QInsControlCore, Symbol(parity)))
+        mlstr("Parity"), &parity, string.(instances(VI_ASRL_PAR))
+    )) && (attr.parity = eval(Symbol(parity)))
     nstopbits = string(attr.nstopbits)
     @c(ComboS(
-        mlstr("Stop Bits"), &nstopbits, string.(instances(QInsControlCore.VI_ASRL_STOP))
-    )) && (attr.nstopbits = getproperty(QInsControlCore, Symbol(nstopbits)))
+        mlstr("Stop Bits"), &nstopbits, string.(instances(VI_ASRL_STOP))
+    )) && (attr.nstopbits = eval(Symbol(nstopbits)))
     SeparatorTextColored(MORESTYLE.Colors.HighlightText, mlstr("Common"))
     @c CImGui.Checkbox(mlstr(attr.async ? "Asynchronous" : "Synchronous"), &attr.async)
     @c InputTextRSZ(mlstr("IDN function"), &attr.idnfunc)
@@ -298,6 +298,8 @@ function visasettings(attr::VISAInstrAttr)
     @c(ComboS(mlstr("Termination Character"), &termchar, keys(TERMCHARDICT))) && (attr.termchar = TERMCHARDICT[termchar])
     @c CImGui.Checkbox(mlstr("Clear buffer when error occurs"), &attr.clearbuffer)
 end
+setup(attr::ISOBUSInstrAttr) = setup(attr.attr)
+setup(attr::QICInstrAttr) = setup(attr.attr)
 
 function edit(insbuf::InstrBuffer, addr)
     CImGui.PushID(insbuf.instrnm)
@@ -710,28 +712,15 @@ function apply!(qt::SweepQuantity, instrnm, addr)
             @info "[$(now())]\nBefore sweeping" instrument = instrnm address = addr quantity = qt
             actionidx = 1
             SYNCSTATES[IsDAQTaskRunning] && (actionidx = logaction(qt, instrnm, addr))
-            qt.issweeping = true
-            qt.presenti = 0
-            qt.elapsedtime = 0.0
-            issweeping = Ref(qt.issweeping)
-            presenti = Ref(qt.presenti)
-            elapsedtime = Ref(qt.elapsedtime)
-            read = Ref(qt.read)
             @sync begin
-                @async while true
-                    qt.issweeping = issweeping[]
-                    qt.presenti = presenti[]
-                    qt.elapsedtime = elapsedtime[]
-                    qt.read = read[]
-                    updatefront!(qt)
-                    CONF.DAQ.highspeeddatatransfer ? yield() : sleep(0.001)
-                    qt.issweeping || break
-                end
-                @async remote_qtsweep(
-                    instrnm, addr, qt.name, sweeplist, CONF.DAQ.ctbuflen, qt.timeoutw, qt.timeoutr, qt.delay,
-                    issweeping, presenti, elapsedtime, read;
+                @async_record "sweep remote: $instrnm $addr $(qt.name)" remote_qtsweep(
+                    instrnm, addr, qt.name, sweeplist, CONF.DAQ.ctbuflen, qt.timeoutw, qt.timeoutr, qt.delay, qt;
                     channelsize=CONF.DAQ.channelsize, packsize=CONF.DAQ.packsize, retreading=CONF.InsBuf.retreading
                 )
+                @async_record "sweep local: $instrnm $addr $(qt.name)" while qt.issweeping
+                    updatefront!(qt)
+                    CONF.DAQ.highspeeddatatransfer ? yield() : sleep(qt.delay / 2)
+                end
             end
             @info "[$(now())]\nAfter sweeping" instrument = instrnm address = addr quantity = qt
             SYNCSTATES[IsDAQTaskRunning] && logaction(qt, instrnm, addr, actionidx)
@@ -752,7 +741,10 @@ function apply!(qt::SetQuantity, instrnm, addr, byoptvalues=false)
         @info "[$(now())]\nBefore setting" instrument = instrnm address = addr quantity = qt
         actionidx = 1
         SYNCSTATES[IsDAQTaskRunning] && (actionidx = logaction(qt, instrnm, addr))
-        fetchdata = remote_qtset(instrnm, addr, qt.name, sv, CONF.DAQ.ctbuflen, qt.timeoutw, qt.timeoutr)
+        fetchdata = remote_qtset(
+            instrnm, addr, qt.name, sv, CONF.DAQ.ctbuflen, qt.timeoutw, qt.timeoutr;
+            attrlist=CONF.Communication.attrlist
+        )
         isnothing(fetchdata) || (qt.read = fetchdata; updatefront!(qt))
         @info "[$(now())]\nAfter setting" instrument = instrnm address = addr quantity = qt
         SYNCSTATES[IsDAQTaskRunning] && logaction(qt, instrnm, addr, actionidx)
@@ -877,29 +869,32 @@ let
     monitortask::Ref{Task} = Ref{Task}()
     stoptask::Bool = false
     global function stoprefresh()
-        (isassigned(puttask) && isassigned(taketask)) || return nothing
         stoptask = true
         sleep(0.1)
-        istaskdone(puttask[]) || schedule(puttask[], mlstr("Stop autorefresh putting task"); error=true)
-        istaskdone(taketask[]) || schedule(taketask[], mlstr("Stop autorefresh taking task"); error=true)
-        if istaskdone(puttask[])
-            @info mlstr("instrument autorefresh putting task stopped")
-        else
-            @warn mlstr("instrument autorefresh putting task not stopped")
+        if isassigned(puttask)
+            istaskdone(puttask[]) || schedule(puttask[], mlstr("Stop autorefresh putting task"); error=true)
+            if istaskdone(puttask[])
+                @info mlstr("instrument autorefresh putting task stopped")
+            else
+                @warn mlstr("instrument autorefresh putting task not stopped")
+            end
         end
-        if istaskdone(taketask[])
-            @info mlstr("instrument autorefresh taking task stopped")
-        else
-            @warn mlstr("instrument autorefresh taking task not stopped")
+        if isassigned(taketask)
+            istaskdone(taketask[]) || schedule(taketask[], mlstr("Stop autorefresh taking task"); error=true)
+            if istaskdone(taketask[])
+                @info mlstr("instrument autorefresh taking task stopped")
+            else
+                @warn mlstr("instrument autorefresh taking task not stopped")
+            end
         end
     end
     global function startrefresh()
         stoptask = false
-        puttask[] = Threads.@spawn while !stoptask
+        puttask[] = @spawn_record "instrument autorefresh putting task" while !stoptask
             putonce()
             sleep(0.001)
         end
-        taketask[] = Threads.@spawn while !stoptask
+        taketask[] = @spawn_record "instrument autorefresh taking task" while !stoptask
             if isoutputready()
                 try
                     instrnm, addr, qtnm, read = takeoutput!()

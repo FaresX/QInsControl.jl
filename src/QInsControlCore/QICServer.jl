@@ -31,8 +31,8 @@ function init!(server::QICServer)
     empty!(server.clients)
 end
 
-function run!(server::QICServer; buflen=4)
-    Threads.@spawn try
+function run!(server::QICServer; buflen=4, attrlist=Dict())
+    @spawn_record "QICServer" try
         server.running = true
         server.server = listen(server.port)
         while server.running
@@ -43,7 +43,7 @@ function run!(server::QICServer; buflen=4)
                     server.clients,
                     QICClient(socket=socket, addr=ip, port=port, connected=true)
                 )
-                @async handle_client(server, server.clients[end]; buflen=buflen)
+                @async_record "QICClient $ip:$port" handle_client(server, server.clients[end]; buflen, attrlist)
             else
                 sleep(1)
             end
@@ -58,13 +58,13 @@ function run!(server::QICServer; buflen=4)
     end
 end
 
-function handle_client(server::QICServer, client::QICClient; buflen=4)
+function handle_client(server::QICServer, client::QICClient; buflen=4, attrlist=Dict())
     try
         while server.running
             msg = readuntil(client.socket, server.termchar)
             msg == "" && (client.connected = false)
             client.connected || break
-            process_message(server, client, msg; buflen=buflen)
+            process_message(server, client, msg; buflen, attrlist)
             server.fast ? yield() : sleep(0.001)
         end
     catch e
@@ -84,7 +84,7 @@ function handle_client(server::QICServer, client::QICClient; buflen=4)
     end
 end
 
-function process_message(server::QICServer, client::QICClient, msg::String; buflen=4)
+function process_message(server::QICServer, client::QICClient, msg::String; buflen=4, attrlist=Dict())
     try
         if occursin(":Q:", msg)
             strs = split(msg, ":Q:")
@@ -103,16 +103,14 @@ function process_message(server::QICServer, client::QICClient, msg::String; bufl
             client.controllers[addr] = Controller("", addr; buflen=buflen)
         end
         ct = client.controllers[addr]
-        attr = getattr(addr)
-        login!(CPU, ct; attr=attr)
+        login!(CPU, ct; attrlist)
+        attr = getattr(String(addr), attrlist)
         if action == "R"
             write(client.socket, string(ct(read, CPU, Val(:read); timeout=attr.timeoutr), server.termchar))
         elseif action == "W"
             ct(write, CPU, String(cmd), Val(:write); timeout=attr.timeoutw)
-        elseif occursin("Q", action)
-            str = ct(CPU, String(cmd), Val(:query); timeout=attr.timeoutr) do instr, val
-                query(instr, val; delay=parse(Float64, action[2:end]))
-            end
+        elseif action == "Q"
+            str = ct(query, CPU, String(cmd), Val(:query); timeout=attr.timeoutr)
             write(client.socket, string(str, server.termchar))
         end
     catch e
@@ -121,7 +119,7 @@ function process_message(server::QICServer, client::QICClient, msg::String; bufl
     end
 end
 
-start!(server::QICServer; buflen=4) = (init!(server); run!(server; buflen=buflen))
+start!(server::QICServer; buflen=4, attrlist=Dict()) = (init!(server); run!(server; buflen, attrlist))
 
 function stop!(server::QICServer)
     server.running && (server.running = false; close(server.server))

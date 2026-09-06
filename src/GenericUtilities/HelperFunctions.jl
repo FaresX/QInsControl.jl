@@ -243,27 +243,6 @@ function synccall_wait(f, ids, args...; timeout=2)
     end
 end
 
-# function genex(f, args...; kwargs...)
-#     f(args...; kwargs...)
-# end
-
-# function timed_remotecall_fetch(f, id::Integer, args...; timeout=2, pollint=0.001, quiet=false, kwargs...)
-#     future = remotecall(f, id, args...; kwargs...)
-#     t = quiet ? @async(fetch(future)) : @async @trycatch mlstr("fetch task failed!!!") fetch(future)
-#     timedwaitfetch(t, timeout; msg=mlstr("timeout waiting to fetch"), pollint=pollint, quiet=quiet)
-# end
-# function timed_remotecall_eval(m::Module, pid::Integer, ex; timeout=2, pollint=0.001, quiet=false)
-#     future = remotecall(Core.eval, pid, m, ex)
-#     t = quiet ? @async(fetch(future)) : @async @trycatch mlstr("fetch task failed!!!") fetch(future)
-#     timedwaitfetch(t, timeout; msg=mlstr("timeout waiting to fetch"), pollint=pollint, quiet=quiet)
-# end
-
-# function timed_remotecall_wait(f, id::Integer, args...; timeout=2, pollint=0.001, quiet=false, kwargs...)
-#     future = remotecall(f, id, args...; kwargs...)
-#     t = quiet ? @async(fetch(future)) : @async @trycatch mlstr("fetch task failed!!!") wait(future)
-#     timedwaitfetch(t, timeout; msg=mlstr("timeout waiting for future"), pollint=pollint, quiet=quiet)
-# end
-
 function strtoU(ustr::AbstractString)
     str = occursin(" ", ustr) ? replace(ustr, " " => "*") : ustr
     str == "" ? "" : eval(:(@u_str($str)))

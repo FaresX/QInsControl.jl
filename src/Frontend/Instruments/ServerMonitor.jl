@@ -24,7 +24,7 @@ let
             CImGui.ImGuiSliderFlags_AlwaysClamp
         )) && remote_setbuflen!(CONF.Server.buflen)
         if ToggleButton(mlstr(serverbuffer.running ? "Running" : "Stopped"), Ref(serverbuffer.running))
-            serverbuffer.running ? remote_stopserver!() : remote_startserver!(CONF.DAQ.ctbuflen)
+            serverbuffer.running ? remote_stopserver!() : remote_startserver!(CONF.DAQ.ctbuflen, CONF.Communication.attrlist)
         end
         CImGui.SameLine(0, CImGui.GetFontSize())
         CImGui.TextColored(MORESTYLE.Colors.HighlightText, string(serverbuffer.port))

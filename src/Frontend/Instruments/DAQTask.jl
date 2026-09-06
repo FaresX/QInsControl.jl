@@ -298,15 +298,15 @@ function define(daqtask::DAQTask)
                 progress_lc = Channel{Tuple{UUID,Int,Int,Float64}}($(CONF.DAQ.channelsize))
                 extradatabuf_lc = Channel{Tuple{String,Vector{String}}}($(CONF.DAQ.channelsize))
                 @sync begin
-                    remotedotask = @async @trycatch "remotedotask failed!!!" begin
+                    remotedotask = @async_record "remotedotask" @trycatch "remotedotask failed!!!" begin
                         start!(CPU)
                         fast!(CPU)
                         for ct in values(controllers)
-                            login!(CPU, ct; quiet=false, attr=getattr(ct.addr))
+                            login!(CPU, ct; quiet=false, attrlist=$(CONF.Communication.attrlist))
                         end
                         remote_sweep_block(controllers, databuf_lc, progress_lc, extradatabuf_lc, SYNCSTATES)
                     end
-                    @async @trycatch "transfering data task failded!!!" while true
+                    @async_record "localtransfer" @trycatch "transfering data task failded!!!" while true
                         if all(.!isready.([databuf_lc, databuf_rc, progress_lc, progress_rc, extradatabuf_lc, extradatabuf_rc]))
                             if istaskdone(remotedotask)
                                 logblock()
@@ -344,7 +344,7 @@ function define(daqtask::DAQTask)
 end
 
 function transfer_data()
-    wait(Threads.@spawn @trycatch mlstr("transfer_data failed!!!") begin
+    wait(@spawn_record "transfer_data" @trycatch mlstr("transfer_data failed!!!") begin
         while !SYNCSTATES[IsDAQTaskDone]
             isready_databufrc() && process_databufrc()
             isready_extradatabufrc() && process_extradatabufrc()
@@ -493,7 +493,7 @@ function extract_controllers(bkch::Vector{AbstractBlock})
     controllers = Dict()
     for bk in bkch
         if isinstr(bk)
-            bk.instrnm == "VirtualInstr" && bk.addr != "VirtualAddress" && return controllers, false
+            bk.instrnm == "VirtualInstr" && bk.addr != "VIRTUAL::ADDRESS" && return controllers, false
             @assert haskey(INSTRBUFFERVIEWERS, bk.instrnm) mlstr("$(bk.instrnm) has not been added")
             @assert haskey(INSTRBUFFERVIEWERS[bk.instrnm], bk.addr) mlstr("$(bk.addr) has not been added")
             ct, st = remote_check_instr(bk.instrnm, bk.addr, CONF.DAQ.ctbuflen, CONF.DAQ.retryconnecttimes, CONF.DAQ.retrysendtimes)

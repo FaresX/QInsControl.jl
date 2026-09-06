@@ -7,7 +7,7 @@ export remote_servermode!, remote_deleteclient!, remote_servernewmsg!, remote_fe
 export remote_startrefresh, remote_stoprefresh, putinput!, takeoutput!, isoutputready
 export remote_continue, remote_check_instr, remote_def_prog, remote_runtask
 export isready_databufrc, isready_extradatabufrc, isready_progressrc, take_databufrc!, take_extradatabufrc!, take_progressrc!
-export loadattr, syncattr, getattr
+export syncattr, getattr, attrtodict
 export startlogger, stoplogger
 
 
@@ -30,6 +30,7 @@ global PROGRESSRC::RemoteChannel{Channel{Vector{Tuple{UUID,Int,Int,Float64}}}}
 
 ###### Logger ######
 function startlogger(dir)
+    DEBUG && return
     SYNCSTATES[IsLogging] = true
     global_logger(SimpleLogger(LOGIO))
     LOGGERTASK[] = errormonitor(
@@ -44,7 +45,7 @@ function startlogger(dir)
     else
         @warn mlstr("local logging task not started")
     end
-    remotecall_wait(workers()[1], SYNCSTATES, dir) do SYNCSTATES, dir
+    nprocs() > 1 && remotecall_wait(workers()[1], SYNCSTATES, dir) do SYNCSTATES, dir
         global_logger(SimpleLogger(LOGIO))
         LOGGERTASK[] = errormonitor(
             Threads.@spawn @trycatch mlstr("error in remote logging task") while SYNCSTATES[IsLogging]
@@ -61,6 +62,7 @@ function startlogger(dir)
     end
 end
 function stoplogger()
+    DEBUG && return
     SYNCSTATES[IsLogging] = false
     @sync begin
         @async if isassigned(LOGGERTASK)
@@ -72,7 +74,7 @@ function stoplogger()
                 @warn mlstr("local logging task not stopped")
             end
         end
-        @async remotecall_wait(workers()[1]) do
+        nprocs() > 1 && @async remotecall_wait(workers()[1]) do
             if isassigned(LOGGERTASK)
                 sleep(0.1)
                 istaskdone(LOGGERTASK[]) || schedule(LOGGERTASK[], mlstr("Stop remote logging task"); error=true)
@@ -171,16 +173,19 @@ end
 
 ###### CPU Monitor ######
 remote_set_libvisa!(visapath) = timed_remotecall_wait(visapath -> set_libvisa(visapath), workers()[1], visapath)
-remote_startcpu!() = timed_remotecall_wait(() -> start!(CPU), workers()[1])
+remote_startcpu!() = timed_remotecall_wait(() -> start!(CPU), workers()[1]; timeout=4)
 remote_stopcpu!() = timed_remotecall_wait(() -> stop!(CPU), workers()[1])
 remote_cpumode!(mode) = timed_remotecall_wait(mode -> CPU.fast[] = mode, workers()[1], mode)
-remote_connect!(addr) = timed_remotecall_wait(addr -> connect!(CPU.resourcemanager[], CPU.instrs[addr]), workers()[1], addr)
+remote_connect!(addr) =
+    timed_remotecall_wait(workers()[1], addr) do addr
+        lock(instr -> connect!(CPU.resourcemanager[], instr), CPU.instrs[addr])
+    end
 remote_find_resources!() = remotecall_fetch(() -> find_resources(CPU), workers()[1])
 remote_logout!(addr) = timed_remotecall_wait(addr -> logout!(CPU, addr), workers()[1], addr)
 function remote_logout!()
     timed_remotecall_wait(workers()[1]) do
-        for instr in keys(CPU.instrs)
-            logout!(CPU, instr)
+        for addr in keys(CPU.instrs)
+            logout!(CPU, addr)
         end
     end
 end
@@ -188,15 +193,15 @@ remote_setbusy!(addr) = timed_remotecall_wait(addr -> setbusy!(CPU, addr), worke
 remote_unsetbusy!(addr) = timed_remotecall_wait(addr -> unsetbusy!(CPU, addr), workers()[1], addr)
 remote_unsetbusy!() = timed_remotecall_wait(() -> unsetbusy!(CPU), workers()[1])
 function remote_getcpuinfo()
-    timed_remotecall_fetch(workers()[1]; timeout=1, quiet=true) do
+    timed_remotecall_fetch(workers()[1]; timeout=1) do
         lock(CPU.lock) do
             Dict(
                 :running => CPU.running[],
                 :taskfailed => istaskfailed(CPU.processtask[]),
                 :fast => CPU.fast[],
                 :resourcemanager => CPU.resourcemanager[],
-                :instrs => Dict(ins.addr => ins.name for ins in values(CPU.instrs)),
-                :isconnected => Dict(addr => QInsControlCore.isconnected(instr) for (addr, instr) in CPU.instrs),
+                :instrs => Dict(addr => lock(instr -> instr.name, instrlocked) for (addr, instrlocked) in CPU.instrs),
+                :isconnected => Dict(addr => lock(isconnected, instrlocked) for (addr, instrlocked) in CPU.instrs),
                 :controllers => CPU.controllers,
                 :taskhandlers => CPU.taskhandlers,
                 :taskbusy => CPU.taskbusy,
@@ -210,7 +215,7 @@ end
 remote_setport!(port) = timed_remotecall_wait(port -> QICSERVER.port = port, workers()[1], port)
 remote_setmaxclients!(maxclients) = timed_remotecall_wait(maxclients -> QICSERVER.maxclients = maxclients, workers()[1], maxclients)
 remote_setbuflen!(buflen) = timed_remotecall_wait(buflen -> QICSERVER.buflen = buflen, workers()[1], buflen)
-remote_startserver!(buflen=4) = timed_remotecall_wait(() -> start!(QICSERVER; buflen=buflen), workers()[1])
+remote_startserver!(buflen=4, attrlist=Dict()) = timed_remotecall_wait(() -> start!(QICSERVER; buflen, attrlist), workers()[1])
 remote_stopserver!() = timed_remotecall_wait(() -> stop!(QICSERVER), workers()[1])
 remote_servermode!(mode) = timed_remotecall_wait(mode -> QICSERVER.fast = mode, workers()[1], mode)
 function remote_deleteclient!(addr, port)
@@ -224,72 +229,49 @@ function remote_deleteclient!(addr, port)
     end
 end
 remote_servernewmsg!(hasnew) = timed_remotecall_wait(hasnew -> QICSERVER.newmsg = hasnew, workers()[1], hasnew)
-remote_fetchserver() = timed_remotecall_fetch(() -> QICSERVER, workers()[1]; timeout=1, quiet=true)
+remote_fetchserver() = timed_remotecall_fetch(() -> QICSERVER, workers()[1]; timeout=1)
 
 ###### Instrument Attribute ######
-let
-    spattrs::Dict{String,SerialInstrAttr} = Dict()
-    tcpipattrs::Dict{String,TCPSocketInstrAttr} = Dict()
-    virtualattrs::Dict{String,VirtualInstrAttr} = Dict("VirtualAddress" => VirtualInstrAttr())
-    visaattrs::Dict{String,VISAInstrAttr} = Dict()
-    global function getattr(addr)
-        return if occursin("SERIAL", addr)
-            haskey(spattrs, addr) || (spattrs[addr] = SerialInstrAttr())
-            spattrs[addr]
-        elseif occursin("TCPSOCKET", addr)
-            haskey(tcpipattrs, addr) || (tcpipattrs[addr] = TCPSocketInstrAttr())
-            tcpipattrs[addr]
-        elseif occursin("VIRTUAL", split(addr, "::")[1])
-            haskey(virtualattrs, addr) || (virtualattrs[addr] = VirtualInstrAttr())
-            virtualattrs[addr]
-        else
-            haskey(visaattrs, addr) || (visaattrs[addr] = VISAInstrAttr())
-            visaattrs[addr]
-        end
+function getattr(addr::String, attrlist=Dict(); delete=true)
+    if myid() == 1
+        attr = timed_remotecall_fetch(() -> getattr_local(addr, attrlist; delete), workers()[1])
+        return isnothing(attr) ? getattr_local(addr, attrlist; delete) : attr
+    else
+        return getattr_local(addr, attrlist; delete)
     end
-
-    global function loadattr(attrlist, addr)
+end
+function getattr_local(addr::String, attrlist=Dict(); delete=true)
+    lock(CPU.lock) do
+        haskey(CPU.instrs, addr) && return lockinstr(instr -> instr.attr, CPU, addr)
         if haskey(attrlist, addr)
             attr = attrfromdict(attrlist[addr])
-            attr isa SerialInstrAttr && (spattrs[addr] = attr)
-            attr isa TCPSocketInstrAttr && (tcpipattrs[addr] = attr)
-            attr isa VirtualInstrAttr && (virtualattrs[addr] = attr)
-            attr isa VISAInstrAttr && (visaattrs[addr] = attr)
+            isnothing(attr) || return attr
         end
-    end
-
-    global syncattr(addr) = remotecall_wait(attr -> copyattr!(attr, getattr(addr)), workers()[1], getattr(addr))
-
-    function attrfromdict(attrdict)
-        type = Symbol(attrdict["attrtype"]) |> eval
-        attr = type()
-        for (key, val) in attrdict
-            key == "attrtype" && continue
-            fdnm, ftype = split(key, "::")
-            if hasfield(type, Symbol(fdnm))
-                if ftype in ["Number", "String"]
-                    setproperty!(attr, Symbol(fdnm), val)
-                elseif ftype == "Char"
-                    setproperty!(attr, Symbol(fdnm), val[1])
-                elseif ftype == "Any"
-                    setproperty!(attr, Symbol(fdnm), eval(Meta.parse(val)))
-                end
-            end
-        end
+        instrlocked = instrument("", addr)
+        attr = lock(instr -> instr.attr, instrlocked)
+        delete && delete_instr(addr)
         return attr
     end
 end
-
+function syncattr(attr, addr)
+    timed_remotecall_wait(workers()[1], attr) do attr
+        if haskey(CPU.instrs, addr)
+            lockinstr(CPU, addr) do instr
+                deepcopy!(instr.attr, attr)
+            end
+        end
+    end
+end
 ###### Remote Communication ######
 
-function remote_write(instrnm, addr, cmd, buflen)
+function remote_write(instrnm, addr, cmd, buflen; attrlist=Dict())
+    attr = getattr(addr, attrlist)
     timed_remotecall_wait(
-        workers()[1], instrnm, addr, cmd, buflen; timeout=getattr(addr).timeoutw
+        workers()[1], instrnm, addr, cmd, buflen; timeout=attr.timeoutw
     ) do instrnm, addr, cmd, buflen
         ct = Controller(instrnm, addr; buflen=buflen)
         try
-            attr = getattr(addr)
-            login!(CPU, ct; attr=attr)
+            login!(CPU, ct; attrlist)
             ct(write, CPU, cmd, Val(:write); timeout=attr.timeoutw)
         catch e
             @error(
@@ -305,15 +287,14 @@ function remote_write(instrnm, addr, cmd, buflen)
     end
 end
 
-function remote_query(instrnm, addr, cmd, buflen)
-    attr = getattr(addr)
+function remote_query(instrnm, addr, cmd, buflen; attrlist=Dict())
+    attr = getattr(addr, attrlist)
     timed_remotecall_fetch(
         workers()[1], instrnm, addr, cmd, buflen; timeout=attr.timeoutw + attr.timeoutr
     ) do instrnm, addr, cmd, buflen
         ct = Controller(instrnm, addr; buflen=buflen)
         try
-            attr = getattr(addr)
-            login!(CPU, ct; attr=attr)
+            login!(CPU, ct; attrlist)
             ct(query, CPU, cmd, Val(:query); timeout=attr.timeoutw + attr.timeoutr)
         catch e
             @error(
@@ -329,12 +310,12 @@ function remote_query(instrnm, addr, cmd, buflen)
     end
 end
 
-function remote_read(instrnm, addr, buflen)
-    timed_remotecall_fetch(workers()[1], instrnm, addr, buflen; timeout=getattr(addr).timeoutr) do instrnm, addr, buflen
+function remote_read(instrnm, addr, buflen; attrlist=Dict())
+    attr = getattr(addr, attrlist)
+    timed_remotecall_fetch(workers()[1], instrnm, addr, buflen; timeout=attr.timeoutr) do instrnm, addr, buflen
         ct = Controller(instrnm, addr; buflen=buflen)
         try
-            attr = getattr(addr)
-            login!(CPU, ct; attr=attr)
+            login!(CPU, ct; attrlist)
             ct(read, CPU, Val(:read); timeout=attr.timeoutr)
         catch e
             @error(
@@ -350,14 +331,14 @@ function remote_read(instrnm, addr, buflen)
     end
 end
 
-function remote_qtread(instrnm, addr, qtnm, buflen, timeout)
+function remote_qtread(instrnm, addr, qtnm, buflen, timeout; attrlist=Dict())
     timed_remotecall_fetch(
         workers()[1], instrnm, addr, qtnm, buflen, timeout; timeout=timeout
     ) do instrnm, addr, qtnm, buflen, timeout
         ct = Controller(instrnm, addr; buflen=buflen)
         try
             getfunc = Symbol(instrnm, :_, qtnm, :_get) |> eval
-            login!(CPU, ct; attr=getattr(addr))
+            login!(CPU, ct; attrlist)
             ct(getfunc, CPU, Val(:read); timeout=timeout)
         catch e
             @error(
@@ -373,7 +354,7 @@ function remote_qtread(instrnm, addr, qtnm, buflen, timeout)
     end
 end
 
-function remote_qtset(instrnm, addr, qtnm, sv, buflen, timeoutw, timeoutr; retreading=false)
+function remote_qtset(instrnm, addr, qtnm, sv, buflen, timeoutw, timeoutr; retreading=false, attrlist=Dict())
     timed_remotecall_fetch(
         workers()[1], instrnm, addr, qtnm, sv, buflen, timeoutw, timeoutr; timeout=timeoutw + timeoutr
     ) do instrnm, addr, qtnm, sv, buflen, timeoutw, timeoutr
@@ -381,7 +362,7 @@ function remote_qtset(instrnm, addr, qtnm, sv, buflen, timeoutw, timeoutr; retre
         try
             setfunc = Symbol(instrnm, :_, qtnm, :_set) |> eval
             getfunc = Symbol(instrnm, :_, qtnm, :_get) |> eval
-            login!(CPU, ct; attr=getattr(addr))
+            login!(CPU, ct; attrlist)
             ct(setfunc, CPU, sv, Val(:write); timeout=timeoutw)
             if retreading
                 ct(CPU, Val(:read); timeout=timeoutr) do instr
@@ -406,17 +387,16 @@ function remote_qtset(instrnm, addr, qtnm, sv, buflen, timeoutw, timeoutr; retre
 end
 
 function remote_qtsweep(
-    instrnm, addr, qtnm, sweeplist, buflen, timeoutw, timeoutr, delay,
-    issweeping::Ref{Bool}, presenti::Ref{Int}, elapsedtime::Ref{Float64}, read::Ref{String};
-    channelsize=512, packsize=6, retreading=false
+    instrnm, addr, qtnm, sweeplist, buflen, timeoutw, timeoutr, delay, qt;
+    channelsize=512, packsize=6, retreading=false, attrlist=Dict()
 )
-    issweeping[] = true
+    qt.issweeping = true
+    qt.presenti = 0
+    qt.elapsedtime = 0.0
     sweep_c = Channel{Vector{String}}(channelsize)
     sweep_rc = RemoteChannel(() -> sweep_c)
     idxbuf = SharedVector{Int}(1)
     timebuf = SharedVector{Float64}(1)
-    presenti[] = 0
-    elapsedtime[] = 0
     sweepcalltask = @async @trycatch "remote sweeping task failed!!!" remotecall_wait(
         workers()[1], instrnm, addr, sweeplist, sweep_rc, qtnm, delay, idxbuf, timebuf
     ) do instrnm, addr, sweeplist, sweep_rc, qtnm, delay, idxbuf, timebuf
@@ -428,7 +408,7 @@ function remote_qtsweep(
             SWEEPCTS[instrnm][addr][qtnm] = (Ref(true), Controller(instrnm, addr; buflen=buflen))
         end
         sweep_lc = Channel{String}(channelsize)
-        login!(CPU, SWEEPCTS[instrnm][addr][qtnm][2]; quiet=false, attr=getattr(addr))
+        login!(CPU, SWEEPCTS[instrnm][addr][qtnm][2]; quiet=false, attrlist)
         try
             setfunc = Symbol(instrnm, :_, qtnm, :_set) |> eval
             getfunc = Symbol(instrnm, :_, qtnm, :_get) |> eval
@@ -464,26 +444,24 @@ function remote_qtsweep(
     end
     ## local
     while !istaskdone(sweepcalltask) || isready(sweep_rc)
-        issweeping[] || timed_remotecall_wait(workers()[1], instrnm, addr, qtnm) do instrnm, addr, qtnm
+        qt.issweeping || timed_remotecall_wait(workers()[1], instrnm, addr, qtnm) do instrnm, addr, qtnm
             SWEEPCTS[instrnm][addr][qtnm][1][] = false
         end
         isready(sweep_rc) ? for val in take!(sweep_rc)
-            read[] = val
-            presenti[] = idxbuf[1]
-            elapsedtime[] = timebuf[1]
+            qt.read = val
+            qt.presenti = idxbuf[1]
+            qt.elapsedtime = timebuf[1]
         end : sleep(delay / 2)
     end
-    issweeping[] = false
+    qt.issweeping = false
 end
 
-idn_get(instr) = eval(Symbol(instr.attr.idnfunc))(instr)
-
-function remote_idn_get(addr)
-    timed_remotecall_fetch(workers()[1], addr; timeout=getattr(addr).timeoutr) do addr
+function remote_idn_get(addr; attrlist=Dict())
+    attr = getattr(addr, attrlist)
+    timed_remotecall_fetch(workers()[1], addr; timeout=attr.timeoutr) do addr
         ct = Controller("", addr; buflen=1)
         try
-            attr = getattr(addr)
-            login!(CPU, ct; attr=attr)
+            login!(CPU, ct; attrlist)
             return ct(idn_get, CPU, Val(:read); timeout=attr.timeoutr)
         catch e
             @error(
@@ -503,13 +481,13 @@ end
 putinput!(instrnm, addr, qtnm, timeoutr) = put!(REFRESHINRC, (instrnm, addr, qtnm, timeoutr))
 takeoutput!() = take!(REFRESHOUTRC)
 isoutputready() = isready(REFRESHOUTRC)
-function remote_startrefresh(buflen=4)
+function remote_startrefresh(buflen=4; attrlist=Dict())
     remote_do(
         workers()[1], REFRESHINRC, REFRESHOUTRC, SYNCSTATES, buflen
     ) do REFRESHINRC, REFRESHOUTRC, SYNCSTATES, buflen
         SYNCSTATES[IsRefreshing] = true
         REFRESHTASK[] = errormonitor(
-            Threads.@spawn while SYNCSTATES[IsRefreshing]
+            @spawn_record "remote instrument autorefresh task" while SYNCSTATES[IsRefreshing]
                 if isready(REFRESHINRC)
                     instrnm, addr, qtnm, timeoutr = take!(REFRESHINRC)
                     haskey(REFRESHCTS, instrnm) || (REFRESHCTS[instrnm] = Dict())
@@ -519,7 +497,7 @@ function remote_startrefresh(buflen=4)
                     ct = REFRESHCTS[instrnm][addr]
                     try
                         getfunc = Symbol(instrnm, :_, qtnm, :_get) |> eval
-                        login!(CPU, ct; attr=getattr(addr))
+                        login!(CPU, ct; attrlist)
                         read = ct(getfunc, CPU, Val(:read); timeout=timeoutr)
                         put!(REFRESHOUTRC, (instrnm, addr, qtnm, read))
                     catch e
@@ -567,18 +545,18 @@ function remote_continue()
     end
 end
 
-function remote_check_instr(instrnm, addr, buflen, retryconnecttimes, retrysendtimes)
+function remote_check_instr(instrnm, addr, buflen, retryconnecttimes, retrysendtimes; attrlist=Dict())
+    attr = getattr(addr, attrlist)
     timed_remotecall_fetch(
-        workers()[1], instrnm, addr, buflen, retryconnecttimes, retrysendtimes; timeout=getattr(addr).timeoutr
+        workers()[1], instrnm, addr, buflen, retryconnecttimes, retrysendtimes; timeout=attr.timeoutr
     ) do instrnm, addr, buflen, retryconnecttimes, retrysendtimes
-        attr = getattr(addr)
         ct = Controller(
             instrnm, addr;
             buflen=buflen,
             busytimeout=attr.timeoutr * retryconnecttimes * retrysendtimes
         )
         try
-            login!(CPU, ct; attr=attr)
+            login!(CPU, ct; attrlist)
             ct(idn_get, CPU, Val(:read); timeout=attr.timeoutr)
             return ct, true
         catch e

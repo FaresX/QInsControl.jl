@@ -4,7 +4,7 @@
     addr::String = mlstr("Address")
 end
 global INSTRALIASLIST::OrderedDict{String,InstrAlias} = Dict(
-    "Virtual" => InstrAlias(alias="Virtual", instrnm="VirtualInstr", addr="VirtualAddress")
+    "Virtual" => InstrAlias(alias="Virtual", instrnm="VirtualInstr", addr="VIRTUAL::ADDRESS")
 )
 let
     hold::Bool = false

@@ -1,6 +1,7 @@
 let
     DATABUFranges = Dict{String,Tuple{Ref{Cint},Ref{Cint}}}()
     DATABUFPARSEDranges = Dict{String,Tuple{Ref{Cint},Ref{Cint}}}()
+    taskfilter = Dict{String,Bool}("Done" => false, "Failed" => false, "Running" => true)
     GlfwOpenGLBackend = Base.get_extension(CImGui, :GlfwOpenGLBackend)
     MakieIntegration = Base.get_extension(CImGui, :MakieIntegration)
     global function Debugger(p_open::Ref{Bool})
@@ -51,6 +52,51 @@ let
                             CImGui.PushID(Int(state))
                             @c(CImGui.Checkbox(stcstr("##state"), &statevalue)) && (STATES[state] = statevalue)
                             CImGui.PopID()
+                        end
+                        CImGui.EndTable()
+                    end
+                    CImGui.TreePop()
+                end
+
+                if CImGui.TreeNode("Tasks")
+                    for status in ("Done", "Failed", "Running")
+                        showstatus = taskfilter[status]
+                        @c(CImGui.Checkbox(status, &showstatus)) && (taskfilter[status] = showstatus)
+                        status != "Running" && CImGui.SameLine()
+                    end
+                    if CImGui.BeginTable("Tasks", 2, CImGui.ImGuiTableFlags_Borders | CImGui.ImGuiTableFlags_Resizable)
+                        CImGui.TableSetupColumn("Task")
+                        CImGui.TableSetupColumn("Status")
+                        CImGui.TableHeadersRow()
+                        for (name, task) in RECORDTASKS
+                            status = istaskfailed(task) ? "Failed" : istaskdone(task) ? "Done" : "Running"
+                            taskfilter[status] || continue
+                            CImGui.TableNextRow()
+
+                            CImGui.TableSetColumnIndex(0)
+                            CImGui.Text(name)
+                            CImGui.TableSetColumnIndex(1)
+                            CImGui.Text(status)
+                        end
+                        if nprocs() > 1
+                            recordtasks_info = timed_remotecall_fetch(workers()[1]) do
+                                recordtasks_info = Tuple{String,String}[]
+                                for (name, task) in RECORDTASKS
+                                    status = istaskfailed(task) ? "Failed" : istaskdone(task) ? "Done" : "Running"
+                                    push!(recordtasks_info, (name, status))
+                                end
+                                recordtasks_info
+                            end
+                            if !isnothing(recordtasks_info)
+                                for (name, status) in recordtasks_info
+                                    taskfilter[status] || continue
+                                    CImGui.TableNextRow()
+                                    CImGui.TableSetColumnIndex(0)
+                                    CImGui.Text(string(name, " on worker ", workers()[1]))
+                                    CImGui.TableSetColumnIndex(1)
+                                    CImGui.Text(status)
+                                end
+                            end
                         end
                         CImGui.EndTable()
                     end

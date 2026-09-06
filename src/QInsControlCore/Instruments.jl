@@ -54,6 +54,21 @@ end
     clearbuffer::Bool = true
 end
 
+@kwdef mutable struct ISOBUSInstrAttr{T<:InstrAttr} <: InstrAttr
+    attr::T = T()
+end
+
+@kwdef mutable struct QICInstrAttr{T<:InstrAttr} <: InstrAttr
+    attr::T = T()
+end
+
+function Base.getproperty(attr::Union{ISOBUSInstrAttr,QICInstrAttr}, name::Symbol)
+    return name == :attr ? getfield(attr, :attr) : getproperty(getfield(attr, :attr), name)
+end
+function Base.setproperty!(attr::Union{ISOBUSInstrAttr,QICInstrAttr}, name::Symbol, value)
+    return name == :attr ? setfield!(attr, :attr, value) : setfield!(attr.attr, name, value)
+end
+
 struct VISAInstr <: Instrument
     name::String
     addr::String
@@ -62,6 +77,7 @@ struct VISAInstr <: Instrument
     attr::VISAInstrAttr
 end
 
+"""SERIAL::port"""
 struct SerialInstr <: Instrument
     name::String
     addr::String
@@ -74,110 +90,74 @@ end
 mutable struct TCPSocketInstr <: Instrument
     name::String
     addr::String
-    ip::IPv4
+    ip::Union{IPv4, IPv6}
     port::Int
     handle::TCPSocket
     connected::Ref{Bool}
     attr::TCPSocketInstrAttr
 end
 
+"""VIRTUAL::INFO"""
 @kwdef struct VirtualInstr <: Instrument
     name::String = "VirtualInstr"
-    addr::String = "VirtualAddress"
+    addr::String = "VIRTUAL::ADDRESS"
     handle::Ref{Any} = nothing
     connected::Ref{Bool} = false
     attr::VirtualInstrAttr = VirtualInstrAttr()
 end
 
-@kwdef mutable struct ISOBUSInstr{T<:Instrument} <: Instrument
+"""rootaddr::ISOBUS::subaddr"""
+mutable struct ISOBUSInstr{T<:Instrument} <: Instrument
     name::String
     addr::String
     rootaddr::String
     subaddr::Int
-    handle::T
+    handle::Lockable{T,ReentrantLock}
     connected::Ref{Bool}
-    attr::InstrAttr
+    attr::ISOBUSInstrAttr
 end
 
-@kwdef mutable struct QICInstr{T<:Instrument} <: Instrument
+"""rootaddr::QIC::subaddr"""
+mutable struct QICInstr{T<:Instrument} <: Instrument
     name::String
     addr::String
     rootaddr::String
     subaddr::String
-    handle::T
+    handle::Lockable{T,ReentrantLock}
     connected::Ref{Bool}
-    attr::InstrAttr
+    attr::QICInstrAttr
 end
 
-const PROXYSTATES = Dict{String,Bool}()
-const PROXYTIMEOUT = 6
-macro proxy(instr, ex)
-    esc(
-        quote
-            isok = timedwhile(PROXYTIMEOUT) do
-                avail = PROXYSTATES[$instr.rootaddr]
-                avail && (PROXYSTATES[$instr.rootaddr] = false)
-                return avail
-            end
-            if isok
-                result = try
-                    $ex
-                catch e
-                    rethrow(e)
-                finally
-                    PROXYSTATES[$instr.rootaddr] = true
-                end
-                return result
-            else
-                error(string($instr.addr, " timeout"))
-            end
-        end
-    )
-end
-
+const ROOTHANDLES = Dict{String,Lockable}()
+const INSTRUMENTS = Dict{String,Lockable}()
 """
-    instrument(name, addr)
+    instrument(addr)
 
-generate an instrument with (name, addr) which automatically determines the type of this instrument.
+generate an instrument with addr which automatically determines the type of this instrument.
 """
-function instrument(name, addr; attr=VirtualInstrAttr())
-    if occursin("QIC", addr)
-        try
+function instrument(name, addr)
+    try
+        if occursin("QIC", addr)
             strs = split(addr, "::QIC::")
             rootaddr = strs[1]
             subaddr = length(strs) == 2 ? strs[2] : join(strs[2:end], "::QIC::")
-            instr = instrument(name, rootaddr; attr=attr)
-            return QICInstr{typeof(instr)}(name, addr, rootaddr, subaddr, instr, false, instr.attr)
-        catch e
-            @error "address $addr is not valid" exception = e
-            setattr = isnothing(attr) || !isa(attr, VISAInstrAttr) ? VISAInstrAttr() : attr
-            return VISAInstr(name, addr, GenericInstrument(), false, setattr)
-        end
-    elseif occursin("ISOBUS", addr)
-        try
+            handlelocked = get!(ROOTHANDLES, rootaddr, instrument(name, rootaddr))
+            handle = @lock handlelocked handlelocked[]
+            attr = QICInstrAttr(handle.attr)
+            get!(INSTRUMENTS, addr, Lockable(QICInstr{typeof(handle)}(name, addr, rootaddr, subaddr, handlelocked, false, attr)))
+        elseif occursin("ISOBUS", addr)
             strs = split(addr, "::ISOBUS::")
             rootaddr = strs[1]
             subaddr = parse(Int, strs[2])
-            instr = instrument(name, rootaddr; attr=attr)
-            get!(PROXYSTATES, rootaddr, true)
-            return ISOBUSInstr{typeof(instr)}(name, addr, rootaddr, subaddr, instr, false, instr.attr)
-        catch e
-            @error "address $addr is not valid" exception = e
-            setattr = isnothing(attr) || !isa(attr, VISAInstrAttr) ? VISAInstrAttr() : attr
-            return VISAInstr(name, addr, GenericInstrument(), false, setattr)
-        end
-    elseif occursin("SERIAL", addr)
-        try
+            handlelocked = get!(ROOTHANDLES, rootaddr, instrument(name, rootaddr))
+            handle = @lock handlelocked handlelocked[]
+            attr = ISOBUSInstrAttr(handle.attr)
+            get!(INSTRUMENTS, addr, Lockable(ISOBUSInstr{typeof(handle)}(name, addr, rootaddr, subaddr, handlelocked, false, attr)))
+        elseif occursin("SERIAL", addr)
             _, portstr = split(addr, "::")
-            setattr = isnothing(attr) || !isa(attr, SerialInstrAttr) ? SerialInstrAttr() : attr
-            return SerialInstr(name, addr, portstr, SerialPort(portstr), false, setattr)
-        catch e
-            @error "address $addr is not valid" execption = e
-            setattr = isnothing(attr) || !isa(attr, VISAInstrAttr) ? VISAInstrAttr() : attr
-            return VISAInstr(name, addr, GenericInstrument(), false, setattr)
-        end
-    elseif occursin("TCPSOCKET", addr)
-        try
+            attr = SerialInstrAttr()
+            get!(INSTRUMENTS, addr, Lockable(SerialInstr(name, addr, portstr, SerialPort(portstr), false, attr)))
+        elseif occursin("TCPSOCKET", addr)
             _, ipstr, portstr = split(addr, "::")
             port = parse(Int, portstr)
             ip = try
@@ -188,28 +168,86 @@ function instrument(name, addr; attr=VirtualInstrAttr())
                 IPv6(ipstr)
             catch
             end)
-            return if isnothing(ip)
-                setattr = isnothing(attr) || !isa(attr, VISAInstrAttr) ? VISAInstrAttr() : attr
-                VISAInstr(name, addr, GenericInstrument(), false, setattr)
-            else
-                setattr = isnothing(attr) || !isa(attr, TCPSocketInstrAttr) ? TCPSocketInstrAttr() : attr
-                TCPSocketInstr(name, addr, ip, port, TCPSocket(), false, setattr)
-            end
-        catch e
-            @error "address $addr is not valid" execption = e
-            setattr = isnothing(attr) || !isa(attr, VISAInstrAttr) ? VISAInstrAttr() : attr
-            return VISAInstr(name, addr, GenericInstrument(), false, setattr)
+            @assert !isnothing(ip) "ip $ipstr is not valid"
+            attr = TCPSocketInstrAttr()
+            get!(INSTRUMENTS, addr, Lockable(TCPSocketInstr(name, addr, ip, port, TCPSocket(), false, attr)))
+        elseif occursin("VIRTUAL", split(addr, "::")[1])
+            attr = VirtualInstrAttr()
+            get!(INSTRUMENTS, addr, Lockable(VirtualInstr(name=name, addr=addr, attr=attr)))
+        else
+            attr = VISAInstrAttr()
+            get!(INSTRUMENTS, addr, Lockable(VISAInstr(name, addr, GenericInstrument(), false, attr)))
         end
-    elseif name == "VirtualInstr"
-        return VirtualInstr()
-    elseif occursin("VIRTUAL", split(addr, "::")[1])
-        setattr = isnothing(attr) || !isa(attr, VirtualInstrAttr) ? VirtualInstrAttr() : attr
-        return VirtualInstr(name=split(addr, "::")[end], addr=addr, attr=setattr)
-    else
-        setattr = isnothing(attr) || !isa(attr, VISAInstrAttr) ? VISAInstrAttr() : attr
-        return VISAInstr(name, addr, GenericInstrument(), false, setattr)
+    catch e
+        @error "address $addr is not valid" exception = e
+        showbacktrace()
+        get!(INSTRUMENTS, addr, Lockable(VirtualInstr(name=name, addr=addr)))
     end
 end
+
+function delete_instr(addr)
+    if haskey(INSTRUMENTS, addr)
+        instrlocked = pop!(INSTRUMENTS, addr)
+        lock(instrlocked) do instr
+            disconnect!(instr)
+            if instr isa ISOBUSInstr || instr isa QICInstr
+                hasanother = false
+                for instrlocked in values(INSTRUMENTS)
+                    lock(instrlocked) do ins
+                        hasanother = (ins isa ISOBUSInstr || ins isa QICInstr) && instr.rootaddr == ins.rootaddr
+                    end
+                end
+                hasanother || delete!(ROOTHANDLES, instr.rootaddr)
+            end
+        end
+    end
+end
+
+function attrtodict(attr::Union{ISOBUSInstrAttr,QICInstrAttr})
+    attrdict = Dict{String,Any}("attrtype" => split(split(string(typeof(attr)), '{')[1], '.')[end])
+    attrdict["attr::InstrAttr"] = attrtodict(attr.attr)
+    return attrdict
+end
+function attrtodict(attr)
+    attrdict = Dict{String,Any}("attrtype" => split(string(typeof(attr)), '.')[end])
+    for fdnm in fieldnames(typeof(attr))
+        val = getproperty(attr, fdnm)
+        if val isa Number
+            attrdict[string(fdnm, "::Number")] = val
+        elseif val isa AbstractString
+            attrdict[string(fdnm, "::String")] = string(val)
+        elseif val isa AbstractChar
+            attrdict[string(fdnm, "::Char")] = string(val)
+        else
+            attrdict[string(fdnm, "::Any")] = string(val)
+        end
+    end
+    return attrdict
+end
+
+attrfromdict(attrdict) = haskey(attrdict, "attrtype") ? attrfromdict(eval(Symbol(attrdict["attrtype"])), attrdict) : nothing
+function attrfromdict(type::Union{Type{ISOBUSInstrAttr},Type{QICInstrAttr}}, attrdict)
+    attr = type(attrfromdict(attrdict["attr::InstrAttr"]))
+    return attr
+end
+function attrfromdict(type, attrdict)
+    attr = type()
+    for (key, val) in attrdict
+        key == "attrtype" && continue
+        fdnm, ftype = split(key, "::")
+        if hasfield(type, Symbol(fdnm))
+            if ftype in ["Number", "String"]
+                setproperty!(attr, Symbol(fdnm), val)
+            elseif ftype == "Char"
+                setproperty!(attr, Symbol(fdnm), val[1])
+            elseif ftype == "Any"
+                setproperty!(attr, Symbol(fdnm), eval(Meta.parse(val)))
+            end
+        end
+    end
+    return attr
+end
+# end
 
 """
     connect!(rm, instr)
@@ -257,53 +295,55 @@ function connect!(_, instr::TCPSocketInstr)
     return instr.connected[]
 end
 connect!(_, instr::VirtualInstr) = instr.connected[] = true
-connect!(rm, instr::ISOBUSInstr) = instr.connected[] = connect!(rm, instr.handle)
-connect!(rm, instr::QICInstr) = instr.connected[] = connect!(rm, instr.handle)
+connect!(rm, instr::ISOBUSInstr) = instr.connected[] = @lock instr.handle connect!(rm, instr.handle[])
+connect!(rm, instr::QICInstr) = instr.connected[] = @lock instr.handle connect!(rm, instr.handle[])
 
 """
     disconnect!(instr)
 
 disconnect the instrument.
 """
-function disconnect!(instr::Instrument)
+disconnect!(instr::VISAInstr) = (Instruments.disconnect!(instr.handle); instr.connected[] = instr.handle.connected)
+function disconnect!(instr::Union{SerialInstr,TCPSocketInstr})
     if instr.connected[]
         close(instr.handle)
         instr.connected[] = false
     end
     return instr.connected[]
 end
-disconnect!(instr::VISAInstr) = (Instruments.disconnect!(instr.handle); instr.connected[] = instr.handle.connected)
 disconnect!(instr::VirtualInstr) = instr.connected[] = false
-disconnect!(instr::ISOBUSInstr) = instr.connected[] = disconnect!(instr.handle)
-disconnect!(instr::QICInstr) = instr.connected[] = disconnect!(instr.handle)
+disconnect!(instr::ISOBUSInstr) = instr.connected[] = @lock instr.handle disconnect!(instr.handle[])
+disconnect!(instr::QICInstr) = instr.connected[] = @lock instr.handle disconnect!(instr.handle[])
 
 """
     write(instr, msg)
 
 write some message string to the instrument.
 """
-Base.write(instr::Instrument, msg::AbstractString) = write(instr.handle, string(msg, instr.attr.termchar))
 Base.write(instr::VISAInstr, msg::AbstractString) = (instr.attr.async ? writeasync : Instruments.write)(instr.handle, string(msg, instr.attr.termchar))
+Base.write(instr::Union{SerialInstr,TCPSocketInstr}, msg::AbstractString) = write(instr.handle, string(msg, instr.attr.termchar))
 Base.write(::VirtualInstr, ::AbstractString) = nothing
-Base.write(instr::ISOBUSInstr, msg::AbstractString) = @proxy instr write(instr.handle, string("@", instr.subaddr, msg))
-Base.write(instr::QICInstr, msg::AbstractString) = write(instr.handle, string(instr.subaddr, ":Q:", msg, ":Q:W"))
+Base.write(instr::ISOBUSInstr, msg::AbstractString) = @lock instr.handle write(instr.handle[], string("@", instr.subaddr, msg))
+Base.write(instr::QICInstr, msg::AbstractString) = @lock instr.handle write(instr.handle[], string(instr.subaddr, ":Q:", msg, ":Q:W"))
 
 """
     read(instr)
 
 read the instrument.
 """
-function Base.read(instr::Instrument)
+Base.read(instr::VISAInstr) = (instr.attr.async ? readasync : Instruments.read)(instr.handle)
+function Base.read(instr::Union{SerialInstr,TCPSocketInstr})
     t = @async readuntil(instr.handle, instr.attr.termchar)
     timedwhilefetch(t, instr.attr.timeoutr; msg="read $(instr.addr) timeout", throwerror=true)
 end
-Base.read(instr::VISAInstr) = (instr.attr.async ? readasync : Instruments.read)(instr.handle)
 Base.read(::VirtualInstr) = "read"
-Base.read(instr::ISOBUSInstr) = @proxy instr read(instr.handle)
+Base.read(instr::ISOBUSInstr) = @lock instr.handle read(instr.handle[])
 function Base.read(instr::QICInstr)
-    write(instr.handle, string(instr.subaddr, ":Q::Q:R"))
-    yield()
-    read(instr.handle)
+    lock(instr.handle) do handle
+        write(handle, string(instr.subaddr, ":Q::Q:R"))
+        yield()
+        read(handle)
+    end
 end
 
 """
@@ -311,28 +351,30 @@ end
 
 query the instrument with some message string.
 """
-function _query_(instr::Instrument, msg::AbstractString; delay=0)
+function _query_(instr::Instrument, msg::AbstractString)
     write(instr, msg)
-    sleep(delay)
+    sleep(instr.attr.querydelay)
     read(instr)
 end
-function query(instr::VISAInstr, msg::AbstractString; delay=instr.attr.querydelay)
-    instr.attr.async ? queryasync(instr.handle, msg; delay=delay) : _query_(instr, msg; delay=delay)
+function query(instr::VISAInstr, msg::AbstractString)
+    instr.attr.async ? queryasync(instr.handle, msg; delay=instr.attr.querydelay) : _query_(instr, msg)
 end
-query(instr::SerialInstr, msg::AbstractString; delay=instr.attr.querydelay) = _query_(instr, msg; delay=delay)
-query(instr::TCPSocketInstr, msg::AbstractString; delay=instr.attr.querydelay) = _query_(instr, msg; delay=delay)
-query(::VirtualInstr, ::AbstractString; delay=0) = "query"
-function query(instr::ISOBUSInstr, msg::AbstractString; delay=0)
-    @proxy instr begin
-        write(instr.handle, string("@", instr.subaddr, msg))
-        sleep(delay)
-        read(instr.handle)
+query(instr::SerialInstr, msg::AbstractString) = _query_(instr, msg)
+query(instr::TCPSocketInstr, msg::AbstractString) = _query_(instr, msg)
+query(::VirtualInstr, ::AbstractString) = "query"
+function query(instr::ISOBUSInstr, msg::AbstractString)
+    lock(instr.handle) do handle
+        write(handle, string("@", instr.subaddr, msg))
+        sleep(instr.attr.querydelay)
+        read(handle)
     end
 end
-function query(instr::QICInstr, msg::AbstractString; delay=0)
-    write(instr.handle, string(instr.subaddr, ":Q:", msg, ":Q:Q$delay"))
-    sleep(delay)
-    read(instr.handle)
+function query(instr::QICInstr, msg::AbstractString)
+    lock(instr.handle) do handle
+        write(handle, string(instr.subaddr, ":Q:", msg, ":Q:Q"))
+        sleep(instr.attr.querydelay)
+        read(handle)
+    end
 end
 
 """
@@ -340,7 +382,7 @@ end
 
 determine if the instrument is connected.
 """
-isconnected(instr::Instrument) = instr.connected[]
+isconnected(instr) = instr.connected[]
 
 function clearbuffer(instr::Instrument)
     for _ in 1:6
@@ -355,7 +397,7 @@ end
 function clearbuffer(instr::QICInstr)
     for _ in 1:6
         try
-            read(instr.handle)
+            @lock instr.handle read(instr.handle[])
         catch
             break
         end
@@ -364,3 +406,5 @@ function clearbuffer(instr::QICInstr)
 end
 
 idn(instr) = query(instr, "*IDN?")
+
+idn_get(instr) = eval(Symbol(instr.attr.idnfunc))(instr)

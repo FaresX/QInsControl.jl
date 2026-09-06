@@ -427,7 +427,7 @@ let
             global WORKPATH
             if ispath(WORKPATH)
                 saveproject(projpath)
-                @async @trycatch mlstr("runing daq tasks failed!!!") begin
+                @async_record "run daq tasks" @trycatch mlstr("runing daq tasks failed!!!") begin
                     for (i, task) in enumerate(daqtasks)
                         torunstates[i] || continue
                         running_i = i

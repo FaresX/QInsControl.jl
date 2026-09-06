@@ -10,8 +10,14 @@ macro trycatch(msg, ex)
         end
     )
 end
-showbacktrace() = (Base.show_backtrace(LOGIO, catch_backtrace()); println(LOGIO, "\n\r"))
-# showbacktrace() = Base.show_backtrace(stdout, catch_backtrace())
+function showbacktrace()
+    if DEBUG
+        Base.show_backtrace(stdout, catch_backtrace())
+    else
+        Base.show_backtrace(LOGIO, catch_backtrace())
+        println(LOGIO, "\n\r")
+    end
+end
 
 function timedwhile(f::Function, timeout::Real)
     t = time()
@@ -59,15 +65,15 @@ function timedwaitwait(t::Task, timeout::Real; msg="force to stop", pollint=0.00
         return nothing
     end
 end
-function timed_remotecall_fetch(f, pid, args...; timeout=2, pollint=0.001, quiet=false, kwargs...)
+function timed_remotecall_fetch(f, pid, args...; timeout=2, pollint=0.001, quiet=true, kwargs...)
     future = remotecall(f, pid, args...; kwargs...)
     t = quiet ? @async(fetch(future)) : @async @trycatch "fetch task failed!!!" fetch(future)
-    timedwaitfetch(t, timeout; msg="timeout waiting to fetch", pollint=pollint, quiet=quiet)
+    timedwaitfetch(t, timeout; msg="timeout waiting to fetch", pollint, quiet)
 end
-function timed_remotecall_wait(f, pid, args...; timeout=2, pollint=0.001, quiet=false, kwargs...)
+function timed_remotecall_wait(f, pid, args...; timeout=2, pollint=0.001, quiet=true, kwargs...)
     future = remotecall(f, pid, args...; kwargs...)
     t = quiet ? @async(wait(future)) : @async @trycatch "wait task failed!!!" wait(future)
-    timedwaitwait(t, timeout; msg="timeout waiting to wait", pollint=pollint, quiet=quiet)
+    timedwaitwait(t, timeout; msg="timeout waiting to wait", pollint, quiet)
 end
 
 function copyattr!(attr1, attr2)
@@ -347,4 +353,14 @@ function gensweeplist(start, step, stop; equalstep=true)
         sweeplist[end] == stop || push!(sweeplist, stop)
     end
     return sweeplist
+end
+
+function deepcopy!(dst::T, src::T) where T
+    for fdnm in fieldnames(typeof(dst))
+        if isstructtype(getproperty(dst, fdnm))
+            deepcopy!(getproperty(dst, fdnm), getproperty(src, fdnm))
+        else
+            setproperty!(dst, fdnm, getproperty(src, fdnm))
+        end
+    end
 end

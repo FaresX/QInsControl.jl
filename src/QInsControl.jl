@@ -33,8 +33,8 @@ using UUIDs
 include("QInsControlCore/QInsControlCore.jl")
 using .QInsControlCore
 using .QInsControlCore.LibSerialPort
-import .QInsControlCore: VISAInstrAttr, SerialInstrAttr, TCPSocketInstrAttr, VirtualInstrAttr
-import .QInsControlCore: SYNCSTATES, SyncStatesIndex
+import .QInsControlCore: VISAInstrAttr, SerialInstrAttr, TCPSocketInstrAttr, VirtualInstrAttr, ISOBUSInstrAttr, QICInstrAttr
+import .QInsControlCore: SYNCSTATES, SyncStatesIndex, RECORDTASKS
 for item in instances(SyncStatesIndex)
     eval(:(import .QInsControlCore: $(Symbol(item))))
 end
@@ -85,12 +85,13 @@ stop() = GLFW.SetWindowShouldClose(CImGui.current_window(), true)
     get!(ENV, "QInsControlAssets", joinpath(@__DIR__, "../Assets"))
     loadconf(true)
     try
-        UI()
+        uitask = UI()
         sleep(6)
         window = CImGui.current_window()
         GLFW.HideWindow(window)
         sleep(6)
         GLFW.SetWindowShouldClose(window, true)
+        wait(uitask)
         sleep(1)
     catch
     end

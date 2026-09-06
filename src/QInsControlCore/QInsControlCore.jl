@@ -11,8 +11,6 @@ using Sockets
 using Statistics
 using TOML
 using UUIDs
-# import Base: Lockable
-# export Lockable
 
 export VI_ASRL_PAR
 export VI_ASRL_PAR_NONE, VI_ASRL_PAR_ODD, VI_ASRL_PAR_EVEN, VI_ASRL_PAR_MARK, VI_ASRL_PAR_SPACE
@@ -23,13 +21,14 @@ export TERMCHARDICT, TERMCHARDICTINV
 export Controller, Processor
 export login!, logout!, start!, stop!, reconnect!, find_resources, slow!, fast!, isbusy, setbusy!, unsetbusy!
 export instrument, connect!, disconnect!, write, read, query, idn
-export @trycatch, showbacktrace, gensweeplist
-export mlstr, languageinfo, loadlanguage, initialize_qinscontrolcore!
+export @trycatch, showbacktrace, gensweeplist, timed_remotecall_wait, timed_remotecall_fetch, deepcopy!
+export mlstr, languageinfo, loadlanguage, initialize_qinscontrolcore!, @async_record, @spawn_record
 
 export QICClient, QICServer
 
 include("MultiLanguage.jl")
 include("SyncStates.jl")
+include("RecordTask.jl")
 include("Utilities.jl")
 include("VISA.jl")
 include("constants.jl")
@@ -40,6 +39,15 @@ include("Remote.jl")
 
 function initialize_qinscontrolcore!(channelsize=64)
     empty!(MLSTRINGS)
+    empty!(RECORDTASKS)
+    empty!(INSTRUMENTS)
+    empty!(ROOTHANDLES)
+    timed_remotecall_wait(workers()[1]) do
+        empty!(MLSTRINGS)
+        empty!(RECORDTASKS)
+        empty!(INSTRUMENTS)
+        empty!(ROOTHANDLES)
+    end
     global REFRESHINRC = RemoteChannel(() -> Channel{Tuple{String,String,String,Cfloat}}(channelsize))
     global REFRESHOUTRC = RemoteChannel(() -> Channel{Tuple{String,String,String,String}}(channelsize))
     global DATABUFRC = RemoteChannel(() -> Channel{Vector{NTuple{2,String}}}(channelsize))
@@ -47,5 +55,7 @@ function initialize_qinscontrolcore!(channelsize=64)
     global PROGRESSRC = RemoteChannel(() -> Channel{Vector{Tuple{UUID,Int,Int,Float64}}}(channelsize))
     global SYNCSTATES = Lockable(SharedVector{Bool}(length(instances(SyncStatesIndex))))
 end
+
+const DEBUG = true
 
 end # module QInsControlCore

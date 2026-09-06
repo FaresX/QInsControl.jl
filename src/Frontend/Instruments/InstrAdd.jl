@@ -7,11 +7,9 @@ end
 
 function manualadd(addr)
     addr == "" && return false
-    addr == "VirtualAddress" && return true
+    addr == "VIRTUAL::ADDRESS" && return true
     idn = "IDN"
     st = true
-    loadattr(CONF.Communication.attrlist, addr)
-    syncattr(addr)
     if occursin("VIRTUAL", addr)
         idn = split(addr, "::")[end]
     else
@@ -40,18 +38,18 @@ function manualadd(addr)
 end
 
 function refresh_instrlist()
-    if !STATES[Int(AutoDetecting)] && !STATES[Int(AutoDetectDone)]
-        STATES[Int(AutoDetecting)] = true
-        @async begin
+    if !STATES[AutoDetecting] && !STATES[AutoDetectDone]
+        STATES[AutoDetecting] = true
+        @async_record "refresh_instrlist" begin
             try
                 for ins in keys(INSTRBUFFERVIEWERS)
                     ins == "VirtualInstr" && continue
                     empty!(INSTRBUFFERVIEWERS[ins])
                 end
                 autodetect()
-                STATES[Int(AutoDetecting)] && (STATES[Int(AutoDetectDone)] = true)
+                STATES[AutoDetecting] && (STATES[AutoDetectDone] = true)
             catch e
-                STATES[Int(AutoDetecting)] && (STATES[Int(AutoDetectDone)] = true)
+                STATES[AutoDetecting] && (STATES[AutoDetectDone] = true)
                 @error string("[", now(), "]\n", mlstr("auto searching failed!!!")) exception = e
                 showbacktrace()
             end
@@ -61,12 +59,12 @@ function refresh_instrlist()
 end
 
 function poll_autodetect()
-    @async @trycatch mlstr("task failed!!!") begin
+    @async_record "poll_autodetect" @trycatch mlstr("task failed!!!") begin
         starttime = time()
         while true
-            if STATES[Int(AutoDetectDone)] || time() - starttime > 180
-                STATES[Int(AutoDetecting)] = false
-                STATES[Int(AutoDetectDone)] = false
+            if STATES[AutoDetectDone] || time() - starttime > 180
+                STATES[AutoDetecting] = false
+                STATES[AutoDetectDone] = false
                 break
             end
             sleep(0.001)
@@ -82,12 +80,12 @@ let
         @c ComboS("##OthersIns", &addinstr, keys(INSTRBUFFERVIEWERS["Others"]))
         CImGui.SameLine()
         if CImGui.Button(stcstr(MORESTYLE.Icons.NewFile))
-            if !STATES[Int(AutoDetecting)] && !STATES[Int(AutoDetectDone)]
-                STATES[Int(AutoDetecting)] = true
+            if !STATES[AutoDetecting] && !STATES[AutoDetectDone]
+                STATES[AutoDetecting] = true
                 st = manualadd(addinstr)
                 st && (addinstr = "")
                 time_old = time()
-                STATES[Int(AutoDetecting)] = false
+                STATES[AutoDetecting] = false
             end
         end
         return time() - time_old < 2, st
@@ -113,12 +111,12 @@ let
         end
         CImGui.SameLine()
         if CImGui.Button(stcstr(MORESTYLE.Icons.NewFile, "##manual input addr"))
-            if !STATES[Int(AutoDetecting)] && !STATES[Int(AutoDetectDone)]
-                STATES[Int(AutoDetecting)] = true
+            if !STATES[AutoDetecting] && !STATES[AutoDetectDone]
+                STATES[AutoDetecting] = true
                 st = manualadd(newinsaddr)
                 st && (newinsaddr = "")
                 time_old = time()
-                STATES[Int(AutoDetecting)] = false
+                STATES[AutoDetecting] = false
             end
         end
         return time() - time_old < 2, st
