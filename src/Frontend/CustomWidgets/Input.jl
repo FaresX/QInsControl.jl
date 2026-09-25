@@ -1,44 +1,55 @@
 function resize_callback(data_ptr::Ptr{ImGuiInputTextCallbackData})::Cint
     data = unsafe_load(data_ptr)
     if data.EventFlag == ImGuiInputTextFlags_CallbackResize
-        str_pp = Ptr{Ptr{Cchar}}(data.UserData)
-        str_p = unsafe_load(str_pp)
-        str_arr = unsafe_wrap(Array, str_p, data.BufTextLen)
-        resize!(str_arr, data.BufSize)
-        str_arr_p = pointer(str_arr)
-        data_ptr.Buf = str_arr_p
-        unsafe_store!(str_pp, str_arr_p)
+        # UserData 是 Ref{Vector{UInt8}} 的对象指针:缓冲区本体由调用侧 GC.@preserve 保活,
+        # 这里原地 resize! 同一数组(而不是弃引用换新缓冲,旧实现重分配后的内存无人持有,
+        # 回调返回即可能被 GC 回收,ImGui 后续写入成为悬垂写)
+        bufref = unsafe_pointer_to_objref(Ptr{Any}(data.UserData))::Ref{Vector{UInt8}}
+        buf = bufref[]
+        data.BufSize > length(buf) && resize!(buf, data.BufSize)
+        data.BufTextLen + 1 <= length(buf) && (buf[data.BufTextLen+1] = 0) # 维持 C 约定的 NUL 终止
+        data_ptr.Buf = pointer(buf)
     end
     return 0
 end
 let
     resize_callback_c = @cfunction(resize_callback, Cint, (Ptr{ImGuiInputTextCallbackData},))
     push!(init_funcs, () -> resize_callback_c = @cfunction(resize_callback, Cint, (Ptr{ImGuiInputTextCallbackData},)))
+    "字符串 → 自有字节缓冲(含 NUL),长度按字节计:多字节(中文)内容按字符数传 buf_size 会被 ImGui 截断"
+    function str2buf(s::AbstractString)
+        buf = Vector{UInt8}(undef, ncodeunits(s) + 1)
+        copyto!(buf, 1, codeunits(String(s)), 1, ncodeunits(s))
+        buf[end] = 0
+        return buf
+    end
     global function InputTextRSZ(label, str::Ref{String}, flags=0)
-        str_p = pointer(str[])
-        str_p_arr = [str_p]
-        input = GC.@preserve str_p_arr CImGui.InputText(
-            label, str_p, length(str[]), flags | ImGuiInputTextFlags_CallbackResize, resize_callback_c, str_p_arr
+        buf = str2buf(str[])
+        bufref = Ref(buf)
+        input = GC.@preserve buf bufref CImGui.InputText(
+            label, pointer(buf), length(buf), flags | ImGuiInputTextFlags_CallbackResize,
+            resize_callback_c, pointer_from_objref(bufref)
         )
-        input && (str[] = unsafe_string(only(str_p_arr)))
+        input && (str[] = unsafe_string(pointer(buf)))
         return input
     end
     global function InputTextWithHintRSZ(label, hint, str::Ref{String}, flags=0)
-        str_p = pointer(str[])
-        str_p_arr = [str_p]
-        input = GC.@preserve str_p_arr CImGui.InputTextWithHint(
-            label, hint, str_p, length(str[]), flags | ImGuiInputTextFlags_CallbackResize, resize_callback_c, str_p_arr
+        buf = str2buf(str[])
+        bufref = Ref(buf)
+        input = GC.@preserve buf bufref CImGui.InputTextWithHint(
+            label, hint, pointer(buf), length(buf), flags | ImGuiInputTextFlags_CallbackResize,
+            resize_callback_c, pointer_from_objref(bufref)
         )
-        input && (str[] = unsafe_string(only(str_p_arr)))
+        input && (str[] = unsafe_string(pointer(buf)))
         return input
     end
     global function InputTextMultilineRSZ(label, str::Ref{String}, size=(0, 0), flags=0)
-        str_p = pointer(str[])
-        str_p_arr = [str_p]
-        input = GC.@preserve str_p_arr CImGui.InputTextMultiline(
-            label, str_p, length(str[]), size, flags | ImGuiInputTextFlags_CallbackResize, resize_callback_c, str_p_arr
+        buf = str2buf(str[])
+        bufref = Ref(buf)
+        input = GC.@preserve buf bufref CImGui.InputTextMultiline(
+            label, pointer(buf), length(buf), size, flags | ImGuiInputTextFlags_CallbackResize,
+            resize_callback_c, pointer_from_objref(bufref)
         )
-        input && (str[] = unsafe_string(only(str_p_arr)))
+        input && (str[] = unsafe_string(pointer(buf)))
         return input
     end
 end

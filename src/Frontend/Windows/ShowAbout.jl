@@ -49,13 +49,22 @@ let
     end
 
     global function getnewestversion()
-        for _ in 1:6
-            try
-                maxversion = max([VersionNumber(rel.tag_name) for rel in releases("FaresX/QInsControl.jl")[1]]...)
-                STATES[NewVersion] = maxversion > FILEINFO["QInsControl version"]
-                STATES[NewVersion] && (newversion = string(maxversion))
-                break
-            catch
+        #必须后台执行:渲染线程同步跑 GitHub 请求(最多 6 次重试)会把整个 UI 卡死数秒;
+        #结果经 STATES/toast 异步呈现,渲染帧只读标志位
+        @spawn_record "check new version" begin
+            for i in 1:6
+                try
+                    maxversion = max([VersionNumber(rel.tag_name) for rel in releases("FaresX/QInsControl.jl")[1]]...)
+                    STATES[NewVersion] = maxversion > FILEINFO["QInsControl version"]
+                    if STATES[NewVersion]
+                        newversion = string(maxversion)
+                        toast(:info, mlstr("new version available!"), stcstr(maxversion, "  ", mlstr("see About for details")))
+                    end
+                    break
+                catch e
+                    i == 6 && @warn "[$(now())]\nfailed to check new version" exception = e
+                    sleep(1)
+                end
             end
         end
         return nothing

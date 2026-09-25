@@ -36,11 +36,11 @@ let
         CImGui.PushStyleColor(CImGui.ImGuiCol_WindowBg, CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_PopupBg))
         CImGui.PushStyleVar(CImGui.ImGuiStyleVar_WindowRounding, unsafe_load(IMGUISTYLE.PopupRounding))
         isfocus = true
-        if CImGui.Begin(
-            stcstr("Data Selecting##", id),
-            p_open,
-            CImGui.ImGuiWindowFlags_NoTitleBar | CImGui.ImGuiWindowFlags_NoDocking
+        nm = stcstr("Data Selecting##", id)
+        begun, own, popenarg = BeginNoClose(
+            nm, p_open, true, CImGui.ImGuiWindowFlags_NoTitleBar | CImGui.ImGuiWindowFlags_NoDocking
         )
+        if begun
             CImGui.PushStyleColor(CImGui.ImGuiCol_Button, (0, 0, 0, 0))
             CImGui.PushStyleColor(CImGui.ImGuiCol_ButtonHovered, (0, 0, 0, 0))
             CImGui.PushStyleColor(CImGui.ImGuiCol_ButtonActive, (0, 0, 0, 0))
@@ -118,7 +118,7 @@ let
             CImGui.IsAnyItemHovered() || CImGui.OpenPopupOnItemClick("copymenu")
             isfocus &= CImGui.IsWindowFocused(CImGui.ImGuiFocusedFlags_ChildWindows)
         end
-        CImGui.End()
+        EndNoClose(own, p_open, popenarg)
         p_open[] &= (isfocus | dtpk.hold)
         CImGui.PopStyleVar()
         CImGui.PopStyleColor()
@@ -206,7 +206,7 @@ let
         CImGui.Text("function process(x, y, z, w, [auxi]...)")
         edit(dtss.processcodes)
         if CImGui.BeginPopupContextItem()
-            CImGui.MenuItem(mlstr("Clear")) && (dtss.processcodes = "")
+            CImGui.MenuItem(mlstr("Clear")) && (dtss.processcodes.codes = "")
             CImGui.EndPopup()
         end
         CImGui.PopID()
@@ -214,7 +214,7 @@ let
         CImGui.Text("function process!(figure, x, y, z, w)")
         edit(dtss.processfigurecodes)
         if CImGui.BeginPopupContextItem()
-            CImGui.MenuItem(mlstr("Clear")) && (dtss.processfigurecodes = "")
+            CImGui.MenuItem(mlstr("Clear")) && (dtss.processfigurecodes.codes = "")
             CImGui.EndPopup()
         end
         CImGui.PopID()
@@ -223,7 +223,7 @@ let
         CImGui.Text("function plot!(figure, x, y, z, w)")
         edit(dtss.plotcodes)
         if CImGui.BeginPopupContextItem()
-            CImGui.MenuItem(mlstr("Clear")) && (dtss.plotcodes = "")
+            CImGui.MenuItem(mlstr("Clear")) && (dtss.plotcodes = CodeBlock())
             CImGui.EndPopup()
         end
         CImGui.PopID()

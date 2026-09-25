@@ -171,14 +171,35 @@ function ColoredButton(
     colbta=CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_ButtonActive),
     coltxt=CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_Text)
 )
-    CImGui.PushStyleColor(CImGui.ImGuiCol_Button, colbt)
-    CImGui.PushStyleColor(CImGui.ImGuiCol_ButtonHovered, colbth)
-    CImGui.PushStyleColor(CImGui.ImGuiCol_ButtonActive, colbta)
-    CImGui.PushStyleColor(CImGui.ImGuiCol_Text, coltxt)
-    CImGui.PushStyleVar(CImGui.ImGuiStyleVar_FrameBorderSize, 0)
-    clicked = CImGui.Button(label, size)
-    CImGui.PopStyleVar()
-    CImGui.PopStyleColor(4)
+    # 现代感:自绘按钮 — InvisibleButton 承担交互/ID/布局,背景为单色圆角矩形 +
+    # Fluent 风格底部内侧深色边(整个按钮以暗色重绘、裁剪只留底部条:有深度暗示、
+    # 无上下分割线;圆角轮廓与底色完全一致),hover 提亮、按压用 active 色
+    text = String(split(label, "##"; limit = 2)[1])
+    tsz = CImGui.CalcTextSize(text)
+    fp = unsafe_load(IMGUISTYLE.FramePadding)
+    w = Cfloat(size[1] > 0 ? size[1] : tsz.x + 2fp.x)
+    h = Cfloat(size[2] > 0 ? size[2] : tsz.y + 2fp.y)
+    w = max(w, 1f0)  # InvisibleButton 断言尺寸非零(FramePadding=0 时纯 "##" 标签会算出 0)
+    h = max(h, 1f0)
+    rounding = unsafe_load(IMGUISTYLE.FrameRounding)
+    clicked = CImGui.InvisibleButton(label, (w, h))
+    hovered = CImGui.IsItemHovered()
+    active = CImGui.IsItemActive()
+    base = active ? colbta : hovered ? colbth : colbt
+    rmin, rmax = CImGui.GetItemRectMin(), CImGui.GetItemRectMax()
+    dl = CImGui.GetWindowDrawList()
+    CImGui.AddRectFilled(dl, rmin, rmax, base, rounding)
+    e = 2f0 * CImGui.GetWindowDpiScale()
+    CImGui.PushClipRect(dl, (rmin.x, rmax.y - e), rmax)
+    CImGui.AddRectFilled(dl, rmin, rmax, darkencolor(base, 0.16), rounding)
+    CImGui.PopClipRect(dl)
+    if !isempty(text)
+        tx = (rmin.x + rmax.x - tsz.x) * 0.5f0
+        ty = (rmin.y + rmax.y - tsz.y) * 0.5f0
+        CImGui.PushClipRect(dl, rmin, rmax)
+        CImGui.AddText(dl, (tx, ty), CImGui.ColorConvertFloat4ToU32(coltxt), text)
+        CImGui.PopClipRect(dl)
+    end
     return clicked
 end
 
@@ -337,9 +358,42 @@ function ColoredProgressBarRect(
     thickness=0,
     colbar=CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_FrameBg),
     colbara=CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_PlotHistogram),
+    colbara2=(0, 0, 0, 0),
     coltxt=CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_Text),
     colrect=(0, 0, 0, 0)
 )
+    draw_list = CImGui.GetWindowDrawList()
+    if colbara2 != (0, 0, 0, 0)
+        # —— 自绘路径:底色 + 渐变填充 + 单次居中文字 ——
+        # 不能叠加在 ProgressBar 之上:渐变会盖住其自绘文字,重绘文字又会与原生两段式
+        # 文字渲染(填充区/非填充区)错位重叠,故渐变启用时整条自绘。
+        # 注意 ImVec2 与元组广播的结果是 Vector{Float32},没有 .x/.y 字段,必须用下标
+        # 负宽度沿用 ImGui 惯例 = 剩余宽度 + size;用 avail 而非 CalcItemWidth,
+        # 后者受 ItemWidth 栈残留影响,会让进度条与任务行(满宽 Selectable)不等长
+        w = Cfloat(size[1] > 0 ? size[1] : CImGui.GetContentRegionAvail().x + size[1])
+        hgt = Cfloat(size[2] > 0 ? size[2] : CImGui.GetFrameHeight())
+        rmin = CImGui.GetCursorScreenPos()
+        rmax = (rmin.x + w, rmin.y + hgt)
+        CImGui.Dummy((w, hgt))
+        CImGui.AddRectFilled(draw_list, rmin, rmax, colbar, rounding)
+        if fraction > 0
+            gradientfill(
+                draw_list, rmin, (rmin.x + Cfloat(fraction) * w, rmax[2]),
+                colbara, colbara2; dir = :h
+            )
+        end
+        CImGui.AddRect(draw_list, rmin, rmax, colrect, bdrounding, thickness)
+        if !isempty(label)
+            tsz = CImGui.CalcTextSize(label)
+            # 文字比条宽时左对齐(与 ImGui RenderTextClipped 行为一致),否则水平居中
+            tx = tsz.x >= w ? rmin.x : (rmin.x + rmax[1] - tsz.x) * 0.5f0
+            ty = (rmin.y + rmax[2] - tsz.y) * 0.5f0
+            CImGui.PushClipRect(draw_list, rmin, rmax)
+            CImGui.AddText(draw_list, (tx, ty), CImGui.ColorConvertFloat4ToU32(coltxt), label)
+            CImGui.PopClipRect(draw_list)
+        end
+        return false
+    end
     CImGui.PushStyleColor(CImGui.ImGuiCol_FrameBg, colbar)
     CImGui.PushStyleColor(CImGui.ImGuiCol_PlotHistogram, colbara)
     CImGui.PushStyleColor(CImGui.ImGuiCol_Text, coltxt)
@@ -348,7 +402,6 @@ function ColoredProgressBarRect(
     CImGui.PopStyleVar()
     CImGui.PopStyleColor(3)
     rmin, rmax = CImGui.GetItemRectMin(), CImGui.GetItemRectMax()
-    draw_list = CImGui.GetWindowDrawList()
     CImGui.AddRect(draw_list, rmin, rmax, colrect, bdrounding, thickness)
     return false
 end

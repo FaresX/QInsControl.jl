@@ -1,4 +1,5 @@
 const init_funcs = []
+include("Win32Chrome.jl")
 include("CustomWidgets/CustomWidgets.jl")
 include("Instruments/Instruments.jl")
 include("Windows/Windows.jl")
@@ -19,6 +20,12 @@ function initialize_frontend!()
     empty!(INSTRBUFFERVIEWERS)
     empty!(IMAGES)
     empty!(FIGURES)
+    empty!(WINVIEWPORTS)
+    empty!(CLOSEPENDING)
+    empty!(WINTICONS)
+    empty!(WINBORDERLESS_AUTO)
+    empty!(WINBORDERLESS_SET)
+    resetshadowtexture!()
 
     loadconf()
 end

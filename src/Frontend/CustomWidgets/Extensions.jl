@@ -120,6 +120,37 @@ function CImGui.AddRectFilled(
         CImGui.ColorConvertFloat4ToU32(col), rounding, flags
     )
 end
+function CImGui.AddRectFilledMultiColor(
+    self,
+    p_min::Union{ImVec2,NTuple{2},Vector},
+    p_max::Union{ImVec2,NTuple{2},Vector},
+    col_upr_left::Union{ImVec4,NTuple{4},Vector},
+    col_upr_right::Union{ImVec4,NTuple{4},Vector},
+    col_bot_left::Union{ImVec4,NTuple{4},Vector},
+    col_bot_right::Union{ImVec4,NTuple{4},Vector},
+)
+    CImGui.AddRectFilledMultiColor(
+        self, CImGui.ImVec2(p_min...), CImGui.ImVec2(p_max...),
+        CImGui.ColorConvertFloat4ToU32(col_upr_left), CImGui.ColorConvertFloat4ToU32(col_upr_right),
+        CImGui.ColorConvertFloat4ToU32(col_bot_left), CImGui.ColorConvertFloat4ToU32(col_bot_right)
+    )
+end
+
+"""
+    gradientfill(dl, p_min, p_max, col1, col2; dir=:v)
+
+线性渐变填充,`dir = :v`(col1→col2 自上而下)或 `:h`(自左向右)。
+AddRectFilledMultiColor 不支持圆角,仅用于无圆角或被容器裁剪的区域;
+`col1 == col2` 时退化为单色填充(主题用相同色即关闭渐变)。
+"""
+function gradientfill(dl, p_min, p_max, col1, col2; dir::Symbol = :v)
+    col1 == col2 && (CImGui.AddRectFilled(dl, p_min, p_max, col1); return)
+    if dir === :v
+        CImGui.AddRectFilledMultiColor(dl, p_min, p_max, col1, col1, col2, col2)
+    else
+        CImGui.AddRectFilledMultiColor(dl, p_min, p_max, col1, col2, col1, col2)
+    end
+end
 function CImGui.AddTriangle(
     self,
     p1::Union{ImVec2,NTuple{2},Vector},

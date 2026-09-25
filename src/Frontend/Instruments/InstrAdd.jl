@@ -69,6 +69,7 @@ function poll_autodetect()
             end
             sleep(0.001)
         end
+        toast(:info, mlstr("auto detection finished"), mlstr("open the instrument list to see the results"))
     end
 end
 

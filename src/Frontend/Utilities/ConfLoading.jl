@@ -1,4 +1,4 @@
-loadingtypes = [:OptBasic, :OptCommunication, :OptDtViewer, :OptDAQ, :OptInsBuf, :OptServer,
+loadingtypes = [:OptBasic, :OptCommunication, :OptDtViewer, :OptDAQ, :OptInsBuf, :OptServer, :OptWebDashboard,
     :OptRegister, :OptFonts, :OptConsole, :OptLogs, :OptOneBGImage,
     :OptBGImage, :OptComAddr, :OptStyle, :Conf,
     :BasicConf, :QuantityConf,
@@ -96,9 +96,10 @@ end
 function loadinswconf()
     for file in readdir(joinpath(ENV["QInsControlAssets"], "Widgets"), join=true)
         bnm = basename(file)
-        instrnm, filetype = split(bnm, '.')
         @trycatch mlstr("loading inswconf failed!!!") begin
-            if filetype == "toml"
+            #文件名解析放进保护块:多点/无点的异常文件名不应打断整个加载(split 解包会抛错)
+            instrnm, ext = splitext(bnm)
+            if ext == ".toml"
                 widgets = TOML.parsefile(file)
                 INSWCONF[instrnm] = []
                 for (_, widget) in widgets

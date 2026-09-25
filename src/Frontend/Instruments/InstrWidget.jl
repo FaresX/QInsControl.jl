@@ -94,7 +94,11 @@ function Base.isapprox(qtws1::Vector{QuantityWidget}, qtws2::Vector{QuantityWidg
     return length(qtws1) == length(qtws2) && all(qtws1 .≈ qtws2)
 end
 function Base.isapprox(qtw1::QuantityWidget, qtw2::QuantityWidget)
-    return all(getproperty(qtw1, fdnm) == getproperty(qtw2, fdnm) for fdnm in fieldnames(QuantityWidget)[1:end-2])
+    return all(
+        fdnm == :options ? isequal(getproperty(qtw1, fdnm), getproperty(qtw2, fdnm)) :
+        getproperty(qtw1, fdnm) == getproperty(qtw2, fdnm)
+        for fdnm in fieldnames(QuantityWidget)[1:end-2]
+    )
 end
 function Base.isequal(opts1::QuantityWidgetOption, opts2::QuantityWidgetOption)
     return all(getproperty(opts1, fdnm) == getproperty(opts2, fdnm) for fdnm in fieldnames(QuantityWidgetOption))
@@ -137,26 +141,29 @@ function edit(qtw::QuantityWidget, insbuf::InstrBuffer, instrnm, addr, id)
         opts.vertices[2] *= scale
         opts.vertices[3] *= scale
     end
-    CImGui.SetCursorScreenPos(CImGui.GetWindowPos() .+ opts.vertices[1])
-    opts.allowoverlap && igSetNextItemAllowOverlap()
-    trig = if haskey(insbuf.quantities, qtw.name)
-        edit(opts, insbuf.quantities[qtw.name], instrnm, addr, id, Val(Symbol(qtw.options.uitype)))
-    elseif qtw.name == "_Panel_"
-        editPanel(qtw, opts, id)
-    elseif qtw.name == "_Shape_"
-        editShape(opts, Val(Symbol(qtw.options.uitype)))
-    elseif qtw.name == "_Image_"
-        editImage(qtw, opts)
-    elseif qtw.name == "_QuantitySelector_"
-        editQuantitySelector(qtw, opts, id, Val(Symbol(qtw.options.uitype)))
-    else
-        false
-    end
-    if scaling
-        opts.itemsize = itemsizeo
-        opts.vertices[1] = v1o
-        opts.vertices[2] = v2o
-        opts.vertices[3] = v3o
+    trig = try #渲染抛错也必须恢复原值:否则 scale 被永久乘进配置,逐帧复利放大
+        CImGui.SetCursorScreenPos(CImGui.GetWindowPos() .+ opts.vertices[1])
+        opts.allowoverlap && igSetNextItemAllowOverlap()
+        if haskey(insbuf.quantities, qtw.name)
+            edit(opts, insbuf.quantities[qtw.name], instrnm, addr, id, Val(Symbol(qtw.options.uitype)))
+        elseif qtw.name == "_Panel_"
+            editPanel(qtw, opts, id)
+        elseif qtw.name == "_Shape_"
+            editShape(opts, Val(Symbol(qtw.options.uitype)))
+        elseif qtw.name == "_Image_"
+            editImage(qtw, opts)
+        elseif qtw.name == "_QuantitySelector_"
+            editQuantitySelector(qtw, opts, id, Val(Symbol(qtw.options.uitype)))
+        else
+            false
+        end
+    finally
+        if scaling
+            opts.itemsize = itemsizeo
+            opts.vertices[1] = v1o
+            opts.vertices[2] = v2o
+            opts.vertices[3] = v3o
+        end
     end
     return trig
 end
@@ -346,7 +353,7 @@ function editQuantitySelector(qtw::QuantityWidget, opts::QuantityWidgetOption, i
     return trig
 end
 
-edit(::QuantityWidgetOption, ::AbstractQuantity, _, _, ::Val) = CImGui.Button(mlstr("Invalid UI Type"))
+edit(::QuantityWidgetOption, ::AbstractQuantity, _, _, _, ::Val) = CImGui.Button(mlstr("Invalid UI Type"))
 
 function edit(opts::QuantityWidgetOption, qt::AbstractQuantity, instrnm, addr, id, ::Val{:read})
     CImGui.PushFont(C_NULL, opts.fontsize)
@@ -888,7 +895,7 @@ let
     windowpos::Bool = true # false left true right
     redolist::Dict{InstrWidget,LoopVector{InstrWidget}} = Dict()
     spacing::Vector{Cfloat} = [0, 0]
-    global function edit(insw::InstrWidget, insbuf::InstrBuffer, addr, p_open, id; usingit=false)
+    global function edit(insw::InstrWidget, insbuf::InstrBuffer, addr, p_open::Ref{Bool}, id; usingit=false)
         scale = CImGui.GetWindowDpiScale()
         CImGui.SetNextWindowSize(insw.windowsize * scale)
         CImGui.PushStyleColor(
@@ -910,14 +917,14 @@ let
         CImGui.PushStyleVar(CImGui.ImGuiStyleVar_WindowPadding, (Cfloat(0), Cfloat(0)))
         CImGui.PushStyleVar(CImGui.ImGuiStyleVar_FrameBorderSize, 0)
         CImGui.PushStyleVar(CImGui.ImGuiStyleVar_FramePadding, insw.framepadding)
-        if CImGui.Begin(
-            stcstr(
-                INSTRCONF[insw.instrnm].conf.icon, " ", insw.instrnm, " ", addr, " ", insw.name,
-                "###", insw.instrnm, addr, id
-            ),
-            p_open,
-            insw.windowflags | (addr == "" ? CImGui.ImGuiWindowFlags_NoDocking : 0)
+        nmw = stcstr(
+            INSTRCONF[insw.instrnm].conf.icon, " ", insw.instrnm, " ", addr, " ", insw.name,
+            "###", insw.instrnm, addr, id
         )
+        flags = insw.windowflags | (addr == "" ? CImGui.ImGuiWindowFlags_NoDocking : 0)
+        begun, own, popenarg = BeginNoClose(nmw, p_open, true, flags; hastitle=true)
+        if begun
+            # registerwindow(nmw)
             isanyitemdragging = false
             SetWindowBgImage(insw.wallpaperpath; rate=insw.rate, use=insw.usewallpaper, tint_col=insw.bgtintcolor)
             CImGui.BeginChild("drawing area")
@@ -936,7 +943,8 @@ let
                 end
                 igEndDisabled()
                 if !usingit
-                    qtw.options.uitype == "radio" && (qtw.options.itemsize .= CImGui.GetItemRectSize())
+                    qtw.options.uitype == "radio" &&
+                        (qtw.options.itemsize .= CImGui.GetItemRectSize() ./ CImGui.GetWindowDpiScale()) #存回前除以 scale:itemsize 是未缩放配置单位,直接存屏幕像素会随 DPI 漂移;edit() 异常跳过恢复时更会复利放大
                     if haskey(draglayers, i)
                         isselected = selectedqtw == i
                         isselectedoringroup = isselected || qtw.selected
@@ -1028,7 +1036,7 @@ let
             CImGui.EndChild()
         end
         CImGui.IsWindowCollapsed() || (insw.windowsize .= CImGui.GetWindowSize() ./ scale)
-        CImGui.End()
+        EndNoClose(own, p_open, popenarg)
         CImGui.PopStyleVar(3)
         CImGui.PopStyleColor(4)
     end
@@ -2079,7 +2087,7 @@ function globalwidgetoptionsmenu(insw::InstrWidget)
     SeparatorTextColored(MORESTYLE.Colors.HighlightText, mlstr("Global Options"))
     CImGui.BeginChild("global widget options")
     @c InputTextRSZ(mlstr("Widget Name"), &insw.name)
-    @c CImGui.CheckboxFlags(mlstr("No Titlebar"), &insw.windowflags, CImGui.ImGuiWindowFlags_NoTitleBar)
+    # @c CImGui.CheckboxFlags(mlstr("No Titlebar"), &insw.windowflags, CImGui.ImGuiWindowFlags_NoTitleBar)
     @c CImGui.CheckboxFlags(mlstr("No Resizing"), &insw.windowflags, CImGui.ImGuiWindowFlags_NoResize)
     @c CImGui.CheckboxFlags(mlstr("No Collapsing"), &insw.windowflags, CImGui.ImGuiWindowFlags_NoCollapse)
     @c CImGui.CheckboxFlags(mlstr("No Docking"), &insw.windowflags, CImGui.ImGuiWindowFlags_NoDocking)
@@ -2223,7 +2231,7 @@ let
             end
         end
         for qtw in filter(x -> x.name == "_QuantitySelector_", insw.qtws)
-            if !isempty(qtw.options.bindingqtwidxes[1])
+            if !isempty(qtw.options.bindingqtwidxes) && !isempty(qtw.options.bindingqtwidxes[1]) #bindingqtwidxes 本身可为空数组,直接 [1] 会 BoundsError
                 if 0 < qtw.options.bindingqtwidxes[1][1] <= length(insw.qtws)
                     alias = insw.qtws[qtw.options.bindingqtwidxes[1][1]].alias
                     selectedidx = findfirst(==(alias), qtw.options.selectorlist[1])

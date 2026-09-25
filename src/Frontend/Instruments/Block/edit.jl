@@ -7,7 +7,7 @@ function edit(bk::CodeBlock, openpopup::Ref{Bool}=Ref(false))
         coltxt=MORESTYLE.Colors.BlockIcons
     )
     CImGui.SameLine()
-    @c InputTextMultilineRSZ("##CodeBlock", &bk.codes, (-1, -1), ImGuiInputTextFlags_AllowTabInput)
+    @c codeedit("##CodeBlock", &bk.codes, (-1, -1); linenumbers=false)
     CImGui.EndChild()
     CImGui.PopStyleVar()
 end
@@ -39,9 +39,10 @@ function edit(bk::StrideCodeBlock, openpopup::Ref{Bool}=Ref(false))
         CImGui.EndPopup()
     end
     CImGui.SameLine()
-    CImGui.PushItemWidth(-1)
-    @c InputTextWithHintRSZ("##code header", mlstr("code header"), &bk.codes)
-    CImGui.PopItemWidth()
+    # CImGui.PushItemWidth(-1)
+    # @c InputTextWithHintRSZ("##code header", mlstr("code header"), &bk.codes)
+    @c codeedit("##StrideCodeBlock", &bk.codes, (Cfloat(-1), CImGui.GetFrameHeight()); linenumbers=false)
+    # CImGui.PopItemWidth()
     CImGui.PopStyleColor()
     CImGui.PushStyleVar(CImGui.ImGuiStyleVar_WindowPadding, wp)
     bk.hideblocks || isempty(skipnull(bk.blocks)) || edit(bk.blocks, bk.level + 1)
@@ -835,7 +836,7 @@ end
 
 function insert_drop(blocks::Vector{AbstractBlock}, dragbk::AbstractBlock, dropbk::AbstractBlock, addmode)
     for (i, bk) in enumerate(blocks)
-        bk == dropbk && (insert!(blocks, addmode ? i + 1 : i, dragbk); return true)
+        bk == dropbk && (insert!(blocks, addmode || (i > 1 && blocks[i-1] isa NullBlock) ? i + 1 : i, dragbk); return true)
         iscontainer(bk) && insert_drop(bk.blocks, dragbk, dropbk, addmode) && return true
     end
     return false

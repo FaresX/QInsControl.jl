@@ -7,6 +7,7 @@ let
     show_logger::Bool = false
     show_about::Bool = false
     show_debugger::Bool = false
+    show_aiassistant::Bool = false #AI 助手窗口(AI 子模块的窗口开关,见 src/AI/)
 
     showapp::Ref{Bool} = true
 
@@ -26,6 +27,7 @@ let
     fileviewers = FileViewer[]
     dataformatters = DataFormatter[]
     instrwidgets = Dict{String,Dict{String,Tuple{Ref{Bool},Vector{InstrWidget}}}}()
+    pendingfvs = Channel{FileViewer}(32) #后台文件对话框任务 → 渲染线程的 FileViewer 投递队列
 
     window_flags::Cint = 0
     no_titlebar && (window_flags |= CImGui.ImGuiWindowFlags_NoTitleBar)
@@ -51,6 +53,7 @@ let
         show_logger = false
         show_about = false
         show_debugger = false
+        show_aiassistant = false
         for fv in fileviewers
             fv.p_open = false
         end
@@ -71,7 +74,7 @@ let
     showwhat::Cint = 0
     menuidx::Cint = 0
     global function MainWindow()
-        if !CONF.Basic.hidewindow
+        if !CONF.Basic.hidemainwindow
             viewport = igGetMainViewport()
             if CONF.Basic.viewportenable
                 CImGui.SetNextWindowPos(unsafe_load(viewport.WorkPos))
@@ -102,15 +105,15 @@ let
             CImGui.SameLine()
             CImGui.BeginChild("main")
             CImGui.Columns(2)
-            CImGui.GetFrameCount() == 1 && CImGui.SetColumnOffset(1, CImGui.GetWindowWidth() * 0.7)
+            CImGui.GetFrameCount() == 1 && CImGui.SetColumnOffset(1, CImGui.GetWindowWidth() * 0.66)
             colrate = CImGui.GetColumnOffset(1) / CImGui.GetWindowWidth()
             colrate > 0.8 && CImGui.SetColumnOffset(1, CImGui.GetWindowWidth() * 0.8)
             colrate < 0.2 && CImGui.SetColumnOffset(1, CImGui.GetWindowWidth() * 0.2)
-            CImGui.BeginChild("left")
+            CardChild("left")
             DAQtasks()
-            CImGui.EndChild()
+            EndCard()
             CImGui.NextColumn()
-            CImGui.BeginChild("right")
+            CardChild("right")
             originfontsize = unsafe_load(IMGUISTYLE.FontSizeBase)
             CImGui.PushFont(C_NULL, MORESTYLE.Variables.BigIconSize)
             isopenfiles = false
@@ -123,27 +126,41 @@ let
             CImGui.PushStyleVar(CImGui.ImGuiStyleVar_ItemSpacing, (0, 0))
             CImGui.PushStyleVar(CImGui.ImGuiStyleVar_SelectableTextAlign, (0.5, 0.5))
             CImGui.Selectable(MORESTYLE.Icons.Instruments, menuidx == 0, 0, sbsz) && (menuidx = 0)
+            CImGui.PushFont(C_NULL, originfontsize)
+            ItemTooltip(mlstr("Instruments"))
+            CImGui.PopFont()
             CImGui.SameLine()
             CImGui.Selectable(MORESTYLE.Icons.File, menuidx == 1, 0, sbsz) && (menuidx = 1)
+            CImGui.PushFont(C_NULL, originfontsize)
+            ItemTooltip(mlstr("Files"))
+            CImGui.PopFont()
+            CImGui.SameLine()
+            CImGui.Selectable(MORESTYLE.Icons.Assistant, menuidx == 2, 0, sbsz) && (menuidx = 2)
+            CImGui.PushFont(C_NULL, originfontsize)
+            ItemTooltip(mlstr("Assistant"))
+            CImGui.PopFont()
             CImGui.SameLine()
             STATES[NewVersion] && CImGui.PushStyleColor(CImGui.ImGuiCol_Text, MORESTYLE.Colors.InfoText)
             STATES[FatalError] && CImGui.PushStyleColor(CImGui.ImGuiCol_Text, MORESTYLE.Colors.ErrorText)
-            CImGui.Selectable(MORESTYLE.Icons.Help, menuidx == 2, 0, sbsz) && (menuidx = 2)
+            CImGui.Selectable(MORESTYLE.Icons.Help, menuidx == 3, 0, sbsz) && (menuidx = 3)
+            CImGui.PushFont(C_NULL, originfontsize)
+            ItemTooltip(mlstr("Help"))
+            CImGui.PopFont()
             STATES[FatalError] && CImGui.PopStyleColor()
             STATES[NewVersion] && CImGui.PopStyleColor()
             CImGui.PopStyleColor(2)
-            CImGui.SameLine()
-            CImGui.PushStyleColor(CImGui.ImGuiCol_Text, MORESTYLE.Colors.IconButton)
-            @c CImGui.Selectable(MORESTYLE.Icons.Preferences, &show_preferences, 0, sbsz)
-            CImGui.PopStyleColor()
-            CImGui.PushFont(C_NULL, originfontsize)
-            ItemTooltip(mlstr("Preferences"))
-            CImGui.PopFont()
+            # CImGui.SameLine()
+            # CImGui.PushStyleColor(CImGui.ImGuiCol_Text, MORESTYLE.Colors.IconButton)
+            # @c CImGui.Selectable(MORESTYLE.Icons.Preferences, &show_preferences, 0, sbsz)
+            # CImGui.PopStyleColor()
+            # CImGui.PushFont(C_NULL, originfontsize)
+            # ItemTooltip(mlstr("Preferences"))
+            # CImGui.PopFont()
 
             CImGui.AddRectFilled(
                 CImGui.GetWindowDrawList(),
                 CImGui.GetCursorScreenPos(),
-                CImGui.GetCursorScreenPos() .+ (CImGui.GetWindowWidth(), CImGui.GetFrameHeight() + unsafe_load(IMGUISTYLE.ItemSpacing.y)),
+                CImGui.GetCursorScreenPos() .+ (CImGui.GetContentRegionAvail().x, CImGui.GetFrameHeight() + unsafe_load(IMGUISTYLE.ItemSpacing.y)),
                 MORESTYLE.Colors.ToolBarBg
             )
             if menuidx == 0
@@ -208,6 +225,24 @@ let
                 CImGui.PopFont()
                 CImGui.SameLine()
                 CImGui.PushStyleColor(CImGui.ImGuiCol_Text, MORESTYLE.Colors.IconButton)
+                @c CImGui.Selectable(MORESTYLE.Icons.AIAssistant, &show_aiassistant, 0, sbsz)
+                CImGui.PopStyleColor()
+                CImGui.PushFont(C_NULL, originfontsize)
+                ItemTooltip(mlstr("AI Assistant"))
+                CImGui.PopFont()
+                CImGui.SameLine()
+                #Web 仪表盘:启动只读服务并用系统浏览器打开(未启动时点击即启动)
+                CImGui.PushStyleColor(CImGui.ImGuiCol_Text, MORESTYLE.Colors.IconButton)
+                CImGui.Selectable(MORESTYLE.Icons.WebDashboard, false, 0, sbsz) && begin
+                    url = startwebdashboard!()
+                    isempty(url) || Threads.@spawn DefaultApplication.open(url)
+                end
+                CImGui.PopStyleColor()
+                CImGui.PushFont(C_NULL, originfontsize)
+                ItemTooltip(mlstr("Web Dashboard"))
+                CImGui.PopFont()
+            elseif menuidx == 3
+                CImGui.PushStyleColor(CImGui.ImGuiCol_Text, MORESTYLE.Colors.IconButton)
                 @c CImGui.Selectable(MORESTYLE.Icons.Metrics, &show_metrics, 0, sbsz)
                 CImGui.PopStyleColor()
                 CImGui.PushFont(C_NULL, originfontsize)
@@ -228,6 +263,13 @@ let
                 CImGui.PopFont()
                 CImGui.SameLine()
                 CImGui.PushStyleColor(CImGui.ImGuiCol_Text, MORESTYLE.Colors.IconButton)
+                @c CImGui.Selectable(MORESTYLE.Icons.Preferences, &show_preferences, 0, sbsz)
+                CImGui.PopStyleColor()
+                CImGui.PushFont(C_NULL, originfontsize)
+                ItemTooltip(mlstr("Preferences"))
+                CImGui.PopFont()
+                CImGui.SameLine()
+                CImGui.PushStyleColor(CImGui.ImGuiCol_Text, MORESTYLE.Colors.IconButton)
                 STATES[NewVersion] && CImGui.PushStyleColor(CImGui.ImGuiCol_Text, MORESTYLE.Colors.InfoText)
                 @c CImGui.Selectable(MORESTYLE.Icons.About, &show_about, 0, sbsz)
                 STATES[NewVersion] && CImGui.PopStyleColor()
@@ -235,6 +277,24 @@ let
                 CImGui.PushFont(C_NULL, originfontsize)
                 ItemTooltip(mlstr("About"))
                 CImGui.PopFont()
+                # CImGui.SameLine()
+                # CImGui.PushStyleColor(CImGui.ImGuiCol_Text, MORESTYLE.Colors.IconButton)
+                # @c CImGui.Selectable(MORESTYLE.Icons.AIAssistant, &show_aiassistant, 0, sbsz)
+                # CImGui.PopStyleColor()
+                # CImGui.PushFont(C_NULL, originfontsize)
+                # ItemTooltip(mlstr("AI Assistant"))
+                # CImGui.PopFont()
+                # CImGui.SameLine()
+                # #Web 仪表盘:启动只读服务并用系统浏览器打开(未启动时点击即启动)
+                # CImGui.PushStyleColor(CImGui.ImGuiCol_Text, MORESTYLE.Colors.IconButton)
+                # CImGui.Selectable(MORESTYLE.Icons.WebDashboard, false, 0, sbsz) && begin
+                #     url = startwebdashboard!()
+                #     isempty(url) || Threads.@spawn DefaultApplication.open(url)
+                # end
+                # CImGui.PopStyleColor()
+                # CImGui.PushFont(C_NULL, originfontsize)
+                # ItemTooltip(mlstr("Web Dashboard"))
+                # CImGui.PopFont()
             end
 
             CImGui.PopStyleVar(2)
@@ -253,23 +313,44 @@ let
             end
             CImGui.EndChild()
 
-            CImGui.EndChild()
+            EndCard()
+            # 分界线 hover-reveal:静止时只剩主题的极淡发丝线;鼠标靠近分界条时
+            # 浮现强调色竖线并切换为左右拖拽光标(拖拽热区仍由 Columns 提供)
+            wx, wy = CImGui.GetWindowPos().x, CImGui.GetWindowPos().y
+            wh = CImGui.GetWindowSize().y
+            dx = wx + CImGui.GetColumnOffset(1)
+            near = mousein((dx - 4, wy), (dx + 4, wy + wh))
+            draggingcol = CImGui.IsMouseDown(0) && mousein((dx - 40, wy), (dx + 40, wy + wh))
+            if near || draggingcol
+                gradientfill(
+                    CImGui.GetWindowDrawList(), (dx - 2, wy), (dx + 2, wy + wh),
+                    MORESTYLE.Colors.AccentTop, MORESTYLE.Colors.AccentBottom
+                )
+                CImGui.SetMouseCursor(CImGui.ImGuiMouseCursor_ResizeEW)
+            end
             CImGui.EndChild()
 
             CImGui.End()
         end
 
         ######子窗口######
+        #后台选好的 FileViewer 经 Channel 回渲染线程入列:直接从 @spawn 任务 push! 会与
+        #本循环的迭代/删除竞争(GUI 向量只能 GUI 线程动)
+        while isready(pendingfvs)
+            push!(fileviewers, take!(pendingfvs))
+        end
         for (i, fv) in enumerate(fileviewers)
             fv.p_open && edit(fv, i)
         end
-        for (i, fv) in enumerate(fileviewers)
+        for i in reverse(eachindex(fileviewers)) #倒序遍历:循环体内 deleteat! 不会使未访问下标位移
+            fv = fileviewers[i]
             fv.noclose || (atclosefileviewer!(fv); deleteat!(fileviewers, i))
         end
         for (i, dft) in enumerate(dataformatters)
             dft.p_open && edit(dft, i)
         end
-        for (i, dft) in enumerate(dataformatters)
+        for i in reverse(eachindex(dataformatters))
+            dft = dataformatters[i]
             dft.noclose || (atclosedataformatter!(dft); deleteat!(dataformatters, i))
         end
         show_preferences && @c Preferences(&show_preferences)
@@ -294,27 +375,31 @@ let
         show_console && @c ShowConsole(&show_console)
         show_metrics && @c CImGui.ShowMetricsWindow(&show_metrics)
         show_logger && @c LogWindow(&show_logger)
+        show_aiassistant && @c ShowAIAssistant(&show_aiassistant)
         ShowAbout()
         show_about && (CImGui.OpenPopup(mlstr("About"));
         show_about = false)
         show_debugger && @c Debugger(&show_debugger)
 
         ######快捷键######
-        if isopenfiles || (unsafe_load(CImGui.GetIO().KeyCtrl) && CImGui.IsKeyDown(ImGuiKey_O))
+        drain_ui!() #AI 子模块的 UI 线程封送队列(结构性变更必须回到渲染线程执行)
+        RenderAIConfirm() #AI 写操作确认模态:必须无条件渲染,不能只挂在 AI 窗口可见时(否则队列无人消费)
+        if isopenfiles || (unsafe_load(CImGui.GetIO().KeyCtrl) && CImGui.IsKeyPressed(ImGuiKey_O)) #IsKeyPressed 边沿触发:IsKeyDown 长按会每帧连发文件对话框
             Threads.@spawn @trycatch mlstr("task failed!!!") begin
                 files = pick_multi_file()
-                isempty(files) || push!(fileviewers, FileViewer(filetree=FolderFileTree(files)))
+                isempty(files) || put!(pendingfvs, FileViewer(filetree=FolderFileTree(files)))
             end
         end
-        if isopenfolder || (unsafe_load(CImGui.GetIO().KeyCtrl) && CImGui.IsKeyDown(ImGuiKey_K))
+        if isopenfolder || (unsafe_load(CImGui.GetIO().KeyCtrl) && CImGui.IsKeyPressed(ImGuiKey_K))
             Threads.@spawn @trycatch mlstr("task failed!!!") begin
                 root = pick_folder()
-                isdir(root) && push!(fileviewers, FileViewer(filetree=FolderFileTree(root)))
+                isdir(root) && put!(pendingfvs, FileViewer(filetree=FolderFileTree(root)))
             end
         end
         if isopenformatter
             push!(dataformatters, DataFormatter())
         end
+        unsafe_load(CImGui.GetIO().KeyCtrl) && CImGui.IsKeyPressed(ImGuiKey_I) && (show_aiassistant = true) #Ctrl+I 打开 AI 助手
         if !isempty(ARGS)
             filepath = reencoding(ARGS[1], CONF.Basic.encoding)
             isfile(filepath) && push!(fileviewers, FileViewer(filetree=FolderFileTree([abspath(filepath)])))
@@ -322,25 +407,3 @@ let
         end
     end
 end #let
-
-function hassweeping()
-    for (_, inses) in INSTRBUFFERVIEWERS
-        for (_, ibv) in inses
-            hassweeping(ibv) && return true
-        end
-    end
-    return false
-end
-function hassweeping(ibv::InstrBufferViewer)
-    for qt in values(ibv.insbuf.quantities)
-        qt isa SweepQuantity && qt.issweeping && return true
-    end
-    return false
-end
-function hasref(ibv::InstrBufferViewer)
-    for qt in values(ibv.insbuf.quantities)
-        STATES[AutoRefreshing] && ibv.insbuf.isautorefresh && qt.isautorefresh && return true
-        qt isa SweepQuantity && qt.issweeping && return true
-    end
-    return false
-end

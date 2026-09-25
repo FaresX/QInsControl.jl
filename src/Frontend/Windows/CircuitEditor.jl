@@ -649,9 +649,9 @@ let
         if CImGui.BeginPopup("NodeEditor")
             if nodeeditor.selectednodesnum > 0 || nodeeditor.selectedlinksnum > 0
                 if CImGui.MenuItem(stcstr(MORESTYLE.Icons.Delete, " ", mlstr("Delete")))
-                    for id in nodeeditor.selectedlinks
-                        length(nodeeditor.links) < id || deleteat!(nodeeditor.links, id)
-                    end
+                    #多条 link 必须按索引一次性删除:逐个 deleteat! 会让后续索引指向移位后的错误元素
+                    dellinks = unique!(sort!(filter(id -> 1 <= id <= length(nodeeditor.links), collect(nodeeditor.selectedlinks))))
+                    isempty(dellinks) || deleteat!(nodeeditor.links, dellinks)
                     for id in nodeeditor.selectednodes
                         deletenode!(nodeeditor, id)
                     end
@@ -890,7 +890,9 @@ function edit(nodeeditor::NodeEditor, id, p_open::Ref{Bool})
     # CImGui.PushStyleColor(CImGui.ImGuiCol_WindowBg, CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_PopupBg))
     # CImGui.PushStyleVar(CImGui.ImGuiStyleVar_WindowRounding, unsafe_load(IMGUISTYLE.PopupRounding))
     # isfocus = true
-    if CImGui.Begin(stcstr(MORESTYLE.Icons.Circuit, " ", mlstr("Circuit"), "##", id), p_open)
+    nm = stcstr(MORESTYLE.Icons.Circuit, " ", mlstr("Circuit"), "##", id)
+    begun, own, popenarg = BeginNoClose(nm, p_open)
+    if begun
         SetWindowBgImage(CONF.BGImage.circuit.path; rate=CONF.BGImage.circuit.rate, use=CONF.BGImage.circuit.use)
         # CImGui.PushStyleColor(CImGui.ImGuiCol_Button, (0, 0, 0, 0))
         # CImGui.PushStyleColor(CImGui.ImGuiCol_ButtonHovered, (0, 0, 0, 0))
@@ -909,7 +911,7 @@ function edit(nodeeditor::NodeEditor, id, p_open::Ref{Bool})
         edit(nodeeditor, id)
         # isfocus &= CImGui.IsWindowFocused(CImGui.ImGuiFocusedFlags_ChildWindows)
     end
-    CImGui.End()
+    EndNoClose(own, p_open, popenarg)
     # CImGui.PopStyleVar()
     # CImGui.PopStyleColor()
     # p_open[] &= (isfocus | hold)

@@ -110,10 +110,9 @@ let
     global function InstrRegister(p_open::Ref)
         CImGui.SetNextWindowSize((800, 600) .* CImGui.GetWindowDpiScale(), CImGui.ImGuiCond_Once)
 
-        if CImGui.Begin(
-            stcstr(MORESTYLE.Icons.InstrumentsRegister, "  ", mlstr("Instrument Registration"), "###ins reg"),
-            p_open
-        )
+        nm = stcstr(MORESTYLE.Icons.InstrumentsRegister, "  ", mlstr("Instrument Registration"), "###ins reg")
+        begun, own, popenarg = BeginNoClose(nm, p_open)
+        if begun
             SetWindowBgImage(
                 CONF.BGImage.registration.path;
                 rate=CONF.BGImage.registration.rate,
@@ -345,7 +344,7 @@ let
                                         updatefront!(qt)
                                     end
                                 end
-                                edit(widget, default_insbufs[selectedins], "", C_NULL, i)
+                                edit(widget, default_insbufs[selectedins], "", Ref(true), i)
                                 # CImGui.EndChild()
                                 CImGui.EndTabItem()
                             end
@@ -381,7 +380,7 @@ let
             end
             CImGui.EndChild()
         end
-        CImGui.End()
+        EndNoClose(own, p_open, popenarg)
     end
 end #let
 
@@ -389,14 +388,14 @@ function saveinsconf()
     conffiles = readdir(joinpath(ENV["QInsControlAssets"], "Confs"))
     allins = keys(INSTRCONF)
     for cf in conffiles
-        filename, filetype = split(cf, '.')
-        filetype != "toml" && continue
+        endswith(cf, ".toml") || continue #splitext 而非 split 解包:文件名多点/无点会解包失败抛错
+        filename = splitext(cf)[1]
         filename ∉ allins && Base.Filesystem.rm(joinpath(ENV["QInsControlAssets"], "Confs/$cf"))
     end
     extrafiles = readdir(joinpath(ENV["QInsControlAssets"], "ExtraLoad"))
     for ef in extrafiles
-        filename, filetype = split(ef, '.')
-        filetype != "jl" && continue
+        endswith(ef, ".jl") || continue
+        filename = splitext(ef)[1]
         filename == "extraload" && continue
         filename ∉ allins && Base.Filesystem.rm(joinpath(ENV["QInsControlAssets"], "ExtraLoad/$ef"))
     end

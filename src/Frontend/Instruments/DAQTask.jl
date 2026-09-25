@@ -7,6 +7,8 @@
     textmode::Bool = false
     viewmode::Bool = false
     hold::Bool = false
+    torunstate::Bool = false #待运行标记（树形化前存于 DAQTaskNode，现随任务存储）
+    showeditor::Bool = false #任务编辑器展开标记
 end
 
 global OLDI::Int = 0
@@ -15,10 +17,28 @@ global SAVEPATH::String = ""
 global CFGCACHESAVEPATH::String = ""
 global QDTCACHESAVEPATH::String = ""
 global RUNNINGTASK::String = ""
-const CFGBUF = Dict{String,Any}()
+#GUI 线程(logaction/log_instrbufferviewers)与数据任务(saveqdt/savecfgcache)会同时访问,必须加锁
+const CFGBUF = Lockable(Dict{String,Any}())
 const DATABUF = Lockable(Dict{String,Vector{String}}())
 const DATABUFPARSED = Lockable(Dict{String,VecOrMat{Cdouble}}())
 const PROGRESSLIST = Lockable(OrderedDict{UUID,Tuple{UUID,Int,Int,Float64}}())
+
+function find_old_i(dir)
+    global OLDI
+    if isdir(dir)
+        for file in readdir(dir) # 任务顺序根据文件夹内容确定
+            if isfile(joinpath(dir, file))
+                m = match(Regex("$(mlstr("Task")) ([0-9]+)"), file)
+                if !isnothing(m)
+                    new_i = tryparse(Int, m[1])
+                    isnothing(new_i) || (OLDI = max(new_i, OLDI))
+                end
+            end
+        end
+    else
+        OLDI = 0
+    end
+end
 
 let
     redolist::Dict{Int,LoopVector{Vector{AbstractBlock}}} = Dict()
@@ -35,11 +55,11 @@ let
         CImGui.PushStyleVar(CImGui.ImGuiStyleVar_WindowRounding, unsafe_load(IMGUISTYLE.PopupRounding))
         isfocus = true
         global OLDI
-        if CImGui.Begin(
-            stcstr("Edit Task ", id),
-            p_open,
-            CImGui.ImGuiWindowFlags_NoTitleBar | CImGui.ImGuiWindowFlags_NoDocking
+        nm = stcstr("Edit Task ", id)
+        begun, own, popenarg = BeginNoClose(
+            nm, p_open, true, CImGui.ImGuiWindowFlags_NoTitleBar | CImGui.ImGuiWindowFlags_NoDocking
         )
+        if begun
             ftsz = CImGui.GetFontSize()
             CImGui.PushStyleVar(CImGui.ImGuiStyleVar_FrameBorderSize, 0)
             CImGui.PushStyleVar(CImGui.ImGuiStyleVar_ItemSpacing, (Cfloat(0), unsafe_load(IMGUISTYLE.ItemSpacing.y)))
@@ -54,18 +74,25 @@ let
             CImGui.Button(stcstr(" ", mlstr("Edit queue: Task"), " ", id + OLDI, " ", daqtask.name))
             CImGui.PopStyleColor(3)
             CImGui.PopStyleVar(3)
-            CImGui.SameLine(
-                CImGui.GetContentRegionAvail().x - undobtx - redobtx - compilebtx - tbtx1 - tbtx2 - btx -
-                4unsafe_load(IMGUISTYLE.ItemSpacing.x)
-            )
-            CImGui.Button(MORESTYLE.Icons.Undo) && undo!(daqtask, id)
-            ItemTooltip(mlstr("Undo"))
-            undobtx = CImGui.GetItemRectSize().x
-            CImGui.SameLine()
-            CImGui.Button(MORESTYLE.Icons.Redo) && redo!(daqtask, id)
-            ItemTooltip(mlstr("Redo"))
-            redobtx = CImGui.GetItemRectSize().x
-            CImGui.SameLine()
+            if daqtask.textmode
+                CImGui.SameLine(
+                    CImGui.GetContentRegionAvail().x - compilebtx - tbtx1 - tbtx2 - btx -
+                    2unsafe_load(IMGUISTYLE.ItemSpacing.x)
+                )
+            else
+                CImGui.SameLine(
+                    CImGui.GetContentRegionAvail().x - undobtx - redobtx - compilebtx - tbtx1 - tbtx2 - btx -
+                    4unsafe_load(IMGUISTYLE.ItemSpacing.x)
+                )
+                CImGui.Button(MORESTYLE.Icons.Undo) && undo!(daqtask, id)
+                ItemTooltip(mlstr("Undo"))
+                undobtx = CImGui.GetItemRectSize().x
+                CImGui.SameLine()
+                CImGui.Button(MORESTYLE.Icons.Redo) && redo!(daqtask, id)
+                ItemTooltip(mlstr("Redo"))
+                redobtx = CImGui.GetItemRectSize().x
+                CImGui.SameLine()
+            end
             if CImGui.Button(MORESTYLE.Icons.Convert)
                 ex = @trypasse compile(daqtask.blocks) nothing
                 ex = @trypasse prettify(ex) ex
@@ -104,7 +131,7 @@ let
             SeparatorTextColored(MORESTYLE.Colors.HighlightText, mlstr("Script"))
             if daqtask.textmode
                 if daqtask.viewmode
-                    @c InputTextMultilineRSZ(stcstr("##Script", id), &daqtask.viewcodes, (-1, -1), ImGuiInputTextFlags_ReadOnly)
+                    codeview(stcstr("##Script", id), daqtask.viewcodes, (-1, -1))
                 else
                     if CImGui.Button(mlstr("Open with Editor"))
                         Threads.@spawn @trycatch mlstr("error editing text!!!") begin
@@ -136,7 +163,7 @@ let
                         end
                         CImGui.OpenPopup("##Blocks Buffer$id")
                     end
-                    @c InputTextMultilineRSZ(stcstr("##Script", id), &daqtask.editcodes, (-1, -1), ImGuiInputTextFlags_AllowTabInput)
+                    @c codeedit(stcstr("##Script", id), &daqtask.editcodes, (-1, -1))
                     CImGui.SetNextWindowSize((1200, 800) .* CImGui.GetWindowDpiScale(), CImGui.ImGuiCond_Once)
                     if CImGui.BeginPopupModal(stcstr("##Blocks Buffer", id))
                         CImGui.Button(stcstr(MORESTYLE.Icons.Delete, " ", mlstr("Close"))) && CImGui.CloseCurrentPopup()
@@ -184,7 +211,7 @@ let
             end
             isfocus &= CImGui.IsWindowFocused(CImGui.ImGuiFocusedFlags_ChildWindows)
         end
-        CImGui.End()
+        EndNoClose(own, p_open, popenarg)
         CImGui.PopStyleVar()
         CImGui.PopStyleColor()
         p_open[] &= (isfocus | daqtask.hold)
@@ -222,6 +249,7 @@ function saferun(daqtask::DAQTask)
     catch e
         @error "[$(now())]\n$(mlstr("running task terminated unexpectedly!!!"))" exception = e
         showbacktrace()
+        toast(:error, mlstr("running task terminated unexpectedly!!!"), sprint(showerror, e))
         if SYNCSTATES[IsDAQTaskRunning]
             SYNCSTATES[IsInterrupted] = true
             if SYNCSTATES[IsBlocked]
@@ -279,8 +307,13 @@ end
 function define(daqtask::DAQTask)
     controllers, st = extract_controllers(daqtask.blocks)
     st || (SYNCSTATES[IsDAQTaskDone] = true; return)
-    empty!(DATABUF)
-    empty!(DATABUFPARSED)
+    #两个 buffer 一起清空,避免读取方看到一半空一半非空的不一致状态
+    lock(DATABUF) do databuf
+        lock(DATABUFPARSED) do databufparsed
+            empty!(databuf)
+            empty!(databufparsed)
+        end
+    end
     rn = length(controllers)
     func1 = try
         compile(daqtask.blocks)
@@ -346,16 +379,27 @@ end
 function transfer_data()
     wait(@spawn_record "transfer_data" @trycatch mlstr("transfer_data failed!!!") begin
         while !SYNCSTATES[IsDAQTaskDone]
-            isready_databufrc() && process_databufrc()
-            isready_extradatabufrc() && process_extradatabufrc()
-            isready_progressrc() && process_progressrc()
+            #单批数据的异常不能终止整个泵:否则后续数据全部丢失,且 exittask 不会执行
+            if isready_databufrc()
+                @trycatch mlstr("processing data failed!!!") process_databufrc()
+            end
+            if isready_extradatabufrc()
+                @trycatch mlstr("processing extra data failed!!!") process_extradatabufrc()
+            end
+            if isready_progressrc()
+                @trycatch mlstr("processing progress failed!!!") process_progressrc()
+            end
             CONF.DAQ.highspeeddatatransfer ? yield() : sleep(0.001)
         end
         exittask()
     end)
 end
 function exittask()
-    (isfile(SAVEPATH) || !isempty(DATABUF)) && (saveqdt(); global OLDI += 1)
+    if isfile(SAVEPATH) || !isempty(DATABUF)
+        saveqdt()
+        global OLDI += 1
+        toast(:success, stcstr(mlstr("Task"), " ", OLDI, " ", mlstr("saved")), SAVEPATH)
+    end
     empty!(PROGRESSLIST)
     empty!(CFGBUF)
     SYNCSTATES[IsDAQTaskDone] = false
@@ -368,36 +412,60 @@ let
     cache::Vector{Tuple{String,String}} = []
     global function process_databufrc()
         packdata = take_databufrc!()
-        for data in packdata
-            haskey(DATABUF, data[1]) || (DATABUF[data[1]] = String[])
-            haskey(DATABUFPARSED, data[1]) || (DATABUFPARSED[data[1]] = Float64[])
-            push!(DATABUF[data[1]], data[2])
-            push!(cache, data)
-            parsed_data = tryparse(Float64, data[2])
-            push!(DATABUFPARSED[data[1]], isnothing(parsed_data) ? NaN : parsed_data)
-            splitdata = split(data[1], "/")
-            if length(splitdata) == 4
-                _, instrnm, qt, addr = splitdata
-            else
-                continue
+        #整批写入必须在同一段临界区内完成:saveqdt 会持锁遍历 DATABUF、newfile/define 会 empty!,
+        #原先"取引用—锁外 push!"的写法会让 Dict 在迭代/清空的同时被插入(未定义行为)
+        lock(DATABUF) do databuf
+            lock(DATABUFPARSED) do databufparsed
+                for data in packdata
+                    haskey(databuf, data[1]) || (databuf[data[1]] = String[])
+                    haskey(databufparsed, data[1]) || (databufparsed[data[1]] = Float64[])
+                    push!(databuf[data[1]], data[2])
+                    push!(cache, data)
+                    parsed_data = tryparse(Float64, data[2])
+                    push!(databufparsed[data[1]], isnothing(parsed_data) ? NaN : parsed_data)
+                end
             end
-            insbuf = INSTRBUFFERVIEWERS[instrnm][addr].insbuf
-            if occursin(r"\[.*\]", qt)
+        end
+        #回写仪器缓冲放到锁外:缺键/下标非法不该让整批数据丢掉,更不能打断采集
+        qtstoupdate = []
+        for data in packdata
+            splitdata = split(data[1], "/")
+            length(splitdata) == 4 || continue
+            _, instrnm, qt, addr = splitdata
+            #用 get 一次取出,避免 haskey 与 getindex 之间被 GUI 线程删掉导致 KeyError
+            inses = get(INSTRBUFFERVIEWERS, instrnm, nothing)
+            isnothing(inses) && continue
+            ibv = get(inses, addr, nothing)
+            isnothing(ibv) && continue
+            insbuf = ibv.insbuf
+            idx = 0
+            if occursin('[', qt)
                 splitqt = split(qt, '[')
+                length(splitqt) == 2 || continue
+                endswith(splitqt[2], ']') || continue
                 qt = splitqt[1]
-                idx = parse(Int, splitqt[2][1:end-1])
-                splitread = split(insbuf.quantities[qt].read, insbuf.quantities[qt].separator)
+                parsedidx = tryparse(Int, splitqt[2][1:end-1]) #下标非法时按标量处理,不抛异常
+                isnothing(parsedidx) || (idx = parsedidx)
+            end
+            qtins = get(insbuf.quantities, qt, nothing)
+            isnothing(qtins) && continue
+            if idx == 0
+                qtins.read = data[2]
+            else
+                splitread = split(qtins.read, qtins.separator)
                 if idx > length(splitread)
-                    insbuf.quantities[qt].read *= repeat(insbuf.quantities[qt].separator, idx - length(splitread))
-                    insbuf.quantities[qt].read *= data[2]
+                    qtins.read = string(
+                        join(splitread, qtins.separator), repeat(qtins.separator, idx - length(splitread)), data[2]
+                    )
                 else
                     splitread[idx] = data[2]
-                    insbuf.quantities[qt].read = join(splitread, insbuf.quantities[qt].separator)
+                    qtins.read = join(splitread, qtins.separator)
                 end
-            else
-                insbuf.quantities[qt].read = data[2]
             end
-            updatefront!(insbuf.quantities[qt])
+            push!(qtstoupdate, qtins)
+        end
+        for qtins in qtstoupdate
+            updatefront!(qtins)
         end
         waittime("saveqdtcache", CONF.DAQ.savetime) && (saveqdtcache(cache); empty!(cache))
         waittime("savecfgcache", 60CONF.DAQ.savetime) && savecfgcache()
@@ -406,10 +474,20 @@ let
 end
 function process_extradatabufrc()
     key, val = take_extradatabufrc!()
-    DATABUF[key] = val
-    DATABUFPARSED[key] = replace(tryparse.(Float64, val), nothing => NaN)
-    haskey(CFGBUF, "EXTRADATA") || (CFGBUF["EXTRADATA"] = Dict())
-    CFGBUF["EXTRADATA"][key] = val
+    parsedvals = tryparse.(Float64, val)
+    #两个 buffer 必须在同一临界区内一起更新(加锁顺序与 process_databufrc 一致,不会死锁)
+    lock(DATABUF) do databuf
+        lock(DATABUFPARSED) do databufparsed
+            databuf[key] = String[string(v) for v in val]
+            #必须显式构造 Vector{Float64}:replace 会保留 nothing 所在的 Union 元素类型,
+            #直接赋给 Dict{String,VecOrMat{Cdouble}} 会在元素类型转换时抛错并打断数据泵
+            databufparsed[key] = Float64[isnothing(p) ? NaN : p for p in parsedvals]
+        end
+    end
+    lock(CFGBUF) do CFGBUF
+        haskey(CFGBUF, "EXTRADATA") || (CFGBUF["EXTRADATA"] = Dict())
+        CFGBUF["EXTRADATA"][key] = val
+    end
 end
 function process_progressrc()
     packpb = take_progressrc!()
@@ -424,36 +502,45 @@ end
 
 function saveqdt()
     savetype = eval(Symbol(CONF.DAQ.savetype))
+    datalen = 0
     jldopen(SAVEPATH, "w") do file
         lock(DATABUF) do DATABUF
+            datalen = sum(length(data) for data in values(DATABUF); init=0) #持锁统计,避免锁外遍历
             if savetype == String
                 file["data"] = DATABUF
             else
                 datafloat = Dict()
                 for (key, val) in DATABUF
                     dataparsed = tryparse.(savetype, val)
-                    datafloat[key] = all(.!isnothing.(dataparsed)) ? dataparsed : val
+                    #必须把 Union{Nothing,T} 收成纯 T 数组:JLD2 写不了带 Nothing 的联合类型数组
+                    datafloat[key] = all(!isnothing, dataparsed) ? Array{savetype,1}(dataparsed) : val
                 end
                 file["data"] = datafloat
             end
         end
         file["circuit"] = CIRCUIT
         file["daqdataplots"] = norealtime!(deepcopy(DAQDATAPLOTS))
-        for (key, val) in CFGBUF
-            key == "EXTRADATA" && continue
-            file[key] = val
+        lock(CFGBUF) do CFGBUF
+            for (key, val) in CFGBUF
+                key == "EXTRADATA" && continue
+                file[key] = val
+            end
         end
         file["info"] = FILEINFO
         file["valid"] = !STATES[InValidFile]
     end
-    if sum(length(data) for data in values(DATABUF); init=0) > CONF.DAQ.cuttingfile
+    if datalen > CONF.DAQ.cuttingfile
         dir, file = splitdir(SAVEPATH)
         cuttingnum = find_cutting_i(dir, file)
         if cuttingnum != 1
             savepathhead = chop(file, tail=cuttingnum == 2 ? 4 : 7 + length(string(cuttingnum)))
             global SAVEPATH = joinpath(dir, string(savepathhead, " [", cuttingnum, "].qdt"))
-            empty!(DATABUF)
-            empty!(DATABUFPARSED)
+            lock(DATABUF) do databuf
+                lock(DATABUFPARSED) do databufparsed
+                    empty!(databuf)
+                    empty!(databufparsed)
+                end
+            end
             @trycatch mlstr("instrument logging error, program terminates!!!") log_instrbufferviewers()
         end
     end
@@ -461,9 +548,11 @@ end
 function savecfgcache()
     jldopen(CFGCACHESAVEPATH, "w") do file
         file["circuit"] = CIRCUIT
-        file["daqdataplots"] = deepcopy(DAQDATAPLOTS)
-        for (key, val) in CFGBUF
-            file[key] = val
+        file["daqdataplots"] = norealtime!(deepcopy(DAQDATAPLOTS))
+        lock(CFGBUF) do CFGBUF
+            for (key, val) in CFGBUF
+                file[key] = val
+            end
         end
         file["info"] = FILEINFO
         file["valid"] = !STATES[InValidFile]
@@ -545,8 +634,11 @@ function newfile(filename="")
     SAVEPATH = joinpath(cfgsvdir, "$fileprename.qdt")
     CFGCACHESAVEPATH = joinpath(cfgsvdir, "$fileprename.cfg.cache")
     QDTCACHESAVEPATH = joinpath(cfgsvdir, "$fileprename.qdt.cache")
-    for k in keys(CFGBUF)
-        k == "daqtask" || delete!(CFGBUF, k)
+    #先快照再删除:边遍历 keys 边 delete! 会破坏 Dict 内部槽位,单线程下也是未定义行为
+    lock(CFGBUF) do CFGBUF
+        for k in collect(keys(CFGBUF))
+            k == "daqtask" || delete!(CFGBUF, k)
+        end
     end
     try
         log_instrbufferviewers()
@@ -555,8 +647,13 @@ function newfile(filename="")
         showbacktrace()
     end
 
-    empty!(DATABUF)
-    empty!(DATABUFPARSED)
+    #两个 buffer 一起清空,避免读取方看到一半空一半非空的不一致状态
+    lock(DATABUF) do databuf
+        lock(DATABUFPARSED) do databufparsed
+            empty!(databuf)
+            empty!(databufparsed)
+        end
+    end
 end
 
 #DAQTask Viewer
@@ -574,8 +671,6 @@ function view(daqtask::DAQTask)
         end
     end
     TextRect(string(daqtask.explog, "\n "); nochild=true)
-    daqtask.textmode ? @c(InputTextMultilineRSZ(
-        "##Script", &daqtask.viewcodes, (-1, -1), ImGuiInputTextFlags_ReadOnly
-    )) : view(daqtask.blocks)
+    daqtask.textmode ? codeview("##Script", daqtask.viewcodes, (-1, -1)) : view(daqtask.blocks)
     CImGui.EndChild()
 end

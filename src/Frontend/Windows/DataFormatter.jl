@@ -171,7 +171,10 @@ end
 
 function edit(dft::DataFormatter, id)
     CImGui.SetNextWindowSize((400, 600) .* CImGui.GetWindowDpiScale(), CImGui.ImGuiCond_Once)
-    if @c CImGui.Begin(stcstr(MORESTYLE.Icons.DataFormatter, " ", mlstr("Data Formatter"), "##", id), &dft.p_open)
+    nm = stcstr(MORESTYLE.Icons.DataFormatter, " ", mlstr("Data Formatter"), "##", id)
+    begun, own, popenarg = @c BeginNoClose(nm, &dft.p_open)
+    if begun
+        SetWindowShadow()
         SetWindowBgImage(CONF.BGImage.formatter.path; rate=CONF.BGImage.formatter.rate, use=CONF.BGImage.formatter.use)
         CImGui.PushFont(C_NULL, MORESTYLE.Variables.BigIconSize)
         CImGui.AddRectFilled(
@@ -232,7 +235,7 @@ function edit(dft::DataFormatter, id)
             CImGui.PopID()
         end
     end
-    CImGui.End()
+    @c EndNoClose(own, &dft.p_open, popenarg)
     if dft.p_open
         for (i, fd) in enumerate(dft.data)
             showdtviewer(fd, stcstr(id, "-", i))
@@ -297,8 +300,10 @@ end
 function showdtviewer(fd::FormatData, id)
     if fd.dtviewer.p_open
         CImGui.SetNextWindowSize((600, 600) .* CImGui.GetWindowDpiScale(), CImGui.ImGuiCond_Once)
-        @c(CImGui.Begin(stcstr("FormatData", id), &fd.dtviewer.p_open)) && edit(fd.dtviewer, fd.path, stcstr("FormatData", id))
-        CImGui.End()
+        nm = stcstr("FormatData", id)
+        begun, own, popenarg = @c BeginNoClose(nm, &fd.dtviewer.p_open)
+        begun && edit(fd.dtviewer, fd.path, nm)
+        @c EndNoClose(own, &fd.dtviewer.p_open, popenarg)
         fd.dtviewer.p_open && haskey(fd.dtviewer.data, "data") && renderplots(fd.dtviewer.dtps, stcstr("formatdata", id))
         if !fd.dtviewer.p_open
             atclosedtviewer!(fd.dtviewer)
@@ -312,8 +317,10 @@ function showdtviewer(fdg::FormatDataGroup, id)
     end
     if fdg.dtviewer.p_open
         CImGui.SetNextWindowSize((600, 600) .* CImGui.GetWindowDpiScale(), CImGui.ImGuiCond_Once)
-        @c(CImGui.Begin(stcstr("FormatDataGroup", id), &fdg.dtviewer.p_open)) && edit(fdg.dtviewer, "", stcstr("FormatDataGroup", id))
-        CImGui.End()
+        nm = stcstr("FormatDataGroup", id)
+        begun, own, popenarg = @c BeginNoClose(nm, &fdg.dtviewer.p_open)
+        begun && edit(fdg.dtviewer, "", nm)
+        @c EndNoClose(own, &fdg.dtviewer.p_open, popenarg)
         fdg.dtviewer.p_open && haskey(fdg.dtviewer.data, "data") && renderplots(fdg.dtviewer.dtps, stcstr("formatdatagroup", id))
     end
 end

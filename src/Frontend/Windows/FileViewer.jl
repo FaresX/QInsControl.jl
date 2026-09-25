@@ -8,14 +8,12 @@ end
 
 function edit(fv::FileViewer, id)
     CImGui.SetNextWindowSize((520, 720) .* CImGui.GetWindowDpiScale(), CImGui.ImGuiCond_Once)
-    if @c CImGui.Begin(
-        if fv.filetree.rootpath_bnm == ""
-            stcstr(MORESTYLE.Icons.OpenFile, "  ", mlstr("Data Browse"), "###dtv", id)
-        else
-            stcstr(MORESTYLE.Icons.OpenFolder, "  ", mlstr("Data Browse"), "###dtv", id)
-        end,
-        &fv.p_open
-    )
+    nm = fv.filetree.rootpath_bnm == "" ?
+         stcstr(MORESTYLE.Icons.OpenFile, "  ", mlstr("Data Browse"), "###dtv", id) :
+         stcstr(MORESTYLE.Icons.OpenFolder, "  ", mlstr("Data Browse"), "###dtv", id)
+    begun, own, popenarg = @c BeginNoClose(nm, &fv.p_open)
+    if begun
+        SetWindowShadow()
         SetWindowBgImage(CONF.BGImage.filetree.path; rate=CONF.BGImage.filetree.rate, use=CONF.BGImage.filetree.use)
 
         oldfiles = copy(fv.filetree.selectedpathes)
@@ -32,7 +30,7 @@ function edit(fv::FileViewer, id)
                 haskey(fv.dtviewers, path) || push!(fv.dtviewers, path => DataViewer())
                 path in oldfiles || loaddtviewer!(fv.dtviewers[path], path, stcstr("DataViewer", id, path))
             end
-            for path in keys(fv.dtviewers)
+            for path in collect(keys(fv.dtviewers)) #快照遍历:循环体内 delete! 会打断 Dict 迭代
                 if path ∉ fv.filetree.selectedpathes
                     atclosedtviewer!(fv.dtviewers[path])
                     delete!(fv.dtviewers, path)
@@ -48,12 +46,16 @@ function edit(fv::FileViewer, id)
         end
         CImGui.EndChild()
     end
-    CImGui.End()
+    @c EndNoClose(own, &fv.p_open, popenarg)
+    closedpaths = String[] #循环内 deleteat!/delete! 会打断 selectedpathes/dtviewers 的迭代,先收集再统一删
     for path in fv.filetree.selectedpathes
         haskey(fv.dtviewers, path) || push!(fv.dtviewers, path => DataViewer())
         dtviewer = fv.dtviewers[path]
         CImGui.SetNextWindowSize((600, 800) .* CImGui.GetWindowDpiScale(), CImGui.ImGuiCond_Once)
-        if @c CImGui.Begin(stcstr(basename(path), "##", path), &dtviewer.p_open)
+        nmd = stcstr(basename(path), "##", path)
+        begun, own, popenarg = @c BeginNoClose(nmd, &dtviewer.p_open)
+        if begun
+            SetWindowShadow()
             SetWindowBgImage(
                 CONF.BGImage.fileviewer.path;
                 rate=CONF.BGImage.fileviewer.rate,
@@ -61,15 +63,16 @@ function edit(fv::FileViewer, id)
             )
             edit(dtviewer, path, string(id, path))
         end
-        CImGui.End()
+        @c EndNoClose(own, &dtviewer.p_open, popenarg)
         if dtviewer.p_open
             haskey(dtviewer.data, "data") && renderplots(dtviewer.dtps, stcstr("DataViewer", id, path))
         else
             atclosedtviewer!(fv.dtviewers[path])
             delete!(fv.dtviewers, path)
-            deleteat!(fv.filetree.selectedpathes, findall(==(path), fv.filetree.selectedpathes))
+            push!(closedpaths, path)
         end
     end
+    filter!(!in(closedpaths), fv.filetree.selectedpathes)
 end
 
 function atclosefileviewer!(fv::FileViewer)

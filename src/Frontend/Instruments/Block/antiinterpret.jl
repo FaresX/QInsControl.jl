@@ -21,7 +21,7 @@ function checkblocks!(blocks::Vector{AbstractBlock}, level=1)
                    (
                     bk.blocks[1].codes == "begin" ||
                     bk.blocks[1].codes == "@sync begin" && length(bk.blocks) == 1 &&
-                    count(x -> x in [ReadingBlock, ReadBlock, QueryBlock], typeof.(bk.blocks[1].blocks)) > 0
+                    count(x -> x in [ReadingBlock, WriteBlock, QueryBlock, ReadBlock], typeof.(bk.blocks[1].blocks)) > 0
                 )
                     bk.blocks[1].codes == "begin" && (bk.nohandler = bk.blocks[1].nohandler)
                     inbks = bk.blocks[1].blocks
@@ -35,7 +35,7 @@ function checkblocks!(blocks::Vector{AbstractBlock}, level=1)
                                (
                                    bk.blocks[j+1].codes == "begin" ||
                                    bk.blocks[j+1].codes == "@sync begin" && (j + 1 == length(bk.blocks) || bk.blocks[j+2] isa BranchBlock) &&
-                                   count(x -> x in [ReadingBlock, ReadBlock, QueryBlock], typeof.(bk.blocks[j+1].blocks)) > 0
+                                   count(x -> x in [ReadingBlock, WriteBlock, QueryBlock, ReadBlock], typeof.(bk.blocks[j+1].blocks)) > 0
                                )
                                 inbks = bk.blocks[j+1].blocks
                                 deleteat!(bk.blocks, j + 1)
@@ -251,7 +251,7 @@ function antiinterpret(ex, ::Val{:settingblock})
         addr=addr,
         quantity=ex.args[4],
         ischeck=ex.args[5],
-        setvalue=ex.args[6],
+        setvalue=string(ex.args[6]),
         ui=utoui(instrnm, ex.args[4], strtoU(string(ex.args[7]))),
         delay=ex.args[8],
         istrycatch=ex.args[9]

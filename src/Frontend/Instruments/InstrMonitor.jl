@@ -3,9 +3,7 @@ let
     showst::Bool = false
     global function InstrumentMonitor(instrwidgets)
         btw = 2CImGui.GetFrameHeight() + unsafe_load(IMGUISTYLE.ItemSpacing.y)
-        CImGui.PushStyleColor(CImGui.ImGuiCol_Border, MORESTYLE.Colors.ItemBorder)
-        CImGui.PushStyleVar(CImGui.ImGuiStyleVar_ChildBorderSize, 1)
-        CImGui.BeginChild("border1", (Cfloat(0), btw + 2unsafe_load(IMGUISTYLE.WindowPadding.y)), true)
+        CardChild("border1", (Cfloat(0), btw + 2MORESTYLE.Variables.CardPadding[2] .* CImGui.GetWindowDpiScale()); level = 2, shadow = false)
         showst |= STATES[AutoDetecting]
         showst && CImGui.PushStyleColor(
             CImGui.ImGuiCol_Button,
@@ -24,9 +22,9 @@ let
         CImGui.PopItemWidth()
         CImGui.EndGroup()
         igEndDisabled()
-        CImGui.EndChild()
+        EndCard()
 
-        CImGui.BeginChild("border2", (0, 0), true)
+        CardChild("border2", (0, 0); level = 2)
         for (ins, inses) in INSTRBUFFERVIEWERS
             isempty(inses) && continue
             # isempty(inses) && CImGui.PushStyleColor(
@@ -100,8 +98,6 @@ let
             end
             # isempty(inses) && CImGui.PopStyleColor()
         end
-        CImGui.EndChild()
-        CImGui.PopStyleVar()
-        CImGui.PopStyleColor()
+        EndCard()
     end
 end

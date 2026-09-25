@@ -10,11 +10,9 @@ let
     global function LogWindow(p_open::Ref)
         # CImGui.SetNextWindowPos((100, 100), CImGui.ImGuiCond_Once)
         CImGui.SetNextWindowSize((800, 600) .* CImGui.GetWindowDpiScale(), CImGui.ImGuiCond_Once)
-        if CImGui.Begin(
-            stcstr(MORESTYLE.Icons.Logger, "  ", mlstr("Logger"), "###logger"),
-            p_open,
-            CImGui.ImGuiWindowFlags_HorizontalScrollbar
-        )
+        nm = stcstr(MORESTYLE.Icons.Logger, "  ", mlstr("Logger"), "###logger")
+        begun, own, popenarg = BeginNoClose(nm, p_open)
+        if begun
             SetWindowBgImage(CONF.BGImage.logger.path; rate=CONF.BGImage.logger.rate, use=CONF.BGImage.logger.use)
             if SYNCSTATES[IsNewLogging] || SYNCSTATES[IsNewLogging] || waittime("Logger", CONF.Logs.refreshrate)
                 empty!(logmsgshow)
@@ -34,7 +32,7 @@ let
                     occursin(markerlist[2], s) && (textbg = ImVec4(MORESTYLE.Colors.WarnBg...); texttype = "Warn")
                     occursin(markerlist[3], s) && (textbg = ImVec4(MORESTYLE.Colors.ErrorBg...); texttype = "Error")
                     occursin(markerlist[4], s) && (textbg = ImVec4(MORESTYLE.Colors.ErrorBg...); texttype = "Stacktrace")
-                    length(s) > CONF.Logs.showloglength && (s = s[1:CONF.Logs.showloglength])
+                    length(s) > CONF.Logs.showloglength && (s = first(s, CONF.Logs.showloglength)) #first 按字符截断,s[1:n] 会切进多字节字符抛 StringIndexError
                     if occursin("└", s) || s == "\r"
                         logmsg *= @sprintf "%-8d%s\n\n" i s
                         matchdate = match(r"(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}.\d{3})", logmsg)
@@ -102,7 +100,6 @@ let
                             CImGui.IsItemHovered() && CImGui.IsMouseDoubleClicked(0) && (expanded[] = !expanded[])
                         end
                         SYNCSTATES[IsNewLogging] && (CImGui.SetScrollHereY(1); SYNCSTATES[IsNewLogging] = false)
-                        SYNCSTATES[IsNewLogging] && (CImGui.SetScrollHereY(1); SYNCSTATES[IsNewLogging] = false)
                         firsttime && (CImGui.SetScrollHereY(1); firsttime = false)
                         CImGui.EndTable()
                     end
@@ -116,7 +113,7 @@ let
                 CImGui.EndTabBar()
             end
         end
-        CImGui.End()
+        EndNoClose(own, p_open, popenarg)
         p_open.x || (firsttime = true)
     end
 end

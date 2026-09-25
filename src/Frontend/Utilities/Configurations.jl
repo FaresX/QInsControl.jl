@@ -3,7 +3,9 @@
     isremote::Bool = true
     viewportenable::Bool = true
     holdmainwindow::Bool = true
-    hidewindow::Bool = false
+    hidemainwindow::Bool = false
+    hideglfwwindow::Bool = false
+    hideimguititlebar::Bool = true
     lowestframerate::Cint = 4
     nthreads::Cint = 2
     nthreads_2::Cint = 2
@@ -11,7 +13,7 @@
     openglversion::String = "4.6"
     encoding::String = "GBK"
     editor::String = "notepad"
-    language::String = "English"
+    language::String = "简体中文"
     languages::Dict{String,String} = Dict()
 end
 
@@ -99,6 +101,11 @@ end
     default::String = "OceanBreeze"
 end
 
+@option mutable struct OptWebDashboard
+    enable::Bool = false
+    port::Cint = 8088
+end
+
 @option mutable struct Conf
     Basic::OptBasic = OptBasic()
     Communication::OptCommunication = OptCommunication()
@@ -106,6 +113,7 @@ end
     DAQ::OptDAQ = OptDAQ()
     InsBuf::OptInsBuf = OptInsBuf()
     Server::OptServer = OptServer()
+    WebDashboard::OptWebDashboard = OptWebDashboard()
     Register::OptRegister = OptRegister()
     Console::OptConsole = OptConsole()
     Logs::OptLogs = OptLogs()
@@ -126,46 +134,3 @@ end
         "Ω" => [u"Ω", u"kΩ", u"MΩ"]
     )
 end
-
-# global CONF::Conf
-
-# abstract type InsConf end
-
-# @kwdef mutable struct BasicConf <: InsConf
-#     icon::String = ICONS.ICON_MICROCHIP
-#     idn::String = "New Ins"
-#     cmdtype::String = "scpi"
-#     input_labels::Vector{String} = []
-#     output_labels::Vector{String} = []
-# end
-
-# @kwdef mutable struct QuantityConf <: InsConf
-#     alias::String = "quantity"
-#     timeoutw::Cfloat = 3
-#     timeoutr::Cfloat = 3
-#     U::String = ""
-#     cmdheader::String = ""
-#     optkeys::Vector{String} = []
-#     optvalues::Vector{String} = []
-#     type::String = "set"
-#     separator::String = ""
-#     numread::Cint = 1
-#     help::String = ""
-# end
-
-# @kwdef mutable struct OneInsConf
-#     conf::BasicConf = BasicConf()
-#     quantities::OrderedDict{String,QuantityConf} = Dict()
-# end
-
-# todict(cf::BasicConf) = Dict(string(fdnm) => getproperty(cf, fdnm) for fdnm in fieldnames(BasicConf))
-# todict(qtcf::QuantityConf) = Dict(string(fdnm) => getproperty(qtcf, fdnm) for fdnm in fieldnames(QuantityConf))
-# function todict(oneinscf::OneInsConf)
-#     dict = Dict{String,Dict{String,Any}}("conf" => todict(oneinscf.conf))
-#     for (qt, qtcf) in oneinscf.quantities
-#         dict[qt] = todict(qtcf)
-#     end
-#     dict
-# end
-
-# const INSCONF = OrderedDict{String,OneInsConf}() #仪器注册表

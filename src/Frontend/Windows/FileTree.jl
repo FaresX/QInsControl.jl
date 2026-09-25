@@ -16,7 +16,7 @@ mutable struct FolderFileTree <: FileTree
     valid::Ref{Bool}
     filetrees::Vector{T} where {T<:FileTree}
     function FolderFileTree(
-        rootpath::String, selectedpathes=[], filter=ImGuiTextFilter_ImGuiTextFilter(C_NULL), valid=Ref(false)
+        rootpath::String, selectedpathes=[], filter=ImGuiTextFilter_ImGuiTextFilter(C_NULL), valid=Ref(false), depth=0
     )
         ft = new()
         ft.rootpath = rootpath
@@ -25,10 +25,11 @@ mutable struct FolderFileTree <: FileTree
         ft.filter = filter
         ft.valid = valid
         ft.filetrees = FileTree[]
-        dircontent = readdir(rootpath, join=true)
-        for p in dircontent
-            if isdir(p)
-                push!(ft.filetrees, FolderFileTree(p, ft.selectedpathes, ft.filter, ft.valid))
+        #深度上限 + 跳过符号链接:递归 readdir 无防护时,目录环(symlink/junction 指回祖先)会
+        #无限递归直到栈溢出
+        depth < 24 && for p in readdir(rootpath, join=true)
+            if isdir(p) && !islink(p)
+                push!(ft.filetrees, FolderFileTree(p, ft.selectedpathes, ft.filter, ft.valid, depth + 1))
             elseif isfile(p)
                 push!(
                     ft.filetrees,

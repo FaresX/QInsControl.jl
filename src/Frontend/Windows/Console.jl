@@ -9,7 +9,9 @@ let
     global function ShowConsole(p_open::Ref{Bool})
         # CImGui.SetNextWindowPos((100, 100), CImGui.ImGuiCond_Once)
         CImGui.SetNextWindowSize((600, 400) .* CImGui.GetWindowDpiScale(), CImGui.ImGuiCond_Once)
-        if CImGui.Begin(stcstr(MORESTYLE.Icons.Console, "  ", mlstr("Console"), "###console"), p_open)
+        nm = stcstr(MORESTYLE.Icons.Console, "  ", mlstr("Console"), "###console")
+        begun, own, popenarg = BeginNoClose(nm, p_open)
+        if begun
             SetWindowBgImage(CONF.BGImage.console.path; rate=CONF.BGImage.console.rate, use=CONF.BGImage.console.use)
             if length(historycmd) != CONF.Console.historylen
                 resize!(historycmd.data, CONF.Console.historylen)
@@ -30,7 +32,7 @@ let
                 isinblock = false
                 for (i, s) in enumerate(allmsg[end-limitline+1:end])
                     occursin(markerlist[1], s) && (textc = ImVec4(MORESTYLE.Colors.HighlightText...))
-                    length(s) > CONF.Console.showiolength && (s = s[1:CONF.Console.showiolength])
+                    length(s) > CONF.Console.showiolength && (s = first(s, CONF.Console.showiolength)) #first 按字符截断,防多字节行抛 StringIndexError
                     if occursin("[End]", s)
                         isinblock || (iomsg *= "\n")
                         push!(iomsgshow, (textc, iomsg))
@@ -104,7 +106,7 @@ let
                 buffer = historycmd[]
             end
         end
-        CImGui.End()
+        EndNoClose(own, p_open, popenarg)
     end
 end
 

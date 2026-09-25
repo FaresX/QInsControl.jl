@@ -271,6 +271,15 @@ end
     WidgetBorderSelected::Vector{Cfloat} = [0.000, 1.000, 0.000, 1.000]
     ToolBarBg::Vector{Cfloat} = [0.000, 0.000, 0.000, 0.400]
     IconButton::Vector{Cfloat} = [0.000, 0.320, 0.574, 1.000]
+    AccentTop::Vector{Cfloat} = [0.160, 0.460, 0.960, 1.000]
+    AccentBottom::Vector{Cfloat} = [0.060, 0.620, 0.980, 1.000]
+    SuccessText::Vector{Cfloat} = [0.200, 0.800, 0.400, 1.000]
+    SuccessBg::Vector{Cfloat} = [0.200, 0.800, 0.400, 0.600]
+    ShadowColor::Vector{Cfloat} = [0.000, 0.000, 0.000, 0.350]
+    CardBg::Vector{Cfloat} = [0.000, 0.000, 0.000, 0.000]
+    CardBorder::Vector{Cfloat} = [0.000, 0.000, 0.000, 0.000]
+    PanelBg::Vector{Cfloat} = [0.000, 0.000, 0.000, 0.000]
+    PanelBorder::Vector{Cfloat} = [0.000, 0.000, 0.000, 0.000]
 end
 
 @option mutable struct MoreStyleIcon
@@ -290,7 +299,7 @@ end
     CPUMonitor::String = ICONS.ICON_COMPUTER
     ServerMonitor::String = ICONS.ICON_SERVER
 
-    Instruments::String = ICONS.ICON_BIOHAZARD
+    Instruments::String = ICONS.ICON_TOOLBOX
     InstrumentsSetting::String = ICONS.ICON_BOOK_JOURNAL_WHILLS
     InstrumentsManualRef::String = ICONS.ICON_ROTATE
     InstrumentsAutoRef::String = ICONS.ICON_REPEAT
@@ -347,13 +356,17 @@ end
     HoldPin::String = ICONS.ICON_TROWEL
 
     Help::String = ICONS.ICON_BOOK_TANAKH
-    Console::String = ICONS.ICON_COMPUTER
+    Console::String = ICONS.ICON_CREDIT_CARD
     SendMsg::String = ICONS.ICON_PAPER_PLANE
     Metrics::String = ICONS.ICON_EYE
     Logger::String = ICONS.ICON_BOX_ARCHIVE
     CopyIcon::String = ICONS.ICON_SQUARE_VIRUS
     HelpPad::String = ICONS.ICON_ENVELOPE_CIRCLE_CHECK
     About::String = ICONS.ICON_SPLOTCH
+
+    Assistant::String = ICONS.ICON_DHARMACHAKRA
+    AIAssistant::String = ICONS.ICON_ROBOT
+    WebDashboard::String = ICONS.ICON_GLOBE
 end
 
 @option mutable struct MoreStyleVariable
@@ -372,6 +385,12 @@ end
     WidgetBorderThickness::Cfloat = 1
     ContainerBlockWindowPadding::Vector{Cfloat} = [18, 18]
     MakieTheme::String = "default"
+    ShadowRadius::Cfloat = 24
+    AnimSpeed::Cfloat = 1
+    ToastDuration::Cfloat = 4
+    Wallpaper::String = ""
+    CardRounding::Cfloat = 8
+    CardPadding::Vector{Cfloat} = [8.0, 8.0]
 end
 
 @option mutable struct MoreStyle
@@ -388,6 +407,22 @@ end
 
 global IMGUISTYLE::Ptr{CImGui.lib.ImGuiStyle}
 global IMGUISTYLE_REF::Ref{Ptr{ImGuiStyle}} = Ref(ImGuiStyle_ImGuiStyle())
+#Ref 里存的是自有 C 侧分配(非 live ctx 样式),换新时必须 destroy 旧的,否则每次换主题泄漏一份 ImGuiStyle
+function setimguistyleref!(p::Ptr{ImGuiStyle})
+    IMGUISTYLE_REF[] == p && return
+    old = IMGUISTYLE_REF[]
+    IMGUISTYLE_REF[] = p
+    try
+        old == C_NULL || ImGuiStyle_destroy(old)
+    catch e
+        @warn "[$(now())]\nfailed to destroy old ImGuiStyle" exception = e
+    end
+end
+#QImGuiStyle 版本:主题自带的样式快照(非 C 侧分配),直接替换引用,不参与 destroy 生命周期
+function setimguistyleref!(s::QImGuiStyle)
+    IMGUISTYLE_REF[] = s
+    return
+end
 global IMNODESSTYLE::Ptr{CImGui.lib.ImNodesStyle}
 global MORESTYLE::MoreStyle
 const STYLES = Dict{String,UnionStyle}()
@@ -632,6 +667,35 @@ let
                 if @c ComboS("Makie Theme", &MORESTYLE.Variables.MakieTheme, keys(MAKIETHEMES))
                     toimguitheme!(get!(MAKIETHEMES, MORESTYLE.Variables.MakieTheme, "default"))
                 end
+                @c CImGui.DragFloat(
+                    "ShadowRadius", &MORESTYLE.Variables.ShadowRadius,
+                    1, 0, 64, "%.1f", CImGui.ImGuiSliderFlags_AlwaysClamp
+                )
+                @c CImGui.DragFloat(
+                    "CardRounding", &MORESTYLE.Variables.CardRounding,
+                    1, 0, 32, "%.1f", CImGui.ImGuiSliderFlags_AlwaysClamp
+                )
+                CImGui.DragFloat2(
+                    "CardPadding", MORESTYLE.Variables.CardPadding,
+                    0.5, 0, 32, "%.1f", CImGui.ImGuiSliderFlags_AlwaysClamp
+                )
+                @c CImGui.DragFloat(
+                    "AnimSpeed", &MORESTYLE.Variables.AnimSpeed,
+                    0.05, 0, 3, "%.2f", CImGui.ImGuiSliderFlags_AlwaysClamp
+                )
+                @c CImGui.DragFloat(
+                    "ToastDuration", &MORESTYLE.Variables.ToastDuration,
+                    0.5, 1, 30, "%.1f", CImGui.ImGuiSliderFlags_AlwaysClamp
+                )
+                wppath = MORESTYLE.Variables.Wallpaper
+                inputwp = @c InputTextRSZ("##wallpaper", &wppath)
+                CImGui.SameLine()
+                selectwp = CImGui.Button(stcstr(MORESTYLE.Icons.SelectPath, "##Wallpapers"))
+                CImGui.SameLine()
+                CImGui.Text(mlstr("wallpaper"))
+                bgdir = joinpath(ENV["QInsControlAssets"], "Styles/Backgrounds")
+                selectwp && (wppath = pick_file(isdir(bgdir) ? bgdir : ENV["QInsControlAssets"]; filterlist="png,jpg,jpeg,bmp,gif"))
+                (inputwp || selectwp) && (MORESTYLE.Variables.Wallpaper = wppath)
                 CImGui.EndTabItem()
             end
             if CImGui.BeginTabItem("Colors")
@@ -725,7 +789,7 @@ let
 end
 
 function loadstyle(style_ref::QImGuiStyle)
-    IMGUISTYLE_REF[] = style_ref
+    setimguistyleref!(style_ref)
     for var in fieldnames(ImGuiStyle)
         var == :Colors && continue
         setproperty!(IMGUISTYLE, var, unsafe_load(getproperty(IMGUISTYLE_REF[], var)))
@@ -761,6 +825,22 @@ function loadstyle(ustyle::UnionStyle)
     end
 end
 
+# 主题应用中枢:CLEARCOLOR 与 MORESTYLE.Colors.ClearColor 共享同一向量(原地更新即热更);
+# 窗口外观(圆角/标题栏明暗)幂等重调;壁纸仅在显式切换主题时同步(applywallpaper=true),
+# 启动时仅当用户从未自定义壁纸(仍为出厂默认图)时随主题采用,其余情况 conf.toml 优先。
+function applytheme!(; applywallpaper::Bool = false)
+    applyallchrome!(isthemedark(MORESTYLE.Colors.ClearColor); force = true)
+    if !isempty(MORESTYLE.Variables.Wallpaper)
+        wp = MORESTYLE.Variables.Wallpaper
+        ispath(wp) || (wp = joinpath(ENV["QInsControlAssets"], wp))
+        if isfile(wp) && (applywallpaper || endswith(CONF.BGImage.main.path, "defaultwallpaper.png"))
+            CONF.BGImage.main.path = wp
+            CONF.BGImage.main.use = true
+        end
+    end
+    return
+end
+
 
 let
     ustyle::UnionStyle = UnionStyle()
@@ -792,7 +872,7 @@ let
         if CImGui.Button(MORESTYLE.Icons.SaveButton * " Save to File  ")
             if rstrip(style_name, ' ') != ""
                 ustyle.imguistyle = IMGUISTYLE
-                STYLES[style_name] = ustyle
+                STYLES[style_name] = deepcopy(ustyle) #deepcopy 断开别名:直接存 let 单例会让多个主题名共享同一对象,互相污染
                 ustyle.morestyle.Variables.ImGuiScale = CImGui.GetWindowDpiScale()
                 @trycatch mlstr("saving styles failed!!!") begin
                     to_toml(joinpath(CONF.Style.dir, "$style_name.toml"), ustyle)
@@ -827,17 +907,18 @@ let
         if selected_style == "" && haskey(STYLES, CONF.Style.default)
             selected_style = CONF.Style.default
             ustyle = STYLES[selected_style]
-            IMGUISTYLE_REF[] = ustyle.imguistyle
+            setimguistyleref!(ustyle.imguistyle)
         end
         if @c ComboS("##Style Selecting", &selected_style, keys(STYLES))
             if selected_style != ""
                 ustyle = STYLES[selected_style]
                 style_name = selected_style
                 loadstyle(ustyle)
-                IMGUISTYLE_REF[] = ustyle.imguistyle
+                setimguistyleref!(ustyle.imguistyle)
                 scale = CImGui.GetWindowDpiScale()
                 IMGUISTYLE.FontScaleDpi = scale
                 ImGuiStyle_ScaleAllSizes(IMGUISTYLE, scale / MORESTYLE.Variables.ImGuiScale)
+                applytheme!(; applywallpaper = true)
             end
         end
         CImGui.PopItemWidth()

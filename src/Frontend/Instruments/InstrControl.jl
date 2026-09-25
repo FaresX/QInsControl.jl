@@ -75,7 +75,10 @@ end
 function edit(ibv::InstrBufferViewer)
     CImGui.SetNextWindowSize((800, 600) .* CImGui.GetWindowDpiScale(), CImGui.ImGuiCond_Once)
     ins, addr = ibv.instrnm, ibv.addr
-    if @c CImGui.Begin(stcstr(INSTRCONF[ins].conf.icon, "  ", ins, "  ", addr), &ibv.p_open)
+    nm = stcstr(INSTRCONF[ins].conf.icon, "  ", ins, "  ", addr)
+    begun, own, popenarg = @c BeginNoClose(nm, &ibv.p_open)
+        if begun
+        SetWindowShadow()
         SetWindowBgImage(
             CONF.BGImage.instrbufferviewer.path;
             rate=CONF.BGImage.instrbufferviewer.rate,
@@ -85,7 +88,7 @@ function edit(ibv::InstrBufferViewer)
         edit(ibv.insbuf, addr)
         CImGui.IsKeyPressed(ImGuiKey_F5, false) && putonce(true)
     end
-    CImGui.End()
+    @c EndNoClose(own, &ibv.p_open, popenarg)
 end
 
 let
@@ -398,16 +401,17 @@ let
             else
                 MORESTYLE.Colors.ErrorBg
             end
-        ) && Threads.@spawn @trycatch mlstr("reading task failed!!!") getread!(qt, instrnm, addr)
+        ) && Threads.@spawn @toastcatch mlstr("reading task failed!!!") getread!(qt, instrnm, addr)
         if qt.issweeping
             rmin = CImGui.GetItemRectMin()
             rsz = CImGui.GetItemRectSize()
             frac = Cfloat(calcfraction(qt.presenti, qt.nstep))
-            phcol = CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_PlotHistogram)
-            pgcol = [phcol.x, phcol.y, phcol.z, min(0.6, phcol.w)]
-            CImGui.AddRectFilled(
+            # 叠加色 alpha 钳到 0.6,保持按钮文字可见(与原 PlotHistogram 叠加一致)
+            c1, c2 = MORESTYLE.Colors.AccentTop, MORESTYLE.Colors.AccentBottom
+            gradientfill(
                 CImGui.GetWindowDrawList(), rmin, (rmin.x + frac * rsz.x, rmin.y + rsz.y),
-                pgcol, unsafe_load(IMGUISTYLE.FrameRounding)
+                [c1[1], c1[2], c1[3], min(0.6f0, c1[4])],
+                [c2[1], c2[2], c2[3], min(0.6f0, c2[4])]
             )
             if CImGui.IsItemHovered() && CImGui.BeginTooltip()
                 CImGui.ProgressBar(
@@ -503,7 +507,7 @@ let
             else
                 MORESTYLE.Colors.ErrorBg
             end
-        ) && Threads.@spawn @trycatch mlstr("reading task failed!!!") getread!(qt, instrnm, addr)
+        ) && Threads.@spawn @toastcatch mlstr("reading task failed!!!") getread!(qt, instrnm, addr)
         # CImGui.PopFont()
         CImGui.PopStyleColor(2)
         if CONF.InsBuf.showhelp && CImGui.IsItemHovered() && qt.help != ""
@@ -597,7 +601,7 @@ let
             else
                 MORESTYLE.Colors.ErrorBg
             end
-        ) && Threads.@spawn @trycatch mlstr("reading task failed!!!") getread!(qt, instrnm, addr)
+        ) && Threads.@spawn @toastcatch mlstr("reading task failed!!!") getread!(qt, instrnm, addr)
         # CImGui.PopFont()
         CImGui.PopStyleColor(2)
         if CONF.InsBuf.showhelp && CImGui.IsItemHovered() && qt.help != ""
@@ -708,7 +712,7 @@ function apply!(qt::SweepQuantity, instrnm, addr)
     if !(isnothing(start) | isnothing(step) | isnothing(stop))
         sweeplist = gensweeplist(start, step, stop; equalstep=CONF.DAQ.equalstep)
         qt.nstep = length(sweeplist)
-        Threads.@spawn @trycatch mlstr("sweeping task failed!!!") begin
+        Threads.@spawn @toastcatch mlstr("sweeping task failed!!!") begin
             @info "[$(now())]\nBefore sweeping" instrument = instrnm address = addr quantity = qt
             actionidx = 1
             SYNCSTATES[IsDAQTaskRunning] && (actionidx = logaction(qt, instrnm, addr))
@@ -755,19 +759,24 @@ function apply!(qt::SetQuantity, instrnm, addr, byoptvalues=false)
 end
 
 function logaction(qt::AbstractQuantity, instrnm, addr)
-    haskey(CFGBUF, "actions") || (CFGBUF["actions"] = Vector{Tuple{DateTime,String,String,AbstractQuantity}}[])
-    push!(CFGBUF["actions"], Tuple{DateTime,String,String,AbstractQuantity}[])
-    push!(CFGBUF["actions"][end], (now(), instrnm, addr, deepcopy(qt)))
-    return length(CFGBUF["actions"])
+    #整段操作必须在同一临界区内:数据任务遍历 CFGBUF 落盘时,此处并发写入会破坏 Dict
+    return lock(CFGBUF) do CFGBUF
+        haskey(CFGBUF, "actions") || (CFGBUF["actions"] = Vector{Tuple{DateTime,String,String,AbstractQuantity}}[])
+        push!(CFGBUF["actions"], Tuple{DateTime,String,String,AbstractQuantity}[])
+        push!(CFGBUF["actions"][end], (now(), instrnm, addr, deepcopy(qt)))
+        length(CFGBUF["actions"])
+    end
 end
 function logaction(qt::AbstractQuantity, instrnm, addr, idx)
-    haskey(CFGBUF, "actions") || (CFGBUF["actions"] = Vector{Tuple{DateTime,String,String,AbstractQuantity}}[])
-    if idx > length(CFGBUF["actions"])
-        push!(CFGBUF["actions"], Tuple{DateTime,String,String,AbstractQuantity}[])
-        push!(CFGBUF["actions"][end], (DateTime(0), instrnm, addr, deepcopy(qt)))
-        push!(CFGBUF["actions"][end], (now(), instrnm, addr, deepcopy(qt)))
-    else
-        push!(CFGBUF["actions"][idx], (now(), instrnm, addr, deepcopy(qt)))
+    lock(CFGBUF) do CFGBUF
+        haskey(CFGBUF, "actions") || (CFGBUF["actions"] = Vector{Tuple{DateTime,String,String,AbstractQuantity}}[])
+        if idx > length(CFGBUF["actions"])
+            push!(CFGBUF["actions"], Tuple{DateTime,String,String,AbstractQuantity}[])
+            push!(CFGBUF["actions"][end], (DateTime(0), instrnm, addr, deepcopy(qt)))
+            push!(CFGBUF["actions"][end], (now(), instrnm, addr, deepcopy(qt)))
+        else
+            push!(CFGBUF["actions"][idx], (now(), instrnm, addr, deepcopy(qt)))
+        end
     end
 end
 
