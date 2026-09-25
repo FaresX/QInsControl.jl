@@ -3,11 +3,13 @@ let
     ecds::Vector{String} = encodings()
     datatypes::Vector{String} = ["String", "Float16", "Float32", "Float64"]
     openglversions::Vector{String} = ["3.0", "3.1", "3.2", "3.3", "4.0", "4.1", "4.2", "4.3", "4.4", "4.5", "4.6"]
-    global function Preferences(p_open::Ref)
+    global function Preferences(p_open::Ref{Bool})
         # CImGui.SetNextWindowPos((100, 100), CImGui.ImGuiCond_Once)
         CImGui.SetNextWindowSize((800, 600) .* CImGui.GetWindowDpiScale(), CImGui.ImGuiCond_Once)
 
-        if CImGui.Begin(stcstr(MORESTYLE.Icons.Preferences, "  ", mlstr("Preferences"), "###pref"), p_open)
+        nm = stcstr(MORESTYLE.Icons.Preferences, "  ", mlstr("Preferences"), "###pref")
+        begun, own, popenarg = BeginNoClose(nm, p_open)
+        if begun
             SetWindowBgImage(
                 CONF.BGImage.preferences.path;
                 rate=CONF.BGImage.preferences.rate,
@@ -82,6 +84,8 @@ let
                 ))
                 #&& (CONF.Basic.viewportenable || (CONF.Basic.hidewindow = false))
                 @c CImGui.Checkbox(mlstr("hold main window"), &CONF.Basic.holdmainwindow)
+                @c CImGui.Checkbox(mlstr("hide glfw window"), &CONF.Basic.hideglfwwindow)
+                CONF.Basic.hideglfwwindow || @c CImGui.Checkbox(mlstr("hide imgui titlebar"), &CONF.Basic.hideimguititlebar)
                 # @c CImGui.Checkbox(
                 #     CONF.Basic.scale ? mlstr("scale on") : mlstr("scale off"),
                 #     &CONF.Basic.scale
@@ -362,9 +366,7 @@ let
                     2unsafe_load(IMGUISTYLE.FramePadding.y)
                 if @c InputTextMultilineRSZ("##common address", &addrs, (Float32(0), y))
                     CONF.ComAddr.addrs = split(addrs, '\n')
-                    for (i, addr) in enumerate(CONF.ComAddr.addrs)
-                        rstrip(addr, ' ') == "" && deleteat!(CONF.ComAddr.addrs, i)
-                    end
+                    filter!(addr -> rstrip(addr, ' ') != "", CONF.ComAddr.addrs) #filter! 而非循环 deleteat!:跳删会漏掉连续空行
                 end
                 CImGui.Text(" ")
 
@@ -427,7 +429,9 @@ let
             CImGui.EndChild()
 
         end
-        CImGui.End()
+        # CImGui.End()
+        # own || (p_open[] = popenarg[])
+        EndNoClose(own, p_open, popenarg)
     end
 end # let
 
@@ -459,17 +463,5 @@ function showonesetu(up)
         end
         j == length(up.second) || CImGui.SameLine()
         CImGui.PopID()
-    end
-end
-
-function isvalidpath(path; file=true)
-    if file ? isfile(path) : isdir(path)
-        return true
-    else
-        CImGui.SameLine()
-        CImGui.TextColored(
-            MORESTYLE.Colors.ErrorText, file ? mlstr("file does not exist!!!") : mlstr("path does not exist!!!")
-        )
-        return false
     end
 end

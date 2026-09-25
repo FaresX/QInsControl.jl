@@ -31,50 +31,20 @@ macro trypass(sv, default)
 end
 
 function parsedollar(str)
-    ms = collect(eachmatch(r"(\$\w*)", str))
+    #把 "$var" 替换为插值表达式:按正则切分原文与变量名后交错拼接。
+    #不能逐个 split 解包:变量重复出现时解包数量不定会抛错,且漏掉最后一个 $var
+    ms = collect(eachmatch(r"\$\w+", str))
     if isempty(ms)
         return str
     else
-        ls, rs = split(str, ms[1][1])
-        sv = Expr(:string, ls, Symbol(lstrip(ms[1][1], '\$')))
-        for m in ms[2:end-1]
-            ls, rs = split(rs, m[1])
-            sv = Expr(:string, sv, ls, Symbol(lstrip(m[1], '\$')))
+        parts = split(str, r"\$\w+"; keepempty=true) #长度恒为 length(ms)+1
+        sv = Expr(:string)
+        for (i, m) in enumerate(ms)
+            push!(sv.args, parts[i], Symbol(m.match[2:end]))
         end
-        sv = Expr(:string, sv, rs)
+        push!(sv.args, parts[end])
         return sv
     end
-end
-
-function timedwaitfetch(t::Task, timeout::Real; msg="force to stop", pollint=0.001, quiet=false)
-    isok = timedwait(() -> istaskdone(t), timeout; pollint=pollint)
-    try
-        isok == :ok || schedule(t, msg; error=true)
-        return fetch(t)
-    catch e
-        if !quiet
-            @error "[$(now())]\nfetching task error" exception = e
-            showbacktrace()
-        end
-        return nothing
-    end
-end
-
-function packtake!(c, n=12)
-    buf = eltype(c)[]
-    taking = true
-    t = errormonitor(
-        @async begin
-            t1 = time()
-            while taking && time() - t1 < 0.1
-                isready(c) ? push!(buf, take!(c)) : yield()
-            end
-        end
-    )
-    timedwait(() -> length(buf) > n, 0.01; pollint=0.001)
-    taking = false
-    wait(t)
-    buf
 end
 
 function resize(z, m, n; fillms=NaN)
@@ -86,7 +56,6 @@ function resize(z, m, n; fillms=NaN)
 end
 
 inregion(location, regmin, regmax) = regmin[1] < location[1] < regmax[1] && regmin[2] < location[2] < regmax[2]
-mousein(regmin, regmax) = inregion(CImGui.GetMousePos(), regmin, regmax)
 function cutoff(location, regmin, regmax)
     x = if location[1] < regmin[1]
         regmin[1]
@@ -136,22 +105,6 @@ function wrapmsg(s::AbstractString, n)
     end
     sbf == "" || push!(ss, sbf)
     return join(ss, '\n')
-end
-
-# lengthpr(c::Char) = ncodeunits(c) == 1 ? 1 : 2
-# lengthpr(s::AbstractString) = s == "" ? 0 : sum(lengthpr(c) for c in s)
-lengthpr(s::AbstractString) = s == "" ? Cfloat(0) : CImGui.CalcTextSize(s).x / CImGui.GetFontSize()
-
-function centermultiline(s)
-    ss = string.(split(s, '\n'))
-    ml = max_with_empty(lengthpr.(ss))
-    spacel = CImGui.CalcTextSize(" ").x / CImGui.GetFontSize()
-    for (i, line) in enumerate(ss)
-        line == "" && continue
-        ns = (ml - lengthpr(line)) ÷ 2spacel
-        ss[i] = " "^(isnan(ns) || ns < 0 ? 0 : round(Int, ns)) * line
-    end
-    join(ss, '\n')
 end
 
 max_with_empty(x) = isempty(x) ? zero(eltype(x)) : max(x...)
@@ -248,28 +201,6 @@ function strtoU(ustr::AbstractString)
     str == "" ? "" : eval(:(@u_str($str)))
 end
 
-function getU(utype, uidx::Ref{Int})
-    Us = haskey(CONF.U, utype) ? CONF.U[utype] : [""]
-    if uidx[] == 0
-        uidx[] = 1
-    elseif abs(uidx[]) > length(Us)
-        uidx[] = abs(uidx[]) % length(Us)
-        uidx[] == 0 && (uidx[] = length(Us))
-    end
-    return Us[uidx[]], Us
-end
-
-function calcmaxwidth(labels, padding=0)
-    maxwidth = max([CImGui.CalcTextSize(label).x for label in labels]...) + padding
-    availwidth = CImGui.GetContentRegionAvail().x
-    itemspacing = unsafe_load(IMGUISTYLE.ItemSpacing)
-    cols = floor(Int, availwidth / (maxwidth + itemspacing.x))
-    cols == 0 && (cols = 1)
-    lb = length(labels)
-    labelwidth = cols > lb ? maxwidth : (availwidth - (cols - 1) * itemspacing.x) / cols
-    return cols, labelwidth
-end
-
 function resizefill!(sv::Vector{String}, n; fillv="")
     resize!(sv, n)
     for i in eachindex(sv)
@@ -287,4 +218,16 @@ end
 function equallen(x...)
     minl = minimum(length.(x))
     return Tuple(Base.view(xi, 1:minl) for xi in x)
+end
+
+function tohms(second)
+    isnan(second) && return string("--", ":", "--", ":", "--")
+    s = round(Int, second)
+    m, s = divrem(s, 60)
+    h, m = divrem(m, 60)
+    s = round(Int, s)
+    ss = s < 10 ? string(0, s) : string(s)
+    ms = m < 10 ? string(0, m) : string(m)
+    hs = h < 10 ? string(0, h) : string(h)
+    string(hs, ":", ms, ":", ss)
 end

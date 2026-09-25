@@ -207,3 +207,25 @@ end
 
 const INSTRCONF = OrderedDict{String,OneInstrConf}()
 const INSTRBUFFERVIEWERS::Dict{String,Dict{String,InstrBufferViewer}} = Dict()
+
+function hassweeping(ibv::InstrBufferViewer)
+    for qt in values(ibv.insbuf.quantities)
+        qt isa SweepQuantity && qt.issweeping && return true
+    end
+    return false
+end
+function hassweeping()
+    for (_, inses) in INSTRBUFFERVIEWERS
+        for (_, ibv) in inses
+            hassweeping(ibv) && return true
+        end
+    end
+    return false
+end
+function hasref(ibv::InstrBufferViewer)
+    for qt in values(ibv.insbuf.quantities)
+        STATES[AutoRefreshing] && ibv.insbuf.isautorefresh && qt.isautorefresh && return true
+        qt isa SweepQuantity && qt.issweeping && return true
+    end
+    return false
+end

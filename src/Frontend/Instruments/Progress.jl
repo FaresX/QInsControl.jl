@@ -1,22 +1,17 @@
-function tohms(second)
-    isnan(second) && return string("--", ":", "--", ":", "--")
-    s = round(Int, second)
-    m, s = divrem(s, 60)
-    h, m = divrem(m, 60)
-    s = round(Int, s)
-    ss = s < 10 ? string(0, s) : string(s)
-    ms = m < 10 ? string(0, m) : string(m)
-    hs = h < 10 ? string(0, h) : string(h)
-    string(hs, ":", ms, ":", ss)
-end
-
 function ShowProgressBar(; size=(-1, 0))
     lock(PROGRESSLIST) do PROGRESSLIST
-        for (key, pgb) in PROGRESSLIST
+        for key in collect(keys(PROGRESSLIST)) #快照遍历:循环体内 delete! 会打断 Dict 迭代
+            pgb = PROGRESSLIST[key]
             if pgb[2] == pgb[3]
                 delete!(PROGRESSLIST, key)
             else
-                CImGui.ProgressBar(calcfraction(pgb[2], pgb[3]), size, progressmark(pgb[2:4]...))
+                # 显示值指数趋近真实进度,进度条平滑推进(AnimSpeed=0 时直达);
+                # 填充部分叠加 AccentTop→AccentBottom 渐变,与 Sweep 按钮进度一致
+                sfrac = animto(string(key), calcfraction(pgb[2], pgb[3]))
+                ColoredProgressBarRect(
+                    sfrac, progressmark(pgb[2:4]...); size,
+                    colbara = MORESTYLE.Colors.AccentTop, colbara2 = MORESTYLE.Colors.AccentBottom
+                )
             end
         end
     end
