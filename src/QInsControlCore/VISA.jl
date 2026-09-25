@@ -53,29 +53,40 @@ end
 function writeasync(instr::GenericInstrument, msg::AbstractString; timeout=6)
     check_connected(instr)
     viEnableEvent(instr.handle, VI_EVENT_IO_COMPLETION, VI_QUEUE)
-    viWriteAsync(instr.handle, msg)
-    viWaitOnEvent(instr.handle, VI_EVENT_IO_COMPLETION, timeout*1E3)
-    viDisableEvent(instr.handle, VI_EVENT_IO_COMPLETION, VI_QUEUE)
+    try
+        viWriteAsync(instr.handle, msg)
+        viWaitOnEvent(instr.handle, VI_EVENT_IO_COMPLETION, timeout*1E3)
+    finally
+        #必须禁用事件:超时(viWaitOnEvent 抛错)后事件队列残留,迟到的完成事件会污染下次调用
+        viDisableEvent(instr.handle, VI_EVENT_IO_COMPLETION, VI_QUEUE)
+    end
 end
 function readasync(instr::GenericInstrument; buflen=1024, timeout=6)
     check_connected(instr)
     buf = zeros(UInt8, buflen)
     viEnableEvent(instr.handle, VI_EVENT_IO_COMPLETION, VI_QUEUE)
-    viReadAsync(instr.handle, buf)
-    viWaitOnEvent(instr.handle, VI_EVENT_IO_COMPLETION, timeout*1E3)
-    viDisableEvent(instr.handle, VI_EVENT_IO_COMPLETION, VI_QUEUE)
+    try
+        #只读 buflen-1 字节:末位恒为 NUL,unsafe_string 扫描不会越过缓冲区
+        viReadAsync(instr.handle, buf, buflen - 1)
+        viWaitOnEvent(instr.handle, VI_EVENT_IO_COMPLETION, timeout*1E3)
+    finally
+        viDisableEvent(instr.handle, VI_EVENT_IO_COMPLETION, VI_QUEUE)
+    end
     rstrip(unsafe_string(pointer(buf)), ['\r', '\n'])
 end
 function queryasync(instr::GenericInstrument, msg::AbstractString; buflen=1024, delay=0, timeout=6)
     check_connected(instr)
     viEnableEvent(instr.handle, VI_EVENT_IO_COMPLETION, VI_QUEUE)
-    viWriteAsync(instr.handle, msg)
-    viWaitOnEvent(instr.handle, VI_EVENT_IO_COMPLETION, timeout*1E3)
-    delay < 0.001 || sleep(delay)
-    buf = zeros(UInt8, buflen)
-    viReadAsync(instr.handle, buf)
-    viWaitOnEvent(instr.handle, VI_EVENT_IO_COMPLETION, timeout*1E3)
-    viDisableEvent(instr.handle, VI_EVENT_IO_COMPLETION, VI_QUEUE)
+    try
+        viWriteAsync(instr.handle, msg)
+        viWaitOnEvent(instr.handle, VI_EVENT_IO_COMPLETION, timeout*1E3)
+        delay < 0.001 || sleep(delay)
+        buf = zeros(UInt8, buflen)
+        viReadAsync(instr.handle, buf, buflen - 1)
+        viWaitOnEvent(instr.handle, VI_EVENT_IO_COMPLETION, timeout*1E3)
+    finally
+        viDisableEvent(instr.handle, VI_EVENT_IO_COMPLETION, VI_QUEUE)
+    end
     rstrip(unsafe_string(pointer(buf)), ['\r', '\n'])
 end
 

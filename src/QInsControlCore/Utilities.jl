@@ -150,7 +150,9 @@ macro progress(observables, getdatacmd, stop, duration, exwhile)
             $path = 0
             while $(exwhile.args[1])
                 $(exwhile.args[2])
-                if !isempty($observables) && time() - $observables[end][1] > $duration
+                if isempty($observables) || time() - $observables[end][1] > $duration
+                    #首个读数非数字时 observables 为空:必须在循环内持续重读,
+                    #否则下方 $observables[end] 直接 BoundsError 打断整个任务
                     $val = tryparse(Float64, $getdatacmd)
                     if !isnothing($val)
                         push!($observables, (time(), $val))
@@ -158,10 +160,14 @@ macro progress(observables, getdatacmd, stop, duration, exwhile)
                     end
                 end
                 $pgi += 1
-                $fraction = $path / ($path + abs($stop - $observables[end][2]))
-                $pgn = isinf($fraction) || isnan($fraction) || iszero($fraction) ? $pgi + 1 : ceil(Int, $pgi / $fraction)
-                $pgi == $pgn && ($pgn = $pgi + 1)
-                put!(progress_lc, ($pgid, $pgi, $pgn, time() - $tn))
+                if isempty($observables)
+                    put!(progress_lc, ($pgid, $pgi, $pgi + 1, time() - $tn))
+                else
+                    $fraction = $path / ($path + abs($stop - $observables[end][2]))
+                    $pgn = isinf($fraction) || isnan($fraction) || iszero($fraction) ? $pgi + 1 : ceil(Int, $pgi / $fraction)
+                    $pgi == $pgn && ($pgn = $pgi + 1)
+                    put!(progress_lc, ($pgid, $pgi, $pgn, time() - $tn))
+                end
             end
             put!(progress_lc, ($pgid, $pgn, $pgn, time() - $tn))
             empty!($observables)
@@ -357,10 +363,17 @@ end
 
 function deepcopy!(dst::T, src::T) where T
     for fdnm in fieldnames(typeof(dst))
-        if isstructtype(getproperty(dst, fdnm))
-            deepcopy!(getproperty(dst, fdnm), getproperty(src, fdnm))
+        d = getproperty(dst, fdnm)
+        s = getproperty(src, fdnm)
+        #只递归"可变且非容器"的嵌套结构体(用户 attr 树)。String/枚举/函数等零字段结构体
+        #必须整体赋值(原实现对它们递归后 fieldnames==() 直接跳过,attr.idnfunc 等字段静默丢失);
+        #数组/字典在 Julia 1.12 起也是 struct type,误递归会 setfield! 其内部字段直接崩溃
+        if isstructtype(typeof(d)) && ismutabletype(d) && fieldcount(typeof(d)) != 0 &&
+           !(d isa Union{AbstractArray,AbstractDict,AbstractSet})
+            deepcopy!(d, s)
         else
-            setproperty!(dst, fdnm, getproperty(src, fdnm))
+            setproperty!(dst, fdnm, s)
         end
     end
+    return dst
 end

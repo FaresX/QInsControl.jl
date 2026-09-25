@@ -19,16 +19,20 @@ end
     newmsg::Bool = false
 end
 
+#clients 向量的跨任务互斥:accept 循环(run! 任务)、各 client handler(@async 任务)、
+#stop!/init!(调用方线程)、remote_deleteclient! 都会读写它,无锁 push!/deleteat! 会损坏向量
+const CLIENTSLOCK = ReentrantLock()
+
 function init!(server::QICServer)
     server.running && close(server.server)
     server.port = 6060
     server.running = false
     server.fast = false
     server.newmsg = false
-    for client in server.clients
+    for client in lock(() -> copy(server.clients), CLIENTSLOCK)
         isopen(client.socket) && close(client.socket)
     end
-    empty!(server.clients)
+    lock(() -> empty!(server.clients), CLIENTSLOCK)
 end
 
 function run!(server::QICServer; buflen=4, attrlist=Dict())
@@ -39,11 +43,9 @@ function run!(server::QICServer; buflen=4, attrlist=Dict())
             if length(server.clients) < server.maxclients
                 socket = accept(server.server)
                 ip, port = getpeername(socket)
-                push!(
-                    server.clients,
-                    QICClient(socket=socket, addr=ip, port=port, connected=true)
-                )
-                @async_record "QICClient $ip:$port" handle_client(server, server.clients[end]; buflen, attrlist)
+                client = QICClient(socket=socket, addr=ip, port=port, connected=true)
+                lock(() -> push!(server.clients, client), CLIENTSLOCK)
+                @async_record "QICClient $ip:$port" handle_client(server, client; buflen, attrlist)
             else
                 sleep(1)
             end
@@ -76,11 +78,10 @@ function handle_client(server::QICServer, client::QICClient; buflen=4, attrlist=
             logout!(CPU, ct)
         end
         close(client.socket)
-        dellist = []
-        for (i, client) in enumerate(server.clients)
-            client.connected || push!(dellist, i)
+        lock(CLIENTSLOCK) do #顺手清理其他已断开的 client;遍历+deleteat! 必须持锁
+            dellist = [i for (i, c) in enumerate(server.clients) if !c.connected]
+            isempty(dellist) || deleteat!(server.clients, dellist)
         end
-        deleteat!(server.clients, dellist)
     end
 end
 
@@ -123,11 +124,12 @@ start!(server::QICServer; buflen=4, attrlist=Dict()) = (init!(server); run!(serv
 
 function stop!(server::QICServer)
     server.running && (server.running = false; close(server.server))
-    for client in server.clients
+    clients = lock(() -> copy(server.clients), CLIENTSLOCK)
+    for client in clients
         for ct in values(client.controllers)
             logout!(CPU, ct)
         end
         isopen(client.socket) && close(client.socket)
     end
-    empty!(server.clients)
+    lock(() -> empty!(server.clients), CLIENTSLOCK)
 end

@@ -2,11 +2,18 @@ let
     DATABUFranges = Dict{String,Tuple{Ref{Cint},Ref{Cint}}}()
     DATABUFPARSEDranges = Dict{String,Tuple{Ref{Cint},Ref{Cint}}}()
     taskfilter = Dict{String,Bool}("Done" => false, "Failed" => false, "Running" => true)
-    GlfwOpenGLBackend = Base.get_extension(CImGui, :GlfwOpenGLBackend)
-    MakieIntegration = Base.get_extension(CImGui, :MakieIntegration)
+    #扩展模块必须调用时再查:include 期 get_extension 可能因懒加载尚未初始化而恒为 nothing,
+    #缓存到局部变量会让下面的字段访问 MethodError(length(nothing))
+    glfwopenglbackend() = Base.get_extension(CImGui, :GlfwOpenGLBackend)
+    makieintegration() = Base.get_extension(CImGui, :MakieIntegration)
     global function Debugger(p_open::Ref{Bool})
         CImGui.SetNextWindowSize((400, 600) .* CImGui.GetWindowDpiScale(), CImGui.ImGuiCond_Once)
-        if CImGui.Begin("Debugger", p_open)
+        # 窗口名保持无图标前缀(兼容 ini 布局与测试锚点),OS 图标为应用图标
+        popenarg, own = beginpopenargs("Debugger", p_open[])
+        begun = CImGui.Begin("Debugger", popenarg)
+        registerwindow("Debugger")
+        if begun
+            own || (p_open[] = popenarg[])
 
             if CImGui.TreeNode("Global Variables")
 
@@ -68,7 +75,7 @@ let
                         CImGui.TableSetupColumn("Task")
                         CImGui.TableSetupColumn("Status")
                         CImGui.TableHeadersRow()
-                        for (name, task) in RECORDTASKS
+                        for (name, task) in collect(RECORDTASKS)
                             status = istaskfailed(task) ? "Failed" : istaskdone(task) ? "Done" : "Running"
                             taskfilter[status] || continue
                             CImGui.TableNextRow()
@@ -81,7 +88,7 @@ let
                         if nprocs() > 1
                             recordtasks_info = timed_remotecall_fetch(workers()[1]) do
                                 recordtasks_info = Tuple{String,String}[]
-                                for (name, task) in RECORDTASKS
+                                for (name, task) in collect(RECORDTASKS)
                                     status = istaskfailed(task) ? "Failed" : istaskdone(task) ? "Done" : "Running"
                                     push!(recordtasks_info, (name, status))
                                 end
@@ -104,37 +111,45 @@ let
                 end
 
                 if CImGui.TreeNode("DATABUF ($(length(DATABUF)))###DATABUF")
-                    for (key, val) in DATABUF
-                        n = length(val)
-                        haskey(DATABUFranges, key) || (DATABUFranges[key] = (1, min(10, n)))
-                        SeparatorTextColored(MORESTYLE.Colors.HighlightText, key)
-                        CImGui.DragIntRange2(
-                            stcstr("##", key),
-                            DATABUFranges[key][1], DATABUFranges[key][2],
-                            1, 1, n, "begin: %d", "end: %d",
-                            CImGui.ImGuiSliderFlags_AlwaysClamp
-                        )
-                        CImGui.PushTextWrapPos(0)
-                        CImGui.TextUnformatted(string(val[DATABUFranges[key][1][]:DATABUFranges[key][2][]]))
-                        CImGui.PopTextWrapPos()
+                    lock(DATABUF) do DATABUF
+                        for (key, val) in DATABUF
+                            n = length(val)
+                            haskey(DATABUFranges, key) || (DATABUFranges[key] = (1, max(1, min(10, n))))
+                            bg = n == 0 ? 1 : clamp(DATABUFranges[key][1][], 1, n)
+                            ed = n == 0 ? 0 : clamp(DATABUFranges[key][2][], bg, n)
+                            SeparatorTextColored(MORESTYLE.Colors.HighlightText, key)
+                            CImGui.DragIntRange2(
+                                stcstr("##", key),
+                                DATABUFranges[key][1], DATABUFranges[key][2],
+                                1, 1, n, "begin: %d", "end: %d",
+                                CImGui.ImGuiSliderFlags_AlwaysClamp
+                            )
+                            CImGui.PushTextWrapPos(0)
+                            CImGui.TextUnformatted(string(val[bg:ed]))
+                            CImGui.PopTextWrapPos()
+                        end
                     end
                     CImGui.TreePop()
                 end
 
                 if CImGui.TreeNode("DATABUFPARSED ($(length(DATABUFPARSED)))###DATABUFPARSED")
-                    for (key, val) in DATABUFPARSED
-                        n = length(val)
-                        haskey(DATABUFPARSEDranges, key) || (DATABUFPARSEDranges[key] = (1, min(10, n)))
-                        SeparatorTextColored(MORESTYLE.Colors.HighlightText, key)
-                        CImGui.DragIntRange2(
-                            stcstr("##", key),
-                            DATABUFPARSEDranges[key][1], DATABUFPARSEDranges[key][2],
-                            1, 1, n, "begin: %d", "end: %d",
-                            CImGui.ImGuiSliderFlags_AlwaysClamp
-                        )
-                        CImGui.PushTextWrapPos(0)
-                        CImGui.TextUnformatted(string(val[DATABUFPARSEDranges[key][1][]:DATABUFPARSEDranges[key][2][]]))
-                        CImGui.PopTextWrapPos()
+                    lock(DATABUFPARSED) do DATABUFPARSED
+                        for (key, val) in DATABUFPARSED
+                            n = length(val)
+                            haskey(DATABUFPARSEDranges, key) || (DATABUFPARSEDranges[key] = (1, max(1, min(10, n))))
+                            bg = n == 0 ? 1 : clamp(DATABUFPARSEDranges[key][1][], 1, n)
+                            ed = n == 0 ? 0 : clamp(DATABUFPARSEDranges[key][2][], bg, n)
+                            SeparatorTextColored(MORESTYLE.Colors.HighlightText, key)
+                            CImGui.DragIntRange2(
+                                stcstr("##", key),
+                                DATABUFPARSEDranges[key][1], DATABUFPARSEDranges[key][2],
+                                1, 1, n, "begin: %d", "end: %d",
+                                CImGui.ImGuiSliderFlags_AlwaysClamp
+                            )
+                            CImGui.PushTextWrapPos(0)
+                            CImGui.TextUnformatted(string(val[bg:ed]))
+                            CImGui.PopTextWrapPos()
+                        end
                     end
                     CImGui.TreePop()
                 end
@@ -199,9 +214,12 @@ let
                     CImGui.TreePop()
                 end
 
-                if CImGui.TreeNode("Textures ($(length(GlfwOpenGLBackend.g_ImageTexture)))###Textures")
+                backend = glfwopenglbackend()
+                if backend === nothing
+                    CImGui.TextDisabled("GlfwOpenGLBackend extension not loaded")
+                elseif CImGui.TreeNode("Textures ($(length(backend.g_ImageTexture)))###Textures")
                     availwidth = CImGui.GetCursorScreenPos().x + CImGui.GetContentRegionAvail().x
-                    for (i, id) in enumerate(keys(GlfwOpenGLBackend.g_ImageTexture))
+                    for (i, id) in enumerate(keys(backend.g_ImageTexture))
                         CImGui.BeginGroup()
                         CImGui.Text(string(id))
                         imref = imtexid(id)
@@ -212,7 +230,7 @@ let
                         end
                         CImGui.EndGroup()
                         CImGui.GetItemRectMax().x + 60 + unsafe_load(IMGUISTYLE.ItemSpacing.x) < availwidth &&
-                            i != length(GlfwOpenGLBackend.g_ImageTexture) && CImGui.SameLine()
+                            i != length(backend.g_ImageTexture) && CImGui.SameLine()
                     end
                     CImGui.TreePop()
                 end
@@ -224,8 +242,11 @@ let
                     CImGui.TreePop()
                 end
 
-                if CImGui.TreeNode("ImMakieFigures ($(length(MakieIntegration.makie_context)))###ImMakieFigures")
-                    for (imid, imfig) in MakieIntegration.makie_context
+                makieint = makieintegration()
+                if makieint === nothing
+                    CImGui.TextDisabled("MakieIntegration extension not loaded")
+                elseif CImGui.TreeNode("ImMakieFigures ($(length(makieint.makie_context)))###ImMakieFigures")
+                    for (imid, imfig) in makieint.makie_context
                         CImGui.TextColored(MORESTYLE.Colors.HighlightText, string(imid, " => "))
                         for (id, fig) in FIGURES
                             if fig == imfig.figure

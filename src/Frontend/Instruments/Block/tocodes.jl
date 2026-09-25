@@ -249,9 +249,11 @@ tocodes(bk::ReadBlock) = gencodes_read(bk)
 function tocodes(bk::FeedbackBlock)
     instr = string(bk.instrnm, "/", bk.addr)
     quote
-        if haskey(SWEEPCTS, $(bk.instrnm)) && haskey(SWEEPCTS[$(bk.instrnm)], $(bk.addr))
-            for (sweeping, _) in values(SWEEPCTS[$(bk.instrnm)][$(bk.addr)])
-                sweeping[] = false
+        lock(SWEEPCTSLOCK) do #迭代期间另一 sweep 可能正增删 SWEEPCTS,须持锁
+            if haskey(SWEEPCTS, $(bk.instrnm)) && haskey(SWEEPCTS[$(bk.instrnm)], $(bk.addr))
+                for (sweeping, _) in values(SWEEPCTS[$(bk.instrnm)][$(bk.addr)])
+                    sweeping[] = false
+                end
             end
         end
         if $(bk.action) == mlstr("Interrupt")
@@ -373,7 +375,7 @@ function genmarks(bk, index)
     marks = Vector{Union{AbstractString,Expr}}(undef, length(index))
     fill!(marks, "")
     for (i, v) in enumerate(split(bk.mark, ","))
-        marks[i] = parsedollar(replace(v, "/" => "_"))
+        i <= length(marks) && (marks[i] = parsedollar(replace(v, "/" => "_"))) #mark 逗号段数可超过 index 长度,越界写会 BoundsError
     end
     for (i, idx) in enumerate(index)
         marks[i] == "" && (marks[i] = "mark$idx")

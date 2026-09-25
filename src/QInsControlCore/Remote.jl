@@ -12,12 +12,14 @@ export startlogger, stoplogger
 
 
 const LOGIO = IOBuffer()
+const LOGGER = Ref{SimpleLogger}() #update_log 持其内部锁做 take!,防与并发日志写撕裂 IOBuffer
 const LOGGERTASK = Ref{Task}()
 
 const CPU = Processor()
 const QICSERVER = QICServer()
 
 const SWEEPCTS = Dict{String,Dict{String,Dict{String,Tuple{Ref{Bool},Controller}}}}()
+const SWEEPCTSLOCK = ReentrantLock() #SWEEPCTS 的增删改查互斥:DAQ 任务线程会经 FeedbackBlock 生成代码并发迭代它(Ref 标志本身无需持锁)
 const REFRESHCTS = Dict{String,Dict{String,Controller}}()
 const REFRESHTASK = Ref{Task}()
 global REFRESHINRC::RemoteChannel{Channel{Tuple{String,String,String,Cfloat}}}
@@ -32,7 +34,8 @@ global PROGRESSRC::RemoteChannel{Channel{Vector{Tuple{UUID,Int,Int,Float64}}}}
 function startlogger(dir)
     DEBUG && return
     SYNCSTATES[IsLogging] = true
-    global_logger(SimpleLogger(LOGIO))
+    LOGGER[] = SimpleLogger(LOGIO)
+    global_logger(LOGGER[])
     LOGGERTASK[] = errormonitor(
         Threads.@spawn @trycatch mlstr("error in local logging task") while SYNCSTATES[IsLogging]
             update_log(dir, SYNCSTATES)
@@ -46,7 +49,8 @@ function startlogger(dir)
         @warn mlstr("local logging task not started")
     end
     nprocs() > 1 && remotecall_wait(workers()[1], SYNCSTATES, dir) do SYNCSTATES, dir
-        global_logger(SimpleLogger(LOGIO))
+        LOGGER[] = SimpleLogger(LOGIO)
+        global_logger(LOGGER[])
         LOGGERTASK[] = errormonitor(
             Threads.@spawn @trycatch mlstr("error in remote logging task") while SYNCSTATES[IsLogging]
                 update_log(dir, SYNCSTATES)
@@ -93,12 +97,10 @@ function update_log(dir, syncstates)
     isdir(logdir) || mkpath(logdir)
     logfile = joinpath(logdir, string(date, ".log"))
     if myid() == 1
-        flush(LOGIO)
-        msg = String(take!(LOGIO))
+        msg = lock(lg -> (flush(LOGIO); String(take!(LOGIO))), LOGGER[].lock) #持日志锁取空缓冲,与并发日志写互斥
         isempty(msg) || (open(file -> write(file, msg), logfile, "a+"); syncstates[IsNewLogging] = true)
     else
-        flush(LOGIO)
-        msg = String(take!(LOGIO))
+        msg = lock(lg -> (flush(LOGIO); String(take!(LOGIO))), LOGGER[].lock)
         if !isempty(msg)
             open(logfile, "a+") do file
                 msgsp = split(msg, '\n')
@@ -184,7 +186,7 @@ remote_find_resources!() = remotecall_fetch(() -> find_resources(CPU), workers()
 remote_logout!(addr) = timed_remotecall_wait(addr -> logout!(CPU, addr), workers()[1], addr)
 function remote_logout!()
     timed_remotecall_wait(workers()[1]) do
-        for addr in keys(CPU.instrs)
+        for addr in collect(keys(CPU.instrs)) #快照遍历:logout! 会从 CPU.instrs 删除当前键
             logout!(CPU, addr)
         end
     end
@@ -220,10 +222,12 @@ remote_stopserver!() = timed_remotecall_wait(() -> stop!(QICSERVER), workers()[1
 remote_servermode!(mode) = timed_remotecall_wait(mode -> QICSERVER.fast = mode, workers()[1], mode)
 function remote_deleteclient!(addr, port)
     timed_remotecall_wait(workers()[1], addr, port) do addr, port
-        for c in QICSERVER.clients
-            if string(c.addr) == string(addr) && c.port == port
-                c.connected = false
-                break
+        lock(CLIENTSLOCK) do #与 accept 循环/handler 清理的 push!/deleteat! 互斥
+            for c in QICSERVER.clients
+                if string(c.addr) == string(addr) && c.port == port
+                    c.connected = false
+                    break
+                end
             end
         end
     end
@@ -242,7 +246,7 @@ function getattr(addr::String, attrlist=Dict(); delete=true)
 end
 function getattr_local(addr::String, attrlist=Dict(); delete=true)
     lock(CPU.lock) do
-        haskey(CPU.instrs, addr) && return lockinstr(instr -> instr.attr, CPU, addr)
+        haskey(CPU.instrs, addr) && return lock(instr -> instr.attr, CPU.instrs[addr])
         if haskey(attrlist, addr)
             attr = attrfromdict(attrlist[addr])
             isnothing(attr) || return attr
@@ -256,7 +260,7 @@ end
 function syncattr(attr, addr)
     timed_remotecall_wait(workers()[1], attr) do attr
         if haskey(CPU.instrs, addr)
-            lockinstr(CPU, addr) do instr
+            lock(CPU.instrs[addr]) do instr
                 deepcopy!(instr.attr, attr)
             end
         end
@@ -400,22 +404,24 @@ function remote_qtsweep(
     sweepcalltask = @async @trycatch "remote sweeping task failed!!!" remotecall_wait(
         workers()[1], instrnm, addr, sweeplist, sweep_rc, qtnm, delay, idxbuf, timebuf
     ) do instrnm, addr, sweeplist, sweep_rc, qtnm, delay, idxbuf, timebuf
-        haskey(SWEEPCTS, instrnm) || (SWEEPCTS[instrnm] = Dict())
-        haskey(SWEEPCTS[instrnm], addr) || (SWEEPCTS[instrnm][addr] = Dict())
-        if haskey(SWEEPCTS[instrnm][addr], qtnm)
-            SWEEPCTS[instrnm][addr][qtnm][1][] = true
-        else
-            SWEEPCTS[instrnm][addr][qtnm] = (Ref(true), Controller(instrnm, addr; buflen=buflen))
+        ctpair = lock(SWEEPCTSLOCK) do #SWEEPCTS 初始化/查取原子化
+            haskey(SWEEPCTS, instrnm) || (SWEEPCTS[instrnm] = Dict())
+            haskey(SWEEPCTS[instrnm], addr) || (SWEEPCTS[instrnm][addr] = Dict())
+            if haskey(SWEEPCTS[instrnm][addr], qtnm)
+                SWEEPCTS[instrnm][addr][qtnm][1][] = true
+            else
+                SWEEPCTS[instrnm][addr][qtnm] = (Ref(true), Controller(instrnm, addr; buflen=buflen))
+            end
+            SWEEPCTS[instrnm][addr][qtnm]
         end
         sweep_lc = Channel{String}(channelsize)
-        login!(CPU, SWEEPCTS[instrnm][addr][qtnm][2]; quiet=false, attrlist)
+        login!(CPU, ctpair[2]; quiet=false, attrlist)
         try
             setfunc = Symbol(instrnm, :_, qtnm, :_set) |> eval
             getfunc = Symbol(instrnm, :_, qtnm, :_get) |> eval
             @sync begin
                 sweeptask = @async @trycatch "sweeping task failed!!!" begin
                     tstart = time()
-                    ctpair = SWEEPCTS[instrnm][addr][qtnm]
                     for (i, sv) in enumerate(sweeplist)
                         ctpair[1][] || break
                         ctpair[2](setfunc, CPU, string(sv), Val(:write); timeout=timeoutw)
@@ -438,14 +444,17 @@ function remote_qtsweep(
             )
             showbacktrace()
         finally
-            logout!(CPU, SWEEPCTS[instrnm][addr][qtnm][2]; quiet=false)
-            SWEEPCTS[instrnm][addr][qtnm][1][] = false
+            logout!(CPU, ctpair[2]; quiet=false)
+            ctpair[1][] = false
         end
     end
     ## local
     while !istaskdone(sweepcalltask) || isready(sweep_rc)
         qt.issweeping || timed_remotecall_wait(workers()[1], instrnm, addr, qtnm) do instrnm, addr, qtnm
-            SWEEPCTS[instrnm][addr][qtnm][1][] = false
+            lock(SWEEPCTSLOCK) do
+                haskey(SWEEPCTS, instrnm) && haskey(SWEEPCTS[instrnm], addr) &&
+                haskey(SWEEPCTS[instrnm][addr], qtnm) && (SWEEPCTS[instrnm][addr][qtnm][1][] = false)
+            end
         end
         isready(sweep_rc) ? for val in take!(sweep_rc)
             qt.read = val

@@ -130,6 +130,15 @@ end
 
 const ROOTHANDLES = Dict{String,Lockable}()
 const INSTRUMENTS = Dict{String,Lockable}()
+#两个全局 Dict 的并发读写互斥:login!/rminstr!/QICServer 各 client 任务都会 instrument()/delete_instr(),
+#无锁 get!/pop! 并发重哈希会损坏 Dict。可重入:QIC/ISOBUS 根地址递归 instrument() 在同任务内重入
+const INSTRUMENTSLOCK = ReentrantLock()
+#def 必须是闭包:get! 的默认参数是即时求值的,已注册的地址每次调用也会白建一个
+#仪器对象(SerialPort/TCPSocket 等)再丢弃
+getinstr!(addr, def::Function) = lock(() ->
+    (haskey(INSTRUMENTS, addr) ? INSTRUMENTS[addr] : (INSTRUMENTS[addr] = def())), INSTRUMENTSLOCK)
+getroot!(rootaddr, def::Function) = lock(() ->
+    (haskey(ROOTHANDLES, rootaddr) ? ROOTHANDLES[rootaddr] : (ROOTHANDLES[rootaddr] = def())), INSTRUMENTSLOCK)
 """
     instrument(addr)
 
@@ -141,22 +150,22 @@ function instrument(name, addr)
             strs = split(addr, "::QIC::")
             rootaddr = strs[1]
             subaddr = length(strs) == 2 ? strs[2] : join(strs[2:end], "::QIC::")
-            handlelocked = get!(ROOTHANDLES, rootaddr, instrument(name, rootaddr))
+            handlelocked = getroot!(rootaddr, () -> instrument(name, rootaddr))
             handle = @lock handlelocked handlelocked[]
             attr = QICInstrAttr(handle.attr)
-            get!(INSTRUMENTS, addr, Lockable(QICInstr{typeof(handle)}(name, addr, rootaddr, subaddr, handlelocked, false, attr)))
+            getinstr!(addr, () -> Lockable(QICInstr{typeof(handle)}(name, addr, rootaddr, subaddr, handlelocked, false, attr)))
         elseif occursin("ISOBUS", addr)
             strs = split(addr, "::ISOBUS::")
             rootaddr = strs[1]
             subaddr = parse(Int, strs[2])
-            handlelocked = get!(ROOTHANDLES, rootaddr, instrument(name, rootaddr))
+            handlelocked = getroot!(rootaddr, () -> instrument(name, rootaddr))
             handle = @lock handlelocked handlelocked[]
             attr = ISOBUSInstrAttr(handle.attr)
-            get!(INSTRUMENTS, addr, Lockable(ISOBUSInstr{typeof(handle)}(name, addr, rootaddr, subaddr, handlelocked, false, attr)))
+            getinstr!(addr, () -> Lockable(ISOBUSInstr{typeof(handle)}(name, addr, rootaddr, subaddr, handlelocked, false, attr)))
         elseif occursin("SERIAL", addr)
             _, portstr = split(addr, "::")
             attr = SerialInstrAttr()
-            get!(INSTRUMENTS, addr, Lockable(SerialInstr(name, addr, portstr, SerialPort(portstr), false, attr)))
+            getinstr!(addr, () -> Lockable(SerialInstr(name, addr, portstr, SerialPort(portstr), false, attr)))
         elseif occursin("TCPSOCKET", addr)
             _, ipstr, portstr = split(addr, "::")
             port = parse(Int, portstr)
@@ -170,37 +179,41 @@ function instrument(name, addr)
             end)
             @assert !isnothing(ip) "ip $ipstr is not valid"
             attr = TCPSocketInstrAttr()
-            get!(INSTRUMENTS, addr, Lockable(TCPSocketInstr(name, addr, ip, port, TCPSocket(), false, attr)))
+            getinstr!(addr, () -> Lockable(TCPSocketInstr(name, addr, ip, port, TCPSocket(), false, attr)))
         elseif occursin("VIRTUAL", split(addr, "::")[1])
             attr = VirtualInstrAttr()
-            get!(INSTRUMENTS, addr, Lockable(VirtualInstr(name=name, addr=addr, attr=attr)))
+            getinstr!(addr, () -> Lockable(VirtualInstr(name=name, addr=addr, attr=attr)))
         else
             attr = VISAInstrAttr()
-            get!(INSTRUMENTS, addr, Lockable(VISAInstr(name, addr, GenericInstrument(), false, attr)))
+            getinstr!(addr, () -> Lockable(VISAInstr(name, addr, GenericInstrument(), false, attr)))
         end
     catch e
         @error "address $addr is not valid" exception = e
         showbacktrace()
-        get!(INSTRUMENTS, addr, Lockable(VirtualInstr(name=name, addr=addr)))
+        getinstr!(addr, () -> Lockable(VirtualInstr(name=name, addr=addr)))
     end
 end
 
 function delete_instr(addr)
-    if haskey(INSTRUMENTS, addr)
-        instrlocked = pop!(INSTRUMENTS, addr)
-        lock(instrlocked) do instr
-            disconnect!(instr)
-            if instr isa ISOBUSInstr || instr isa QICInstr
-                hasanother = false
-                for instrlocked in values(INSTRUMENTS)
-                    lock(instrlocked) do ins
-                        hasanother = (ins isa ISOBUSInstr || ins isa QICInstr) && instr.rootaddr == ins.rootaddr
-                    end
-                end
-                hasanother || delete!(ROOTHANDLES, instr.rootaddr)
-            end
-        end
+    instrlocked = lock(() -> haskey(INSTRUMENTS, addr) ? pop!(INSTRUMENTS, addr) : nothing, INSTRUMENTSLOCK)
+    instrlocked === nothing && return
+    #断开与 rootaddr 读取单独持本仪器锁;扫描其他仪器时不再持有它——
+    #嵌套持两个仪器锁会与并发 delete_instr/runcmd 形成相反加锁顺序的死锁窗口
+    rootaddr = lock(instrlocked) do instr
+        disconnect!(instr)
+        (instr isa ISOBUSInstr || instr isa QICInstr) ? instr.rootaddr : ""
     end
+    if rootaddr != ""
+        hasanother = false
+        for other in lock(() -> collect(values(INSTRUMENTS)), INSTRUMENTSLOCK)
+            hasanother = lock(other) do ins
+                (ins isa ISOBUSInstr || ins isa QICInstr) && ins.rootaddr == rootaddr
+            end
+            hasanother && break
+        end
+        hasanother || lock(() -> delete!(ROOTHANDLES, rootaddr), INSTRUMENTSLOCK)
+    end
+    return
 end
 
 function attrtodict(attr::Union{ISOBUSInstrAttr,QICInstrAttr})

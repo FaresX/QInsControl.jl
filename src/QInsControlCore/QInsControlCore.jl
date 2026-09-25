@@ -22,7 +22,8 @@ export Controller, Processor
 export login!, logout!, start!, stop!, reconnect!, find_resources, slow!, fast!, isbusy, setbusy!, unsetbusy!
 export instrument, connect!, disconnect!, write, read, query, idn
 export @trycatch, showbacktrace, gensweeplist, timed_remotecall_wait, timed_remotecall_fetch, deepcopy!
-export mlstr, languageinfo, loadlanguage, initialize_qinscontrolcore!, @async_record, @spawn_record
+export mlstr, languageinfo, loadlanguage, initialize_qinscontrolcore!
+export @async_record, @spawn_record, RECORDTASKS, RECORDTASKSLOCK
 
 export QICClient, QICServer
 
@@ -38,12 +39,10 @@ include("QICServer.jl")
 include("Remote.jl")
 
 function initialize_qinscontrolcore!(channelsize=64)
-    empty!(MLSTRINGS)
     empty!(RECORDTASKS)
     empty!(INSTRUMENTS)
     empty!(ROOTHANDLES)
     timed_remotecall_wait(workers()[1]) do
-        empty!(MLSTRINGS)
         empty!(RECORDTASKS)
         empty!(INSTRUMENTS)
         empty!(ROOTHANDLES)
