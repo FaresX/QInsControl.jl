@@ -19,3 +19,6 @@ Manifest.toml
 HelpPad.jl
 nircmd.exe
 QInsControl.cmd
+.zcode
+/ai
+/2026
