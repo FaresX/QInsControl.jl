@@ -1,3 +1,8 @@
+# 注:绘图引擎预热实验已撤销 —— GLMakie.activate! 创建第二个 GL 上下文时,
+# 本机 AMD 驱动(atio6axx.dll GetSettingsBlobsAll)会在设置查询时 ACCESS_VIOLATION
+# 硬崩溃(主线程分步、后台线程均复现,ACCESS_VIOLATION 无法被 try/catch 捕获)。
+# 绘图首用编译成本保留在首次打开绘图窗口时发生。
+
 function UI(; engine=nothing)
     CImGui.set_backend(:GlfwOpenGL3)
     ctx = CImGui.CreateContext()
@@ -109,11 +114,16 @@ function UI(; engine=nothing)
                 GLFW.SetWindowSize(CImGui.current_window(), ws...)
 
                 firstframe = false
+                # 便携版启动画面哨兵(splash.ps1 轮询):主窗口首帧就绪 → 启动器侧
+                # splash 退场。dev 直接运行时哨兵不存在,rm force 无副作用。
+                rm(joinpath(tempdir(), "QIC_SPLASH.GUARD"); force = true)
             end
             ###### 检查 STATICSTRINGS ######
             waittime("Check STATICSTRINGS", 36) && checklifetime()
             ###### 检查新版本 ######
-            waittime("Check new version", 3600) && getnewestversion()
+            # 预编译 workload 期间不做 GitHub 版本检查:无网/CI/代理异常时会
+            # 重试风暴拖慢预编译(实测),且预编译出的镜像与版本检查无关
+            ccall(:jl_generating_output, Cint, ()) == 0 && waittime("Check new version", 3600) && getnewestversion()
             ###### 新平台视口的系统外观(拖出的 OS 窗口动态出现)######
             applyallchrome!(isthemedark(MORESTYLE.Colors.ClearColor))
             syncviewportcloses!()
