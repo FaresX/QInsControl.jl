@@ -1,6 +1,7 @@
 function edit(bk::CodeBlock, openpopup::Ref{Bool}=Ref(false))
-    CImGui.PushStyleVar(CImGui.ImGuiStyleVar_FrameBorderSize, 0)
-    CImGui.BeginChild("##CodeBlock", (Float32(0), bkheight(bk)), true)
+    #InputText 式观感:外层只作布局壳(无边框无内边距),内边距/背景/圆角/边框
+    #全部由内层 codeedit(FrameStyle)呈现,即只吃一层 FramePadding
+    CImGui.BeginChild("##CodeBlock", (Float32(0), bkheight(bk)), CImGui.ImGuiChildFlags_None)
     ColoredButton(
         MORESTYLE.Icons.CodeBlock; size=(CImGui.GetFrameHeight(), Cfloat(0)),
         colbt=[0, 0, 0, 0], colbta=[0, 0, 0, 0], colbth=[0, 0, 0, 0],
@@ -9,7 +10,6 @@ function edit(bk::CodeBlock, openpopup::Ref{Bool}=Ref(false))
     CImGui.SameLine()
     @c codeedit("##CodeBlock", &bk.codes, (-1, -1); linenumbers=false)
     CImGui.EndChild()
-    CImGui.PopStyleVar()
 end
 
 function edit(bk::StrideCodeBlock, openpopup::Ref{Bool}=Ref(false))

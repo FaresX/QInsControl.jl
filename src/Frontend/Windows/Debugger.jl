@@ -216,7 +216,7 @@ let
 
                 backend = glfwopenglbackend()
                 if backend === nothing
-                    CImGui.TextDisabled("GlfwOpenGLBackend extension not loaded")
+                    CImGui.TextDisabled(mlstr("GlfwOpenGLBackend extension not loaded"))
                 elseif CImGui.TreeNode("Textures ($(length(backend.g_ImageTexture)))###Textures")
                     availwidth = CImGui.GetCursorScreenPos().x + CImGui.GetContentRegionAvail().x
                     for (i, id) in enumerate(keys(backend.g_ImageTexture))
@@ -244,7 +244,7 @@ let
 
                 makieint = makieintegration()
                 if makieint === nothing
-                    CImGui.TextDisabled("MakieIntegration extension not loaded")
+                    CImGui.TextDisabled(mlstr("MakieIntegration extension not loaded"))
                 elseif CImGui.TreeNode("ImMakieFigures ($(length(makieint.makie_context)))###ImMakieFigures")
                     for (imid, imfig) in makieint.makie_context
                         CImGui.TextColored(MORESTYLE.Colors.HighlightText, string(imid, " => "))

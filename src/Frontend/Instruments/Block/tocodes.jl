@@ -1,11 +1,24 @@
 tocodes(::NullBlock) = Expr(:block)
 
+#parseall 对顶层分号行(一行多语句,如 "a = 1; b = 2")会产生**嵌套 :toplevel**——
+#只改最外层 head 会把内层 toplevel 残留进函数体,eval 时抛 "toplevel not at top level"。
+#递归把全部 toplevel 降为 :block(语义不变,begin/end 嵌套块)
+function flattentoplevel!(ex::Expr)
+    for (i, a) in enumerate(ex.args)
+        a isa Expr || continue
+        a.head == :toplevel && (a.head = :block)
+        flattentoplevel!(a)
+    end
+    return ex
+end
+
 function tocodes(bk::CodeBlock)
     ex = @trypass Meta.parseall(bk.codes) begin
         @error "[$(now())]\ncodes are wrong in parsing time (CodeBlock)!!!" bk = bk
         return
     end
     ex isa Expr && ex.head == :toplevel && (ex.head = :block)
+    flattentoplevel!(ex)
     ex
 end
 

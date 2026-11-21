@@ -1,3 +1,8 @@
+# 分界线拖拽状态:抓取偏移与激活标记(卡片子窗口覆盖接缝,拖拽用全局鼠标状态实现,
+# 占比持久化于 CONF.Basic.maincolsplit)
+const DIVDRAGACTIVE = Ref{Bool}(false)
+const DIVDRAGBASE = Ref{Cfloat}(0f0)
+
 let
     show_preferences::Bool = false
     show_instr_register::Bool = false
@@ -6,6 +11,7 @@ let
     show_metrics::Bool = false
     show_logger::Bool = false
     show_about::Bool = false
+    show_update::Bool = false #应用内更新窗口(src/Updater + Windows/ShowUpdate)
     show_debugger::Bool = false
     show_aiassistant::Bool = false #AI 助手窗口(AI 子模块的窗口开关,见 src/AI/)
 
@@ -43,6 +49,7 @@ let
 
     global get_fileviewers() = fileviewers
     global debugger() = show_debugger = true
+    global openupdatewindow() = (show_update = true) #供 ShowAbout 的"更新"按钮打开更新窗口
     global isshowapp() = showapp
     global function closeallwindows()
         show_preferences = false
@@ -52,6 +59,7 @@ let
         show_metrics = false
         show_logger = false
         show_about = false
+        show_update = false
         show_debugger = false
         show_aiassistant = false
         for fv in fileviewers
@@ -103,17 +111,24 @@ let
             SetWindowBgImage()
             DAQtoolbar()
             CImGui.SameLine()
-            CImGui.BeginChild("main")
-            CImGui.Columns(2)
-            CImGui.GetFrameCount() == 1 && CImGui.SetColumnOffset(1, CImGui.GetWindowWidth() * 0.66)
-            colrate = CImGui.GetColumnOffset(1) / CImGui.GetWindowWidth()
-            colrate > 0.8 && CImGui.SetColumnOffset(1, CImGui.GetWindowWidth() * 0.8)
-            colrate < 0.2 && CImGui.SetColumnOffset(1, CImGui.GetWindowWidth() * 0.2)
-            CardChild("left")
+            #禁用垂直滚动条:卡片宽度按 mainw 显式计算,若内容出现尾随 ItemSpacing 的
+            #幻影溢出,ImGui 预留的滚动条槽会压缩裁剪框,右卡片描边再次被裁
+            CImGui.BeginChild(
+                "main", (0, 0), CImGui.ImGuiChildFlags_None,
+                CImGui.ImGuiWindowFlags_NoScrollbar
+            )
+            # 无 Columns:两张卡片按 maincolsplit 显式布局(遗留 Columns 的 border 参数
+            # 同时控制画线与拖拽,源码级耦合,"透明分割线 + 可拖拽"无法兼得,故弃用)。
+            # 卡片间隙 = ItemSpacing.x,与工具栏到面板的间隔一致;分界线平时透明
+            split = clamp(Float64(CONF.Basic.maincolsplit), 0.2, 0.8)
+            mainw = CImGui.GetWindowWidth()
+            halfgap = Cfloat(unsafe_load(IMGUISTYLE.ItemSpacing.x) / 2)
+            leftw = Cfloat(mainw * split)
+            CardChild("left", (leftw - halfgap, 0))
             DAQtasks()
             EndCard()
-            CImGui.NextColumn()
-            CardChild("right")
+            CImGui.SetCursorPos(leftw + halfgap, 0)
+            CardChild("right", (mainw - leftw - halfgap - 1, 0))
             originfontsize = unsafe_load(IMGUISTYLE.FontSizeBase)
             CImGui.PushFont(C_NULL, MORESTYLE.Variables.BigIconSize)
             isopenfiles = false
@@ -314,14 +329,24 @@ let
             CImGui.EndChild()
 
             EndCard()
-            # 分界线 hover-reveal:静止时只剩主题的极淡发丝线;鼠标靠近分界条时
-            # 浮现强调色竖线并切换为左右拖拽光标(拖拽热区仍由 Columns 提供)
+            # 分界线:两张卡片无缝相接,平时完全透明;鼠标靠近接缝时浮现强调色竖线。
+            # 拖拽用全局鼠标状态更新 maincolsplit(mousein 按坐标判定,卡片覆盖时仍生效;
+            # 松手 saveconf 持久化占比)
             wx, wy = CImGui.GetWindowPos().x, CImGui.GetWindowPos().y
             wh = CImGui.GetWindowSize().y
-            dx = wx + CImGui.GetColumnOffset(1)
-            near = mousein((dx - 4, wy), (dx + 4, wy + wh))
-            draggingcol = CImGui.IsMouseDown(0) && mousein((dx - 40, wy), (dx + 40, wy + wh))
-            if near || draggingcol
+            dx = Cfloat(wx + leftw)  # 强制 Float32:异构元组不匹配 NTuple{2}(ai/08 坑 31)
+            near = mousein((dx - 6, wy), (dx + 6, wy + wh))
+            if !DIVDRAGACTIVE[] && near && CImGui.IsMouseClicked(0)
+                DIVDRAGACTIVE[] = true
+                DIVDRAGBASE[] = CImGui.GetMousePos().x - dx
+            end
+            if DIVDRAGACTIVE[]
+                CONF.Basic.maincolsplit = clamp(
+                    (CImGui.GetMousePos().x - DIVDRAGBASE[] - wx) / mainw, 0.2, 0.8
+                )
+                CImGui.IsMouseDown(0) || (DIVDRAGACTIVE[] = false; saveconf())
+            end
+            if near || DIVDRAGACTIVE[]
                 gradientfill(
                     CImGui.GetWindowDrawList(), (dx - 2, wy), (dx + 2, wy + wh),
                     MORESTYLE.Colors.AccentTop, MORESTYLE.Colors.AccentBottom
@@ -354,6 +379,7 @@ let
             dft.noclose || (atclosedataformatter!(dft); deleteat!(dataformatters, i))
         end
         show_preferences && @c Preferences(&show_preferences)
+        show_update && @c ShowUpdate(&show_update)
 
         show_instr_register && @c InstrRegister(&show_instr_register)
         for (_, inses) in filter(x -> !isempty(x.second), INSTRBUFFERVIEWERS)

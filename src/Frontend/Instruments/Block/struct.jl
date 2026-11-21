@@ -159,9 +159,10 @@ Base.isapprox(x::Vector{AbstractBlock}, y::Vector{AbstractBlock}) = length(x) ==
 
 bkheight(::NullBlock) = zero(Float32)
 function bkheight(bk::CodeBlock)
+    #InputText 式单层内边距:外层 child 为透明布局壳(无边框无内边距),
+    #内边距/背景/圆角由内层 codeedit(FrameStyle)呈现;+1 抵消 codeedit (-1,-1) 的收缩
     (1 + length(findall("\n", bk.codes))) * CImGui.GetTextLineHeight() +
-    2unsafe_load(IMGUISTYLE.FramePadding.y) +
-    2unsafe_load(IMGUISTYLE.WindowPadding.y) + 1
+    2unsafe_load(IMGUISTYLE.FramePadding.y) + 1
 end
 function bkheight(bk::Union{StrideCodeBlock,SweepBlock,FreeSweepBlock})
     return isempty(skipnull(bk.blocks)) ? 2unsafe_load(IMGUISTYLE.WindowPadding.y) + CImGui.GetFrameHeight() :

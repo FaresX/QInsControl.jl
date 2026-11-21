@@ -11,7 +11,9 @@ let
     global function editinstraliaslist(p_open::Ref{Bool})
         CImGui.SetNextWindowSize((400, 600) .* CImGui.GetWindowDpiScale(), CImGui.ImGuiCond_Once)
         isfocus = true
-        if @c (CImGui.Begin(mlstr("Edit Instrument Alias List"), p_open))
+         nm = mlstr("Edit Instrument Alias List")
+        begun, own, popenarg = BeginNoClose(nm, p_open)
+        if begun
             if CImGui.Button(MORESTYLE.Icons.NewFile)
                 alias = string(mlstr("Alias"), " ", length(INSTRALIASLIST) + 1)
                 INSTRALIASLIST[alias] = InstrAlias(alias=alias)
@@ -65,7 +67,7 @@ let
             end
             isfocus &= CImGui.IsWindowFocused(CImGui.ImGuiFocusedFlags_ChildWindows)
         end
-        CImGui.End()
+        EndNoClose(own, p_open, popenarg)
         p_open[] &= (isfocus | hold)
     end
 end

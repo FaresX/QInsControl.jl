@@ -32,7 +32,7 @@ let
     holdsz::Cfloat = 0
     copyseries::DataSeries = DataSeries()
     global function edit(dtpk::DataPicker, id, p_open::Ref{Bool})
-        CImGui.SetNextWindowSize((400, 600) .* CImGui.GetWindowDpiScale(), CImGui.ImGuiCond_Once)
+        CImGui.SetNextWindowSize((480, 720) .* CImGui.GetWindowDpiScale(), CImGui.ImGuiCond_Once)
         CImGui.PushStyleColor(CImGui.ImGuiCol_WindowBg, CImGui.c_get(IMGUISTYLE.Colors, CImGui.ImGuiCol_PopupBg))
         CImGui.PushStyleVar(CImGui.ImGuiStyleVar_WindowRounding, unsafe_load(IMGUISTYLE.PopupRounding))
         isfocus = true
@@ -198,7 +198,7 @@ let
             CImGui.SameLine(CImGui.GetContentRegionAvail().x - dtss.alsz)
             dtss.alsz = -unsafe_load(IMGUISTYLE.ItemSpacing.x)
         end
-        @c CImGui.Checkbox("RT", &dtss.isrealtime)
+        @c CImGui.Checkbox(mlstr("RT"), &dtss.isrealtime)
         dtss.alsz += CImGui.GetItemRectSize().x + unsafe_load(IMGUISTYLE.ItemSpacing.x)
         CImGui.IsItemHovered() && CImGui.SetTooltip(mlstr("real-time data update/manual data update"))
 

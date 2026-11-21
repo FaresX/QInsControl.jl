@@ -1,6 +1,6 @@
 function view(bk::CodeBlock)
-    CImGui.PushStyleVar(CImGui.ImGuiStyleVar_FrameBorderSize, 0)
-    CImGui.BeginChild("##CodeBlockViewer", (Float32(0), bkheight(bk)), true)
+    #与 edit 对称:外层布局壳(无边框无内边距),高度只含 codeedit 一层 FramePadding
+    CImGui.BeginChild("##CodeBlockViewer", (Float32(0), bkheight(bk)), CImGui.ImGuiChildFlags_None)
     ColoredButton(
         MORESTYLE.Icons.CodeBlock; size=(CImGui.GetFrameHeight(), Cfloat(0)),
         colbt=[0, 0, 0, 0], colbta=[0, 0, 0, 0], colbth=[0, 0, 0, 0],
@@ -11,7 +11,6 @@ function view(bk::CodeBlock)
     CImGui.Button(bk.codes, (-1, 0))
     CImGui.PopStyleVar()
     CImGui.EndChild()
-    CImGui.PopStyleVar()
 end
 
 function view(bk::StrideCodeBlock)

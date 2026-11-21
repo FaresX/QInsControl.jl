@@ -14,6 +14,7 @@
     encoding::String = "GBK"
     editor::String = "notepad"
     language::String = "简体中文"
+    maincolsplit::Float64 = 0.66 #主界面左右卡片占比(DAQ 主区域宽度的比例)
     languages::Dict{String,String} = Dict()
 end
 

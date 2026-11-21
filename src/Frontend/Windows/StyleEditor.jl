@@ -437,7 +437,7 @@ let
     push!(init_funcs, () -> filter = ImGuiTextFilter_ImGuiTextFilter(C_NULL))
     alpha_flags::CImGui.ImGuiColorEditFlags = 0
     global function ShowStyleEditor(style_ref::QImNodesStyle)
-        if @c ComboS("Colors", &colors, ["Dark", "Light", "Classic"])
+        if @c ComboS(mlstr("Colors"), &colors, ["Dark", "Light", "Classic"])
             if colors == "Dark"
                 imnodes_StyleColorsDark(IMNODESSTYLE)
             elseif colors == "Light"
@@ -447,7 +447,7 @@ let
             end
         end
         # imnodesstyle = imnodes_GetStyle()
-        if CImGui.Button("Save Ref")
+        if CImGui.Button(mlstr("Save Ref"))
             for var in fieldnames(lib.ImNodesStyle)
                 var == :Colors && continue
                 setproperty!(style_ref, var, unsafe_load(getproperty(IMNODESSTYLE, var)))
@@ -459,7 +459,7 @@ let
             style_ref.Colors = QImNodesColors(CImGui.ColorConvertU32ToFloat4.(storecolors)...)
         end
         CImGui.SameLine()
-        if CImGui.Button("Revert Ref")
+        if CImGui.Button(mlstr("Revert Ref"))
             for var in fieldnames(lib.ImNodesStyle)
                 var == :Colors && continue
                 setproperty!(IMNODESSTYLE, var, getproperty(style_ref, var))
@@ -470,14 +470,16 @@ let
         end
         CImGui.SameLine()
         ShowHelpMarker(
-            """
-            Save/Revert in local non-persistent storage. 
-            Default Colors definition are not affected.
-            Use "Export" below to save them somewhere.
-            """
+            mlstr(
+                """
+                Save/Revert in local non-persistent storage.
+                Default Colors definition are not affected.
+                Use "Export" below to save them somewhere.
+                """
+            )
         )
         if CImGui.BeginTabBar("ImNodesStyle")
-            if CImGui.BeginTabItem("Variables")
+            if CImGui.BeginTabItem(mlstr("Variables"))
                 for var in fieldnames(lib.ImNodesStyle)
                     if fieldtype(lib.ImNodesStyle, var) == Cfloat
                         CImGui.DragFloat(
@@ -500,8 +502,8 @@ let
                 end
                 CImGui.EndTabItem()
             end
-            if CImGui.BeginTabItem("Colors")
-                if CImGui.Button("Export")
+            if CImGui.BeginTabItem(mlstr("Colors"))
+                if CImGui.Button(mlstr("Export"))
                     if output_dest == 0
                         CImGui.LogToClipboard()
                     else
@@ -523,28 +525,30 @@ let
                 end
                 CImGui.SameLine()
                 CImGui.SetNextItemWidth(120)
-                @c CImGui.Combo("##output_type", &output_dest, "To Clipboard\0To TTY\0")
+                @c CImGui.Combo("##output_type", &output_dest, stcstr(mlstr("To Clipboard"), "\0", mlstr("To TTY"), "\0"))
                 CImGui.SameLine()
-                @c CImGui.Checkbox("Only Modified Colors", &output_only_modified)
-                ImGuiTextFilter_Draw(filter, "Filter colors", 0)
-                if CImGui.RadioButton("Opaque", alpha_flags == ImGuiColorEditFlags_AlphaBar)
+                @c CImGui.Checkbox(mlstr("Only Modified Colors"), &output_only_modified)
+                ImGuiTextFilter_Draw(filter, mlstr("Filter colors"), 0)
+                if CImGui.RadioButton(mlstr("Opaque"), alpha_flags == ImGuiColorEditFlags_AlphaBar)
                     alpha_flags = ImGuiColorEditFlags_AlphaOpaque
                 end
                 CImGui.SameLine()
-                if CImGui.RadioButton("Alpha", alpha_flags == ImGuiColorEditFlags_None)
+                if CImGui.RadioButton(mlstr("Alpha"), alpha_flags == ImGuiColorEditFlags_None)
                     alpha_flags = ImGuiColorEditFlags_None
                 end
                 CImGui.SameLine()
-                if CImGui.RadioButton("Both", alpha_flags == ImGuiColorEditFlags_AlphaPreviewHalf)
+                if CImGui.RadioButton(mlstr("Both"), alpha_flags == ImGuiColorEditFlags_AlphaPreviewHalf)
                     alpha_flags = ImGuiColorEditFlags_AlphaPreviewHalf
                 end
                 CImGui.SameLine()
                 ShowHelpMarker(
-                    """
-                    In the color list:
-                    Left-click on color square to open color picker,
-                    Right-click to open edit options menu.
-                    """
+                    mlstr(
+                        """
+                        In the color list:
+                        Left-click on color square to open color picker,
+                        Right-click to open edit options menu.
+                        """
+                    )
                 )
                 CImGui.BeginChild("imnodes Colors", (0, 0), false, CImGui.ImGuiWindowFlags_HorizontalScrollbar)
                 for col in instances(lib.ImNodesCol_)[1:end-1]
@@ -557,9 +561,9 @@ let
                     if CImGui.ColorConvertFloat4ToU32(style_ref.Colors[Int(col)+1]) != CImGui.c_get(IMNODESSTYLE.Colors, col)
                         CImGui.PushID(stcstr(col))
                         CImGui.SameLine()
-                        CImGui.Button("Save") && (style_ref.Colors[Int(col)+1] = CImGui.ColorConvertU32ToFloat4(CImGui.c_get(IMNODESSTYLE.Colors, col)))
+                        CImGui.Button(mlstr("Save")) && (style_ref.Colors[Int(col)+1] = CImGui.ColorConvertU32ToFloat4(CImGui.c_get(IMNODESSTYLE.Colors, col)))
                         CImGui.SameLine()
-                        CImGui.Button("Revert") && CImGui.c_set!(
+                        CImGui.Button(mlstr("Revert")) && CImGui.c_set!(
                             IMNODESSTYLE.Colors, col, CImGui.ColorConvertFloat4ToU32(style_ref.Colors[Int(col)+1])
                         )
                         CImGui.PopID()
@@ -585,27 +589,29 @@ let
     icon_to_clipboard::String = ""
     global function ShowStyleEditor(style_ref::MoreStyle)
         global MORESTYLE
-        if CImGui.Button("Save Ref")
+        if CImGui.Button(mlstr("Save Ref"))
             for var in fieldnames(MoreStyle)
                 setproperty!(style_ref, var, deepcopy(getproperty(MORESTYLE, var)))
             end
         end
         CImGui.SameLine()
-        if CImGui.Button("Revert Ref")
+        if CImGui.Button(mlstr("Revert Ref"))
             for var in fieldnames(MoreStyle)
                 setproperty!(MORESTYLE, var, deepcopy(getproperty(style_ref, var)))
             end
         end
         CImGui.SameLine()
         ShowHelpMarker(
-            """
-            Save/Revert in local non-persistent storage. 
-            Default Colors definition are not affected.
-            Use "Export" below to save them somewhere.
-            """
+            mlstr(
+                """
+                Save/Revert in local non-persistent storage.
+                Default Colors definition are not affected.
+                Use "Export" below to save them somewhere.
+                """
+            )
         )
         if CImGui.BeginTabBar("MoreStyle")
-            if CImGui.BeginTabItem("Variables")
+            if CImGui.BeginTabItem(mlstr("Variables"))
                 ft = MORESTYLE.Variables.FontPath
                 inputft = @c InputTextRSZ("##font", &ft)
                 CImGui.SameLine()
@@ -615,76 +621,76 @@ let
                 selectft && (ft = pick_file(abspath(ft); filterlist="ttf,ttc,otf"))
                 (inputft || selectft) && isvalidpath(ft) && (MORESTYLE.Variables.FontPath = ft)
                 @c CImGui.DragInt(
-                    "BigIconSize", &MORESTYLE.Variables.BigIconSize,
+                    mlstr("BigIconSize"), &MORESTYLE.Variables.BigIconSize,
                     1, 0, 60, "%d", CImGui.ImGuiSliderFlags_AlwaysClamp
                 )
                 @c CImGui.DragFloat(
-                    "BlockBorderSize", &MORESTYLE.Variables.BlockBorderSize,
+                    mlstr("BlockBorderSize"), &MORESTYLE.Variables.BlockBorderSize,
                     1, 1, 24, "%.1f", CImGui.ImGuiSliderFlags_AlwaysClamp
                 )
                 @c CImGui.DragFloat(
-                    "BlockDragdropBorderSize", &MORESTYLE.Variables.BlockDragdropBorderSize,
+                    mlstr("BlockDragdropBorderSize"), &MORESTYLE.Variables.BlockDragdropBorderSize,
                     1, 0, 24, "%.1f", CImGui.ImGuiSliderFlags_AlwaysClamp
                 )
                 @c CImGui.DragFloat(
-                    "TextRectRounding", &MORESTYLE.Variables.TextRectRounding,
+                    mlstr("TextRectRounding"), &MORESTYLE.Variables.TextRectRounding,
                     1, 0, 60, "%.1f", CImGui.ImGuiSliderFlags_AlwaysClamp
                 )
                 @c CImGui.DragFloat(
-                    "TextRectThickness", &MORESTYLE.Variables.TextRectThickness,
+                    mlstr("TextRectThickness"), &MORESTYLE.Variables.TextRectThickness,
                     1, 0, 60, "%.1f", CImGui.ImGuiSliderFlags_AlwaysClamp
                 )
                 @c CImGui.DragFloat(
-                    "WidgetBorderThickness", &MORESTYLE.Variables.WidgetBorderThickness,
+                    mlstr("WidgetBorderThickness"), &MORESTYLE.Variables.WidgetBorderThickness,
                     1, 0, 60, "%.1f", CImGui.ImGuiSliderFlags_AlwaysClamp
                 )
                 CImGui.DragFloat2(
-                    "TextRectPadding", MORESTYLE.Variables.TextRectPadding,
+                    mlstr("TextRectPadding"), MORESTYLE.Variables.TextRectPadding,
                     1, 0, 60, "%.1f", CImGui.ImGuiSliderFlags_AlwaysClamp
                 )
                 inpin = string(lib.ImNodesPinShape_(MORESTYLE.Variables.PinShapeInput))
-                if @c ComboS("Input PinShape", &inpin, string.(instances(lib.ImNodesPinShape_)))
+                if @c ComboS(mlstr("Input PinShape"), &inpin, string.(instances(lib.ImNodesPinShape_)))
                     MORESTYLE.Variables.PinShapeInput = getproperty(lib, Symbol(inpin))
                 end
                 outpin = string(lib.ImNodesPinShape_(MORESTYLE.Variables.PinShapeOutput))
-                if @c ComboS("Output PinShape", &outpin, string.(instances(lib.ImNodesPinShape_)))
+                if @c ComboS(mlstr("Output PinShape"), &outpin, string.(instances(lib.ImNodesPinShape_)))
                     MORESTYLE.Variables.PinShapeOutput = getproperty(lib, Symbol(outpin))
                 end
                 @c CImGui.DragFloat(
-                    "Minimap Fraction",
+                    mlstr("Minimap Fraction"),
                     &MORESTYLE.Variables.MiniMapFraction,
                     0.1, 0.1, 1, "%.1f",
                     CImGui.ImGuiSliderFlags_AlwaysClamp
                 )
                 minimaplocation = string(lib.ImNodesMiniMapLocation_(MORESTYLE.Variables.MiniMapLocation))
-                if @c ComboS("Minimap Location", &minimaplocation, string.(instances(lib.ImNodesMiniMapLocation_)))
+                if @c ComboS(mlstr("Minimap Location"), &minimaplocation, string.(instances(lib.ImNodesMiniMapLocation_)))
                     MORESTYLE.Variables.MiniMapLocation = getproperty(lib, Symbol(minimaplocation))
                 end
                 CImGui.DragFloat2(
-                    "ContainerBlockWindowPadding", MORESTYLE.Variables.ContainerBlockWindowPadding,
+                    mlstr("ContainerBlockWindowPadding"), MORESTYLE.Variables.ContainerBlockWindowPadding,
                     1, 0, 60, "%.1f", CImGui.ImGuiSliderFlags_AlwaysClamp
                 )
-                if @c ComboS("Makie Theme", &MORESTYLE.Variables.MakieTheme, keys(MAKIETHEMES))
+                if @c ComboS(mlstr("Makie Theme"), &MORESTYLE.Variables.MakieTheme, keys(MAKIETHEMES))
                     toimguitheme!(get!(MAKIETHEMES, MORESTYLE.Variables.MakieTheme, "default"))
                 end
                 @c CImGui.DragFloat(
-                    "ShadowRadius", &MORESTYLE.Variables.ShadowRadius,
+                    mlstr("ShadowRadius"), &MORESTYLE.Variables.ShadowRadius,
                     1, 0, 64, "%.1f", CImGui.ImGuiSliderFlags_AlwaysClamp
                 )
                 @c CImGui.DragFloat(
-                    "CardRounding", &MORESTYLE.Variables.CardRounding,
+                    mlstr("CardRounding"), &MORESTYLE.Variables.CardRounding,
                     1, 0, 32, "%.1f", CImGui.ImGuiSliderFlags_AlwaysClamp
                 )
                 CImGui.DragFloat2(
-                    "CardPadding", MORESTYLE.Variables.CardPadding,
+                    mlstr("CardPadding"), MORESTYLE.Variables.CardPadding,
                     0.5, 0, 32, "%.1f", CImGui.ImGuiSliderFlags_AlwaysClamp
                 )
                 @c CImGui.DragFloat(
-                    "AnimSpeed", &MORESTYLE.Variables.AnimSpeed,
+                    mlstr("AnimSpeed"), &MORESTYLE.Variables.AnimSpeed,
                     0.05, 0, 3, "%.2f", CImGui.ImGuiSliderFlags_AlwaysClamp
                 )
                 @c CImGui.DragFloat(
-                    "ToastDuration", &MORESTYLE.Variables.ToastDuration,
+                    mlstr("ToastDuration"), &MORESTYLE.Variables.ToastDuration,
                     0.5, 1, 30, "%.1f", CImGui.ImGuiSliderFlags_AlwaysClamp
                 )
                 wppath = MORESTYLE.Variables.Wallpaper
@@ -698,8 +704,8 @@ let
                 (inputwp || selectwp) && (MORESTYLE.Variables.Wallpaper = wppath)
                 CImGui.EndTabItem()
             end
-            if CImGui.BeginTabItem("Colors")
-                if CImGui.Button("Export")
+            if CImGui.BeginTabItem(mlstr("Colors"))
+                if CImGui.Button(mlstr("Export"))
                     if output_dest == 0
                         CImGui.LogToClipboard()
                     else
@@ -715,28 +721,30 @@ let
                 end
                 CImGui.SameLine()
                 CImGui.SetNextItemWidth(120)
-                @c CImGui.Combo("##output_type", &output_dest, "To Clipboard\0To TTY\0")
+                @c CImGui.Combo("##output_type", &output_dest, stcstr(mlstr("To Clipboard"), "\0", mlstr("To TTY"), "\0"))
                 CImGui.SameLine()
-                @c CImGui.Checkbox("Only Modified Colors", &output_only_modified)
-                ImGuiTextFilter_Draw(filter, "Filter colors", 0)
-                if CImGui.RadioButton("Opaque", alpha_flags == ImGuiColorEditFlags_AlphaOpaque)
+                @c CImGui.Checkbox(mlstr("Only Modified Colors"), &output_only_modified)
+                ImGuiTextFilter_Draw(filter, mlstr("Filter colors"), 0)
+                if CImGui.RadioButton(mlstr("Opaque"), alpha_flags == ImGuiColorEditFlags_AlphaOpaque)
                     alpha_flags = ImGuiColorEditFlags_AlphaOpaque
                 end
                 CImGui.SameLine()
-                if CImGui.RadioButton("Alpha", alpha_flags == ImGuiColorEditFlags_None)
+                if CImGui.RadioButton(mlstr("Alpha"), alpha_flags == ImGuiColorEditFlags_None)
                     alpha_flags = ImGuiColorEditFlags_None
                 end
                 CImGui.SameLine()
-                if CImGui.RadioButton("Both", alpha_flags == ImGuiColorEditFlags_AlphaPreviewHalf)
+                if CImGui.RadioButton(mlstr("Both"), alpha_flags == ImGuiColorEditFlags_AlphaPreviewHalf)
                     alpha_flags = ImGuiColorEditFlags_AlphaPreviewHalf
                 end
                 CImGui.SameLine()
                 ShowHelpMarker(
-                    """
-                    In the color list:
-                    Left-click on color square to open color picker,
-                    Right-click to open edit options menu.
-                    """
+                    mlstr(
+                        """
+                        In the color list:
+                        Left-click on color square to open color picker,
+                        Right-click to open edit options menu.
+                        """
+                    )
                 )
                 CImGui.BeginChild("Colors", (0, 0), false, CImGui.ImGuiWindowFlags_HorizontalScrollbar)
                 for color in fieldnames(MoreStyleColor)
@@ -749,11 +757,11 @@ let
                     if getproperty(style_ref.Colors, color) != getproperty(MORESTYLE.Colors, color)
                         CImGui.PushID(stcstr(color))
                         CImGui.SameLine()
-                        if CImGui.Button("Save")
+                        if CImGui.Button(mlstr("Save"))
                             getproperty(style_ref.Colors, color) .= getproperty(MORESTYLE.Colors, color)
                         end
                         CImGui.SameLine()
-                        if CImGui.Button("Revert")
+                        if CImGui.Button(mlstr("Revert"))
                             getproperty(MORESTYLE.Colors, color) .= getproperty(style_ref.Colors, color)
                         end
                         CImGui.PopID()
@@ -762,7 +770,7 @@ let
                 CImGui.EndChild()
                 CImGui.EndTabItem()
             end
-            if CImGui.BeginTabItem("Icons")
+            if CImGui.BeginTabItem(mlstr("Icons"))
                 icons = fieldnames(MoreStyleIcon)
                 ImGuiTextFilter_Draw(icons_filter, "Filter icons", 0)
                 # CImGui.SameLine()
@@ -896,7 +904,7 @@ let
         CImGui.SameLine()
         CImGui.Button(MORESTYLE.Icons.Delete) && CImGui.OpenPopup("##if delete style")
         CImGui.SameLine()
-        ShowHelpMarker("This operation will delete the selected IMGUISTYLE. Please be careful!")
+        ShowHelpMarker(mlstr("This operation will delete the selected IMGUISTYLE. Please be careful!"))
         if YesNoDialog("##if delete style", mlstr("confirm delete?"), CImGui.ImGuiWindowFlags_AlwaysAutoResize)
             delete!(STYLES, selected_style)
             Base.Filesystem.rm(joinpath(CONF.Style.dir, "$selected_style.toml"), force=true)
@@ -923,31 +931,31 @@ let
         end
         CImGui.PopItemWidth()
         CImGui.SameLine()
-        CImGui.Button("Set as default") && (selected_style == "" || (CONF.Style.default = selected_style))
+        CImGui.Button(mlstr("Set as default")) && (selected_style == "" || (CONF.Style.default = selected_style))
         CImGui.SameLine()
         CImGui.Button(stcstr(MORESTYLE.Icons.InstrumentsManualRef, "##reloading")) && loadstyles()
         CImGui.SameLine()
-        CImGui.Text("Style")
+        CImGui.Text(mlstr("Style"))
         if CImGui.BeginTabBar("Style Editor")
-            if CImGui.BeginTabItem("ImGui Style")
+            if CImGui.BeginTabItem(mlstr("ImGui Style"))
                 CImGui.BeginChild("ImGui Style")
                 CImGui.ShowStyleEditor(IMGUISTYLE_REF[])
                 CImGui.EndChild()
                 CImGui.EndTabItem()
             end
-            if CImGui.BeginTabItem("ImNodes Style")
+            if CImGui.BeginTabItem(mlstr("ImNodes Style"))
                 CImGui.BeginChild("ImNodes Style")
                 ShowStyleEditor(ustyle.imnodesstyle)
                 CImGui.EndChild()
                 CImGui.EndTabItem()
             end
-            if CImGui.BeginTabItem("More Style")
+            if CImGui.BeginTabItem(mlstr("More Style"))
                 CImGui.BeginChild("More Style")
                 ShowStyleEditor(ustyle.morestyle)
                 CImGui.EndChild()
                 CImGui.EndTabItem()
             end
-            if CImGui.BeginTabItem("Wallpapers")
+            if CImGui.BeginTabItem(mlstr("Wallpapers"))
                 CImGui.BeginChild("Wallpapers")
                 for (i, fnm) in enumerate(fieldnames(OptBGImage))
                     CImGui.PushID(i)
@@ -979,7 +987,7 @@ let
                         end
                     end
                     if bg.use
-                        @c CImGui.DragInt("Rate", &bg.rate, 1, 1, 120, "%d", CImGui.ImGuiSliderFlags_AlwaysClamp)
+                        @c CImGui.DragInt(mlstr("Rate"), &bg.rate, 1, 1, 120, "%d", CImGui.ImGuiSliderFlags_AlwaysClamp)
                     end
                     CImGui.PopID()
                 end

@@ -395,13 +395,14 @@ end
 
 function _mdrender!(l::MDList)
     base = CImGui.GetFontSize()
+    spw = _mdwidth(" ", base) #空格真实步进(随字体不同,不是固定字号比例),走宽度缓存且每列表只查一次
     lastlevel = 0
     for item in l.items
         item.level > lastlevel && CImGui.Indent(base * (item.level - lastlevel) * 1.5)
         item.level < lastlevel && CImGui.Unindent(base * (lastlevel - item.level) * 1.5)
         lastlevel = item.level
         occursin(r"^\d", item.marker) ? CImGui.Text(item.marker) : CImGui.Bullet()
-        CImGui.SameLine(0, 0)
+        CImGui.SameLine(0, spw) #圆点/序号与正文留一个空格宽,贴死不美观
         _mdrenderline!(item.spans)
     end
     lastlevel > 0 && CImGui.Unindent(base * lastlevel * 1.5)
