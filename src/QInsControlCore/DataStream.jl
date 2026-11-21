@@ -5,7 +5,7 @@ construct a Controller to send commands to the instrument determined by (instrnm
 send commands to the Processor: wirte read query.
 ```julia
 julia> ct(write, cpu, "*IDN?", Val(:write))
-"done"
+""
 
 julia> ct(read, cpu, Val(:read))
 "read"
@@ -28,23 +28,32 @@ the definition of function idn_get must happen before the Controller ct is logge
 struct Controller
     instrnm::String
     addr::String
-    lock::ReentrantLock
-    databuf::Vector{String}
-    available::Vector{Bool}
-    ready::Vector{Bool}
+    databuf::Vector{String} #槽位结果缓冲:仅 vec 模式使用,通道模式闲置
+    available::Vector{Bool} #槽位空闲标志
+    ready::Vector{Int} #槽位就绪序列号(0=未就绪):存序列号而非 Bool,超时孤儿的迟到结果写回旧序列号后与新命令的等待条件不等,不会串扰后续命令
     busytimeout::Float64
-    Controller(instrnm, addr; buflen=16, busytimeout=54) = new(
-        instrnm, addr, ReentrantLock(), fill("", buflen), trues(buflen), falses(buflen), busytimeout
-    )
+    #buflen:槽位池长度(vec 模式按它分配);通道模式下仅作兼容参数保留
+    Controller(instrnm, addr; buflen=16, busytimeout=54) =
+        new(instrnm, addr, fill("", buflen), fill(true, buflen), zeros(Int, buflen), busytimeout)
 end
 function Base.show(io::IO, ct::Controller)
     str = """
        instrnm : $(ct.instrnm)
        address : $(ct.addr)
-        buffer : $(ct.databuf)
     """
     print(io, str)
 end
+
+#一条仪器命令:(控制器, 执行函数, 参数, 模式, 响应通道)。响应通道由每次调用新建并随命令
+#携带,执行结果 put! 回该通道——超时孤儿命令的迟到结果写入的是被放弃的通道,不可能串扰到
+#后续调用。Val(:stop) 为停止唤醒命令,用于让阻塞在 take! 上的任务正常退出而非被强杀
+#(timedwhilefetch 的强杀会留错误日志)
+const INSTRCMD = Tuple{Controller,Function,String,Val,Channel{String}}
+_stopcmd() = (Controller("", ""), identity, "", Val(:stop), Channel{String}(1))
+
+#vec 模式的一条仪器命令:(控制器, 执行函数, 参数, 模式, 槽位号, 就绪序列号)。前四元与
+#INSTRCMD 同序,末两位取代响应通道:执行结果写进槽位 databuf[i] 并置 ready[i] = 序列号
+const INSTRCMDV = Tuple{Controller,Function,String,Val,Int,Int}
 
 """
     Processor()
@@ -52,10 +61,15 @@ end
 construct a Processor to deal with the commands sended into by Controllers.
 """
 struct Processor
-    lock::ReentrantLock
+    lock::ReentrantLock #保护 controllers/instrs/exechannels/tasks/taskhandlers/taskbusy 的结构与查取;通道的 put!/take! 自身线程安全,一律在锁外
+    qlock::ReentrantLock #保护 vec 模式队列的结构性操作(cmdqueue/execqueues 的 push!/popfirst!/empty!/delete! 与抢槽扫描):引用元素数组的并发结构操作会撕裂出 #undef 槽位(UndefRefError,现场实测复现过),无竞争时开销仅 ~几十 ns。锁序:先 lock 后 qlock,绝不反序
     controllers::Vector{Controller}
-    cmdchannel::Vector{Tuple{Controller,Int,Function,String,Val}}
-    exechannels::Dict{String,Vector{Tuple{Controller,Int,Function,String,Val}}}
+    cmdchannel::Channel{INSTRCMD}
+    exechannels::Dict{String,Channel{INSTRCMD}}
+    cmdqueue::Vector{INSTRCMDV} #vec 模式全局命令队列(通道模式闲置)
+    execqueues::Dict{String,Vector{INSTRCMDV}} #vec 模式每仪器执行队列(通道模式闲置)
+    cmdserial::Threads.Atomic{Int} #vec 模式命令序列号计数器(原子递增:即使出现并行也不会重复序列号,杜绝结果静默错配)
+    vecmode::Ref{Bool} #true=vector 槽位模型:运行进程单线程,协作调度保证两次让出之间原子;false=通道模型。由 init! 按运行进程线程数一次确定,运行期不变
     processtask::Ref{Task}
     tasks::Dict{String,Task}
     taskhandlers::Dict{String,Bool}
@@ -64,28 +78,33 @@ struct Processor
     instrs::Dict{String,Lockable}
     running::Ref{Bool}
     fast::Ref{Bool}
-    Processor() = new(ReentrantLock(), [], [], Dict(), Ref{Task}(), Dict(), Dict(), Dict(), 0, Dict(), false, false)
+    Processor() = new(
+        ReentrantLock(), ReentrantLock(), [], Channel{INSTRCMD}(Inf), Dict{String,Channel{INSTRCMD}}(),
+        Vector{INSTRCMDV}(), Dict{String,Vector{INSTRCMDV}}(), Threads.Atomic{Int}(0), false,
+        Ref{Task}(), Dict(), Dict(), Dict(), 0, Dict(), false, false
+    )
 end
 
 function Base.show(io::IO, cpu::Processor)
     str1 = """
            running : $(cpu.running[])
               mode : $(cpu.fast[] ? "fast" : "slow")
+         transport : $(cpu.vecmode[] ? "vector" : "channel")
    ResourceManager : $(cpu.resourcemanager[])
        controllers :
     """
     print(io, str1)
-    for ct in cpu.controllers
+    for ct in collect(cpu.controllers)
         print(io, "\t\t\tController\n")
         print(io, ct)
         # ct_strs = split(string(ct), '\n')[1:end-1]
         # print(io, string(join(fill("\t\t", 4) .* ct_strs, "\n"), "\n\n"))
     end
     str2 = """
-              tasks : 
+              tasks :
     """
     print(io, str2)
-    for (addr, state) in cpu.taskhandlers
+    for (addr, state) in collect(cpu.taskhandlers)
         l = length(addr)
         if l < 26
             print(io, string(" "^(26 - length(addr)), addr, " : ", state))
@@ -122,7 +141,13 @@ function login!(cpu::Processor, ct::Controller; attrlist=Dict(), quiet=true)
                     catch e
                         @error "an error occurs during connecting" exception = e
                     end
-                    cpu.exechannels[ct.addr] = []
+                    if cpu.vecmode[]
+                        lock(cpu.qlock) do #与 routetask 的 haskey+push 同锁,Dict 插入不被并发读撞上
+                            cpu.execqueues[ct.addr] = Vector{INSTRCMDV}()
+                        end
+                    else
+                        cpu.exechannels[ct.addr] = Channel{INSTRCMD}(Inf)
+                    end
                     cpu.taskhandlers[ct.addr] = true
                     cpu.taskbusy[ct.addr] = false
                     cpu.tasks[ct.addr] = monitorinstr(cpu, ct.addr)
@@ -171,10 +196,13 @@ end
 function rminstr!(cpu::Processor, addr::String)
     haskey(cpu.instrs, addr) || return
     if cpu.running[]
-        #停止标志与等待必须在 cpu.lock 之外:monitor 循环体要拿 cpu.lock 弹命令,
+        #停止标志与等待必须在 cpu.lock 之外:monitor 循环体要拿 cpu.lock 查状态,
         #持锁等它退出会互相卡到 6s 强杀(与 stop! 是同坑,见 stop! 内注释)
         lock(cpu.lock) do
             haskey(cpu.taskhandlers, addr) && (cpu.taskhandlers[addr] = false)
+            #vec 模式的 monitor 轮询标志,下一轮询周期自行退出,未执行命令随队列在下方清理;
+            #通道模式 monitor 阻塞在 take! 上,须投递停止命令唤醒使其正常退出
+            !cpu.vecmode[] && haskey(cpu.exechannels, addr) && put!(cpu.exechannels[addr], _stopcmd())
         end
         task = lock(() -> get(cpu.tasks, addr, nothing), cpu.lock)
         task === nothing || timedwhilefetch(task, 6; msg="force to stop task for $(addr)")
@@ -186,6 +214,9 @@ function rminstr!(cpu::Processor, addr::String)
                 delete!(cpu.taskhandlers, addr)
                 delete!(cpu.tasks, addr)
                 delete!(cpu.exechannels, addr)
+                lock(cpu.qlock) do #与 routetask 的 haskey+push!/monitor 的 pop 互斥,避免命令投进已删队列
+                    delete!(cpu.execqueues, addr)
+                end
                 disconnect!(instr)
                 pop!(cpu.instrs, addr)
             end
@@ -195,33 +226,49 @@ function rminstr!(cpu::Processor, addr::String)
 end
 
 "三个 (ct::Controller)(...) 入口的公共实现(write/read/query 仅差命令元组与错误文案):
-抢占槽位 → 命令入队 → 等结果取回。超时即视为仪器故障(不再等迟到数据),槽位立即释放;
-需要更长等待时应调大仪器驱动的 timeout 字段,而不是在此补偿"
+超时即视为仪器故障(不再等迟到数据);需要更长等待时应调大仪器驱动的 timeout 字段,而不是在此补偿。
+等待一律用 timedwhile(yield 忙轮询)而非 timedwait(定时 sleep):后者每查一次睡 1ms,单命令凭空
+多出 1-2ms 延迟,高速采集下是致命回归(通道化时曾误改,已修复)"
 function _ctrequest(f::Function, cpu::Processor, ct::Controller, val::String, mode::Val, timeout, errdesc)
+    cpu.vecmode[] && return _ctrequestv(f, cpu, ct, val, mode, timeout, errdesc)
+    @assert lock(() -> ct in cpu.controllers, cpu.lock) "Controller is not logged in"
+    @assert cpu.running[] "Processor is not running"
+    resp = Channel{String}(1)
+    put!(cpu.cmdchannel, (ct, f, val, mode, resp)) #Channel(Inf),入队永不阻塞,与原 Vector 语义一致
+    #taskbusy 会被 rminstr!/logout! 持锁 delete!,读必须持锁;地址已注销时立即视为空闲
+    timedwhile(() -> !lock(() -> get(cpu.taskbusy, ct.addr, false), cpu.lock), ct.busytimeout)
+    isok = timedwhile(() -> isready(resp), timeout)
+    return isok ? take!(resp) : error(errdesc)
+end
+
+"vec 模式实现:单线程下协作调度保证两次让出之间的操作原子;队列的结构性操作与抢槽扫描经
+qlock 互斥(无竞争 ~几十 ns,IO 一律锁外),即使异常地出现并行也不会撕裂队列。槽位字交换
+(ready/databuf/available)保持无锁:字读写硬件原子,序列号设计使迟到写自然失效。
+流程:抢空闲槽位 → 命令带(槽位号,序列号)入队 → 轮询槽位序列号取结果 → 归还槽位"
+function _ctrequestv(f::Function, cpu::Processor, ct::Controller, val::String, mode::Val, timeout, errdesc)
     @assert ct in cpu.controllers "Controller is not logged in"
     @assert cpu.running[] "Processor is not running"
-    availi = Ref{Int}(0)
-    isok = timedwhile(timeout) do
-        lock(ct.lock) do #并发调用必须原子地整段扫描抢占,否则会同抢一个槽位
-            for (i, avail) in enumerate(ct.available)
-                avail && (ct.available[i] = false; availi[] = i; return true)
-            end
-            return false
+    i = 0
+    isok = timedwhile(() -> lock(cpu.qlock) do #timeout 内抢一个空闲槽位,扫描经 qlock 互斥,绝不两人抢到同槽
+        for (j, avail) in enumerate(ct.available)
+            avail || continue
+            ct.available[j] = false
+            ct.ready[j] = 0
+            i = j
+            return true
         end
-    end
+        return false
+    end, timeout)
     isok || error("timeout without available buffer")
-    i = availi[]
-    lock(() -> ct.ready[i] = false, ct.lock)
-    lock(() -> push!(cpu.cmdchannel, (ct, i, f, val, mode)), cpu.lock)
-    #taskbusy 会被 rminstr!/logout! 持锁 delete!,无锁读既可能读到撕裂值也可能 KeyError
-    timedwhile(() -> !lock(() -> get(cpu.taskbusy, ct.addr, false), cpu.lock), ct.busytimeout)
-    isok = timedwhile(() -> ct.ready[i], timeout)
-    buf = lock(ct.lock) do #先取结果再释放槽位:释放后新命令可立即改写 databuf,与本读并发会撕裂
-        b = ct.databuf[i]
-        ct.available[i] = true
-        b
+    serial = Threads.atomic_add!(cpu.cmdserial, 1) + 1
+    lock(cpu.qlock) do
+        push!(cpu.cmdqueue, (ct, f, val, mode, i, serial))
     end
-    return isok ? buf : error(errdesc)
+    #taskbusy 由 setbusy!/unsetbusy!/rminstr! 在其它任务的让出点改动,读不撕裂;地址已注销时立即视为空闲
+    timedwhile(() -> !get(cpu.taskbusy, ct.addr, false), ct.busytimeout)
+    isok = timedwhile(() -> ct.ready[i] == serial, timeout)
+    ct.available[i] = true #无论成败归还槽位;迟到结果因序列号不符而失效
+    return isok ? ct.databuf[i] : error(errdesc)
 end
 
 (ct::Controller)(f::Function, cpu::Processor, val::String, ::Val{:write}; timeout=1) =
@@ -231,42 +278,62 @@ end
 (ct::Controller)(f::Function, cpu::Processor, val::String, ::Val{:query}; timeout=1) =
     _ctrequest(f, cpu, ct, val, Val(:query), timeout, "query timeout with ($f, $val)")
 
-function runcmd(cpu::Processor, ct::Controller, i::Int, f::Function, val::String, ::Val{:write})
+function runcmd(cpu::Processor, ct::Controller, f::Function, val::String, ::Val{:write}, resp::Channel{String})
     instrlocked = lock(() -> cpu.instrs[ct.addr], cpu.lock) #锁内取引用:防与 logout 的 pop!(cpu.instrs, addr) 并发损坏 Dict
-    wait(Threads.@spawn lock(instr -> f(instr, val), instrlocked))
-    lock(ct.lock) do
-        if !ct.ready[i] && !ct.available[i]
-            ct.ready[i] = true
-        end
-    end
+    #invokelatest:f 可能是 monitor 任务启动之后才定义的运行时函数(gen_qtfunc 远程 eval、
+    #DAQ 生成代码),长驻任务阻塞恢复后的世界年龄追不上新方法,直接调用会报
+    #"method too new to be called from this world context"
+    fetch(Threads.@spawn lock(instr -> Base.invokelatest(f, instr, val), instrlocked))
+    put!(resp, "") #write 不回传执行结果(各驱动返回值不一,与原槽位机制行为一致)
 end
-function runcmd(cpu::Processor, ct::Controller, i::Int, f::Function, ::String, ::Val{:read})
+function runcmd(cpu::Processor, ct::Controller, f::Function, ::String, ::Val{:read}, resp::Channel{String})
     instrlocked = lock(() -> cpu.instrs[ct.addr], cpu.lock)
-    buf = fetch(Threads.@spawn lock(instr -> f(instr), instrlocked))
-    lock(ct.lock) do
-        if !ct.ready[i] && !ct.available[i]
-            ct.databuf[i] = buf
-            ct.ready[i] = true
-        end
-    end
+    put!(resp, fetch(Threads.@spawn lock(instr -> Base.invokelatest(f, instr), instrlocked)))
 end
-function runcmd(cpu::Processor, ct::Controller, i::Int, f::Function, val::String, ::Val{:query})
+function runcmd(cpu::Processor, ct::Controller, f::Function, val::String, ::Val{:query}, resp::Channel{String})
     instrlocked = lock(() -> cpu.instrs[ct.addr], cpu.lock)
-    buf = fetch(Threads.@spawn lock(instr -> f(instr, val), instrlocked))
-    lock(ct.lock) do
-        if !ct.ready[i] && !ct.available[i]
-            ct.databuf[i] = buf
-            ct.ready[i] = true
-        end
-    end
+    put!(resp, fetch(Threads.@spawn lock(instr -> Base.invokelatest(f, instr, val), instrlocked)))
+end
+
+#以下三个为 vec 模式执行端:monitorinstr 是该地址命令的唯一执行者,运行进程单线程,协作调度
+#下直接执行安全;不 @spawn 省两次任务切换,不取仪器锁省零竞争的锁开销。instrs 的 Dict 读经
+#cpu.lock(防与 login!/rminstr! 的插入删除撞车,无竞争 ~几十 ns);`.value` 直接读 Lockable
+#内层字段完成无锁解包(getindex 带 assert_havelock 断言,不能用于无锁场景)
+function runcmd(cpu::Processor, ct::Controller, f::Function, val::String, ::Val{:write}, i::Int, serial::Int)
+    instr = lock(() -> cpu.instrs[ct.addr], cpu.lock).value
+    Base.invokelatest(f, instr, val)
+    ct.databuf[i] = "" #write 不回传执行结果(各驱动返回值不一,与通道模式行为一致)
+    ct.ready[i] = serial
+end
+function runcmd(cpu::Processor, ct::Controller, f::Function, ::String, ::Val{:read}, i::Int, serial::Int)
+    ct.databuf[i] = Base.invokelatest(f, lock(() -> cpu.instrs[ct.addr], cpu.lock).value)
+    ct.ready[i] = serial
+end
+function runcmd(cpu::Processor, ct::Controller, f::Function, val::String, ::Val{:query}, i::Int, serial::Int)
+    ct.databuf[i] = Base.invokelatest(f, lock(() -> cpu.instrs[ct.addr], cpu.lock).value, val)
+    ct.ready[i] = serial
 end
 
 function init!(cpu::Processor)
     if !cpu.running[]
         lock(cpu.lock) do
             cpu.fast[] = false
-            empty!(cpu.cmdchannel)
-            empty!(cpu.exechannels)
+            #模式按运行进程的线程数一次确定:单线程走 vector 槽位模型(队列结构操作经 qlock,
+            #协作调度+互斥保证安全),多线程走通道模型(通道自带的锁与阻塞唤醒换并发安全)。
+            #运行期不可切换(进程线程数不可变)
+            cpu.vecmode[] = Threads.nthreads() == 1
+            @info "Processor transport: $(cpu.vecmode[] ? "vector" : "channel") (nthreads=$(Threads.nthreads()))"
+            lock(cpu.qlock) do
+                empty!(cpu.cmdqueue) #排空残留命令(此时无任务在跑,残留只会是上次停止的未路由命令)
+                empty!(cpu.execqueues)
+            end
+            if !cpu.vecmode[]
+                #Channel 无 empty!:排空残留命令(此时无任务在跑,残留只会是上次停止的唤醒命令)
+                while isready(cpu.cmdchannel)
+                    take!(cpu.cmdchannel)
+                end
+                empty!(cpu.exechannels)
+            end
             empty!(cpu.tasks)
             empty!(cpu.taskhandlers)
             empty!(cpu.taskbusy)
@@ -282,9 +349,39 @@ function init!(cpu::Processor)
                 catch e
                     @error "connecting to $addr failed" exception = e
                 end
-                cpu.exechannels[addr] = []
+                if cpu.vecmode[]
+                    cpu.execqueues[addr] = Vector{INSTRCMDV}()
+                else
+                    cpu.exechannels[addr] = Channel{INSTRCMD}(Inf)
+                end
                 cpu.taskhandlers[addr] = false
                 cpu.taskbusy[addr] = false
+            end
+        end
+    end
+end
+
+"命令分发任务:通道模式从 cmdchannel 阻塞取出命令,按地址投入对应 exechannel——阻塞 take!
+取代旧的 1ms 轮询:空闲零 CPU,命令到达即唤醒;vec 模式轮询 cmdqueue 按地址投入 execqueues"
+function _routetask(cpu::Processor)
+    @async_record "processing task" while cpu.running[]
+        if cpu.vecmode[]
+            routed = lock(cpu.qlock) do #队列结构操作经 qlock,与 rminstr! 的删除互斥不被拆散
+                if isempty(cpu.cmdqueue)
+                    false
+                else
+                    cmd = popfirst!(cpu.cmdqueue)
+                    #注销中的地址其队列已随 rminstr! 清理,haskey 检查使命令随注销一并丢弃
+                    haskey(cpu.execqueues, cmd[1].addr) && push!(cpu.execqueues[cmd[1].addr], cmd)
+                    true
+                end
+            end
+            routed || (cpu.fast[] ? yield() : sleep(0.001)) #空闲忙轮询:fast 让出即时响应,slow 睡眠降 CPU
+        else
+            cmd = take!(cpu.cmdchannel)
+            cmd[4] === Val(:stop) && break #stop! 投递的唤醒命令
+            lock(cpu.lock) do
+                haskey(cpu.exechannels, cmd[1].addr) && put!(cpu.exechannels[cmd[1].addr], cmd)
             end
         end
     end
@@ -293,19 +390,9 @@ end
 function run!(cpu::Processor)
     if !cpu.running[]
         cpu.running[] = true
-        cpu.processtask[] = errormonitor(
-            @async_record "processing task" while cpu.running[]
-                if isempty(cpu.cmdchannel)
-                    cpu.fast[] ? yield() : sleep(0.001)
-                else
-                    lock(cpu.lock) do
-                        cmd = popfirst!(cpu.cmdchannel)
-                        push!(cpu.exechannels[cmd[1].addr], cmd)
-                    end
-                end
-            end
-        )
-        for addr in collect(keys(cpu.exechannels)) #快照迭代:login! 会并发插入新键
+        cpu.processtask[] = errormonitor(_routetask(cpu))
+        execs = cpu.vecmode[] ? cpu.execqueues : cpu.exechannels #按模式取待启动的执行队列
+        for addr in collect(keys(execs)) #快照迭代:login! 会并发插入新键
             lock(cpu.lock) do
                 cpu.taskhandlers[addr] = true
                 cpu.taskbusy[addr] = false
@@ -319,22 +406,13 @@ function run!(cpu::Processor)
                 try
                     if istaskfailed(cpu.processtask[])
                         @warn "processing task failed, recreating..."
-                        cpu.processtask[] = errormonitor(
-                            @async_record "processing task" while cpu.running[]
-                                if isempty(cpu.cmdchannel)
-                                    cpu.fast[] ? yield() : sleep(0.001)
-                                else
-                                    lock(cpu.lock) do
-                                        cmd = popfirst!(cpu.cmdchannel)
-                                        push!(cpu.exechannels[cmd[1].addr], cmd)
-                                    end
-                                end
-                            end
-                        )
+                        cpu.processtask[] = errormonitor(_routetask(cpu))
                         @info "processing task has been recreated"
                     end
                     for (addr, t) in collect(cpu.tasks) #快照迭代:登录/重建会并发插入,Dict 重哈希会损坏迭代器
-                        if istaskfailed(t) && haskey(cpu.exechannels, addr) && haskey(cpu.taskhandlers, addr)
+                        if istaskfailed(t) && lock(() ->
+                           (cpu.vecmode[] ? haskey(cpu.execqueues, addr) : haskey(cpu.exechannels, addr)) &&
+                           haskey(cpu.taskhandlers, addr), cpu.lock)
                             setbusy!(cpu, addr)
                             @warn "task(address: $addr) failed, clearing buffer and recreating..."
                             lock(cpu.instrs[addr]) do instr
@@ -357,15 +435,32 @@ end
 
 function monitorinstr(cpu::Processor, addr::String)
     errormonitor(
-        @async_record "monitor task $(addr)" while lock(() -> get(cpu.taskhandlers, addr, false), cpu.lock)
-            cmd = lock(cpu.lock) do #检查+弹出原子化,防与 logout 删 Dict、Controller push 竞争
-                haskey(cpu.exechannels, addr) && !isempty(cpu.exechannels[addr]) &&
-                    !cpu.taskbusy[addr] ? popfirst!(cpu.exechannels[addr]) : nothing
+        @async_record "monitor task $(addr)" if cpu.vecmode[]
+            #vec 模式:轮询执行队列,空闲忙轮询;本任务是该地址命令的唯一执行者(串行化保证)。
+            #取命令经 qlock(与 routetask 的 push 互斥,防引用数组撕裂),执行(IO)一律在锁外
+            q = lock(() -> cpu.execqueues[addr], cpu.qlock) #取一次队列引用:Dict 增删不换队列本体
+            while get(cpu.taskhandlers, addr, false)
+                cmd = lock(cpu.qlock) do
+                    (isempty(q) || get(cpu.taskbusy, addr, false)) ? nothing : popfirst!(q)
+                end
+                if isnothing(cmd)
+                    #空闲或重试逻辑(@gentrycatch)进行中:忙轮询等 busy 解除
+                    cpu.fast[] ? yield() : sleep(0.001)
+                else
+                    runcmd(cpu, cmd...)
+                end
             end
-            if isnothing(cmd) #runcmd 含阻塞的仪器 I/O,必须在 cpu.lock 之外执行
-                cpu.fast[] ? yield() : sleep(0.001)
-            else
-                runcmd(cpu, cmd...)
+        else
+            ch = lock(() -> cpu.exechannels[addr], cpu.lock) #取一次通道引用:Dict 增删不换通道本体
+            while lock(() -> get(cpu.taskhandlers, addr, false), cpu.lock)
+                cmd = take!(ch) #阻塞等待,空闲零开销;唤醒途径:新命令或注销/停止投递的 Val(:stop)
+                cmd[4] === Val(:stop) && break
+                #重试逻辑(@gentrycatch)进行中:暂缓执行新命令,等 busy 解除
+                while lock(() -> get(cpu.taskbusy, addr, false), cpu.lock) &&
+                      lock(() -> get(cpu.taskhandlers, addr, false), cpu.lock)
+                    cpu.fast[] ? yield() : sleep(0.001)
+                end
+                lock(() -> get(cpu.taskhandlers, addr, false), cpu.lock) && runcmd(cpu, cmd...)
             end
         end
     )
@@ -378,11 +473,13 @@ stop the Processor.
 """
 function stop!(cpu::Processor)
     if cpu.running[]
-        lock(cpu.lock) do #只置停止标志:processtask/monitor 的循环体要拿 cpu.lock,持锁等待会互相卡到 6s 强杀
-            for addr in keys(cpu.taskhandlers)
+        lock(cpu.lock) do #只置停止标志并投递唤醒命令:通道模式任务阻塞在 take! 上,须唤醒才能正常退出
+            for addr in collect(keys(cpu.taskhandlers))
                 cpu.taskbusy[addr] = false
                 cpu.taskhandlers[addr] = false
+                !cpu.vecmode[] && haskey(cpu.exechannels, addr) && put!(cpu.exechannels[addr], _stopcmd())
             end
+            !cpu.vecmode[] && put!(cpu.cmdchannel, _stopcmd()) #唤醒阻塞在 take! 上的分发任务
             cpu.running[] = false
             cpu.fast[] = false
         end
@@ -395,8 +492,12 @@ function stop!(cpu::Processor)
                 lock(disconnect!, instrlocked)
             end
             empty!(cpu.controllers)
-            empty!(cpu.cmdchannel)
+            #cmdchannel 无 empty!:残留的唤醒命令/未路由命令由下次 init! 排空
             empty!(cpu.exechannels)
+            lock(cpu.qlock) do
+                empty!(cpu.cmdqueue)
+                empty!(cpu.execqueues)
+            end
             empty!(cpu.taskhandlers)
             empty!(cpu.taskbusy)
             empty!(cpu.tasks)
@@ -418,11 +519,10 @@ start!(cpu::Processor) = (init!(cpu); run!(cpu))
 reconnect the instruments that log in the Processor.
 """
 function reconnect!(cpu::Processor, addr::String)
-    if haskey(cpu.instrs, addr)
-        lock(cpu.instrs[addr]) do instr
-            disconnect!(instr)
-            connect!(cpu.resourcemanager[], instr)
-        end
+    instrlocked = lock(() -> haskey(cpu.instrs, addr) ? cpu.instrs[addr] : nothing, cpu.lock)
+    isnothing(instrlocked) || lock(instrlocked) do instr
+        disconnect!(instr)
+        connect!(cpu.resourcemanager[], instr)
     end
 end
 reconnect!(cpu::Processor) = map(addr -> reconnect!(cpu, addr), collect(keys(cpu.instrs)))
@@ -431,6 +531,9 @@ reconnect!(cpu::Processor) = map(addr -> reconnect!(cpu, addr), collect(keys(cpu
     slow!(cpu::Processor)
 
 change the cpu mode to slow mode. Default mode is slow mode, which decrease the cpu cost.
+
+该模式控制各忙轮询点的等待方式:fast 让出(yield,低延迟高 CPU),slow 睡眠(降 CPU)。
+vec 模式下命令提交/分发/执行/取结果各环节均为轮询;通道模式下仅影响 monitor 暂缓执行期间。
 """
 slow!(cpu::Processor) = lock(() -> cpu.fast[] = false, cpu.lock)
 
@@ -442,17 +545,15 @@ change the cpu mode to fast mode. Default mode is slow mode. The fast mode is no
 fast!(cpu::Processor) = lock(() -> cpu.fast[] = true, cpu.lock)
 
 function setbusy!(cpu::Processor, addr::String)
-    if haskey(cpu.taskbusy, addr)
-        lock(() -> cpu.taskbusy[addr] = true, cpu.lock)
-        @warn "set busy for $addr"
-    end
+    lock(() -> haskey(cpu.taskbusy, addr), cpu.lock) || return
+    lock(() -> cpu.taskbusy[addr] = true, cpu.lock)
+    @warn "set busy for $addr"
 end
 function unsetbusy!(cpu::Processor, addr::String)
-    if haskey(cpu.taskbusy, addr)
-        lock(() -> cpu.taskbusy[addr] = false, cpu.lock)
-        @info "unset busy for $addr"
-    end
+    lock(() -> haskey(cpu.taskbusy, addr), cpu.lock) || return
+    lock(() -> cpu.taskbusy[addr] = false, cpu.lock)
+    @info "unset busy for $addr"
 end
 setbusy!(cpu::Processor) = map(addr -> setbusy!(cpu, addr), collect(keys(cpu.taskbusy)))
 unsetbusy!(cpu::Processor) = map(addr -> unsetbusy!(cpu, addr), collect(keys(cpu.taskbusy)))
-isbusy(cpu::Processor, addr::String) = haskey(cpu.taskbusy, addr) && cpu.taskbusy[addr]
+isbusy(cpu::Processor, addr::String) = lock(() -> get(cpu.taskbusy, addr, false), cpu.lock)

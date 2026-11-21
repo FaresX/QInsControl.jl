@@ -18,7 +18,7 @@ let
 
             CImGui.Columns(2)
             @cstatic firsttime::Bool = true begin
-                firsttime && (CImGui.SetColumnOffset(1, CImGui.GetWindowWidth() * 0.2); firsttime = false)
+                firsttime && (CImGui.SetColumnOffset(1, CImGui.GetWindowWidth() * 0.2); firsttime=false)
             end
             CImGui.PushStyleColor(CImGui.ImGuiCol_ChildBg, MORESTYLE.Colors.ToolBarBg)
             CImGui.BeginChild("Toolbar")
@@ -163,7 +163,7 @@ let
                     isvalidpath(visapath) && (CONF.Communication.visapath = visapath)
                     if isfile(CONF.Communication.visapath)
                         QInsControlCore.set_libvisa(CONF.Communication.visapath)
-                        QInsControlCore.remote_set_libvisa!(CONF.Communication.visapath)
+                        QInsControlCore.remote_set_libvisa(CONF.Communication.visapath)
                     end
                 end
                 CImGui.Text(" ")

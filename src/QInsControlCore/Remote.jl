@@ -2,6 +2,8 @@
 export remote_startcpu!, remote_stopcpu!, remote_cpumode!, remote_find_resources!, remote_connect!, remote_logout!
 export remote_setbusy!, remote_unsetbusy!, remote_getcpuinfo
 export remote_write, remote_query, remote_read, remote_qtread, remote_qtset, remote_qtsweep, remote_idn_get
+export remote_write_ex, remote_query_ex, remote_read_ex, remote_qtread_ex, remote_qtset_ex
+export remote_call_driver, remote_driver_probe
 export remote_setport!, remote_setmaxclients!, remote_setbuflen!, remote_startserver!, remote_stopserver!
 export remote_servermode!, remote_deleteclient!, remote_servernewmsg!, remote_fetchserver
 export remote_startrefresh, remote_stoprefresh, putinput!, takeoutput!, isoutputready
@@ -174,7 +176,7 @@ function tsp_expr(instrnm, quantity, tspstr)
 end
 
 ###### CPU Monitor ######
-remote_set_libvisa!(visapath) = timed_remotecall_wait(visapath -> set_libvisa(visapath), workers()[1], visapath)
+remote_set_libvisa(visapath) = timed_remotecall_wait(visapath -> set_libvisa(visapath), workers()[1], visapath)
 remote_startcpu!() = timed_remotecall_wait(() -> start!(CPU), workers()[1]; timeout=4)
 remote_stopcpu!() = timed_remotecall_wait(() -> stop!(CPU), workers()[1])
 remote_cpumode!(mode) = timed_remotecall_wait(mode -> CPU.fast[] = mode, workers()[1], mode)
@@ -201,6 +203,7 @@ function remote_getcpuinfo()
                 :running => CPU.running[],
                 :taskfailed => istaskfailed(CPU.processtask[]),
                 :fast => CPU.fast[],
+                :vecmode => CPU.vecmode[],
                 :resourcemanager => CPU.resourcemanager[],
                 :instrs => Dict(addr => lock(instr -> instr.name, instrlocked) for (addr, instrlocked) in CPU.instrs),
                 :isconnected => Dict(addr => lock(isconnected, instrlocked) for (addr, instrlocked) in CPU.instrs),
@@ -384,6 +387,163 @@ function remote_qtset(instrnm, addr, qtnm, sv, buflen, timeoutw, timeoutr; retre
                 exception = e
             )
             showbacktrace()
+        finally
+            logout!(CPU, ct)
+        end
+    end
+end
+
+###### 通信测试扩展(_ex 系列 + 驱动实测通道;AI 驱动迭代回路依赖它们读到错误根因) ######
+# 与非 _ex 版本同通道,但 worker 侧错误不再只进日志:正常返回 (true, payload),
+# 通信失败返回 (false, 错误文本);worker 层未捕获异常/超时由 timed_remotecall_fetch 返回 nothing,
+# 调用方(bridge)以 `res isa Tuple` 判别。
+
+function remote_write_ex(instrnm, addr, cmd, buflen; attrlist=Dict())
+    attr = getattr(addr, attrlist)
+    timed_remotecall_fetch(
+        workers()[1], instrnm, addr, cmd, buflen; timeout=attr.timeoutw
+    ) do instrnm, addr, cmd, buflen
+        ct = Controller(instrnm, addr; buflen=buflen)
+        try
+            login!(CPU, ct; attrlist)
+            ct(write, CPU, cmd, Val(:write); timeout=attr.timeoutw)
+            (true, "")
+        catch e
+            (false, sprint(showerror, e))
+        finally
+            logout!(CPU, ct)
+        end
+    end
+end
+
+function remote_query_ex(instrnm, addr, cmd, buflen; attrlist=Dict())
+    attr = getattr(addr, attrlist)
+    timed_remotecall_fetch(
+        workers()[1], instrnm, addr, cmd, buflen; timeout=attr.timeoutw + attr.timeoutr
+    ) do instrnm, addr, cmd, buflen
+        ct = Controller(instrnm, addr; buflen=buflen)
+        try
+            login!(CPU, ct; attrlist)
+            (true, string(ct(query, CPU, cmd, Val(:query); timeout=attr.timeoutw + attr.timeoutr)))
+        catch e
+            (false, sprint(showerror, e))
+        finally
+            logout!(CPU, ct)
+        end
+    end
+end
+
+function remote_read_ex(instrnm, addr, buflen; attrlist=Dict())
+    attr = getattr(addr, attrlist)
+    timed_remotecall_fetch(workers()[1], instrnm, addr, buflen; timeout=attr.timeoutr) do instrnm, addr, buflen
+        ct = Controller(instrnm, addr; buflen=buflen)
+        try
+            login!(CPU, ct; attrlist)
+            (true, string(ct(read, CPU, Val(:read); timeout=attr.timeoutr)))
+        catch e
+            (false, sprint(showerror, e))
+        finally
+            logout!(CPU, ct)
+        end
+    end
+end
+
+function remote_qtread_ex(instrnm, addr, qtnm, buflen, timeout; attrlist=Dict())
+    timed_remotecall_fetch(
+        workers()[1], instrnm, addr, qtnm, buflen, timeout; timeout=timeout
+    ) do instrnm, addr, qtnm, buflen, timeout
+        ct = Controller(instrnm, addr; buflen=buflen)
+        try
+            getfunc = Symbol(instrnm, :_, qtnm, :_get) |> eval
+            login!(CPU, ct; attrlist)
+            (true, string(ct(getfunc, CPU, Val(:read); timeout=timeout)))
+        catch e
+            (false, sprint(showerror, e))
+        finally
+            logout!(CPU, ct)
+        end
+    end
+end
+
+function remote_qtset_ex(instrnm, addr, qtnm, sv, buflen, timeoutw, timeoutr; attrlist=Dict())
+    timed_remotecall_fetch(
+        workers()[1], instrnm, addr, qtnm, sv, buflen, timeoutw, timeoutr; timeout=timeoutw + timeoutr
+    ) do instrnm, addr, qtnm, sv, buflen, timeoutw, timeoutr
+        ct = Controller(instrnm, addr; buflen=buflen)
+        try
+            setfunc = Symbol(instrnm, :_, qtnm, :_set) |> eval
+            getfunc = Symbol(instrnm, :_, qtnm, :_get) |> eval
+            login!(CPU, ct; attrlist)
+            ct(setfunc, CPU, sv, Val(:write); timeout=timeoutw)
+            reading = ct(CPU, Val(:read); timeout=timeoutr) do instr
+                sleep(instr.attr.querydelay)
+                getfunc(instr)
+            end
+            (true, string(reading))
+        catch e
+            (false, sprint(showerror, e))
+        finally
+            logout!(CPU, ct)
+        end
+    end
+end
+
+"按名调用驱动函数,量不必注册——AI 驱动迭代回路用它单测 <Name>_<qt>_get/set。
+fname 是完整函数名(如 \"ILM200_heliumlevel_get\");kind 为 :get(无参调用,返回读数)或 :set(以 sv 调用)"
+function remote_call_driver(instrnm, addr, fname, sv, kind, buflen, timeoutw, timeoutr; attrlist=Dict())
+    timed_remotecall_fetch(
+        workers()[1], instrnm, addr, fname, sv, buflen, timeoutw, timeoutr; timeout=timeoutw + timeoutr
+    ) do instrnm, addr, fname, sv, buflen, timeoutw, timeoutr
+        ct = Controller(instrnm, addr; buflen=buflen)
+        try
+            f = Symbol(fname) |> eval
+            login!(CPU, ct; attrlist)
+            if kind == :get
+                (true, string(ct(f, CPU, Val(:read); timeout=timeoutr)))
+            else
+                ct(f, CPU, sv, Val(:write); timeout=timeoutw)
+                (true, "")
+            end
+        catch e
+            (false, sprint(showerror, e))
+        finally
+            logout!(CPU, ct)
+        end
+    end
+end
+
+"单连接内顺序执行 write/query/read/sleep 步骤序列,返回完整 transcript——
+多命令协议(先置控制模式再查询等)的实测通道;任一步失败即中止并带出已完成部分与错误文本。
+steps 为 (op, arg) 二元组,op ∈ write/query/read/sleep(arg 为命令或秒数字符串)"
+function remote_driver_probe(instrnm, addr, steps, buflen, timeoutw, timeoutr, outer_timeout; attrlist=Dict())
+    timed_remotecall_fetch(
+        workers()[1], instrnm, addr, steps, buflen, timeoutw, timeoutr; timeout=outer_timeout
+    ) do instrnm, addr, steps, buflen, timeoutw, timeoutr
+        ct = Controller(instrnm, addr; buflen=buflen)
+        out = String[]
+        try
+            login!(CPU, ct; attrlist)
+            for (op, arg) in steps
+                if op == "write"
+                    ct(write, CPU, arg, Val(:write); timeout=timeoutw)
+                    push!(out, "> write: $arg")
+                elseif op == "query"
+                    resp = ct(query, CPU, arg, Val(:query); timeout=timeoutw + timeoutr)
+                    push!(out, "> query: $arg\n< " * string(resp))
+                elseif op == "read"
+                    resp = ct(read, CPU, Val(:read); timeout=timeoutr)
+                    push!(out, "> read\n< " * string(resp))
+                elseif op == "sleep"
+                    sec = tryparse(Float64, arg) === nothing ? 0.0 : parse(Float64, arg)
+                    sleep(sec)
+                    push!(out, "> sleep: $(arg)s")
+                else
+                    push!(out, "> unknown op: $op")
+                end
+            end
+            (true, join(out, "\n"))
+        catch e
+            (false, join(out, "\n") * "\nFAILED after the steps above: " * sprint(showerror, e))
         finally
             logout!(CPU, ct)
         end

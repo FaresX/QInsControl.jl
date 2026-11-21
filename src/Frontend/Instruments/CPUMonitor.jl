@@ -21,6 +21,9 @@ let
             if CImGui.Checkbox(mlstr(cpuinfo[:fast] ? "Fast Mode" : "Slow Mode"), Ref(cpuinfo[:fast]))
                 remote_cpumode!(!cpuinfo[:fast])
             end
+            CImGui.SameLine()
+            #传输模型指示:单线程 worker 为 vector 槽位模型,否则通道模型(由 worker 线程数决定)
+            CImGui.TextDisabled(mlstr(cpuinfo[:vecmode] ? "Vector" : "Channel"))
         else
             ToggleButton(mlstr("Stopped"), Ref(false)) && remote_startcpu!()
         end
@@ -89,24 +92,8 @@ let
                                 idx = findfirst(==(ct), cpuinfo[:controllers])
                                 CImGui.PushID(idx)
                                 CImGui.BulletText(stcstr(mlstr("Controller"), " ", idx))
-                                @cstatic cols::Cint = 2 begin
-                                    CImGui.PushItemWidth(6CImGui.GetFontSize())
-                                    @c CImGui.DragInt(mlstr("Buffer"), &cols, 1, 1, 64, "%d", CImGui.ImGuiSliderFlags_AlwaysClamp)
-                                    CImGui.PopItemWidth()
-                                    CImGui.BeginTable(stcstr("Controller", idx), cols, CImGui.ImGuiTableFlags_Borders)
-                                    for idxes in Iterators.partition(eachindex(ct.databuf), cols)
-                                        CImGui.TableNextRow()
-                                        for i in idxes
-                                            CImGui.TableSetColumnIndex((i - 1) % cols)
-                                            CImGui.Text(ct.databuf[i])
-                                            ct.available[i] || CImGui.TableSetBgColor(
-                                                CImGui.ImGuiTableBgTarget_CellBg,
-                                                CImGui.ColorConvertFloat4ToU32(MORESTYLE.Colors.ErrorBg)
-                                            )
-                                        end
-                                    end
-                                    CImGui.EndTable()
-                                end
+                                #vec 模式槽位缓冲对用户透明,仅展示基本参数
+                                CImGui.Text(stcstr(mlstr("Busy Timeout"), mlstr(": "), ct.busytimeout, " s"))
                                 CImGui.PopID()
                             end
                             CImGui.PopID()

@@ -95,7 +95,30 @@ function find_visa()
     visa = library_dependency("visa", aliases=["visa64", "VISA", "/Library/Frameworks/VISA.framework/VISA", "librsvisa"])
     # librsvisa is the specific Rohde & Schwarz VISA library name
     visa_path_found = BinDeps._find_library(visa)
-    return isempty(visa_path_found) ? "" : visa_path_found[1][end]
+    path = isempty(visa_path_found) ? "" : visa_path_found[1][end]
+    # BinDeps 只搜 PATH;NI/Keysight 安装的 visa DLL 在标准安装目录但目录本身
+    # 不在 PATH 时(全新机器常见)会漏检 —— 递归补查安装根目录,64 位优先
+    if Sys.iswindows() && (isempty(path) || !isfile(path))
+        best = ""
+        for base in ("C:\\Program Files\\IVI Foundation\\VISA",
+                     "C:\\Program Files (x86)\\IVI Foundation\\VISA",
+                     "C:\\Program Files\\Keysight\\IO Libraries Suite",
+                     "C:\\Program Files (x86)\\Keysight\\IO Libraries Suite")
+            isdir(base) || continue
+            for (root, dirs, files) in walkdir(base), f in files
+                lf = lowercase(f)
+                startswith(lf, "visa") && endswith(lf, ".dll") || continue
+                cand = joinpath(root, f)
+                if occursin("64", cand) && !occursin("64", best)
+                    best = cand                     # 64 位优先
+                elseif isempty(best)
+                    best = cand                     # 兜底取第一个
+                end
+            end
+        end
+        isempty(best) || (path = best)
+    end
+    return path
 end
 
 set_libvisa(visapath) = @eval Instruments const libvisa = $visapath

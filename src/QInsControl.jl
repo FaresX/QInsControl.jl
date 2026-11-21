@@ -58,6 +58,7 @@ function julia_main(; engine=nothing)::Cint
             nprocs() == 1 && addprocs(1)
         end
         @eval @everywhere using QInsControl
+        isfile(CONF.Communication.visapath) && QInsControlCore.remote_set_libvisa(CONF.Communication.visapath)
         initialize_qinscontrolcore!(CONF.DAQ.channelsize)
         remotecall_wait(cs -> initialize_qinscontrolcore!(cs), workers()[1], CONF.DAQ.channelsize)
         startlogger(CONF.Logs.dir)
