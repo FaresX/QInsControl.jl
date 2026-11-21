@@ -10,6 +10,9 @@
 #   WS   /ws              1 Hz 推送：status / progress / channels / streams / deltas
 
 using HTTP
+
+include("MCP.jl")   #MCP (Model Context Protocol) Streamable HTTP 端点,供外部 agent 软件操控
+
 using Sockets
 using SHA
 using Base64
@@ -346,7 +349,9 @@ function api_ai_state()
         end
         for m in cur.messages
             m.role == "system" && continue
-            push!(msgs, Dict("role" => m.role, "content" => m.content, "reasoning" => m.reasoning))
+            push!(msgs, Dict("role" => m.role, "content" => m.content, "reasoning" => m.reasoning,
+                #附件只回元信息(name/mime),base64 不进 state 轮询——带宽与前端缓存都不允许
+                "images" => Any[Dict("name" => n, "mime" => mm) for (mm, _, n) in m.images]))
         end
         for (nm, arg, res) in ai.CHAT.toolsteps
             push!(steps, Dict("name" => nm, "arguments" => arg, "result" => first(res, 400)))
@@ -361,10 +366,16 @@ function api_ai_chat(body::AbstractDict)
     ai = QInsControlAI
     ai.aiconf().enable || return Dict("error" => "AI disabled")
     text = strip(String(get(body, "text", "")))
-    isempty(text) && return Dict("error" => "empty text")
+    (isempty(text) && isempty(get(body, "images", Any[]))) && return Dict("error" => "empty text")
     ai.CHAT.busy && return Dict("error" => "busy")
     agent = get(body, "agent", false) == true
-    ai.sendchat!(text; agent)
+    #网页端剪贴板贴图:images = [{mime, b64, name}];上限与 mime 白名单在 sendchat! 内统一校验
+    imgs = NTuple{3,String}[]
+    for im in get(body, "images", Any[])
+        im isa AbstractDict || continue
+        push!(imgs, (String(get(im, "mime", "image/png")), String(get(im, "b64", "")), String(get(im, "name", "clipboard.png"))))
+    end
+    ai.sendchat!(text; agent, images = imgs)
     return Dict("ok" => true)
 end
 
@@ -405,6 +416,10 @@ function handle_web(req::HTTP.Request)
         isempty(query) || for pair in split(query, '&')
             kv = split(pair, '='; limit = 2)
             length(kv) == 2 && (params[wd_urldecode(kv[1])] = wd_urldecode(kv[2]))
+        end
+        # MCP (Model Context Protocol)：外部 agent 软件(Claude Code/Cursor 等)的工具入口
+        if path == "/mcp"
+            return mcp_handle(req)
         end
         # AI 端点：state 只读；chat/stop/new 是对既有 AI 入口的安全调用（无仪器写权限，agent 模式同桌面端开关）
         if startswith(path, "/api/ai/")

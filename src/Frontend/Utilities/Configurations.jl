@@ -16,6 +16,8 @@
     language::String = "简体中文"
     maincolsplit::Float64 = 0.66 #主界面左右卡片占比(DAQ 主区域宽度的比例)
     languages::Dict{String,String} = Dict()
+    mcp::Bool = false        # MCP (Model Context Protocol) 端点：让外部 agent 软件（Claude Code/Cursor 等）操控 QInsControl（写操作仍走桌面确认门）
+    mcpport::Cint = 8090
 end
 
 @option mutable struct OptCommunication

@@ -74,6 +74,7 @@ function julia_main(; engine=nothing, doexit=true)::Cint
         remote_startrefresh(CONF.DAQ.ctbuflen)
         startrefresh()
         CONF.WebDashboard.enable && startwebdashboard!()
+        syncmcp!()
         @info "[$(now())]\n$(mlstr("successfully started!"))"
         wait(uitask)
         if !isinteractive()

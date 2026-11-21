@@ -113,6 +113,24 @@ let
                     1, 1, 100, "%d",
                     CImGui.ImGuiSliderFlags_AlwaysClamp
                 )
+                ### MCP (Model Context Protocol)：外部 agent 软件(Claude Code/Cursor 等)经此操控 QInsControl ###
+                # SeparatorTextColored(MORESTYLE.Colors.HighlightText, mlstr("MCP for external agents"))
+                mcpchanged = @c CImGui.Checkbox(mlstr("enable MCP endpoint"), &CONF.Basic.mcp)
+                if CONF.Basic.mcp
+                    CImGui.SameLine()
+                    CImGui.TextDisabled(stcstr("  http://127.0.0.1:", CONF.Basic.mcpport, "/mcp"))
+                    portchanged = @c CImGui.DragInt(
+                        mlstr("MCP port"),
+                        &CONF.Basic.mcpport,
+                        1, 1024, 65535, "%d",
+                        CImGui.ImGuiSliderFlags_AlwaysClamp
+                    )
+                    #开关/端口变化:热启停 MCP 服务器并持久化(关停即时生效,mcp_handle 每请求读 CONF.Basic.mcp)
+                    (mcpchanged || portchanged) && begin
+                        mcpchanged ? syncmcp!() : startmcp!(port=Cint(CONF.Basic.mcpport))
+                        saveconf()
+                    end
+                end
                 # @c CImGui.DragInt(
                 #     mlstr("no action swap interval"),
                 #     &CONF.Basic.noactionswapinterval,
