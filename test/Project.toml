@@ -1,4 +1,9 @@
 [deps]
 CImGui = "5d785b6c-b76f-510e-a07c-3070796c7e87"
+Dates = "ade2ca70-3891-5945-98fb-dc099432e06a"
+Distributed = "8ba89e20-285c-5b6f-9357-94700520ee1b"
+HTTP = "cd3eb016-35fb-5094-929b-558a96fad6f3"
 ImGuiTestEngine = "464e2eba-0a11-4ed3-b274-413caa1a1cca"
+JSON = "682c06a0-de6a-54ab-a142-c8b1cf79cde6"
+OrderedCollections = "bac558e1-5e72-5ebc-8fee-abe8a469f55d"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
