@@ -290,6 +290,51 @@ function showdtpks(dtps::Vector{DataPlot}, id, datastr, datafloat=Dict())
     end
 end
 
+"绘图截图 → AI 附件队列并预填问题(Ask AI about this plot;figure 存于 QPlot.FIGURES)"
+#截图读回:不能走 Makie.colorbuffer(screen) 完整路径——它内部 pollevents 会重入 GLFW
+#全局事件轮询(污染 ImGui 主循环状态,导致后续渲染异常),还有多余的重复渲染与 SwapBuffers。
+#这里只做安全的最小读回:切 GL 上下文 → 直接从 framebuffer 的 color 纹理读像素;
+#figure 由 ImGui 扩展每帧 render_frame,内容始终是最新一帧。
+function plotscreencapture(screen)
+    GLMakie.GLAbstraction.gl_switch_context!(screen.glscreen)
+    ctex = screen.framebuffer.buffers[:color]
+    w, h = size(ctex)
+    if size(ctex) != size(screen.framecache)
+        screen.framecache = Matrix{GLMakie.RGB{GLMakie.N0f8}}(undef, size(ctex))
+    end
+    GLMakie.fast_color_data!(screen.framecache, ctex)
+    img = screen.framecache
+    return PermutedDimsArray(view(img, :, size(img, 2):-1:1), (2, 1))   #GL 原点在左下,翻 Y
+end
+
+function aiaskplot(name::AbstractString, fid::AbstractString)
+    haskey(FIGURES, String(fid)) || return false
+    fig = FIGURES[String(fid)]
+    ext = Base.get_extension(CImGui, :MakieIntegration)
+    isnothing(ext) && return false
+    #找到该 Figure 挂载的 ImGui 集成 screen(渲染循环每帧 render_frame 它,内容最新)
+    imfig = nothing
+    for (_, m) in ext.makie_context
+        m.figure === fig && (imfig = m; break)
+    end
+    imfig === nothing && return false   #绘图窗口尚未渲染过
+    path = tempname() * ".png"
+    try
+        FileIO.save(path, plotscreencapture(imfig.screen))
+        enc = QInsControlAI.ai_encodefile(path)
+        enc === nothing && return false
+        push!(QInsControlAI.AIATTACH[], (enc[1], enc[2], "plot-" * String(name) * ".png"))
+        QInsControlAI.AIINJECT[] = "我截取了当前绘图 \"" * String(name) *
+            "\" 的截图。请帮我检查它是否正常（坐标轴、数据分布、配色、布局等），如有问题给出对绘图配置的具体修改建议。"
+        return true
+    catch e
+        @warn "[AI] plot screenshot failed" plot = String(name) exception = e
+        return false
+    finally
+        rm(path; force = true)
+    end
+end
+
 function renderplots(dtps::Vector{DataPlot}, id)
     for (i, dtp) in enumerate(dtps)
         dtp.showplot || continue
@@ -302,7 +347,14 @@ function renderplots(dtps::Vector{DataPlot}, id)
         begun, own, popenarg = @c BeginNoClose(nm, &dtp.showplot, true; hastitle=true)
         if begun
             SetWindowShadow()
-            QPlot(dtp.plot, stcstr(id, "-", i))
+            fid = stcstr(id, "-", i)
+            QPlot(dtp.plot, fid)
+            #右键绘图窗口 → 截图发给 AI(视觉模型)
+            if CImGui.BeginPopupContextItem()
+                CImGui.MenuItem(stcstr(MORESTYLE.Icons.AIAssistant, " ", mlstr("Ask AI about this plot"))) &&
+                    aiaskplot(dtp.name, fid)
+                CImGui.EndPopup()
+            end
         end
         @c EndNoClose(own, &dtp.showplot, popenarg)
     end

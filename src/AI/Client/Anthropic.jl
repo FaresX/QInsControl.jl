@@ -7,19 +7,29 @@ function anthropic_body(p::AIProvider, messages::Vector{ChatMessage}; tools)
     sys = join([m.content for m in messages if m.role == "system"], "\n\n")
     ms = Any[]
     pendingtool = Any[]
-    flushtool() = begin
+    liveids = Set{String}()   #前一条 assistant 声明的 tool_use id:孤儿 tool 消息(```tool
+    flushtool() = begin       #文本回退会产生)降级为文本块,否则 tool_result 无配对直接 400
         isempty(pendingtool) || (push!(ms, Dict("role" => "user", "content" => pendingtool)); pendingtool = Any[])
     end
     for m in messages
         m.role == "system" && continue
         if m.role == "tool"
-            push!(
-                pendingtool,
-                Dict("type" => "tool_result", "tool_use_id" => m.toolcallid, "content" => m.content)
-            )
+            if String(m.toolcallid) in liveids
+                push!(
+                    pendingtool,
+                    Dict("type" => "tool_result", "tool_use_id" => m.toolcallid, "content" => m.content)
+                )
+            else
+                push!(
+                    pendingtool,
+                    Dict("type" => "text", "text" => string("[tool result (", m.toolcallid, ")]\n", m.content))
+                )
+            end
             continue
         end
         flushtool()
+        empty!(liveids)
+        !isempty(m.toolcalls) && foreach(tc -> push!(liveids, String(get(tc, "id", ""))), m.toolcalls)
         if !isempty(m.toolcalls)
             blocks = Any[]
             isempty(m.content) || push!(blocks, Dict("type" => "text", "text" => m.content))
@@ -32,6 +42,14 @@ function anthropic_body(p::AIProvider, messages::Vector{ChatMessage}; tools)
                 push!(blocks, Dict("type" => "tool_use", "id" => tc["id"], "name" => tc["name"], "input" => input))
             end
             push!(ms, Dict("role" => "assistant", "content" => blocks))
+        elseif m.role == "user" && !isempty(m.images)
+            #vision 输入:text + base64 image 块(image/jpg 归一为 image/jpeg)
+            blocks = Any[Dict("type" => "text", "text" => m.content)]
+            for (mime, b64, _) in m.images
+                mt = mime == "image/jpg" ? "image/jpeg" : mime
+                push!(blocks, Dict("type" => "image", "source" => Dict("type" => "base64", "media_type" => mt, "data" => b64)))
+            end
+            push!(ms, Dict("role" => "user", "content" => blocks))
         else
             push!(ms, Dict("role" => m.role, "content" => m.content))
         end
@@ -44,6 +62,15 @@ function anthropic_body(p::AIProvider, messages::Vector{ChatMessage}; tools)
         "temperature" => min(p.temperature, 1.0),
         "stream" => p.stream
     )
+    #思考挡位(anthropic 官方协议):enabled + 预算 token;预算必须 < max_tokens,故同步抬高
+    #max_tokens,且 anthropic 硬性要求 thinking 启用时 temperature == 1
+    if p.think in ("low", "medium", "high")
+        budget = p.think == "low" ? 4096 : p.think == "medium" ? 10240 : 24576
+        body["thinking"] = Dict("type" => "enabled", "budget_tokens" => budget)
+        body["max_tokens"] = max(ANTHROPIC_MAXTOKENS, budget + 8192)
+        body["temperature"] = 1.0
+    end
+    mergeextra!(body, p.extra)
     sys == "" || (body["system"] = sys)
     if tools !== nothing
         body["tools"] = Any[

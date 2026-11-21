@@ -2,10 +2,17 @@
 
 function openai_body(p::AIProvider, messages::Vector{ChatMessage}; tools)
     ms = Any[]
-    for m in messages
+    liveids = Set{String}()   #前一条 assistant 声明的 tool_call id:孤儿 tool 消息(```tool
+    for m in messages         #文本回退会产生)必须降级为 user,否则严格校验的供应商直接 400
         if m.role == "tool"
-            push!(ms, Dict("role" => "tool", "content" => m.content, "tool_call_id" => m.toolcallid))
+            if String(m.toolcallid) in liveids
+                push!(ms, Dict("role" => "tool", "content" => m.content, "tool_call_id" => m.toolcallid))
+            else
+                push!(ms, Dict("role" => "user", "content" => string("[tool result (", m.toolcallid, ")]\n", m.content)))
+            end
         elseif !isempty(m.toolcalls)
+            empty!(liveids)
+            foreach(tc -> push!(liveids, String(get(tc, "id", ""))), m.toolcalls)
             push!(
                 ms,
                 Dict(
@@ -21,7 +28,17 @@ function openai_body(p::AIProvider, messages::Vector{ChatMessage}; tools)
                 )
             )
         else
-            push!(ms, Dict("role" => m.role, "content" => m.content))
+            m.role == "user" && empty!(liveids)   #新 user 轮之后不应再有 tool 结果
+            if m.role == "user" && !isempty(m.images)
+                #vision 输入:content 变 parts 数组(text + image_url data-URI)
+                parts = Any[Dict("type" => "text", "text" => m.content)]
+                for (mime, b64, _) in m.images
+                    push!(parts, Dict("type" => "image_url", "image_url" => Dict("url" => "data:$mime;base64,$b64")))
+                end
+                push!(ms, Dict("role" => m.role, "content" => parts))
+            else
+                push!(ms, Dict("role" => m.role, "content" => m.content))
+            end
         end
     end
     body = Dict{String,Any}(
@@ -30,6 +47,10 @@ function openai_body(p::AIProvider, messages::Vector{ChatMessage}; tools)
         "temperature" => p.temperature,
         "stream" => p.stream
     )
+    #思考挡位:openai 系协议(OpenAI o/gpt-5、StepFun step_plan 等)统一用 reasoning_effort;
+    #"off" 不发送——openai 协议没有统一的关闭开关,需要关闭时用 provider.extra 填各家自有字段
+    p.think in ("low", "medium", "high") && (body["reasoning_effort"] = p.think)
+    mergeextra!(body, p.extra)
     tools === nothing || (body["tools"] = tools)
     return JSON.json(body)
 end

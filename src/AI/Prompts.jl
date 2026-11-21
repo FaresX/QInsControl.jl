@@ -79,6 +79,36 @@ you do not need that axis data.
 @feedbackblock "alias" "action"
     action is "Pause", "Interrupt" or "Continue" (stop this instrument's running sweeps).
 
+### Dependent inner range (diamond / Coulomb-diamond style maps)
+
+To scan a region whose inner range DEPENDS on the outer position, drive the outer axis
+with a plain for loop + @settingblock (setvalue accepts a bare variable name: it is
+Meta.parse'd and unit-converted at run time), and give the inner @sweepblock a
+TWO-STAGE stop built from the loop variable. All block code is compiled into one
+function scope, so the loop variable is visible in every inner expression.
+
+@progress for b in -50:10:50
+    @gencontroller StrideCodeBlock "for b in -50:10:50"
+    @settingblock "Instr" "B" false b "mT" 0.05 true
+    @readingblock "Instr" "B" "" "B" false false false true
+    ib = -1.2*(1-abs(b)/50)
+    it = 1.2*(1-abs(b)/50)
+    @sweepblock "" "Instr" "I" "0.2,0.05" "ib -> it" "μA" 0.02 0 true begin
+        ... per-point readings ...
+    end
+end
+
+- STYLE: block fields (step/stop/setvalue) render as small GUI boxes - keep them SHORT.
+  Compute per-row limits in plain code lines above the sweep (ib = ...; it = ...) and
+  reference the variables in stop ("ib -> it"); never inline long expressions there.
+  Two-leg step "fast,slow" (e.g. "0.2,0.05") gives a quick approach leg + fine measure leg.
+
+- the inner rangemark stays "": the I range differs per row, so "Marked Y" would be
+  wrong. Plot such ragged data from the PER-POINT reading keys (scatter colored by z,
+  or a binned heatmap built in processcodes), not from Marked lists.
+- keep the @gencontroller string identical to the loop header so pause/interrupt
+  checkpoints apply at the loop boundary.
+
 ### Field defaults (what GUI-created blocks use - match them unless the task needs otherwise)
 
 - @settingblock: ischeck = false by default, i.e. the set is NOT verified by default. Set
@@ -168,6 +198,42 @@ figure[1,1][1,2] grid for the colorbar); substitute the keys/units/labels of the
 
 All of Makie's non-interactive API is available: lines!, scatter!, stairs!, errorbars!, band!,
 hlines!, vlines!, axislegend, xlims!, ylims!, title!, etc.
+
+### Ragged/diamond data (dependent inner range)
+
+When the inner sweep range depends on the outer position there are no Marked axes:
+bind x/y/z to the PER-POINT reading keys directly.
+- colored scatter (exact shape): plotcodes: `p = scatter!(content(figure[1,1][1,1]), x, y;
+  color=z, colormap=:viridis, markersize=8)` then `Colorbar(figure[1,1][1,2], p; label="Vac (V)")`
+- binned heatmap where the DISPLAYED REGION is the diamond: bin into the bounding grid in
+  processcodes (sums+counts per bin, average), then apply the THEORETICAL boundary as a
+  NaN mask over bin centres - `abs(ys[i]) > limit(xs[j]) && (z[i, j] = NaN)` - so edges
+  are crisp regardless of sparse edge bins; use `interpolate=false` (NaN borders blur
+  under interpolation). Put `aspect=DataAspect()` in the Axis so the diamond is not
+  squashed. Recreate the bin ranges inside plotcodes - locals created in processcodes
+  are not visible in plotcodes; only the rebound x/y/z/w are.
+
+### Delivering plot configs (```json fence; consumed by the To-Plot button and create_plot/update_plot)
+
+When the user asks for a plot, output ONE ```json fenced block in this exact schema:
+
+{
+  "layout": "Axis(figure[1,1][1,1]; xlabel=\"t (s)\", ylabel=\"V\")\\nDataInspector(figure)",
+  "series": [
+    {"index": 1, "x": "Marked X", "y": "mark/instr/quantity", "z": "", "w": "",
+     "aux": [],
+     "processcodes": "x *= 1e3\\nz ./= w",
+     "processfigurecodes": "autolimits!(content(figure[1,1][1,1]))",
+     "plotcodes": "heatmap!(content(figure[1,1][1,1]), x, y, z; interpolate=true)"}
+  ]
+}
+
+- layout/series code fields are GLMakie closures per the reference above (in JSON they are
+  single strings - use \\n for newlines, escape embedded double quotes).
+- x/y/z/w are DATABUF keys, bound as the raw arrays x,y,z,w (and aux1..auxN) in the codes;
+  "" means unbound. Keys a future task will write are allowed (column reads NaN until then).
+- Omit fields you don't need; omitted series fields take defaults. For a 1D line plot a
+  minimal series is {"x": ..., "y": ...} with the default plotcodes.
 """
 
 const DRIVER_REFERENCE = """
@@ -219,17 +285,36 @@ end
 IMPORTANT: driver files load BEFORE the TOML codegen, so a generated function with the same
 name OVERWRITES a hand-written one. For a hand-written quantity keep its cmdheader = "".
 
-### 4. Workflow for writing drivers
+### 4. Workflow for writing drivers (test-first; untested drivers are NOT deliverable)
 
-1. get_driver on the instrument (returns registry + current driver source + unit-type list).
-2. The user cannot always provide command lists: use web_search / fetch_url to look up the
-   instrument's programming manual / SCPI command reference, then compose headers or
-   hand-written functions from it. Cite which document a command came from.
+1. NEW instrument not yet registered? It will be under "Others" in get_instruments (the
+   user connected it in the GUI). Probe it FIRST with raw commands against its address
+   (query_command / driver_probe accept an address directly): *IDN? first, then the key
+   commands from the manual - the responses are ground truth for the registry and parser.
+2. get_driver on the instrument (returns registry + current driver source + unit-type list).
+3. The user cannot always provide command lists: use web_search / fetch_url to look up the
+   instrument's programming manual / SCPI command reference, then CONFIRM against the live
+   probe responses and compose headers or hand-written functions from it. Cite which
+   document a command came from. Say plainly when a command is unverified.
 3. Standard-SCPI quantity -> registry TOML entry only. Non-standard -> hand-written function
    + TOML entry with empty cmdheader (and conf.cmdtype "" if EVERYTHING is hand-written).
-4. Deliver with write_driver (existing instrument, driver file only) or create_instrument
-   (new/changed registry + optional driver; hot-reloads the whole registry).
-5. Tell the user to add an alias for the new instrument in the alias editor before scripting.
+5. Deliver candidates with write_driver (existing instrument) or create_instrument (new or
+   changed registry + optional driver; both hot-reload), then TEST before declaring done:
+   - If the instrument has no alias yet, add one yourself with add_alias.
+   - Call test_quantity for EVERY readable quantity; each must report
+     parseable-as-numeric: YES - unparsable raw strings are silently recorded as NaN by
+     the data pipeline, so a quantity that "returns something" is NOT working.
+   - Verify multi-command protocols with driver_probe (e.g. send the control-mode or
+     addressing command first, then query; add a short sleep between steps).
+   - Single functions can be unit-tested by name with test_driver_get / test_driver_set
+     without touching the registry.
+   - Many instruments return values with prefixes or framing (e.g. Oxford ILM/IPS reply
+     "R+0003.500"; some return multi-value strings "12.3, 45.6"): strip and parse inside
+     the hand-written get function, then re-test until it passes.
+6. Report exactly which quantities passed and which failed. Do NOT tell the user a driver
+   is done while any test fails - say what failed and why instead.
+7. Finish by telling the user the alias to use in scripts (add it with add_alias yourself
+   when missing).
 """
 
 const WIDGET_REFERENCE = """
@@ -298,11 +383,26 @@ const AGENT_RULES = """
   add_alias tool instead of asking the user to do it manually.
 - Driver requests: call get_driver first; look up commands online (web_search / fetch_url)
   unless the user supplied the command list; validate against the driver reference; deliver
-  via write_driver / create_instrument (both ask the user for confirmation). Never invent
-  SCPI commands silently - say when a command is unverified.
+  via write_driver / create_instrument (both ask the user for confirmation). Then TEST:
+  test_quantity on every readable quantity (must report parseable-as-numeric: YES) and
+  driver_probe for multi-command sequences; fix and re-test until they pass - a driver is
+  done only when its tests pass. Never invent SCPI commands silently - say when a command
+  is unverified.
+- Web discipline: keep web_search + fetch_url to at most ~5 calls per task. Once you have
+  the commands you need (or a page failed twice), START WRITING - do not keep fetching
+  similar pages. Never fetch the same URL twice; never open more than 2 pages per vendor.
+  If a manual cannot be found, say so and write the best-effort driver from the model's
+  knowledge, clearly marking unverified commands, instead of searching forever.
+- When the user reports any error, crash, timeout or abnormal behavior (or one of your own
+  steps fails), call get_recent_errors FIRST and diagnose from the actual log instead of
+  asking the user to paste messages or guessing.
 - Widget/panel requests: follow the widget authoring reference; call get_widget for the
   quantity facts, compose the TOML with a clean grid layout, deliver via create_widget
   (confirmation + hot reload). Match every numoptvs/numread/qtype to the quantity table.
+- Plot requests: build the JSON config per the plot reference schema and deliver with
+  create_plot (or update_plot after get_plot); put the same JSON in a ```json fence so the
+  user also gets the To-Plot button. Columns may reference keys a future task will write -
+  state that clearly when they do.
 - If your runtime cannot call tools natively, output a ```tool fenced block containing one
   JSON object: {"tool": "<name>", "arguments": {...}} - one call per reply.
 - After each tool batch, briefly state what you did or found, then continue or answer.

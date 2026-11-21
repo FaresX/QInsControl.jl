@@ -1,15 +1,5 @@
 # 脚本/绘图配置的提取、校验与摘要(供预览确认窗与 Agent 工具共用)
 
-"提取回复中最长的 ```julia 围栏;无围栏时返回空串"
-function extractcode(text::AbstractString)
-    best = ""
-    for m in eachmatch(r"```(?:julia)?\r?\n(.*?)```"s, text)
-        cap = String(m.captures[1])
-        length(cap) > length(best) && (best = cap)
-    end
-    return best
-end
-
 "提取 ```json 围栏(绘图配置);失败时尝试裸 {...}"
 function extractplotcfg(text::AbstractString)
     raw = ""
@@ -42,10 +32,10 @@ function extracttoolcall(text::AbstractString)
     return obj
 end
 
-"修复轮的用户提示(校验失败时回喂模型)"
-repairprompt(err::AbstractString) = string(
-    "Your script failed to parse:\n", first(err, 600),
-    "\nPlease output the corrected complete script as a single ```julia fenced block. ",
-    "Remember: use only the aliases/quantities/units from the context, keep begin/end balanced, ",
-    "and write boolean flags as true/false literals."
-)
+"JSON 1.7 的 JSON.parse 返回只读 JSON.Object(非 Dict);工具链与 applyplotcfg 全按可变 Dict
+约定(要 setproperty!/push!),这里递归归一化——正是历史上 calltool 误杀所有调用的那类回归"
+function normalizejson(x)
+    x isa AbstractDict && return Dict{String,Any}(String(k) => normalizejson(v) for (k, v) in x)
+    x isa AbstractVector && return Any[normalizejson(v) for v in x]
+    return x
+end

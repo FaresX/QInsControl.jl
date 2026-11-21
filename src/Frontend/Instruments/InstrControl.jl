@@ -107,6 +107,10 @@ let
                     end
                     CImGui.SameLine()
                     CImGui.Button(mlstr("Clear History")) && (reading[] = "")
+                    #回灌 AI:把手工摸出的命令/响应序列交给 AI 助手参考(多命令协议的现实工作流)
+                    CImGui.SameLine()
+                    (CImGui.Button(stcstr(MORESTYLE.Icons.AIAssistant, " ", mlstr("Ask AI"))) && !isempty(strip(reading[]))) &&
+                        (QInsControlAI.AIINJECT[] = strip(reading[]))
                     updatecontent = newcmd[][1] == addr ? newcmd[][2] : false
                     updatecontent && (newcmd[] = ("", false))
                     TextRect(
@@ -189,6 +193,51 @@ function saveattr(addr)
     CONF.Communication.attrlist[addr] = attrtodict(buf)
     syncattr(buf, addr)
     saveconf()
+end
+
+###### AI 驱动调试回路入口(Bridge 白名单调用;与 GUI 走完全相同的通道) ######
+
+"AI 设置通信参数:先 deepcopy! 从 CONF 同步当前值(与 Settings 页首次访问同款),改单字段后
+经 saveattr 落盘+同步 worker。枚举映射类键(termchar/parity)留在 GUI"
+function aisetcommattr!(addr::AbstractString, key::AbstractString, value)
+    key = String(key)
+    key in ("idnfunc", "timeoutw", "timeoutr", "querydelay", "baudrate") ||
+        return "key \"$key\" not settable here (settable: idnfunc, timeoutw, timeoutr, querydelay, baudrate-serial-only; termchar/parity stay GUI-only)"
+    f = Symbol(key)
+    buf = selectbuf(addr)
+    deepcopy!(buf, getattr(addr, CONF.Communication.attrlist))
+    hasproperty(buf, f) ||
+        return "attr \"$key\" not applicable to this instrument type ($(nameof(typeof(buf))))"
+    cur = getproperty(buf, f)
+    nv = if cur isa AbstractString
+        string(value)
+    elseif cur isa Real
+        v = value isa Real ? Float64(value) : tryparse(Float64, string(value))
+        v === nothing && return "value for $key must be a number"
+        (key in ("timeoutw", "timeoutr") && v < 0.1) && return "value for $key must be >= 0.1 s"
+        v < 0 && return "value for $key must be non-negative"
+        key == "baudrate" && v <= 0 && return "baudrate must be positive"
+        try
+            convert(typeof(cur), v)
+        catch
+            return "value out of range for $key"
+        end
+    else
+        return "unsupported attr type for $key ($(typeof(cur)))"
+    end
+    setproperty!(buf, f, nv)
+    saveattr(addr)
+    return "set $key = $nv on $addr (saved to conf and synced to the I/O worker)"
+end
+
+"AI 驱动调试回路:把 AI 的命令/响应镜像进仪器窗口 Communication Test 历史(窗口开着才写)"
+function aiappendtestlog(instrnm::AbstractString, addr::AbstractString, text::AbstractString)
+    d = get(INSTRBUFFERVIEWERS, String(instrnm), nothing)
+    d === nothing && return
+    ibv = get(d, String(addr), nothing)
+    ibv === nothing && return
+    ibv.reading *= string("[AI] ", text, "\n\n")
+    return
 end
 
 setup(addr) = setup(selectbuf(addr))

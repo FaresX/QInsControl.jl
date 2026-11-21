@@ -6,8 +6,11 @@
 #   2. 白名单变化必须体现在本文件的 import/注释中,评审时一目了然。
 # ==============================================================================
 
-import ..QInsControlCore: remote_write, remote_query, remote_qtread, remote_qtset, remote_include
-import Sockets: Sockets, @ip_str, IPv4, IPv6   # 本地/链路本地地址判定(Bridge.jl 尾部)
+import ..QInsControlCore: remote_write, remote_query, remote_qtread, remote_qtset, remote_include,
+    remote_getcpuinfo,
+    remote_write_ex, remote_query_ex, remote_read_ex, remote_qtread_ex, remote_qtset_ex,
+    remote_call_driver, remote_driver_probe
+import Sockets: Sockets, @ip_str, IPv4, IPv6, IPAddr, getalladdrinfo   # 本地/链路本地地址判定(Bridge.jl 尾部)
 
 const qc = parentmodule(QInsControlAI)   # 主模块 QInsControl(动态限定访问,const/非 const 通吃)
 
@@ -36,17 +39,44 @@ end
 const CONFIRMREQS = Channel{ConfirmRequest}(32)
 
 function ai_confirm(title::AbstractString, detail::AbstractString)
-    aiconf().confirmwrites || return true
-    #队满=渲染端无人消费(模态由 MainWindow 每帧经 RenderAIConfirm 消费,正常不会发生):
-    #直接拒绝,防止 put! 在满 Channel 上永久挂起、AI 任务卡死不复位
-    isfull(CONFIRMREQS) && return false
-    req = ConfirmRequest(String(title), String(detail), Ref{Union{Nothing,Bool}}(nothing))
-    put!(CONFIRMREQS, req)
-    timedwait(() -> req.answer[] !== nothing, 120)
-    return req.answer[] === true
+    if aiconf().confirmwrites
+        #队满=渲染端无人消费(模态由 MainWindow 每帧经 RenderAIConfirm 消费,正常不会发生):
+        #直接拒绝,防止 put! 在满 Channel 上永久挂起、AI 任务卡死不复位
+        isfull(CONFIRMREQS) && return false
+        req = ConfirmRequest(String(title), String(detail), Ref{Union{Nothing,Bool}}(nothing))
+        put!(CONFIRMREQS, req)
+        timedwait(() -> req.answer[] !== nothing, 120)
+        return req.answer[] === true
+    end
+    #自动行动模式:免确认直接执行,但必须给出可见通知(toast 上限 8 条自动过期,不会堆积)
+    qc.toast(:warn, "[AI] " * title, first(detail, 160))
+    return true
 end
 
 takedisplaysreq() = isready(CONFIRMREQS) ? take!(CONFIRMREQS) : nothing
+
+const AIINJECT = Ref{String}("")              #testcmd "发给 AI"按钮 → 聊天输入框的中转
+const AIATTACH = Ref{Vector{NTuple{3,String}}}(NTuple{3,String}[])  #桌面端附件/绘图截图 → 聊天输入的中转(mime, b64, name)
+const DEBUGSESSIONS = Dict{String,Float64}()  #addr → debug 会话到期时刻:窗口内免逐条确认,自动过期
+
+"本地图片文件 → (mime, base64, name);非 png/jpeg 或超 4MB 返回 nothing"
+function ai_encodefile(path::AbstractString)
+    ext = lowercase(splitext(String(path))[2])
+    ext in (".png", ".jpg", ".jpeg") || return nothing
+    isfile(path) || return nothing
+    filesize(path) > 4 * 1024 * 1024 && (@warn "[AI] image dropped: larger than 4MB" file = String(path); return nothing)
+    mime = ext == ".png" ? "image/png" : "image/jpeg"
+    return (mime, Base64.base64encode(read(String(path))), basename(String(path)))
+end
+
+"addr 是否处于 debug 会话窗口内(过期条目顺手清理);全部操作仍进工具步留档"
+function indebugsession(addr::AbstractString)
+    t = time()
+    for k in keys(DEBUGSESSIONS)
+        DEBUGSESSIONS[k] < t && delete!(DEBUGSESSIONS, k)
+    end
+    return get(DEBUGSESSIONS, String(addr), 0.0) > t
+end
 
 # ============ 上下文快照(只读) ============
 
@@ -81,6 +111,35 @@ function ai_instrument_summary(withhelp::Bool)
 end
 
 ai_instrument_names() = String[k for k in keys(qc.INSTRCONF)]
+
+"仪器面板实况:来自 INSTRBUFFERVIEWERS(GUI 仪器面板实际添加过的仪器)。
+非 Others 条目 = 可用仪器(可能已连接,也可能连接后断开);Others = 未注册/连接有误的仪器
+——新仪器驱动流程的起点:AI 可对它的 addr 直接发原始命令探测(query_command/driver_probe)。
+withothers=true 时两段输出(可用段 + Others 待注册段);均交叉标注别名。
+snapshot 与 get_instruments 工具共用"
+function ai_usable_instruments(withothers::Bool = false)
+    buf = IOBuffer()
+    n = 0
+    aliasrows = ai_alias_table()
+    for pass in 1:(withothers ? 2 : 1)
+        rows = IOBuffer()
+        for (ins, addrs) in qc.INSTRBUFFERVIEWERS
+            (ins == "Others") != (pass == 2) && continue   #pass1=可用仪器,pass2=Others
+            for addr in keys(addrs)
+                n += 1
+                als = [t[1] for t in aliasrows if t[3] == addr]
+                println(rows, "  ", addr, " (", ins, ")",
+                    isempty(als) ? "" : ", alias: " * join(als, ", "))
+            end
+        end
+        body = String(take!(rows))
+        body == "" && continue
+        pass == 2 && println(buf, "UNREGISTERED or failed-connect (under \"Others\") - still probe-able with raw commands via the address:")
+        print(buf, body)
+    end
+    n == 0 && return "(no instruments added yet - open an instrument panel to add one)"
+    return String(take!(buf))
+end
 
 """
     ai_search_quantities(keyword) -> String
@@ -132,6 +191,32 @@ function ai_data_keylist()
     return String.(collect(lock(keys, qc.DATABUF)))
 end
 
+"数据键统计摘要(单遍扫描,无中间分配):长度/min/max/mean/NaN 率/首尾值——
+判读扫描质量比喂 200 个原始采样点省一个量级的 token"
+function ai_data_stats(key::AbstractString)
+    return lock(qc.DATABUFPARSED) do d
+        haskey(d, key) || return "key \"$key\" not found (call get_data_keys for names)"
+        v = d[key]
+        n = length(v)
+        n == 0 && return "key \"$key\" is empty"
+        nnan = 0; nf = 0; mn = Inf; mx = -Inf; sm = 0.0
+        for x in v
+            isnan(x) && (nnan += 1; continue)
+            nf += 1
+            sm += x
+            x < mn && (mn = x)
+            x > mx && (mx = x)
+        end
+        base = nf == 0 ? "points=$n, ALL NaN" :
+               "points=$n, nan=$(round(100nnan / n; digits = 1))%, min=$(round(mn; sigdigits = 4)), max=$(round(mx; sigdigits = 4)), mean=$(round(sm / nf; sigdigits = 4))"
+        if v isa AbstractMatrix
+            return "matrix $(size(v, 1))×$(size(v, 2)): " * base
+        else
+            return base * ", first=$(round(Float64(v[1]); sigdigits = 4)), last=$(round(Float64(v[end]); sigdigits = 4))"
+        end
+    end
+end
+
 function ai_data_sample(key::AbstractString, n::Int)
     out = lock(qc.DATABUFPARSED) do d
         haskey(d, key) || return "key \"$key\" not found"
@@ -167,8 +252,17 @@ function ai_task_list()
     return String(take!(buf))
 end
 
-"剥掉 AST 里的 LineNumberNode(interpret 输出会带 #= 绝对路径:行号 =# 噪音)"
+"剥掉 AST 里的 LineNumberNode(interpret 输出会带 #= 绝对路径:行号 =# 噪音)。
+注意 :macrocall 的 args[2] 是结构必需的位置 LNN(宏名之后、真实参数之前)——
+无条件删掉它会让宏调用的展示吞掉第一个参数(alias/rangemark 消失,旧 bug 的根因)"
 function striplinenums(ex::Expr)
+    if ex.head == :macrocall && length(ex.args) >= 2 && ex.args[1] isa Symbol && ex.args[2] isa LineNumberNode
+        args = Any[ex.args[1], ex.args[2]]
+        for a in ex.args[3:end]
+            a isa LineNumberNode || push!(args, a isa Expr ? striplinenums(a) : a)
+        end
+        return Expr(ex.head, args...)
+    end
     args = Any[a isa LineNumberNode ? nothing : (a isa Expr ? striplinenums(a) : a) for a in ex.args]
     filter!(a -> a !== nothing, args)
     return Expr(ex.head, args...)
@@ -190,7 +284,9 @@ function ai_task_script(taskname::AbstractString)
         t.explog == "" || println(buf, "notes: ", t.explog)
         println(buf, "```julia")
         script = try
-            t.textmode ? t.editcodes : string(striplinenums(qc.interpret(t.blocks)))
+            t.textmode ? t.editcodes :
+            #保留的 macrocall 位置 LNN 会被 Expr 展示为 #= file:line =# 注释,这里清掉
+            replace(string(striplinenums(qc.interpret(t.blocks))), r"#=[^=]*?=#\s*" => "")
         catch e
             "(script conversion failed: " * first(sprint(showerror, e), 200) * ")"
         end
@@ -204,21 +300,245 @@ end
 ai_task_names() = String[string(mlstr("Task"), " ", OLDI + i, " ", t.name) for (i, t) in enumerate(qc.leafvalues(qc.taskroot()))]
 ai_plot_names() = String[p.name for p in qc.plotleaves(qc.DAQDATAPLOTS)]
 
+function ai_list_plots()
+    ps = qc.plotleaves(qc.DAQDATAPLOTS)
+    isempty(ps) && return "(no plots yet; create one with create_plot)"
+    buf = IOBuffer()
+    println(buf, "plots:")
+    for p in ps
+        println(buf, "  \"", p.name, "\" (", length(p.dtpk.series), " series)")
+    end
+    return String(take!(buf))
+end
+
+"读现有绘图配置为 JSON(schema 与 To-Plot/```json 围栏一致),模型改完经 update_plot 回写"
+function ai_get_plot(name::AbstractString)
+    for p in qc.plotleaves(qc.DAQDATAPLOTS)
+        p.name == String(name) || continue
+        cfg = Dict{String,Any}("name" => p.name)
+        p.dtpk.codes isa qc.CodeBlock && !isempty(p.dtpk.codes.codes) && (cfg["layout"] = p.dtpk.codes.codes)
+        series = Any[]
+        for (i, s) in enumerate(p.dtpk.series)
+            d = Dict{String,Any}("index" => i, "x" => s.x, "y" => s.y, "z" => s.z, "w" => s.w)
+            isempty(s.aux) || (d["aux"] = collect(String, s.aux))
+            for (fld, key) in ((:processcodes, "processcodes"), (:processfigurecodes, "processfigurecodes"), (:plotcodes, "plotcodes"))
+                c = getproperty(s, fld)
+                c isa qc.CodeBlock && !isempty(c.codes) && (d[key] = c.codes)
+            end
+            push!(series, d)
+        end
+        cfg["series"] = series
+        return JSON.json(cfg)
+    end
+    return "plot \"$name\" not found; call list_plots for names"
+end
+
 function ai_status()
     buf = IOBuffer()
     println(buf, "DAQ running: ", qc.SYNCSTATES[qc.IsDAQTaskRunning], ", blocked: ", qc.SYNCSTATES[qc.IsBlocked])
     println(buf, "instruments: ", length(qc.INSTRCONF), " registered, aliases: ", length(qc.INSTRALIASLIST))
     println(buf, "data keys: ", lock(length, qc.DATABUF))
+    println(buf, "last error/warning: ", first(replace(ai_recent_errors(1), '\n' => " | "), 200))
     return String(take!(buf))
 end
 
+"tail 今日日志(CONF.Logs.dir/<年>/<年-月>/<日>.log,与 Logger 窗口同一文件),按 ┌/└ 块切分,
+筛出 Error/Warning 块;每块截 600 字符防栈爆炸。报错求助链的数据源"
+function ai_recent_errors(n::Int=8)
+    date = Dates.today()
+    logdir = joinpath(qc.CONF.Logs.dir, string(Dates.year(date)), string(Dates.year(date), "-", Dates.month(date)))
+    logfile = joinpath(logdir, string(date, ".log"))
+    isfile(logfile) || return "(no log file for today: $logfile)"
+    blocks = String[]
+    cur = ""
+    for line in eachline(logfile)
+        if occursin("┌ ", line)          #新块开始(Logger.jl 同款标记)
+            isempty(cur) || push!(blocks, cur)
+            cur = line * "\n"
+        elseif !isempty(cur)
+            cur *= line * "\n"
+            occursin("└ ", line) && (push!(blocks, cur); cur = "")
+        end
+    end
+    isempty(cur) || push!(blocks, cur)   #未闭合块(正在写/崩溃残留)也保留
+    recent = filter(b -> occursin("┌ Error", b) || occursin("┌ Warning", b), blocks)
+    isempty(recent) && return "(no errors/warnings in today's log)"
+    n = clamp(n, 1, 30)
+    sel = last(recent, min(n, length(recent)))
+    return join((b -> length(b) > 600 ? first(b, 600) * "…[truncated]" : b).(sel), "\n---\n")
+end
+
+# ============ 跨会话记忆(能"学"的唯一通道是上下文工程:检索存档 + 记忆注入) ============
+
+memoryfile() = normpath(joinpath(aiconf().dir, "..", "memory.md"))   #Assets/AI/memory.md(与 Sessions 并排)
+const MEMORY_MAXCHARS = 6000      #超限自动轮转:丢最旧一半,迫使内容保持精华
+const MEMORY_HEADER = "# Persistent memory (one lesson per line, newest at bottom; auto-rotated; user-editable)"
+
+"读记忆全文(无文件返回空串);snapshot 按此注入每个新会话"
+ai_memory_text() = isfile(memoryfile()) ? read(memoryfile(), String) : ""
+
+"追加一条经验(自动加日期前缀,单行 ≤500 字;超限轮转丢最旧一半)"
+function ai_remember(text::AbstractString)
+    line = strip(String(text))
+    (line == "" || length(line) > 500) && return "FAILED: memory entry must be 1-500 chars, single line"
+    occursin(r"[\r\n]", line) && return "FAILED: memory entry must be a single line"
+    mf = memoryfile()
+    old = ai_memory_text()
+    body = (startswith(old, MEMORY_HEADER) || old == "") ? old : MEMORY_HEADER * "\n" * old
+    startsempty = isempty(body)
+    body = startsempty ? MEMORY_HEADER : body
+    stamp = Dates.format(Dates.now(), "yyyy-mm-dd")
+    body = body * "\n- " * stamp * ": " * line
+    if length(body) > MEMORY_MAXCHARS   #轮转:标题行 + 保留最近一半
+        lines = split(body, "\n")
+        keep = max(2, length(lines) ÷ 2)
+        body = join(vcat([MEMORY_HEADER], lines[keep:end]), "\n")
+    end
+    mkpath(dirname(mf))
+    open(mf, "w") do io
+        write(io, body)
+    end
+    n = count(==('\n'), body) + 1
+    return "remembered (memory now $n lines, $(length(body)) chars): " * line
+end
+
+"关键词检索历史会话存档(markdown 导出,人可读):按修改时间新→旧扫至多 60 个文件,
+命中行原样返回(带所在文件与行号);本地 grep,不走网络预算"
+function ai_search_history(keyword::AbstractString)
+    k = lowercase(strip(String(keyword)))
+    k == "" && return "(empty keyword)"
+    root = aiconf().dir
+    isdir(root) || return "(no session archives yet)"
+    files = String[]                                    #walkdir 而非 readdir(recursive=):
+    for (_, _, fs) in walkdir(root)                     #1.12 的 readdir 不再接受 recursive kw
+        for f in fs
+            endswith(f, ".md") && push!(files, joinpath(root, f))
+        end
+    end
+    isempty(files) && return "(no session archives yet)"
+    sort!(files; by = f -> stat(f).mtime, rev = true)
+    files = first(files, 60)   #只扫最近 60 个会话,防历史膨胀后拖慢
+    out = String[]
+    tailpath(f) = joinpath(splitpath(f)[max(1, end - 2):end], "/")
+    for f in files
+        lines = try
+            readlines(f)
+        catch
+            continue   #OneDrive 云占位/被占用的文件跳过:单个不可读不能炸掉整个检索
+        end
+        for (i, line) in enumerate(lines)
+            occursin(k, lowercase(line)) || continue
+            push!(out, "[" * tailpath(f) * ":$i] " * first(strip(line), 200))
+            length(out) >= 40 && return join(out, "\n")
+        end
+    end
+    isempty(out) && return "no matches for \"$keyword\" in the last $(length(files)) archived sessions"
+    return join(out, "\n")
+end
+
 # ============ 仪器操作(Level 0/1 工具后端) ============
+
+"DAQ 运行中给模型的提示前缀(读类探测不硬拦,写类操作另有确认门)"
+daqwarn() = qc.SYNCSTATES[qc.IsDAQTaskRunning] ?
+            "WARN: a DAQ task is running on the I/O worker; this test interleaves with it.\n" : ""
+
+"_ex 通道结果 → 喂给模型的文本;ok=false 时附错误根因(旧行为是 String(nothing) 抛 MethodError,
+根因只进日志文件,模型永远看不到失败原因)"
+function _extest(res, what::AbstractString)
+    res isa Tuple || return "$what FAILED: I/O worker call failed or timed out (instrument connected?)"
+    ok, payload = res
+    ok || return "$what FAILED: " * payload
+    return payload
+end
+
+"数值验收:与数据管线同一解析规则(DAQTask.process_databufrc 的 tryparse(Float64),失败记 NaN)"
+function _numericverdict(payload::AbstractString)
+    v = tryparse(Float64, payload)
+    v === nothing &&
+        return "parseable-as-numeric: NO — the data pipeline would record NaN for this raw string; add parsing in the get function (strip prefixes/multi-values/units first)"
+    return "parseable-as-numeric: YES (parsed: $v)"
+end
 
 function ai_read_quantity(instrnm::AbstractString, addr::AbstractString, qtnm::AbstractString)
     qtc = haskey(qc.INSTRCONF, instrnm) && haskey(qc.INSTRCONF[instrnm].quantities, qtnm) ?
           qc.INSTRCONF[instrnm].quantities[qtnm] : nothing
     timeout = qtc === nothing ? 3.0f0 : qtc.timeoutr
-    return String(remote_qtread(instrnm, addr, qtnm, 4, timeout))
+    return daqwarn() * _extest(remote_qtread_ex(instrnm, addr, qtnm, 4, timeout), "read")
+end
+
+"端到端驱动验收:注册通道实测 get + 数据管线同规则解析判定"
+function ai_test_quantity(instrnm::AbstractString, addr::AbstractString, qtnm::AbstractString)
+    qtc = haskey(qc.INSTRCONF, instrnm) && haskey(qc.INSTRCONF[instrnm].quantities, qtnm) ?
+          qc.INSTRCONF[instrnm].quantities[qtnm] : nothing
+    timeout = qtc === nothing ? 3.0f0 : qtc.timeoutr
+    res = remote_qtread_ex(instrnm, addr, qtnm, 4, timeout)
+    res isa Tuple || return daqwarn() * "read FAILED: I/O worker call failed or timed out (instrument connected?)"
+    ok, raw = res
+    ok || return daqwarn() * "read FAILED: " * raw
+    return daqwarn() * "raw: \"$raw\"\n" * _numericverdict(raw)
+end
+
+"裸读(对应仪器窗口 Communication Test 的 Read 按钮;通常只在 write 之后有意义)"
+function ai_read_raw(instrnm::AbstractString, addr::AbstractString)
+    return daqwarn() * _extest(remote_read_ex(instrnm, addr, 4), "read")
+end
+
+"按名单测驱动 get 函数(量不必注册),附数值验收"
+function ai_test_driver_get(instrnm::AbstractString, addr::AbstractString, func::AbstractString)
+    res = remote_call_driver(instrnm, addr, String(func), "", :get, 4, 3.0f0, 5.0f0)
+    res isa Tuple || return daqwarn() * "call FAILED: I/O worker call failed or timed out (instrument connected?)"
+    ok, raw = res
+    ok || return daqwarn() * "call FAILED: " * raw
+    return daqwarn() * "raw: \"$raw\"\n" * _numericverdict(raw)
+end
+
+"按名单测驱动 set 函数(量不必注册)"
+function ai_test_driver_set(instrnm::AbstractString, addr::AbstractString, func::AbstractString, val)
+    res = remote_call_driver(instrnm, addr, String(func), val, :set, 4, 3.0f0, 3.0f0)
+    res isa Tuple || return "set FAILED: I/O worker call failed or timed out"
+    ok, payload = res
+    ok || return "set FAILED: " * payload
+    return "set written OK"
+end
+
+"单连接内顺序执行 write/query/read/sleep 序列,返回完整 transcript"
+function ai_driver_probe(instrnm::AbstractString, addr::AbstractString, steps::Vector{Tuple{String,String}})
+    total_sleep = 0.0
+    for (op, arg) in steps
+        op == "sleep" && (total_sleep += (tryparse(Float64, arg) === nothing ? 0.0 : parse(Float64, arg)))
+    end
+    outer = 20.0 + total_sleep   #attr 超时之外给 sleep 与连接建立留预算
+    res = remote_driver_probe(instrnm, addr, steps, 4, 3.0f0, 5.0f0, outer)
+    res isa Tuple || return "probe FAILED: I/O worker call failed or timed out"
+    ok, transcript = res
+    ok || return "probe FAILED (see transcript):\n" * transcript
+    return "transcript:\n" * transcript
+end
+
+"通信参数设置(Level 2 工具后端):走主模块 aisetcommattr! → saveattr 同通道(不绕过 CONF)"
+function ai_set_comm_attr(alias::AbstractString, key::AbstractString, value)
+    r = resolveaddr(alias)
+    r === nothing && return "unknown alias or address \"$alias\""
+    return qc.aisetcommattr!(r[2], key, value)
+end
+
+"开启 debug 会话:窗口期内对该地址免逐条确认(总开关 confirmwrites 优先级更高,仍生效)"
+function ai_enable_debug_session(alias::AbstractString, minutes::Real)
+    r = resolveaddr(alias)
+    r === nothing && return "unknown alias or address \"$alias\""
+    minutes = clamp(Float64(minutes), 1.0, 30.0)
+    aiconf().confirmwrites || return "confirmwrites is off in settings - no confirmation was happening anyway; session not needed"
+    ai_confirm("Enable Debug Session",
+        "$alias @ $(r[2]): skip per-call confirmation for write/query/set/probe tools for $minutes minutes.\nAll actions still appear in the tool transcript and the instrument window.") ||
+        return "user declined"
+    DEBUGSESSIONS[r[2]] = time() + minutes * 60
+    return "debug session enabled for \"$alias\" ($(r[2])) for $minutes minutes. Tools still log every action."
+end
+
+"镜像 AI 的命令/响应到仪器窗口 Communication Test 历史(窗口开着才写;仅观测用途)"
+function ai_mirrortolog(instrnm::AbstractString, addr::AbstractString, text::AbstractString)
+    qc.aiappendtestlog(instrnm, addr, text)
+    return
 end
 
 function ai_set_quantity(instrnm::AbstractString, addr::AbstractString, qtnm::AbstractString, sv)
@@ -226,13 +546,21 @@ function ai_set_quantity(instrnm::AbstractString, addr::AbstractString, qtnm::Ab
           qc.INSTRCONF[instrnm].quantities[qtnm] : nothing
     timeoutw = qtc === nothing ? 3.0f0 : qtc.timeoutw
     timeoutr = qtc === nothing ? 3.0f0 : qtc.timeoutr
-    return String(remote_qtset(instrnm, addr, qtnm, sv, 4, timeoutw, timeoutr; retreading=true))
+    #控制器 set 通道只收字符串(与扫描块 string(ijk) 同约定);MCP/AI 常给数字,
+    #裸传会 MethodError——边界处统一字符串化,unitless 量的字符串值原样保留
+    return _extest(remote_qtset_ex(instrnm, addr, qtnm, string(sv), 4, timeoutw, timeoutr), "set")
 end
 
-ai_write(instrnm::AbstractString, addr::AbstractString, cmd::AbstractString) =
-    String(remote_write(instrnm, addr, String(cmd), 4))
-ai_query(instrnm::AbstractString, addr::AbstractString, cmd::AbstractString) =
-    String(remote_query(instrnm, addr, String(cmd), 4))
+function ai_write(instrnm::AbstractString, addr::AbstractString, cmd::AbstractString)
+    res = remote_write_ex(instrnm, addr, String(cmd), 4)
+    res isa Tuple || return "write FAILED: I/O worker call failed or timed out"
+    res[1] || return "write FAILED: " * res[2]
+    return "written OK"
+end
+
+function ai_query(instrnm::AbstractString, addr::AbstractString, cmd::AbstractString)
+    return _extest(remote_query_ex(instrnm, addr, String(cmd), 4), "query")
+end
 
 ai_interrupt!() = (qc.SYNCSTATES[qc.IsInterrupted] = true; nothing)
 
@@ -250,7 +578,14 @@ function ai_validate_script(text::AbstractString)
         ex = Meta.parseall(String(text); filename="aiscript")
         qc.antiinterpretblocks(ex)
     catch e
-        return (false, nothing, sprint(showerror, e))
+        #strtoU 对未知单位经 @u_str 抛 Unitful ArgumentError,原始消息是
+        #"LoadError: ... Symbol ZZ could not be found in unit modules ..." 含绝对路径,
+        #模型难定位——翻译成一句可行动的提示,其余异常维持原文
+        msg = sprint(showerror, e)
+        m = match(r"Symbol (\S+) could not be found in unit modules", msg)
+        m !== nothing && return (false, nothing,
+            "unknown unit \"$(m[1])\" — use one of the registered unit strings for the quantity (the units{...} lists from list_instruments)")
+        return (false, nothing, msg)
     end
     aliases = Set(String(a) for (a, _, _) in ai_alias_table())
     problems = String[]
@@ -355,6 +690,21 @@ function ai_update_task(taskname::AbstractString, script::AbstractString, blocks
     return
 end
 
+"按 taskroot 叶子枚举序更新任务——ai_task_names() 是带序号的显示名,不能反查 t.name,
+预览确认窗的\"更新已有任务\"必须走索引(与 ai_task_names 的 enumerate 顺序严格一致)"
+function ai_update_task_byindex(idx::Int, script::AbstractString, blocks)
+    ai_ui_enqueue() do
+        leaves = qc.leafvalues(qc.taskroot())
+        1 <= idx <= length(leaves) || return
+        t = leaves[idx]
+        t.blocks = collect(qc.AbstractBlock, blocks)
+        t.editcodes = String(script)
+        t.textmode = false
+        t.showeditor = true
+    end
+    return
+end
+
 function ai_add_alias(alias::AbstractString, instrnm::AbstractString, addr::AbstractString)
     ai_ui_enqueue() do
         qc.INSTRALIASLIST[String(alias)] = qc.InstrAlias(alias=String(alias), instrnm=String(instrnm), addr=String(addr))
@@ -362,23 +712,88 @@ function ai_add_alias(alias::AbstractString, instrnm::AbstractString, addr::Abst
     return
 end
 
+"""
+    ai_save_project() -> String
+
+把当前打开的工程(含本会话 AI 创建的任务/绘图)落盘——内存里的任务树重启即失,
+AI 建完实验必须提醒或代为保存。返回失败列表(空 = 成功)。
+"""
+function ai_save_project()
+    ch = Channel{Vector{String}}(1)
+    ai_ui_enqueue() do
+        put!(ch, qc.savecurrentproject())
+    end
+    timedwait(() -> isready(ch), 10)   #等 UI 线程真正执行完(ai_ui_enqueue 是异步投递,Ref 回读有竞态)
+    isready(ch) || return "FAILED: project save timed out (UI busy)"
+    failures = take!(ch)
+    isempty(failures) && return "project saved (tasks, plots, aliases, circuit)."
+    return occursin("no project is open", first(failures)) ?
+           "FAILED: no project is open - ask the user to open or create one via the Project menu, then run save_project again" :
+           "FAILED: saving project had failures:\n" * join(failures, "\n")
+end
+
+"按名字删任务:两级树(顶层 + 一级分类)里搜叶子载荷名;删的是 AI 可见的那份内存态,
+落盘仍需 save_project"
+function ai_delete_task(taskname::AbstractString)
+    ch = Channel{Bool}(1)
+    ai_ui_enqueue() do
+        found = false
+        for container in (qc.taskroot(), qc.taskroot().children...)
+            container.isgroup || continue
+            i = findfirst(c -> !c.isgroup && c.value.name == String(taskname), container.children)
+            i === nothing && continue
+            deleteat!(container.children, i)
+            found = true
+            break
+        end
+        put!(ch, found)
+    end
+    timedwait(() -> isready(ch), 10)
+    (isready(ch) && take!(ch)) || return "FAILED: task \"$taskname\" not found (or UI too busy to confirm); call list_tasks for names"
+    return "task \"$taskname\" deleted (in memory; run save_project to persist the change)."
+end
+
+"按名字删绘图(与删任务同两级树约定)"
+function ai_delete_plot(plotname::AbstractString)
+    ch = Channel{Bool}(1)
+    ai_ui_enqueue() do
+        found = false
+        for container in (qc.DAQDATAPLOTS, qc.DAQDATAPLOTS.children...)
+            container.isgroup || continue
+            i = findfirst(c -> !c.isgroup && c.value.name == String(plotname), container.children)
+            i === nothing && continue
+            deleteat!(container.children, i)
+            found = true
+            break
+        end
+        put!(ch, found)
+    end
+    timedwait(() -> isready(ch), 10)
+    (isready(ch) && take!(ch)) || return "FAILED: plot \"$plotname\" not found (or UI too busy to confirm); call list_plots for names"
+    return "plot \"$plotname\" deleted (in memory; run save_project to persist the change)."
+end
+
 # ============ 绘图写入(Deepcopy 副本上先校验,再经 UI 队列落位) ============
 
 """
-    ai_validate_plotcfg(cfg) -> errmsg::String(空串=通过)
+    ai_validate_plotcfg(cfg) -> (errmsg, warnmsg)
 
-校验 AI 产出的绘图配置:列名必须在 DATABUF 键白名单内(或空)。
+校验 AI 产出的绘图配置。列键不在当前 DATABUF 白名单**不再硬拒**(任务尚未运行时引用未来
+数据键是合法工作流),降级为警告随确认窗展示;结构性错误(类型/形状)仍硬拒。
 """
-function ai_validate_plotcfg(cfg::Dict)
+function ai_validate_plotcfg(cfg::AbstractDict)
     whitelist = ai_data_keylist()
+    warns = String[]
     for (fld, key) in (("x", "x"), ("y", "y"), ("z", "z"), ("w", "w"))
         for s in get(cfg, "series", Any[])
+            s isa AbstractDict || return ("series entries must be objects", "")
             v = get(s, key, "")
-            (v isa AbstractString && (v == "" || v in whitelist)) ||
-                return "series $(key)-column \"$v\" is not a valid data key"
+            v isa AbstractString || return ("series $(key)-column must be a string", "")
+            (v == "" || v in whitelist) ||
+                push!(warns, "series $(key)-column \"$v\" is not a data key yet (reads NaN until a task writes it)")
         end
     end
-    return ""
+    return ("", join(unique(warns), "; "))
 end
 
 function applyplotcfg!(dtp, cfg::AbstractDict)
@@ -413,7 +828,7 @@ function applyplotcfg!(dtp, cfg::AbstractDict)
     return dtp
 end
 
-function ai_add_plot(name::AbstractString, cfg::Dict)
+function ai_add_plot(name::AbstractString, cfg::AbstractDict)
     ai_ui_enqueue() do
         dtp = qc.DataPlot(name=String(name))
         applyplotcfg!(dtp, cfg)
@@ -423,7 +838,7 @@ function ai_add_plot(name::AbstractString, cfg::Dict)
     return
 end
 
-function ai_update_plot(name::AbstractString, cfg::Dict)
+function ai_update_plot(name::AbstractString, cfg::AbstractDict)
     ai_ui_enqueue() do
         for p in qc.plotleaves(qc.DAQDATAPLOTS)
             p.name == String(name) || continue
@@ -559,60 +974,128 @@ striptags(html::AbstractString) = begin
     replace(t, r"\s+" => " ")
 end
 
+const _WEB_UA = ["User-Agent" => "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"]
+const _PREFERCURL = Ref(false)   #HTTP.jl 一旦失败,本进程后续网页抓取直接走 libcurl,不再白等超时
+
+"网页 HTML 抓取:HTTP.jl(MbedTLS)先试,任何失败(含本机网络下 TLS 握手挂起)退回
+Downloads(libcurl,走 schannel/openssl,实测可过同一网络)。两者都不跟随重定向
+(HTTP.jl redirect=false;Downloads/libcurl 默认即不跟随),SSRF 检查只做初始 host 即可。"
+function _fetchhtml(u::AbstractString, timeout::Real)
+    if !_PREFERCURL[]
+        try
+            resp = HTTP.get(u; headers = _WEB_UA, request_timeout = timeout, retry = false, redirect = false)
+            return String(resp.body)
+        catch
+            _PREFERCURL[] = true   #本进程记住:这台机器/这条网络走 libcurl
+        end
+    end
+    buf = IOBuffer()
+    Downloads.download(u, buf; timeout = Float64(timeout), headers = _WEB_UA)
+    return String(take!(buf))
+end
+
 function ai_web_search(query::AbstractString)
     aiconf().allowweb || return "web access is disabled in AI settings"
+    nb = netbudget!()
+    nb === nothing || return nb
     q = HTTP.escapeuri(String(query))
-    headers = ["User-Agent" => "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"]
-    # Bing(国内可达)优先,DuckDuckGo 兜底;都失败则提示
-    try
-        resp = HTTP.get("https://www.bing.com/search?q=$q&count=10"; headers, request_timeout=15, retry=false)
-        html = String(resp.body)
-        results = String[]
-        for m in eachmatch(r"<h2><a[^>]*href=\"(http[^\"]+)\"[^>]*>(.*?)</a>"s, html)
-            push!(results, string(striptags(m.captures[2]), "\n  ", m.captures[1]))
+    # Bing(国内可达)优先,DuckDuckGo 兜底;都失败则提示。
+    # Bing 对无 cookie 客户端非确定性地软屏蔽(偶发返回首页/热榜页而非结果页),重试一次常能拿到真结果页
+    results = String[]
+    #锚定 <li class="b_algo" 结果块:垃圾页上仍有零散 <h2> 链接,全页匹配会把热榜链接当结果
+    bingparse(html) = begin
+        out = String[]
+        for m in eachmatch(r"<li class=\"b_algo\".*?<h2[^>]*><a[^>]*href=\"(http[^\"]+)\"[^>]*>(.*?)</a>"s, html)
+            push!(out, string(striptags(m.captures[2]), "\n  ", m.captures[1]))
         end
-        isempty(results) || return join(first(results, 8), "\n")
-    catch
+        return out
     end
-    try
-        resp = HTTP.get("https://html.duckduckgo.com/html/?q=$q"; headers, request_timeout=15, retry=false)
-        html = String(resp.body)
-        results = String[]
-        for m in eachmatch(r"class=\"result__a\"[^>]*href=\"([^\"]+)\"[^>]*>(.*?)</a>"s, html)
-            href = String(m.captures[1])
-            uddg = match(r"uddg=([^&]+)", href)
-            uddg === nothing || (href = HTTP.URIs.unescapeuri(String(uddg.captures[1])))
-            push!(results, string(striptags(m.captures[2]), "\n  ", href))
+    for _ in 1:2
+        html = try
+            _fetchhtml("https://www.bing.com/search?q=$q&count=10", 8)
+        catch
+            ""
         end
-        isempty(results) || return join(first(results, 8), "\n")
-    catch
+        results = bingparse(html)
+        isempty(results) || break
     end
+    isempty(results) || return join(first(results, 8), "\n")
+    html = try
+        _fetchhtml("https://html.duckduckgo.com/html/?q=$q", 8)
+    catch
+        ""
+    end
+    for m in eachmatch(r"class=\"result__a\"[^>]*href=\"([^\"]+)\"[^>]*>(.*?)</a>"s, html)
+        href = String(m.captures[1])
+        uddg = match(r"uddg=([^&]+)", href)
+        uddg === nothing || (href = HTTP.URIs.unescapeuri(String(uddg.captures[1])))
+        push!(results, string(striptags(m.captures[2]), "\n  ", href))
+    end
+    isempty(results) || return join(first(results, 8), "\n")
     return "web search failed (network unreachable or engines blocked); try fetch_url with a direct documentation URL"
 end
 
+#IPv4 私网/环回/链路本地判定(Julia 1.12 的 Sockets 未提供 isprivate/isloopback,手写全量清单;
+#addr 为 host 序 UInt32,"前缀长度 = 32 - 移位数")
+function isprivatev4(v::UInt32)
+    return (v >> 24) == 0x0a ||      #10.0.0.0/8 私网
+           (v >> 20) == 0xac1 ||     #172.16.0.0/12 私网
+           (v >> 16) == 0xc0a8 ||    #192.168.0.0/16 私网
+           (v >> 24) == 0x7f ||      #127.0.0.0/8 环回
+           (v >> 16) == 0xa9fe ||    #169.254.0.0/16 链路本地
+           (v >> 22) == 0x191 ||     #100.64.0.0/10 CGNAT
+           v == 0x00000000           #0.0.0.0 未指定
+end
+
+#Julia 1.12 把 IPv4/IPv6 的字段从 addr 改名为 host(compat 声明 1.10):两型都是单字段结构,按位置取
+ipvalue(ip::IPv4) = getfield(ip, fieldnames(IPv4)[1])::UInt32
+ipvalue(ip::IPv6) = UInt128(getfield(ip, fieldnames(IPv6)[1])::UInt128)
+
+"IPv6:未指定/环回/ULA/链路本地;::ffff:0:0/96 映射与弃用的 ::/96 兼容形式取低 32 位按 IPv4 复判"
+function isprivateaddr(ip::IPAddr)
+    ip isa IPv4 && return isprivatev4(ipvalue(ip))
+    ip isa IPv6 || return true   #未知地址类型按拒绝处理
+    a = ipvalue(ip)
+    a == UInt128(0) && return true   #:: 未指定
+    a == UInt128(1) && return true   #::1 环回
+    (a >> 32) == 0xffff && return isprivatev4(UInt32(a & 0xffffffff))                         #::ffff:a.b.c.d 映射
+    (a >> 96) == 0x0000 && (a & 0xffffffff00000000) == 0 &&                                   #::a.b.c.d 兼容形式
+        return isprivatev4(UInt32(a & 0xffffffff))
+    ((a >> 120) == 0xfc || (a >> 120) == 0xfd) && return true   #fc00::/7 ULA
+    (a >> 118) == 0x3fa && return true                          #fe80::/10 链路本地
+    return false
+end
+
 "SSRF 防护:fetch_url 是免确认工具,内网/环回地址一律拒绝——否则模型可借它探打本机
-无鉴权服务(WebDashboard/QIC server 等)并把响应带回会话"
+无鉴权服务(WebDashboard/QIC server 等)并把响应带回会话。
+IPAddr 是抽象类型,字面量必须 parse;域名解析出多个地址时逐个检查(首地址公网、次地址内网的双解析是经典绕过)"
 function isprivatenethost(host::AbstractString)
     h = String(host)
     isempty(h) && return true
-    ip = try
-        IPAddr(h)
+    ips = try
+        [parse(IPAddr, h)]       #裸 IP 字面量不经 DNS
     catch
         try
-            getalladdrinfo(h)[1] #域名:解析首地址(DNS rebinding 的 TOCTOU 窗口在此威胁模型下可接受)
+            getalladdrinfo(h)    #域名:解析结果本身就是 Vector{IPAddr}
         catch
-            return true #解析失败按拒绝处理
+            IPAddr[]             #解析失败按拒绝处理
         end
     end
-    return isprivate(ip) || isloopback(ip) ||
-           (ip isa IPv4 && (ip.addr & 0xffff0000 == 0xa9fe0000 || ip.addr == 0x00000000)) || #169.254.0.0/16 链路本地与 0.0.0.0;ip"..." 不支持 CIDR 后缀,用位掩码
-           (ip isa IPv6 && ip.addr >> 118 == 0x3fa) #fe80::/10 链路本地
+    isempty(ips) && return true
+    return any(isprivateaddr, ips) #任一解析结果落内网即拒绝(DNS rebinding 的 TOCTOU 窗口在此威胁模型下可接受)
 end
 
 function ai_fetch_url(url::AbstractString)
     aiconf().allowweb || return "web access is disabled in AI settings"
+    nb = netbudget!()
+    nb === nothing || return nb
     u = String(url)
     startswith(u, "http") || (u = "https://" * u)
+    #URL 去重:同一 URL 本轮只抓一次——反复抓相同页面是模型检索死循环的典型形态
+    norm = lowercase(strip(u, ['/', ' ']))
+    norm in FETCHEDURLS &&
+        return "you already fetched this URL earlier in this conversation - do NOT fetch it again; use the information you already have, try a DIFFERENT page, or ask the user"
+    push!(FETCHEDURLS, norm)
     host = try
         HTTP.URIs.URI(u).host
     catch
@@ -620,14 +1103,30 @@ function ai_fetch_url(url::AbstractString)
     end
     isprivatenethost(host) &&
         return "fetching private/loopback addresses is not allowed (SSRF protection)"
+    if !_PREFERCURL[]
+        try
+            #redirect=false:禁止跟随重定向——SSRF 检查只做在初始 host 上,302 跳内网是经典绕过
+            resp = HTTP.get(u; request_timeout=20, retry=false, redirect=false, headers=_WEB_UA)
+            300 <= resp.status < 400 &&
+                return "request was redirected to $(get(Dict(resp.headers), "Location", "?")) (redirects are not followed)"
+            ctype = lowercase(get(Dict(resp.headers), "Content-Type", ""))
+            occursin("pdf", ctype) &&
+                return "the page is a binary PDF which cannot be parsed; search for an HTML version or the vendor's SCPI command reference page"
+            return first(striptags(String(resp.body)), 20000)
+        catch
+            _PREFERCURL[] = true   #本进程记住:后续直接走 libcurl
+        end
+    end
+    #Downloads(libcurl)通道:无响应头,PDF 用魔数判;libcurl 默认不跟随重定向,与上面同策略
     try
-        resp = HTTP.get(u; request_timeout=20, retry=false, headers=["User-Agent" => "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"])
-        ctype = lowercase(get(Dict(resp.headers), "Content-Type", ""))
-        occursin("pdf", ctype) &&
+        buf = IOBuffer()
+        Downloads.download(u, buf; timeout = 20.0, headers = _WEB_UA)
+        text = String(take!(buf))
+        startswith(text, "%PDF") &&
             return "the page is a binary PDF which cannot be parsed; search for an HTML version or the vendor's SCPI command reference page"
-        return first(striptags(String(resp.body)), 20000)
-    catch e
-        return "fetch failed: " * first(sprint(showerror, e), 200)
+        return first(striptags(text), 20000)
+    catch e2
+        return "FAILED: fetch failed: " * first(sprint(showerror, e2), 200)
     end
 end
 
@@ -789,10 +1288,57 @@ function ai_read_asset(rel::AbstractString)
     ext in ASSET_TEXT_EXTS ||
         return "only text files can be read (allowed: $(join(ASSET_TEXT_EXTS, ", "))); images/fonts/binaries are not"
     text = read(p, String)
-    #ai.toml 含明文 API key:本工具免确认(Level 0),内容会回喂模型并写进会话存档,
-    #模型可经 fetch_url 把内容带出——key 值一律屏蔽,模型只需要看到供应商/模型等结构
-    normpath(p) == normpath(aiconfpath()) &&
-        (text = replace(text, r"^apikey\s*=\s*\"[^\"]*\"\s*$"m => "apikey = \"***redacted***\""))
+    #内容级脱敏:任何文件里的 apikey 行一律打码(模型只需要看到供应商/模型等结构;内容会回喂
+    #模型并写进会话存档,模型可经 fetch_url 把内容带出)。旧实现按路径匹配 ai.toml,
+    #Windows 大小写不敏感的路径变体可绕过——不再依赖路径判断。
+    #正则覆盖 apikey/api_key/APIKEY 等大小写与下划线变体、单双引号值及行尾注释;
+    #旧正则只认精确的 apikey = "..." 形式,变体写法会漏脱敏
+    occursin("apikey", lowercase(text)) &&
+        (text = replace(text, r"(?im)^(\s*)api_?key[_a-z0-9]*\s*=\s*[^#\r\n]*" => s"\1apikey = \"***redacted***\""))
     length(text) > 20000 && (text = first(text, 20000) * "\n...[truncated at 20k chars]")
     return text
+end
+
+"从供应商 /models 端点拉取模型列表(OpenAI 协议 data[].id;Anthropic 协议同构)。
+返回换行分隔的模型 id 列表;失败返回错误文本。
+精确按名查找(getprovider 对未知名字会回退到第一个供应商,拉取动作绝不能打错目标)"
+function ai_fetch_models(name::AbstractString)
+    i = findfirst(p -> p.name == String(name), aiconf().providers)
+    i === nothing && return "unknown provider \"$name\""
+    p = aiconf().providers[i]
+    url = rstrip(p.baseurl, '/') * "/models"
+    headers = String(p.apitype) == "anthropic" ?
+              ["x-api-key" => resolvekey(p), "anthropic-version" => "2023-06-01"] :
+              ["Authorization" => "Bearer $(resolvekey(p))"]
+    try
+        resp = HTTP.get(url; headers, request_timeout = 15, retry = false, redirect = false)
+        obj = JSON.parse(String(resp.body))
+        data = get(obj, "data", nothing)
+        data isa AbstractVector || return "unexpected response (no data array): " * first(String(resp.body), 120)
+        ids = filter!(!isempty, String[isa(m, AbstractDict) ? String(get(m, "id", "")) : "" for m in data])
+        sort!(ids)
+        unique!(ids)
+        isempty(ids) && return "provider returned no models"
+        return join(ids, "\n")
+    catch e
+        return "fetch failed: " * first(sprint(showerror, e), 160)
+    end
+end
+
+# ============ 网络工具防死循环:会话级计数上限 + URL 去重 ============
+# 提示词只能"劝"模型别反复抓取;这里硬性拦——模型陷入检索循环时每轮都是真实网络开销,
+# 上限在 sendchat! 开始时重置(每轮对话一个预算)。
+
+const MAXNETCALLS = 12
+const NETCALLS = Ref(0)              #本轮对话网络工具调用计数
+const FETCHEDURLS = Set{String}()    #本轮已抓取过的 URL
+
+resetnetbudget!() = (NETCALLS[] = 0; empty!(FETCHEDURLS); nothing)
+
+"网络工具(web_search/fetch_url)入口:超预算直接拒绝,不再发真实请求"
+function netbudget!()
+    NETCALLS[] += 1
+    NETCALLS[] > MAXNETCALLS &&
+        return "web access budget for this conversation is exhausted ($MAXNETCALLS calls) - STOP calling web tools; continue with the information you already have or tell the user what extra documentation you need"
+    return nothing
 end

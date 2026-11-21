@@ -10,10 +10,12 @@
 module QInsControlAI
 
 import HTTP
+import Downloads   #web 工具的 libcurl 备用通道(HTTP.jl/MbedTLS 在部分网络下 TLS 握手会挂起)
 import JSON
 import Dates
 import UUIDs
 import TOML
+import Base64
 import Configurations
 using Dates: now
 
@@ -43,6 +45,6 @@ include("ScriptGen.jl")       # 脚本/绘图配置提取、校验、摘要
 include("Tools.jl")           # Agent 工具注册表 + 聊天执行链路
 # AIAssistant 窗口(前端视图)在 src/Frontend/Windows/AIAssistant.jl
 
-initialize_ai!() = loadconf_ai!()
+initialize_ai!() = (loadconf_ai!(); loadarchives!())
 
 end # module QInsControlAI
