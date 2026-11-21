@@ -504,6 +504,7 @@ function saveqdt()
     savetype = eval(Symbol(CONF.DAQ.savetype))
     datalen = 0
     jldopen(SAVEPATH, "w") do file
+        file["formatversion"] = QDTFMTVERSION
         lock(DATABUF) do DATABUF
             datalen = sum(length(data) for data in values(DATABUF); init=0) #持锁统计,避免锁外遍历
             if savetype == String

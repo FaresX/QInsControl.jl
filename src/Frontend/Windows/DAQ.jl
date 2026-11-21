@@ -18,6 +18,28 @@ let
     global taskroot() = daqtasks #任务树访问器（AI 子模块等外部组件的唯一入口，见 src/AI/Bridge.jl）
 
     projpath::String = ""
+    pendingsavepath::String = "" #"保存到非工程目录"确认弹窗暂存的路径
+    pendingsavenew::Bool = false #确认后是否继续执行 New Project 的清空
+    pendingsaveopen::Bool = false #确认弹窗已打开标记(用于识别 ESC 关闭,防下一帧无限重开)
+
+    global function _resetprojectstate()
+        empty!(daqtasks.children)
+        running_i = 0
+        CIRCUIT = NodeEditor()
+        empty!(DAQDATAPLOTS.children)
+    end
+
+    #落盘并更新 projpath;失败逐条入 toast,内存态不动;成功也提示,让"是否落盘"一目了然
+    global function _dosaveproject(dir)
+        failures = save_project_folder(dir, daqtasks, DAQDATAPLOTS, CIRCUIT, INSTRALIASLIST)
+        if isempty(failures)
+            projpath = dir
+            toast(:success, mlstr("project saved"), dir)
+        else
+            toast(:error, mlstr("saving project failed!!!"), join(failures, "\n"))
+        end
+        return failures
+    end
 
     global function closedaqwindows()
         for task in leafvalues(daqtasks)
@@ -89,7 +111,7 @@ let
         igBeginDisabled(SYNCSTATES[IsDAQTaskRunning])
         CImGui.Button(
             stcstr(MORESTYLE.Icons.Load, "##Load Project"), (btwidth, btheight)
-        ) && loadproject(pick_file(filterlist="daq;qdt"))
+        ) && loadproject(pick_folder())
         igEndDisabled()
         CImGui.Button(
             stcstr(MORESTYLE.Icons.SaveButton, "##Save Project"),
@@ -481,20 +503,60 @@ let
             end
             CImGui.Separator()
             if CImGui.MenuItem(stcstr(MORESTYLE.Icons.NewFile, " ", mlstr("New Project")))
-                saveproject()
-                empty!(daqtasks.children)
-                running_i = 0
-                CIRCUIT = NodeEditor()
-                empty!(DAQDATAPLOTS.children)
+                #先落盘当前内容到新目录再清空(沿用旧"另存后重建"语义);取消选择则不动内存态
+                newprojdir = pick_folder()
+                if newprojdir != "" && isdir(newprojdir)
+                    newprojdir = abspath(newprojdir)
+                    if classify_project_dir(newprojdir) == :foreign
+                        pendingsavepath = newprojdir
+                        pendingsavenew = true
+                    else
+                        _dosaveproject(newprojdir)
+                        _resetprojectstate()
+                    end
+                end
             end
             CImGui.MenuItem(stcstr(MORESTYLE.Icons.SaveButton, " ", mlstr("Save Project"))) && saveproject()
             CImGui.MenuItem(
                 stcstr(MORESTYLE.Icons.Load, " ", mlstr("Load Project")), C_NULL, false, !SYNCSTATES[IsDAQTaskRunning]
-            ) && loadproject(pick_file(filterlist="daq;qdt"))
+            ) && loadproject(pick_folder())
             CImGui.EndPopup()
         end
         if !CImGui.IsAnyItemHovered() && CImGui.IsWindowHovered(CImGui.ImGuiHoveredFlags_ChildWindows)
             CImGui.IsMouseClicked(1) && CImGui.OpenPopup("add task")
+        end
+        #"保存到非空且非工程的目录"确认弹窗(防误把任意目录初始化为工程)
+        #OpenPopup 统一在此帧作用域触发:saveproject/New Project 可能从工具栏子窗口置标志,
+        #ImGui 的 popup 栈按窗口隔离,跨窗口 Open 的弹窗这里收不到
+        if pendingsavepath != "" && !CImGui.IsPopupOpen("##Save Project Confirm", CImGui.ImGuiPopupFlags_None)
+            if pendingsaveopen #弹窗曾被 ESC 等方式关闭:按取消处理,避免下一帧无限重开
+                pendingsavepath = ""
+                pendingsavenew = false
+                pendingsaveopen = false
+            else
+                CImGui.OpenPopup("##Save Project Confirm")
+                pendingsaveopen = true
+            end
+        end
+        if CImGui.BeginPopupModal("##Save Project Confirm", C_NULL, CImGui.ImGuiWindowFlags_AlwaysAutoResize)
+            CImGui.PushStyleColor(CImGui.ImGuiCol_Text, MORESTYLE.Colors.WarnText)
+            CImGui.TextWrapped(mlstr("Target folder is not empty and is not a project folder."))
+            CImGui.TextWrapped(mlstr("Initialize it as a project folder?"))
+            CImGui.PopStyleColor()
+            CImGui.TextDisabled(pendingsavepath)
+            CImGui.Separator()
+            if CImGui.Button(mlstr("Confirm"), (4ftsz, Cfloat(0)))
+                CImGui.CloseCurrentPopup()
+                failures = _dosaveproject(pendingsavepath)
+                pendingsavenew && isempty(failures) && _resetprojectstate()
+                pendingsavepath = ""
+                pendingsavenew = false
+                pendingsaveopen = false
+            end
+            CImGui.SameLine(0, 4ftsz)
+            CImGui.Button(mlstr("Cancel"), (4ftsz, Cfloat(0))) &&
+                (CImGui.CloseCurrentPopup(); pendingsavepath = ""; pendingsavenew = false; pendingsaveopen = false)
+            CImGui.EndPopup()
         end
         show_editinstraliaslist && @c editinstraliaslist(&show_editinstraliaslist)
         ### show daq datapickers ###
@@ -531,68 +593,73 @@ let
         end
     end
 
+    #"保存当前打开的工程"访问器(AI 子模块等无 GUI 上下文的调用方):返回失败列表,
+    #无打开工程时返回 ["no project open"]——与交互路径区分,调用方能拿到可判别的结果
+    global function savecurrentproject()
+        projpath == "" && return ["no project is open - open or create one via the Project menu first"]
+        return _dosaveproject(projpath)
+    end
+
     global function saveproject(daqsvpath="")
-        begin
-            daqsvpath == "" && (daqsvpath = save_file(filterlist="daq"))
-            if daqsvpath != ""
-                projpath = daqsvpath
-                jldsave(daqsvpath;
-                    daqtasks=daqtasks,
-                    circuit=CIRCUIT,
-                    instraliaslist=deepcopy(INSTRALIASLIST),
-                    DAQDATAPLOTS=deepcopy(DAQDATAPLOTS)
-                )
-            end
+        interactive = daqsvpath == ""
+        if interactive
+            daqsvpath = pick_folder()
+            (daqsvpath == "" || !isdir(daqsvpath)) && return
         end
+        daqsvpath = abspath(daqsvpath)
+        if classify_project_dir(daqsvpath) == :foreign
+            #非空且不是工程:交互路径只置标志,弹窗统一在 DAQtasks 帧里打开(OpenPopup 与
+            #BeginPopupModal 必须同窗口作用域,工具栏子窗口里 Open 的弹窗主帧收不到)
+            if interactive
+                pendingsavepath = daqsvpath
+                pendingsavenew = false
+            else
+                @error "[$(now())]\n$(mlstr("not a project folder!!!"))" filepath = daqsvpath
+                toast(:error, mlstr("not a project folder!!!"), daqsvpath)
+            end
+            return
+        end
+        _dosaveproject(daqsvpath)
     end
 
     global function loadproject(daqloadpath)
+        (daqloadpath isa AbstractString && daqloadpath != "") || return
         if isfile(daqloadpath)
-            loaddaqproj = @trypasse load(daqloadpath) begin
-                @error "[$(now())]\n$(mlstr("unsupported file!!!"))" filepath = daqloadpath
-                toast(:error, mlstr("unsupported file!!!"), daqloadpath)
-            end
-            if !isnothing(loaddaqproj)
-                projpath = daqloadpath
-                if haskey(loaddaqproj, "daqtasks")
-                    empty!(daqtasks.children)
-                    running_i = 0
-                    loadedtasks = loaddaqproj["daqtasks"]
-                    if loadedtasks isa Tree{DAQTask}
-                        append!(daqtasks.children, loadedtasks.children) #新版树形工程
-                    elseif loadedtasks isa DAQTaskNode
-                        append!(daqtasks.children, Tree{DAQTask}.(loadedtasks.children)) #旧版树形工程自动迁移
-                    else
-                        append!(daqtasks.children, Tree{DAQTask}.(loadedtasks)) #旧版平铺工程自动迁移
-                    end
-                end
-                if haskey(loaddaqproj, "circuit")
-                    CIRCUIT = loaddaqproj["circuit"]
-                    for (_, node) in CIRCUIT.nodes
-                        if node isa SampleHolderNode
-                            @trycatch mlstr("loading image failed!!!") begin
-                                img = RGBA.(jpeg_decode(node.imgr.image))
-                                imgsize = size(img)
-                                tex_ref = CImGui.create_image_texture(imgsize...)
-                                node.imgr.id = tex_ref._TexID
-                                CImGui.update_image_texture(tex_ref, img, imgsize...)
-                            end
-                        end
-                    end
-                end
-                haskey(loaddaqproj, "instraliaslist") && (INSTRALIASLIST = loaddaqproj["instraliaslist"])
-                if haskey(loaddaqproj, "DAQDATAPLOTS")
-                    empty!(DAQDATAPLOTS.children)
-                    loadedplots = loaddaqproj["DAQDATAPLOTS"]
-                    if loadedplots isa Tree{DataPlot}
-                        append!(DAQDATAPLOTS.children, loadedplots.children) #新版树形工程
-                    elseif loadedplots isa DAQPlotNode
-                        append!(DAQDATAPLOTS.children, Tree{DataPlot}.(loadedplots.children)) #旧版树形工程自动迁移
-                    else
-                        append!(DAQDATAPLOTS.children, Tree{DataPlot}.(loadedplots)) #旧版平铺工程自动迁移
+            #旧单文件工程不再在此读取:用 scripts/import_legacy_project.jl 一次性转换(兼容逻辑外置)
+            @error "[$(now())]\n$(mlstr("unsupported file!!!"))" filepath = daqloadpath
+            toast(:error, mlstr("unsupported file!!!"), daqloadpath)
+            return
+        end
+        result = load_project_folder(daqloadpath)
+        result.reason == :notdir && return
+        if !result.ok
+            toast(:error, mlstr("not a project folder!!!"), daqloadpath)
+            return
+        end
+        isempty(result.warnings) ||
+            toast(:warn, mlstr("loading project warning"), join(result.warnings, "\n"))
+        isempty(result.failures) ||
+            toast(:error, mlstr("loading components failed!!!"), join(result.failures, "\n"))
+        projpath = daqloadpath
+        empty!(daqtasks.children)
+        append!(daqtasks.children, result.tasks.children)
+        running_i = 0
+        if result.circuit !== nothing
+            CIRCUIT = result.circuit
+            for (_, node) in CIRCUIT.nodes
+                if node isa SampleHolderNode
+                    @trycatch mlstr("loading image failed!!!") begin
+                        img = RGBA.(jpeg_decode(node.imgr.image))
+                        imgsize = size(img)
+                        tex_ref = CImGui.create_image_texture(imgsize...)
+                        node.imgr.id = tex_ref._TexID
+                        CImGui.update_image_texture(tex_ref, img, imgsize...)
                     end
                 end
             end
         end
+        result.aliases !== nothing && (INSTRALIASLIST = result.aliases)
+        empty!(DAQDATAPLOTS.children)
+        append!(DAQDATAPLOTS.children, result.plots.children)
     end
 end #let

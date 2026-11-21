@@ -1,0 +1,21 @@
+formatversion = 2
+
+[[plots.items]]
+order = ["R - I.plot"]
+group = "Single Line"
+dir = "Single Line"
+[[plots.items]]
+order = ["R - I - B.plot"]
+group = "2D Map"
+dir = "2D Map"
+
+[[tasks.items]]
+order = ["Sinlgle Line with Sweep.task", "Error Sinlgle Line with Set.task", "Control.task"]
+group = "Single Line"
+dir = "Single Line"
+[[tasks.items]]
+order = ["2D Plot with Sweep.task"]
+group = "2D Map"
+dir = "2D Map"
+[[tasks.items]]
+file = "All Blocks.task"

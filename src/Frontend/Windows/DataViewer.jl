@@ -170,11 +170,13 @@ let
                 CImGui.EndTabItem()
             end
             if igTabItemButton(stcstr(MORESTYLE.Icons.SaveButton, " ", mlstr("Save")), 0)
-                if isfile(path)
-                    saveqdt(dtviewer, path)
-                else
-                    savepath = save_file(; filterlist="qdt")
-                    savepath == "" || saveqdt(dtviewer, savepath)
+                @trycatch mlstr("error saving data!!!") begin #保存失败不能打断渲染帧,否则 ImGui Begin/End 栈失衡
+                    if isfile(path)
+                        saveqdt(dtviewer, path)
+                    else
+                        savepath = save_file(; filterlist="qdt")
+                        savepath == "" || saveqdt(dtviewer, savepath)
+                    end
                 end
             end
             CImGui.SameLine()
@@ -267,8 +269,10 @@ rmplots!(dtv::DataViewer) = rmplots!(dtv.dtps)
 function saveqdt(dtviewer::DataViewer, path)
     if !isempty(dtviewer.data)
         jldopen(path, "w") do file
+            file["formatversion"] = QDTFMTVERSION
             for key in keys(dtviewer.data)
                 key == "info" && continue
+                key == "formatversion" && continue #加载时整表读入的版本号,开头已统一写入,重复写会抛 already present
                 key == "daqdataplots" && (file[key] = deepcopy(dtviewer.dtps); continue)
                 if key == "data"
                     savetype = eval(Symbol(CONF.DAQ.savetype))

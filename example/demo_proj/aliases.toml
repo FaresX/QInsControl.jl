@@ -1,0 +1,7 @@
+formatversion = 2
+
+[[alias]]
+name = "Virtual"
+instrnm = "VirtualInstr"
+addr = "VIRTUAL::ADDRESS"
+alias = "Virtual"
